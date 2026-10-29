@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
 import { CheckCircle2, Inbox, LayoutGrid, Medal, Pencil, PlusCircle, Puzzle as PuzzleIcon } from "lucide-react";
 import type {
   LivePuzzleLeaderboardEntry,
@@ -43,6 +42,7 @@ import { PuzzleAssignModal } from "./PuzzleAssignModal";
 import { PuzzleLiveBoardsPanel } from "./PuzzleLiveBoardsPanel";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { Switch } from "@/components/ui/Switch";
+import { useDemoGuestToken, useMemberClassId } from "../../providers/LiveRoomContext";
 
 /** Coach-only: manual +/- points for one student on the puzzle board. */
 function AdjustPointsPopover({
@@ -86,7 +86,7 @@ function AdjustPopover({
           <button
             type="button"
             aria-label={label}
-            className="grid size-7 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-muted transition-colors hover:bg-primary hover:text-white"
+            className="grid size-7 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-muted transition-colors hover:bg-primary hover:text-on-primary"
           >
             <PlusCircle className="size-3.5" strokeWidth={2.5} />
           </button>
@@ -192,7 +192,7 @@ function selfCellClass(isSelf: boolean) {
 
 function YouTag() {
   return (
-    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-bold uppercase leading-4 text-white">
+    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-bold uppercase leading-4 text-on-primary">
       You
     </span>
   );
@@ -650,10 +650,11 @@ function studentLeaderboardNote(data: LivePuzzleLeaderboardResponse): string | n
 }
 
 export function MeetingPuzzlePanel() {
-  const params = useParams();
-  const classId = (params?.roomId as string) ?? "";
+  const classId = useMemberClassId();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+  // A demo guest practises unscored, so there are no standings to show it.
+  const guest = !!useDemoGuestToken();
 
   const { activePuzzle, setPuzzleBoardsOpen, setPuzzleSolverOpen } = useLiveClassState(
     "activePuzzle",
@@ -691,7 +692,13 @@ export function MeetingPuzzlePanel() {
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
-      {activePuzzle || lastResults ? (
+      {guest && activePuzzle ? (
+        <p className="rounded-control border border-app-border bg-app-surface p-3 text-xs text-app-muted">
+          You&apos;re practising as a guest — the leaderboard is for the academy&apos;s enrolled students.
+        </p>
+      ) : null}
+
+      {!guest && (activePuzzle || lastResults) ? (
         <div role="tablist" aria-label="Leaderboard" className="flex rounded-full border border-app-border bg-app-surface p-0.5">
           {(
             [
@@ -707,7 +714,7 @@ export function MeetingPuzzlePanel() {
               onClick={() => setBoardView(id)}
               className={cn(
                 "flex h-7 flex-1 items-center justify-center rounded-full text-xs font-semibold transition-colors",
-                boardView === id ? "bg-primary text-white" : "text-app-muted hover:text-app-text"
+                boardView === id ? "bg-primary text-on-primary" : "text-app-muted hover:text-app-text"
               )}
             >
               {label}
@@ -716,11 +723,11 @@ export function MeetingPuzzlePanel() {
         </div>
       ) : null}
 
-      {(activePuzzle || lastResults) && boardView === "class" ? (
+      {!guest && (activePuzzle || lastResults) && boardView === "class" ? (
         <ClassLeaderboardSection classId={classId} isCoach={isCoach} />
       ) : null}
 
-      {(activePuzzle || lastResults) && boardView === "puzzle" ? (
+      {!guest && (activePuzzle || lastResults) && boardView === "puzzle" ? (
         <div>
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-app-muted">
             {activePuzzle ? "Leaderboard" : `Last puzzle — ${lastResults?.title ?? ""}`}

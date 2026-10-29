@@ -210,13 +210,13 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
         </CoachRunsThis>
       )}
 
-      <div className="rounded-app bg-primary p-4 text-white">
+      <div className="rounded-app bg-primary p-4 text-on-primary">
         <p className="flex items-center gap-2 text-lg font-extrabold">
           <Trophy aria-hidden="true" className="size-5" strokeWidth={2.5} />
           {state.title}
         </p>
         {state.moments.length === 0 ? (
-          <p className="mt-2 text-sm text-white/80">
+          <p className="mt-2 text-sm text-on-primary/80">
             No moments yet — great play earns a spot here.
           </p>
         ) : (
@@ -298,7 +298,7 @@ function renderWall(state: WallOfMomentsState): HTMLCanvasElement {
   ctx.fillStyle = c.secondary;
   ctx.fillRect(0, 0, W, 14);
 
-  ctx.fillStyle = "white";
+  ctx.fillStyle = c.onPrimary;
   ctx.font = bodyFont(800, 72);
   ctx.textBaseline = "top";
   ctx.fillText(`🏆 ${state.title}`, pad, 70);
@@ -342,7 +342,7 @@ function renderWall(state: WallOfMomentsState): HTMLCanvasElement {
     }
   });
 
-  ctx.fillStyle = "white";
+  ctx.fillStyle = c.onPrimary;
   ctx.globalAlpha = 0.7;
   ctx.font = bodyFont(600, 24);
   ctx.fillText("NexaGen · Nexa Chess Academy", pad, H - 64);

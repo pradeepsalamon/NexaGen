@@ -237,7 +237,7 @@ export function ScheduleBuilderClient() {
                         className={cn(
                           "rounded-[6px] px-2 py-0.5 text-[11px] font-bold transition",
                           endMode === mode
-                            ? "bg-primary text-white"
+                            ? "bg-primary text-on-primary"
                             : "text-app-muted hover:text-app-text"
                         )}
                       >

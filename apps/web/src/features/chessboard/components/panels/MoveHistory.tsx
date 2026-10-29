@@ -9,7 +9,22 @@ import { MoveTreeView } from "./MoveTreeView";
  * or delete a variation, or comment on a move — a promotion never happens by
  * just playing or selecting a move.
  */
-export function MoveHistory() {
+export function MoveHistory({
+  layout,
+  evaluations,
+  embedded = false,
+}: {
+  /** See `MoveTreeView`: `rows` lists one move pair per row. */
+  layout?: "flow" | "rows";
+  /** Formatted evaluations by FEN, shown beside each move (rows layout). */
+  evaluations?: Readonly<Record<string, string>>;
+  /**
+   * Just the list, straight under whatever sits above it (the classroom's
+   * engine analysis): no "Moves" title bar, no frame, no Comment bar.
+   * Variation actions still appear while a variation is on the board.
+   */
+  embedded?: boolean;
+} = {}) {
   const { tree, treeLinePath, historyIndex, goToPath, promoteVariation, deleteVariation, setMoveComment } =
     useBoardStore(
       useShallow((s) => ({
@@ -26,6 +41,22 @@ export function MoveHistory() {
   const canEdit = role === "COACH" || isStaffRole(role);
   const cursor = treeLinePath.slice(0, historyIndex + 1);
 
+  if (embedded) {
+    return (
+      <MoveTreeView
+        className="h-full"
+        tree={tree}
+        cursor={cursor}
+        onSelect={goToPath}
+        editable={canEdit}
+        onPromote={promoteVariation}
+        onDelete={deleteVariation}
+        layout={layout}
+        evaluations={evaluations}
+      />
+    );
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-control border border-app-border bg-app-background">
       <div className="flex items-center justify-between border-b border-app-border bg-app-soft px-4 py-2 text-sm font-semibold">
@@ -40,6 +71,8 @@ export function MoveHistory() {
         onPromote={promoteVariation}
         onDelete={deleteVariation}
         onComment={setMoveComment}
+        layout={layout}
+        evaluations={evaluations}
       />
     </div>
   );

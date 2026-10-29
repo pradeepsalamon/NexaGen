@@ -66,6 +66,7 @@ function DemoClassJoin() {
   });
   const [phase, setPhase] = useState<Phase>("loading");
   const [token, setToken] = useState<string | null>(null);
+  const [guestToken, setGuestToken] = useState<string | null>(null);
   const [waitingMessage, setWaitingMessage] = useState<string | null>(null);
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,6 +89,7 @@ function DemoClassJoin() {
 
         if (response.joined && response.token) {
           setToken(response.token);
+          setGuestToken(response.guestToken ?? null);
           setPhase("in-room");
         } else {
           setWaitingMessage(response.message);
@@ -199,7 +201,7 @@ function DemoClassJoin() {
     return (
       <LiveClassProvider topic={topic}>
         <ClassroomSessionManager roomId={classId}>
-          <MeetingRoom token={token} classId={classId} />
+          <MeetingRoom token={token} classId={classId} guestToken={guestToken} />
         </ClassroomSessionManager>
       </LiveClassProvider>
     );

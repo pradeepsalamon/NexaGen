@@ -97,7 +97,7 @@ const PullRow = memo(function PullRow({
             type="button"
             aria-label={`Pull ${student.name} into class`}
             disabled={busy}
-            className="grid size-8 shrink-0 place-items-center rounded-full border border-primary p-0 text-primary-ink transition-colors hover:bg-primary hover:text-white disabled:opacity-50"
+            className="grid size-8 shrink-0 place-items-center rounded-full border border-primary p-0 text-primary-ink transition-colors hover:bg-primary hover:text-on-primary disabled:opacity-50"
             onClick={() => onPull(student)}
           >
             <Magnet className="size-4" strokeWidth={2.5} />

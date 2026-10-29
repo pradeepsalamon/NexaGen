@@ -6,6 +6,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveKitService } from "./livekit.service";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
@@ -28,6 +29,7 @@ import {
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
+import { signDemoGuestToken } from "./demo-guest-token";
 
 /** Public demo classes: guest registration, access modes and the guest join token. */
 @Injectable()
@@ -40,7 +42,8 @@ export class LiveClassDemoService {
     private readonly livekit: LiveKitService,
     private readonly whatsapp: WhatsAppService,
     private readonly mail: MailService,
-    private readonly waitingRoom: LiveClassWaitingRoomService
+    private readonly waitingRoom: LiveClassWaitingRoomService,
+    private readonly jwtService: JwtService
   ) {}
 
   /**
@@ -197,6 +200,10 @@ export class LiveClassDemoService {
     };
 
     const livekitToken = await this.livekit.generateAccessToken(tokenOptions);
+    const guestToken = await signDemoGuestToken(this.jwtService, {
+      classId: coachClass.id,
+      registrationId: registration.id
+    });
 
     if (!registration.joinedAt) {
       await this.prisma.demoClassRegistration
@@ -210,6 +217,7 @@ export class LiveClassDemoService {
       joined: true,
       awaitingApproval: false,
       token: livekitToken,
+      guestToken,
       roomName: liveSession.roomName,
       topic,
       startsAt: null,

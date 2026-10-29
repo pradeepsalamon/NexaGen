@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
 import { RadioTower } from "lucide-react";
 import {
   resolveLiveClassSettings,
@@ -12,6 +11,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { LiveClassSettingsForm } from "./LiveClassSettingsForm";
 import { useClassLiveSettings, useUpdateLiveSettingsMidClass } from "./hooks";
+import { useMemberClassId } from "../providers/LiveRoomContext";
 
 /**
  * Coach-only panel for changing class settings while the class is running.
@@ -19,8 +19,7 @@ import { useClassLiveSettings, useUpdateLiveSettingsMidClass } from "./hooks";
  * grants to everyone in the room and broadcasts the new config.
  */
 export function InRoomClassControls() {
-  const params = useParams();
-  const classId = params?.roomId as string;
+  const classId = useMemberClassId();
 
   const { data, isLoading, isError, refetch } = useClassLiveSettings(classId);
   const apply = useUpdateLiveSettingsMidClass(classId);

@@ -73,7 +73,7 @@ export function BoardControlSideToggle({
               className={cn(
                 "rounded-full px-2 py-1 text-[11px] font-semibold leading-none transition-colors disabled:pointer-events-none disabled:opacity-50",
                 isActive
-                  ? "bg-primary text-white shadow-soft"
+                  ? "bg-primary text-on-primary shadow-soft"
                   : "text-app-muted hover:bg-app-surface hover:text-app-text",
               )}
             >

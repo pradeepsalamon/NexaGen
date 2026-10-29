@@ -36,7 +36,7 @@ import { PuzzleQuickPreviewDialog } from "../PuzzleQuickPreviewDialog";
 import { BulkEditPuzzlesDialog } from "./BulkEditPuzzlesDialog";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
+  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
 
 /**
  * One folder opened from the Topics tab: the puzzles filed directly in it (its

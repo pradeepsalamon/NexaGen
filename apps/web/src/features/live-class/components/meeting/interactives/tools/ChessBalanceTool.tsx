@@ -235,7 +235,7 @@ export function ChessBalanceTool() {
                       >
                         <button
                           aria-label={`Add a ${side} ${NAMES[p].toLowerCase()}`}
-                          className="flex size-8 items-center justify-center rounded-full bg-primary text-white transition-colors hover:bg-primary/85 disabled:opacity-40"
+                          className="flex size-8 items-center justify-center rounded-full bg-primary text-on-primary transition-colors hover:bg-primary/85 disabled:opacity-40"
                           disabled={scale[side][p] >= MAX[p]}
                           onClick={() => change(side, p, 1)}
                           type="button"

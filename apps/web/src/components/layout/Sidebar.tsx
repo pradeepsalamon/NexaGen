@@ -4,8 +4,13 @@ import { ChevronDown, ChevronLeft } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
-import { Logo } from "@/components/Logo";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+  type ReactNode
+} from "react";
 import type { NavItem } from "@/components/layout/navItems";
 import { useAuthStore } from "@/stores/authStore";
 import { useSidebarStore } from "@/stores/sidebarStore";
@@ -14,41 +19,49 @@ import { cn } from "@/lib/utils";
 /** Signed-in user pinned to the drawer's foot; links to their profile. */
 function NavDrawerUser() {
   const user = useAuthStore((state) => state.user);
+
   if (!user) return null;
 
-  const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
+  const name =
+    [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
   const initials =
     `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase() ||
     user.email.slice(0, 1).toUpperCase();
 
   return (
     <Link
-      className="flex items-center gap-3 rounded-[14px] bg-white/[0.08] p-2 text-white transition-colors duration-150 hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+      className={cn(
+        "flex items-center gap-3 rounded-[14px] p-2.5 transition-colors duration-150 border",
+        "bg-nx-field border-nx-line text-nx-ink hover:bg-nx-hover-strong"
+      )}
       href="/profile"
     >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-white/15 text-sm font-bold">
+      <span
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-[10px] text-xs font-extrabold",
+          "bg-nx-gold-active text-nx-gold-ink"
+        )}
+      >
         {initials}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold">{name}</span>
-        <span className="block truncate text-xs text-white/60">{user.email}</span>
+        <span className="block truncate text-xs font-bold">{name}</span>
+        <span
+          className={cn(
+            "block truncate text-[11px]",
+            "text-nx-muted"
+          )}
+        >
+          {user.email}
+        </span>
       </span>
     </Link>
   );
 }
 
-// Gap between the card and the screen edge.
 const EDGE_GAP_PX = 12;
-// A pull that reveals this share of the card opens it; less snaps back.
 const PULL_OPEN_RATIO = 0.35;
 
-/**
- * Off-canvas role nav: a floating card that slides in over the page (and
- * header). Fully hidden when closed except for its tab handle; a mouse at the
- * left screen edge or on the handle slides it fully out until the pointer
- * leaves, and the handle can be dragged out to open it. Escape, the backdrop, a link click or
- * any route change closes it.
- */
 export function NavDrawer({
   children,
   footer,
@@ -56,7 +69,6 @@ export function NavDrawer({
   title
 }: {
   children: ReactNode;
-  /** Replaces the default signed-in-user card at the foot. */
   footer?: ReactNode;
   subtitle?: string;
   title: string;
@@ -67,12 +79,17 @@ export function NavDrawer({
   const show = useSidebarStore((state) => state.show);
   const toggle = useSidebarStore((state) => state.toggle);
   const setAvailable = useSidebarStore((state) => state.setAvailable);
+
   const panelRef = useRef<HTMLElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [peek, setPeek] = useState(false);
-  // The drag itself writes the transform straight to the element, not React state.
   const [dragging, setDragging] = useState(false);
-  const pull = useRef<{ base: number; moved: boolean; offset: number; startX: number } | null>(null);
+  const pull = useRef<{
+    base: number;
+    moved: boolean;
+    offset: number;
+    startX: number;
+  } | null>(null);
   const suppressClick = useRef(false);
 
   useEffect(() => {
@@ -93,13 +110,28 @@ export function NavDrawer({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [close, open]);
 
-  // React 18 has no `inert` prop; keeps the hidden panel out of the tab order.
   useEffect(() => {
     panelRef.current?.toggleAttribute("inert", !open && !peek);
     if (open) setPeek(false);
   }, [open, peek]);
 
-  const maxPull = () => (wrapperRef.current?.offsetWidth ?? 280) + EDGE_GAP_PX;
+  // A peek ends once the pointer is past the drawer, even if it never entered
+  // it (then the drawer's pointerleave never fires and the dim would stay).
+  useEffect(() => {
+    if (!peek || open) return;
+    const onPointerMove = (event: globalThis.PointerEvent) => {
+      // Layout box, not getBoundingClientRect: mid-slide the transform would
+      // put the edge short of where the drawer ends up.
+      const wrapper = wrapperRef.current;
+      if (!wrapper) return;
+      const right = wrapper.offsetLeft + wrapper.offsetWidth;
+      if (!pull.current && event.clientX > right + EDGE_GAP_PX) setPeek(false);
+    };
+    document.addEventListener("pointermove", onPointerMove);
+    return () => document.removeEventListener("pointermove", onPointerMove);
+  }, [open, peek]);
+
+  const maxPull = () => (wrapperRef.current?.offsetWidth ?? 270) + EDGE_GAP_PX;
 
   const onPullStart = (event: PointerEvent<HTMLElement>) => {
     if (open || (event.pointerType === "mouse" && event.button !== 0)) return;
@@ -130,7 +162,6 @@ export function NavDrawer({
     pull.current = null;
     if (!state) return;
     if (state.moved) {
-      // The pointerup of a drag also fires a click; that click must not toggle again.
       suppressClick.current = true;
       if (state.offset > maxPull() * PULL_OPEN_RATIO) show();
     }
@@ -157,30 +188,35 @@ export function NavDrawer({
     action();
   };
 
+  const isVisible = open || peek;
+
   return (
     <>
-      {/* Mounted only while open — a permanent full-screen layer costs every page scroll. */}
-      {open ? (
+      {/* Backdrop when opened or hovered */}
+      {isVisible ? (
         <button
           aria-label="Close sidebar"
-          className="fixed inset-0 z-[45] animate-overlay-in cursor-default bg-black/40"
+          className={cn(
+            "fixed inset-0 z-[45] cursor-default transition-opacity duration-200",
+            open ? "bg-black/45 backdrop-blur-[1px]" : "bg-black/15 pointer-events-none"
+          )}
           onClick={close}
           type="button"
         />
       ) : null}
 
-      {/* Mouse-only hot zone on the screen edge: hovering it slides the card fully out. */}
+      {/* Mouse-only hot zone on the left screen edge */}
       {!open ? (
         <div
           aria-hidden="true"
-          className="fixed inset-y-0 left-0 z-[49] hidden w-2 [@media(hover:hover)]:block"
+          className="fixed inset-y-0 left-0 z-[49] hidden w-2.5 [@media(hover:hover)]:block"
           onPointerEnter={() => setPeek(true)}
         />
       ) : null}
 
       <div
         className={cn(
-          "fixed bottom-3 left-3 top-3 z-50 w-[280px] max-w-[calc(100vw-48px)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] max-md:w-[240px]",
+          "fixed bottom-3 left-3 top-[72px] z-50 w-[268px] max-w-[calc(100vw-48px)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] max-md:w-[248px]",
           open
             ? "translate-x-0"
             : peek
@@ -194,28 +230,53 @@ export function NavDrawer({
       >
         <aside
           aria-label={`${title} navigation`}
-          className="flex h-full flex-col overflow-hidden rounded-[24px] border border-app-drawer-border bg-app-drawer shadow-lift"
           ref={panelRef}
+          className={cn(
+            "flex h-full flex-col overflow-hidden rounded-[22px] border transition-colors duration-200",
+            "bg-nx-card border-nx-field-line text-nx-ink shadow-nx-drawer"
+          )}
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
-            <Logo compact onDark size={34} />
+          {/* Drawer Header */}
+          <div
+            className={cn(
+              "flex shrink-0 items-center justify-between gap-3 border-b px-5 py-3.5",
+              "border-nx-line bg-nx-drawer-bar"
+            )}
+          >
+            <span className="font-display text-base font-bold tracking-tight">
+              {title}
+            </span>
             {subtitle ? (
-              <span className="min-w-0 truncate rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/85">
+              <span
+                className={cn(
+                  "min-w-0 truncate rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]",
+                  "border-nx-gold-line-strong bg-nx-gold-tint text-nx-gold-ink"
+                )}
+              >
                 {subtitle}
               </span>
             ) : null}
           </div>
 
-          <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain bg-app-drawer px-[14px] py-4 [contain:content] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+          {/* Drawer Navigation Links */}
+          <nav
+            className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain px-3.5 py-3.5 [contain:content] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0"
+          >
             {children}
           </nav>
 
-          <div className="flex shrink-0 flex-col gap-2 border-t border-white/10 p-[14px]">
+          {/* Drawer Footer */}
+          <div
+            className={cn(
+              "flex shrink-0 flex-col gap-2 border-t p-3",
+              "border-nx-line bg-nx-drawer-bar"
+            )}
+          >
             {footer ?? <NavDrawerUser />}
           </div>
         </aside>
 
-        {/* The visible slice of a closed card: click to open, or drag it out. */}
+        {/* Invisible drag strip when closed */}
         {!open && !peek ? (
           <button
             aria-hidden="true"
@@ -227,20 +288,22 @@ export function NavDrawer({
           >
             <span
               className={cn(
-                "h-12 w-1 rounded-full bg-white/50 transition-opacity duration-200",
+                "h-12 w-1 rounded-full bg-nx-gold-500/60 transition-opacity duration-200",
                 peek || dragging ? "opacity-100" : "opacity-0"
               )}
             />
           </button>
         ) : null}
 
-        {/* Tab handle riding the card's edge — the only part visible while closed. */}
+        {/* Gold Tab Handle on the right edge of the drawer */}
         <button
           aria-expanded={open}
           aria-label={open ? "Close sidebar" : "Open sidebar"}
           className={cn(
-            "absolute left-full top-1/2 flex h-14 -translate-y-1/2 items-center justify-center bg-secondary text-black shadow-lift transition-[width,margin,border-radius] duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
-            open ? "ml-2 w-7 rounded-app" : "w-5 touch-none rounded-r-app hover:w-6"
+            "absolute left-full top-1/2 flex h-14 -translate-y-1/2 items-center justify-center bg-gradient-to-b from-nx-gold-300 to-nx-gold-700 text-nx-navy shadow-md transition-[width,margin,border-radius] duration-300 cursor-pointer",
+            open
+              ? "ml-2 w-7 rounded-xl"
+              : "w-5 touch-none rounded-r-xl hover:w-6"
           )}
           onClick={unlessDragged(toggle)}
           onPointerEnter={(event) => {
@@ -251,7 +314,10 @@ export function NavDrawer({
         >
           <ChevronLeft
             aria-hidden="true"
-            className={cn("size-3.5 transition-transform duration-300", open ? "" : "rotate-180")}
+            className={cn(
+              "size-3.5 transition-transform duration-300",
+              open ? "" : "rotate-180"
+            )}
             strokeWidth={2.75}
           />
         </button>
@@ -261,29 +327,28 @@ export function NavDrawer({
 }
 
 const BADGE_TONE: Record<NonNullable<NavItem["badge"]>["tone"], string> = {
-  accent: "bg-accent text-accent-ink",
-  danger: "bg-app-danger text-white",
-  primary: "bg-white text-primary",
-  secondary: "bg-secondary text-black",
-  warm: "bg-warm text-warm-ink"
+  accent: "bg-nx-gold-50 text-nx-gold-600",
+  danger: "bg-nx-live text-white",
+  primary: "bg-nx-navy text-white",
+  secondary: "bg-nx-gold-350 text-nx-navy",
+  warm: "bg-nx-amber/20 text-nx-amber"
 };
 
 const DOT_TONE: Record<NonNullable<NavItem["badge"]>["tone"], string> = {
-  accent: "bg-accent",
-  danger: "bg-app-danger",
-  primary: "bg-white",
-  secondary: "bg-secondary",
-  warm: "bg-warm"
+  accent: "bg-nx-gold-500",
+  danger: "bg-nx-live",
+  primary: "bg-nx-navy",
+  secondary: "bg-nx-gold-350",
+  warm: "bg-nx-amber"
 };
 
-/** Trailing chip/dot on a nav link, solid so it reads on the drawer's filled background. */
 function NavBadge({ badge }: { badge: NonNullable<NavItem["badge"]> }) {
   if (badge.variant === "dot" || !badge.label) {
     return (
       <span
         aria-hidden="true"
         className={cn(
-          "size-2 shrink-0 rounded-full ring-1 ring-black/10",
+          "size-2 shrink-0 rounded-full",
           DOT_TONE[badge.tone],
           badge.pulse && "motion-safe:animate-pulse"
         )}
@@ -294,7 +359,7 @@ function NavBadge({ badge }: { badge: NonNullable<NavItem["badge"]> }) {
   return (
     <span
       className={cn(
-        "inline-flex max-w-[6.5rem] shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ring-black/10",
+        "inline-flex max-w-[6.5rem] shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-bold",
         BADGE_TONE[badge.tone],
         badge.pulse && "motion-safe:animate-pulse"
       )}
@@ -304,29 +369,39 @@ function NavBadge({ badge }: { badge: NonNullable<NavItem["badge"]> }) {
   );
 }
 
-const ROW_BASE =
-  "flex h-10 w-full items-center gap-1.5 rounded-[10px] px-2.5 text-base font-semibold leading-5 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50";
-// Current page: solid emerald (accent), same as the current child inside a section.
-const ROW_ACTIVE = "bg-accent text-white shadow-[0_4px_12px_-4px_rgb(var(--rgb-accent)/0.6)]";
-// Expanded section: emerald tint with a left rule — open, but not the current page.
-const ROW_OPEN =
-  "bg-accent/20 text-[color-mix(in_srgb,var(--color-accent)_45%,white)] shadow-[inset_3px_0_0_rgb(var(--rgb-accent))] hover:bg-accent/25";
-const ROW_IDLE = "bg-white/[0.04] text-white hover:bg-white/[0.08]";
-
-/** Top-level direct link. */
-export function NavDrawerLink({ active, item }: { active: boolean; item: NavItem }) {
+export function NavDrawerLink({
+  active,
+  item
+}: {
+  active: boolean;
+  item: NavItem;
+}) {
   const Icon = item.icon;
   const close = useSidebarStore((state) => state.close);
 
   return (
     <Link
       aria-current={active ? "page" : undefined}
-      className={cn(ROW_BASE, active ? ROW_ACTIVE : ROW_IDLE)}
+      className={cn(
+        "flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all duration-150",
+        active
+          ? "bg-nx-gold-active text-nx-emphasis border border-nx-gold-line-strong font-bold shadow-2xs"
+          : "text-nx-nav-ink hover:bg-nx-hover hover:text-nx-ink"
+      )}
       href={item.href}
       onClick={close}
     >
-      <span className="flex size-6 shrink-0 items-center justify-center">
-        <Icon aria-hidden="true" className="size-[18px]" strokeWidth={2.25} />
+      <span className="flex size-5 shrink-0 items-center justify-center">
+        <Icon
+          aria-hidden="true"
+          className={cn(
+            "size-[18px]",
+            active
+              ? "text-nx-gold-ink"
+              : "text-nx-icon"
+          )}
+          strokeWidth={active ? 2.3 : 2}
+        />
       </span>
       <span className="flex-1 truncate">{item.label}</span>
       {item.badge ? <NavBadge badge={item.badge} /> : null}
@@ -334,7 +409,6 @@ export function NavDrawerLink({ active, item }: { active: boolean; item: NavItem
   );
 }
 
-/** Collapsible section; its header turns active while expanded, children sit in an inset panel. */
 export function NavDrawerAccordion({
   icon: Icon,
   id,
@@ -360,18 +434,26 @@ export function NavDrawerAccordion({
       <button
         aria-controls={panelId}
         aria-expanded={open}
-        className={cn(ROW_BASE, "text-left", open ? ROW_OPEN : ROW_IDLE)}
+        className={cn(
+          "flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-left transition-colors duration-150",
+          open
+            ? "bg-nx-hover text-nx-ink"
+            : "text-nx-nav-ink hover:bg-nx-hover hover:text-nx-ink"
+        )}
         onClick={onToggle}
         type="button"
       >
-        <span className="flex size-6 shrink-0 items-center justify-center">
-          <Icon aria-hidden="true" className="size-[18px]" strokeWidth={2.25} />
+        <span className="flex size-5 shrink-0 items-center justify-center">
+          <Icon aria-hidden="true" className="size-[18px]" strokeWidth={2} />
         </span>
         <span className="flex-1 truncate">{label}</span>
         <ChevronDown
           aria-hidden="true"
-          className={cn("size-4 shrink-0 transition-transform duration-300", open && "rotate-180")}
-          strokeWidth={2.25}
+          className={cn(
+            "size-4 shrink-0 transition-transform duration-300",
+            open && "rotate-180"
+          )}
+          strokeWidth={2}
         />
       </button>
 
@@ -382,7 +464,12 @@ export function NavDrawerAccordion({
         )}
         id={panelId}
       >
-        <div className="flex flex-col gap-1.5 rounded-[10px] bg-white/[0.08] p-2.5 shadow-[0px_1px_2px_rgba(14,15,17,0.06)]">
+        <div
+          className={cn(
+            "flex flex-col gap-1 rounded-xl p-2 ml-3 border-l",
+            "border-nx-line bg-nx-tile"
+          )}
+        >
           {items.map((item) => {
             const ItemIcon = item.icon;
             const active = isItemActive(item.href);
@@ -390,19 +477,21 @@ export function NavDrawerAccordion({
               <Link
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex h-9 items-center gap-1.5 rounded-[10px] px-2.5 text-sm leading-5 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50",
+                  "flex h-9 items-center gap-2 rounded-lg px-2.5 text-xs transition-colors duration-150",
                   active
-                    ? cn("font-semibold", ROW_ACTIVE)
-                    : "bg-white/[0.14] font-medium text-white hover:bg-white/20"
+                    ? "bg-nx-gold-active text-nx-emphasis font-bold"
+                    : "text-nx-nav-ink hover:bg-nx-ink-inverse hover:text-nx-ink font-medium"
                 )}
                 href={item.href}
                 key={item.href}
                 onClick={close}
                 tabIndex={open ? undefined : -1}
               >
-                <span className="flex size-5 shrink-0 items-center justify-center">
-                  <ItemIcon aria-hidden="true" className="size-4" strokeWidth={2.25} />
-                </span>
+                <ItemIcon
+                  aria-hidden="true"
+                  className="size-4 shrink-0"
+                  strokeWidth={2}
+                />
                 <span className="flex-1 truncate">{item.label}</span>
                 {item.badge ? <NavBadge badge={item.badge} /> : null}
               </Link>

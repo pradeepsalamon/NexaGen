@@ -1,23 +1,28 @@
 import { forwardRef, type InputHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { fieldClasses } from "./fieldStyles";
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
+  /** `compact` is the dense field of multi-column forms (registration). */
+  density?: "default" | "compact";
   hasError?: boolean;
   /** Decorative icon inside the field, on the left. */
   leadingIcon?: ReactNode;
 };
 
 const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { className, hasError = false, leadingIcon, type, ...props },
+  { className, density = "default", hasError = false, leadingIcon, type, ...props },
   ref
 ) {
+  const compact = density === "compact";
   const input = (
     <input
       aria-invalid={hasError}
       className={cn(
-        "flex min-h-11 w-full rounded-full border bg-app-surface px-4 text-sm text-app-text shadow-[inset_0_1px_2px_rgb(var(--rgb-text)/0.06)] transition placeholder:text-app-muted/70 hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] disabled:cursor-not-allowed disabled:opacity-60 focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-primary)_16%,transparent)] focus:outline-none",
-        hasError ? "border-app-danger" : "border-app-border",
-        leadingIcon && "pl-11",
+        "flex w-full",
+        fieldClasses({ hasError }),
+        compact ? "min-h-9 px-3 text-xs sm:min-h-[38px]" : "min-h-11 px-4",
+        leadingIcon && (compact ? "pl-8" : "pl-10"),
         className
       )}
       ref={ref}
@@ -32,7 +37,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <div className="relative w-full">
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-app-muted [&>svg]:size-4"
+        className={cn(
+          "pointer-events-none absolute inset-y-0 flex items-center text-nx-muted",
+          compact ? "left-2.5 [&>svg]:size-3.5" : "left-3.5 [&>svg]:size-4"
+        )}
       >
         {leadingIcon}
       </span>

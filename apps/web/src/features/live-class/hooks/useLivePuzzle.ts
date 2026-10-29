@@ -14,12 +14,14 @@ import {
   assignLivePuzzle,
   endLivePuzzle,
   getClassLeaderboard,
+  getGuestLivePuzzle,
   getLivePuzzleBoards,
   getLivePuzzleLeaderboard,
   getLivePuzzleState,
   shareLivePuzzleFromBoard,
   updateLivePuzzle
 } from "../api/liveClassPuzzle";
+import { useDemoGuestToken } from "../providers/LiveRoomContext";
 import { noteServerTime } from "./useCountdown";
 
 export function useLivePuzzleState(classId: string, enabled = true) {
@@ -34,14 +36,34 @@ export function useLivePuzzleState(classId: string, enabled = true) {
   });
 }
 
+/**
+ * A demo guest's view of the class puzzle (with its solution — guests practise
+ * unscored). Off for everyone else, who use `useLivePuzzleState`.
+ */
+export function useGuestLivePuzzle(classId: string, guestToken: string | null) {
+  return useQuery({
+    queryKey: queryKeys.livePuzzle.guest(classId),
+    queryFn: async () => {
+      const res = await getGuestLivePuzzle(classId, guestToken ?? "");
+      noteServerTime(res.serverTime);
+      return res;
+    },
+    enabled: !!guestToken && !!classId
+  });
+}
+
 export function useLivePuzzleLeaderboard(classId: string, enabled = true) {
+  // A demo guest has no session: every poll would be a 401 (and a refresh call
+  // against the auth throttle). Guests are never on the leaderboard anyway.
+  const guest = !!useDemoGuestToken();
+  const on = enabled && !guest;
   return useQuery({
     queryKey: queryKeys.livePuzzle.leaderboard(classId),
     queryFn: () => getLivePuzzleLeaderboard(classId),
-    enabled: enabled && !!classId,
+    enabled: on && !!classId,
     // The board changes only when a student finishes; a short poll keeps every
     // viewer roughly current without a per-attempt broadcast.
-    refetchInterval: enabled ? 4000 : false
+    refetchInterval: on ? 4000 : false
   });
 }
 
@@ -127,11 +149,14 @@ export function useUpdateLivePuzzle(classId: string, opts: { quiet?: boolean } =
 }
 
 export function useClassLeaderboard(classId: string, enabled = true) {
+  // Same as useLivePuzzleLeaderboard: nothing a demo guest can read.
+  const guest = !!useDemoGuestToken();
+  const on = enabled && !guest;
   return useQuery({
     queryKey: queryKeys.livePuzzle.classLeaderboard(classId),
     queryFn: () => getClassLeaderboard(classId),
-    enabled: enabled && !!classId,
-    refetchInterval: enabled ? 5000 : false
+    enabled: on && !!classId,
+    refetchInterval: on ? 5000 : false
   });
 }
 

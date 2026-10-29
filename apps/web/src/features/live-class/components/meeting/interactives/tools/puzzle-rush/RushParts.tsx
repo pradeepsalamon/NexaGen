@@ -74,7 +74,7 @@ export function ComboBar({ mode, combo }: { mode: PuzzleRushMode; combo: number 
           <span
             className={cn(
               "flex-1 rounded-control px-1 py-0.5 text-center text-[0.6875rem] font-bold tabular-nums",
-              level > i ? "bg-primary text-white" : "bg-app-soft text-app-muted",
+              level > i ? "bg-primary text-on-primary" : "bg-app-soft text-app-muted",
             )}
             key={threshold}
             title={`${threshold} in a row`}
@@ -140,6 +140,7 @@ export function RaceTrack({
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className={cn("truncate font-semibold", mine ? "text-primary-ink" : "text-app-text")}>
                 {s.rank}. {s.name}
+                {s.isCoach ? " · coach" : ""}
                 {mine ? " (you)" : ""}
               </span>
               <span className="font-extrabold tabular-nums text-app-text">{s.score}</span>
@@ -190,7 +191,7 @@ export function RushStandings({
         <thead className="bg-app-soft text-left text-[0.6875rem] font-bold uppercase tracking-wide text-app-muted">
           <tr>
             <th className="px-2 py-1.5" scope="col">#</th>
-            <th className="px-2 py-1.5" scope="col">Student</th>
+            <th className="px-2 py-1.5" scope="col">Player</th>
             <th className="px-2 py-1.5 text-right" scope="col">{mode === "STORM" ? "Solved" : "Score"}</th>
             <th className="px-2 py-1.5 text-right" scope="col">Accuracy</th>
             <th className="px-2 py-1.5 text-right" scope="col">Combo</th>
@@ -205,6 +206,7 @@ export function RushStandings({
               <td className="px-2 py-1.5 font-bold tabular-nums">{s.rank}</td>
               <td className="max-w-[9rem] truncate px-2 py-1.5">
                 {s.name}
+                {s.isCoach ? <span className="ml-1 text-[0.6875rem] text-app-muted">· coach</span> : null}
                 {s.finishedAt ? (
                   <span className="ml-1 text-[0.6875rem] text-app-muted">· done</span>
                 ) : s.startedAt ? (

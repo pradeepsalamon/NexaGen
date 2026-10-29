@@ -102,7 +102,7 @@ const TableHead = forwardRef<
     <th
       className={cn(
         pin === "end" && PIN_END,
-        "h-12 bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] px-3 text-center align-middle text-sm font-bold normal-case tracking-normal text-white [&:has([role=checkbox])]:pr-0",
+        "h-12 bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] px-3 text-center align-middle text-sm font-bold normal-case tracking-normal text-on-primary [&:has([role=checkbox])]:pr-0",
         className
       )}
       ref={ref}

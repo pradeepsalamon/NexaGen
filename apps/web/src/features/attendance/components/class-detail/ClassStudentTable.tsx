@@ -123,7 +123,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                           aria-label={`View attendance history for ${student.name}`}
                           variant="outline"
                           size="icon"
-                          className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
+                          className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary"
                           onClick={(event) => {
                             event.stopPropagation();
                             onViewHistory({ id: student.id, name: student.name });

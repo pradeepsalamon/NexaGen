@@ -94,7 +94,7 @@ export function PresetCard({ preset }: { preset: LiveClassPreset }) {
               aria-label="Duplicate preset"
               variant="ghost"
               size="icon"
-              className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+              className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
               disabled={isDuplicating}
               onClick={() => runDuplicate(preset.id)}
             >
@@ -107,7 +107,7 @@ export function PresetCard({ preset }: { preset: LiveClassPreset }) {
                 aria-label="Edit preset"
                 variant="ghost"
                 size="icon"
-                className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
                 onClick={() => setEditing(true)}
               >
                 <Pencil aria-hidden="true" className="size-4" strokeWidth={2.5} />

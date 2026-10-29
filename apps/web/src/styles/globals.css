@@ -2,90 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* "Royal Ink" palette — one deep brand hue that also tints text, borders and
-     surfaces, plus three role hues. Channel triplets are the source of truth so
-     Tailwind alpha modifiers (bg-primary/10) resolve; --color-* mirrors them for
-     color-mix() and getComputedStyle consumers. Nothing overrides these at
-     runtime — ThemeProvider only switches light/dark. */
-  --rgb-primary: 36 71 160;
-  --rgb-secondary: 244 182 63;
-  --rgb-accent: 31 157 120;
-  --rgb-warm: 224 104 90;
-  --rgb-background: 246 247 252;
-  --rgb-surface: 255 255 255;
-  --rgb-surface-soft: 238 241 250;
-  --rgb-text: 23 32 73;
-  --rgb-text-muted: 94 103 132;
-  --rgb-border: 221 225 240;
-  --rgb-danger: 207 46 46;
-  /* The nav drawer is a brand-blue panel in light mode and a surface in dark. */
-  --rgb-nav-drawer: var(--rgb-primary);
-  --rgb-nav-drawer-border: var(--rgb-primary);
-
-  /* Fixed semantic status hues — distinct from the four brand hues above, so
-     a badge's meaning (success/warning/info) never overloads a brand color's
-     own meaning (e.g. secondary orange already means "attention/practice"). */
-  --rgb-success: 22 163 74;
-  --rgb-warning: 217 119 6;
-  --rgb-info: 37 99 235;
-
-  --color-primary: rgb(var(--rgb-primary));
-  --color-secondary: rgb(var(--rgb-secondary));
-  --color-accent: rgb(var(--rgb-accent));
-  --color-warm: rgb(var(--rgb-warm));
-  --color-background: rgb(var(--rgb-background));
-  --color-surface: rgb(var(--rgb-surface));
-  --color-surface-soft: rgb(var(--rgb-surface-soft));
-  --color-text: rgb(var(--rgb-text));
-  --color-text-muted: rgb(var(--rgb-text-muted));
-  --color-border: rgb(var(--rgb-border));
-  --color-danger: rgb(var(--rgb-danger));
-  --color-success: rgb(var(--rgb-success));
-  --color-warning: rgb(var(--rgb-warning));
-  --color-info: rgb(var(--rgb-info));
-
-  /* Readable text/icon weight of each hue against a light surface. */
-  --color-primary-ink: color-mix(in srgb, var(--color-primary) 85%, #0b1640);
-  --color-secondary-ink: color-mix(in srgb, var(--color-secondary) 70%, #431407);
-  --color-accent-ink: color-mix(in srgb, var(--color-accent) 70%, #05402a);
-  --color-warm-ink: color-mix(in srgb, var(--color-warm) 70%, #4a120c);
-  --color-danger-ink: color-mix(in srgb, var(--color-danger) 88%, #3d0603);
-  --color-success-ink: color-mix(in srgb, var(--color-success) 88%, #052e1d);
-  --color-warning-ink: color-mix(in srgb, var(--color-warning) 88%, #3d2a00);
-  --color-info-ink: color-mix(in srgb, var(--color-info) 88%, #04122b);
-
-  --color-focus: color-mix(in srgb, var(--color-primary) 72%, white);
-
-  /* Depth is tinted with the brand hue, never neutral black. */
-  --shadow-soft: 0 24px 64px -16px rgb(var(--rgb-primary) / 0.22);
-  --shadow-card: 0 1px 2px rgb(var(--rgb-text) / 0.06), 0 10px 28px -12px rgb(var(--rgb-primary) / 0.18);
-  --shadow-lift: 0 2px 4px rgb(var(--rgb-text) / 0.06), 0 18px 40px -14px rgb(var(--rgb-primary) / 0.28);
-  /* Edge shade on a horizontal scroller with hidden content (ScrollShadow). */
-  --color-scroll-shade: rgb(var(--rgb-text) / 0.16);
-  --radius-control: 12px;
-  --radius-app: 20px;
-  --radius-panel: 24px;
-
-  /* Typography. The --font-<id> variables come from next/font (app/fonts.ts);
-     TypographyProvider repoints heading/body and sets the scale from the
-     resolved admin default / user preference, so these are only the fallback. */
-  --font-heading: var(--font-outfit);
-  --font-body: var(--font-nunito-sans);
-  --text-scale: 1;
-  --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: var(--font-heading), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-}
-
 :root[data-theme="dark"] {
-  /* Ink-navy surfaces instead of pure black, so dark mode stays in the brand family.
-     Brand hues are deliberately NOT redefined here — they are identical in both themes. */
-  --rgb-background: 9 12 26;
-  --rgb-surface: 16 20 40;
-  --rgb-surface-soft: 25 30 56;
-  --rgb-text: 236 239 250;
-  --rgb-text-muted: 150 158 190;
-  --rgb-border: 44 50 84;
+  --primary: #071B41;
+  --primary-dark: #030D24;
+
+  --accent: #E2B355;
+  --accent-bright: #E2B355;
+  --accent-light: #F1D58F;
+
+  --background: #030D24;
+  --surface: #0B1A38;
+  --surface-secondary: #071B41;
+  --surface-hover: #102347;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #C1C4CC;
+  --border: rgba(255, 255, 255, 0.10);
+
+  /* Primary turns gold in dark, like .nx-cta: navy on the navy surfaces had
+     1.13:1 contrast. Text on a primary fill uses on-primary (navy here). */
+  --rgb-primary: 206 148 46;
+  --rgb-on-primary: 7 27 65;
+  --rgb-primary-dark: 3 13 36;
+  --rgb-secondary: 226 179 85;
+  /* Accent stays the success green — secondary is the gold. */
+  --rgb-accent: 31 157 120;
+  --rgb-accent-bright: 226 179 85;
+  --rgb-accent-light: 241 213 143;
+  --rgb-background: 3 13 36;
+  --rgb-surface: 11 26 56;
+  --rgb-surface-soft: 16 35 71;
+  --rgb-surface-hover: 16 35 71;
+  --rgb-text: 255 255 255;
+  --rgb-text-muted: 193 196 204;
+  /* --border (white/10) composited on --surface, so `border-app-border/50` works. */
+  --rgb-border: 35 49 76;
   --rgb-danger: 220 38 38;
   --rgb-nav-drawer: var(--rgb-surface);
   --rgb-nav-drawer-border: var(--rgb-border);
@@ -93,9 +44,18 @@
   --rgb-warning: 245 158 11;
   --rgb-info: 59 130 246;
 
-  /* Inks lighten instead of darken so they stay legible on dark surfaces. */
-  --color-primary-ink: color-mix(in srgb, var(--color-primary) 60%, white);
-  --color-secondary-ink: color-mix(in srgb, var(--color-secondary) 70%, white);
+  --color-primary: rgb(var(--rgb-primary));
+  --color-secondary: var(--accent);
+  --color-accent: rgb(var(--rgb-accent));
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-hover);
+  --color-text: var(--text-primary);
+  --color-text-muted: var(--text-secondary);
+  --color-border: var(--border);
+
+  --color-primary-ink: color-mix(in srgb, var(--accent) 70%, white);
+  --color-secondary-ink: color-mix(in srgb, var(--accent-bright) 70%, white);
   --color-accent-ink: color-mix(in srgb, var(--color-accent) 60%, white);
   --color-warm-ink: color-mix(in srgb, var(--color-warm) 60%, white);
   --color-danger-ink: color-mix(in srgb, var(--color-danger) 52%, white);
@@ -107,6 +67,298 @@
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.55);
   --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 20px 44px -14px rgb(0 0 0 / 0.65);
   --color-scroll-shade: rgb(0 0 0 / 0.55);
+}
+
+:root,
+:root[data-theme="light"] {
+  --primary: #071B41;
+  --primary-dark: #030D24;
+
+  --accent: #BB8B37;
+  --accent-bright: #E2B355;
+  --accent-light: #F1D58F;
+
+  --background: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-secondary: #F7F8FA;
+  --surface-soft: #F1F4F8;
+  --surface-hover: #F1F4F8;
+
+  --text-primary: #071B41;
+  --text-secondary: #555C68;
+  --border: #DDE2EA;
+
+  --rgb-primary: 7 27 65;
+  --rgb-primary-dark: 3 13 36;
+  --rgb-on-primary: 255 255 255;
+  --rgb-secondary: 187 139 55;
+  --rgb-accent: 31 157 120;
+  --rgb-accent-bright: 226 179 85;
+  --rgb-accent-light: 241 213 143;
+  --rgb-warm: 224 104 90;
+  --rgb-background: 255 255 255;
+  --rgb-surface: 255 255 255;
+  --rgb-surface-soft: 241 244 248;
+  --rgb-surface-hover: 241 244 248;
+  --rgb-text: 7 27 65;
+  --rgb-text-muted: 85 92 104;
+  --rgb-border: 221 226 234;
+  --rgb-danger: 207 46 46;
+  --rgb-nav-drawer: var(--rgb-primary);
+  --rgb-nav-drawer-border: var(--rgb-primary);
+
+  --rgb-success: 22 163 74;
+  --rgb-warning: 217 119 6;
+  --rgb-info: 37 99 235;
+
+  --color-primary: var(--primary);
+  --color-secondary: var(--accent);
+  --color-accent: rgb(var(--rgb-accent));
+  --color-warm: rgb(var(--rgb-warm));
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-hover);
+  --color-text: var(--text-primary);
+  --color-text-muted: var(--text-secondary);
+  --color-border: var(--border);
+  --color-danger: rgb(var(--rgb-danger));
+  --color-success: rgb(var(--rgb-success));
+  --color-warning: rgb(var(--rgb-warning));
+  --color-info: rgb(var(--rgb-info));
+
+  --color-primary-ink: color-mix(in srgb, var(--color-primary) 85%, #0b1640);
+  --color-secondary-ink: color-mix(in srgb, var(--color-secondary) 70%, #431407);
+  --color-accent-ink: color-mix(in srgb, var(--color-accent) 70%, #05402a);
+  --color-warm-ink: color-mix(in srgb, var(--color-warm) 70%, #4a120c);
+  --color-danger-ink: color-mix(in srgb, var(--color-danger) 88%, #3d0603);
+  --color-success-ink: color-mix(in srgb, var(--color-success) 88%, #052e1d);
+  --color-warning-ink: color-mix(in srgb, var(--color-warning) 88%, #3d2a00);
+  --color-info-ink: color-mix(in srgb, var(--color-info) 88%, #04122b);
+
+  --color-focus: color-mix(in srgb, var(--color-primary) 72%, white);
+
+  --shadow-soft: 0 24px 64px -16px rgb(var(--rgb-primary) / 0.22);
+  --shadow-card: 0 1px 2px rgb(var(--rgb-text) / 0.06), 0 10px 28px -12px rgb(var(--rgb-primary) / 0.18);
+  --shadow-lift: 0 2px 4px rgb(var(--rgb-text) / 0.06), 0 18px 40px -14px rgb(var(--rgb-primary) / 0.28);
+  --color-scroll-shade: rgb(var(--rgb-text) / 0.16);
+  --radius-control: 12px;
+  --radius-app: 20px;
+  --radius-panel: 24px;
+
+  --font-heading: var(--font-outfit);
+  --font-body: var(--font-nunito-sans);
+  --text-scale: 1;
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-heading), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Navy/gold palette of the 2026-10 redesign (student dashboard, app shell, auth
+   pages). One variable per role, switched by data-theme like the tokens above,
+   so components never branch on the theme in JS (which only knows the theme
+   after hydration, so dark mode first painted light). Mapped as `nx-*` colours
+   and `shadow-nx-*` in tailwind.config.ts. */
+:root,
+:root[data-theme="light"] {
+  --nx-backdrop: rgb(244 247 251);
+  --nx-body: rgb(85 92 104);
+  --nx-body-strong: rgb(47 56 71);
+  --nx-card: rgb(255 255 255);
+  --nx-danger-ink: rgb(220 38 38);
+  --nx-danger-line: rgb(254 202 202);
+  --nx-danger-soft: rgb(254 242 242);
+  --nx-emphasis: rgb(7 27 65);
+  --nx-faint: rgb(148 163 184);
+  --nx-field: rgb(248 250 252);
+  --nx-field-line: rgb(220 227 238);
+  --nx-glass: rgb(255 255 255 / 0.9);
+  --nx-gold-active: rgb(253 243 220);
+  --nx-gold-bright-ink: rgb(212 155 53);
+  --nx-gold-glass: rgb(253 244 225);
+  --nx-gold-ink: rgb(197 137 39);
+  --nx-gold-line: rgb(243 223 182);
+  --nx-gold-line-medium: rgb(243 223 182);
+  --nx-gold-line-strong: rgb(243 223 182);
+  --nx-gold-pale-ink: rgb(247 230 196);
+  --nx-gold-soft: rgb(253 244 225);
+  --nx-gold-tint: rgb(253 243 220);
+  --nx-hover: rgb(241 245 249);
+  --nx-hover-faint: rgb(241 245 249);
+  --nx-hover-strong: rgb(238 242 247);
+  --nx-icon: rgb(100 116 139);
+  --nx-icon-faint: rgb(148 163 184);
+  --nx-info-ink: rgb(29 78 216);
+  --nx-ink: rgb(7 27 65);
+  --nx-ink-inverse: rgb(255 255 255);
+  --nx-ink-soft: rgb(7 27 65);
+  --nx-line: rgb(232 237 245);
+  --nx-line-bold: rgb(203 213 225);
+  --nx-line-focus: rgb(203 213 225);
+  --nx-line-glass: rgb(229 233 240);
+  --nx-line-strong: rgb(203 213 225);
+  --nx-muted: rgb(100 116 139);
+  --nx-muted-strong: rgb(71 85 105);
+  --nx-nav-ink: rgb(59 68 84);
+  --nx-page: rgb(248 250 252);
+  --nx-rose-ink: rgb(220 38 38);
+  --nx-rose-soft: rgb(254 226 226);
+  --nx-success-ink: rgb(5 150 105);
+  --nx-success-soft: rgb(209 250 229);
+  --nx-tile: rgb(248 250 252);
+  --nx-tile-faint: rgb(248 250 252);
+  --nx-tile-glass: rgb(250 251 253);
+  --nx-warm-ink: rgb(200 90 40);
+  --nx-warm-pale-ink: rgb(249 227 218);
+  --nx-warm-soft: rgb(252 232 216);
+  --nx-warning-ink: rgb(217 119 6);
+  --nx-warning-soft: rgb(254 243 199);
+  --nx-shadow-card: 0 4px 20px rgba(7,27,65,0.04);
+  --nx-shadow-drawer: 0 20px 50px rgba(7,27,65,0.22);
+  --nx-shadow-float: 0 10px 28px -8px rgba(7,27,65,0.12);
+  --nx-shadow-panel: 0 20px 60px -15px rgba(7,27,65,0.16);
+  --nx-bar: rgb(255 255 255);
+  --nx-drawer-bar: rgb(250 251 253);
+  --nx-line-hover: rgb(226 232 240);
+  --nx-raised: rgb(255 255 255);
+  --nx-raised-hover: rgb(248 250 252);
+  --nx-line-strong-hover: rgb(203 213 225);
+  --nx-toggle-sun: rgb(253 243 220);
+  --nx-toggle-sun-ink: rgb(212 155 53);
+  --nx-toggle-sun-hover: rgb(212 155 53);
+  --nx-toggle-moon: transparent;
+  --nx-toggle-moon-ink: rgb(100 116 139);
+  --nx-toggle-moon-hover: rgb(7 27 65);
+  --nx-stat-navy: rgb(7 27 65);
+  --nx-stat-navy-line: transparent;
+  --nx-stat-navy-ink: rgb(229 184 91);
+  --nx-stat-coral: rgb(252 232 224);
+  --nx-stat-coral-line: transparent;
+  --nx-stat-coral-ink: rgb(217 107 67);
+  --nx-stat-gold: rgb(253 243 220);
+  --nx-stat-gold-line: transparent;
+  --nx-chart-1: rgb(248 229 184);
+  --nx-chart-2: rgb(243 211 140);
+  --nx-chart-3: rgb(236 192 96);
+  --nx-chart-4: rgb(223 168 60);
+  /* Auth cards keep the redesign's rendered look: its dark-card and light-note
+     backgrounds used opacity steps Tailwind 3 doesn't generate (/92), so only
+     the backdrop blur showed. */
+  --nx-auth-card: rgb(255 255 255 / 0.95);
+  --nx-auth-note: transparent;
+  /* Focus ring of every text field (components/ui/fieldStyles.ts). */
+  --nx-shadow-focus: 0 0 0 3px rgb(197 137 39 / 0.18);
+  --nx-shadow-cta-glow: 0 0 #0000;
+  /* .nx-cta: the primary call to action — navy, a gold gradient in dark. */
+  --nx-cta: rgb(7 27 65);
+  --nx-cta-hover: rgb(11 37 89);
+  --nx-cta-image: none;
+  --nx-cta-image-hover: none;
+  --nx-cta-ink: rgb(255 255 255);
+}
+
+:root[data-theme="dark"] {
+  --nx-backdrop: rgb(3 13 36);
+  --nx-body: rgb(193 196 204);
+  --nx-body-strong: rgb(193 196 204);
+  --nx-card: rgb(7 20 43);
+  --nx-danger-ink: rgb(248 113 113);
+  --nx-danger-line: rgb(239 68 68 / 0.3);
+  --nx-danger-soft: rgb(239 68 68 / 0.15);
+  --nx-emphasis: rgb(226 179 85);
+  --nx-faint: rgb(100 116 139);
+  --nx-field: rgb(11 29 63);
+  --nx-field-line: rgb(255 255 255 / 0.15);
+  --nx-glass: rgb(11 26 56 / 0.9);
+  --nx-gold-active: rgb(25 45 84);
+  --nx-gold-bright-ink: rgb(226 179 85);
+  --nx-gold-glass: rgb(11 26 56 / 0.9);
+  --nx-gold-ink: rgb(226 179 85);
+  --nx-gold-line: rgb(226 179 85 / 0.25);
+  --nx-gold-line-medium: rgb(226 179 85 / 0.3);
+  --nx-gold-line-strong: rgb(226 179 85 / 0.35);
+  --nx-gold-pale-ink: rgb(23 43 82);
+  --nx-gold-soft: rgb(17 34 68);
+  --nx-gold-tint: rgb(226 179 85 / 0.15);
+  --nx-hover: rgb(13 33 71);
+  --nx-hover-faint: rgb(255 255 255 / 0.1);
+  --nx-hover-strong: rgb(16 38 82);
+  --nx-icon: rgb(142 152 168);
+  --nx-icon-faint: rgb(142 152 168);
+  --nx-info-ink: rgb(96 165 250);
+  --nx-ink: rgb(255 255 255);
+  --nx-ink-inverse: rgb(7 27 65);
+  --nx-ink-soft: rgb(255 255 255 / 0.9);
+  --nx-line: rgb(255 255 255 / 0.1);
+  --nx-line-bold: rgb(255 255 255 / 0.25);
+  --nx-line-focus: rgb(226 179 85 / 0.5);
+  --nx-line-glass: rgb(255 255 255 / 0.15);
+  --nx-line-strong: rgb(255 255 255 / 0.15);
+  --nx-muted: rgb(148 163 184);
+  --nx-muted-strong: rgb(148 163 184);
+  --nx-nav-ink: rgb(200 205 214);
+  --nx-page: rgb(4 13 31);
+  --nx-rose-ink: rgb(251 113 133);
+  --nx-rose-soft: rgb(244 63 94 / 0.15);
+  --nx-success-ink: rgb(52 211 153);
+  --nx-success-soft: rgb(16 185 129 / 0.15);
+  --nx-tile: rgb(11 27 56);
+  --nx-tile-faint: rgb(255 255 255 / 0.05);
+  --nx-tile-glass: rgb(11 27 56 / 0.8);
+  --nx-warm-ink: rgb(226 179 85);
+  --nx-warm-pale-ink: rgb(21 40 78);
+  --nx-warm-soft: rgb(26 46 86);
+  --nx-warning-ink: rgb(251 191 36);
+  --nx-warning-soft: rgb(245 158 11 / 0.15);
+  --nx-shadow-card: 0 8px 30px rgba(0,0,0,0.45);
+  --nx-shadow-drawer: 0 24px 60px rgba(0,0,0,0.85);
+  --nx-shadow-float: 0 12px 32px -8px rgba(0,0,0,0.55);
+  --nx-shadow-panel: 0 24px 70px -12px rgba(0,0,0,0.75);
+  --nx-bar: rgb(5 16 36);
+  --nx-drawer-bar: rgb(8 23 53);
+  --nx-line-hover: rgb(255 255 255 / 0.25);
+  --nx-raised: rgb(11 27 56);
+  --nx-raised-hover: rgb(11 27 56);
+  --nx-line-strong-hover: rgb(255 255 255 / 0.3);
+  --nx-toggle-sun: transparent;
+  --nx-toggle-sun-ink: rgb(142 152 168);
+  --nx-toggle-sun-hover: rgb(255 255 255);
+  --nx-toggle-moon: rgb(22 41 82);
+  --nx-toggle-moon-ink: rgb(226 179 85);
+  --nx-toggle-moon-hover: rgb(226 179 85);
+  --nx-stat-navy: rgb(17 36 74);
+  --nx-stat-navy-line: rgb(255 255 255 / 0.1);
+  --nx-stat-navy-ink: rgb(226 179 85);
+  --nx-stat-coral: rgb(58 32 40);
+  --nx-stat-coral-line: rgb(251 113 133 / 0.2);
+  --nx-stat-coral-ink: rgb(242 139 102);
+  --nx-stat-gold: rgb(44 40 30);
+  --nx-stat-gold-line: rgb(226 179 85 / 0.25);
+  --nx-chart-1: rgb(61 53 34);
+  --nx-chart-2: rgb(87 71 36);
+  --nx-chart-3: rgb(120 93 38);
+  --nx-chart-4: rgb(158 120 41);
+  --nx-auth-card: transparent;
+  --nx-auth-note: rgb(9 25 54 / 0.9);
+  --nx-shadow-focus: 0 0 0 3px rgb(226 179 85 / 0.22);
+  --nx-shadow-cta-glow: 0 4px 14px rgba(212, 155, 53, 0.3);
+  --nx-cta: rgb(206 148 46);
+  --nx-cta-hover: rgb(216 158 53);
+  --nx-cta-image: linear-gradient(to right, rgb(229 184 91), rgb(221 168 67), rgb(206 148 46));
+  --nx-cta-image-hover: linear-gradient(to right, rgb(236 195 107), rgb(221 168 67), rgb(216 158 53));
+  --nx-cta-ink: rgb(7 27 65);
+}
+
+
+@layer components {
+  .nx-cta {
+    background-color: var(--nx-cta);
+    background-image: var(--nx-cta-image);
+    color: var(--nx-cta-ink);
+  }
+
+  .nx-cta:hover {
+    background-color: var(--nx-cta-hover);
+    background-image: var(--nx-cta-image-hover);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -145,6 +397,7 @@
 
   html {
     @apply min-h-full;
+    scroll-behavior: smooth;
     /* Every rem-based size follows the user's text size choice. */
     font-size: calc(100% * var(--text-scale));
     /* Tablets: no auto-inflated text on rotate, no grey flash on every tap. */
@@ -175,11 +428,7 @@
 
   body {
     @apply min-h-full bg-app-background font-sans text-app-text;
-    background-image:
-      radial-gradient(circle at top left,
-        color-mix(in srgb, var(--color-primary) 8%, transparent),
-        transparent 30rem),
-      linear-gradient(135deg, var(--color-background), var(--color-surface-soft));
+    background-color: var(--background);
   }
 
   a {
@@ -224,14 +473,7 @@
 
   .custom-prejoin .lk-video-container::before {
     content: "";
-    @apply pointer-events-none absolute inset-0 z-0;
-    background:
-      radial-gradient(circle at center, transparent 48%, rgba(0, 0, 0, 0.2)),
-      linear-gradient(
-        to top right,
-        color-mix(in srgb, var(--color-primary) 8%, transparent),
-        color-mix(in srgb, var(--color-accent) 5%, transparent)
-      );
+    @apply pointer-events-none absolute inset-0 z-0 bg-black/20;
   }
 
   .custom-prejoin .lk-video-container > * {
@@ -266,9 +508,9 @@
   }
 
   .custom-prejoin button[type="submit"] {
-    @apply mt-1 min-h-12 w-full rounded-app px-5 py-3 text-base font-extrabold leading-none text-white shadow-[0_10px_28px_rgba(66,120,206,0.24)] transition hover:opacity-90 active:scale-[0.98] sm:text-lg;
-    background: linear-gradient(to right, var(--color-primary), color-mix(in srgb, var(--color-primary) 80%, transparent));
-    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+    @apply mt-1 min-h-12 w-full rounded-app px-5 py-3 text-base font-extrabold leading-none text-on-primary shadow-card transition hover:opacity-90 active:scale-[0.98] sm:text-lg;
+    background: var(--color-primary);
+    border: 1px solid var(--color-primary);
   }
 
   .custom-prejoin .lk-button-group .lk-button svg,

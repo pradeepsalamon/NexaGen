@@ -46,7 +46,7 @@ function Tile({
       >
         {children}
         {selected && (
-          <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-primary text-white">
+          <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-primary text-on-primary">
             <Check className="size-3" strokeWidth={3} />
           </span>
         )}

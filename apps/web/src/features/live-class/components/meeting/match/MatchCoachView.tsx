@@ -100,7 +100,7 @@ function FocusedGame({ game, onBack }: { game: LiveMatchGame; onBack: () => void
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 md:flex-row md:items-start">
       <div className="flex flex-1 flex-col items-center gap-2">
-        <div className="flex w-full max-w-[min(600px,64dvh)] items-center gap-2">
+        <div className="flex w-full max-w-[min(600px,64dvh)] items-center gap-2 room:max-w-[min(600px,64dvh,calc(100dvh-23rem))]">
           <Button size="sm" variant="ghost" onClick={onBack}>
             <ArrowLeft className="mr-1.5 size-4" />
             All boards
@@ -109,7 +109,7 @@ function FocusedGame({ game, onBack }: { game: LiveMatchGame; onBack: () => void
             Flip
           </Button>
         </div>
-        <div className="flex w-full max-w-[min(600px,64dvh)] flex-col gap-2">
+        <div className="flex w-full max-w-[min(600px,64dvh)] flex-col gap-2 room:max-w-[min(600px,64dvh,calc(100dvh-23rem))]">
           <NameLine game={game} color={top} />
           <PracticeBoard
             fen={game.fen}
@@ -221,7 +221,8 @@ export function MatchCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
     <div
       className={
         inline
-          ? "flex min-h-0 min-w-0 flex-1 flex-col lg:pb-20"
+          ? // Side by side: clears the floating mic / camera toolbar (as InlineStage does).
+            "flex min-h-0 min-w-0 flex-1 flex-col room:pb-24"
           : cn("fixed inset-0 flex flex-col bg-app-background", Z.overlay)
       }
       role={inline ? "region" : "dialog"}

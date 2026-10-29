@@ -50,7 +50,7 @@ const GROUPS = {
     { id: "lexend" },
     { id: "atkinson-hyperlegible" }
   ] },
-  ACADEMY: { file: "src/app/academy/fonts.generated.ts", fonts: [{ id: "inter", preload: true }, { id: "playfair" }] }
+  ACADEMY: { file: "src/features/academy/fonts.generated.ts", fonts: [{ id: "inter", preload: true }, { id: "playfair" }] }
 };
 
 function cssUrl(font) {

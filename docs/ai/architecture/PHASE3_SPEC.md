@@ -1,6 +1,6 @@
 # Phase 3 specification: after-class summaries
 
-Status: **proposal, not approved** (revision 1, 2026-10-19). Phase 3 starts
+Status: **proposal, not approved** (revision 2, 2026-10-25: §5–§6 move lines from code). Phase 3 starts
 only when all of these hold:
 
 - the 3a benchmark passes (INFRASTRUCTURE_DECISION.md §4.1), or the owner
@@ -229,8 +229,10 @@ Rules:
     in both services;
   - `maxInputTokens 6000`, `maxOutputTokens 1500`, `timeoutMs 900000`;
   - `temperature 0`, a fixed `seed`;
-  - `outputSchema` = the AI_FOUNDATION.md §A.2 schema, which the benchmark's
-    `validate.mjs` already mirrors.
+  - `outputSchema` = `classSummaryModelOutputSchema` in `@nexa-chess/types`
+    (`class-summary.ts`, `class_summary.v2`). It's the AI_FOUNDATION.md §A.2
+    schema, except a variation is `{ line, fromMove, toMove, comment }`: the
+    model never writes moves (§6).
 - **Runtime.** An `OllamaProvider` with `locality: "local"`. Ollama's `format`
   is given the JSON Schema. The provider reports `modelRevision` = the model
   digest.
@@ -254,23 +256,61 @@ Rules:
 
 ## 6. Validation (NestJS, authoritative)
 
-`ClassSummaryValidator`, in a pure module with a spec, applies AI_FOUNDATION.md
-§A.3:
+The rules are the pure module `packages/types/src/class-summary.ts`, shared
+with the benchmark and tested in `apps/api/src/ai/class-summary.spec.ts`. The
+NestJS worker calls `generateGroundedClassSummary` with its own `generate`
+(the runtime call) and `beforeRetry` (the live-class check, §3.3).
 
-1. Zod-parse; on a failure, `SCHEMA`.
+**Move lines are built by code (ADR-008).** The evidence builder gives each
+`CHAPTER_PGN` / `BOARD_GAME` item its SAN mainline (`moves`, replayed with
+`Chess` from `common/chess/chess`) and its root FEN (`startFen`).
+`buildSummaryLines` turns each one into a line `L1`, `L2`, … of at most 120
+plies. The prompt lists the lines with move numbers. A variation names a line
+and a range of at most 6 moves. The SAN shown to the coach is rendered from
+the game by `formatSummaryLine`.
+
+Checks (`checkClassSummaryOutput`), each per item:
+
+1. Zod-parse; on a failure, `SCHEMA`. A variation must point at a code-built
+   line (`line`/`fromMove`/`toMove`); a model-written `san` is dropped, never
+   shown: the SAN always comes from `formatSummaryLine`. (Strict parsing would
+   fail a whole summary over any stray key.)
 2. Every `E#` exists in the bundle.
-3. Every `variations[].san` is a contiguous run of the mainline of a
-   `CHAPTER_PGN`/`BOARD_GAME` ref, replayed with `Chess` from
-   `common/chess/chess` (never `chess.js`).
-4. No `S\d+` token anywhere in `student`.
-5. Every `pz_…`/puzzle id mentioned is in the bundle.
-6. Every quoted chat span (text in "…") is a substring of a cited `ROOM_CHAT`
-   ref.
+3. Every variation names an existing line and starts inside it, in order.
+   Its end is shortened to the game's last move and to 6 moves
+   (`adjustments`); the moves are always the game's. With no games there are
+   no lines, so any variation is unsupported.
+4. Every chess token in prose must be in the evidence: a move (SAN), a
+   square, a signed engine score, a game result or a puzzle id. A square counts
+   if a piece stands on it in the line's start FEN, a move lands on it, or the
+   evidence text mentions it. Puzzle ids are matched with the caller's
+   `puzzleIdPattern`; the default only fits the benchmark's `pz_…` ids.
+5. No internal student identifier anywhere in `student` (`findStudentIdentifiers`:
+   `S1`, `S 1`, `S-1`, `s1`, `student 3`). A student item that names a student
+   is removed, never rewritten. A READY summary's whole student view must pass
+   `studentViewPrivacyViolations`, which the publish route (§7) reuses for its
+   400.
+6. Every quoted chat span (text in "…") is an exact substring of a cited
+   `ROOM_CHAT` ref, with a regression test that a fabricated quote is rejected.
+   *(Not yet in the module. Until this check ships, `ROOM_CHAT` stays out of the
+   evidence bundle even though OD-12 is approved.)*
 
-On a failure, the worker makes **one** repair call that lists the problems
-(as the benchmark does). If that fails too, the row is `FAILED` with
-`GROUNDING` or `SCHEMA`, and the coach sees "couldn't summarise this class"
-plus Regenerate.
+**Retry, then remove.**
+
+- On any failure the worker makes **one** repair call that lists the problems.
+  After that, schema errors make the row `FAILED` with `SCHEMA`.
+- Unsupported items are **removed** (`pruneClassSummary`), never rewritten.
+- Both schema-valid answers are judged the same way. The better one is kept
+  (`selectClassSummaryCandidate`): READY first, then fewer removals, then a
+  larger share kept, then the repair.
+  The rest counts only if it is usable (`assessClassSummaryUsability`): every
+  required section keeps an item, at least 75% of items are kept, and
+  re-checking the result finds nothing unsupported.
+- Otherwise the row is `FAILED` with `GROUNDING`, and the coach sees
+  "couldn't summarise this class" plus Regenerate.
+
+Free-text claims about events in plain words aren't machine-checkable. That
+is why the coach's review (OD-5) gates every publish.
 
 Every call writes one `AiUsageEvent`. Logs keep metadata only, never prompt or
 output text.

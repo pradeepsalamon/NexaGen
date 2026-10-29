@@ -10,6 +10,7 @@ import {
   isSystemPuzzleFolder,
   MAX_PUZZLE_TOPIC_DEPTH,
   puzzleTopicPath,
+  type DeletePuzzleTopicResponse,
   type PuzzleTopicDto,
   type PuzzleTopicTreeNode
 } from "@nexa-chess/types";
@@ -26,6 +27,7 @@ import {
   Scissors,
   ShieldCheck,
   ShieldOff,
+  Trash2,
   X
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
@@ -63,6 +65,7 @@ import {
   approveFolderHomework,
   archivePuzzleTopic,
   copyPuzzleTopic,
+  deletePuzzleTopic,
   reassignPuzzleTopic,
   revokeFolderHomework,
   updatePuzzleTopic
@@ -76,7 +79,7 @@ import { puzzleTopicOptions } from "../lib/puzzleMeta";
 import { FolderPuzzlesPanel } from "./folder/FolderPuzzlesPanel";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
+  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
 
 type TopicNode = PuzzleTopicTreeNode<PuzzleTopicDto>;
 type TopicFormValues = {
@@ -106,6 +109,7 @@ export function TopicManager({
   // `undefined` = dialog closed; `null` = new top-level folder.
   const [creatingIn, setCreatingIn] = useState<string | null | undefined>(undefined);
   const [reassigning, setReassigning] = useState<TopicNode | null>(null);
+  const [deleting, setDeleting] = useState<TopicNode | null>(null);
   // Folders start closed.
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [clipboard, setClipboard] = useState<{ mode: "copy" | "cut"; node: TopicNode } | null>(null);
@@ -426,6 +430,19 @@ export function TopicManager({
                               <Archive className="size-4" strokeWidth={2.5} />
                             </Button>
                           </SimpleTooltip>
+                          {isSystemPuzzleFolder(topic) ? null : (
+                            <SimpleTooltip label="Delete folder (to Trash)">
+                              <Button
+                                aria-label={`Delete ${topic.name}`}
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                                onClick={() => setDeleting(node)}
+                              >
+                                <Trash2 className="size-4" strokeWidth={2.5} />
+                              </Button>
+                            </SimpleTooltip>
+                          )}
                         </div>
                       </TableCell>
                     )}
@@ -472,7 +489,101 @@ export function TopicManager({
           }}
         />
       )}
+      {deleting && (
+        <DeleteFolderDialog
+          node={deleting}
+          onClose={() => setDeleting(null)}
+          onDone={(res) => {
+            toast.success({
+              title: `Deleted "${deleting.topic.name}"`,
+              message: `${res.folders} folder${res.folders === 1 ? "" : "s"} and ${res.puzzles} puzzle${res.puzzles === 1 ? "" : "s"} moved to Trash. A Super Admin can restore them; they are removed for good after 30 days.`
+            });
+            if (openFolderId && collectPuzzleTopicSubtreeIds(topics, deleting.topic.id).includes(openFolderId)) {
+              setOpenFolderId(null);
+            }
+            setDeleting(null);
+          }}
+        />
+      )}
     </Card>
+  );
+}
+
+/**
+ * Deleting a folder takes everything inside it — a confirm that names the
+ * counts, then the API moves the whole subtree and its puzzles to Trash as one
+ * group (Undo = Restore in Trash; permanent after the retention period).
+ */
+function DeleteFolderDialog({
+  node,
+  onClose,
+  onDone
+}: {
+  node: TopicNode;
+  onClose: () => void;
+  onDone: (res: DeletePuzzleTopicResponse) => void;
+}) {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const { topic, totalPuzzleCount } = node;
+  const subfolders = flattenPuzzleTopicTree([node]).length - 1;
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && !busy && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete &quot;{topic.name}&quot;?</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-app-muted">
+          {totalPuzzleCount > 0 || subfolders > 0 ? (
+            <>
+              This also deletes{" "}
+              {subfolders > 0 ? (
+                <strong className="text-app-text">
+                  {subfolders} subfolder{subfolders === 1 ? "" : "s"}
+                </strong>
+              ) : null}
+              {subfolders > 0 && totalPuzzleCount > 0 ? " and " : null}
+              {totalPuzzleCount > 0 ? (
+                <strong className="text-app-text">
+                  {totalPuzzleCount} puzzle{totalPuzzleCount === 1 ? "" : "s"}
+                </strong>
+              ) : null}{" "}
+              inside it.{" "}
+            </>
+          ) : null}
+          Everything moves to Trash, where a Super Admin can restore it together for 30 days; after that it is
+          deleted permanently.
+        </p>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                // undo: intentionally excluded — confirmed above; restored from Trash (lib/undo/README.md).
+                const res = await deletePuzzleTopic(topic.id);
+                void queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.topics });
+                void queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.all });
+                onDone(res);
+              } catch (error) {
+                toast.error({ title: "Could not delete the folder", message: (error as Error).message });
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <Trash2 className="mr-1.5 size-4" strokeWidth={2.5} />
+            Delete folder
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -522,7 +633,7 @@ function HomeworkCell({
             aria-label={`Assign folder ${topic.name}`}
             variant="ghost"
             size="icon"
-            className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+            className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
             onClick={onAssign}
           >
             <ClipboardCheck className="size-4" strokeWidth={2.5} />
@@ -552,7 +663,7 @@ function HomeworkCell({
                 variant="ghost"
                 size="icon"
                 disabled={!!structuralBlocker}
-                className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
                 onClick={() => onApprove(true)}
               >
                 <ShieldCheck className="size-4" strokeWidth={2.5} />

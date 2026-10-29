@@ -25,8 +25,7 @@ export function GET() {
     "",
     "## Main pages",
     "",
-    `- [Online chess classes — programs, formats, timings, FAQ and free demo booking](${SITE_URL}/academy)`,
-    `- [Home](${SITE_URL}/)`,
+    `- [Online chess classes — programs, formats, timings, FAQ and free demo booking](${SITE_URL}/)`,
     `- [Create a student account](${SITE_URL}/register)`,
     "",
     "## Programs",
@@ -45,7 +44,7 @@ export function GET() {
     `- Email: ${ACADEMY_EMAIL}`,
     `- Phone: ${ACADEMY_PHONE}`,
     `- WhatsApp: ${ACADEMY_WHATSAPP}`,
-    `- Free demo class: ${SITE_URL}/academy#demo`,
+    `- Free demo class: ${SITE_URL}/#demo`,
     ...ACADEMY_SOCIAL_PROFILES.map((url) => `- ${url}`),
     ""
   ];

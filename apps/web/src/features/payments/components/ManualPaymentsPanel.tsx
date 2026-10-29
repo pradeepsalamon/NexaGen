@@ -384,7 +384,7 @@ function OfflineMethodsSection() {
                 <SimpleTooltip label="Edit">
                   <Button
                     aria-label={`Edit ${method.label}`}
-                    className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                    className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
                     onClick={() => setEditing(method)}
                     size="icon"
                     type="button"
@@ -398,7 +398,7 @@ function OfflineMethodsSection() {
                 >
                   <Button
                     aria-label={`${method.isActive ? "Deactivate" : "Reactivate"} ${method.label}`}
-                    className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                    className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
                     disabled={update.isPending}
                     onClick={() =>
                       update.mutate({

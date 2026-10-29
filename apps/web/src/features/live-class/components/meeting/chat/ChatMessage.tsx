@@ -133,7 +133,7 @@ export const ChatMessage = memo(function ChatMessage({
             className={cn(
               "px-3.5 py-2.5 text-sm leading-relaxed [word-break:break-word] shadow-card transition duration-200",
               msg.isOwn
-                ? "bg-primary text-white rounded-app rounded-tr-sm"
+                ? "bg-primary text-on-primary rounded-app rounded-tr-sm"
                 : "bg-app-surface border border-app-border text-app-text rounded-app rounded-tl-sm",
             )}
           >

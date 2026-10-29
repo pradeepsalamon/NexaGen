@@ -1,11 +1,9 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
-import { ArrowRight, CalendarOff, Play } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, CalendarX2, Play } from "lucide-react";
 import Link from "next/link";
 import type { StudentDashboardLiveClass } from "@nexa-chess/types";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatRelativeDay, formatTime } from "@/lib/datetime";
@@ -43,71 +41,85 @@ function useElapsed(since: string | null | undefined) {
   return since ? formatElapsed(now - new Date(since).getTime()) : null;
 }
 
-function Eyebrow({ children }: { children: ReactNode }) {
-  return (
-    <p className="text-xs font-bold text-app-muted">{children}</p>
-  );
-}
-
-function LiveClass({ liveClass }: { liveClass: StudentDashboardLiveClass }) {
-  const timeZone = useUserTimeZone();
-  const uptime = useElapsed(liveClass.startedAt ?? liveClass.startsAt);
-
-  return (
-    <Card className="flex flex-col gap-5 border-app-danger/30 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-      <div className="min-w-0">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-app-danger-ink">
-          <span className="relative flex size-2">
-            <span className="absolute inline-flex size-full rounded-full bg-app-danger opacity-75 motion-safe:animate-ping" />
-            <span className="relative inline-flex size-2 rounded-full bg-app-danger" />
-          </span>
-          Live now
-        </span>
-        <h2 className="mt-2 text-xl font-extrabold leading-tight tracking-tight text-app-text">
-          {liveClass.topic}
-        </h2>
-        <p className="mt-1 text-sm text-app-muted">
-          {liveClass.coachName}
-          {uptime ? ` · live for ${uptime}` : ""}
-          {` · ends ${formatTime(liveClass.endsAt, timeZone)}`}
-        </p>
-        {liveClass.coachPresent === false ? (
-          <p className="mt-1 text-sm text-app-muted">Waiting for your coach to join.</p>
-        ) : null}
-      </div>
-      <Button asChild className="shrink-0" variant="destructive">
-        <Link href={`/live-class/${liveClass.id}`}>
-          <Play aria-hidden="true" className="size-4" strokeWidth={2.5} />
-          Join class
-        </Link>
-      </Button>
-    </Card>
-  );
-}
-
 export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
   const timeZone = useUserTimeZone();
+  const uptime = useElapsed(liveClass?.startedAt ?? liveClass?.startsAt);
 
-  if (liveClass) return <LiveClass liveClass={liveClass} />;
+  const surfaceClass = "bg-nx-card border-nx-line text-nx-ink shadow-nx-card";
+
+  if (liveClass) {
+    return (
+      <div
+        className={`flex flex-col gap-4 rounded-2xl border p-4 sm:p-5 sm:flex-row sm:items-center sm:justify-between ${surfaceClass}`}
+      >
+        <div className="min-w-0">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-nx-live">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex size-full rounded-full bg-nx-live opacity-75 motion-safe:animate-ping" />
+              <span className="relative inline-flex size-2 rounded-full bg-nx-live" />
+            </span>
+            Live now
+          </span>
+          <h2 className="mt-1.5 text-base sm:text-lg font-bold leading-tight">
+            {liveClass.topic}
+          </h2>
+          <p
+            className="mt-0.5 text-xs sm:text-sm text-nx-muted"
+          >
+            {liveClass.coachName}
+            {uptime ? ` · live for ${uptime}` : ""}
+            {` · ends ${formatTime(liveClass.endsAt, timeZone)}`}
+          </p>
+          {liveClass.coachPresent === false ? (
+            <p className="mt-1 text-xs text-nx-amber">
+              Waiting for your coach to join.
+            </p>
+          ) : null}
+        </div>
+
+        <Link
+          href={`/live-class/${liveClass.id}`}
+          className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-nx-live-strong hover:bg-nx-live-deep text-white text-xs sm:text-sm font-bold shrink-0 transition-colors"
+        >
+          <Play aria-hidden="true" className="size-3.5 fill-current" />
+          <span>Join class</span>
+        </Link>
+      </div>
+    );
+  }
 
   if (!nextClass?.topic || !nextClass.id) {
     return (
-      <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="flex items-center gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-app-soft">
-            <CalendarOff aria-hidden="true" className="size-5 text-app-muted" strokeWidth={2.25} />
+      <div
+        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border p-4 sm:px-6 sm:py-4 ${surfaceClass}`}
+      >
+        <div className="flex items-start sm:items-center gap-3.5">
+          <span
+            className="flex size-10 sm:size-11 shrink-0 items-center justify-center rounded-xl border bg-nx-gold-soft border-nx-gold-line text-nx-gold-ink"
+          >
+            <CalendarX2 aria-hidden="true" className="size-5" strokeWidth={2} />
           </span>
+
           <div>
-            <h2 className="font-extrabold text-app-text">No classes scheduled</h2>
-            <p className="mt-0.5 text-sm text-app-muted">
-              Your next class will show up here. Meanwhile, catch up on your assignments.
+            <h2 className="text-sm sm:text-base font-bold leading-snug">
+              No classes scheduled
+            </h2>
+            <p
+              className="mt-0.5 text-xs sm:text-[13px] leading-relaxed text-nx-muted"
+            >
+              Your next class will show up here. Meanwhile, catch up on your
+              assignments.
             </p>
           </div>
         </div>
-        <Button asChild className="shrink-0" variant="outline">
-          <Link href="/student/practice">View assignments</Link>
-        </Button>
-      </Card>
+
+        <Link
+          href="/student/practice"
+          className="inline-flex items-center justify-center h-9 sm:h-10 px-5 rounded-full text-xs font-bold border shrink-0 transition-colors bg-nx-tile border-nx-line-strong text-nx-ink hover:border-nx-emphasis"
+        >
+          View Assignments
+        </Link>
+      </div>
     );
   }
 
@@ -115,28 +127,41 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
   const finished = nextClass.status === "COMPLETED";
 
   return (
-    <Card className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+    <div
+      className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border p-4 sm:px-6 sm:py-5 ${surfaceClass}`}
+    >
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <Eyebrow>{day === "Today" ? "Today's class" : "Next class"}</Eyebrow>
+          <p
+            className="text-xs font-bold uppercase tracking-wider text-nx-gold-ink"
+          >
+            {day === "Today" ? "Today's class" : "Next class"}
+          </p>
           {finished ? <ClassStatusBadge status="COMPLETED" /> : null}
         </div>
-        <h2 className="mt-2 text-xl font-extrabold leading-tight tracking-tight text-app-text">
+        <h2 className="mt-1 text-base sm:text-lg font-bold leading-tight">
           {nextClass.topic}
         </h2>
-        <p className="mt-1 text-sm text-app-muted">
+        <p
+          className="mt-0.5 text-xs sm:text-sm text-nx-muted"
+        >
           {nextClass.coachName ? `${nextClass.coachName} · ` : ""}
           {day !== "Today" ? `${day}, ` : ""}
           {formatTime(nextClass.startsAt, timeZone)}
           {nextClass.durationMinutes ? ` · ${nextClass.durationMinutes} min` : ""}
         </p>
       </div>
-      <Button asChild className="shrink-0" variant={finished ? "outline" : "primary"}>
-        <Link href={`/classes/${nextClass.id}`}>
-          View class
-          <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2.5} />
-        </Link>
-      </Button>
-    </Card>
+
+      <Link
+        href={`/classes/${nextClass.id}`}
+        className={`inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full text-xs sm:text-sm font-bold shrink-0 transition-colors ${finished
+            ? "border border-nx-line-strong text-nx-ink"
+            : "bg-nx-emphasis text-nx-ink-inverse"
+          }`}
+      >
+        <span>View class</span>
+        <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2.4} />
+      </Link>
+    </div>
   );
 }

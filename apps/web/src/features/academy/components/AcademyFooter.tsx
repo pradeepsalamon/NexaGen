@@ -1,126 +1,282 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight, Phone, Mail, Globe } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Phone,
+  Mail,
+  Globe
+} from "lucide-react";
 
-const quickLinks = [
+// Make sure this path matches where you created the BrandIcons file
+import {
+  Facebook,
+  Instagram,
+  Youtube,
+  Linkedin
+} from "@/components/icons/BrandIcons";
+import { ACADEMY_EMAIL, ACADEMY_PHONE, ACADEMY_SOCIAL_PROFILES } from "../content";
+
+type LinkItem = {
+  label: string;
+  href: string;
+  isRoute?: boolean;
+};
+
+const quickLinks: LinkItem[] = [
   { label: "Home", href: "#home" },
   { label: "Programs", href: "#programs" },
-  { label: "Class Types", href: "#class-types" },
-  { label: "About Us", href: "#why-choose-us" },
-  { label: "Demo Classes", href: "#demo" },
-  { label: "FAQ", href: "#faq" },
-  { label: "Contact", href: "#contact" }
+  { label: "Coaching", href: "#class-types" },
+  { label: "Tournaments", href: "#sunday-training" },
+  { label: "About", href: "#why-choose-us" }
 ];
 
-const programs = [
-  { label: "Beginner Level", href: "#programs" },
-  { label: "Intermediate Level", href: "#programs" },
-  { label: "Advanced Level", href: "#programs" },
+const programLinks: LinkItem[] = [
+  { label: "Beginner", href: "#programs" },
+  { label: "Intermediate", href: "#programs" },
+  { label: "Advanced", href: "#programs" },
   { label: "Sunday Training", href: "#sunday-training" }
 ];
 
-const contactEmail = "nexachessacademy@gmail.com";
+const supportLinks: LinkItem[] = [
+  { label: "FAQ", href: "#faq" },
+  { label: "Contact", href: "#contact" },
+  { label: "Terms", href: "/terms", isRoute: true },
+  { label: "Privacy", href: "/privacy", isRoute: true }
+];
+
+const socialIcons = [
+  { Icon: Facebook, host: "facebook.com", label: "Facebook" },
+  { Icon: Instagram, host: "instagram.com", label: "Instagram" },
+  { Icon: Youtube, host: "youtube.com", label: "YouTube" },
+  { Icon: Linkedin, host: "linkedin.com", label: "LinkedIn" }
+];
+
+// Only the academy's real profiles (content.ts, also in the JSON-LD sameAs);
+// none listed means no icons rather than dead "#" links.
+const socialLinks = socialIcons.flatMap(({ host, ...icon }) => {
+  const href = ACADEMY_SOCIAL_PROFILES.find((url) => url.includes(host));
+  return href ? [{ ...icon, href }] : [];
+});
+
+const linkClassName =
+  "text-[13px] sm:text-sm text-[#555C68] dark:text-[#C1C4CC] hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors flex items-center gap-2 group";
+
+const headingClassName =
+  "text-[12px] font-bold uppercase tracking-[0.12em] text-[#C88E2B] dark:text-[#E2B355]";
+
+// Defined at module level (not inside AcademyFooter) so React doesn't
+// remount these lists every time an accordion opens or closes.
+function FooterLinks({ links }: { links: LinkItem[] }) {
+  const content = (label: string) => (
+    <>
+      <ChevronRight className="size-3.5 text-[#C88E2B] dark:text-[#E2B355] opacity-70 group-hover:translate-x-0.5 transition-transform" />
+      {label}
+    </>
+  );
+
+  return (
+    <ul className="space-y-3">
+      {links.map((link) => (
+        <li key={link.label}>
+          {link.isRoute ? (
+            <Link href={link.href} className={linkClassName}>
+              {content(link.label)}
+            </Link>
+          ) : (
+            <a href={link.href} className={linkClassName}>
+              {content(link.label)}
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+interface FooterColumnProps {
+  id: string;
+  title: string;
+  links: LinkItem[];
+  isOpen: boolean;
+  onToggle: () => void;
+  className?: string;
+}
+
+function FooterColumn({
+  id,
+  title,
+  links,
+  isOpen,
+  onToggle,
+  className = ""
+}: FooterColumnProps) {
+  const panelId = `footer-panel-${id}`;
+
+  return (
+    <div className={`py-4 sm:py-0 ${className}`}>
+      {/* Mobile: accordion trigger */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        className="sm:hidden w-full flex items-center justify-between text-left"
+      >
+        <span className={headingClassName}>{title}</span>
+        <ChevronDown
+          className={`size-4 text-[#C88E2B] dark:text-[#E2B355] transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+            }`}
+        />
+      </button>
+
+      {/* Desktop: plain heading (no dead button to tab through) */}
+      <h3 className={`hidden sm:block ${headingClassName}`}>{title}</h3>
+
+      {/*
+        grid-rows 0fr -> 1fr animates to the list's real height (no fixed
+        max-height to clip or leave a gap). Always open from `sm` up.
+      */}
+      <div
+        id={panelId}
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out sm:grid-rows-[1fr] sm:opacity-100 ${isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          }`}
+      >
+        {/* `invisible` when collapsed keeps hidden links out of the tab order */}
+        <div
+          className={`min-h-0 overflow-hidden transition-[visibility] duration-300 sm:visible ${isOpen ? "visible" : "invisible"
+            }`}
+        >
+          <div className="pt-4">
+            <FooterLinks links={links} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function AcademyFooter() {
+  const [openSection, setOpenSection] = useState<string | null>(null);
+
+  const toggleSection = (section: string) => {
+    setOpenSection((prev) => (prev === section ? null : section));
+  };
+
   return (
-    <footer className="relative overflow-hidden bg-[#0f172a] text-white">
-      <div className="h-[3px] bg-gradient-to-r from-[#b8912e] via-[#d4a843] to-[#b8912e] w-full" />
+    <footer className="relative bg-[#FFFFFF] dark:bg-[#030D24] border-t border-[#E5E9F0] dark:border-white/10 select-none">
+      <div className="relative max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
 
-      <div className="absolute inset-0 chess-pattern opacity-5 pointer-events-none" />
-      <div className="hidden md:block absolute -top-24 left-1/4 w-[520px] h-[520px] bg-[#2a5a8a]/20 rounded-full blur-[100px] pointer-events-none" />
+        {/* ================= MAIN FOOTER CONTENT ================= */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12">
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid md:grid-cols-4 gap-10">
-          <div
-            className="md:col-span-1 reveal reveal-up flex flex-col items-center text-center md:items-start md:text-left"
-            style={{ transitionDelay: "0s" }}
-          >
-            <div className="flex items-center gap-3 mb-4">
+          {/* Brand Info */}
+          <div className="md:col-span-12 lg:col-span-5 flex flex-col items-center md:items-start text-center md:text-left">
+            <div className="relative h-12 w-48 mb-5 flex items-center justify-center md:justify-start">
               <Image
                 src="/academy/nexa_logo_dark1.png"
-                alt="Nexa Chess Academy Logo"
+                alt="NEXA Chess Academy"
                 width={180}
-                height={68}
-                loading="lazy"
-                className="h-14 md:h-16 w-auto object-contain drop-shadow-lg"
+                height={50}
+                className="h-10 sm:h-12 w-auto object-contain hidden dark:block"
+              />
+              <Image
+                src="/academy/nexa_logo_light1.png"
+                alt="NEXA Chess Academy"
+                width={180}
+                height={50}
+                className="h-10 sm:h-12 w-auto object-contain dark:hidden"
               />
             </div>
-            <p className="text-sm text-slate-300 leading-relaxed mb-6">
-              Professional online chess training for students of all levels. Building champions since 2018.
+
+            <p className="text-[13px] sm:text-sm text-[#555C68] dark:text-[#C1C4CC] leading-relaxed max-w-sm mb-6">
+              A premium chess coaching and learning platform for students, parents, and competitive chess players.<br />
+              Building international champions since 2018.
             </p>
-          </div>
 
-          <div className="reveal reveal-up" style={{ transitionDelay: "0.1s" }}>
-            <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-white mb-4">Quick Links</h3>
-            <ul className="space-y-2.5">
-              {quickLinks.map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-sm text-slate-300 hover:text-amber-400 transition-colors duration-300 flex items-center gap-1.5 group"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5 text-amber-400/60 transition-transform duration-300 group-hover:translate-x-1" />
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+            {/* select-text so visitors can copy the phone number / email */}
+            <div className="flex flex-col gap-3 text-[13px] sm:text-sm text-[#555C68] dark:text-[#C1C4CC] mb-8 select-text">
+              <a href={`tel:+${ACADEMY_PHONE.replace(/\D/g, "")}`} className="flex items-center gap-3 hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
+                <Phone className="size-4 shrink-0 text-[#C88E2B] dark:text-[#E2B355]" />
+                {ACADEMY_PHONE.replace("-", " ")}
+              </a>
+              <a href={`mailto:${ACADEMY_EMAIL}`} className="flex items-center gap-3 hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
+                <Mail className="size-4 shrink-0 text-[#C88E2B] dark:text-[#E2B355]" />
+                {ACADEMY_EMAIL}
+              </a>
+              <span className="flex items-center gap-3">
+                <Globe className="size-4 shrink-0 text-[#C88E2B] dark:text-[#E2B355]" />
+                Online Worldwide Classes
+              </span>
+            </div>
 
-          <div className="reveal reveal-up" style={{ transitionDelay: "0.2s" }}>
-            <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-white mb-4">Programs</h3>
-            <ul className="space-y-2.5">
-              {programs.map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-sm text-slate-300 hover:text-amber-400 transition-colors duration-300 flex items-center gap-1.5 group"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5 text-amber-400/60 transition-transform duration-300 group-hover:translate-x-1" />
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="reveal reveal-up" style={{ transitionDelay: "0.3s" }}>
-            <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-white mb-4">Contact Info</h3>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3 text-sm text-slate-300">
-                <Phone className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" strokeWidth={1.75} />
-                +91 7010854643
-              </li>
-              <li className="flex items-start gap-3 text-sm text-slate-300">
-                <Mail className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" strokeWidth={1.75} />
-                <a href={`mailto:${contactEmail}`} className="hover:text-amber-400 transition-colors break-all">
-                  {contactEmail}
+            {/* Social Icons */}
+            {socialLinks.length > 0 ? (
+            <div className="flex items-center gap-3">
+              {socialLinks.map((social) => (
+                <a
+                  key={social.label}
+                  href={social.href}
+                  className="size-9 rounded-full bg-[#F8FAFC] dark:bg-[#1E293B] border border-[#E5E9F0] dark:border-white/5 flex items-center justify-center text-[#475569] dark:text-[#94A3B8] hover:text-[#C88E2B] hover:border-[#C88E2B] dark:hover:text-[#E2B355] dark:hover:border-[#E2B355] transition-all duration-200"
+                  aria-label={social.label}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  <social.Icon className="size-4" />
                 </a>
-              </li>
-              <li className="flex items-start gap-3 text-sm text-slate-300">
-                <Globe className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" strokeWidth={1.75} />
-                Available Worldwide
-              </li>
-            </ul>
+              ))}
+            </div>
+            ) : null}
+          </div>
+
+          {/* Links Columns */}
+          <div className="md:col-span-12 lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-0 sm:gap-6 mt-4 md:mt-0">
+            <FooterColumn
+              id="quick"
+              title="Quick Links"
+              links={quickLinks}
+              isOpen={openSection === "quick"}
+              onToggle={() => toggleSection("quick")}
+              className="border-b sm:border-b-0 border-[#E5E9F0] dark:border-white/10"
+            />
+            <FooterColumn
+              id="programs"
+              title="Programs"
+              links={programLinks}
+              isOpen={openSection === "programs"}
+              onToggle={() => toggleSection("programs")}
+              className="border-b sm:border-b-0 border-[#E5E9F0] dark:border-white/10"
+            />
+            <FooterColumn
+              id="support"
+              title="Support"
+              links={supportLinks}
+              isOpen={openSection === "support"}
+              onToggle={() => toggleSection("support")}
+            />
           </div>
         </div>
 
-        <div
-          className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 reveal reveal-up"
-          style={{ transitionDelay: "0.4s" }}
-        >
-          <p className="text-xs text-slate-400">
-            © {new Date().getFullYear()} Nexa Chess Academy. All Rights Reserved.
+        {/* ================= FOOTER BOTTOM BAR ================= */}
+        <div className="mt-12 pt-6 border-t border-[#E5E9F0] dark:border-white/10 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+          <p className="text-[12px] sm:text-[13px] text-[#555C68] dark:text-[#9BA4B5]">
+            © {new Date().getFullYear()} NEXA Chess Academy. All Rights Reserved.
           </p>
-          <div className="flex items-center gap-6">
-            <Link href="/privacy" className="text-xs text-slate-400 hover:text-amber-400 transition-colors">
+
+          <div className="flex items-center gap-4 sm:gap-6 text-[12px] sm:text-[13px] text-[#555C68] dark:text-[#9BA4B5]">
+            <Link href="/privacy" className="hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
               Privacy Policy
             </Link>
-            <Link href="/terms" className="text-xs text-slate-400 hover:text-amber-400 transition-colors">
+            <span className="text-[#CBD5E1] dark:text-white/20" aria-hidden="true">|</span>
+            <Link href="/terms" className="hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
               Terms of Service
             </Link>
           </div>
         </div>
+
       </div>
     </footer>
   );

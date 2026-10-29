@@ -117,7 +117,7 @@ export function LeadsManagementClient() {
               />
             }
             onSearchChange={serverTable.setSearch}
-            searchPlaceholder="Search by student, parent, or phone..."
+            searchPlaceholder="Search by student, parent, phone or email..."
             searchValue={serverTable.search}
           />
 

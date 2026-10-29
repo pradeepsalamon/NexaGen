@@ -12,16 +12,17 @@ ROOT_DIR="$(cd -P "$SCRIPTS_DIR/.." && pwd)"
 
 COMMAND=$1
 ENV=$2
+TARGET=$3
 
 function show_usage() {
     echo "Nexa Unified CLI"
     echo ""
-    echo "Usage: nexa <command> [environment]"
+    echo "Usage: nexa <command> [environment] [component]"
     echo ""
     echo "Commands:"
-    echo "  start   <dev|stage|prod>   Start the specified environment"
-    echo "  stop    <dev|stage|prod>   Stop the specified environment"
-    echo "  restart <dev|stage|prod>   Restart the specified environment"
+    echo "  start   <dev|stage|prod> [api|web]   Start environment (component: dev/stage only)"
+    echo "  stop    <dev|stage|prod> [api|web]   Stop environment (component: dev/stage only)"
+    echo "  restart <dev|stage|prod> [api|web]   Restart environment (component: dev/stage only)"
     echo "  status                     Show status of all environments"
     echo "  logs [api|web]             View logs (for dev)"
     echo "  attach                     Attach to the dev tmux session"
@@ -53,6 +54,35 @@ function http_status() {
 }
 
 function start_dev() {
+    local target=$1
+    if [ "$target" = "api" ]; then
+        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
+            tmux kill-window -t nexa-dev:api 2>/dev/null || true
+        fi
+        echo "=== Launching Dev API on Port 3011 ==="
+        if ! tmux has-session -t nexa-dev 2>/dev/null; then
+            tmux new-session -d -s nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"
+        else
+            tmux new-window -t nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"
+        fi
+        echo "Dev API launched on port 3011!"
+        return
+    fi
+    if [ "$target" = "web" ]; then
+        # Restart only the web window; the API keeps running.
+        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": web"; then
+            tmux kill-window -t nexa-dev:web 2>/dev/null || true
+        fi
+        echo "=== Launching Dev Web on Port 3010 ==="
+        if ! tmux has-session -t nexa-dev 2>/dev/null; then
+            tmux new-session -d -s nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -p 3010 2>&1 | tee web-dev.log'"
+        else
+            tmux new-window -t nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -p 3010 2>&1 | tee web-dev.log'"
+        fi
+        echo "Dev web launched on port 3010!"
+        return
+    fi
+
     echo "Stopping any existing dev/staging processes..."
     stop_session
 
@@ -65,6 +95,46 @@ function start_dev() {
 }
 
 function start_stage() {
+    local target=$1
+    if [ "$target" = "api" ]; then
+        echo "=== Building API in Production Mode for Staging Testing ==="
+        cd "$ROOT_DIR"
+        # The shared packages (@nexa-chess/config, /types) first, so the API never
+        # builds against missing or stale outputs.
+        npx turbo run build --filter=@nexa-chess/api^...
+        npm run build:prod -w apps/api
+        # Only once both builds succeeded: a failed build leaves the running API up.
+        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
+            tmux kill-window -t nexa-dev:api 2>/dev/null || true
+        fi
+
+        echo "=== Launching Production-Optimized Dev API on Port 3011 ==="
+        if ! tmux has-session -t nexa-dev 2>/dev/null; then
+            tmux new-session -d -s nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
+        else
+            tmux new-window -t nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
+        fi
+        echo "Production-mode Dev API launched on port 3011!"
+        return
+    fi
+    if [ "$target" = "web" ]; then
+        # Rebuild and restart only the web window; the API keeps running.
+        echo "=== Building Web in Production Mode for Staging Testing ==="
+        cd "$ROOT_DIR"
+        npx turbo run build --filter=@nexa-chess/web
+        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": web"; then
+            tmux kill-window -t nexa-dev:web 2>/dev/null || true
+        fi
+        echo "=== Launching Production-Optimized Dev Web on Port 3010 ==="
+        if ! tmux has-session -t nexa-dev 2>/dev/null; then
+            tmux new-session -d -s nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
+        else
+            tmux new-window -t nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
+        fi
+        echo "Production-mode Dev web launched on port 3010!"
+        return
+    fi
+
     echo "Stopping any existing dev/staging processes..."
     stop_session
 
@@ -158,15 +228,28 @@ fi
 
 cd "$ROOT_DIR"
 
+# A mistyped component must not fall through to the whole-environment path.
+if [[ -n "$TARGET" && "$TARGET" != "api" && "$TARGET" != "web" ]]; then
+    echo "Unknown component: $TARGET (expected api or web)"
+    exit 1
+fi
+
+# Prod is the whole Docker stack: a component target would be ignored and the
+# command would take everything down, so refuse it up front.
+if [[ "$ENV" == "prod" && -n "$TARGET" ]]; then
+    echo "Component targets are dev/stage only. For prod use: docker compose up -d --build $TARGET"
+    exit 1
+fi
+
 case "$COMMAND" in
     start)
         if [[ "$ENV" == "prod" ]]; then
             echo "Starting prod environment (Docker)..."
             docker compose up -d --build
         elif [[ "$ENV" == "stage" ]]; then
-            start_stage
+            start_stage "$TARGET"
         elif [[ "$ENV" == "dev" ]]; then
-            start_dev
+            start_dev "$TARGET"
         else
             echo "Unknown environment: $ENV"
             exit 1
@@ -177,7 +260,18 @@ case "$COMMAND" in
             echo "Stopping prod environment (Docker)..."
             docker compose down
         elif [[ "$ENV" == "dev" || "$ENV" == "stage" ]]; then
-            stop_dev
+            if [ "$TARGET" = "web" ] && tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": web"; then
+                tmux kill-window -t nexa-dev:web
+                echo "Stopped dev web window."
+            elif [ "$TARGET" = "api" ] && tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
+                tmux kill-window -t nexa-dev:api
+                echo "Stopped dev api window."
+            elif [ -n "$TARGET" ]; then
+                # Only that component was asked for; never stop the rest.
+                echo "Dev $TARGET is not running."
+            else
+                stop_dev
+            fi
         else
             echo "Unknown environment: $ENV"
             exit 1
@@ -190,12 +284,10 @@ case "$COMMAND" in
             docker compose up -d --build
         elif [[ "$ENV" == "stage" ]]; then
             echo "Restarting stage environment (Tmux)..."
-            stop_dev
-            start_stage
+            start_stage "$TARGET"
         elif [[ "$ENV" == "dev" ]]; then
             echo "Restarting dev environment (Tmux)..."
-            stop_dev
-            start_dev
+            start_dev "$TARGET"
         else
             echo "Unknown environment: $ENV"
             exit 1

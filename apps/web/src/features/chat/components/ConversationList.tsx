@@ -87,7 +87,7 @@ export function ConversationList({ conversations, isLoading, onSelect, selectedI
                     {unread && (
                       <span
                         aria-label={`${c.unreadCount} unread`}
-                        className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-white"
+                        className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-on-primary"
                       >
                         {c.unreadCount > 99 ? "99+" : c.unreadCount}
                       </span>
@@ -110,7 +110,7 @@ export function ConversationAvatar({ conversation }: { conversation: ChatConvers
       aria-hidden
       className={cn(
         "flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold",
-        conversation.type === "DIRECT" ? "bg-primary text-white" : "bg-app-soft text-primary-ink",
+        conversation.type === "DIRECT" ? "bg-primary text-on-primary" : "bg-app-soft text-primary-ink",
       )}
     >
       {Icon ? <Icon className="size-5" /> : initialsOf(conversation.title)}

@@ -18,7 +18,7 @@ import { ActivityBadge, DifficultyBadge } from "./assignmentBadges";
 import { AssignmentOverviewPanel } from "./reminders/AssignmentOverviewPanel";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
+  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
 
 export function AdminAssignmentsClient() {
   const { data, isLoading } = useAssignmentLibrary();

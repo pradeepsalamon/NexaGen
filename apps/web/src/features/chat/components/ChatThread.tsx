@@ -333,7 +333,7 @@ function Bubble({
       <div
         className={cn(
           "max-w-[85%] whitespace-pre-wrap break-words rounded-app px-3 py-2 text-sm sm:max-w-[70%]",
-          mine ? "rounded-br-md bg-primary text-white" : "rounded-bl-md border border-app-border bg-app-surface text-app-text",
+          mine ? "rounded-br-md bg-primary text-on-primary" : "rounded-bl-md border border-app-border bg-app-surface text-app-text",
         )}
       >
         {body}

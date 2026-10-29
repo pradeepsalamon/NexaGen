@@ -33,7 +33,7 @@ export function MoreControlsMenu({ items }: { items: MoreControlItem[] }) {
           className={cn(
             "relative flex size-11 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-muted transition duration-150 ease-out hover:bg-app-soft hover:text-app-text active:scale-95 motion-reduce:active:scale-100 sm:size-12",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-            open && "bg-primary text-white",
+            open && "bg-primary text-on-primary",
           )}
         >
           <MoreHorizontal className="size-5" />

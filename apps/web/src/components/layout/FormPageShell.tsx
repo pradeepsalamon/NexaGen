@@ -36,7 +36,7 @@ export function FormPageShell({
           <SimpleTooltip label={backLabel}>
             <Link
               aria-label={backLabel}
-              className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] text-white shadow-[0_2px_6px_-1px_color-mix(in_srgb,var(--color-primary)_35%,transparent)] transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)] hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] text-on-primary shadow-[0_2px_6px_-1px_color-mix(in_srgb,var(--color-primary)_35%,transparent)] transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)] hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
               href={backHref}
             >
               <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={2.5} />

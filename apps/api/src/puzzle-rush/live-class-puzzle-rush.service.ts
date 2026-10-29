@@ -33,7 +33,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { fullName } from "../puzzle/puzzle-auth.helper";
 
 const entryInclude = {
-  student: { select: { firstName: true, lastName: true } }
+  student: { select: { firstName: true, lastName: true, role: true } }
 } satisfies Prisma.LiveClassPuzzleRushEntryInclude;
 
 const rushInclude = {
@@ -148,15 +148,17 @@ export class LiveClassPuzzleRushService {
     return this.getCurrent(accessToken, classId);
   }
 
-  /** A student reports their running totals for the round. */
+  /** A student — or the class's own coach, playing along — reports their running totals. */
   async reportProgress(
     accessToken: string | undefined,
     classId: string,
     dto: ReportPuzzleRushProgressRequest
   ): Promise<ReportPuzzleRushProgressResponse> {
     const { user, liveSession } = await this.liveClass.resolveParticipant(accessToken, classId);
-    if (user.role !== UserRole.STUDENT) {
-      throw new ForbiddenException("Only students play Puzzle Storm and Puzzle Racer.");
+    // Admins dropping in watch; only the class's coach plays alongside the students.
+    const ownCoach = user.role === UserRole.COACH && liveSession.coachId === user.id;
+    if (user.role !== UserRole.STUDENT && !ownCoach) {
+      throw new ForbiddenException("Only students and the class's coach play Puzzle Storm and Puzzle Racer.");
     }
 
     const rush = await this.prisma.liveClassPuzzleRush.findFirst({
@@ -372,6 +374,7 @@ export class LiveClassPuzzleRushService {
       errors: entry.errors,
       finishedAt: entry.finishedAt?.toISOString() ?? null,
       highestRating: entry.highestRating,
+      isCoach: entry.student.role === UserRole.COACH,
       moves: entry.moves,
       name: fullName(entry.student) ?? "Student",
       puzzleIndex: entry.puzzleIndex,

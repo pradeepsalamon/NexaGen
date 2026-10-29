@@ -218,7 +218,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
                       ].map(option => (
                         <li
                           key={option.value}
-                          className="px-3 py-2 hover:bg-primary hover:text-white cursor-pointer transition-colors"
+                          className="px-3 py-2 hover:bg-primary hover:text-on-primary cursor-pointer transition-colors"
                           onMouseDown={(e) => {
                             e.preventDefault();
                             setDuration(option.value);

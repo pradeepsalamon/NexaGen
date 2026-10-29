@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useParams } from "next/navigation";
 import {
   BookOpen,
   Cpu,
@@ -13,11 +12,12 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
-import { BoardActionsRow } from "@/features/chessboard/components/panels/BoardActionsRow";
+import { EngineEvalSummary } from "@/features/chessboard/components/panels/EngineEvalSummary";
 import { MasterbasePanel } from "@/features/chessboard/components/panels/MasterbasePanel";
 import { MoveHistory } from "@/features/chessboard/components/panels/MoveHistory";
 import { PgnPanel } from "@/features/chessboard/components/panels/PgnPanel";
 import { StockfishPanel } from "@/features/chessboard/components/panels/StockfishPanel";
+import { useEngineEvalCache } from "@/features/chessboard/hooks/useEngineAnalysis";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useLiveClassChat } from "../../../providers/ChatProvider";
@@ -29,6 +29,7 @@ import { MeetingPuzzlePanel } from "../MeetingPuzzlePanel";
 import { MovePollCoachPanel } from "../move-poll/MovePollCoachPanel";
 import { ActivityQueueRoomPanel } from "../../activity-queue/ActivityQueueRoomPanel";
 import { ClassroomVideo } from "./ClassroomVideo";
+import { useMemberClassId } from "../../../providers/LiveRoomContext";
 
 type TabId =
   | "moves"
@@ -117,7 +118,7 @@ export function ClassroomPanel({
     "setClassroomChatOpen",
   );
   const { unreadCount } = useLiveClassChat();
-  const roomId = useParams()?.roomId as string | undefined;
+  const roomId = useMemberClassId();
   const inSideColumn = (id: TabId) => sideColumn && SIDE_COLUMN_TABS.has(id);
   const activeTab: TabId = inSideColumn(tab) ? "moves" : tab;
 
@@ -207,12 +208,13 @@ export function ClassroomPanel({
 
         <div className="min-h-0 flex-1 overflow-hidden" role="tabpanel">
           {activeTab === "moves" ? (
-            <div className="flex h-full flex-col gap-3 overflow-y-auto p-3">
-              {isCoach ? (
-                <BoardActionsRow onPastePgn={() => setTab("pgn")} />
-              ) : null}
-              <div className="light-theme-overrides min-h-0 flex-1 text-app-text">
-                <MoveHistory />
+            // Lichess-style: engine header → its lines → the move list, one continuous column.
+            <div className="custom-scrollbar flex h-full flex-col overflow-y-auto">
+              {/* Engine analysis is coach / admin only (the API refuses students). */}
+              {isCoach ? <EngineEvalSummary className="shrink-0" /> : null}
+              {/* Never squeezed below a few rows by the engine lines: the tab scrolls instead. */}
+              <div className="light-theme-overrides min-h-40 flex-1 text-app-text">
+                <ClassroomMoveList withEvaluations={isCoach} />
               </div>
             </div>
           ) : null}
@@ -242,6 +244,12 @@ export function ClassroomPanel({
       </div>
     </aside>
   );
+}
+
+/** The board's moves one per row, with the engine's score beside each position it has analysed. */
+function ClassroomMoveList({ withEvaluations }: { withEvaluations: boolean }) {
+  const evaluations = useEngineEvalCache((s) => s.evals);
+  return <MoveHistory layout="rows" embedded evaluations={withEvaluations ? evaluations : undefined} />;
 }
 
 const VIDEO_HEIGHT_KEY = "nexa-live-class-video-height";

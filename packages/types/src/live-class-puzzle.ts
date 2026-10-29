@@ -150,6 +150,27 @@ export type LivePuzzleStateResponse = {
   serverTime?: string;
 };
 
+/**
+ * Request header carrying a demo guest's `GuestJoinDemoResponse.guestToken`.
+ * A guest is a `DemoClassRegistration`, not a user, so it has no session
+ * cookie; this is the only credential the guest puzzle route accepts.
+ */
+export const DEMO_GUEST_TOKEN_HEADER = "x-nexa-demo-guest";
+
+/**
+ * `GET /live-class/:id/puzzle/guest` — the active puzzle for a demo guest.
+ * A guest can't own a `PuzzleAttempt` (it has no user row), so it practises
+ * client-side like the coach's preview: the solution comes along, nothing is
+ * scored and the guest is never on the leaderboard.
+ */
+export type GuestLivePuzzleResponse = LivePuzzleStateResponse & {
+  solution: {
+    solutionMoves: z.infer<typeof solutionMoveSchema>[];
+    hints: string[];
+    explanation: string | null;
+  } | null;
+};
+
 export type LivePuzzleLeaderboardEntry = {
   studentId: string;
   studentName: string;

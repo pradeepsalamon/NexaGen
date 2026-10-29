@@ -16,7 +16,7 @@ const buttonVariants = cva(
         outline:
           "border-primary-ink bg-app-surface text-primary-ink hover:bg-primary/10",
         primary:
-          "border-transparent bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] text-white shadow-[0_2px_6px_-1px_color-mix(in_srgb,var(--color-primary)_35%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)]",
+          "border-transparent bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] text-on-primary shadow-[0_2px_6px_-1px_color-mix(in_srgb,var(--color-primary)_35%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)]",
         secondary:
           "border-[color-mix(in_srgb,var(--color-secondary)_70%,var(--color-border))] bg-secondary text-black shadow-card hover:bg-[color-mix(in_srgb,var(--color-secondary)_84%,white)]"
       },

@@ -71,6 +71,21 @@ web `features/admin/components/DemoClass*` + `demo-classes/*`, public page
   typing. The phone/email is the fallback. Invitations go out by email /
   WhatsApp free text (best effort — outside the 24h window WhatsApp won't
   deliver; an approved template is the fix).
+- **A guest in the room has no session** — only the LiveKit token the join
+  mints, plus a `guestToken` (`live-class/demo-guest-token.ts`: a 6h JWT of
+  `type: "demo_guest"` naming the registration + class, so `authenticateUser`
+  never takes it as an access token). The web keeps it in `LiveRoomProvider`
+  (`features/live-class/providers/LiveRoomContext.tsx`) and sends it as
+  `DEMO_GUEST_TOKEN_HEADER` to the one route a guest may call,
+  `GET /live-class/:id/puzzle/guest` (`LiveClassAccessService.resolveDemoGuest`:
+  token for this class, registration not DENIED, LIVE demo). It returns the
+  active puzzle **with its solution**: a guest can't own a `PuzzleAttempt`, so
+  it practises client-side like the coach's preview — unscored, never on a
+  leaderboard. Everything else in the room is user-only: in-room components
+  take the class id from `useMemberClassId()`, which is `""` for a guest, so
+  their queries stay off instead of answering 401s. **In-room code must never
+  read `useParams().roomId`** — the guest room is `/demo/[classId]`, where it is
+  undefined (that was why a shared puzzle never reached a guest).
 - **`DemoInviteService` is the only way to add a guest** — both the demo-class
   "Invite guests" panel and the leads CRM's "assign demo class" go through
   `bookLead` / `addInvitees`, so lead status/timeline stay consistent. A lead

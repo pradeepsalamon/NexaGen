@@ -44,6 +44,7 @@ export {
 } from "./core-schemas";
 export * from "./ai";
 export * from "./ai-runtime-contract";
+export * from "./class-summary";
 export * from "./api-endpoints";
 export * from "./live-class-settings";
 export * from "./live-class-moderation";
@@ -1571,6 +1572,11 @@ export const guestJoinDemoResponseSchema = z.object({
   /** An uninvited guest of an INVITE_ONLY class, waiting for the coach. */
   awaitingApproval: z.boolean(),
   token: z.string().nullable(),
+  /**
+   * Sent with `token`: the guest's credential for the few in-room REST routes a
+   * guest may call (`DEMO_GUEST_TOKEN_HEADER`), bound to this class. Never an access token.
+   */
+  guestToken: z.string().nullable().optional(),
   roomName: z.string().nullable(),
   topic: z.string(),
   startsAt: z.string().datetime().nullable(),
@@ -2288,6 +2294,8 @@ export interface StockfishAnalysisResult {
   pv: string[];
   /** Principal variation in raw UCI. */
   pvUci: string[];
+  /** The engine's own id ("Stockfish 17.1"), once known. */
+  engine?: string | null;
   /**
    * Present only when the reported score is provisional (an aspiration-window
    * fail: the true score is at least / at most it). Absent = exact.

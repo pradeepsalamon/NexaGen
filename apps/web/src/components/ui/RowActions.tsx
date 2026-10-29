@@ -27,7 +27,7 @@ const INLINE_TONE: Record<NonNullable<RowAction["tone"]>, string> = {
   danger:
     "border-app-danger bg-app-danger text-white hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white",
   default:
-    "border-primary bg-primary text-white hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white",
+    "border-primary bg-primary text-on-primary hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary",
   warning:
     "border-secondary bg-secondary text-black hover:border-[color-mix(in_srgb,var(--color-secondary)_70%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_70%,white)] hover:text-black"
 };

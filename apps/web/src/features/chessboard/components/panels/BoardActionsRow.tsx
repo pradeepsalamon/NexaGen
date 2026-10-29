@@ -56,7 +56,7 @@ export function BoardActionsRow({ onPastePgn, className }: { onPastePgn: () => v
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       <Button
         variant="primary"
-        className="h-auto bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary"
+        className="h-auto bg-primary px-4 py-1.5 text-xs font-medium text-on-primary hover:bg-primary"
         onClick={handleSaveToCloud}
       >
         Save

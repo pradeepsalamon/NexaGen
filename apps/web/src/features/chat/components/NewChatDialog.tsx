@@ -112,7 +112,7 @@ export function NewChatDialog({ canCreateGroup, onOpenChange, onOpened, open }: 
               onClick={() => openDirect(c)}
               type="button"
             >
-              <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+              <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-on-primary">
                 {initialsOf(c.name)}
               </span>
               <span className="min-w-0 flex-1">

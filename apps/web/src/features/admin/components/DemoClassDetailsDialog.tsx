@@ -225,7 +225,7 @@ export function DemoClassDetailsDialog({
                                 size="icon"
                                 variant="ghost"
                                 aria-label={`Copy ${r.name}'s personal link`}
-                                className="size-8 rounded-full border border-primary bg-primary p-0 text-white hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                                className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
                                 onClick={() => copy(demoAbsoluteUrl(r.invitePath as string), "Personal link copied")}
                               >
                                 <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />

@@ -8,8 +8,9 @@ import { toast } from "sonner";
 import { queryKeys } from "@/lib/queryKeys";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useCountdown } from "../../hooks/useCountdown";
-import { useEndLivePuzzle, useLivePuzzleState } from "../../hooks/useLivePuzzle";
+import { useEndLivePuzzle, useGuestLivePuzzle, useLivePuzzleState } from "../../hooks/useLivePuzzle";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
+import { useDemoGuestToken } from "../../providers/LiveRoomContext";
 
 /**
  * Keeps `LiveClassProvider.activePuzzle` current. Seeds from
@@ -40,10 +41,14 @@ export function PuzzleBridge({
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
-  const seed = useLivePuzzleState(classId);
+  // A demo guest has no session, so it seeds from the guest route instead.
+  const guestToken = useDemoGuestToken();
+  const userSeed = useLivePuzzleState(classId, !guestToken);
+  const guestSeed = useGuestLivePuzzle(classId, guestToken);
+  const seedData = guestToken ? guestSeed.data : userSeed.data;
   useEffect(() => {
-    if (seed.data) applyPuzzleAssignment(seed.data.assignment);
-  }, [seed.data, applyPuzzleAssignment]);
+    if (seedData) applyPuzzleAssignment(seedData.assignment);
+  }, [seedData, applyPuzzleAssignment]);
 
   // A timed puzzle is ended once by the coach's client when the clock runs out,
   // regardless of which panel they're looking at (the server rejects late work
@@ -68,6 +73,7 @@ export function PuzzleBridge({
       if (decoded.type === "PUZZLE_ASSIGNED") {
         applyPuzzleAssignment(decoded.assignment);
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
+        qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.guest(classId) });
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
         // Straight onto the student's screen — no click-through to find it.
         if (!isCoach) setPuzzleSolverOpen(true);
@@ -87,6 +93,7 @@ export function PuzzleBridge({
         }
         clearActivePuzzle(decoded.assignmentId);
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
+        qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.guest(classId) });
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
       } else {
         // LEADERBOARD_DIRTY — a student started or finished, or the coach adjusted points.

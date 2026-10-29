@@ -77,7 +77,7 @@ function StudentMovePoll({ classId }: { classId: string }) {
               aria-label={isOpen ? "Answer your coach's question" : "See the results"}
               onClick={() => setOpen(true)}
               className={cn(
-                "flex size-12 items-center justify-center rounded-full bg-primary text-white shadow-card transition hover:scale-105",
+                "flex size-12 items-center justify-center rounded-full bg-primary text-on-primary shadow-card transition hover:scale-105",
                 isOpen && !mine && "animate-pulse"
               )}
             >

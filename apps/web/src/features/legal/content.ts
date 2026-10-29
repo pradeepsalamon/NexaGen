@@ -63,7 +63,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
-          "On the academy website: a visitor cookie (kept for a year) and a session cookie, with your IP address, browser, device type, the page you arrived from and any campaign tags in the link. If you book a demo, the student's name and age, the parent's name and phone number, and chess experience.",
+          "On the academy website: a visitor cookie (kept for a year) and a session cookie, with your IP address, browser, device type, the page you arrived from and any campaign tags in the link. If you book a demo, the student's name and age, the parent's name, phone number and (if given) email address, and chess experience.",
         label: "Website visits and demo bookings"
       }
     ],

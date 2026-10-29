@@ -1013,6 +1013,8 @@ model Lead {
   studentAge      Int
   experienceLevel String
   phone           String
+  /// Optional contact email from the demo form, stored lower-cased.
+  email           String?
 
   status   LeadStatus @default(NEW)
   /// First-touch attribution, derived from the linked `VisitorSession` at

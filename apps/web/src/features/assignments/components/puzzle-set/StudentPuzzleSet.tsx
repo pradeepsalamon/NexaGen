@@ -267,8 +267,8 @@ function FinishedPuzzle({
   onRetry: () => void;
   onNext: () => void;
 }) {
-  // The best try counts, so another go can only raise the points.
-  const canRetry = item.triesLeft !== 0;
+  // Only an unsolved puzzle offers another go; a solved one is done.
+  const canRetry = item.status !== "SOLVED" && item.triesLeft !== 0;
   return (
     <div className="space-y-4">
       <div
@@ -303,7 +303,7 @@ function FinishedPuzzle({
         {canRetry ? (
           <Button type="button" variant="outline" size="sm" onClick={onRetry}>
             <RotateCcw className="mr-1.5 size-4" strokeWidth={2.5} />
-            {item.status === "SOLVED" ? "Try for more points" : "Try again"}
+            Try again
           </Button>
         ) : null}
       </div>
@@ -371,7 +371,7 @@ function MyResults({
                       variant="ghost"
                       size="icon"
                       aria-label={`Open puzzle ${item.position + 1}`}
-                      className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                      className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
                       onClick={() => onOpen(item.position)}
                     >
                       <Play className="size-4" strokeWidth={2.5} />

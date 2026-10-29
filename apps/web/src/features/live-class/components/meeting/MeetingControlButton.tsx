@@ -27,7 +27,7 @@ const variantStyles: Record<ControlVariant, string> = {
   default:
     "bg-app-surface text-app-muted hover:bg-app-soft hover:text-app-text border border-app-border",
   active:
-    "bg-primary text-white hover:bg-primary/90 shadow-card",
+    "bg-primary text-on-primary hover:bg-primary/90 shadow-card",
   danger:
     "bg-app-danger text-white hover:opacity-90 border border-app-danger shadow-card",
 };
@@ -61,7 +61,7 @@ export const MeetingControlButton = forwardRef<
         >
           {loading ? <Loader2 className="size-5 animate-spin" /> : icon}
           {badge !== undefined && badge > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white shadow-card">
+            <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-on-primary shadow-card">
               {badge > 9 ? "9+" : badge}
             </span>
           )}

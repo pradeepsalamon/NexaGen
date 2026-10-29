@@ -116,10 +116,19 @@ const nextConfig = (phase) => ({
     ];
   },
   images: {
-    formats: ["image/avif", "image/webp"]
+    formats: ["image/avif", "image/webp"],
+    // Only the default; every <Image> uses it (the sources are already q85 WebP).
+    qualities: [75]
   },
   async redirects() {
-    return canonicalHostRedirects();
+    return [
+      ...canonicalHostRedirects(),
+      {
+        source: "/academy",
+        destination: "/",
+        permanent: true
+      }
+    ];
   },
   output: "standalone",
   poweredByHeader: false,

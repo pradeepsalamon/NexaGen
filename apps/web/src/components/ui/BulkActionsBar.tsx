@@ -32,7 +32,7 @@ export function BulkActionsBar({
   return (
     <div
       aria-label="Bulk actions"
-      className="fixed inset-x-0 bottom-5 z-40 mx-auto flex w-fit max-w-[calc(100vw-2rem)] animate-slide-up items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] p-1.5 pl-4 text-white shadow-lift"
+      className="fixed inset-x-0 bottom-5 z-40 mx-auto flex w-fit max-w-[calc(100vw-2rem)] animate-slide-up items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] p-1.5 pl-4 text-on-primary shadow-lift"
       role="toolbar"
     >
       <span aria-live="polite" className="mr-1 whitespace-nowrap text-sm font-bold">
@@ -61,7 +61,7 @@ export function BulkActionsBar({
       <SimpleTooltip label="Clear selection">
         <button
           aria-label="Clear selection"
-          className="inline-flex size-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="inline-flex size-9 items-center justify-center rounded-full text-on-primary/80 transition-colors hover:bg-white/15 hover:text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           onClick={onClear}
           type="button"
         >

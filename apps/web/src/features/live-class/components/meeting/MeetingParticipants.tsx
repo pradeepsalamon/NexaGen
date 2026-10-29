@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState, useMemo, memo, useRef } from "react";
-import { useParams } from "next/navigation";
 import {
   Lock,
   Search,
@@ -45,6 +44,7 @@ import {
 } from "../../api/live-class";
 import { meetingToast } from "../../lib/meetingToasts";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import { useMemberClassId } from "../../providers/LiveRoomContext";
 
 type LkParticipant = ReturnType<typeof useParticipants>[number];
 
@@ -204,7 +204,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
               type="button"
               onClick={() => onMessagePrivately(participantUserId, name)}
               aria-label={`Message ${name} privately`}
-              className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-primary hover:text-white"
+              className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-primary hover:text-on-primary"
             >
               <Lock className="size-3.5" />
             </button>
@@ -460,8 +460,7 @@ export function MeetingParticipants({
     "upsertScreenShareRequest",
   );
   const { canMessagePrivately, openPrivateThread } = useLiveClassChat();
-  const params = useParams();
-  const roomId = params?.roomId as string | undefined;
+  const roomId = useMemberClassId();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 

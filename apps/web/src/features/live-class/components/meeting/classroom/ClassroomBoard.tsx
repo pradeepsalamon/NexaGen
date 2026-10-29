@@ -11,7 +11,6 @@ import {
   StepBack,
   StepForward
 } from "lucide-react";
-import { useParams } from "next/navigation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { SendPositionButton } from "@/features/assignments/components/SendPositionButton";
@@ -42,6 +41,7 @@ import { FlipBoardButton } from "../video-grid/FlipBoardButton";
 import { RequestControlButton } from "../video-grid/RequestControlButton";
 import { ROOM_ROW_QUERY } from "./roomLayout";
 import { ClassroomSidebar } from "./sidebar/ClassroomSidebar";
+import { useMemberClassId } from "../../../providers/LiveRoomContext";
 
 /** Board shortcuts plus Space = engine move and S = setup position (also offered to the toolbar). */
 function CoachBoardShortcuts() {
@@ -156,7 +156,7 @@ export function ClassroomBoard({
   onSideColumnChange?: (fits: boolean) => void;
 }) {
   const fen = useBoardStore((s) => s.fen);
-  const classId = (useParams()?.roomId as string) ?? "";
+  const classId = useMemberClassId();
   const { activePuzzle, setPuzzleSolverOpen, isChessboardOpen } = useLiveClassState(
     "activePuzzle",
     "setPuzzleSolverOpen",
@@ -196,7 +196,7 @@ export function ClassroomBoard({
             <button
               type="button"
               onClick={() => setPuzzleSolverOpen(true)}
-              className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary px-2.5 py-1 text-[11px] font-semibold text-white shadow-card transition active:scale-95"
+              className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary px-2.5 py-1 text-[11px] font-semibold text-on-primary shadow-card transition active:scale-95"
             >
               <PuzzleIcon className="size-3" strokeWidth={2.5} />
               Solve puzzle
@@ -363,8 +363,7 @@ function HoverMenuButton({
  * same place. The folder button opens the picker for any puzzle or folder.
  */
 function CoachPuzzleButtons() {
-  const params = useParams();
-  const classId = (params?.roomId as string) ?? "";
+  const classId = useMemberClassId();
   const { activePuzzle } = useLiveClassState("activePuzzle");
   const [assignOpen, setAssignOpen] = useState(false);
   const [shareCurrentOpen, setShareCurrentOpen] = useState(false);

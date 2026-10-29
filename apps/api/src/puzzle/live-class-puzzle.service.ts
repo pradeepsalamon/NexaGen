@@ -11,6 +11,7 @@ import type {
   AttemptMove,
   ClassLeaderboardEntry,
   ClassLeaderboardResponse,
+  GuestLivePuzzleResponse,
   LivePuzzleAssignment,
   LivePuzzleBoardEntry,
   LivePuzzleMistake,
@@ -434,6 +435,34 @@ export class LiveClassPuzzleService {
     return {
       assignment: active ? this.toAssignment(active) : null,
       serverTime: new Date().toISOString()
+    };
+  }
+
+  /**
+   * A demo guest's view of the active puzzle. A guest has no user row, so it
+   * can't own an attempt or a leaderboard row: it gets the solution and
+   * practises client-side, unscored, like the coach's preview.
+   */
+  async getCurrentForGuest(
+    guestToken: string | undefined,
+    classId: string
+  ): Promise<GuestLivePuzzleResponse> {
+    await this.liveClass.resolveDemoGuest(guestToken, classId);
+    const active = await this.loadActive(classId);
+    return {
+      assignment: active ? this.toAssignment(active) : null,
+      serverTime: new Date().toISOString(),
+      solution: active
+        ? {
+            explanation: active.puzzle.explanation,
+            hints: Array.isArray(active.puzzle.hintsJson)
+              ? active.puzzle.hintsJson.filter((h): h is string => typeof h === "string")
+              : [],
+            solutionMoves: Array.isArray(active.puzzle.solutionMovesJson)
+              ? (active.puzzle.solutionMovesJson as unknown as SolutionMove[])
+              : []
+          }
+        : null
     };
   }
 

@@ -38,6 +38,13 @@ export interface MoveTreeViewProps {
   onComment?: (path: MoveTreePath, comment: string) => void;
   className?: string;
   emptyLabel?: string;
+  /**
+   * `flow` (default): the mainline wraps like a book. `rows`: one mainline
+   * move per row — number, move, and its evaluation when `evaluations` has one.
+   */
+  layout?: "flow" | "rows";
+  /** Formatted White-relative evaluation by the FEN after a move (rows layout). */
+  evaluations?: Readonly<Record<string, string>>;
 }
 
 const samePath = (a: MoveTreePath, b: MoveTreePath) =>
@@ -59,6 +66,8 @@ export function MoveTreeView({
   onComment,
   className,
   emptyLabel = "No moves yet",
+  layout = "flow",
+  evaluations,
 }: MoveTreeViewProps) {
   const activeRef = useRef<HTMLButtonElement | null>(null);
 
@@ -82,19 +91,52 @@ export function MoveTreeView({
           className={cn(
             "inline-flex items-baseline gap-0.5 rounded px-1 py-0.5 font-mono transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
             main ? "font-semibold text-app-text" : "text-app-muted",
-            active ? "bg-primary text-white" : "hover:bg-app-soft hover:text-primary-ink",
+            active ? "bg-primary text-on-primary" : "hover:bg-app-soft hover:text-primary-ink",
           )}
         >
-          {label && <span className={cn("font-normal", active ? "text-white/80" : "text-app-muted")}>{label}</span>}
+          {label && <span className={cn("font-normal", active ? "text-on-primary/80" : "text-app-muted")}>{label}</span>}
           <span>{node.san}</span>
           {node.nags?.map((nag) => (
-            <span key={nag} className={active ? "text-white" : "text-primary-ink"}>
+            <span key={nag} className={active ? "text-on-primary" : "text-primary-ink"}>
               {nagSymbol(nag)}
             </span>
           ))}
         </button>
         {visibleComment(node.comment) && <MoveComment text={visibleComment(node.comment)} />}
       </Fragment>
+    );
+  };
+
+  /** One mainline move as a cell of a numbered pair: move, then its evaluation (rows layout). */
+  const moveCell = (node: MoveTreeNode, path: MoveTreePath, depth: number) => {
+    const { number, white } = moveNumberAt(tree.rootFen, depth);
+    const active = samePath(path, cursor);
+    const label = white ? `${number}.` : `${number}...`;
+    const evaluation = evaluations?.[node.fen];
+    return (
+      <button
+        type="button"
+        ref={active ? activeRef : undefined}
+        onClick={() => onSelect(path)}
+        aria-current={active ? "step" : undefined}
+        aria-label={`${label} ${node.san}${evaluation ? `, evaluation ${evaluation}` : ""}`}
+        className={cn(
+          "flex min-w-0 items-baseline gap-1 px-2 py-1 text-left font-mono transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50",
+          active ? "bg-primary text-on-primary" : "text-app-text hover:bg-app-soft",
+        )}
+      >
+        <span className="min-w-0 flex-1 truncate font-semibold">
+          {node.san}
+          {node.nags?.map((nag) => (
+            <span key={nag} className={active ? "text-on-primary" : "text-primary-ink"}>
+              {nagSymbol(nag)}
+            </span>
+          ))}
+        </span>
+        {evaluation ? (
+          <span className={cn("shrink-0 text-[11px] tabular-nums", active ? "text-on-primary" : "text-app-muted")}>{evaluation}</span>
+        ) : null}
+      </button>
     );
   };
 
@@ -130,24 +172,61 @@ export function MoveTreeView({
   /** The mainline as rows broken by indented variation blocks. */
   const blocks: ReactNode[] = [];
   let row: ReactNode[] = [];
+  // Rows layout: the open move pair. A variation or comment closes it early, Lichess-style ("…" fills the gap).
+  let pair: { key: string; number: number; white: ReactNode | null } | null = null;
+  const closePair = (black: ReactNode | null) => {
+    if (!pair) return;
+    blocks.push(
+      <div key={`pair-${pair.key}`} className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)] text-sm">
+        <span className="bg-app-soft/60 py-1 pr-1.5 text-right font-mono text-xs leading-5 text-app-muted">{pair.number}</span>
+        {pair.white ?? <Gap />}
+        {black ?? (pair.white ? <span /> : <Gap />)}
+      </div>,
+    );
+    pair = null;
+  };
   let level = tree.children;
   let path: MoveTreePath = [];
   let depth = 0;
   let force = true;
   while (level.length > 0) {
     const [mainNode, ...alts] = level;
-    row.push(moveButton(mainNode, [...path, 0], depth, force, true));
+    if (layout === "rows") {
+      const { number, white } = moveNumberAt(tree.rootFen, depth);
+      if (mainNode.preComment) {
+        closePair(null);
+        blocks.push(<RowComment key={`pre-${mainNode.id}`} text={mainNode.preComment} />);
+      }
+      const cell = moveCell(mainNode, [...path, 0], depth);
+      if (white) {
+        closePair(null);
+        pair = { key: mainNode.id, number, white: cell };
+      } else {
+        pair ??= { key: mainNode.id, number, white: null };
+        closePair(cell);
+      }
+      const comment = visibleComment(mainNode.comment);
+      if (comment) {
+        closePair(null);
+        blocks.push(<RowComment key={`c-${mainNode.id}`} text={comment} />);
+      }
+      if (alts.length > 0) closePair(null);
+    } else {
+      row.push(moveButton(mainNode, [...path, 0], depth, force, true));
+    }
     if (alts.length > 0) {
-      blocks.push(
-        <div key={`row-${mainNode.id}`} className="flex flex-wrap items-baseline gap-x-0.5 gap-y-1">
-          {row}
-        </div>,
-      );
+      if (row.length > 0) {
+        blocks.push(
+          <div key={`row-${mainNode.id}`} className="flex flex-wrap items-baseline gap-x-0.5 gap-y-1">
+            {row}
+          </div>,
+        );
+      }
       row = [];
       blocks.push(
         <div
           key={`vars-${mainNode.id}`}
-          className="my-1 ml-2 space-y-1 border-l-2 border-primary/30 pl-2 text-xs"
+          className={cn("my-1 space-y-1 border-l-2 border-primary/30 pl-2 text-xs", layout === "rows" ? "ml-9" : "ml-2")}
           role="group"
           aria-label="Variations"
         >
@@ -168,6 +247,7 @@ export function MoveTreeView({
     level = mainNode.children;
     depth += 1;
   }
+  closePair(null);
   if (row.length > 0) {
     blocks.push(
       <div key="row-end" className="flex flex-wrap items-baseline gap-x-0.5 gap-y-1">
@@ -183,7 +263,7 @@ export function MoveTreeView({
 
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
-      {(inVariation || (editable && cursor.length > 0)) && (
+      {(inVariation || (editable && onComment && cursor.length > 0)) && (
         <VariationBar
           inVariation={inVariation}
           editable={editable}
@@ -194,8 +274,8 @@ export function MoveTreeView({
           onComment={onComment ? (text) => onComment(cursor, text) : undefined}
         />
       )}
-      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2 text-sm">
-        {tree.rootComment && <MoveComment text={tree.rootComment} />}
+      <div className={cn("min-h-0 flex-1 overflow-y-auto text-sm", layout === "rows" ? "py-0.5" : "space-y-1 p-2")}>
+        {tree.rootComment && (layout === "rows" ? <RowComment text={tree.rootComment} /> : <MoveComment text={tree.rootComment} />)}
         {blocks.length === 0 ? (
           <div className="p-4 text-center text-xs text-app-muted">{emptyLabel}</div>
         ) : (
@@ -215,6 +295,14 @@ function currentComment(tree: MoveTree, cursor: MoveTreePath): string {
     level = node.children;
   }
   return node?.comment ?? "";
+}
+
+function Gap() {
+  return <span className="px-2 py-1 font-mono text-app-muted">…</span>;
+}
+
+function RowComment({ text }: { text: string }) {
+  return <p className="px-3 py-1 text-xs italic text-app-muted">{text}</p>;
 }
 
 function MoveComment({ text }: { text: string }) {
