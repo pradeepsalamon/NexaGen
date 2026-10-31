@@ -2,7 +2,7 @@
 
 Status: **Phase 1 and Phase 3a approved 2026-10-19; Phase 2 (RAG PoC)
 implementation began 2026-10-26** on the owner's request to start it, with
-its gate OD-7 approved 2026-10-27 (DECISIONS.md §4); every later phase is still a proposal. 3a waits for an off-hours window. Each phase starts only after the
+its gate OD-7 approved 2026-10-27 (DECISIONS.md §4), and merged to main 2026-10-28; 3a ran and passed (INFRASTRUCTURE_DECISION.md §4.6); 5a shipped 2026-10-28. Phase 3 v1 was narrowed 2026-10-31 to a student recap from the coach's voice (PHASE3_SPEC.md §0a), planning only. Every other later phase is still a proposal. Each phase starts only after the
 owner approves it explicitly. OD-x refers to DECISIONS.md §3.
 
 Every phase:
