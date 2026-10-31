@@ -76,7 +76,8 @@ describe("RetentionPolicyService", () => {
     );
     expect(item).toMatchObject({ days: 365, eligibleCount: 42, updatedByName: "Sam Admin" });
     const [, cutoff] = prisma.$queryRawUnsafe.mock.calls.find(([sql]) => String(sql).startsWith("SELECT count")) ?? [];
-    expect(cutoff).toBe("2025-10-31T10:00:00.000Z");
+    // Measured from the next sweep (2026-11-01 04:00 UTC), not the request.
+    expect(cutoff).toBe("2025-11-01T04:00:00.000Z");
   });
 
   it("turns a window off with null", async () => {
@@ -88,7 +89,7 @@ describe("RetentionPolicyService", () => {
   it("previews the cutoff and count without saving", async () => {
     const { prisma, service } = createService();
     const res = await service.preview("t", "NOTIFICATIONS", { days: 90 }, now);
-    expect(res).toEqual({ category: "NOTIFICATIONS", cutoff: "2026-08-02T10:00:00.000Z", days: 90, eligibleCount: 42 });
+    expect(res).toEqual({ category: "NOTIFICATIONS", cutoff: "2026-08-03T04:00:00.000Z", days: 90, eligibleCount: 42 });
     expect(prisma.retentionPolicy.upsert).not.toHaveBeenCalled();
   });
 

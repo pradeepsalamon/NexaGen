@@ -262,7 +262,15 @@ function EditPolicyDialog({
             Cancel
           </Button>
           <Button
-            disabled={!policy || unchanged || !!daysError || update.isPending || (enabled && !preview.data)}
+            // While the count is reloading or failed the dialog doesn't show it,
+            // so a window that deletes data can't be saved unseen.
+            disabled={
+              !policy ||
+              unchanged ||
+              !!daysError ||
+              update.isPending ||
+              (enabled && (!preview.data || preview.isFetching || preview.isError))
+            }
             onClick={save}
             type="button"
             variant={deletes > 0 ? "destructive" : "primary"}

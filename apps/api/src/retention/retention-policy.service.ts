@@ -93,7 +93,8 @@ export class RetentionPolicyService {
     await this.assertSuperAdmin(accessToken);
     const error = retentionDaysError(category, query.days);
     if (error) throw new BadRequestException(error);
-    const cutoff = retentionCutoff(query.days, now);
+    // The sweep, not this request, decides what goes: measure from its run time.
+    const cutoff = retentionCutoff(query.days, nextRetentionSweep(now));
     return {
       category,
       cutoff,
@@ -142,7 +143,7 @@ export class RetentionPolicyService {
       this.oldestRecord(category),
       days === null || retentionDaysError(category, days)
         ? Promise.resolve(null)
-        : this.countEligible(category, retentionCutoff(days, now))
+        : this.countEligible(category, retentionCutoff(days, nextRetentionSweep(now)))
     ]);
     return {
       category,
