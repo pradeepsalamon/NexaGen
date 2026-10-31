@@ -1,12 +1,17 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
-import type {
-  AttemptMove,
-  AttemptReviewMove,
-  ChessColor,
-  SolutionMove,
-  SolveLineHint,
-  SolveLineMoveFeedback,
-  StockfishAnalysisResult
+import {
+  evaluationFromEngineResult,
+  moveAccuracyFromLoss,
+  oppositeSide,
+  winPercent,
+  type AttemptMove,
+  type AttemptReviewMove,
+  type ChessColor,
+  type Evaluation,
+  type SolutionMove,
+  type SolveLineHint,
+  type SolveLineMoveFeedback,
+  type StockfishAnalysisResult
 } from "@nexa-chess/types";
 import { type Square } from "chess.js";
 import { Chess } from "../common/chess/chess";
@@ -77,15 +82,22 @@ export function isAcceptedMateAlternative(
   return book.isCheckmate();
 }
 
-/** Win probability (0-100) for the side to move, from a centipawn score. */
-export function cpToWinPercent(cp: number): number {
-  return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
-}
-
-/** Lichess-style per-move accuracy from the mover's win% before/after a move. */
-export function moveAccuracy(winBefore: number, winAfter: number): number {
-  const raw = 103.1668 * Math.exp(-0.04354 * (winBefore - winAfter)) - 3.1669;
-  return Math.max(0, Math.min(100, raw));
+/**
+ * Accuracy (0-100) of one move by `mover`, from the engine results before it
+ * (mover to move) and after it (opponent to move). Uses the game-analysis
+ * win% and per-move accuracy curves (`@nexa-chess/types` game-analysis.ts),
+ * so assignments and game reports score a move the same way. A result with no
+ * score counts as level (0.00), as it always has here.
+ */
+export function engineMoveAccuracy(
+  before: StockfishAnalysisResult,
+  after: StockfishAnalysisResult,
+  mover: ChessColor
+): number {
+  const level: Evaluation = { cp: 0, kind: "cp" };
+  const evalBefore = evaluationFromEngineResult(before, mover) ?? level;
+  const evalAfter = evaluationFromEngineResult(after, oppositeSide(mover)) ?? level;
+  return moveAccuracyFromLoss(winPercent(evalBefore, mover) - winPercent(evalAfter, mover));
 }
 
 export type SolveLineEvaluation = {
@@ -405,12 +417,6 @@ export class AssignmentEvaluationService {
     return { scorePercent: 0, result: "LOSS", finished: false };
   }
 
-  private analysisToCp(a: StockfishAnalysisResult): number {
-    if (a.mate !== null) return a.mate > 0 ? 100_000 : -100_000;
-    if (a.evaluation !== null) return Math.round(a.evaluation * 100);
-    return 0;
-  }
-
   /**
    * Move-accuracy (0-100) for a finished PLAY_VS_ENGINE game, from per-move
    * Stockfish analysis. Returns `null` when the engine pool is down or analysis
@@ -463,11 +469,7 @@ export class AssignmentEvaluationService {
         const before = analysed.get(j.fenBefore);
         const after = analysed.get(j.fenAfter);
         if (!before || !after) return 100;
-        // `before` is scored from the student's perspective (student to move);
-        // `after` is from the opponent's — negate to keep the student's view.
-        const winBefore = cpToWinPercent(this.analysisToCp(before));
-        const winAfter = cpToWinPercent(-this.analysisToCp(after));
-        return moveAccuracy(winBefore, winAfter);
+        return engineMoveAccuracy(before, after, student);
       });
 
       return Math.round(perMove.reduce((a, b) => a + b, 0) / perMove.length);

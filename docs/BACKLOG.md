@@ -82,16 +82,6 @@ code on 2026-10-31.
   `fromSnapshot`). The recorder has no user session to read it with, so the
   fix needs either a recorder-scoped read (the egress already holds a
   class-bound credential) or the API injecting the snapshot.
-- **A LiveKit outage answers 500.** `LiveKitService.listParticipants` (and
-  room create) rethrow the SDK error, so `GET /live-class/:id/participants`
-  answers 500 instead of 503 when LiveKit is down. (The old note said this
-  happened when LiveKit was *unconfigured*. That is wrong: `onModuleInit`
-  throws, so the API won't boot without `LIVEKIT_*`, even though
-  `packages/config` marks them optional. Fix one or the other.)
-- **Accuracy formulas duplicated.** `AssignmentEvaluationService`
-  (`cpToWinPercent` and the per-move accuracy) keeps its own copy of the
-  game-analysis maths ([GAME_ANALYSIS.md](GAME_ANALYSIS.md) §12). Converge on
-  the shared module.
 
 ### P3 — feature follow-ups (net-new, each needs a product yes)
 
@@ -109,8 +99,6 @@ code on 2026-10-31.
   integration, no multi-currency, no rate CSV import/export.
 - **`FREE_ANALYSIS` assignments** complete on manual submit only (no move-count
   target).
-- **`GET /batches/:id`** (`batches.get`) still has no web caller. Wire it or
-  delete it (Root causes §1).
 - **Game sources:** no automatic background sync ([GAME_SOURCES.md](GAME_SOURCES.md)).
 - **Chat push:** a websocket only if the 4 s poll proves too slow or costly.
   There is no evidence of that yet.
@@ -139,17 +127,8 @@ code on 2026-10-31.
 [PARENT_REPORTS.md](PARENT_REPORTS.md) (blocked on a verified guardian
 identity), the AI roadmap phases after 2 / 3a
 ([ai/architecture/ROADMAP.md](ai/architecture/ROADMAP.md)), and puzzle-catalogue
-Phase 6 training modules ([PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) §G.3,
-gated on the training surface).
-
-### Doc drift found in this pass
-
-- [UNDO_ARCHITECTURE.md](UNDO_ARCHITECTURE.md) still says "proposed, not yet
-  implemented", but `lib/undo/useUndoableMutation.ts` exists and is the
-  documented pattern (CLAUDE.md §3.6).
-- [PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) still
-  says "design only — nothing implemented", but the implementation spec reports
-  PRs 1–5b built and `lichess_puzzles` is in the schema.
+Phase 6 training modules ([PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) §G.3;
+its precondition, the student training surface, now exists).
 
 ### Closed by this pass (were listed as open, already fixed in code)
 
@@ -161,6 +140,33 @@ gated on the training surface).
   them deferred. Both shipped 2026-09-14.
 - **`POST /upload/pgn` orphan note.** It has a web caller (`uploadPgn`), so the
   note was dropped.
+
+## Resolved (2026-10-31) — LiveKit 503s, shared accuracy maths, doc drift
+
+- **A LiveKit outage answered 500.** Every LiveKit server call now goes
+  through `LiveKitService.call`: a failure is a 503 (`LIVEKIT_UNAVAILABLE`),
+  except "not found", which still passes through because callers treat an
+  empty room or a departed participant as normal. Recording start/stop
+  failures are 503 too. Config is now honest: production refuses to boot
+  without `LIVEKIT_URL` / `_API_KEY` / `_API_SECRET` (`packages/config`
+  api.ts, as before but at env-parse time with a clear message). Elsewhere the
+  API boots without LiveKit and live-class calls answer 503
+  (`LIVEKIT_NOT_CONFIGURED`). (The old note blamed an *unconfigured* LiveKit,
+  which could not happen: `onModuleInit` threw, so the API never booted.)
+- **Assignment accuracy had its own copy of the maths.** PLAY_VS_ENGINE
+  accuracy (`engineMoveAccuracy`) now uses `winPercent` and
+  `moveAccuracyFromLoss` from `@nexa-chess/types` game-analysis.ts. Same
+  constants, so scores are unchanged; mates are now exactly 100/0 instead of
+  ±100,000 cp. It still averages arithmetically (see GAME_ANALYSIS.md §12).
+- **`GET /batches/:id` kept, not wired.** No screen needs it (list rows carry
+  the same `BatchResponse`). It stays as the single-batch read and as the
+  cross-user suite's probe of `getBatchVisibilityWhere`, which deleting it would
+  lose. A comment at the route says so.
+- **Doc drift.** UNDO_ARCHITECTURE.md said "not yet implemented" (39
+  `useUndoableMutation` call sites exist). PUZZLE_CATALOGUE_ARCHITECTURE.md said
+  "nothing implemented", and the implementation spec said PR 6 was in review.
+  The catalogue API + UI and student training are built. Status lines
+  corrected.
 
 ## Resolved (2026-10-31) — admin-set data retention
 

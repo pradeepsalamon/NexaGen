@@ -402,8 +402,11 @@ provisional.
 - Time-pressure analysis exists only for games whose PGN carries `[%clk]`
   clocks (Lichess / Chess.com exports do; NexaGen's live-class games don't
   record per-move clocks).
-- `AssignmentEvaluationService` still has its own copy of the win% and
-  per-move accuracy formulas; converge it onto this module in a later change.
+- `AssignmentEvaluationService` (PLAY_VS_ENGINE accuracy) uses this module's
+  `winPercent` and `moveAccuracyFromLoss` (`engineMoveAccuracy`) but still
+  averages per-move values arithmetically, at a short movetime, without the
+  classifier's FORCED/coverage rules. Its percentage is not a game report's
+  `sideAccuracy`.
 - No automatic background re-analysis when the classification version
   changes: old reports keep their version, and insights only combine the
   current version (the excluded count is shown).

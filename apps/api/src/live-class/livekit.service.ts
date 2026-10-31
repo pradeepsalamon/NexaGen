@@ -1,10 +1,21 @@
-import { Injectable, Logger, OnModuleInit, InternalServerErrorException } from "@nestjs/common";
+import {
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  OnModuleInit,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { RoomServiceClient, AccessToken, Room, EgressClient, EncodedFileOutput, EncodedFileType, EncodingOptionsPreset, S3Upload, TrackSource, DataPacket_Kind } from "livekit-server-sdk";
 import { LIVE_CLASS_SPECTATOR_ROLE, type DerivedLiveKitGrants, type LiveKitTrackSource } from "@nexa-chess/types";
 import { LiveKitTokenOptions } from "./types/live-class.types";
 import { getApiEnv } from "@nexa-chess/config/api";
 
 const LIVEKIT_TOKEN_TTL = "10m";
+
+/** 503 bodies: the video service is an outside dependency, never a 500. */
+export const LIVEKIT_NOT_CONFIGURED = "Live classes aren't set up on this server.";
+export const LIVEKIT_UNAVAILABLE = "The video service is unavailable right now. Try again in a moment.";
 
 const TRACK_SOURCE_MAP: Record<LiveKitTrackSource, TrackSource> = {
   camera: TrackSource.CAMERA,
@@ -16,8 +27,8 @@ const TRACK_SOURCE_MAP: Record<LiveKitTrackSource, TrackSource> = {
 @Injectable()
 export class LiveKitService implements OnModuleInit {
   private readonly logger = new Logger(LiveKitService.name);
-  private roomClient!: RoomServiceClient;
-  private egressClient!: EgressClient;
+  private roomClient: RoomServiceClient | null = null;
+  private egressClient: EgressClient | null = null;
 
   private readonly livekitUrl: string;
   private readonly apiKey: string;
@@ -30,10 +41,17 @@ export class LiveKitService implements OnModuleInit {
     this.apiSecret = env.LIVEKIT_API_SECRET ?? "";
   }
 
+  /**
+   * Production refuses to boot without LIVEKIT_* (`packages/config` api.ts).
+   * Elsewhere (local dev, tests) the API boots without it and every live-class
+   * call answers 503, like the other optional integrations.
+   */
   onModuleInit() {
-    if (!this.livekitUrl || !this.apiKey || !this.apiSecret) {
-      this.logger.error("LiveKit configuration is missing! Please provide LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET.");
-      throw new InternalServerErrorException("LiveKit configuration is missing.");
+    if (!this.isConfigured()) {
+      this.logger.warn(
+        "LiveKit is not configured (LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET); live-class calls will answer 503."
+      );
+      return;
     }
 
     this.roomClient = new RoomServiceClient(this.livekitUrl, this.apiKey, this.apiSecret);
@@ -41,29 +59,54 @@ export class LiveKitService implements OnModuleInit {
     this.logger.log("LiveKit RoomServiceClient and EgressClient initialized.");
   }
 
+  isConfigured(): boolean {
+    return !!(this.livekitUrl && this.apiKey && this.apiSecret);
+  }
+
+  private rooms(): RoomServiceClient {
+    if (!this.roomClient) throw new ServiceUnavailableException(LIVEKIT_NOT_CONFIGURED);
+    return this.roomClient;
+  }
+
+  private egress(): EgressClient {
+    if (!this.egressClient) throw new ServiceUnavailableException(LIVEKIT_NOT_CONFIGURED);
+    return this.egressClient;
+  }
+
+  /**
+   * Runs one LiveKit server call. A "not found" error passes through untouched
+   * (callers treat an empty room or a departed participant as normal); any
+   * other failure is an outage of an outside service, so a 503, not a 500.
+   */
+  private async call<T>(action: string, run: () => Promise<T>): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      if (error instanceof HttpException || LiveKitService.isRoomNotFoundError(error)) throw error;
+      this.logger.error(`LiveKit ${action} failed`, error instanceof Error ? error.stack : error);
+      throw new ServiceUnavailableException(LIVEKIT_UNAVAILABLE);
+    }
+  }
+
   generateRoomName(scheduleId: string): string {
     return `class_${scheduleId}`;
   }
 
   async createRoom(roomName: string): Promise<Room> {
-    try {
-      this.logger.log(`Creating LiveKit room: ${roomName}`);
-      const room = await this.roomClient.createRoom({
+    this.logger.log(`Creating LiveKit room: ${roomName}`);
+    return this.call(`createRoom(${roomName})`, () =>
+      this.rooms().createRoom({
         name: roomName,
         emptyTimeout: 10 * 60, // 10 minutes timeout to prevent resource leaks
         maxParticipants: 100,
-      });
-      return room;
-    } catch (error) {
-      this.logger.error(`Failed to create LiveKit room: ${roomName}`, error);
-      throw new InternalServerErrorException("Failed to create LiveKit room");
-    }
+      })
+    );
   }
 
   async fetchRoom(roomName: string): Promise<Room | null> {
     try {
       // roomClient.listRooms returns an array of rooms
-      const rooms = await this.roomClient.listRooms([roomName]);
+      const rooms = await this.rooms().listRooms([roomName]);
       return rooms.length > 0 ? rooms[0] : null;
     } catch (error) {
       this.logger.warn(`Room ${roomName} not found or error fetching`, error);
@@ -74,7 +117,7 @@ export class LiveKitService implements OnModuleInit {
   async deleteRoom(roomName: string): Promise<void> {
     try {
       this.logger.log(`Deleting LiveKit room: ${roomName}`);
-      await this.roomClient.deleteRoom(roomName);
+      await this.rooms().deleteRoom(roomName);
     } catch (error) {
       this.logger.warn(`Failed to delete LiveKit room: ${roomName}`, error);
     }
@@ -82,17 +125,15 @@ export class LiveKitService implements OnModuleInit {
 
   async listParticipants(roomName: string) {
     try {
-      const participants = await this.roomClient.listParticipants(roomName);
-      return participants;
+      return await this.call(`listParticipants(${roomName})`, () => this.rooms().listParticipants(roomName));
     } catch (error) {
       // A room that doesn't exist yet is an expected, benign state (nobody has
-      // joined) — return empty. Anything else is a real LiveKit failure and
-      // must propagate so callers don't mistake an outage for "room empty"
-      // (AUDIT M22).
+      // joined) — return empty. Anything else is a real LiveKit failure (now a
+      // 503) and must propagate so callers don't mistake an outage for "room
+      // empty" (AUDIT M22).
       if (LiveKitService.isRoomNotFoundError(error)) {
         return [];
       }
-      this.logger.error(`Failed to list participants for room: ${roomName}`, error);
       throw error;
     }
   }
@@ -105,6 +146,7 @@ export class LiveKitService implements OnModuleInit {
   }
 
   async generateAccessToken(options: LiveKitTokenOptions): Promise<string> {
+    if (!this.isConfigured()) throw new ServiceUnavailableException(LIVEKIT_NOT_CONFIGURED);
     try {
       const at = new AccessToken(this.apiKey, this.apiSecret, {
         identity: options.participantIdentity,
@@ -174,6 +216,7 @@ export class LiveKitService implements OnModuleInit {
     participantIdentity: string;
     participantName: string;
   }): Promise<string> {
+    if (!this.isConfigured()) throw new ServiceUnavailableException(LIVEKIT_NOT_CONFIGURED);
     try {
       const at = new AccessToken(this.apiKey, this.apiSecret, {
         identity: options.participantIdentity,
@@ -219,24 +262,28 @@ export class LiveKitService implements OnModuleInit {
     identity: string,
     grants: DerivedLiveKitGrants,
   ): Promise<void> {
-    await this.roomClient.updateParticipant(roomName, identity, {
-      permission: {
-        canSubscribe: grants.canSubscribe,
-        canPublish: grants.canPublish,
-        canPublishData: grants.canPublishData,
-        canPublishSources: grants.canPublishSources.map((s) => TRACK_SOURCE_MAP[s]),
-        canUpdateMetadata: grants.canUpdateOwnMetadata,
-      },
-    });
+    await this.call(`updateParticipant(${roomName})`, () =>
+      this.rooms().updateParticipant(roomName, identity, {
+        permission: {
+          canSubscribe: grants.canSubscribe,
+          canPublish: grants.canPublish,
+          canPublishData: grants.canPublishData,
+          canPublishSources: grants.canPublishSources.map((s) => TRACK_SOURCE_MAP[s]),
+          canUpdateMetadata: grants.canUpdateOwnMetadata,
+        },
+      })
+    );
   }
 
   /** Force-mute one already-published track (used when a source is revoked live). */
   async muteParticipantTrack(roomName: string, identity: string, trackSid: string): Promise<void> {
-    await this.roomClient.mutePublishedTrack(roomName, identity, trackSid, true);
+    await this.call(`mutePublishedTrack(${roomName})`, () =>
+      this.rooms().mutePublishedTrack(roomName, identity, trackSid, true)
+    );
   }
 
   async removeParticipant(roomName: string, identity: string): Promise<void> {
-    await this.roomClient.removeParticipant(roomName, identity);
+    await this.call(`removeParticipant(${roomName})`, () => this.rooms().removeParticipant(roomName, identity));
   }
 
   /**
@@ -250,10 +297,12 @@ export class LiveKitService implements OnModuleInit {
     topic: string,
     destinationIdentities?: string[],
   ): Promise<void> {
-    await this.roomClient.sendData(roomName, payload, DataPacket_Kind.RELIABLE, {
-      topic,
-      ...(destinationIdentities?.length ? { destinationIdentities } : {}),
-    });
+    await this.call(`sendData(${roomName})`, () =>
+      this.rooms().sendData(roomName, payload, DataPacket_Kind.RELIABLE, {
+        topic,
+        ...(destinationIdentities?.length ? { destinationIdentities } : {}),
+      })
+    );
   }
 
   /**
@@ -304,6 +353,7 @@ export class LiveKitService implements OnModuleInit {
   }
 
   async startRecording(roomName: string, filepath: string, classId: string): Promise<string> {
+    const egress = this.egress();
     try {
       this.logger.log(`Starting LiveKit room composite egress for room: ${roomName}`);
       const s3Output = this.buildS3Output();
@@ -331,7 +381,7 @@ export class LiveKitService implements OnModuleInit {
         );
       }
 
-      const info = await this.egressClient.startRoomCompositeEgress(
+      const info = await egress.startRoomCompositeEgress(
         roomName,
         {
           file: fileOutput,
@@ -351,18 +401,19 @@ export class LiveKitService implements OnModuleInit {
       return info.egressId;
     } catch (error) {
       this.logger.error(`Failed to start recording for room: ${roomName}`, error);
-      throw new InternalServerErrorException("Failed to start LiveKit recording");
+      throw new ServiceUnavailableException("Couldn't start the recording: the video service is unavailable.");
     }
   }
 
   async stopRecording(egressId: string): Promise<void> {
+    const egress = this.egress();
     try {
       this.logger.log(`Stopping LiveKit egress: ${egressId}`);
-      await this.egressClient.stopEgress(egressId);
+      await egress.stopEgress(egressId);
       this.logger.log(`Stopped recording egressId: ${egressId}`);
     } catch (error) {
       this.logger.error(`Failed to stop recording for egressId: ${egressId}`, error);
-      throw new InternalServerErrorException("Failed to stop LiveKit recording");
+      throw new ServiceUnavailableException("Couldn't stop the recording: the video service is unavailable.");
     }
   }
 }

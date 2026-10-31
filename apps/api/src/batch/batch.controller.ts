@@ -33,6 +33,9 @@ export class BatchController {
     return this.batchService.getAssignableUsers(this.getAccessToken(request));
   }
 
+  // No web caller on purpose: list rows carry the same BatchResponse shape.
+  // Kept as the single-batch read and as the cross-user suite's probe of
+  // getBatchVisibilityWhere (docs/BACKLOG.md, 2026-10-31).
   @Get(API_ROUTES.batches.get())
   getById(@Param("id") id: string, @Req() request: Request) {
     return this.batchService.getById(this.getAccessToken(request), id);
