@@ -76,12 +76,6 @@ code on 2026-10-31.
 
 ### P2 — reliability / correctness edges
 
-- **Recording template has no board recovery.** `RecorderClient` starts from
-  `INITIAL_READ_ONLY_BOARD` and waits for the coach's `FORCE_SYNC`. The
-  spectator seat already restores `LiveSession.boardState` (`useSpectatorRoom`
-  `fromSnapshot`). The recorder has no user session to read it with, so the
-  fix needs either a recorder-scoped read (the egress already holds a
-  class-bound credential) or the API injecting the snapshot.
 
 ### P3 — feature follow-ups (net-new, each needs a product yes)
 
@@ -140,6 +134,20 @@ its precondition, the student training surface, now exists).
   them deferred. Both shipped 2026-09-14.
 - **`POST /upload/pgn` orphan note.** It has a web caller (`uploadPgn`), so the
   note was dropped.
+
+## Resolved (2026-10-31) — recordings open on the current board
+
+The recording template started at the start position. It only caught up when
+the coach answered one of the two server-injected `REQUEST_SYNC`s (4 s and 9 s
+after start) or made a move. So the opening seconds were wrong, and a template
+that connected late, or a class whose coach board tab wasn't connected, could
+record the start position for minutes. The template's page now reads the saved
+`LiveSession.boardState` server-side before it renders, through a new
+`GET /live-class/:id/recorder/board-state` authenticated by the egress LiveKit
+token (signature, room, hidden seat). The live sync still applies on top.
+Details: [LIVE_CLASS.md](LIVE_CLASS.md) "Recording". New compose var on `web`:
+`API_INTERNAL_URL` (default `http://api:3001`). This also closes the
+2026-10-03 note that the recorder "still relies on the coach's FORCE_SYNC".
 
 ## Resolved (2026-10-31) — LiveKit 503s, shared accuracy maths, doc drift
 
@@ -316,9 +324,8 @@ minutes (see "Open items").
   saves a snapshot to `LiveSession.boardState` (throttled, with a keepalive flush
   on unload) and restores it on load. A restore gate stops a refreshed coach from
   sending FORCE_SYNC with an empty board, and students fall back to the snapshot
-  when no coach answers. Board-control grants are deliberately not restored. Not
-  yet covered: the recorder template still relies on the coach's FORCE_SYNC
-  (it has no user session to read the snapshot with).
+  when no coach answers. Board-control grants are deliberately not restored. The
+  recorder template reads the snapshot too since 2026-10-31.
 
 - **No DB integration tests.** Added `npm run test:integration`: `*.int-spec.ts`
   files run against a real, disposable Postgres with a non-UTC session timezone,

@@ -1,3 +1,4 @@
+import type { LiveBoardState } from "@nexa-chess/types";
 import type { BoardColor, BoardControlSide, BoardPermissionMode, BoardSyncMessage } from "../types/sync";
 import { isCoachParticipant, isOneAllowedMoveAway, moverColorFromFen, senderMayMutateBoard } from "./boardSyncRules";
 
@@ -33,6 +34,21 @@ export const INITIAL_READ_ONLY_BOARD: ReadOnlyBoardState = {
   arrows: [],
   squares: {},
 };
+
+/**
+ * The saved board (`LiveSession.boardState`) as a read-only viewer's starting
+ * point. Grants are deliberately not part of a snapshot: a student's move is
+ * held back until the coach's next `UPDATE_PERMISSIONS` restates who controls.
+ */
+export function readOnlyBoardFromSnapshot(snapshot: LiveBoardState | null | undefined): ReadOnlyBoardState {
+  if (!snapshot) return INITIAL_READ_ONLY_BOARD;
+  return {
+    arrows: snapshot.arrows,
+    fen: snapshot.fen,
+    orientation: snapshot.orientation,
+    squares: snapshot.squares,
+  };
+}
 
 /**
  * Applies one `board_sync` packet. Returns `prev` unchanged for messages that

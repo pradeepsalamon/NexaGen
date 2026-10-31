@@ -6,7 +6,7 @@ import {
   OnModuleInit,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import { RoomServiceClient, AccessToken, Room, EgressClient, EncodedFileOutput, EncodedFileType, EncodingOptionsPreset, S3Upload, TrackSource, DataPacket_Kind } from "livekit-server-sdk";
+import { RoomServiceClient, AccessToken, TokenVerifier, Room, EgressClient, EncodedFileOutput, EncodedFileType, EncodingOptionsPreset, S3Upload, TrackSource, DataPacket_Kind } from "livekit-server-sdk";
 import { LIVE_CLASS_SPECTATOR_ROLE, type DerivedLiveKitGrants, type LiveKitTrackSource } from "@nexa-chess/types";
 import { LiveKitTokenOptions } from "./types/live-class.types";
 import { getApiEnv } from "@nexa-chess/config/api";
@@ -85,6 +85,22 @@ export class LiveKitService implements OnModuleInit {
       if (error instanceof HttpException || LiveKitService.isRoomNotFoundError(error)) throw error;
       this.logger.error(`LiveKit ${action} failed`, error instanceof Error ? error.stack : error);
       throw new ServiceUnavailableException(LIVEKIT_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Checks a LiveKit access token was signed with our key/secret and is in
+   * date, and returns its video grant. Null for any token that fails. Used
+   * to authenticate the egress recording template, which holds a LiveKit
+   * token and no session.
+   */
+  async verifyToken(token: string): Promise<{ room?: string; hidden?: boolean; recorder?: boolean } | null> {
+    if (!this.isConfigured()) throw new ServiceUnavailableException(LIVEKIT_NOT_CONFIGURED);
+    try {
+      const claims = await new TokenVerifier(this.apiKey, this.apiSecret).verify(token);
+      return claims.video ?? null;
+    } catch {
+      return null;
     }
   }
 

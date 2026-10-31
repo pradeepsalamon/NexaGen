@@ -61,6 +61,7 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Live class: settings, moderation, kick, pull, waiting room, screen-share approval, end | — (may request screen share / admission) | own class | any class | `resolveClassManager`. |
 | Live class: **recording** start/stop | — | own class | any class | Fixed 2026-10-16 (was any coach). |
 | Recording: view / stream / download | enrolled batch | own class | any | Stream token is signed per viewer + class and re-checked. |
+| Shared board state (recorder) | — | — | — | `GET /live-class/:id/recorder/board-state`: no session, no role. The egress template's LiveKit token is the credential (signed with our LiveKit secret, this class's room, hidden seat). Read-only. The one route authenticated by something other than the access cookie besides webhooks. |
 | Shared board state | R (participant) | R U (own class, LIVE) | R U | Peer moves: coach always; student only with a per-colour grant and a legal move (`senderMayMutateBoard`), enforced by every receiver incl. the recorder and spectator. |
 | In-class chat | R C (own class; DM coach only) | R C (own class) | R C | `privateChatRecipientAllowed`. |
 | Live puzzles, simul, matches, move polls, Puzzle Storm, tools, chapters, activity queue | play/answer in own class; never read others' attempts or unrevealed results | P U D in own class | any class | Activity queue + chapters are coach-only reads too (a saved line can hold an answer). |
