@@ -1,5 +1,12 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { isActiveAnalysis, type GameAnalysisDepth, type ImportPgnRequest, type LinkExternalAccountRequest } from "@nexa-chess/types";
+import {
+  isActiveAnalysis,
+  type GameAnalysisDepth,
+  type GameAutoSyncPolicy,
+  type GameAutoSyncRule,
+  type ImportPgnRequest,
+  type LinkExternalAccountRequest,
+} from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   addTacticToRevision,
@@ -10,7 +17,18 @@ import {
   requestAnalysis,
   type AnalysedGameFilters,
 } from "../api/gameAnalysisApi";
-import { getGameSources, importPgn, linkAccount, syncAccount, unlinkAccount, verifyAccount } from "../api/gameSourcesApi";
+import {
+  getGameSources,
+  getStudentGameSources,
+  importPgn,
+  linkAccount,
+  setAccountAutoSync,
+  setAutoSyncPolicy,
+  setStudentAutoSyncRule,
+  syncAccount,
+  unlinkAccount,
+  verifyAccount,
+} from "../api/gameSourcesApi";
 
 /** Polls every 3s while the analysis is queued or running, and stops once it isn't. */
 export function useGameAnalysisState(gameId: string) {
@@ -92,5 +110,16 @@ export const useLinkAccount = () => useAccountMutation((body: LinkExternalAccoun
 export const useVerifyAccount = () => useAccountMutation((id: string) => verifyAccount(id));
 export const useSyncAccount = () =>
   useAccountMutation(({ id, analyse }: { id: string; analyse: boolean }) => syncAccount(id, analyse));
+export const useSetAccountAutoSync = () =>
+  useAccountMutation(({ id, autoSync }: { id: string; autoSync: boolean }) => setAccountAutoSync(id, autoSync));
+export const useSetAutoSyncPolicy = () => useAccountMutation((policy: GameAutoSyncPolicy) => setAutoSyncPolicy(policy));
+export const useSetStudentAutoSyncRule = (studentId: string) =>
+  useAccountMutation((rule: GameAutoSyncRule | null) => setStudentAutoSyncRule(studentId, rule));
+export const useStudentGameSources = (studentId: string) =>
+  useQuery({
+    queryFn: () => getStudentGameSources(studentId),
+    queryKey: queryKeys.gameSources.student(studentId),
+    staleTime: 30_000,
+  });
 export const useUnlinkAccount = () =>
   useAccountMutation(({ id, deleteGames }: { id: string; deleteGames: boolean }) => unlinkAccount(id, deleteGames));

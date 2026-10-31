@@ -184,6 +184,16 @@ so a review is never a second, independent activity. The puzzle rating rule is
 unchanged: only a student's first finished attempt at a puzzle is rated, so
 revising a known puzzle can't farm rating.
 
+## Reminders
+
+The `REVISION_DUE` messaging rule ([MESSAGING.md](MESSAGING.md)) ships off. When
+an admin turns it on at `/admin/messaging`, a student with something due gets one
+in-app nudge a day, by default at 5pm in their own time zone. It is queued within
+an hour of that time, so catching up first means no nudge. Items are seeded on
+read, so a student who has never opened a revision page may have nothing to be
+reminded about. Known limit: a private puzzle the student can no longer open still
+counts as due for this check.
+
 ## Tests
 
 - `apps/api/src/revision/revision-schedule.spec.ts` — the scheduler: all four

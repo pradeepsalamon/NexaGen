@@ -86,7 +86,9 @@ export class PrivacyService {
       classChangeRequests,
       platformStaff,
       helpFeedback,
-      helpSuggestions
+      helpSuggestions,
+      externalChessAccounts,
+      directEmails
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -177,7 +179,10 @@ export class PrivacyService {
           title: true
         },
         where: { authorId: id }
-      })
+      }),
+      // The one-time verification code is a secret, and is cleared once used anyway.
+      p.externalChessAccount.findMany({ omit: { verificationCode: true }, where: { userId: id } }),
+      p.directEmail.findMany({ omit: { error: true, senderId: true }, where: { recipientId: id } })
     ]);
 
     return {
@@ -198,7 +203,9 @@ export class PrivacyService {
         coachAttendance: records(coachAttendance),
         coachProfile: records(coachProfile),
         courseProgress: records(courseProgress),
+        directEmails: records(directEmails),
         entitlements: records(entitlements),
+        externalChessAccounts: records(externalChessAccounts),
         feedbackGiven: records(feedbackGiven),
         helpFeedback: records(helpFeedback),
         helpSuggestions: records(helpSuggestions),

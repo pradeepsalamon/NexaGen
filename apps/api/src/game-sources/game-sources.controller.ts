@@ -1,10 +1,16 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import {
   API_ROUTES,
   importPgnRequestSchema,
   linkExternalAccountRequestSchema,
   syncExternalAccountRequestSchema,
+  updateExternalAccountRequestSchema,
+  updateGameAutoSyncPolicyRequestSchema,
+  updateGameAutoSyncRuleRequestSchema,
   type LinkExternalAccountRequest,
+  type UpdateExternalAccountRequest,
+  type UpdateGameAutoSyncPolicyRequest,
+  type UpdateGameAutoSyncRuleRequest,
 } from '@nexa-chess/types';
 import type { Request } from 'express';
 import type { z } from 'zod';
@@ -49,6 +55,37 @@ export class GameSourcesController {
     @Body(new ZodBodyPipe(syncExternalAccountRequestSchema)) body: z.output<typeof syncExternalAccountRequestSchema>,
   ) {
     return this.sources.sync(this.getAccessToken(request), id, body.analyse);
+  }
+
+  @Patch(API_ROUTES.gameSources.account())
+  update(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body(new ZodBodyPipe(updateExternalAccountRequestSchema)) body: UpdateExternalAccountRequest,
+  ) {
+    return this.sources.setAutoSync(this.getAccessToken(request), id, body.autoSync);
+  }
+
+  @Get(API_ROUTES.gameSources.student())
+  student(@Req() request: Request, @Param('studentId') studentId: string) {
+    return this.sources.studentSources(this.getAccessToken(request), studentId);
+  }
+
+  @Put(API_ROUTES.gameSources.student())
+  setStudentRule(
+    @Req() request: Request,
+    @Param('studentId') studentId: string,
+    @Body(new ZodBodyPipe(updateGameAutoSyncRuleRequestSchema)) body: UpdateGameAutoSyncRuleRequest,
+  ) {
+    return this.sources.setStudentRule(this.getAccessToken(request), studentId, body.rule);
+  }
+
+  @Put(API_ROUTES.gameSources.autoSyncPolicy)
+  setPolicy(
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(updateGameAutoSyncPolicyRequestSchema)) body: UpdateGameAutoSyncPolicyRequest,
+  ) {
+    return this.sources.setPolicy(this.getAccessToken(request), body.policy);
   }
 
   @Delete(API_ROUTES.gameSources.account())

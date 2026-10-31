@@ -38,7 +38,7 @@ of rule, the fixed ones first:
 - **Fixed, in code** (`RETENTION_RULES`): operational rows nothing reads any
   more. Expired `auth_sessions` and reset/verification tokens (+1 day),
   `processed_webhook_events` (30 days), `visitor_sessions` idle 180 days with
-  no lead, `knowledge_search_logs` (90 days). Before this, every 15-minute
+  no lead, `knowledge_search_logs` (90 days), `direct_emails` (365 days). Before this, every 15-minute
   token refresh left a row behind for good. A new log-style table that only
   ever grows belongs here.
 - **Admin-set, per category** (`RetentionPolicy`, one row per

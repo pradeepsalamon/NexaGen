@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Send } from "lucide-react";
+import { Mail, Send } from "lucide-react";
 import {
   MESSAGING_EVENT_DEFINITIONS,
   describeSchedule,
   findUnknownTemplateVariables,
-  renderMessageTemplate,
+  renderFormattedTemplate,
   sampleVariablesFor,
   type MessagingAudience,
   type MessagingRuleItem,
@@ -22,10 +22,13 @@ import {
   DialogTitle
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
+import { FormattedText } from "@/components/ui/FormattedText";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { TextEditor } from "@/components/ui/TextEditor";
 import { Textarea } from "@/components/ui/Textarea";
 import { useTestMessagingRule, useUpdateMessagingRule } from "../hooks/useMessagingApi";
+import { PlaceholderPicker, useTemplateInsert } from "./PlaceholderPicker";
 import { TimePicker } from "@/components/ui/TimePicker";
 import { Switch } from "@/components/ui/Switch";
 
@@ -57,6 +60,7 @@ const AUDIENCE_LABELS: Record<MessagingAudience, string> = {
 };
 
 type Props = {
+  emailConfigured: boolean;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   rule: MessagingRuleItem;
@@ -64,12 +68,14 @@ type Props = {
 };
 
 export function MessagingRuleEditor({
+  emailConfigured,
   onOpenChange,
   open,
   rule,
   whatsappConfigured
 }: Props) {
   const definition = MESSAGING_EVENT_DEFINITIONS[rule.event];
+  const supportsEmail = definition.supportsEmail !== false;
   const update = useUpdateMessagingRule();
   const test = useTestMessagingRule();
 
@@ -89,7 +95,7 @@ export function MessagingRuleEditor({
   }, [open, rule]);
 
   const preview = useMemo(
-    () => renderMessageTemplate(draft.body, sampleVariablesFor(rule.event)),
+    () => renderFormattedTemplate(draft.body, sampleVariablesFor(rule.event)),
     [draft.body, rule.event]
   );
   const unknown = useMemo(
@@ -97,8 +103,35 @@ export function MessagingRuleEditor({
     [draft.body, draft.title, rule.event]
   );
 
-  const insertVariable = (name: string) => {
-    setDraft((current) => ({ ...current, body: `${current.body}{{${name}}}` }));
+  const { bodyProps, headingProps, insert } = useTemplateInsert({
+    body: {
+      onChange: (body) => setDraft((current) => ({ ...current, body })),
+      value: draft.body
+    },
+    heading: {
+      onChange: (title) => setDraft((current) => ({ ...current, title })),
+      value: draft.title
+    }
+  });
+
+  const sendTest = (channel: "EMAIL" | "WHATSAPP") => {
+    test.mutate(
+      {
+        event: rule.event,
+        data:
+          channel === "EMAIL"
+            ? { channel }
+            : testNumber.trim()
+              ? { phoneNumber: testNumber.trim() }
+              : {}
+      },
+      {
+        onSuccess: (result) =>
+          setTestResult(
+            result.sent ? `Sent to ${result.to}.` : (result.error ?? "Could not send.")
+          )
+      }
+    );
   };
 
   const save = () => {
@@ -109,6 +142,7 @@ export function MessagingRuleEditor({
           enabled: draft.enabled,
           whatsappEnabled: draft.whatsappEnabled,
           inAppEnabled: draft.inAppEnabled,
+          emailEnabled: draft.emailEnabled,
           audience: draft.audience,
           leadTimeMinutes: draft.leadTimeMinutes,
           scheduleMode: draft.scheduleMode,
@@ -173,7 +207,31 @@ export function MessagingRuleEditor({
                   }))
                 }
               />
+              {supportsEmail ? (
+                <Switch
+                  checked={draft.emailEnabled}
+                  disabled={!draft.enabled}
+                  id={`${rule.event}-email`}
+                  label="Email"
+                  onCheckedChange={(checked) =>
+                    setDraft((current) => ({
+                      ...current,
+                      emailEnabled: checked === true
+                    }))
+                  }
+                />
+              ) : null}
             </div>
+            {supportsEmail ? null : (
+              <p className="pl-6 text-xs text-app-muted">
+                The invoice email has its own wording under System messages, so it isn&apos;t a channel here.
+              </p>
+            )}
+            {draft.emailEnabled && !emailConfigured ? (
+              <p className="pl-6 text-xs text-app-danger">
+                Email is not configured on this server, so nothing will be sent on that channel.
+              </p>
+            ) : null}
             {draft.whatsappEnabled && !whatsappConfigured ? (
               <p className="pl-6 text-xs text-app-danger">
                 WhatsApp is not configured on this server, so nothing will be sent on that
@@ -316,8 +374,12 @@ export function MessagingRuleEditor({
             </div>
           ) : null}
 
-          <FormField id={`${rule.event}-title`} label="In-app heading">
+          <FormField
+            id={`${rule.event}-title`}
+            label={supportsEmail ? "In-app heading and email subject" : "In-app heading"}
+          >
             <Input
+              {...headingProps}
               id={`${rule.event}-title`}
               onChange={(e) =>
                 setDraft((current) => ({ ...current, title: e.target.value }))
@@ -326,34 +388,22 @@ export function MessagingRuleEditor({
             />
           </FormField>
 
-          <FormField id={`${rule.event}-body`} label="Message">
-            <Textarea
+          <FormField
+            hint="Formatting shows in email and in-app. WhatsApp shows bold and italic, and writes a link out as its address."
+            id={`${rule.event}-body`}
+            label="Message"
+          >
+            <TextEditor
+              {...bodyProps}
               id={`${rule.event}-body`}
-              onChange={(e) =>
-                setDraft((current) => ({ ...current, body: e.target.value }))
-              }
+              linkTargets="template"
+              onChange={(body) => setDraft((current) => ({ ...current, body }))}
               rows={5}
               value={draft.body}
             />
           </FormField>
 
-          <div>
-            <p className="text-xs font-semibold text-app-muted">
-              Insert a value
-            </p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {definition.variables.map((name) => (
-                <button
-                  className="rounded-full border border-app-border px-2.5 py-1 text-xs text-app-muted transition hover:border-primary hover:text-primary-ink"
-                  key={name}
-                  onClick={() => insertVariable(name)}
-                  type="button"
-                >
-                  {`{{${name}}}`}
-                </button>
-              ))}
-            </div>
-          </div>
+          <PlaceholderPicker onInsert={insert} variables={definition.variables} />
 
           {unknown.length > 0 ? (
             <p className="text-xs text-app-danger">
@@ -366,7 +416,7 @@ export function MessagingRuleEditor({
             <p className="text-xs font-semibold text-app-muted">
               Preview (sample values)
             </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-app-text">{preview}</p>
+            <FormattedText className="mt-2 text-sm text-app-text" source={preview} />
           </div>
 
           <details className="rounded-app border border-app-border p-4">
@@ -424,8 +474,8 @@ export function MessagingRuleEditor({
           <div className="rounded-app border border-app-border p-4">
             <p className="text-sm font-semibold text-app-text">Send a test</p>
             <p className="mt-1 text-xs text-app-muted">
-              Sends the saved message with sample values. Leave the number blank to use
-              your own.
+              Sends the saved message with sample values. For WhatsApp, leave the number
+              blank to use your own. An email test goes to your own email address.
             </p>
             <div className="mt-3 flex flex-wrap items-end gap-2">
               <Input
@@ -437,28 +487,24 @@ export function MessagingRuleEditor({
               />
               <Button
                 disabled={test.isPending}
-                onClick={() =>
-                  test.mutate(
-                    {
-                      event: rule.event,
-                      data: testNumber.trim() ? { phoneNumber: testNumber.trim() } : {}
-                    },
-                    {
-                      onSuccess: (result) =>
-                        setTestResult(
-                          result.sent
-                            ? `Sent to ${result.to}.`
-                            : (result.error ?? "Could not send.")
-                        )
-                    }
-                  )
-                }
+                onClick={() => sendTest("WHATSAPP")}
                 type="button"
                 variant="outline"
               >
                 <Send className="size-4" strokeWidth={2.5} />
-                {test.isPending ? "Sending…" : "Send test"}
+                {test.isPending ? "Sending…" : "Test WhatsApp"}
               </Button>
+              {supportsEmail ? (
+                <Button
+                  disabled={test.isPending}
+                  onClick={() => sendTest("EMAIL")}
+                  type="button"
+                  variant="outline"
+                >
+                  <Mail className="size-4" strokeWidth={2.5} />
+                  {test.isPending ? "Sending…" : "Email me a test"}
+                </Button>
+              ) : null}
             </div>
             {testResult ? (
               <p className="mt-2 text-xs text-app-muted">{testResult}</p>

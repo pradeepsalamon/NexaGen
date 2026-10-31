@@ -11,6 +11,7 @@ export const API_ROUTES = {
     registerCoach: "/auth/register-coach",
     verifyEmail: "/auth/verify-email",
     resendVerification: "/auth/resend-verification",
+    emailVerificationStatus: "/auth/email-verification",
     mfa: "/auth/mfa",
     mfaSetup: "/auth/mfa/setup",
     mfaEnable: "/auth/mfa/enable",
@@ -25,6 +26,16 @@ export const API_ROUTES = {
     archive: (id: string = ":id") => `/users/${id}/archive`,
     restore: (id: string = ":id") => `/users/${id}/restore`,
     delete: (id: string = ":id") => `/users/${id}`
+  },
+  adminEmail: {
+    overview: "/admin/email",
+    policy: "/admin/email/verification-policy",
+    sent: "/admin/email/sent",
+    unverified: "/admin/email/unverified",
+    verifyAll: "/admin/email/unverified/verify-all",
+    send: (userId: string = ":userId") => `/admin/email/users/${userId}/send`,
+    verification: (userId: string = ":userId") => `/admin/email/users/${userId}/verification`,
+    verificationLink: (userId: string = ":userId") => `/admin/email/users/${userId}/verification-link`
   },
   batches: {
     list: "/batches",
@@ -388,7 +399,9 @@ export const API_ROUTES = {
     accounts: "/game-sources/accounts",
     account: (id: string = ":id") => `/game-sources/accounts/${id}`,
     verify: (id: string = ":id") => `/game-sources/accounts/${id}/verify`,
-    sync: (id: string = ":id") => `/game-sources/accounts/${id}/sync`
+    sync: (id: string = ":id") => `/game-sources/accounts/${id}/sync`,
+    student: (studentId: string = ":studentId") => `/game-sources/students/${studentId}`,
+    autoSyncPolicy: "/admin/game-sources/auto-sync"
   },
   // Persistent chat outside live classes (batch groups, coach <-> student DMs).
   chat: {
@@ -505,7 +518,10 @@ export const API_ROUTES = {
     rule: (event: string = ":event") => `/messaging/rules/${event}`,
     testRule: (event: string = ":event") => `/messaging/rules/${event}/test`,
     deliveries: "/messaging/deliveries",
-    retryDelivery: (id: string = ":id") => `/messaging/deliveries/${id}/retry`
+    retryDelivery: (id: string = ":id") => `/messaging/deliveries/${id}/retry`,
+    systemMessages: "/messaging/system-messages",
+    systemMessage: (key: string = ":key") => `/messaging/system-messages/${key}`,
+    testSystemMessage: (key: string = ":key") => `/messaging/system-messages/${key}/test`
   },
   announcements: {
     // GET is admin (full history); POST publishes + fires the ANNOUNCEMENT rule.

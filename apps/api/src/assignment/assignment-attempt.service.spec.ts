@@ -40,6 +40,7 @@ function makeAssignment(over: Record<string, unknown> = {}) {
     allowHints: false,
     allowRetry: true,
     requiredCompletionPercent: 100,
+    minMoves: null,
     ...over
   };
 }
@@ -242,6 +243,33 @@ describe("AssignmentAttemptService", () => {
     expect(prisma.studentAssignment.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "COMPLETED", bestScorePercent: 100 }) })
     );
+  });
+
+  it("holds a FREE_ANALYSIS submission until the move target is reached", async () => {
+    prisma.studentAssignment.findUnique.mockResolvedValue(
+      makeSa({
+        attempts: [
+          {
+            id: "att-1",
+            attemptNumber: 1,
+            status: "IN_PROGRESS",
+            movesJson: [],
+            hintsUsed: 0,
+            durationSeconds: 0
+          }
+        ],
+        assignmentBatch: { assignment: makeAssignment({ activityType: "FREE_ANALYSIS", minMoves: 3 }) }
+      })
+    );
+    const line = SOLUTION.map((m) => move(m.uci));
+
+    await expect(service.submit(TOKEN, SA_ID, "att-1", { moves: line.slice(0, 2) })).rejects.toThrow(
+      "Play at least 3 moves"
+    );
+    expect(prisma.studentAssignment.update).not.toHaveBeenCalled();
+
+    const result = await service.submit(TOKEN, SA_ID, "att-1", { moves: line.slice(0, 3) });
+    expect(result.assignmentStatus).toBe("COMPLETED");
   });
 
   it("does not leak the solution on a failed submission with attempts left", async () => {

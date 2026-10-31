@@ -23,6 +23,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
+import { LinkedText } from "@/components/ui/FormattedText";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
@@ -199,7 +200,7 @@ function DetailBlock({ empty, label, value }: { empty?: string; label: string; v
     <div>
       <h3 className="text-sm font-bold text-app-muted">{label}</h3>
       <p className={value ? "mt-1 whitespace-pre-line text-app-text" : "mt-1 text-sm italic text-app-muted"}>
-        {value || empty}
+        {value ? <LinkedText text={value} /> : empty}
       </p>
     </div>
   );

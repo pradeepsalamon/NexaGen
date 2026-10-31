@@ -232,6 +232,14 @@ export class UserService {
         where: { id }
       });
 
+      // A link sent to the old address must not vouch for the new one.
+      if (data.email && data.email !== userToUpdate.email) {
+        await tx.emailVerificationToken.updateMany({
+          data: { usedAt: new Date() },
+          where: { usedAt: null, userId: id }
+        });
+      }
+
       // A new password must lock out whoever held the old one, as the user's
       // own reset does (auth.service resetPassword): revoke every session, so
       // a stolen refresh token stops minting access tokens now.

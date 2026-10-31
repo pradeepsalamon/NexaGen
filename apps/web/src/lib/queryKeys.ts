@@ -1,4 +1,5 @@
 import type { TrashListRequest } from "@nexa-chess/types";
+import type { ListParams } from "./pagination";
 
 export const queryKeys = {
   auth: {
@@ -6,6 +7,13 @@ export const queryKeys = {
     // is a no-op (AUDIT L3).
     session: ["auth", "me"] as const,
     mfa: ["auth", "mfa"] as const,
+    emailVerification: ["auth", "email-verification"] as const,
+  },
+  emailAdmin: {
+    all: ["email-admin"] as const,
+    overview: ["email-admin", "overview"] as const,
+    sent: (filters: ListParams) => ["email-admin", "sent", filters] as const,
+    unverified: (filters: ListParams) => ["email-admin", "unverified", filters] as const,
   },
   users: {
     all: ["users"] as const,
@@ -69,6 +77,7 @@ export const queryKeys = {
     deliveries: (params?: Record<string, unknown>) =>
       ["messaging", "deliveries", params ?? null] as const,
     announcements: ["messaging", "announcements"] as const,
+    systemMessages: ["messaging", "system-messages"] as const,
   },
   analytics: {
     all: ["analytics"] as const,
@@ -292,7 +301,8 @@ export const queryKeys = {
       ["game-analysis", "games", studentId ?? "me", filters] as const
   },
   gameSources: {
-    overview: ["game-sources"] as const
+    overview: ["game-sources"] as const,
+    student: (studentId: string) => ["game-sources", "student", studentId] as const
   },
   games: {
     all: ["games"] as const,

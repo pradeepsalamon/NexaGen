@@ -8,6 +8,8 @@ import {
   PGN_IMPORT_LIMITS,
   type ExternalChessAccountDto,
   type ExternalChessProvider,
+  type GameAutoSyncPolicy,
+  type GameAutoSyncRule,
   type ImportPgnSide,
 } from "@nexa-chess/types";
 import { CheckCircle2, Link2, Loader2, RefreshCw, Trash2, Upload } from "lucide-react";
@@ -35,6 +37,7 @@ import {
   useUnlinkAccount,
   useVerifyAccount,
 } from "../hooks/useGameAnalysis";
+import { AutoSyncSwitch } from "./AutoSyncSwitch";
 
 const SIDE_OPTIONS = [
   { label: "Find me by name", value: "AUTO" },
@@ -65,7 +68,11 @@ export function GameSourcesCard() {
       ) : sources.isError && !sources.data ? (
         <WidgetError message="Couldn't load your linked accounts." onRetry={() => void sources.refetch()} />
       ) : enabled ? (
-        <LinkedAccounts accounts={sources.data?.accounts ?? []} />
+        <LinkedAccounts
+          accounts={sources.data?.accounts ?? []}
+          policy={sources.data?.config.autoSyncPolicy ?? "OFF"}
+          rule={sources.data?.autoSyncRule ?? null}
+        />
       ) : (
         <p className="text-xs text-app-muted">Importing straight from Lichess or Chess.com isn’t switched on for this academy yet — download a PGN there and upload it.</p>
       )}
@@ -177,7 +184,15 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   );
 }
 
-function LinkedAccounts({ accounts }: { accounts: ExternalChessAccountDto[] }) {
+function LinkedAccounts({
+  accounts,
+  policy,
+  rule,
+}: {
+  accounts: ExternalChessAccountDto[];
+  policy: GameAutoSyncPolicy;
+  rule: GameAutoSyncRule | null;
+}) {
   const link = useLinkAccount();
   const [provider, setProvider] = useState<ExternalChessProvider>("LICHESS");
   const [username, setUsername] = useState("");
@@ -187,7 +202,7 @@ function LinkedAccounts({ accounts }: { accounts: ExternalChessAccountDto[] }) {
     <section className="space-y-3">
       <h3 className="text-sm font-semibold">Linked accounts</h3>
       {accounts.map((a) => (
-        <AccountRow account={a} key={a.id} />
+        <AccountRow account={a} key={a.id} policy={policy} rule={rule} />
       ))}
       {free.length > 0 && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-end">
@@ -227,7 +242,15 @@ function LinkedAccounts({ accounts }: { accounts: ExternalChessAccountDto[] }) {
   );
 }
 
-function AccountRow({ account }: { account: ExternalChessAccountDto }) {
+function AccountRow({
+  account,
+  policy,
+  rule,
+}: {
+  account: ExternalChessAccountDto;
+  policy: GameAutoSyncPolicy;
+  rule: GameAutoSyncRule | null;
+}) {
   const tz = useUserTimeZone();
   const verify = useVerifyAccount();
   const sync = useSyncAccount();
@@ -309,6 +332,7 @@ function AccountRow({ account }: { account: ExternalChessAccountDto }) {
           </div>
         </div>
       )}
+      {account.verified && <AutoSyncSwitch account={account} policy={policy} rule={rule} />}
       {account.syncError && account.syncStatus !== "IDLE" && <Alert variant="warning">{account.syncError}</Alert>}
       {account.lastSyncedAt && (
         <p className="text-xs text-app-muted">

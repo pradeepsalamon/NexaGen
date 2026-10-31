@@ -13,10 +13,11 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { FormField } from "@/components/ui/FormField";
+import { FormattedText } from "@/components/ui/FormattedText";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Textarea } from "@/components/ui/Textarea";
+import { TextEditor } from "@/components/ui/TextEditor";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -43,10 +44,14 @@ function summarise(result: CreateAnnouncementResponse): string {
   }
   const parts = [
     `${dispatch.queuedWhatsApp} WhatsApp`,
-    `${dispatch.queuedInApp} in-app`
+    `${dispatch.queuedInApp} in-app`,
+    `${dispatch.queuedEmail} email`
   ];
   if (dispatch.missingPhone > 0) {
     parts.push(`${dispatch.missingPhone} without a phone number`);
+  }
+  if (dispatch.unverifiedEmail > 0) {
+    parts.push(`${dispatch.unverifiedEmail} with an unverified email`);
   }
   const when = dispatch.scheduledFor
     ? "They go out at the Announcement rule's next send time."
@@ -110,10 +115,11 @@ function Composer() {
       </FormField>
 
       <FormField id="announcement-body" label="Message">
-        <Textarea
+        <TextEditor
           id="announcement-body"
-          onChange={(e) => setBody(e.target.value)}
+          onChange={setBody}
           placeholder="No classes from 20–24 September."
+          previewable
           rows={4}
           value={body}
         />
@@ -201,9 +207,7 @@ function History() {
                 {announcement.batchName ?? announcement.audience.toLowerCase()}
               </Badge>
             </div>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-app-muted">
-              {announcement.body}
-            </p>
+            <FormattedText className="mt-1 text-sm text-app-muted" source={announcement.body} />
             <p className="mt-1 text-xs text-app-muted">
               {formatDateTime(announcement.createdAt, timeZone)}
               {announcement.createdByName ? ` · ${announcement.createdByName}` : ""}

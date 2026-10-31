@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { Bell, CheckCheck } from "lucide-react";
 import type { NotificationItem } from "@nexa-chess/types";
+import { FormattedText } from "@/components/ui/FormattedText";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
@@ -30,6 +31,12 @@ export function NotificationBell({
 
   const handleOpen = (next: boolean) => {
     setOpen(next);
+  };
+
+  /** Only a link in the body takes clicks; the rest of it falls through to the row's button. */
+  const handleLinkClick = (item: NotificationItem) => {
+    if (!item.readAt) markRead.mutate({ ids: [item.id] });
+    setOpen(false);
   };
 
   const handleItemClick = (item: NotificationItem) => {
@@ -85,26 +92,35 @@ export function NotificationBell({
           ) : (
             <ul className="divide-y divide-app-border/60">
               {notifications.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick(item)}
-                    className={cn(
-                      "flex w-full flex-col gap-0.5 px-3 py-2.5 text-left transition-colors hover:bg-app-soft",
-                      !item.readAt && "bg-primary/5"
+                <li
+                  className={cn(
+                    "relative flex w-full flex-col gap-0.5 px-3 py-2.5 text-left transition-colors hover:bg-app-soft",
+                    !item.readAt && "bg-primary/5"
+                  )}
+                  key={item.id}
+                >
+                  <span className="flex items-center gap-2">
+                    {!item.readAt && (
+                      <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
                     )}
-                  >
-                    <span className="flex items-center gap-2">
-                      {!item.readAt && (
-                        <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-                      )}
-                      <span className="text-sm font-semibold text-app-text">{item.title}</span>
-                    </span>
-                    <span className="text-xs text-app-muted">{item.body}</span>
-                    <span className="text-[11px] text-app-muted/80">
-                      {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
-                    </span>
-                  </button>
+                    {/* The button covers the whole row; a link in the body sits above it, as a link can't go inside a button. */}
+                    <button
+                      type="button"
+                      onClick={() => handleItemClick(item)}
+                      className="text-left text-sm font-semibold text-app-text after:absolute after:inset-0 after:content-['']"
+                    >
+                      {item.title}
+                    </button>
+                  </span>
+                  <FormattedText
+                    className="pointer-events-none relative text-xs text-app-muted [&_a]:pointer-events-auto"
+                    onClick={() => handleLinkClick(item)}
+                    pageLinksInNewTab={openLinksInNewTab}
+                    source={item.body}
+                  />
+                  <span className="text-[11px] text-app-muted/80">
+                    {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                  </span>
                 </li>
               ))}
             </ul>

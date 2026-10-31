@@ -1,5 +1,6 @@
 "use client";
 
+import { FormattedText } from "@/components/ui/FormattedText";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
@@ -32,9 +33,7 @@ export function Announcements({ announcements }: AnnouncementsProps) {
                 {formatFullDate(announcement.createdAt, timeZone)}
               </span>
             </div>
-            <p className="mt-1 line-clamp-2 text-sm text-app-muted">
-              {announcement.description}
-            </p>
+            <FormattedText className="mt-1 text-sm text-app-muted" source={announcement.description} />
           </li>
         ))}
       </ul>

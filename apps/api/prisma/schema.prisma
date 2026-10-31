@@ -304,7 +304,9 @@ model User {
   mfa                             UserMfa?
   passwordResets                  PasswordResetToken[]
   emailVerifications              EmailVerificationToken[]
-  deletedRecords                  TrashAuditLog[]                  @relation("TrashAuditDeletedBy")
+  directEmailsReceived            DirectEmail[]                    @relation("DirectEmailRecipient")
+  directEmailsSent                DirectEmail[]                    @relation("DirectEmailSender")
+  deletedRecords                 TrashAuditLog[]                  @relation("TrashAuditDeletedBy")
   deletedStudentProfiles          StudentProfile[]                 @relation("StudentProfileDeletedBy")
   deletedCoachProfiles            CoachProfile[]                   @relation("CoachProfileDeletedBy")
   deletedBatches                  Batch[]                          @relation("BatchDeletedBy")
@@ -359,6 +361,7 @@ model User {
   analyticsEvents                 AnalyticsEvent[]                 @relation("UserAnalyticsEvents")
   liveClassPresets                LiveClassPreset[]                @relation("UserLiveClassPresets")
   messagingRuleUpdates            MessagingRule[]                  @relation("MessagingRuleUpdatedBy")
+  systemMessageUpdates            SystemMessageTemplate[]          @relation("SystemMessageTemplateUpdatedBy")
   retentionPolicyUpdates          RetentionPolicy[]                @relation("RetentionPolicyUpdatedBy")
   messageDeliveries               MessageDelivery[]                @relation("UserMessageDeliveries")
   createdAnnouncements            Announcement[]                   @relation("AnnouncementCreatedBy")
@@ -479,6 +482,11 @@ model StudentProfile {
   parentPhone String?
 
   parentRelationship String?
+
+  /// A coach's or admin's rule for automatic game sync; null = the student's own choice.
+  gameAutoSyncRule        GameAutoSyncRule?
+  /// Set by an admin, so a coach can't change it.
+  gameAutoSyncRuleByAdmin Boolean           @default(false)
 
   enrolledAt DateTime @default(now())
 
@@ -634,6 +642,55 @@ model EmailVerificationToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("email_verification_tokens")
+}
+
+enum EmailVerificationPolicy {
+  OFF
+  OPTIONAL
+  REQUIRED
+}
+
+/// Single row, id "default". No row means OFF.
+model EmailSettings {
+  id                 String                  @id @default("default")
+  verificationPolicy EmailVerificationPolicy @default(OFF)
+  updatedById        String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@map("email_settings")
+}
+
+enum DirectEmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// An email staff wrote to one person. The row is written before sending, so
+/// nothing goes out unlogged; PENDING means the send never reported back.
+model DirectEmail {
+  id String @id @default(cuid())
+
+  recipientId String
+  recipient   User   @relation("DirectEmailRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  toEmail     String
+
+  senderId String?
+  sender   User?   @relation("DirectEmailSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  subject String
+  body    String
+  status  DirectEmailStatus @default(PENDING)
+  error   String?
+  sentAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([recipientId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("direct_emails")
 }
 
 //
@@ -1849,6 +1906,7 @@ model Assignment {
   allowHints                Boolean                @default(false)
   allowRetry                Boolean                @default(true)
   requiredCompletionPercent Int                    @default(100)
+  minMoves                  Int? // FREE_ANALYSIS: moves to play before submitting; null = no minimum
 
   // ── PUZZLE_SET only (null otherwise) ──
   /// The author's points override for every puzzle in the set (PuzzleScoringOverride).
@@ -1978,6 +2036,7 @@ enum NotificationType {
   ASSIGNMENT_DUE_SOON
   ASSIGNMENT_GRADED
   ASSIGNMENT_OVERDUE_COACH
+  REVISION_DUE
   CLASS_SCHEDULED
   CLASS_REMINDER
   CLASS_REMINDER_COACH
@@ -2820,6 +2879,7 @@ enum MessagingEvent {
   ASSIGNMENT_DUE_SOON
   ASSIGNMENT_GRADED
   ASSIGNMENT_OVERDUE_COACH
+  REVISION_DUE
   ANNOUNCEMENT
   ACCOUNT_WELCOME
   ACCOUNT_APPROVED
@@ -2846,6 +2906,7 @@ enum MessagingAudience {
 enum MessageChannel {
   WHATSAPP
   IN_APP
+  EMAIL
 }
 
 enum MessageDeliveryStatus {
@@ -2873,6 +2934,7 @@ model MessagingRule {
   enabled         Boolean @default(false)
   whatsappEnabled Boolean @default(true)
   inAppEnabled    Boolean @default(true)
+  emailEnabled    Boolean @default(false)
 
   audience          MessagingAudience     @default(STUDENTS)
   /// Minutes before the moment, for lead-time events (class reminder, due soon).
@@ -2887,7 +2949,7 @@ model MessagingRule {
   /// DAILY only: a weekend send rolls forward to Monday.
   weekdaysOnly      Boolean               @default(false)
 
-  /// In-app heading. WhatsApp has no subject line and ignores it.
+  /// In-app heading and email subject. WhatsApp has no subject line and ignores it.
   title String
   body  String
 
@@ -2961,6 +3023,25 @@ model MessageDelivery {
   @@index([recipientId])
   @@index([createdAt])
   @@map("message_deliveries")
+}
+
+/// An admin's rewording of a fixed system message. No row = the default in
+/// @nexa-chess/types SYSTEM_MESSAGE_DEFINITIONS.
+model SystemMessageTemplate {
+  /// A SystemMessageKey.
+  key String @id
+
+  subject     String?
+  body        String
+  actionLabel String?
+
+  updatedById String?
+  updatedBy   User?   @relation("SystemMessageTemplateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_message_templates")
 }
 
 //
@@ -4802,6 +4883,29 @@ enum ExternalSyncStatus {
   RATE_LIMITED
 }
 
+enum GameAutoSyncPolicy {
+  OFF
+  OPTIONAL
+  REQUIRED
+}
+
+enum GameAutoSyncRule {
+  ALWAYS
+  NEVER
+}
+
+/// Academy-wide automatic game sync setting (singleton, id "default", lazily
+/// created). Not personal data, not soft-deletable.
+model GameSourceSettings {
+  id             String             @id @default("default")
+  autoSyncPolicy GameAutoSyncPolicy @default(OFF)
+  updatedById    String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@map("game_source_settings")
+}
+
 /// One linked account per (student, provider). Username only — never a
 /// password or token. `verifiedAt` is set once the student proved ownership
 /// (the code in their public profile); a username can be verified by one
@@ -4826,6 +4930,10 @@ model ExternalChessAccount {
   nextSyncAllowedAt DateTime?
   syncError         String?
   gamesImported     Int                @default(0)
+  /// The student's own choice; `resolveAutoSync` decides whether it applies.
+  autoSync          Boolean            @default(false)
+  /// When the scheduler last tried this account, so a failing one waits a day.
+  lastAutoSyncAt    DateTime?
 
   games ChessGame[]
 

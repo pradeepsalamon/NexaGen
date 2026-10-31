@@ -37,6 +37,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [APPEARANCE.md](APPEARANCE.md) | Board appearance and typography resolvers |
 | [PAYMENTS.md](PAYMENTS.md) | Payments, invoices, credit notes — read before touching `payments/` |
 | [MESSAGING.md](MESSAGING.md) | Admin messaging rules and outbound WhatsApp |
+| [EMAIL_ADMIN.md](EMAIL_ADMIN.md) | Email verification policy and staff direct email |
 | [SAAS_PLANS.md](SAAS_PLANS.md) | Subscription tiers, feature gates, limits |
 | [ai/architecture/ROADMAP.md](ai/architecture/ROADMAP.md) | AI runtime plan; ADRs and phase specs live beside it |
 

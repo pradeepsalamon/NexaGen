@@ -3,23 +3,33 @@ import {
   API_ROUTES,
   messageDeliveryQuerySchema,
   messagingEventSchema,
+  systemMessageKeySchema,
   testMessagingRuleRequestSchema,
+  testSystemMessageRequestSchema,
   updateMessagingRuleRequestSchema,
+  updateSystemMessageRequestSchema,
   type MessageDeliveryQuery,
   type MessagingEvent,
+  type SystemMessageKey,
   type TestMessagingRuleRequest,
-  type UpdateMessagingRuleRequest
+  type TestSystemMessageRequest,
+  type UpdateMessagingRuleRequest,
+  type UpdateSystemMessageRequest
 } from "@nexa-chess/types";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { MessagingRuleService } from "./messaging-rule.service";
+import { SystemMessageService } from "./system-message.service";
 import { RequireFeature } from "../platform/require-feature.decorator";
 
 @RequireFeature("messagingAutomation")
 @Controller()
 export class MessagingController {
-  constructor(private readonly messagingRuleService: MessagingRuleService) {}
+  constructor(
+    private readonly messagingRuleService: MessagingRuleService,
+    private readonly systemMessageService: SystemMessageService
+  ) {}
 
   @Get(API_ROUTES.messaging.rules)
   list(@Req() request: Request) {
@@ -65,6 +75,31 @@ export class MessagingController {
   @Post(API_ROUTES.messaging.retryDelivery())
   retryDelivery(@Param("id") id: string, @Req() request: Request) {
     return this.messagingRuleService.retryDelivery(this.getAccessToken(request), id);
+  }
+
+  @Get(API_ROUTES.messaging.systemMessages)
+  systemMessages(@Req() request: Request) {
+    return this.systemMessageService.list(this.getAccessToken(request));
+  }
+
+  @Put(API_ROUTES.messaging.systemMessage())
+  updateSystemMessage(
+    @Param("key", new ZodBodyPipe(systemMessageKeySchema)) key: SystemMessageKey,
+    @Body(new ZodBodyPipe(updateSystemMessageRequestSchema))
+    body: UpdateSystemMessageRequest,
+    @Req() request: Request
+  ) {
+    return this.systemMessageService.update(this.getAccessToken(request), key, body);
+  }
+
+  @Post(API_ROUTES.messaging.testSystemMessage())
+  testSystemMessage(
+    @Param("key", new ZodBodyPipe(systemMessageKeySchema)) key: SystemMessageKey,
+    @Body(new ZodBodyPipe(testSystemMessageRequestSchema))
+    body: TestSystemMessageRequest,
+    @Req() request: Request
+  ) {
+    return this.systemMessageService.test(this.getAccessToken(request), key, body);
   }
 
   private getAccessToken(request: Request) {

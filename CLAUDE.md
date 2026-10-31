@@ -92,6 +92,7 @@ Per feature in `apps/web/src/features/<feature>/`: `api/<x>Api.ts` (thin `apiFet
 - Reuse `components/ui/` primitives before creating. Buttons: `primary`/`destructive`/`ghost`/`outline`/`secondary`.
 - **Table row actions: `RowActions`** (`components/ui/RowActions.tsx`) — `rounded-full`, `size="icon"`, `aria-label`, `strokeWidth={2.5}` (example in `AGENTS.md`).
 - Icon-only buttons: `aria-label` + **`SimpleTooltip`** (`components/ui/Tooltip.tsx`), not `title=` (except non-interactive nodes / existing Radix `asChild` triggers).
+- **Formatted text: `TextEditor` + `FormattedText`** (stored as readable text, never HTML); typed text with links: `LinkedText`. Message bodies are built with `renderFormattedTemplate` and sent through a channel converter ([docs/MESSAGING.md](docs/MESSAGING.md)).
 - **Never `window.confirm`.** Undo via `useUndoableMutation` (`lib/undo/`; `immediate` vs `defer`; exclusions in `lib/undo/README.md`). Toasts: `useToast()`.
 - **Dates: never `toLocale*()` in a component** — `lib/datetime.ts` formatters + `useUserTimeZone()`; analytics uses `features/analytics/lib/format.ts` with that zone; date-only values format in `"UTC"`.
 
@@ -105,7 +106,11 @@ Per feature in `apps/web/src/features/<feature>/`: `api/<x>Api.ts` (thin `apiFet
 
 ### 3.6e Admin messaging rules
 
-`messaging/`, page `/admin/messaging`; catalogue/defaults/renderer in `@nexa-chess/types` `messaging.ts`. **`MessagingDispatchService.dispatchInBackground(request)` is the only entry point**; a new trigger extends `DispatchRequest` + `resolveRecipients`; a new event = `MessagingEvent` + `NotificationType`. [docs/MESSAGING.md](docs/MESSAGING.md).
+`messaging/`, page `/admin/messaging`; catalogue/defaults/renderer in `@nexa-chess/types` `messaging.ts`. **`MessagingDispatchService.dispatchInBackground(request)` is the only entry point**; a new trigger extends `DispatchRequest` + `resolveRecipients`; a new event = `MessagingEvent` + `NotificationType`. Fixed emails/texts outside the rules go through `SystemMessageRenderer` (catalogue `system-messages.ts`), never hardcoded. A new placeholder gets a `MESSAGE_VARIABLE_DOCS` entry. [docs/MESSAGING.md](docs/MESSAGING.md).
+
+### 3.6e2 Admin email
+
+`email-admin/`, page `/admin/email`. `EmailVerificationService.blocksSignIn` is the one sign-in rule (admins exempt; off by default). A direct email's row is written before sending; recipients are accounts, never typed addresses. [docs/EMAIL_ADMIN.md](docs/EMAIL_ADMIN.md).
 
 ### 3.6f–3.6g Payments, invoices, credit notes
 
@@ -124,7 +129,7 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 - **Setup Position**: `SetupPositionWorkspace` replaces the main board (never a dialog). Setup never checks legality — `readSetupFen` rejects only unreadable notation; issues make a set-up-only board (`positionIssues`). Never route a setup FEN through `new Chess(fen)` (use `moveTreeForFen` / `inspectFen`). Allow Illegal Moves (`makeFreeMove`) receivers accept only a re-derived free move (`isOneAllowedMoveAway` / `freeMoveBetween`), never the packet's FEN. [FEATURES](docs/FEATURES.md)
 - **Persistent chat** (`chat/`, `/messages`): `directChatAllowed` is the single rule (never student ↔ student); sends idempotent on `(senderId, clientId)`; web polls.
 - **Due reminders**: `resolveAssignmentDueStatus` is the one rule. **Smart Revision**: scheduler in `packages/types/src/revision.ts`, reviews are `PuzzleAttempt`s with `context: REVISION`. [SMART_REVISION](docs/SMART_REVISION.md)
-- **Game analysis** (`game-analysis/`, `game-sources/`, `stockfish/`): evaluations are White-relative (`normalizeUciScore` only); versions stored with results; only finished games. [GAME_ANALYSIS](docs/GAME_ANALYSIS.md), [GAME_SOURCES](docs/GAME_SOURCES.md)
+- **Game analysis** (`game-analysis/`, `game-sources/`, `stockfish/`): evaluations are White-relative (`normalizeUciScore` only); versions stored with results; only finished games. Auto-sync: `resolveAutoSync` is the one rule; off by default. [GAME_ANALYSIS](docs/GAME_ANALYSIS.md), [GAME_SOURCES](docs/GAME_SOURCES.md)
 - **PDF diagram import**: the PDF never leaves the browser; pdf.js from `public/vendor/pdfjs/` via `webpackIgnore` import; side to move/castling never assumed.
 - **SEO/GEO**: academy facts live once in `features/academy/content.ts`; never put a claim in JSON-LD or `llms.txt` the page doesn't show.
 - **Demo classes** (`demo-class/`, `app/demo/[classId]`, super-admin only): guests are `DemoClassRegistration`s, added only via `DemoInviteService`. [CLASSES](docs/CLASSES.md)

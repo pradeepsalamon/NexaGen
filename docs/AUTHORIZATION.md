@@ -105,6 +105,9 @@ can't silently switch off.
   (400 if missing or wrong; the route is throttled 10/min), revokes every other
   session family, and mails a notice to the old address — the email is what
   password reset trusts, so a stolen session alone must not move it.
+- Email verification is an academy setting, off by default. When `REQUIRED`,
+  password sign-in refuses unverified students and coaches with a 401; admins are
+  exempt. [EMAIL_ADMIN](EMAIL_ADMIN.md)
 
 ### Cookies, refresh tokens, CSRF and headers
 
@@ -178,6 +181,8 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Progress, activity history, attendance | own | students of own batches | all | Lists/filters apply the same scope. |
 | Smart Revision | own queue, session, ratings and report | read + recommend for students of own batches; remove only their own recommendations | all students; remove any recommendation | Grades capped by the server-graded attempt; a recommended puzzle must be openable by the student and visible to the coach. |
 | Feedback | submit/skip own pending only | R responses of `showToCoach` forms, student stripped | all forms + responses | |
+| Game sync | own accounts, and own switch when no rule or academy setting decides | R + set rule + sync now for students of own batches; not a rule an admin set | all, plus the academy setting | Only the student can link an account. [GAME_SOURCES](GAME_SOURCES.md) |
+| Admin email | none | none | policy, direct email, sent log; a plain Admin can't change another admin's verification | Verification status of your own account only via `/auth/email-verification`. [EMAIL_ADMIN](EMAIL_ADMIN.md) |
 | Game Library | own games + LIVE_BOARD games of attended classes | own / own class / own batch / played | all | Only IMPORT games deletable (importer or admin). |
 | Persistent chat | own threads; DM staff or a coach sharing a batch | own threads; groups of own students | all | `directChatAllowed`. |
 | Invoices, payments, subscriptions | own | own manual-payment records for own batches (PENDING until approved) | all | Never refundable via MANUAL. |

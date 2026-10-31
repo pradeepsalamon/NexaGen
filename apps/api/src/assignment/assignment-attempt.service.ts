@@ -240,6 +240,9 @@ export class AssignmentAttemptService {
         );
       }
     } else if (activityType === "FREE_ANALYSIS") {
+      if (assignment.minMoves !== null && moves.length < assignment.minMoves) {
+        throw new BadRequestException(`Play at least ${assignment.minMoves} moves before submitting.`);
+      }
       scorePercent = 100;
       result = "SUBMITTED";
     } else {
@@ -455,7 +458,8 @@ export class AssignmentAttemptService {
       maxAttempts: assignment.maxAttempts,
       allowHints: assignment.allowHints,
       allowRetry: assignment.allowRetry,
-      requiredCompletionPercent: assignment.requiredCompletionPercent
+      requiredCompletionPercent: assignment.requiredCompletionPercent,
+      minMoves: assignment.minMoves
     };
   }
 

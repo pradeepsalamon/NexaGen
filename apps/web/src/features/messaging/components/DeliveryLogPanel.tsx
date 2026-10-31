@@ -5,6 +5,8 @@ import { RotateCw } from "lucide-react";
 import {
   MESSAGING_EVENTS,
   MESSAGING_EVENT_DEFINITIONS,
+  markdownToPlainText,
+  type MessageChannel,
   type MessageDeliveryStatus,
   type MessagingEvent
 } from "@nexa-chess/types";
@@ -31,6 +33,12 @@ const STATUS_VARIANT: Record<
   SENT: "success",
   FAILED: "destructive",
   SKIPPED: "secondary"
+};
+
+const CHANNEL_LABELS: Record<MessageChannel, string> = {
+  EMAIL: "Email",
+  IN_APP: "In-app",
+  WHATSAPP: "WhatsApp"
 };
 
 const STATUS_OPTIONS = [
@@ -121,9 +129,7 @@ export function DeliveryLogPanel() {
                 <span className="text-sm font-semibold text-app-text">
                   {MESSAGING_EVENT_DEFINITIONS[delivery.event].label}
                 </span>
-                <Badge variant="outline">
-                  {delivery.channel === "WHATSAPP" ? "WhatsApp" : "In-app"}
-                </Badge>
+                <Badge variant="outline">{CHANNEL_LABELS[delivery.channel]}</Badge>
                 <span className="text-xs text-app-muted">
                   {delivery.recipientName ?? "Unknown"}
                   {delivery.recipientMasked ? ` · ${delivery.recipientMasked}` : ""}
@@ -149,7 +155,7 @@ export function DeliveryLogPanel() {
                   </SimpleTooltip>
                 ) : null}
               </div>
-              <p className="mt-1 line-clamp-2 text-sm text-app-muted">{delivery.body}</p>
+              <p className="mt-1 line-clamp-2 text-sm text-app-muted">{markdownToPlainText(delivery.body)}</p>
               {delivery.error ? (
                 <p className="mt-1 text-xs text-app-danger">{delivery.error}</p>
               ) : null}

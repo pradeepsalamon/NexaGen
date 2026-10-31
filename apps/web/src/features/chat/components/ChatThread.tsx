@@ -5,6 +5,7 @@ import { CHAT_MESSAGE_MAX_LENGTH, type ChatMessageDto } from "@nexa-chess/types"
 import { AlertCircle, ArrowLeft, Loader2, RotateCw, SendHorizontal, Users } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { LinkedText } from "@/components/ui/FormattedText";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
@@ -341,7 +342,7 @@ function Bubble({
           mine ? "rounded-br-md bg-primary text-white" : "rounded-bl-md border border-app-border bg-app-surface text-app-text",
         )}
       >
-        {body}
+        <LinkedText onColour={mine} text={body} />
       </div>
       <span className="mt-0.5 px-1 text-[10px] text-app-muted">{status ?? time}</span>
     </div>

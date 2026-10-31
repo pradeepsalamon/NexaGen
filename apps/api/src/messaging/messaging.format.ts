@@ -32,6 +32,19 @@ export function formatInZone(value: Date, timeZone: string, shape: Shape): strin
   return `${date} at ${time}`;
 }
 
+/** A demo guest has no account and so no known timezone: UTC, and says so. */
+export function formatDemoTime(startsAt: Date): string {
+  return startsAt.toLocaleString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short"
+  });
+}
+
 /** An unknown zone would throw inside a loop over recipients. */
 function safeZone(timeZone: string): string {
   try {
@@ -40,6 +53,13 @@ function safeZone(timeZone: string): string {
   } catch {
     return "UTC";
   }
+}
+
+/** First letter and domain only, for the delivery log and test results. */
+export function maskEmail(email: string | null | undefined): string | null {
+  if (!email) return null;
+  const at = email.lastIndexOf("@");
+  return at < 1 ? "•••" : `${email[0]}•••${email.slice(at)}`;
 }
 
 /** Delivery logs show the tail only — the log is not a phone book. */

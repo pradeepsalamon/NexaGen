@@ -62,9 +62,41 @@ every account route is a 503. Nothing else changes.
   merged across sources (`GameAnalysisSide.rating` + source key).
 - Unlink deletes the account row; `?deleteGames=true` also deletes the games
   imported through it (and their analyses).
-- Not implemented: automatic background syncing (a sync is always started by
-  the student), Lichess OAuth (not needed for public games), private Chess.com
-  data (the PubAPI exposes none).
+- Not implemented: Lichess OAuth (not needed for public games), private
+  Chess.com data (the PubAPI exposes none).
+
+### Automatic sync
+
+Off by default at two levels: the `EXTERNAL_GAME_IMPORT_ENABLED` server flag and
+the academy setting. Nothing is read until an admin turns it on at
+`/admin/game-sync`, and only verified links are ever read.
+
+`resolveAutoSync` (`@nexa-chess/types`) is the one rule, checked in this order:
+
+| Layer | Who sets it | Where | Effect |
+|---|---|---|---|
+| Academy `OFF` | admin | `/admin/game-sync` | Nothing syncs by itself (the default). |
+| Student rule `NEVER` | coach of their batch, or admin | student's progress page, Games tab | That student is exempt, even from `REQUIRED`. |
+| Academy `REQUIRED` | admin | `/admin/game-sync` | Every verified account syncs; the student's switch is locked. |
+| Student rule `ALWAYS` | coach of their batch, or admin | Games tab | Syncs; the student's switch is locked. |
+| Student's switch | student | `/student/insights`, per account | Applies under academy `OPTIONAL` with no rule. Defaults to off. |
+
+- **A rule an admin set can't be changed by a coach** (`gameAutoSyncRuleByAdmin`).
+- **Nobody can link an account for a student**, because linking takes proof of
+  ownership. Enforcement covers accounts the student has linked.
+- **Unlinking always works and always stops the sync**, even under `REQUIRED`:
+  it is the student's own account and data.
+- **Sync now**: a coach of the student or an admin can start a sync through the
+  same `POST …/accounts/:id/sync`, with the same cool-down. It never queues
+  analysis, which spends the student's daily limit; only the student can ask for
+  that. Imported games stay the student's (`ownerId`, `createdById`).
+- **Scheduler** (`GameSourcesScheduler`, hourly, `JOB_LOCKS.externalGameSync`):
+  active students only, on a plan with `gameAnalysis`. At most 200 accounts a
+  pass, longest-waiting first, one request at a time. Each account is tried about
+  once a day (`lastAutoSyncAt`). A failure shows on the account and waits a day.
+  A 429 rests that provider until the next pass without costing the account its
+  turn. A backlog (`more`) continues next pass, up to 50 games each. No analysis
+  is queued.
 
 ## 3. Who sees an imported game
 

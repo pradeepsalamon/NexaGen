@@ -1,6 +1,18 @@
 import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import { getAdminNotificationEmails, getApiEnv } from "@nexa-chess/config/api";
+import {
+  markdownToPlainText,
+  sampleVariables,
+  SYSTEM_MESSAGE_DEFINITIONS,
+  type MessageVariables,
+  type SystemMessageKey
+} from "@nexa-chess/types";
 import nodemailer from "nodemailer";
+import { formatDemoTime } from "../messaging/messaging.format";
+import { EMAIL_LINK_STYLE, escapeHtml, messageToEmailHtml } from "./message-html";
+import { SystemMessageRenderer, type RenderedSystemMessage } from "./system-message-renderer.service";
+
+type Attachment = { filename: string; content: Buffer };
 
 @Injectable()
 export class MailService {
@@ -13,89 +25,19 @@ export class MailService {
   private readonly secure = this.env.SMTP_SECURE;
   private readonly user = this.env.SMTP_USER;
 
-  async sendPasswordResetLink(to: string, resetLink: string) {
-    const transporter = this.createTransporter();
+  constructor(private readonly renderer: SystemMessageRenderer) {}
 
-    await transporter.sendMail({
-      from: this.from,
-      to,
-      subject: "Reset your Nexa Chess password",
-      text: [
-        "Use this link to reset your Nexa Chess password:",
-        resetLink,
-        "",
-        "This link expires in 30 minutes. If you did not request it, you can ignore this email."
-      ].join("\n"),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <h2>Reset your Nexa Chess password</h2>
-          <p>Use the button below to choose a new password. This link expires in 30 minutes.</p>
-          <p>
-            <a href="${resetLink}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">
-              Reset password
-            </a>
-          </p>
-          <p>If the button does not work, copy and paste this link into your browser:</p>
-          <p><a href="${resetLink}">${resetLink}</a></p>
-          <p>If you did not request it, you can ignore this email.</p>
-        </div>
-      `
-    });
+  async sendPasswordResetLink(to: string, resetLink: string) {
+    await this.sendSystemEmail("PASSWORD_RESET", to, { "links.reset": resetLink });
   }
 
   async sendEmailVerificationLink(to: string, verificationLink: string) {
-    const transporter = this.createTransporter();
-
-    await transporter.sendMail({
-      from: this.from,
-      to,
-      subject: "Verify your Nexa Chess email address",
-      text: [
-        "Welcome to Nexa Chess! Please verify your email address by clicking the link below:",
-        verificationLink,
-        "",
-        "This link expires in 24 hours. If you did not create an account, you can ignore this email."
-      ].join("\n"),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <h2>Welcome to Nexa Chess!</h2>
-          <p>Please verify your email address by clicking the button below. This link expires in 24 hours.</p>
-          <p>
-            <a href="${verificationLink}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">
-              Verify Email Address
-            </a>
-          </p>
-          <p>If the button does not work, copy and paste this link into your browser:</p>
-          <p><a href="${verificationLink}">${verificationLink}</a></p>
-          <p>If you did not create an account, you can ignore this email.</p>
-        </div>
-      `
-    });
+    await this.sendSystemEmail("EMAIL_VERIFICATION", to, { "links.verify": verificationLink });
   }
 
   /** Sent to the OLD address, so a hijacked account's real owner finds out. */
   async sendEmailChangedNotice(to: string, newEmail: string) {
-    const transporter = this.createTransporter();
-
-    await transporter.sendMail({
-      from: this.from,
-      to,
-      subject: "Your Nexa Chess email address was changed",
-      text: [
-        `The email address on your Nexa Chess account was changed to ${newEmail}.`,
-        "",
-        "If you made this change, no action is needed.",
-        "If you did not, contact the academy immediately: someone else may have access to your account."
-      ].join("\n"),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <h2>Your email address was changed</h2>
-          <p>The email address on your Nexa Chess account was changed to <strong>${escapeHtml(newEmail)}</strong>.</p>
-          <p>If you made this change, no action is needed.</p>
-          <p>If you did not, contact the academy immediately: someone else may have access to your account.</p>
-        </div>
-      `
-    });
+    await this.sendSystemEmail("EMAIL_CHANGED", to, { "email.new": newEmail });
   }
 
   /**
@@ -112,63 +54,25 @@ export class MailService {
     supportEmail: string | null;
     /** Short-lived signed link, used when the PDF is not attached. */
     downloadUrl: string | null;
-    attachment: { filename: string; content: Buffer } | null;
+    attachment: Attachment | null;
   }) {
-    const transporter = this.createTransporter();
-
-    const support = input.supportEmail
-      ? `Questions? Reply to this email or write to ${input.supportEmail}.`
-      : "Questions? Just reply to this email.";
-
-    await transporter.sendMail({
-      from: this.from,
-      to: input.to,
-      subject: `Your ${input.sellerName} invoice ${input.invoiceNumber}`,
-      text: [
-        `Hi ${input.customerName},`,
-        "",
-        `Thank you for your payment of ${input.amount}.`,
-        `Your invoice ${input.invoiceNumber} is ready.`,
-        ...(input.attachment ? ["It is attached to this email as a PDF."] : []),
-        ...(input.downloadUrl ? ["", `Download it here: ${input.downloadUrl}`] : []),
-        "",
-        "You can also find it any time under Billing in your dashboard.",
-        "",
-        support
-      ].join("\n"),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <h2 style="color:#4278ce;margin-bottom:4px">Payment successful</h2>
-          <p style="margin-top:0">Hi ${escapeHtml(input.customerName)}, thank you for your payment of <strong>${escapeHtml(input.amount)}</strong>.</p>
-          <p>Your invoice <strong>${escapeHtml(input.invoiceNumber)}</strong> is ready.${
-            input.attachment ? " It is attached to this email as a PDF." : ""
-          }</p>
-          ${
-            input.downloadUrl
-              ? `<p>
-            <a href="${input.downloadUrl}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">
-              Download invoice
-            </a>
-          </p>
-          <p style="font-size:13px;color:#5d6672">This download link expires in 7 days.</p>`
-              : ""
-          }
-          <p>You can also find it any time under <strong>Billing</strong> in your dashboard.</p>
-          <p style="font-size:13px;color:#5d6672">${escapeHtml(support)}</p>
-        </div>
-      `,
-      ...(input.attachment
-        ? {
-            attachments: [
-              {
-                filename: input.attachment.filename,
-                content: input.attachment.content,
-                contentType: "application/pdf"
-              }
-            ]
-          }
-        : {})
-    });
+    await this.sendSystemEmail(
+      "INVOICE_EMAIL",
+      input.to,
+      {
+        "customer.name": input.customerName,
+        "invoice.amount": input.amount,
+        "invoice.attachmentNote": input.attachment ? "It is attached to this email as a PDF." : "",
+        "invoice.downloadNote": input.downloadUrl ? "This download link expires in 7 days." : "",
+        "invoice.number": input.invoiceNumber,
+        "links.download": input.downloadUrl ?? "",
+        "seller.name": input.sellerName,
+        "support.line": input.supportEmail
+          ? `Questions? Reply to this email or write to ${input.supportEmail}.`
+          : "Questions? Just reply to this email."
+      },
+      input.attachment
+    );
   }
 
   /**
@@ -183,42 +87,11 @@ export class MailService {
     startsAt: Date;
     joinUrl: string;
   }) {
-    const transporter = this.createTransporter();
-    const when = input.startsAt.toLocaleString("en-US", {
-      weekday: "long",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "UTC",
-      timeZoneName: "short"
-    });
-
-    await transporter.sendMail({
-      from: this.from,
-      to: input.to,
-      subject: `You're registered: ${input.classTopic}`,
-      text: [
-        `Hi ${input.guestName},`,
-        "",
-        `You're registered for the demo class "${input.classTopic}", scheduled for ${when}.`,
-        "",
-        `Join here once it starts: ${input.joinUrl}`,
-        "",
-        "See you there!"
-      ].join("\n"),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <h2>You're registered!</h2>
-          <p>Hi ${escapeHtml(input.guestName)}, you're registered for the demo class <strong>${escapeHtml(input.classTopic)}</strong>, scheduled for ${escapeHtml(when)}.</p>
-          <p>
-            <a href="${input.joinUrl}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">
-              Join once it starts
-            </a>
-          </p>
-          <p>See you there!</p>
-        </div>
-      `
+    await this.sendSystemEmail("DEMO_REGISTRATION_EMAIL", input.to, {
+      "demo.dateTime": formatDemoTime(input.startsAt),
+      "demo.topic": input.classTopic,
+      "guest.name": input.guestName,
+      "links.join": input.joinUrl
     });
   }
 
@@ -229,43 +102,12 @@ export class MailService {
     startsAt: Date;
     joinUrl: string;
   }) {
-    const transporter = this.createTransporter();
-    const when = input.startsAt.toLocaleString("en-US", {
-      weekday: "long",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "UTC",
-      timeZoneName: "short"
-    });
-
-    await transporter.sendMail({
-      from: this.from,
-      to: input.to,
-      subject: `You're invited: ${input.classTopic}`,
-      text: [
-        `Hi ${input.guestName},`,
-        "",
-        `You're invited to the demo class "${input.classTopic}", scheduled for ${when}.`,
-        "",
-        `Your personal join link — open it once the class starts: ${input.joinUrl}`,
-        "",
-        "See you there!"
-      ].join("\n"),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <h2>You're invited!</h2>
-          <p>Hi ${escapeHtml(input.guestName)}, you're invited to the demo class <strong>${escapeHtml(input.classTopic)}</strong>, scheduled for ${escapeHtml(when)}.</p>
-          <p>
-            <a href="${input.joinUrl}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">
-              Join once it starts
-            </a>
-          </p>
-          <p>This link is personal to you. If it doesn't work, open the class page and enter this email address (<strong>${escapeHtml(input.to)}</strong>).</p>
-          <p>See you there!</p>
-        </div>
-      `
+    await this.sendSystemEmail("DEMO_INVITATION_EMAIL", input.to, {
+      "demo.dateTime": formatDemoTime(input.startsAt),
+      "demo.topic": input.classTopic,
+      "guest.email": input.to,
+      "guest.name": input.guestName,
+      "links.join": input.joinUrl
     });
   }
 
@@ -289,36 +131,14 @@ export class MailService {
       return;
     }
 
-    const transporter = this.createTransporter();
-
-    await transporter.sendMail({
-      from: this.from,
-      to: recipients.join(","),
-      subject: `New demo booking: ${input.studentName}`,
-      text: [
-        "A new demo class inquiry came in from the academy site.",
-        "",
-        `Student: ${input.studentName} (age ${input.studentAge})`,
-        `Parent: ${input.parentName}`,
-        `Experience: ${input.experienceLevel}`,
-        `Phone: ${input.phone}`,
-        `Source: ${input.source ?? "Unknown"}`,
-        `Campaign: ${input.campaign ?? "-"}`
-      ].join("\n"),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <h2>New demo booking</h2>
-          <p>A new demo class inquiry came in from the academy site.</p>
-          <table style="border-collapse:collapse">
-            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Student</td><td>${escapeHtml(input.studentName)} (age ${input.studentAge})</td></tr>
-            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Parent</td><td>${escapeHtml(input.parentName)}</td></tr>
-            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Experience</td><td>${escapeHtml(input.experienceLevel)}</td></tr>
-            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Phone</td><td>${escapeHtml(input.phone)}</td></tr>
-            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Source</td><td>${escapeHtml(input.source ?? "Unknown")}</td></tr>
-            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Campaign</td><td>${escapeHtml(input.campaign ?? "-")}</td></tr>
-          </table>
-        </div>
-      `
+    await this.sendSystemEmail("NEW_LEAD_ADMIN", recipients.join(","), {
+      "lead.campaign": input.campaign ?? "-",
+      "lead.experience": input.experienceLevel,
+      "lead.parentName": input.parentName,
+      "lead.phone": input.phone,
+      "lead.source": input.source ?? "Unknown",
+      "lead.studentAge": String(input.studentAge),
+      "lead.studentName": input.studentName
     });
   }
 
@@ -329,49 +149,88 @@ export class MailService {
       return;
     }
 
-    await this.createTransporter().sendMail({
-      from: this.from,
-      to: recipients.join(","),
-      subject: `Account deletion requested: ${input.name}`,
-      text: [
-        `${input.name} (${input.email}, ${input.role}) asked for their account to be deleted.`,
-        `Reason: ${input.reason || "-"}`,
-        "",
-        "Review it in Admin → Privacy."
-      ].join("\n"),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <h2>Account deletion requested</h2>
-          <p>${escapeHtml(input.name)} (${escapeHtml(input.email)}, ${escapeHtml(input.role)}) asked for their account to be deleted.</p>
-          <p><strong>Reason:</strong> ${escapeHtml(input.reason || "-")}</p>
-          <p>Review it in Admin → Privacy.</p>
-        </div>
-      `
+    await this.sendSystemEmail("ACCOUNT_DELETION_REQUESTED_ADMIN", recipients.join(","), {
+      "request.reason": input.reason || "-",
+      "requester.email": input.email,
+      "requester.name": input.name,
+      "requester.role": input.role
     });
   }
 
   async sendAccountDeletionResolved(input: { completed: boolean; email: string; note: string | null }) {
-    const subject = input.completed ? "Your account has been deleted" : "About your account deletion request";
-    const body = input.completed
-      ? "As you asked, your Nexa Chess account has been deleted. Invoices and payment records are kept as the law requires."
-      : "Your request to delete your Nexa Chess account was not completed.";
+    await this.sendSystemEmail(
+      input.completed ? "ACCOUNT_DELETION_COMPLETED" : "ACCOUNT_DELETION_DECLINED",
+      input.email,
+      { "request.noteLine": input.note ? `Note from the academy: ${input.note}` : "" }
+    );
+  }
 
+  /** A message staff wrote themselves: formatted text, never trusted as HTML. */
+  async sendDirectEmail(input: { to: string; subject: string; body: string }) {
     await this.createTransporter().sendMail({
       from: this.from,
-      to: input.email,
-      subject,
-      text: input.note ? `${body}\n\nNote from the academy: ${input.note}` : body,
+      to: input.to,
+      subject: input.subject,
+      text: markdownToPlainText(input.body),
       html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <p>${escapeHtml(body)}</p>
-          ${input.note ? `<p><strong>Note from the academy:</strong> ${escapeHtml(input.note)}</p>` : ""}
-        </div>
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">${messageToEmailHtml(input.body)}</div>
       `
     });
   }
 
+  /** One message from a messaging rule. Returns the provider's id for the log. */
+  async sendRuleEmail(input: { to: string; subject: string; body: string }): Promise<string | null> {
+    const subject = input.subject.replace(/\s+/g, " ").trim();
+    const info = await this.createTransporter().sendMail({
+      from: this.from,
+      to: input.to,
+      subject,
+      text: markdownToPlainText(input.body),
+      html: toHtml({ action: null, body: input.body, subject })
+    });
+    return info.messageId ?? null;
+  }
+
+  /** The saved wording with example values, for an admin checking their edit. */
+  async sendSystemMessageSample(key: SystemMessageKey, to: string) {
+    await this.sendSystemEmail(key, to, sampleVariables(SYSTEM_MESSAGE_DEFINITIONS[key].variables));
+  }
+
+  isConfigured() {
+    return Boolean(this.host && this.user && this.pass && this.from);
+  }
+
+  private async sendSystemEmail(
+    key: SystemMessageKey,
+    to: string,
+    variables: MessageVariables,
+    attachment: Attachment | null = null
+  ) {
+    const transporter = this.createTransporter();
+    const message = await this.renderer.render(key, variables);
+
+    await transporter.sendMail({
+      from: this.from,
+      to,
+      subject: message.subject,
+      text: toText(message),
+      html: toHtml(message),
+      ...(attachment
+        ? {
+            attachments: [
+              {
+                filename: attachment.filename,
+                content: attachment.content,
+                contentType: "application/pdf"
+              }
+            ]
+          }
+        : {})
+    });
+  }
+
   private createTransporter() {
-    if (!this.host || !this.user || !this.pass || !this.from) {
+    if (!this.isConfigured()) {
       throw new ServiceUnavailableException("SMTP is not configured.");
     }
 
@@ -380,17 +239,39 @@ export class MailService {
         pass: this.pass,
         user: this.user
       },
+      // The outbox worker sends one at a time, so a hung server must not stall it.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
       host: this.host,
       port: this.port,
-      secure: this.secure
+      secure: this.secure,
+      socketTimeout: 30_000
     });
   }
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+function toText({ action, body }: RenderedSystemMessage): string {
+  const text = markdownToPlainText(body);
+  return action && !text.includes(action.url) ? `${text}\n\n${action.label}: ${action.url}` : text;
+}
+
+/** Admin wording and member-supplied values are both escaped: never trusted as HTML. */
+function toHtml({ action, body, subject }: RenderedSystemMessage): string {
+  const button = action
+    ? `
+          <p>
+            <a href="${escapeHtml(action.url)}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">
+              ${escapeHtml(action.label)}
+            </a>
+          </p>
+          <p>If the button does not work, copy and paste this link into your browser:</p>
+          <p><a href="${escapeHtml(action.url)}" style="${EMAIL_LINK_STYLE}">${escapeHtml(action.url)}</a></p>`
+    : "";
+
+  return `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <h2>${escapeHtml(subject)}</h2>
+          ${messageToEmailHtml(body)}${button}
+        </div>
+      `;
 }

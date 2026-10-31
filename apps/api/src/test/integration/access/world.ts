@@ -157,6 +157,16 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
 
   // Game Library: a simul game the student played, and a class-board game of
   // the class they attended.
+  // CHESS_COM, so a test can still link a LICHESS account for this student.
+  const externalAccount = await prisma.externalChessAccount.create({
+    data: {
+      provider: "CHESS_COM",
+      userId: student.id,
+      username: `side-${label}`,
+      usernameKey: `side-${label}`.toLowerCase(),
+      verifiedAt: new Date()
+    }
+  });
   const game = await prisma.chessGame.create({
     data: {
       batchId: batch.id,
@@ -234,6 +244,7 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
   });
 
   return {
+    externalAccount,
     activityQueue,
     assignment,
     attempt,
