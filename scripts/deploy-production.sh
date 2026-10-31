@@ -494,17 +494,27 @@ echo "========================================"
 echo "Cleaning up dangling images and build cache..."
 # Only dangling images go: `:last-good` and `:previous` are tagged, so the
 # rollback generations survive.
-# Build cache: on Engine 29's containerd image store the cache total also counts
-# the layers of every live image, so size caps (`--reserved-space`,
+# Build cache: kept until the disk runs low. It saves the dependency install
+# (and the API's Stockfish compile) on the next build — measured 2026-10-31,
+# API 297s → 167s, web 442s → 324s; a full prune made every deploy as slow as
+# `--no-cache`. On Engine 29's containerd image store the cache total also
+# counts the layers of every live image, so size caps (`--reserved-space`,
 # `--max-used-space 10GB`) and `--filter until=72h` all left most of it behind
-# (2026-10-25: until=72h reclaimed 0B, ~26GB survived deploys). Drop all unused
-# cache instead — rollback uses the tagged images, never the cache; the cost is
-# a cold `npm ci` on the next build. The before/after lines show a no-op.
+# (2026-10-25: until=72h reclaimed 0B). So the trigger is free disk space, and
+# when it fires all unused cache goes — rollback uses the tagged images, never
+# the cache. `DEPLOY_PRUNE_MIN_FREE_GB` (default 40) sets the threshold.
 if [ "${DEPLOY_SKIP_PRUNE:-}" != "1" ]; then
   docker image prune -f
   docker system df | grep -E '^(TYPE|Build Cache)' || true
-  docker builder prune -f | tail -1 || true
-  docker system df | grep -E '^Build Cache' || true
+  min_free_gb="${DEPLOY_PRUNE_MIN_FREE_GB:-40}"
+  free_gb=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+  if [ -z "$free_gb" ] || [ "$free_gb" -lt "$min_free_gb" ]; then
+    echo "Free disk ${free_gb:-unknown}GB < ${min_free_gb}GB: pruning build cache."
+    docker builder prune -f | tail -1 || true
+    docker system df | grep -E '^Build Cache' || true
+  else
+    echo "Free disk ${free_gb}GB >= ${min_free_gb}GB: keeping build cache."
+  fi
 fi
 
 echo "Deployment complete."

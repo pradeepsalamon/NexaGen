@@ -9,7 +9,7 @@
 | Symptom | Start here |
 |---|---|
 | 401 loops / session drops | `src/lib/api.ts` interceptor, `auth.service.ts#refresh`, cookie options in `getCookieBaseOptions` (`COOKIE_SAME_SITE`), `middleware.ts`. A 403 "Request origin is not allowed" means the caller's origin is missing from `CORS_ORIGIN` |
-| `docker system df` shows a huge Build Cache on the prod box | On Engine 29 (containerd image store) that total also counts live image layers — trust `df -h /` and the RECLAIMABLE column. `until=`/size-cap prunes left it behind; the deploy now runs a plain `docker builder prune -f` and logs Build Cache before/after (`scripts/deploy-production.sh`) |
+| `docker system df` shows a huge Build Cache on the prod box | On Engine 29 (containerd image store) that total also counts live image layers — trust `df -h /` and the RECLAIMABLE column. `until=`/size-cap prunes left it behind; the deploy keeps the cache (it saves ~2 min per service) and runs a plain `docker builder prune -f` only when `/` has under `DEPLOY_PRUNE_MIN_FREE_GB` (default 40) free (`scripts/deploy-production.sh`) |
 | "model X does not exist on PrismaService" | missing getter in `prisma.service.ts` |
 | Deleted rows still showing / unique constraint on re-create | `soft-delete.extension.ts` relation filters, missing partial unique index |
 | Prod missing a table | migration not committed / `db push` was used |
