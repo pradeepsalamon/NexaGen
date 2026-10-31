@@ -177,8 +177,10 @@ coach-made) + `ConversationMember` (read state; `leftAt`) + `ChatMessage`.
 - **No websocket**: the web polls (open thread 4s, list 15s, sidebar unread 30s;
   paused while the tab is hidden). The unread badge on the Messages nav link
   is `useChatNavBadge()` in all three sidebars.
-- Not soft-deletable, not Trash-registered, not in `RETENTION_RULES` (chat is a
-  business record — retention is a policy decision).
+- Not soft-deletable, not Trash-registered. Old messages are deleted only by
+  the admin-set `CHAT_MESSAGES` retention window (default: kept forever;
+  [INFRASTRUCTURE.md](INFRASTRUCTURE.md) "Retention sweep"). A thread whose
+  messages all aged out still lists, with no last message.
 
 ## 3.6k3 Assignment due-date reminders
 

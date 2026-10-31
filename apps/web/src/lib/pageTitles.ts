@@ -37,6 +37,7 @@ export const PAGE_TITLES = {
   "/admin/courses": "Courses",
   "/admin/courses/[id]": "Course",
   "/admin/courses/new": "New course",
+  "/admin/data-retention": "Data retention",
   "/admin/demo-classes": "Demo classes",
   "/admin/feedback": "Coach feedback",
   "/admin/finance/coach-payroll": "Coach payroll",

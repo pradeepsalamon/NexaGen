@@ -2736,3 +2736,8 @@ export * from "./privacy";
 // SaaS plans: features + limits per academy subscription (docs/SAAS_PLANS.md).
 // ──────────────────────────────────────────────
 export * from "./platform-plans";
+
+// ──────────────────────────────────────────────
+// Data retention: admin-set windows + the fixed ones (docs/INFRASTRUCTURE.md).
+// ──────────────────────────────────────────────
+export * from "./retention";

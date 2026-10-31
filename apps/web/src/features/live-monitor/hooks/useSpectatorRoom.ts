@@ -12,8 +12,8 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LiveBoardState } from "@nexa-chess/types";
 import {
-  INITIAL_READ_ONLY_BOARD,
   decodeBoardSyncPacket,
+  readOnlyBoardFromSnapshot,
   reduceReadOnlyBoard,
   type ReadOnlyBoardState,
 } from "@/features/chessboard/lib/readOnlyBoard";
@@ -50,15 +50,6 @@ export function participantRole(p: Participant | undefined): string | undefined 
   }
 }
 
-function fromSnapshot(snapshot: LiveBoardState | null): ReadOnlyBoardState {
-  if (!snapshot) return INITIAL_READ_ONLY_BOARD;
-  return {
-    fen: snapshot.fen,
-    orientation: snapshot.orientation,
-    arrows: snapshot.arrows,
-    squares: snapshot.squares,
-  };
-}
 
 /**
  * A hidden, receive-only seat in a live class (admin spectator). Mirrors the
@@ -74,7 +65,7 @@ export function useSpectatorRoom(options: {
   connectKey: number;
 }) {
   const { serverUrl, token, boardSnapshot, connectKey } = options;
-  const [board, setBoard] = useState<ReadOnlyBoardState>(() => fromSnapshot(boardSnapshot));
+  const [board, setBoard] = useState<ReadOnlyBoardState>(() => readOnlyBoardFromSnapshot(boardSnapshot));
   const [tiles, setTiles] = useState<SpectatorTile[]>([]);
   const [connection, setConnection] = useState<SpectatorConnection>("connecting");
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +84,7 @@ export function useSpectatorRoom(options: {
   snapshotRef.current = boardSnapshot;
 
   useEffect(() => {
-    if (!liveBoardSeenRef.current) setBoard(fromSnapshot(boardSnapshot));
+    if (!liveBoardSeenRef.current) setBoard(readOnlyBoardFromSnapshot(boardSnapshot));
   }, [boardSnapshot]);
 
   const attachAudio = useCallback((track: RemoteTrack) => {
@@ -150,7 +141,7 @@ export function useSpectatorRoom(options: {
     if (!serverUrl || !token) return;
     // A (re)connection starts from the latest saved snapshot until a live packet lands.
     liveBoardSeenRef.current = false;
-    setBoard(fromSnapshot(snapshotRef.current));
+    setBoard(readOnlyBoardFromSnapshot(snapshotRef.current));
     const audioEls = audioElsRef.current;
     const hands = handsRef.current;
     const room = new Room({ adaptiveStream: true, dynacast: false });

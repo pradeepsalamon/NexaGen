@@ -181,6 +181,13 @@ export class LiveClassController {
     return this.boardState.getBoardState(this.getAccessToken(request), id);
   }
 
+  // No session cookie here: the egress template authenticates with its own
+  // LiveKit token (service checks signature, room and hidden seat).
+  @Get(API_ROUTES.liveClass.recorderBoardState())
+  getRecorderBoardState(@Param("id") id: string, @Req() request: Request) {
+    return this.boardState.getBoardStateForRecorder(request.headers.authorization, id);
+  }
+
   @Put(API_ROUTES.liveClass.boardState())
   saveBoardState(
     @Param("id") id: string,

@@ -217,7 +217,7 @@ Client session state: `useAuthStore` (Zustand, persisted to `localStorage` key `
 
 `apps/api/src/queue/`, BullMQ on the shared `redis` service. **Queues are optional**: with `REDIS_URL` unset no worker runs and every `@InjectQueue()` is `createDisabledQueue` (logs and drops), so an enqueue is best-effort — persist your own status row first and treat the enqueue as a nudge. Each module declares its own queue name; pass a `jobId` derived from your row (never containing `:`).
 
-**Cron single-runner: `JobLockService.runExclusive(JOB_LOCKS.x, run)`** — add one `JOB_LOCKS` name per job. **Never use session `pg_try_advisory_lock` through Prisma** (the pool leaks the lock). A new ever-growing log table belongs in `RETENTION_RULES` (`apps/api/src/retention/`).
+**Cron single-runner: `JobLockService.runExclusive(JOB_LOCKS.x, run)`** — add one `JOB_LOCKS` name per job. **Never use session `pg_try_advisory_lock` through Prisma** (the pool leaks the lock). A new ever-growing log table belongs in `RETENTION_RULES` (`apps/api/src/retention/`); user content whose window is a policy choice is a `RetentionCategory` instead (admin-set at `/admin/data-retention`, default kept forever — [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) "Retention sweep").
 
 Details: [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md).
 

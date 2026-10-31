@@ -244,6 +244,9 @@ export const API_ROUTES = {
     requestWaitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room/request`,
     // Screen-share request (coach-owner/admin): pending + currently-approved requests.
     boardState: (id: string = ":id") => `/live-class/${id}/board-state`,
+    // The egress recording template's read of the saved board. No session: the
+    // caller sends its own LiveKit egress token as `Authorization: Bearer`.
+    recorderBoardState: (id: string = ":id") => `/live-class/${id}/recorder/board-state`,
     screenShareRequests: (id: string = ":id") => `/live-class/${id}/screen-share-requests`,
     // Screen-share request (student): ask to share while the class-wide policy is DISABLED.
     requestScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/request`,
@@ -748,6 +751,12 @@ export const API_ROUTES = {
     deletionRequests: "/admin/privacy/deletion-requests",
     completeDeletionRequest: (id: string = ":id") => `/admin/privacy/deletion-requests/${id}/complete`,
     rejectDeletionRequest: (id: string = ":id") => `/admin/privacy/deletion-requests/${id}/reject`
+  },
+  // Data retention windows, super admin only. `category` is a RetentionCategory.
+  adminRetention: {
+    policies: "/admin/retention/policies",
+    policy: (category: string = ":category") => `/admin/retention/policies/${category}`,
+    preview: (category: string = ":category") => `/admin/retention/policies/${category}/preview`
   },
   progress: {
     mine: "/progress/me",

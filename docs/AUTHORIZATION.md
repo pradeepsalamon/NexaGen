@@ -42,7 +42,7 @@ is in CLAUDE.md §3.2; this file is the policy.
 | Account archived / deleted | Next request is a 401 (`status !== ACTIVE`). |
 | Role changed | Takes effect on the next request — the role is read from the DB, never the token. |
 | Kicked from a live class | `getToken` refuses a new LiveKit token; a reconnect with an older token is removed by the `participant_joined` webhook (`LiveClassModerationService.enforceRemovalOnJoin`). |
-| Removed from a batch | Loses API access to the batch's classes/chat at once. **Open:** an already-issued LiveKit token (6h default TTL) still connects until it expires. |
+| Removed from a batch | Loses API access to the batch's classes/chat at once. An already-issued LiveKit token still connects until it expires, at most 10 minutes (`LIVEKIT_TOKEN_TTL`). |
 
 ## Permission matrix
 
@@ -61,6 +61,7 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Live class: settings, moderation, kick, pull, waiting room, screen-share approval, end | — (may request screen share / admission) | own class | any class | `resolveClassManager`. |
 | Live class: **recording** start/stop | — | own class | any class | Fixed 2026-10-16 (was any coach). |
 | Recording: view / stream / download | enrolled batch | own class | any | Stream token is signed per viewer + class and re-checked. |
+| Shared board state (recorder) | — | — | — | `GET /live-class/:id/recorder/board-state`: no session, no role. The egress template's LiveKit token is the credential (signed with our LiveKit secret, this class's room, hidden seat). Read-only. The one route authenticated by something other than the access cookie besides webhooks. |
 | Shared board state | R (participant) | R U (own class, LIVE) | R U | Peer moves: coach always; student only with a per-colour grant and a legal move (`senderMayMutateBoard`), enforced by every receiver incl. the recorder and spectator. |
 | In-class chat | R C (own class; DM coach only) | R C (own class) | R C | `privateChatRecipientAllowed`. |
 | Live puzzles, simul, matches, move polls, Puzzle Storm, tools, chapters, activity queue | play/answer in own class; never read others' attempts or unrevealed results | P U D in own class | any class | Activity queue + chapters are coach-only reads too (a saved line can hold an answer). |
@@ -77,7 +78,7 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Invoices, payments, subscriptions | own | own manual-payment records for own batches (PENDING until approved) | all | Never refundable via MANUAL. |
 | Payroll, payslips | — | own | all | |
 | Class change requests | — | C own; R own | approve/reject | |
-| Messaging rules, analytics, leads, demo classes, backups, trash | — | — | admin (trash, demo classes, backups: SUPER_ADMIN) | |
+| Messaging rules, analytics, leads, demo classes, backups, trash, data retention | — | — | admin (trash, demo classes, backups, data retention: SUPER_ADMIN) | A retention window deletes for good, so only a super admin sets one. |
 | Presets (live class) | — | PERSONAL own; use ORG/system | ORG + any | |
 
 ## Audit 2026-10-16
@@ -131,11 +132,11 @@ unsigned call; demo routes are guest-facing by design).
 
 ### Open / theoretical (not changed)
 
-- **LiveKit token lifetime** is the SDK default (6h). Kicks are now enforced on
-  join, but a student unenrolled mid-day keeps a working token until it expires.
-  A short TTL (LiveKit refreshes tokens for connected clients) would close it;
-  it needs a check that the pre-join card never sits on a token longer than the
-  TTL, and a staging run.
+- **LiveKit token lifetime** is 10 minutes since 2026-10-17
+  (`LIVEKIT_TOKEN_TTL`, `livekit.service.ts`); LiveKit refreshes tokens for
+  connected clients. The pre-join card never holds a token (`useLiveClass`
+  fetches one only after Join). Still to do: a staging run of a class longer
+  than the TTL (tracked in BACKLOG.md "Open items").
 - The removal-on-join enforcement depends on LiveKit webhooks reaching the API
   (they do in production; never on localhost).
 - `liveClass.puzzleClassLeaderboardAdjust` accepts any student id for the

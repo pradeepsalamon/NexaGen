@@ -233,6 +233,13 @@ const apiEnvSchema = z.object({
       path: ["JWT_REFRESH_SECRET"]
     });
   }
+  // Live classes are the product: production must not boot without LiveKit.
+  // Elsewhere it is optional and every live-class call answers 503.
+  for (const key of ["LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"] as const) {
+    if (!env[key]) {
+      ctx.addIssue({ code: "custom", message: `${key} is required in production.`, path: [key] });
+    }
+  }
   // Without the key, required two-factor would silently switch off. Same rule as
   // MfaService's parseRequiredRoles: only real role names count, so NONE opts out.
   const mfaRequired = env.MFA_REQUIRED_ROLES.split(",").some((role) =>

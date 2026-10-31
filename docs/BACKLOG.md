@@ -22,7 +22,7 @@ expect the *cause*, not just the symptom.
   and service authorization already exist; you are almost always only adding the
   client `*Api.ts` + hook + a component, not new contract.
 - **Orphaned package/app code from the `.ai/` autonomous manager.** The
-  `.ai/` task runner (see `.ai/manager/`, `.ai/tasks/`) merged tasks
+  `.ai/` task runner (removed 2026-09-08; recover it from git history) merged tasks
   NEXA-0001/0015/0034 that added helpers to `packages/utils` and a `getDevStatus`
   method to `AdminService`. A later "make apps/ identical to dev" sync commit
   (`5de4407`) reverted the `apps/` side but not `packages/`, leaving
@@ -57,9 +57,138 @@ real class. Until this was wired, no leave/disconnect events were recorded,
 coach/board durations were always 0, `room_finished` never fired, and the
 `TOKEN_REQUEST` join in `getToken` was the only thing creating attendance rows.
 
-## Feature gaps
+## Open items (consolidated 2026-10-31)
 
-None currently tracked here.
+Until 2026-10-31 this section said "none", while ~20 open items sat in the
+"Still open" / "Known limits" lines of Resolved entries and in other docs.
+**This list is the source of truth now.** When you resolve or narrow an item,
+edit it here. A Resolved entry records what shipped and links back here. It
+does not keep its own "still open" list. Each item was re-checked against the
+code on 2026-10-31.
+
+### P1 — data growth & privacy
+
+- **Retention windows are built but off.** Admin-set windows shipped on
+  2026-10-31 (see Resolved below). Every category defaults to kept forever.
+  **Owner action:** pick the windows at `/admin/data-retention` (the
+  recommended values are one click). Until then, chat written by minors is
+  still kept indefinitely.
+
+### P2 — reliability / correctness edges
+
+
+### P3 — feature follow-ups (net-new, each needs a product yes)
+
+- **Smart Revision:** reminders through the messaging rules (there is no
+  revision `MessagingEvent`), and non-puzzle item kinds (lessons / `REPLAY`
+  assignments, course modules, live-class chapters). Item kinds are blocked by
+  design: no graded attempt to cap a self-rating ([SMART_REVISION.md](SMART_REVISION.md)).
+- **No email channel in messaging rules.** `messageChannelSchema` is
+  `WHATSAPP | IN_APP`. Nodemailer is used only for auth mail.
+- **Email verification disabled** on purpose (`auth.service.ts`, commented
+  block at ~L260). Registration marks every account verified.
+- **Payroll:** percentage-of-revenue is a stubbed ₹0 line (no revenue linkage,
+  `payroll-calculation.engine.ts` `case "PERCENTAGE"`). Tiered rates are
+  API-only (`CompensationProfileDialog` says so). No tax/TDS, no bank payout
+  integration, no multi-currency, no rate CSV import/export.
+- **`FREE_ANALYSIS` assignments** complete on manual submit only (no move-count
+  target).
+- **Game sources:** no automatic background sync ([GAME_SOURCES.md](GAME_SOURCES.md)).
+- **Chat push:** a websocket only if the 4 s poll proves too slow or costly.
+  There is no evidence of that yet.
+
+### Tooling
+
+- **ESLint 8 is end-of-life** in both apps (`eslint ^8.57`, api on
+  `@typescript-eslint ^7.16`). Next step: ESLint 9 + flat config
+  (`eslint.config.mjs`) for both, with `@typescript-eslint` 8 on the api.
+
+### Needs someone with `vps_dev` / production access
+
+- Confirm `LiveKit webhook: event=…` lines in the API logs during a real class
+  (§ "Runtime open question" below).
+- Run `npm run audit:reliability -w apps/api -- --days 90` against real data
+  ([RELIABILITY_DESIGN.md](RELIABILITY_DESIGN.md) §6.1). It has only been run
+  against local dev.
+- Staging-check the 10-minute LiveKit token TTL (below) across a class longer
+  than 10 minutes: LiveKit should refresh the token for a connected client
+  without dropping it.
+
+### Waiting on an owner decision (designs exist, nothing to build yet)
+
+[SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) and
+[WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) (proposals),
+[PARENT_REPORTS.md](PARENT_REPORTS.md) (blocked on a verified guardian
+identity), the AI roadmap phases after 2 / 3a
+([ai/architecture/ROADMAP.md](ai/architecture/ROADMAP.md)), and puzzle-catalogue
+Phase 6 training modules ([PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) §G.3;
+its precondition, the student training surface, now exists).
+
+### Closed by this pass (were listed as open, already fixed in code)
+
+- **LiveKit token TTL.** It was listed as 6h (AUTHORIZATION.md). It has been
+  10 minutes since 2026-10-17 (`LIVEKIT_TOKEN_TTL`, `livekit.service.ts`).
+  The pre-join card never holds a token: `useLiveClass` fetches one only after
+  Join. Staging check above.
+- **Waiting room + screen-share handshake.** The 2026-09-03 entry still called
+  them deferred. Both shipped 2026-09-14.
+- **`POST /upload/pgn` orphan note.** It has a web caller (`uploadPgn`), so the
+  note was dropped.
+
+## Resolved (2026-10-31) — recordings open on the current board
+
+The recording template started at the start position. It only caught up when
+the coach answered one of the two server-injected `REQUEST_SYNC`s (4 s and 9 s
+after start) or made a move. So the opening seconds were wrong, and a template
+that connected late, or a class whose coach board tab wasn't connected, could
+record the start position for minutes. The template's page now reads the saved
+`LiveSession.boardState` server-side before it renders, through a new
+`GET /live-class/:id/recorder/board-state` authenticated by the egress LiveKit
+token (signature, room, hidden seat). The live sync still applies on top.
+Details: [LIVE_CLASS.md](LIVE_CLASS.md) "Recording". New compose var on `web`:
+`API_INTERNAL_URL` (default `http://api:3001`). This also closes the
+2026-10-03 note that the recorder "still relies on the coach's FORCE_SYNC".
+
+## Resolved (2026-10-31) — LiveKit 503s, shared accuracy maths, doc drift
+
+- **A LiveKit outage answered 500.** Every LiveKit server call now goes
+  through `LiveKitService.call`: a failure is a 503 (`LIVEKIT_UNAVAILABLE`),
+  except "not found", which still passes through because callers treat an
+  empty room or a departed participant as normal. Recording start/stop
+  failures are 503 too. Config is now honest: production refuses to boot
+  without `LIVEKIT_URL` / `_API_KEY` / `_API_SECRET` (`packages/config`
+  api.ts, as before but at env-parse time with a clear message). Elsewhere the
+  API boots without LiveKit and live-class calls answer 503
+  (`LIVEKIT_NOT_CONFIGURED`). (The old note blamed an *unconfigured* LiveKit,
+  which could not happen: `onModuleInit` threw, so the API never booted.)
+- **Assignment accuracy had its own copy of the maths.** PLAY_VS_ENGINE
+  accuracy (`engineMoveAccuracy`) now uses `winPercent` and
+  `moveAccuracyFromLoss` from `@nexa-chess/types` game-analysis.ts. Same
+  constants, so scores are unchanged; mates are now exactly 100/0 instead of
+  ±100,000 cp. It still averages arithmetically (see GAME_ANALYSIS.md §12).
+- **`GET /batches/:id` kept, not wired.** No screen needs it (list rows carry
+  the same `BatchResponse`). It stays as the single-batch read and as the
+  cross-user suite's probe of `getBatchVisibilityWhere`, which deleting it would
+  lose. A comment at the route says so.
+- **Doc drift.** UNDO_ARCHITECTURE.md said "not yet implemented" (77
+  `useUndoableMutation` calls in 39 files exist). PUZZLE_CATALOGUE_ARCHITECTURE.md said
+  "nothing implemented", and the implementation spec said PR 6 was in review.
+  The catalogue API + UI and student training are built. Status lines
+  corrected.
+
+## Resolved (2026-10-31) — admin-set data retention
+
+`chat_messages`, `live_chat_messages`, `notifications`, `message_deliveries`
+and `analytics_events` were kept forever (open since 2026-10-03). They now have
+one admin-set window each: a `RetentionPolicy` row per `RetentionCategory`, set
+at `/admin/data-retention` (super admin only). The nightly sweep applies them
+after the fixed `RETENTION_RULES`. Per-category minimums and recommendations
+are in `RETENTION_CATALOGUE` (`@nexa-chess/types`). Queued (`PENDING`)
+deliveries are never deleted, and Save previews how many records the window
+would remove. Default is kept forever, so deploying it deletes nothing.
+Details: [INFRASTRUCTURE.md](INFRASTRUCTURE.md) "Retention sweep". Migration
+`20261031070905_retention_policies` (additive; also `createdAt` indexes on
+`chat_messages` and `notifications`).
 
 ## Resolved (2026-10-17)
 
@@ -104,7 +233,8 @@ tokens survived logout / password reset; admin password reset left sessions
 alive; avatar delete by a copied URL; forged API-only data packets and recorder /
 spectator board packets accepted from any participant; kicked students could
 reconnect with an old LiveKit token; the query cache survived an account switch;
-several 500s before auth. Still open there: the 6h LiveKit token TTL.
+several 500s before auth. The 6h LiveKit token TTL it left open is now 10
+minutes (see "Open items").
 
 ## Resolved (2026-10-15) — variations, Game Library, chat, assignment reminders
 
@@ -175,9 +305,9 @@ several 500s before auth. Still open there: the 6h LiveKit token TTL.
   ~15 min per active tab) inserts an `auth_sessions` row and nothing deleted
   them; locally 480 of 487 rows were long expired. Added a daily retention
   sweep (`apps/api/src/retention/`) for expired sessions and tokens, old
-  LiveKit webhook dedupe rows, and stale anonymous visitor sessions. Still
-  open: retention policies for chat, notifications, message deliveries and
-  analytics events.
+  LiveKit webhook dedupe rows, and stale anonymous visitor sessions. Chat,
+  notifications, message deliveries and analytics events got admin-set
+  windows on 2026-10-31.
 - **No error reporting.** Crashes were only visible in `docker logs`, which
   rotate within days, and browser errors were invisible. Added Sentry to the
   API and web (optional; unset DSN sends nothing), errors only, scrubbed to the
@@ -194,9 +324,8 @@ several 500s before auth. Still open there: the 6h LiveKit token TTL.
   saves a snapshot to `LiveSession.boardState` (throttled, with a keepalive flush
   on unload) and restores it on load. A restore gate stops a refreshed coach from
   sending FORCE_SYNC with an empty board, and students fall back to the snapshot
-  when no coach answers. Board-control grants are deliberately not restored. Not
-  yet covered: the recorder template still relies on the coach's FORCE_SYNC
-  (it has no user session to read the snapshot with).
+  when no coach answers. Board-control grants are deliberately not restored. The
+  recorder template reads the snapshot too since 2026-10-31.
 
 - **No DB integration tests.** Added `npm run test:integration`: `*.int-spec.ts`
   files run against a real, disposable Postgres with a non-UTC session timezone,
@@ -449,7 +578,7 @@ several 500s before auth. Still open there: the 6h LiveKit token TTL.
   change history), batch "Class Settings" tab. Student pre-join previews the
   policy and honours `autoJoin`. Audit via `TrashAuditLog`
   `action: "LIVE_SETTINGS_CHANGE"`. Waiting room + screen-share
-  request/approve handshake remain deferred (see Feature gaps). See
+  request/approve handshake shipped later (2026-09-14). See
   CLAUDE.md §3.7.
 
 ## Resolved (2026-08-31)
@@ -682,20 +811,3 @@ several 500s before auth. Still open there: the 6h LiveKit token TTL.
   sibling folder of memoized children + a `*.utils` file. Entry paths/exports
   unchanged.
 
-## Other deferred
-
-- Email verification is commented out in `auth.service.ts` (two places) by design for now.
-- `GET /batches/:id` (`batches.get`) has no frontend caller — the list response is reused.
-- `POST /upload/pgn` — stale note removed 2026-09-14: it does have a direct
-  frontend caller (`apps/web/src/features/chessboard/components/panels/
-  SidebarTabs.tsx` → `lib/uploadApi.ts`'s `uploadPgn`), in addition to the
-  `assignment` service's server-side call to `UploadService.uploadPgn`. Size
-  is capped at 512KB in the controller and the shared
-  `createAssignmentRequestSchema`.
-- `GET /live-class/:id/participants` answers **500** when LiveKit is
-  unconfigured (`LIVEKIT_*` unset) — the room-service call throws. Should be a
-  503 like the other optional integrations.
-- **ESLint 8 is end-of-life** (both apps). Web moved off the deprecated
-  `next lint` to the ESLint CLI on 2026-10-08 with the same `.eslintrc.json`;
-  the next step is ESLint 9 + flat config (`eslint.config.mjs`) for web and
-  api together, with `@typescript-eslint` 8 on the api side.

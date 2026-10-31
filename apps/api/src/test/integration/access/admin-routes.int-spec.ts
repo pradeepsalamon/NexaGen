@@ -24,6 +24,7 @@ const SUPER_ADMIN_PREFIXES = [
   "/admin/coaches",
   "/admin/demo-classes",
   "/admin/demo-schedules",
+  "/admin/retention",
   "/admin/trash"
 ];
 

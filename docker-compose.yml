@@ -387,6 +387,11 @@ services:
     container_name: nexa_web
     restart: unless-stopped
 
+    environment:
+      # Server-side calls from the web container to the API over the internal
+      # network (the recording template reads the saved board through it).
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3001}
+
     depends_on:
       api:
         condition: service_healthy

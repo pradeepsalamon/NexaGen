@@ -1,5 +1,6 @@
 import {
   Activity,
+  Archive,
   BarChart3,
   BookOpen,
   Brain,
@@ -161,6 +162,7 @@ export const adminNavItems: NavItem[] = [
   // Super Admin
   { href: "/admin/backups", label: "Database backups", icon: Database, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/trash", label: "Trash", icon: Trash2, group: "Super Admin", superAdminOnly: true },
+  { href: "/admin/data-retention", label: "Data retention", icon: Archive, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/demo-classes", label: "Demo classes", icon: Video, group: "Super Admin", superAdminOnly: true, feature: "demoClasses" },
   { href: "/admin/classes", label: "Batch classes", icon: LineChart, group: "Super Admin", superAdminOnly: true }
 ];

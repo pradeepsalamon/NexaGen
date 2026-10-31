@@ -273,6 +273,11 @@ export const queryKeys = {
     myDeletionRequest: ["privacy", "deletion-request", "me"] as const,
     deletionRequests: ["privacy", "deletion-requests"] as const,
   },
+  retention: {
+    all: ["retention"] as const,
+    policies: ["retention", "policies"] as const,
+    preview: (category: string, days: number) => ["retention", "preview", category, days] as const,
+  },
   progress: {
     mine: ["progress", "me"] as const,
     student: (id: string) => ["progress", "student", id] as const,

@@ -106,12 +106,17 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       { detail: "Removed after 180 days of inactivity unless you booked a demo.", label: "Website visit records" },
       { detail: "Removed after 90 days.", label: "Help-centre searches" },
       {
+        detail:
+          "Kept for the period the academy sets for each kind of record. Anything older is removed every night. Until a period is set, they are kept.",
+        label: "Chat messages, class chat, notifications, message logs and activity records"
+      },
+      {
         detail: "Can be restored for 30 days, then permanently removed — except records we must keep (below).",
         label: "Deleted accounts"
       },
       { detail: "Invoices, payments and payroll records are kept as tax law requires.", label: "Financial records" }
     ],
-    pending: "How long class recordings, chat and learning records are kept, and the legal basis for keeping financial records.",
+    pending: "How long class recordings and learning records are kept, and the legal basis for keeping financial records.",
     title: "How long we keep it"
   },
   {
