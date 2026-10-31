@@ -1,12 +1,25 @@
 name: CI
 
-# The check a pull request into main/dev runs. The `main: CI before merge`
-# ruleset requires it (and an up-to-date branch), so the deploy doesn't re-run it.
+# The check a pull request into main/dev runs, and the gate a production deploy
+# calls unless this exact code already passed it on the merged PR
+# (deploy-production.yml `pr-ci`). The deploy gate is what holds when the
+# `main: CI before merge` ruleset is bypassed or not enforced.
 on:
   pull_request:
     branches:
       - main
       - dev
+  workflow_dispatch:
+  workflow_call:
+    # The deploy passes what its detect-changes job found, so only the
+    # affected app is checked. Left unset, everything runs.
+    inputs:
+      skip_api:
+        type: boolean
+        default: false
+      skip_web:
+        type: boolean
+        default: false
   workflow_dispatch:
 
 concurrency:
@@ -21,8 +34,8 @@ env:
   TURBO_TELEMETRY_DISABLED: "1"
 
 jobs:
-  # Which apps this run checks: a PR diffs its files, a manual run checks both.
-  # Same filters as deploy-production.yml.
+  # Which apps this run checks: a PR diffs its files, a deploy passes inputs,
+  # a manual run checks both. Same filters as deploy-production.yml.
   changes:
     runs-on: ubuntu-latest
     permissions:
@@ -59,8 +72,8 @@ jobs:
             echo "api=${{ steps.filter.outputs.api }}" >> "$GITHUB_OUTPUT"
             echo "web=${{ steps.filter.outputs.web }}" >> "$GITHUB_OUTPUT"
           else
-            echo "api=true" >> "$GITHUB_OUTPUT"
-            echo "web=true" >> "$GITHUB_OUTPUT"
+            echo "api=${{ inputs.skip_api != true }}" >> "$GITHUB_OUTPUT"
+            echo "web=${{ inputs.skip_web != true }}" >> "$GITHUB_OUTPUT"
           fi
 
   # No separate typecheck: `npm run build` type-checks both apps (nest build,
@@ -108,10 +121,12 @@ jobs:
         if: needs.changes.outputs.api == 'true'
         run: npm run test -w apps/api -- --runInBand --passWithNoTests $JEST_SCOPE
 
+  # Runs after lint and unit tests, so a quick failure doesn't spend these minutes.
+  # `verify` may be skipped (a deploy of web only), so only its failure stops this.
   migrations:
     name: Migrations, schema drift, DB integration tests
-    needs: changes
-    if: needs.changes.outputs.api == 'true'
+    needs: [changes, verify]
+    if: "!cancelled() && needs.changes.outputs.api == 'true' && needs.verify.result != 'failure'"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -176,8 +191,8 @@ jobs:
 
   build:
     name: Production build
-    needs: changes
-    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true'
+    needs: [changes, verify]
+    if: "!cancelled() && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true') && needs.verify.result != 'failure'"
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
