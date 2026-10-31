@@ -38,7 +38,7 @@
     "chessground": "^9.2.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "date-fns": "^2.30.0",
+    "date-fns": "^4.4.0",
     "emoji-picker-react": "^4.19.1",
     "framer-motion": "^12.42.2",
     "livekit-client": "^2.20.0",
