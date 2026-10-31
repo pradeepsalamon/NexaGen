@@ -68,15 +68,11 @@ code on 2026-10-31.
 
 ### P1 — data growth & privacy
 
-- **No retention for chat, notifications, message deliveries or analytics
-  events** (open since 2026-10-03). `RETENTION_RULES`
-  (`apps/api/src/retention/retention.rules.ts`) covers only `auth_sessions`,
-  the reset/verification tokens, `processed_webhook_events`,
-  `visitor_sessions` and `knowledge_search_logs`. `chat_messages` holds free
-  text written by minors and is kept forever. `analytics_events`,
-  `notifications` and `message_deliveries` grow with every login and send. The
-  windows are a product decision; the mechanism already exists (one rule row
-  each, plus the matching sentence in `features/legal/content.ts`).
+- **Retention windows are built but off.** Admin-set windows shipped on
+  2026-10-31 (see Resolved below). Every category defaults to kept forever.
+  **Owner action:** pick the windows at `/admin/data-retention` (the
+  recommended values are one click). Until then, chat written by minors is
+  still kept indefinitely.
 
 ### P2 — reliability / correctness edges
 
@@ -165,6 +161,20 @@ gated on the training surface).
   them deferred. Both shipped 2026-09-14.
 - **`POST /upload/pgn` orphan note.** It has a web caller (`uploadPgn`), so the
   note was dropped.
+
+## Resolved (2026-10-31) — admin-set data retention
+
+`chat_messages`, `live_chat_messages`, `notifications`, `message_deliveries`
+and `analytics_events` were kept forever (open since 2026-10-03). They now have
+one admin-set window each: a `RetentionPolicy` row per `RetentionCategory`, set
+at `/admin/data-retention` (super admin only). The nightly sweep applies them
+after the fixed `RETENTION_RULES`. Per-category minimums and recommendations
+are in `RETENTION_CATALOGUE` (`@nexa-chess/types`). Queued (`PENDING`)
+deliveries are never deleted, and Save previews how many records the window
+would remove. Default is kept forever, so deploying it deletes nothing.
+Details: [INFRASTRUCTURE.md](INFRASTRUCTURE.md) "Retention sweep". Migration
+`20261031070905_retention_policies` (additive; also `createdAt` indexes on
+`chat_messages` and `notifications`).
 
 ## Resolved (2026-10-17)
 
@@ -281,9 +291,9 @@ minutes (see "Open items").
   ~15 min per active tab) inserts an `auth_sessions` row and nothing deleted
   them; locally 480 of 487 rows were long expired. Added a daily retention
   sweep (`apps/api/src/retention/`) for expired sessions and tokens, old
-  LiveKit webhook dedupe rows, and stale anonymous visitor sessions. Still
-  open: retention policies for chat, notifications, message deliveries and
-  analytics events.
+  LiveKit webhook dedupe rows, and stale anonymous visitor sessions. Chat,
+  notifications, message deliveries and analytics events got admin-set
+  windows on 2026-10-31.
 - **No error reporting.** Crashes were only visible in `docker logs`, which
   rotate within days, and browser errors were invisible. Added Sentry to the
   API and web (optional; unset DSN sends nothing), errors only, scrubbed to the

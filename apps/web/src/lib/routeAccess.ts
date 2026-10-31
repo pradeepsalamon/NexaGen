@@ -18,6 +18,7 @@ type RouteRule = {
 const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/admin/backups", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/classes", roles: ["SUPER_ADMIN"] },
+  { prefix: "/admin/data-retention", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/demo-classes", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/trash", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin", roles: STAFF_ROLES },

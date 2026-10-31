@@ -359,6 +359,7 @@ model User {
   analyticsEvents                 AnalyticsEvent[]                 @relation("UserAnalyticsEvents")
   liveClassPresets                LiveClassPreset[]                @relation("UserLiveClassPresets")
   messagingRuleUpdates            MessagingRule[]                  @relation("MessagingRuleUpdatedBy")
+  retentionPolicyUpdates          RetentionPolicy[]                @relation("RetentionPolicyUpdatedBy")
   messageDeliveries               MessageDelivery[]                @relation("UserMessageDeliveries")
   createdAnnouncements            Announcement[]                   @relation("AnnouncementCreatedBy")
   orders                          Order[]                          @relation("UserOrders")
@@ -2010,6 +2011,7 @@ model Notification {
   @@unique([userId, dedupeKey])
   @@index([userId, readAt])
   @@index([userId, createdAt])
+  @@index([createdAt])
   @@map("notifications")
 }
 
@@ -4978,8 +4980,8 @@ enum ConversationMemberRole {
 /// A chat thread. BATCH threads are created lazily (unique `batchId`) and get
 /// their audience from BatchStudent / BatchCoach, so there is no second copy of
 /// class membership to drift; DIRECT threads are unique per pair (`directKey`
-/// = the two user ids, sorted). Not soft-deletable, not Trash-registered — a
-/// business record like LiveChatMessage (excluded from the retention sweep).
+/// = the two user ids, sorted). Not soft-deletable, not Trash-registered. Its
+/// messages are pruned only by an admin-set RetentionPolicy (CHAT_MESSAGES).
 model Conversation {
   id String @id @default(cuid())
 
@@ -5050,6 +5052,7 @@ model ChatMessage {
 
   @@unique([senderId, clientId])
   @@index([conversationId, createdAt])
+  @@index([createdAt])
   @@map("chat_messages")
 }
 
@@ -5662,4 +5665,40 @@ model KnowledgeSearchLog {
   @@index([createdAt])
   @@index([query])
   @@map("knowledge_search_logs")
+}
+
+/// A record category whose retention window an admin chooses (`/admin/data-retention`).
+/// Limits and recommendations: `RETENTION_CATALOGUE` in @nexa-chess/types.
+enum RetentionCategory {
+  CHAT_MESSAGES
+  LIVE_CHAT_MESSAGES
+  NOTIFICATIONS
+  MESSAGE_DELIVERIES
+  ANALYTICS_EVENTS
+}
+
+/// The admin-set window for one RetentionCategory. No row, or `days` null, means
+/// kept forever. The nightly sweep (`RetentionService`) deletes rows older than
+/// `days` and records what it removed. Fixed operational windows stay in code
+/// (`RETENTION_RULES`). Not soft-deletable: a setting, not a record.
+model RetentionPolicy {
+  id String @id @default(cuid())
+
+  category RetentionCategory @unique
+  days     Int?
+
+  updatedById String?
+  updatedBy   User?   @relation("RetentionPolicyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  /// When an admin last set `days`. Not @updatedAt: the sweep's own writes
+  /// below must not read as an admin change.
+  changedAt   DateTime?
+
+  /// The last sweep that applied this policy, and how many rows it deleted.
+  lastSweptAt      DateTime?
+  lastDeletedCount Int?
+
+  createdAt DateTime @default(now())
+
+  @@map("retention_policies")
 }

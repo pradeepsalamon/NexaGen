@@ -77,7 +77,7 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Invoices, payments, subscriptions | own | own manual-payment records for own batches (PENDING until approved) | all | Never refundable via MANUAL. |
 | Payroll, payslips | — | own | all | |
 | Class change requests | — | C own; R own | approve/reject | |
-| Messaging rules, analytics, leads, demo classes, backups, trash | — | — | admin (trash, demo classes, backups: SUPER_ADMIN) | |
+| Messaging rules, analytics, leads, demo classes, backups, trash, data retention | — | — | admin (trash, demo classes, backups, data retention: SUPER_ADMIN) | A retention window deletes for good, so only a super admin sets one. |
 | Presets (live class) | — | PERSONAL own; use ORG/system | ORG + any | |
 
 ## Audit 2026-10-16

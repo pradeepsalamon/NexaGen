@@ -749,6 +749,12 @@ export const API_ROUTES = {
     completeDeletionRequest: (id: string = ":id") => `/admin/privacy/deletion-requests/${id}/complete`,
     rejectDeletionRequest: (id: string = ":id") => `/admin/privacy/deletion-requests/${id}/reject`
   },
+  // Data retention windows, super admin only. `category` is a RetentionCategory.
+  adminRetention: {
+    policies: "/admin/retention/policies",
+    policy: (category: string = ":category") => `/admin/retention/policies/${category}`,
+    preview: (category: string = ":category") => `/admin/retention/policies/${category}/preview`
+  },
   progress: {
     mine: "/progress/me",
     student: (id: string = ":id") => `/progress/students/${id}`,

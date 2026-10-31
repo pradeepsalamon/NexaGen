@@ -31,15 +31,37 @@ cron then silently skips on every other connection. Add each new cron's name to
 `JOB_LOCKS` (one name per job — two crons once shared id `73002080`). Specs
 provide `createJobLockStub()` from `prisma/job-lock.testing.ts`.
 
-**Retention sweep** (`apps/api/src/retention/`): one daily cron (4 AM, job lock
-`retention.sweep`) deletes operational rows nothing reads any more, in batches
-of 5,000, per `RETENTION_RULES`: expired `auth_sessions` and reset/verification
-tokens (+1 day), `processed_webhook_events` (30 days), and `visitor_sessions`
-idle 180 days with no lead. Before this, every 15-minute token refresh left a
-row behind for good. A new log-style table that only ever grows belongs in
-`RETENTION_RULES`. Business and audit records (chat, notifications, message
-deliveries, analytics events, payment webhooks) are deliberately excluded —
-their retention is a policy decision.
+**Retention sweep** (`apps/api/src/retention/`): one daily cron (04:00 UTC, job
+lock `retention.sweep`) deletes rows in batches of 5,000. It applies two kinds
+of rule, the fixed ones first:
+
+- **Fixed, in code** (`RETENTION_RULES`): operational rows nothing reads any
+  more. Expired `auth_sessions` and reset/verification tokens (+1 day),
+  `processed_webhook_events` (30 days), `visitor_sessions` idle 180 days with
+  no lead, `knowledge_search_logs` (90 days). Before this, every 15-minute
+  token refresh left a row behind for good. A new log-style table that only
+  ever grows belongs here.
+- **Admin-set, per category** (`RetentionPolicy`, one row per
+  `RetentionCategory`; page `/admin/data-retention`, super admin only, routes
+  `API_ROUTES.adminRetention.*`). Covers user content whose window is a policy
+  choice: `chat_messages`, `live_chat_messages`, `notifications`,
+  `message_deliveries` (never `PENDING`: a queued message is outbox work and its
+  dedupe key stops a double send) and `analytics_events`. **The default is kept
+  forever**: no row or `days` null deletes nothing. Limits, recommendations and
+  the one validation rule (`retentionDaysError`) are `RETENTION_CATALOGUE` in
+  `@nexa-chess/types` `retention.ts`. The minimums (30 days, 90 for analytics)
+  cover what the app still reads: the 30-day active-user count, and the reminder
+  crons' lookbacks, which are hours. A stored window below its minimum is
+  skipped, never applied. Category → table/column/filter is
+  `RETENTION_CATEGORY_TARGETS`. Each run sets `lastSweptAt`/`lastDeletedCount`;
+  an admin change sets `changedAt`/`updatedById` (not `@updatedAt`, so the
+  sweep's write doesn't read as an edit). The page previews what a window
+  would delete before Save (`…/preview?days=`).
+
+Deletes are permanent (no Trash). Payment webhooks, invoices and other
+financial or audit records are in neither list on purpose. A new category =
+the enum value (migration) + `RETENTION_CATALOGUE` + `RETENTION_CATEGORY_TARGETS`
++ the "How long we keep it" line in `features/legal/content.ts`.
 
 ## 3.6c Rate limiting
 
