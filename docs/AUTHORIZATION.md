@@ -42,7 +42,7 @@ is in CLAUDE.md §3.2; this file is the policy.
 | Account archived / deleted | Next request is a 401 (`status !== ACTIVE`). |
 | Role changed | Takes effect on the next request — the role is read from the DB, never the token. |
 | Kicked from a live class | `getToken` refuses a new LiveKit token; a reconnect with an older token is removed by the `participant_joined` webhook (`LiveClassModerationService.enforceRemovalOnJoin`). |
-| Removed from a batch | Loses API access to the batch's classes/chat at once. **Open:** an already-issued LiveKit token (6h default TTL) still connects until it expires. |
+| Removed from a batch | Loses API access to the batch's classes/chat at once. An already-issued LiveKit token still connects until it expires, at most 10 minutes (`LIVEKIT_TOKEN_TTL`). |
 
 ## Permission matrix
 
@@ -131,11 +131,11 @@ unsigned call; demo routes are guest-facing by design).
 
 ### Open / theoretical (not changed)
 
-- **LiveKit token lifetime** is the SDK default (6h). Kicks are now enforced on
-  join, but a student unenrolled mid-day keeps a working token until it expires.
-  A short TTL (LiveKit refreshes tokens for connected clients) would close it;
-  it needs a check that the pre-join card never sits on a token longer than the
-  TTL, and a staging run.
+- **LiveKit token lifetime** is 10 minutes since 2026-10-17
+  (`LIVEKIT_TOKEN_TTL`, `livekit.service.ts`); LiveKit refreshes tokens for
+  connected clients. The pre-join card never holds a token (`useLiveClass`
+  fetches one only after Join). Still to do: a staging run of a class longer
+  than the TTL (tracked in BACKLOG.md "Open items").
 - The removal-on-join enforcement depends on LiveKit webhooks reaching the API
   (they do in production; never on localhost).
 - `liveClass.puzzleClassLeaderboardAdjust` accepts any student id for the

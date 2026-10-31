@@ -22,7 +22,7 @@ expect the *cause*, not just the symptom.
   and service authorization already exist; you are almost always only adding the
   client `*Api.ts` + hook + a component, not new contract.
 - **Orphaned package/app code from the `.ai/` autonomous manager.** The
-  `.ai/` task runner (see `.ai/manager/`, `.ai/tasks/`) merged tasks
+  `.ai/` task runner (removed 2026-09-08; recover it from git history) merged tasks
   NEXA-0001/0015/0034 that added helpers to `packages/utils` and a `getDevStatus`
   method to `AdminService`. A later "make apps/ identical to dev" sync commit
   (`5de4407`) reverted the `apps/` side but not `packages/`, leaving
@@ -57,9 +57,114 @@ real class. Until this was wired, no leave/disconnect events were recorded,
 coach/board durations were always 0, `room_finished` never fired, and the
 `TOKEN_REQUEST` join in `getToken` was the only thing creating attendance rows.
 
-## Feature gaps
+## Open items (consolidated 2026-10-31)
 
-None currently tracked here.
+Until 2026-10-31 this section said "none", while ~20 open items sat in the
+"Still open" / "Known limits" lines of Resolved entries and in other docs.
+**This list is the source of truth now.** When you resolve or narrow an item,
+edit it here. A Resolved entry records what shipped and links back here. It
+does not keep its own "still open" list. Each item was re-checked against the
+code on 2026-10-31.
+
+### P1 — data growth & privacy
+
+- **No retention for chat, notifications, message deliveries or analytics
+  events** (open since 2026-10-03). `RETENTION_RULES`
+  (`apps/api/src/retention/retention.rules.ts`) covers only `auth_sessions`,
+  the reset/verification tokens, `processed_webhook_events`,
+  `visitor_sessions` and `knowledge_search_logs`. `chat_messages` holds free
+  text written by minors and is kept forever. `analytics_events`,
+  `notifications` and `message_deliveries` grow with every login and send. The
+  windows are a product decision; the mechanism already exists (one rule row
+  each, plus the matching sentence in `features/legal/content.ts`).
+
+### P2 — reliability / correctness edges
+
+- **Recording template has no board recovery.** `RecorderClient` starts from
+  `INITIAL_READ_ONLY_BOARD` and waits for the coach's `FORCE_SYNC`. The
+  spectator seat already restores `LiveSession.boardState` (`useSpectatorRoom`
+  `fromSnapshot`). The recorder has no user session to read it with, so the
+  fix needs either a recorder-scoped read (the egress already holds a
+  class-bound credential) or the API injecting the snapshot.
+- **A LiveKit outage answers 500.** `LiveKitService.listParticipants` (and
+  room create) rethrow the SDK error, so `GET /live-class/:id/participants`
+  answers 500 instead of 503 when LiveKit is down. (The old note said this
+  happened when LiveKit was *unconfigured*. That is wrong: `onModuleInit`
+  throws, so the API won't boot without `LIVEKIT_*`, even though
+  `packages/config` marks them optional. Fix one or the other.)
+- **Accuracy formulas duplicated.** `AssignmentEvaluationService`
+  (`cpToWinPercent` and the per-move accuracy) keeps its own copy of the
+  game-analysis maths ([GAME_ANALYSIS.md](GAME_ANALYSIS.md) §12). Converge on
+  the shared module.
+
+### P3 — feature follow-ups (net-new, each needs a product yes)
+
+- **Smart Revision:** reminders through the messaging rules (there is no
+  revision `MessagingEvent`), and non-puzzle item kinds (lessons / `REPLAY`
+  assignments, course modules, live-class chapters). Item kinds are blocked by
+  design: no graded attempt to cap a self-rating ([SMART_REVISION.md](SMART_REVISION.md)).
+- **No email channel in messaging rules.** `messageChannelSchema` is
+  `WHATSAPP | IN_APP`. Nodemailer is used only for auth mail.
+- **Email verification disabled** on purpose (`auth.service.ts`, commented
+  block at ~L260). Registration marks every account verified.
+- **Payroll:** percentage-of-revenue is a stubbed ₹0 line (no revenue linkage,
+  `payroll-calculation.engine.ts` `case "PERCENTAGE"`). Tiered rates are
+  API-only (`CompensationProfileDialog` says so). No tax/TDS, no bank payout
+  integration, no multi-currency, no rate CSV import/export.
+- **`FREE_ANALYSIS` assignments** complete on manual submit only (no move-count
+  target).
+- **`GET /batches/:id`** (`batches.get`) still has no web caller. Wire it or
+  delete it (Root causes §1).
+- **Game sources:** no automatic background sync ([GAME_SOURCES.md](GAME_SOURCES.md)).
+- **Chat push:** a websocket only if the 4 s poll proves too slow or costly.
+  There is no evidence of that yet.
+
+### Tooling
+
+- **ESLint 8 is end-of-life** in both apps (`eslint ^8.57`, api on
+  `@typescript-eslint ^7.16`). Next step: ESLint 9 + flat config
+  (`eslint.config.mjs`) for both, with `@typescript-eslint` 8 on the api.
+
+### Needs someone with `vps_dev` / production access
+
+- Confirm `LiveKit webhook: event=…` lines in the API logs during a real class
+  (§ "Runtime open question" below).
+- Run `npm run audit:reliability -w apps/api -- --days 90` against real data
+  ([RELIABILITY_DESIGN.md](RELIABILITY_DESIGN.md) §6.1). It has only been run
+  against local dev.
+- Staging-check the 10-minute LiveKit token TTL (below) across a class longer
+  than 10 minutes: LiveKit should refresh the token for a connected client
+  without dropping it.
+
+### Waiting on an owner decision (designs exist, nothing to build yet)
+
+[SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) and
+[WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) (proposals),
+[PARENT_REPORTS.md](PARENT_REPORTS.md) (blocked on a verified guardian
+identity), the AI roadmap phases after 2 / 3a
+([ai/architecture/ROADMAP.md](ai/architecture/ROADMAP.md)), and puzzle-catalogue
+Phase 6 training modules ([PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) §G.3,
+gated on the training surface).
+
+### Doc drift found in this pass
+
+- [UNDO_ARCHITECTURE.md](UNDO_ARCHITECTURE.md) still says "proposed, not yet
+  implemented", but `lib/undo/useUndoableMutation.ts` exists and is the
+  documented pattern (CLAUDE.md §3.6).
+- [PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) still
+  says "design only — nothing implemented", but the implementation spec reports
+  PRs 1–5b built and `lichess_puzzles` is in the schema.
+
+### Closed by this pass (were listed as open, already fixed in code)
+
+- **LiveKit token TTL.** It was listed as 6h (AUTHORIZATION.md). It has been
+  10 minutes since 2026-10-17 (`LIVEKIT_TOKEN_TTL`, `livekit.service.ts`).
+  The pre-join card never holds a token: `useLiveClass` fetches one only after
+  Join. Staging check above.
+- **Waiting room + screen-share handshake.** The 2026-09-03 entry still called
+  them deferred. Both shipped 2026-09-14.
+- **`POST /upload/pgn` orphan note.** It has a web caller (`uploadPgn`), so the
+  note was dropped.
 
 ## Resolved (2026-10-17)
 
@@ -104,7 +209,8 @@ tokens survived logout / password reset; admin password reset left sessions
 alive; avatar delete by a copied URL; forged API-only data packets and recorder /
 spectator board packets accepted from any participant; kicked students could
 reconnect with an old LiveKit token; the query cache survived an account switch;
-several 500s before auth. Still open there: the 6h LiveKit token TTL.
+several 500s before auth. The 6h LiveKit token TTL it left open is now 10
+minutes (see "Open items").
 
 ## Resolved (2026-10-15) — variations, Game Library, chat, assignment reminders
 
@@ -449,7 +555,7 @@ several 500s before auth. Still open there: the 6h LiveKit token TTL.
   change history), batch "Class Settings" tab. Student pre-join previews the
   policy and honours `autoJoin`. Audit via `TrashAuditLog`
   `action: "LIVE_SETTINGS_CHANGE"`. Waiting room + screen-share
-  request/approve handshake remain deferred (see Feature gaps). See
+  request/approve handshake shipped later (2026-09-14). See
   CLAUDE.md §3.7.
 
 ## Resolved (2026-08-31)
@@ -682,20 +788,3 @@ several 500s before auth. Still open there: the 6h LiveKit token TTL.
   sibling folder of memoized children + a `*.utils` file. Entry paths/exports
   unchanged.
 
-## Other deferred
-
-- Email verification is commented out in `auth.service.ts` (two places) by design for now.
-- `GET /batches/:id` (`batches.get`) has no frontend caller — the list response is reused.
-- `POST /upload/pgn` — stale note removed 2026-09-14: it does have a direct
-  frontend caller (`apps/web/src/features/chessboard/components/panels/
-  SidebarTabs.tsx` → `lib/uploadApi.ts`'s `uploadPgn`), in addition to the
-  `assignment` service's server-side call to `UploadService.uploadPgn`. Size
-  is capped at 512KB in the controller and the shared
-  `createAssignmentRequestSchema`.
-- `GET /live-class/:id/participants` answers **500** when LiveKit is
-  unconfigured (`LIVEKIT_*` unset) — the room-service call throws. Should be a
-  503 like the other optional integrations.
-- **ESLint 8 is end-of-life** (both apps). Web moved off the deprecated
-  `next lint` to the ESLint CLI on 2026-10-08 with the same `.eslintrc.json`;
-  the next step is ESLint 9 + flat config (`eslint.config.mjs`) for web and
-  api together, with `@typescript-eslint` 8 on the api side.
