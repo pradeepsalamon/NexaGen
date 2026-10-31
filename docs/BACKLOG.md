@@ -170,8 +170,8 @@ Details: [LIVE_CLASS.md](LIVE_CLASS.md) "Recording". New compose var on `web`:
   the same `BatchResponse`). It stays as the single-batch read and as the
   cross-user suite's probe of `getBatchVisibilityWhere`, which deleting it would
   lose. A comment at the route says so.
-- **Doc drift.** UNDO_ARCHITECTURE.md said "not yet implemented" (39
-  `useUndoableMutation` call sites exist). PUZZLE_CATALOGUE_ARCHITECTURE.md said
+- **Doc drift.** UNDO_ARCHITECTURE.md said "not yet implemented" (77
+  `useUndoableMutation` calls in 39 files exist). PUZZLE_CATALOGUE_ARCHITECTURE.md said
   "nothing implemented", and the implementation spec said PR 6 was in review.
   The catalogue API + UI and student training are built. Status lines
   corrected.

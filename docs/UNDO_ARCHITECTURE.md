@@ -1,7 +1,8 @@
 # Undo Architecture — unified design for create / update / delete / archive
 
 Status: **implemented.** `useUndoableMutation` (`apps/web/src/lib/undo/`) has
-replaced the three patterns audited below (39 call sites on 2026-10-31; no raw
+replaced the three patterns audited below (77 calls in 39 files on 2026-10-31,
+counting the generic `useUndoableMutation<…>(` form; no raw
 `useToast().undoable()` callers left). The living reference, including the
 exclusion list, is [`apps/web/src/lib/undo/README.md`](../apps/web/src/lib/undo/README.md).
 What follows is the original design brief, kept for its reasoning: §1 and its
