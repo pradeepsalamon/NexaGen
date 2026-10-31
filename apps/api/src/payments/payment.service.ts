@@ -587,6 +587,8 @@ export class PaymentService {
     source: string
   ): Promise<{ changed: boolean; status: PaymentStatus }> {
     const outcome = await this.prisma.$transaction(async (tx) => {
+      // Serialize concurrent webhooks so a FAILED read before a PAID write can't overwrite it.
+      await tx.$queryRaw`SELECT id FROM "payments" WHERE id = ${paymentId} FOR UPDATE`;
       const payment = await tx.payment.findUnique({
         where: { id: paymentId },
         // The plan's batch comes along so the invoice line can say WHICH batch

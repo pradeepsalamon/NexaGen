@@ -85,11 +85,7 @@ export class InvoiceSettingsService {
         this.env.PAYMENTS_SELLER_NAME ?? DEFAULT_INVOICE_SETTINGS.legalName,
       addressLine1: this.env.PAYMENTS_SELLER_ADDRESS ?? null,
       gstin: this.env.PAYMENTS_SELLER_TAX_ID ?? null,
-      taxLabel: this.env.PAYMENTS_TAX_LABEL,
-      // The old prefix produced NEXA/2026/000001; the settings row carries the
-      // NEXA-INV-2026-000001 form and the raw env value is only its stem.
-      invoicePrefix: `${this.env.PAYMENTS_INVOICE_PREFIX}-INV`,
-      creditNotePrefix: `${this.env.PAYMENTS_INVOICE_PREFIX}-CN`
+      taxLabel: this.env.PAYMENTS_TAX_LABEL
     });
   }
 

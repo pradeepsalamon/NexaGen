@@ -187,7 +187,7 @@ const apiEnvSchema = z.object({
   /** Below this success rate (with enough samples) a provider drops out. */
   PAYMENTS_HEALTH_MIN_SUCCESS_RATE: z.coerce.number().min(0).max(100).default(40),
   PAYMENTS_HEALTH_MIN_SAMPLES: z.coerce.number().int().positive().default(10),
-  /** Invoice number prefix: NEXA/2026/000123. */
+  /** Order number prefix: NEXA-2026-7F3K9Q. Invoice prefixes live in invoice settings. */
   PAYMENTS_INVOICE_PREFIX: z.string().default("NEXA"),
   /** Printed on invoices. Nothing is fabricated when these are unset. */
   PAYMENTS_SELLER_NAME: z.string().optional(),

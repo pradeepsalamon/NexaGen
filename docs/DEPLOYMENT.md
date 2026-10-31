@@ -9,6 +9,9 @@ Since your server already has Docker installed, you just need to open the requir
 Run these commands on your Oracle Ubuntu server:
 
 ```bash
+# SSH first, or `ufw enable` locks you out (use your port if sshd isn't on 22)
+sudo ufw allow 22/tcp
+
 # Web traffic
 sudo ufw allow 80/tcp    # HTTP
 sudo ufw allow 443/tcp   # HTTPS
@@ -25,8 +28,8 @@ sudo ufw enable
 
 **Docker bypasses ufw.** A port published as `"3001:3001"` is reachable from the
 internet whatever ufw says. `docker-compose.yml` therefore binds web (3000), api
-(3001), LiveKit signalling (7880), Postgres and Redis to `127.0.0.1`; only nginx
-(80/443) and the LiveKit media/TURN ports above are public. Mirror exactly that
+(3001), LiveKit signalling (7880), Postgres and Redis to `127.0.0.1`; only SSH,
+nginx (80/443) and the LiveKit media/TURN ports above are public. Mirror exactly that
 list in the OCI VCN security list (ingress rules), and remove the old
 `50000-60000/udp` and `7880/tcp` rules.
 
@@ -89,13 +92,16 @@ Browsers strictly require a secure `https://` connection to access a user's came
    sudo nano /etc/nginx/sites-available/nexa-chess
    ```
 
-   **Paste the following configuration (replace `yourdomain.com` with your actual domains):**
-   ```nginx
-   # 1. Web & API Domain (e.g., app.yourdomain.com)
-   server {
-       server_name app.yourdomain.com;
+   **Paste the following configuration (replace `yourdomain.com` with your actual domains).**
+   The hosts must match `.env`: web = `FRONTEND_URL` / `CORS_ORIGIN`, API =
+   `NEXT_PUBLIC_API_URL`. API routes are rooted at `/` (e.g. `/auth/login`), so the
+   API gets its own host rather than a path prefix.
 
-       # Next.js frontend
+   ```nginx
+   # 1. Web Domain (FRONTEND_URL, e.g. yourdomain.com)
+   server {
+       server_name yourdomain.com;
+
        location / {
            proxy_pass http://127.0.0.1:3000;
            proxy_http_version 1.1;
@@ -108,9 +114,13 @@ Browsers strictly require a secure `https://` connection to access a user's came
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
            proxy_set_header X-Forwarded-Proto $scheme;
        }
+   }
 
-       # NestJS API
-       location /api {
+   # 2. API Domain (NEXT_PUBLIC_API_URL, e.g. api.yourdomain.com)
+   server {
+       server_name api.yourdomain.com;
+
+       location / {
            proxy_pass http://127.0.0.1:3001;
            proxy_http_version 1.1;
            proxy_set_header Upgrade $http_upgrade;
@@ -124,7 +134,7 @@ Browsers strictly require a secure `https://` connection to access a user's came
        }
    }
 
-   # 2. LiveKit Domain (e.g., livekit.yourdomain.com)
+   # 3. LiveKit Domain (e.g., livekit.yourdomain.com)
    server {
        server_name livekit.yourdomain.com;
 
@@ -145,7 +155,7 @@ Browsers strictly require a secure `https://` connection to access a user's came
    sudo ln -s /etc/nginx/sites-available/nexa-chess /etc/nginx/sites-enabled/
    
    # Run certbot to automatically provision free Let's Encrypt SSL certs
-   sudo certbot --nginx -d app.yourdomain.com -d livekit.yourdomain.com
+   sudo certbot --nginx -d yourdomain.com -d api.yourdomain.com -d livekit.yourdomain.com
    
    # Restart Nginx to apply changes
    sudo systemctl restart nginx
@@ -170,9 +180,73 @@ TURN on 443: on this box that means nginx `stream` mode with `ssl_preread`
 routing `turn.` by SNI to LiveKit, or giving LiveKit its own IP / media VM, where
 `LIVEKIT_TURN_TLS_PORT=443` works directly.
 
-## Step 5: Ongoing Updates
+## CI, automated deploys and rollback
 
-Whenever you make changes to your code and want to deploy them to production:
+Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselves.
+
+- **CI runs on PRs only** (`.github/workflows/ci.yml`, PRs into `main`/`dev`):
+  API unit tests, every migration applied to an empty Postgres +
+  `prisma migrate diff --exit-code` against `schema.prisma`, DB integration
+  tests on that Postgres, lint, and the production build (type-checks the app).
+  Only the affected app is checked, and Jest runs only the specs importing a
+  changed file (`scripts/ci/jest-scope.sh`; full suite when
+  packages/schema/test setup/deps/`ci.yml`/`scripts/ci/` change).
+- The **`main: CI before merge` ruleset** requires a PR, those three checks, and
+  an up-to-date branch, so a merge commit is always code CI already tested
+  (admins can bypass — a bypassed merge deploys untested).
+- **Push to `main` deploys**: `deploy-production.yml` detects whether
+  `apps/web/**` / `apps/api/**` / `packages/**` changed → SSH to the VPS →
+  `scripts/deploy-production.sh <sha> <services>` → `docker compose up -d --build`
+  for the affected services only. Change detection diffs against the head of
+  the last successful push-triggered deploy run (falling back to the previous
+  push), so a later push also redeploys what a failed deploy left out. To
+  redeploy by hand: Actions → Deploy Production → **Run workflow**
+  (`workflow_dispatch`, services `both`/`api`/`web`); it runs no CI.
+- **Migrations first**: the script applies `prisma migrate deploy` from the
+  newly built image *before* replacing the running API, so a failed migration
+  aborts the deploy without downtime. `apps/api`'s `entrypoint.sh` also runs it
+  on container start (idempotent; the safety net for manual starts).
+- **Rollback restores images, never rebuilds.** Each service keeps
+  `<image>:last-good` (live and healthy) and `<image>:previous` beside
+  compose's `latest`. A failed `up` (including web's "dependency failed to
+  start: container nexa_api is unhealthy") or health check restores
+  `:last-good` within seconds, and a crash-looping container counts as failed
+  immediately. A deploy that succeeded but misbehaves: Run workflow →
+  `action: rollback` (or `scripts/deploy-production.sh --rollback [api|web]` on
+  the box) → `:previous` + that commit's checkout, once per successful deploy,
+  no CI, no build. Migrations are never reversed, so keep them additive. State
+  (`last-good-commit`, `previous-commit`, `last-deploy-services`,
+  `history.log`, the lock) lives in the gitignored `.deploy/` in the prod
+  checkout.
+- **Concurrency**: the workflow's `production` group runs one at a time (a
+  newer pending run replaces an older pending one); on the box the script holds
+  a flock on `.deploy/deploy.lock` and skips a commit that is an ancestor of
+  the one live (`FORCE_DEPLOY=1` overrides). It runs from a temp copy of
+  itself, since `git checkout -f` rewrites `scripts/deploy-production.sh` in
+  place.
+- **Security & dependency automation**: `.github/workflows/security.yml` runs
+  Semgrep on PRs (fails only on findings the PR introduces) and a weekly
+  report-only full scan; it is not a deploy gate. `.semgrepignore` excludes
+  tests/generated files. Dependabot (`.github/dependabot.yml`) opens weekly
+  grouped npm PRs; core-stack majors (Next, React, Nest, Prisma) are ignored on
+  purpose. Workflow actions are pinned to a commit SHA with the version in a
+  trailing comment (`uses: actions/checkout@<sha> # v4.4.0`) — a new step does
+  the same; Dependabot's monthly `github-actions` run bumps both together.
+  `.coderabbit.yaml` holds the CodeRabbit PR-review rules.
+- **Backups**: `scripts/backup_db.sh` via cron (OCI CLI to object storage).
+  Restores are CLI-only (`docs/DATABASE_RESTORE.md`); the admin UI can list,
+  download and trigger backups but deliberately has no restore. Every dump
+  (that script, admin "Backup now") uses `--exclude-table-data` for
+  `lichess_puzzles` / `lichess_puzzles_staging` — re-loadable source data; a
+  restore reloads the release named in `lichess_catalogue_releases`. A new bulk
+  source-data table gets the same treatment in both places. Prod-container
+  commands: `docs/PROD_DOCKER_COMMANDS.md`.
+- `NEXT_PUBLIC_*` vars are build-time — they must be set before
+  `docker compose build` for web.
+
+## Step 5: Ongoing Updates (manual)
+
+The push-to-`main` workflow above is the normal path. To update by hand:
 
 ```bash
 cd /opt/nexa-chess

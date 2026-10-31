@@ -267,13 +267,4 @@ export async function scheduleClass(
   return classId as string;
 }
 
-/**
- * Get cookies from the browser context for a logged-in user.
- */
-export async function getCookies(page: Page) {
-  const context = page.context();
-  const cookies = await context.cookies(API_URL);
-  return cookies;
-}
-
 export { API_URL };

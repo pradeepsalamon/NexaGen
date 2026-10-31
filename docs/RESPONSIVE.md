@@ -6,13 +6,13 @@ device.
 
 - Human conventions: [PROJECT_RULES.md](PROJECT_RULES.md)
 - Screenshot tool details: [`scripts/responsive/README.md`](../scripts/responsive/README.md)
-- Agent rules: [`.agents/AGENTS.md`](../.agents/AGENTS.md), [`CLAUDE.md`](../CLAUDE.md)
+- Agent rules: [`AGENTS.md`](../AGENTS.md), [`CLAUDE.md`](../CLAUDE.md)
 
 ---
 
 ## 1. Scope
 
-`apps/web` (Next.js 14 App Router) is the only responsive surface. `apps/api` has
+`apps/web` (Next.js 15 App Router) is the only responsive surface. `apps/api` has
 no UI. Every route below must render correctly, with **no horizontal page
 scroll**, from a 320 px phone to a 3440 px ultrawide, in **both light and dark**
 themes, in **portrait and landscape**.

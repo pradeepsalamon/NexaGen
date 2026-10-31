@@ -7,12 +7,13 @@ the build and production deploy healthy.
 Companion documents:
 
 - [CLAUDE.md](../CLAUDE.md) — condensed guidance for AI agents
-- [.agents/AGENTS.md](../.agents/AGENTS.md) — the short list of build-breaking rules
+- [AGENTS.md](../AGENTS.md) — the short list of build-breaking rules
 - [README.md](../README.md) — feature list, setup, UI component standards
-- [DEPLOYMENT.md](../DEPLOYMENT.md) — Oracle Cloud / Docker deploy
+- [DEPLOYMENT.md](DEPLOYMENT.md) — Oracle Cloud / Docker deploy
 - [apps/api/prisma/README.md](../apps/api/prisma/README.md) — Prisma workflow
-- [UNIT_TEST_PLAN.md](../UNIT_TEST_PLAN.md) — test plan
+- [UNIT_TEST_PLAN.md](UNIT_TEST_PLAN.md) — test plan
 - [docs/DATABASE_RESTORE.md](DATABASE_RESTORE.md), [docs/PROD_DOCKER_COMMANDS.md](PROD_DOCKER_COMMANDS.md)
+- [docs/README.md](README.md) — index of every doc in this folder
 
 ---
 
@@ -22,20 +23,22 @@ npm-workspaces monorepo, orchestrated by Turborepo.
 
 ```
 apps/
-  web/          Next.js 14 App Router frontend  (@nexa-chess/web)
+  web/          Next.js 15 App Router frontend  (@nexa-chess/web)
   api/          NestJS 11 backend               (@nexa-chess/api)
 packages/
   types/        shared types + Zod schemas + API_ROUTES   (@nexa-chess/types)
   config/       env parsing/validation                    (@nexa-chess/config)
   tsconfig/     shared base tsconfig
+services/       ai-runtime (Python FastAPI, off unless AI_ENABLED)
 e2e/            Playwright specs
-scripts/        deploy + db backup shell scripts
+scripts/        deploy, backup, nexa CLI, responsive shots, benchmarks
+docs/           feature & ops docs — index in docs/README.md
 docker-compose.yml  (livekit-server config is inline as LIVEKIT_CONFIG here)
 ```
 
 ### Tech stack
 
-- **Frontend:** Next.js 14 (App Router), React 18, TypeScript (strict), Tailwind CSS 3
+- **Frontend:** Next.js 15 (App Router), React 19, TypeScript (strict), Tailwind CSS 3
   with CSS-variable design tokens, shadcn/ui-style primitives, TanStack Query v5
   (server state), Zustand v5 (client/session state), axios, react-hook-form + Zod,
   LiveKit client, chessground + chess.js, framer-motion, sonner, lucide-react.
@@ -66,8 +69,8 @@ docker-compose.yml  (livekit-server config is inline as LIVEKIT_CONFIG here)
    inside a Prisma `$transaction` (see `batch.service.ts#delete`).
 6. **Update docs in the same change.** If you touch setup, commands, env vars, or
    user-visible behavior, update the relevant README/doc in the same PR.
-7. **Data-table action buttons use the `rounded-full` icon template**
-   (`.agents/AGENTS.md`), Lucide icon with `strokeWidth={2.5}`.
+7. **Data-table action buttons are `rounded-full` icon buttons** — use
+   `RowActions` (`components/ui/RowActions.tsx`, see `AGENTS.md`), Lucide icon with `strokeWidth={2.5}`.
 8. **Reuse `apps/web/src/components/ui/` primitives before building new UI.**
 
 ---
@@ -126,17 +129,9 @@ export class ThingController {
 
 **Service:**
 ```ts
-private async getAuthenticatedUser(accessToken: string | undefined) {
-  if (!accessToken) throw new UnauthorizedException("Access token is missing.");
-  const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
-    accessToken, { secret: this.env.JWT_ACCESS_SECRET },
-  );
-  if (payload.type !== "access") throw new UnauthorizedException("Invalid token type.");
-  const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-  if (!user || user.status !== UserStatus.ACTIVE) {
-    throw new UnauthorizedException("Invalid session.");
-  }
-  return user;
+// Never hand-roll jwtService.verifyAsync — see docs/AUTHORIZATION.md.
+private getAuthenticatedUser(accessToken: string | undefined) {
+  return authenticateUser(this.jwtService, this.prisma, accessToken);
 }
 
 private assertCanManageThings(user: { role: UserRole }) {
@@ -388,6 +383,22 @@ helper for dirty-state UX.
   `jest.config.ts`: `rootDir: src`, alias `@/ → src/`, coverage excludes `main.ts`,
   `*.module.ts`, `*.dto.ts`.
 - Follow `UNIT_TEST_PLAN.md` for scope and priorities.
+- **DB integration tests**: `*.int-spec.ts` (`apps/api/jest.integration.config.ts`),
+  `npm run test:integration`. They hit a real Postgres at
+  `INTEGRATION_DATABASE_URL`, whose database name must end in `_int`, `_ci` or
+  `_test`, because every test truncates all tables. Global setup applies
+  migrations and sets the database timezone to `Asia/Kolkata`, so raw SQL that
+  binds a `Date` next to a `timestamp` column fails here. Use them for anything
+  a mock can't prove: raw SQL, unique / partial indexes, the soft-delete
+  extension, job locks. Helpers: `src/test/integration/db.ts` (`resetDatabase`,
+  `createUser`). `src/test/integration/app.ts` `createTestApp()` boots the whole
+  `AppModule` through the production pipeline (`app.setup.ts` `configureApp`),
+  crons stopped, and `call(user, method, path, body)` hits it over HTTP with a
+  real signed access cookie. The access suites (auth boundary, cross-user,
+  admin routes) are described in `docs/AUTHORIZATION.md` § "Tests that hold
+  this". Locally:
+  `INTEGRATION_DATABASE_URL=postgresql://…/nexa_gen_int npm run test:integration`.
+  CI runs them in the `migrations` job.
 - E2E: Playwright in `e2e/` using `.env.e2e` (gitignored; copy `.env.e2e.example`). `npx playwright test`. Not in `npm test`.
   `live-board-sync.spec.ts` is opt-in (`RUN_LIVE_BOARD_E2E=1`): it needs a real
   LiveKit (`docker compose up -d livekit postgres redis`) and the web server run

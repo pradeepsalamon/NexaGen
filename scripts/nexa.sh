@@ -20,9 +20,9 @@ function show_usage() {
     echo "Usage: nexa <command> [environment] [component]"
     echo ""
     echo "Commands:"
-    echo "  start   <dev|stage|prod> [api]   Start environment (or just api)"
-    echo "  stop    <dev|stage|prod>         Stop the specified environment"
-    echo "  restart <dev|stage|prod> [api]   Restart environment (or just api)"
+    echo "  start   <dev|stage|prod> [api|web]   Start environment (or one component; dev/stage)"
+    echo "  stop    <dev|stage|prod> [api|web]   Stop the environment (or one component)"
+    echo "  restart <dev|stage|prod> [api|web]   Restart environment (or one component)"
     echo "  status                     Show status of all environments"
     echo "  logs [api|web]             View logs (for dev)"
     echo "  attach                     Attach to the dev tmux session"
@@ -53,27 +53,34 @@ function http_status() {
     echo "$code"
 }
 
+DEV_API_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"
+DEV_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -p 3010 2>&1 | tee web-dev.log'"
+STAGE_API_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
+STAGE_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
+
+# (Re)launch one window, leaving the other one running.
+function launch_window() {
+    local name=$1 cmd=$2
+    tmux kill-window -t "nexa-dev:$name" 2>/dev/null || true
+    if tmux has-session -t nexa-dev 2>/dev/null; then
+        tmux new-window -t nexa-dev -n "$name" "$cmd"
+    else
+        tmux new-session -d -s nexa-dev -n "$name" "$cmd"
+    fi
+}
+
 function start_dev() {
     local target=$1
-    if [ "$target" = "api" ]; then
-        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
-            tmux kill-window -t nexa-dev:api 2>/dev/null || true
-        fi
-        echo "=== Launching Dev API on Port 3011 ==="
-        if ! tmux has-session -t nexa-dev 2>/dev/null; then
-            tmux new-session -d -s nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"
-        else
-            tmux new-window -t nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"
-        fi
-        echo "Dev API launched on port 3011!"
-        return
-    fi
+    case "$target" in
+        api) launch_window api "$DEV_API_CMD"; echo "Dev API launched on port 3011!"; return ;;
+        web) launch_window web "$DEV_WEB_CMD"; echo "Dev web launched on port 3010!"; return ;;
+    esac
 
     echo "Stopping any existing dev/staging processes..."
     stop_session
 
-    tmux new-session -d -s nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"
-    tmux new-window -t nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -p 3010 2>&1 | tee web-dev.log'"
+    launch_window api "$DEV_API_CMD"
+    launch_window web "$DEV_WEB_CMD"
 
     echo "Dev servers launched in background tmux session 'nexa-dev'!"
     echo "API listening on: http://127.0.0.1:3011"
@@ -82,21 +89,19 @@ function start_dev() {
 
 function start_stage() {
     local target=$1
-    if [ "$target" = "api" ]; then
-        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
-            tmux kill-window -t nexa-dev:api 2>/dev/null || true
-        fi
-        echo "=== Building API in Production Mode for Staging Testing ==="
-        cd "$ROOT_DIR"
-        npm run build:prod -w apps/api
-
-        echo "=== Launching Production-Optimized Dev API on Port 3011 ==="
-        if ! tmux has-session -t nexa-dev 2>/dev/null; then
-            tmux new-session -d -s nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
+    cd "$ROOT_DIR"
+    if [ "$target" = "api" ] || [ "$target" = "web" ]; then
+        # Stop the old window first so the rebuild doesn't swap files under it.
+        tmux kill-window -t "nexa-dev:$target" 2>/dev/null || true
+        if [ "$target" = "api" ]; then
+            npm run build:prod -w apps/api
+            launch_window api "$STAGE_API_CMD"
+            echo "Production-mode Dev API launched on port 3011!"
         else
-            tmux new-window -t nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
+            npx turbo build --filter=@nexa-chess/web
+            launch_window web "$STAGE_WEB_CMD"
+            echo "Production-mode Dev web launched on port 3010!"
         fi
-        echo "Production-mode Dev API launched on port 3011!"
         return
     fi
 
@@ -108,8 +113,8 @@ function start_stage() {
     npm run build
 
     echo "=== Launching Production-Optimized DEV Servers on Ports 3010 / 3011 ==="
-    tmux new-session -d -s nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
-    tmux new-window -t nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
+    launch_window api "$STAGE_API_CMD"
+    launch_window web "$STAGE_WEB_CMD"
 
     echo "Production-mode DEV servers launched in background tmux session 'nexa-dev'!"
 }

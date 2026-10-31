@@ -1,8 +1,10 @@
 # Authorization — permission matrix and audit (2026-10-16)
 
 How access is decided, who may do what, and what the 2026-10-16 audit found and
-fixed. The mechanism itself (no guards, token-string auth, `authenticateUser`)
-is in CLAUDE.md §3.2; this file is the policy.
+fixed. The controller/service pattern (no guards, token-string auth) is
+CLAUDE.md §3.2; the authentication mechanics are under
+[Authentication mechanics](#authentication-mechanics) below; the rest of this
+file is the policy.
 
 ## Ground rules
 
@@ -31,6 +33,109 @@ is in CLAUDE.md §3.2; this file is the policy.
   settings. Students hold `canPublishData`, so *every* data packet a client
   receives is untrusted unless its envelope proves otherwise: API-injected
   topics have no sender, and receivers drop a packet that has one.
+
+## Authentication mechanics
+
+Moved out of CLAUDE.md §3.2 on 2026-10-31; the text is unchanged in substance.
+
+- **`authenticateUser(this.jwtService, this.prisma, accessToken)`**
+  (`auth/authenticate.ts`) is the single implementation: missing token / bad or
+  expired signature / non-`access` type / user not `ACTIVE` / the token's
+  `sessionId` missing or revoked in `auth_sessions` all become a 401 (never the
+  500 a raw `TokenExpiredError` turns into) — so logout, a password reset or
+  refresh-token reuse ends the access token at once, not 15 minutes later. Pass
+  `{ include: { … } }` as a 4th argument to load relations; `verifyAccessToken`
+  is the no-DB variant. **Never hand-roll `jwtService.verifyAsync` for an access
+  token** — the 25 copies this replaced had drifted (admin/backup skipped the
+  ACTIVE check, Stockfish trusted the token's role). The module
+  `*-auth.helper.ts` files re-export it.
+- **Params and queries.** Parse a param/query inside a handler with
+  `parseOrBadRequest` (`common/zod-body.pipe.ts`), never a bare `schema.parse` —
+  a ZodError is a 500, thrown before the handler has even authenticated anyone.
+  A single query value headed for a Prisma `where` goes through `queryEnum` /
+  `queryString` (`common/query-params.ts`): a repeated key arrives as an array
+  and an unknown enum value only fails inside Prisma, both 500s until checked
+  (`test/integration/access/query-validation.int-spec.ts`).
+- **File uploads.** multer buffers the whole body in memory *before* the
+  handler's auth runs, so every multipart route is
+  `@UseInterceptors(RequireAccessTokenInterceptor, FileInterceptor("file", { limits: { fileSize, files: 1, fields } }))`
+  — the interceptor (`common/security/`) rejects a missing/forged access token
+  before any bytes are read, and `limits` makes an oversize file a 413 instead
+  of an unbounded buffer. The handler still calls `authenticateUser`.
+- **Route coverage.** `common/security/route-auth.spec.ts` fails any route
+  handler that never passes its `request` to something (i.e. can't be reading
+  the cookie); a deliberately public route goes on its `PUBLIC_ROUTES` list.
+
+### Two-factor (TOTP)
+
+`auth/mfa/` (`MfaService`, `MfaController`, routes `API_ROUTES.auth.mfa*`,
+table `user_mfa`). Production refuses to boot without `MFA_ENCRYPTION_KEY`
+while `MFA_REQUIRED_ROLES` names a role (`NONE` opts out; an empty value falls
+back to the compose default) (`packages/config/src/api.ts`), so required MFA
+can't silently switch off.
+
+- With `MFA_ENCRYPTION_KEY` set, a correct password for an MFA-enabled account
+  — or any account whose role is in `MFA_REQUIRED_ROLES` (default
+  `SUPER_ADMIN,ADMIN`) — returns `{ mfaRequired: "VERIFY" | "SETUP", challengeToken }`
+  instead of cookies; `/auth/mfa/verify` (code or single-use recovery code) or
+  `/auth/mfa/enable` (first enrollment) then finishes the login via
+  `AuthService.completeLogin`.
+- The challenge is a 10-minute JWT of `type: "mfa_challenge"`, so it can never
+  pass as an access token. Secrets are AES-256-GCM encrypted; `lastUsedStep`
+  blocks code replay.
+- Wrong codes are 400 (not 401) so the web client's refresh-and-retry doesn't
+  fire. They are also counted **per account** (`user_mfa.failedAttempts`): the
+  5th (`MFA_MAX_FAILED_ATTEMPTS`) sets `lockedUntil` 15 minutes ahead, during
+  which every code — even a correct one — is a 429. The route's IP throttle
+  alone let guesses spread across many IPs. Clear a lock with
+  `UPDATE user_mfa SET "lockedUntil" = NULL WHERE "userId" = '…'`.
+- Students can't enroll. Lost device + no recovery codes:
+  `DELETE FROM user_mfa WHERE "userId" = '…'`, and the next login forces setup
+  again. Changing `MFA_ENCRYPTION_KEY` invalidates every enrolled authenticator.
+
+### Login lockout and email change
+
+- Wrong passwords are counted per account (`users.failedLoginAttempts`); the
+  10th (`LOGIN_MAX_FAILED_ATTEMPTS`) sets `loginLockedUntil` 15 minutes ahead,
+  during which login is a 429 even with the right password. A correct password
+  or a completed password reset clears it; by hand:
+  `UPDATE users SET "loginLockedUntil" = NULL, "failedLoginAttempts" = 0 WHERE email = '…'`.
+  The IP throttle (5/min) alone missed guessing spread across many IPs.
+- Changing the account email (`PATCH /auth/profile`) requires `currentPassword`
+  (400 if missing or wrong; the route is throttled 10/min), revokes every other
+  session family, and mails a notice to the old address — the email is what
+  password reset trusts, so a stolen session alone must not move it.
+
+### Cookies, refresh tokens, CSRF and headers
+
+- `AUTH_COOKIE_NAMES` = `nexa_access_token` / `nexa_refresh_token`
+  (`apps/api/src/auth/types/`). Access TTL 15m, refresh 1d (no "remember me")
+  or 7d (remember me).
+- Refresh tokens rotate on every use and are sha256-hashed in `auth_sessions`
+  (bcrypt would only read the JWT's first 72 bytes; old bcrypt rows still
+  verify). A rotation sets `rotatedAt` (claimed atomically); `revokedAt` means
+  logout / password reset / reuse and is **never** revived. Within 30s of a
+  rotation the old token may mint a sibling in the same `familyId` (concurrent
+  tabs); after that a replay revokes the whole family. Logout revokes the
+  family.
+- `getCookieBaseOptions` (`@nexa-chess/config/api`) sets every cookie: `secure`
+  when `FRONTEND_URL` is https, `sameSite` from `COOKIE_SAME_SITE` (default
+  `lax` — web and API are same-site subdomains).
+- **CSRF**: `app.setup.ts` `configureApp` (shared by `main.ts` and the
+  integration test app) registers only the JSON body parser (no urlencoded),
+  then defaults a missing body to `{}` (body-parser 2 leaves it undefined;
+  Express 4 didn't), and `common/security/origin-check.ts` rejects a
+  POST/PUT/PATCH/DELETE whose `Origin` (or `Referer`) is not in `CORS_ORIGIN`
+  with 403; webhook paths are exempt. **A new webhook route must be added to
+  that exempt list.**
+- **Security headers**: the API sends `nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: no-referrer` and (over https) HSTS on every response
+  (`common/security/security-headers.ts`); the invoice HTML routes add
+  `INVOICE_HTML_CSP`. The web's headers live in `next.config.mjs`
+  `securityHeaders()`: an enforced CSP of `frame-ancestors`/`object-src`/`base-uri`
+  only, plus a **report-only** full CSP whose console violations are how to
+  find origins before enforcing it — a new third-party script, iframe or fetch
+  host needs adding there.
 
 ## Sessions and revocation
 
@@ -153,9 +258,21 @@ unsigned call; demo routes are guest-facing by design).
 
 - `test/integration/access/cross-user-access.int-spec.ts` — A-vs-B denial rows
   with positive controls, list leakage, wrong-role 403s (now incl. recording).
+  `world.ts` builds two mirror-image sides (coach + batch + student + class +
+  private puzzle + attempt + invoice + payroll record each). **A new endpoint
+  that takes an id of something a user owns gets a row here**, with a positive
+  control on the caller's own data.
 - `test/integration/access/auth-boundary.int-spec.ts` — every mounted route
-  refuses an anonymous caller; logout / revoked session / deactivated account
-  end a still-unexpired access cookie.
+  refuses an anonymous caller (allow-list `ANONYMOUS_OK`); logout / revoked
+  session / deactivated account end a still-unexpired access cookie. The test
+  app's `tokenFor` creates the `auth_sessions` row each token names.
+- `test/integration/access/admin-routes.int-spec.ts` — discovers every
+  registered route under the admin prefixes (`/admin`, `/analytics`, `/users`,
+  …) and asserts students and coaches get 403 — and plain admins on the
+  SUPER_ADMIN `/admin/*` routes — so a new admin route is covered automatically;
+  a mixed module lists its admin routes there. A 400 counts only when a super
+  admin gets the same 400 (rejected before any role check). Routes with outside
+  effects (backups) are never called with a privileged user.
 - `common/security/route-auth.spec.ts` — every handler reads its request.
 - Unit: `auth/authenticate.spec.ts` (session binding),
   `live-class/live-class-recording.spec.ts`, `live-class-authorization.spec.ts`

@@ -141,14 +141,12 @@ Test scenarios for `register()`:
 - Success splits single-word student name into first name with undefined last name.
 - Success splits multi-word student name into first name and joined last name.
 - Success hashes the password before persistence.
-- Success creates `studentProfile` with mapped Prisma `ExperienceLevel`.
-- Success uses `UserRole.STUDENT` and `UserStatus.ACTIVE`.
-- Success creates a short-lived session, not the full remember-me refresh duration.
-- Success returns only sanitized `AuthUser` fields, never password/hash/session internals.
-- Success includes access and refresh token max ages.
-- Success stores session context `ipAddress` and `userAgent`.
+- Success creates `studentProfile` with mapped `referralSource`, `parentName` and `parentPhone`.
+- Success uses `UserRole.STUDENT` and `UserStatus.PENDING` (an admin approves before first login).
+- Success returns exactly `{ email, status: "PENDING_APPROVAL" }`.
+- Success creates no session and signs no tokens.
 - Password mismatch throws `BadRequestException`.
-- Duplicate email throws `ConflictException`.
+- Duplicate email throws `ConflictException`, including a soft-deleted account (lookup uses `prisma.withDeleted`).
 - Duplicate email lookup is case-insensitive through lowercase email.
 - Student age below 4 throws `BadRequestException`.
 - Non-integer student age throws `BadRequestException`.
@@ -157,11 +155,8 @@ Test scenarios for `register()`:
 - Invalid or unmapped experience level behavior is documented and tested.
 - Prisma `user.findUnique` failure propagates.
 - Prisma `user.create` failure propagates.
-- JWT signing failure propagates.
-- Session creation/update failure propagates.
 - Hashing failure propagates.
 - Null or undefined payload is rejected or documented as invalid caller behavior.
-- Null or undefined context still creates session with optional context fields.
 
 Test scenarios for `login()`:
 
@@ -312,10 +307,8 @@ Private logic to cover indirectly:
 Test scenarios for `register()`:
 
 - Delegates body and request session context to `AuthService.register`.
-- Sets access token cookie with `httpOnly`, configured `maxAge`, path `/`, sameSite `lax` in development, secure `false`.
-- Sets refresh token cookie with `httpOnly`, configured `maxAge`, path `/`, sameSite `lax` in development, secure `false`.
-- Uses sameSite `none` and secure `true` in production.
-- Returns only `{ user }`, not tokens.
+- Sets no auth cookies (the account is pending approval).
+- Returns the service's `{ email, status: "PENDING_APPROVAL" }` unchanged.
 - Propagates service exceptions.
 
 Test scenarios for `login()`:

@@ -6,7 +6,7 @@ type Shape = "date" | "time" | "dateTime";
 /**
  * Renders a timestamp for one recipient. This is the rare server-side format
  * the date rule allows — the zone is the recipient's own `User.timezone`, never
- * the server's (see .agents/AGENTS.md "Date & Time Rule").
+ * the server's (see AGENTS.md "Date & Time Rule").
  */
 export function formatInZone(value: Date, timeZone: string, shape: Shape): string {
   const zone = safeZone(timeZone);

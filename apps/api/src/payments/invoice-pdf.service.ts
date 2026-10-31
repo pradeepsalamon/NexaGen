@@ -14,6 +14,7 @@ import {
   type InvoiceLine,
   type InvoiceSellerDetails
 } from "@nexa-chess/types";
+import { DEFAULT_TIME_ZONE } from "../common/time";
 
 const requireFromHere = createRequire(__filename);
 
@@ -69,11 +70,9 @@ export class InvoicePdfService {
   private getPrinter(): PdfPrinterLike {
     if (this.printer) return this.printer;
 
-    /* eslint-disable @typescript-eslint/no-var-requires */
     const PdfPrinter = requireFromHere("pdfmake/js/Printer.js").default;
     const URLResolver = requireFromHere("pdfmake/js/URLResolver.js").default;
     const virtualFsModule = requireFromHere("pdfmake/js/virtual-fs.js");
-    /* eslint-enable @typescript-eslint/no-var-requires */
 
     const virtualFs = virtualFsModule.default ?? virtualFsModule;
 
@@ -895,7 +894,7 @@ function formatDocumentDate(iso: string): string {
     day: "2-digit",
     month: "short",
     year: "numeric",
-    timeZone: "UTC"
+    timeZone: DEFAULT_TIME_ZONE
   }).format(new Date(iso));
 }
 

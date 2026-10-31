@@ -32,7 +32,7 @@ export class InvoiceStorageService {
   }
 
   /**
-   * `invoices/2026/09/NEXA-INV-2026-000001` — the §13 layout. Cloudinary adds
+   * `invoices/2026/09/INV_26-27_00001` — the §13 layout (`/` in the number becomes `_`). Cloudinary adds
    * the extension itself for raw assets, so the key carries none.
    */
   buildKey(documentNumber: string, issuedAt: Date, folder = "invoices"): string {

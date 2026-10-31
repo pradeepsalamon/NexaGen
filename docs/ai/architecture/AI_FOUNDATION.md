@@ -47,7 +47,7 @@ testing · 13 open questions
 | Auth safety nets | `route-auth.spec.ts` checks that every handler passes `request`. The integration suites `auth-boundary`, `cross-user-access` and `admin-routes` (which discovers admin routes automatically) cover access [V] | `common/security/`, `test/integration/access/` |
 | Contract | Zod **4.4.3** in `packages/types`, with `API_ROUTES`. Zod 4 can emit JSON Schema with `z.toJSONSchema`, which is useful for a cross-language contract [V] | `packages/types/package.json` |
 | Env | One Zod schema in `packages/config/src/api.ts`. Compose passes `${VAR:-default}` from the root `.env`. There is no secret manager [V] | |
-| Frontend | Next 14 App Router. Each feature has `api/`, `hooks/` and `components/`. Route access is controlled in `routeAccess.ts` and `middleware.ts` [V] | `apps/web/src/features/*` |
+| Frontend | Next 15 App Router. Each feature has `api/`, `hooks/` and `components/`. Route access is controlled in `routeAccess.ts` and `middleware.ts` [V] | `apps/web/src/features/*` |
 | Jobs | **Row as job**: a database row is claimed with `FOR UPDATE SKIP LOCKED` and has a heartbeat, a stale sweep, a retry cap, checkpoints and requeue on shutdown. No Redis is needed. BullMQ is optional (only invoices use it) [V] | `game-analysis/game-analysis.worker.ts`, `queue/queue.module.ts` |
 | Cron | `JobLockService.runExclusive(JOB_LOCKS.x)` [V] | `prisma/job-lock.service.ts` |
 | Stockfish | An in-process pool with `interactive` and `background` lanes. Game analysis stores White-relative evaluations, classifications and tactics with version numbers [V] | `stockfish/stockfish.service.ts`, `game-analysis/` |

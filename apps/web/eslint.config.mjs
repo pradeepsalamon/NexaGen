@@ -1,0 +1,51 @@
+import { FlatCompat } from "@eslint/eslintrc";
+
+// shortcut: eslint-config-next 15 ships legacy config only; drop FlatCompat on Next 16.
+const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
+
+export default [
+  ...compat.extends("next/core-web-vitals"),
+  {
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name=/^toLocale(Date|Time)String$/]",
+          message:
+            "Don't format dates with toLocaleDateString/toLocaleTimeString — the API sends UTC ISO strings and this renders in the machine's zone. Use lib/datetime.ts (formatTime, formatFullDate, formatLongDate, formatDateTime, formatRelativeDay, or formatDate(iso, tz, opts)) with the zone from useUserTimeZone(). Analytics: features/analytics/lib/format.ts, passing useUserTimeZone(). See CLAUDE.md §3.6."
+        },
+        {
+          selector:
+            "CallExpression[callee.object.type='NewExpression'][callee.object.callee.name='Date'][callee.property.name='toLocaleString']",
+          message:
+            "Don't format a Date with .toLocaleString() — it renders in the machine's zone. Use lib/datetime.ts helpers with useUserTimeZone(). See CLAUDE.md §3.6."
+        }
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "chess.js",
+              importNames: ["Chess"],
+              message:
+                "Import Chess from @/lib/chess — it drops castling rights the position can't support (a stale KQkq from a set-up position would otherwise offer O-O from a mid-board king)."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    files: [
+      "src/lib/datetime.ts",
+      "src/features/analytics/lib/format.ts",
+      "src/features/batch-schedules/lib/scheduleFormat.ts"
+    ],
+    rules: { "no-restricted-syntax": "off" }
+  },
+  {
+    files: ["src/lib/chess.ts"],
+    rules: { "no-restricted-imports": "off" }
+  }
+];

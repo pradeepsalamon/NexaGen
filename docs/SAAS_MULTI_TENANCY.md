@@ -57,7 +57,7 @@ existing academy · K threat model and tests · L roadmap · M effort · N owner
 ```mermaid
 flowchart LR
   B[Browser] -->|https app host| N[nginx + certbot<br/>static server_names]
-  N --> W[Next.js 14 web]
+  N --> W[Next.js 15 web]
   N --> A[NestJS API]
   B -->|wss| LK[LiveKit + egress]
   W -->|NEXT_PUBLIC_API_URL<br/>absolute, build-time| A
@@ -74,7 +74,7 @@ flowchart LR
 
 | Area | What exists | Single-academy assumption |
 |---|---|---|
-| Stack | Turborepo; Next 14 App Router; NestJS 11; Prisma 6 / Postgres 15; Redis 7; LiveKit; one ARM64 VPS | One deployment = one academy |
+| Stack | Turborepo; Next 15 App Router; NestJS 11; Prisma 6 / Postgres 15; Redis 7; LiveKit; one ARM64 VPS | One deployment = one academy |
 | Identity | `User` with global `@unique email` / `username`; `role` enum on the user (`SUPER_ADMIN`, `ADMIN`, `COACH`, `STUDENT`); MFA, lockout, rotating refresh sessions | Role is global, not per organisation |
 | Authz | No guards. Controllers pass the token string → `authenticateUser` → per-service `assertCanX` / `getXVisibilityWhere`. Admins get `{}` (everything) | `{}` would mean "every tenant" |
 | Web gating | `middleware.ts` + `routeAccess.ts` read the role from the JWT payload | Fine as a routing hint. Needs no tenant knowledge |

@@ -3696,8 +3696,8 @@ model InvoiceSettings {
 
   logoUrl String?
 
-  invoicePrefix    String @default("NEXA-INV")
-  creditNotePrefix String @default("NEXA-CN")
+  invoicePrefix    String @default("INV")
+  creditNotePrefix String @default("CN")
 
   defaultTaxPercent Float  @default(0)
   taxLabel          String @default("GST")
@@ -3746,7 +3746,7 @@ model InvoiceAuditLog {
 }
 
 model InvoiceSequence {
-  /// Calendar year the sequence belongs to.
+  /// Indian financial year (April–March, IST) by its starting year.
   year       Int @id
   lastNumber Int @default(0)
 

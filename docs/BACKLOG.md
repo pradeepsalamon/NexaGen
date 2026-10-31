@@ -97,12 +97,6 @@ code on 2026-10-31.
 - **Chat push:** a websocket only if the 4 s poll proves too slow or costly.
   There is no evidence of that yet.
 
-### Tooling
-
-- **ESLint 8 is end-of-life** in both apps (`eslint ^8.57`, api on
-  `@typescript-eslint ^7.16`). Next step: ESLint 9 + flat config
-  (`eslint.config.mjs`) for both, with `@typescript-eslint` 8 on the api.
-
 ### Needs someone with `vps_dev` / production access
 
 - Confirm `LiveKit webhook: event=…` lines in the API logs during a real class
@@ -134,6 +128,45 @@ its precondition, the student training surface, now exists).
   them deferred. Both shipped 2026-09-14.
 - **`POST /upload/pgn` orphan note.** It has a web caller (`uploadPgn`), so the
   note was dropped.
+
+## Open audit findings (2026-10-31)
+
+From a ponytail audit of the API's payments, auth, backup and cron paths. The web
+app, live class, chat, assignments, puzzles, payroll and AI were not audited.
+
+None open.
+
+## Resolved (2026-10-31) — invoice dates and numbering in India time
+
+- **Dates.** Invoice/credit-note dates print in IST (`DEFAULT_TIME_ZONE`) in the
+  PDF and the HTML invoice, and the admin `from`/`to` filter reads India days.
+- **Numbering per Indian financial year.** `InvoiceSequence` and
+  `CreditNoteSequence` are keyed by `financialYear()` (April–March, IST, by its
+  starting year) instead of the UTC calendar year — the GST norm, as Zoho
+  Books / Tally do. No migration: today (FY 2026-27) keys to 2026, so the
+  current series continues unbroken; the next reset is 1 Apr 2027 IST, not
+  1 Jan. Issued invoices are unchanged.
+- **GST Rule 46 number format.** New numbers read `INV/26-27/00001` /
+  `CN/26-27/00001` (≤16 characters, as Indian billing software does it). The
+  admin prefix is capped at 4 letters, digits or hyphens; migration
+  `20261031130505_gst_document_number_prefixes` resets saved prefixes that
+  don't fit to `INV` / `CN`. `PAYMENTS_INVOICE_PREFIX` now only prefixes order
+  numbers. Already-issued numbers keep their old form.
+
+## Resolved (2026-10-31) — payment/refund row locks, unused deps, ESLint 9
+
+- **Payment status race.** `PaymentService.applyProviderState` now locks the
+  payment row (`FOR UPDATE`) before reading, so a FAILED and a PAID webhook
+  arriving together apply in order and the rank check holds.
+- **Concurrent partial refunds.** `RefundService.applyProviderState` locks the
+  parent payment row first, so sibling refunds see each other's SUCCEEDED rows.
+- **Unused dependencies.** Removed `@nestjs/config` (api) and `cmdk` (web).
+- **ESLint 9.** Both apps use flat config (`eslint.config.mjs`); the api is on
+  `typescript-eslint` 8 (`caughtErrors: "none"` keeps v7's behaviour), the web
+  wraps `next/core-web-vitals` with `FlatCompat` until Next 16. Same rules,
+  same warning count; stale `no-var-requires` directives renamed.
+- Held by `test/integration/payments/payment-locks.int-spec.ts` (fires both
+  races against real Postgres; fails with either lock removed).
 
 ## Resolved (2026-10-31) — recordings open on the current board
 

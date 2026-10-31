@@ -31,6 +31,12 @@ N days per coach / `ONE_TIME`) and **where** (`placements`: `CLASS_END` on
   deactivated. None of these models are soft-deletable or Trash-registered.
 - Shared types, labels and `averageRating` live in `@nexa-chess/types`
   (`feedback.ts`).
+- What admins configure: up to 20 questions per form (star rating 1–5, written
+  answer, multiple choice, yes/no; each optionally required), `expiresAfterDays`
+  for an open request, optional `startsAt` / `endsAt`, `batchIds` (empty = all
+  batches) and `allowSkip`. The dashboard pop-up shows at most once per visit;
+  RECURRING/ONE_TIME forms only ask about coaches the student actually attended
+  a class with.
 
 ## 3.6k1 Move tree, variations & Game Library
 
@@ -209,7 +215,7 @@ so finished work is never shown as overdue.
 `packages/types/src/revision.ts` (pure scheduler + contract), `apps/api/src/revision/`,
 `features/revision/`, page `/student/revision`, dashboard card, and the **Revision**
 tab of `StudentProgressWorkspace` (student / coach / admin), routes
-`API_ROUTES.revision.*`. Full rules: [docs/SMART_REVISION.md](docs/SMART_REVISION.md).
+`API_ROUTES.revision.*`. Full rules: [docs/SMART_REVISION.md](SMART_REVISION.md).
 
 - A `RevisionItem` (unique `(studentId, contentKey)`, `puzzle:<id>` / `topic:<id>`)
   **references** a puzzle or a folder, never copies one. A review is an ordinary
@@ -237,9 +243,9 @@ tab of `StudentProgressWorkspace` (student / coach / admin), routes
 
 ## 3.6k3c Game analysis, tactics, game sources, game insights
 
-Method: [docs/GAME_ANALYSIS.md](docs/GAME_ANALYSIS.md) (incl. the benchmark);
-imports: [docs/GAME_SOURCES.md](docs/GAME_SOURCES.md); parents: deliberately
-deferred — [docs/PARENT_REPORTS.md](docs/PARENT_REPORTS.md). Shared rules in
+Method: [docs/GAME_ANALYSIS.md](GAME_ANALYSIS.md) (incl. the benchmark);
+imports: [docs/GAME_SOURCES.md](GAME_SOURCES.md); parents: deliberately
+deferred — [docs/PARENT_REPORTS.md](PARENT_REPORTS.md). Shared rules in
 `packages/types/src/game-analysis*.ts`, `game-tactics.ts`, `game-sources.ts`;
 API `apps/api/src/game-analysis/`, `game-sources/`, `stockfish/`; web
 `features/game-analysis/`, page `/student/insights`, the Engine analysis panel on

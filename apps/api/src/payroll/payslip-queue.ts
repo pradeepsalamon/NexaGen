@@ -1,8 +1,8 @@
 /**
  * The payslip background queue.
  *
- * A feature module owns its queue name (no central registry — README
- * § "Background Jobs"), so the constant and its job payload live here beside
+ * A feature module owns its queue name (no central registry — see
+ * docs/INFRASTRUCTURE.md), so the constant and its job payload live here beside
  * the producer and processor that use them. Mirrors payments/invoice-queue.ts.
  */
 export const PAYSLIP_QUEUE = "payslip";

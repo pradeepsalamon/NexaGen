@@ -275,7 +275,6 @@ function useVideoHeight() {
     } catch {
       // per-browser convenience only
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const commit = (next: number | null) => {

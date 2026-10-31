@@ -605,7 +605,7 @@ export type PayslipItem = {
   createdAt: string;
 };
 
-/** "NEXA-PAY-2026-000001" — mirrors formatDocumentNumber in ./invoices. */
+/** "NEXA-PAY-2026-000001" (calendar year; payslips are not GST documents). */
 export function formatPayslipNumber(year: number, sequenceNumber: number): string {
   return `NEXA-PAY-${year}-${String(sequenceNumber).padStart(6, "0")}`;
 }

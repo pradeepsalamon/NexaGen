@@ -7,7 +7,6 @@ import {
 import {
   addMonths,
   computeAccessEnd,
-  formatInvoiceNumber,
   generateOrderNumber,
   normalizePhone,
   priceOrder,
@@ -136,10 +135,6 @@ describe("order and invoice numbering", () => {
     expect(numbers.size).toBe(200);
   });
 
-  it("zero-pads invoice numbers so they sort lexically", () => {
-    expect(formatInvoiceNumber("NEXA", 2026, 123)).toBe("NEXA/2026/000123");
-    expect(formatInvoiceNumber("NEXA", 2026, 1)).toBe("NEXA/2026/000001");
-  });
 });
 
 describe("supportsRecurringMethod", () => {

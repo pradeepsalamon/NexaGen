@@ -2,7 +2,7 @@
  * The invoice background queue.
  *
  * A feature module owns its queue name (there is no central registry — see
- * README § "Background Jobs"), so the constant and its job payloads live here
+ * docs/INFRASTRUCTURE.md), so the constant and its job payloads live here
  * beside the producer and the processor that use them.
  */
 export const INVOICE_QUEUE = "invoice";
@@ -28,7 +28,7 @@ export type GenerateCreditNotePdfJob = {
 };
 
 /**
- * Idempotency handle for a job (README: "pass a `jobId` derived from your own
+ * Idempotency handle for a job (docs/INFRASTRUCTURE.md: "pass a `jobId` derived from your own
  * row"). Two webhook redeliveries for one capture collapse to a single job
  * rather than rendering the same invoice twice.
  *

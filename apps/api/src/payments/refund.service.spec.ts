@@ -86,6 +86,7 @@ describe("RefundService.create", () => {
             $transaction: (callback: (client: unknown) => unknown) =>
               Promise.resolve(
                 callback({
+                  $queryRaw: jest.fn().mockResolvedValue([]),
                   refund: { findUnique: jest.fn().mockResolvedValue(null) },
                   payment: {
                     findUnique: jest.fn().mockResolvedValue(payment),
@@ -243,6 +244,7 @@ describe("RefundService.applyProviderState", () => {
     const dispatch = jest.fn();
 
     const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
       refund: { findUnique: jest.fn().mockResolvedValue(refund), update: refundUpdate },
       payment: { update: paymentUpdate, findUnique: jest.fn() },
       order: { update: orderUpdate }

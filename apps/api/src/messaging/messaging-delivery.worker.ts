@@ -63,7 +63,7 @@ export class MessagingDeliveryWorker {
    * Both cutoffs bind `${iso}::timestamp`, never a JS `Date`: these columns are
    * `timestamp WITHOUT time zone` holding UTC, and a bound Date arrives as
    * `timestamptz` that PostgreSQL then shifts by the session zone (a no-op on
-   * the UTC box, an hours-wide bug on any other). See .agents/AGENTS.md.
+   * the UTC box, an hours-wide bug on any other). See AGENTS.md.
    */
   private async claimDue(now: Date = new Date()): Promise<MessageDelivery[]> {
     const nowIso = now.toISOString();

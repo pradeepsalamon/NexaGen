@@ -257,7 +257,7 @@ describe("MessagingDeliveryWorker", () => {
     await worker.sweep();
 
     // A bound Date would arrive as timestamptz and be shifted by the session
-    // zone on any non-UTC box (.agents/AGENTS.md, Date & Time Rule).
+    // zone on any non-UTC box (AGENTS.md, Date & Time Rule).
     const params = prisma.$queryRaw.mock.calls[0].slice(1);
     for (const param of params) {
       expect(param).not.toBeInstanceOf(Date);
