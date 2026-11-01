@@ -89,6 +89,20 @@ export function parseMarkdown(source: string, options: ParseMarkdownOptions = {}
 
 const ESCAPABLE = /\\([\\*_`[\]#>.-])/g;
 const BARE_URL = /^https?:\/\/[^\s<>"']+/i;
+
+function isSpaceOrOpenParen(char: string): boolean {
+  return char === "(" || char.trim() === "";
+}
+
+function isWordCharOrSlash(char: string): boolean {
+  return (
+    char === "/" ||
+    char === "_" ||
+    (char >= "0" && char <= "9") ||
+    (char >= "a" && char <= "z") ||
+    (char >= "A" && char <= "Z")
+  );
+}
 // Sentence punctuation after a URL isn't part of it.
 const URL_TRAILING_PUNCTUATION = /[.,;:!?)]+$/;
 
@@ -137,13 +151,13 @@ export function parseInline(text: string, insideLink = false): MdInline[] {
       continue;
     }
     const em = rest.match(/^(?:\*((?:\\.|[^*\s\\])(?:\\.|[^*\\])*)\*|_((?:\\.|[^_\s\\])(?:\\.|[^_\\])*)_)/);
-    if (em && (i === 0 || /[\s(]/.test(text[i - 1]))) {
+    if (em && (i === 0 || isSpaceOrOpenParen(text[i - 1]))) {
       flush();
       out.push({ children: parseInline(em[1] ?? em[2], insideLink), type: "em" });
       i += em[0].length;
       continue;
     }
-    const url = !insideLink && (i === 0 || !/[\w/]/.test(text[i - 1])) ? rest.match(BARE_URL) : null;
+    const url = !insideLink && (i === 0 || !isWordCharOrSlash(text[i - 1])) ? rest.match(BARE_URL) : null;
     if (url) {
       const raw = url[0].replace(URL_TRAILING_PUNCTUATION, "");
       if (!raw.endsWith("//")) {
