@@ -6,6 +6,7 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronRight,
+  Eye,
   Flag,
   ListPlus,
   Pencil,
@@ -52,9 +53,10 @@ import {
   useFinishActivityQueue,
   useLaunchActivityQueue
 } from "../../hooks/useActivityQueue";
+import { useOptionalActivityRun } from "../../providers/ActivityRunProvider";
 import { ActivityQueueProgressGrid } from "./ActivityQueueProgressGrid";
 import { ActivityKindIcon, activityKindLabel, QUEUE_STATUS_BADGE } from "./activityQueueUi";
-import { QueuePuzzlePicker } from "./QueuePuzzlePicker";
+import { QueueLibraryPicker } from "./QueueLibraryPicker";
 
 /** Extra ways to add an activity, only available inside the live room. */
 export type RoomQueueSources = {
@@ -396,7 +398,7 @@ function DraftEditor({
     <div className="space-y-3">
       {items.length === 0 ? (
         <p className="rounded-app border border-dashed border-app-border p-4 text-center text-sm text-app-muted">
-          No activities yet. Add puzzles{room ? ", a question about the board, or a saved chapter" : ""}.
+          No activities yet. Add puzzles, MCQs or Playouts from the library{room ? ", a question about the board, or a saved chapter" : ""}.
         </p>
       ) : (
         <ol className="space-y-1.5" aria-label="Activities in order">
@@ -451,7 +453,7 @@ function DraftEditor({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-64">
-              <DropdownMenuItem onSelect={() => setPickerOpen(true)}>Puzzles from the library…</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPickerOpen(true)}>From the Puzzle Library…</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setQuestionOpen(true)}>Question about the current board…</DropdownMenuItem>
               {room.chapters.length > 0 ? (
                 <>
@@ -468,7 +470,7 @@ function DraftEditor({
           </DropdownMenu>
         ) : (
           <Button size="sm" variant="outline" disabled={full || actions.adding} onClick={() => setPickerOpen(true)}>
-            <ListPlus className="size-4" /> Add puzzles
+            <ListPlus className="size-4" /> Add activities
           </Button>
         )}
         <Button size="sm" disabled={!!launchBlocker || launch.isPending} isLoading={launch.isPending} onClick={() => setConfirmLaunch(true)}>
@@ -482,14 +484,14 @@ function DraftEditor({
         </p>
       ) : null}
 
-      <QueuePuzzlePicker
+      <QueueLibraryPicker
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         room={spaceLeft}
         busy={actions.adding}
-        onAdd={(puzzleIds, durationSeconds) => {
+        onAdd={(inputs) => {
           setPickerOpen(false);
-          void add(puzzleIds.map((puzzleId) => ({ durationSeconds, kind: "PUZZLE" as const, puzzleId })));
+          void add(inputs);
         }}
       />
       {room ? (
@@ -627,6 +629,7 @@ function Runner({
 }) {
   const advance = useAdvanceActivityQueue(classId);
   const finish = useFinishActivityQueue(classId);
+  const activityRun = useOptionalActivityRun();
   const [confirmFinish, setConfirmFinish] = useState(false);
 
   const live = queue.status === "LIVE";
@@ -694,6 +697,19 @@ function Runner({
               </p>
             ) : current.kind === "PUZZLE" ? (
               <p className="text-xs text-app-muted">Students are solving it on their own boards — follow them in Live boards.</p>
+            ) : current.kind === "MCQ" || current.kind === "PLAYOUT" ? (
+              <div className="space-y-1.5">
+                <p className="text-xs text-app-muted">
+                  {current.kind === "PLAYOUT"
+                    ? "Each student plays their own game against the computer. You can watch every board; you can't move on them."
+                    : "Each student answers on their own. Results come in live."}
+                </p>
+                {activityRun ? (
+                  <Button size="sm" variant="outline" onClick={() => activityRun.setOpen(true)}>
+                    <Eye className="size-4" /> {current.kind === "PLAYOUT" ? "Watch student boards" : "See results"}
+                  </Button>
+                ) : null}
+              </div>
             ) : current.kind === "QUESTION" ? (
               <div className="space-y-1.5">
                 <p className="text-xs text-app-muted">Each student plays one move privately. Close and reveal the answers when you&apos;re ready.</p>

@@ -39,6 +39,7 @@ import { GameRecorderService } from "../game-library/game-recorder.service";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { isCoachParticipant, withScreenShareSources } from "./live-class.util";
 import { EntitlementService } from "../platform/entitlement.service";
+import { closeActivityRun, revealsOnEnd } from "../puzzle-activity/activity-run.close";
 
 /** Live-class lifecycle: start, join token, mid-class settings, heartbeat, end and the stale-class sweep. */
 @Injectable()
@@ -300,7 +301,15 @@ export class LiveClassService {
       }
 
       if (!participants.some(p => isCoachParticipant(p.identity, liveSession.coachId))) {
-        throw coachNotJoined;
+        // A student mid-activity gets back in without the coach: their game or
+        // question is theirs, and it doesn't stop because the coach dropped out.
+        // The coach has necessarily been here to start it, and the stale sweep
+        // still ends a class the coach has left for good.
+        const running = await this.prisma.liveClassActivityRun.findFirst({
+          where: { liveClassId: classId, status: "ACTIVE" },
+          select: { id: true },
+        });
+        if (!running) throw coachNotJoined;
       }
     }
 
@@ -535,6 +544,19 @@ export class LiveClassService {
       }
     } catch (error) {
       this.logger.warn(`Failed to finish the activity queue for class ${classId}`, error);
+    }
+
+    // A running MCQ / Playout ends with the class; open games keep their position.
+    try {
+      const runs = await this.prisma.liveClassActivityRun.findMany({
+        where: { liveClassId: classId, status: "ACTIVE" },
+        select: { configJson: true, id: true, kind: true },
+      });
+      for (const run of runs) {
+        await closeActivityRun(this.prisma, { id: run.id, revealOnEnd: revealsOnEnd(run) }, endedAt);
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to close the running activity for class ${classId}`, error);
     }
 
     try {

@@ -172,7 +172,7 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Shared board state (recorder) | — | — | — | `GET /live-class/:id/recorder/board-state`: no session, no role. The egress template's LiveKit token is the credential (signed with our LiveKit secret, this class's room, hidden seat). Read-only. The one route authenticated by something other than the access cookie besides webhooks. |
 | Shared board state | R (participant) | R U (own class, LIVE) | R U | Peer moves: coach always; student only with a per-colour grant and a legal move (`senderMayMutateBoard`), enforced by every receiver incl. the recorder and spectator. |
 | In-class chat | R C (own class; DM coach only) | R C (own class) | R C | `privateChatRecipientAllowed`. |
-| Live puzzles, simul, matches, move polls, Puzzle Storm, tools, chapters, activity queue | play/answer in own class; never read others' attempts or unrevealed results | P U D in own class | any class | Activity queue + chapters are coach-only reads too (a saved line can hold an answer). |
+| Live puzzles, simul, matches, move polls, Puzzle Storm, tools, chapters, activity queue, MCQ and Playout runs | play/answer in own class; never read others' attempts or unrevealed results | P U D in own class | any class | Activity queue + chapters are coach-only reads too (a saved line can hold an answer). |
 | Puzzle library | R published GLOBAL + PRIVATE of their own coaches (via assignment / class / course only) | R GLOBAL + own PRIVATE; C U D own PRIVATE | R C U D all | Solutions only to staff/coach and to students after finishing. |
 | Puzzle topics / folders | — | R | C U D (homework approval SUPER_ADMIN) | |
 | Assignments (library) | — | R GLOBAL library + own; C U D own | all | |

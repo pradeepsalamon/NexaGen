@@ -10,10 +10,10 @@ Routes: `API_ROUTES.progress.historyMine` / `.summaryMine` (student) and
 `.history(id)` / `.summary(id)`. Code: `apps/api/src/progress/activity-history.{sql,service}.ts`,
 contract `packages/types/src/student-activity.ts`, web `features/progress/`.
 
-## No new tables
+## No tables of its own
 
-Everything is derived at read time from records the features already keep — there
-is no migration and nothing to backfill or keep in sync:
+Everything is derived at read time from records the features already keep, so
+there is nothing to backfill or keep in sync:
 
 | Activity type | Source |
 |---|---|
@@ -21,8 +21,10 @@ is no migration and nothing to backfill or keep in sync:
 | Class question | `live_class_move_poll_answers` + `live_class_move_polls` |
 | Assignment (solve line, engine, analysis, replay) | `student_assignments` + `student_assignment_attempts` |
 | Puzzle Storm / Racer | `live_class_puzzle_rush_entries` |
-| Unanswered class puzzle / question | `live_class_puzzle_assignments` / polls × `class_attendance` |
-| Queue linkage (display only) | `live_class_activity_queue_items.puzzleAssignmentId` / `movePollId` |
+| Class MCQ | `live_class_mcq_attempts` + `live_class_activity_runs` |
+| Class Playout | `live_class_playout_games` + `live_class_activity_runs` |
+| Unanswered class puzzle / question / MCQ / Playout | `live_class_puzzle_assignments` / polls / runs × `class_attendance` |
+| Queue linkage (display only) | `live_class_activity_queue_items.puzzleAssignmentId` / `movePollId` / `activityRunId` |
 
 Not included: simul and student-match games (they are game results, not graded
 activities — see the Game Library) and course-module completion.
@@ -45,6 +47,11 @@ activities — see the Game Library) and course-module completion.
   the share/question closed).
 - A class puzzle left open with a wrong move after its share closed is
   `INCORRECT` — the same rule as the activity queue's progress grid.
+- **MCQ / Playout**: one entry per run, tries grouped. A Playout is `CORRECT` when
+  any try reached the goal, `INCORRECT` when a try finished without it, and
+  `INCOMPLETE` when the class moved on mid-game (never counted as wrong). The entry
+  carries the game's start and final position and PGN. A student sees an MCQ's
+  result only once its reveal rule allows; until then it reads `UNGRADED`.
 - **Accuracy** = correct graded attempts ÷ graded attempts × 100, *per attempt*.
   Graded attempts: puzzle tries SOLVED (✓) / FAILED / given up after a move /
   the class rule above (✗); answers to questions with a marked answer; solve-the-line

@@ -618,6 +618,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
   let recordJoinEvent: jest.Mock;
   let waitingFindUnique: jest.Mock;
   let pullFindFirst: jest.Mock;
+  let activityRunFindFirst: jest.Mock;
 
   const authenticateAs = (id: string, role: UserRole) => {
     jwtService.verifyAsync.mockResolvedValue({ sub: id, type: "access" });
@@ -648,6 +649,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
     recordJoinEvent = jest.fn().mockResolvedValue(undefined);
     waitingFindUnique = jest.fn().mockResolvedValue(null);
     pullFindFirst = jest.fn().mockResolvedValue(null);
+    activityRunFindFirst = jest.fn().mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -656,6 +658,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         {
           provide: PrismaService,
           useValue: {
+            liveClassActivityRun: { findFirst: activityRunFindFirst },
             liveClassPull: { findFirst: pullFindFirst, updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
             liveClassWaitingParticipant: { findUnique: waitingFindUnique },
             coachClass: { findUnique: coachClassFindUnique },
@@ -694,6 +697,16 @@ describe("LiveClassService.getToken coach-presence gate", () => {
     await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toMatchObject({
       response: { code: "COACH_NOT_JOINED" }
     });
+  });
+
+  it("lets a student back in without the coach while an activity is running (their game mustn't stop)", async () => {
+    authenticateAs("student-1", UserRole.STUDENT);
+    activityRunFindFirst.mockResolvedValue({ id: "run-1" });
+
+    await expect(service.getToken(ACCESS_TOKEN, "class-1")).resolves.toMatchObject({ token: "livekit-token" });
+    expect(activityRunFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { liveClassId: "class-1", status: "ACTIVE" } })
+    );
   });
 
   it("admits the student when the coach is present with a tab-suffixed identity (AUDIT M23)", async () => {

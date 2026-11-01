@@ -120,6 +120,54 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     }
   });
 
+  // A Playout running in that class, with this side's student mid-game. Both
+  // sides' runs are on the same position, like their private puzzles.
+  const playoutConfig = {
+    engine: { movetimeMs: 100, skillLevel: 1 },
+    goal: { type: "CHECKMATE" },
+    hints: ["Look at the back rank."],
+    maxAttempts: 2,
+    restrictions: { lockedPieces: [], maxStudentMoves: null },
+    scoring: { drawPoints: 0, goalPoints: 10, hintPenalty: 1, parBonus: 0, parMoves: null, retryPenalty: 0 },
+    startFen: FEN,
+    studentColor: "white",
+    timeLimitSeconds: null
+  };
+  const playoutActivity = await prisma.libraryActivity.create({
+    data: {
+      configJson: playoutConfig,
+      createdByRole: UserRole.ADMIN,
+      difficulty: PuzzleDifficulty.EASY,
+      kind: "PLAYOUT",
+      status: PuzzleStatus.PUBLISHED,
+      title: `Playout ${label}`,
+      topicId
+    }
+  });
+  const playoutRun = await prisma.liveClassActivityRun.create({
+    data: {
+      activityId: playoutActivity.id,
+      configJson: playoutConfig,
+      difficulty: PuzzleDifficulty.EASY,
+      kind: "PLAYOUT",
+      liveClassId: liveClass.id,
+      title: `Playout ${label}`
+    }
+  });
+  const playoutGame = await prisma.liveClassPlayoutGame.create({
+    data: {
+      attemptNumber: 1,
+      engineMoveMs: 100,
+      engineSkill: 1,
+      fen: FEN,
+      maxScore: 10,
+      runId: playoutRun.id,
+      startFen: FEN,
+      studentColor: "white",
+      studentId: student.id
+    }
+  });
+
   // A chapter in the batch's study list (coach-only).
   const chapter = await prisma.liveClassChapter.create({
     data: {
@@ -264,6 +312,8 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     order,
     payrollRecord,
     privatePuzzle,
+    playoutGame,
+    playoutRun,
     rush,
     setDeployment,
     setStudentAssignment,

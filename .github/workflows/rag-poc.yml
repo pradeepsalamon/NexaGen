@@ -4,21 +4,9 @@ name: RAG proof of concept
 # never run on the production VPS or database, so the real evaluation runs
 # here: a GitHub arm64 runner (the production box is ARM64) with a throwaway
 # pgvector service container. Not a deploy gate. The report is uploaded as an
-# artifact and summarised in RAG_POC_REPORT.md by hand.
+# artifact and summarised in RAG_POC_REPORT.md by hand. Manual only: the arm64
+# matrix costs about 70 Actions minutes a run, so start it from the Actions tab.
 on:
-  pull_request:
-    branches:
-      - main
-      - dev
-    paths:
-      - 'services/ai-runtime/app/rag/**'
-      - 'services/ai-runtime/eval/rag_poc/**'
-      - 'services/ai-runtime/pyproject.toml'
-      - 'services/ai-runtime/uv.lock'
-      - 'services/ai-runtime/tests/test_rag*.py'
-      - 'scripts/ai/rag-poc/**'
-      - 'apps/web/src/features/academy/content.ts'
-      - '.github/workflows/rag-poc.yml'
   workflow_dispatch:
     inputs:
       chunk_tokens:

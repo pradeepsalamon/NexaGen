@@ -110,6 +110,8 @@ export const queryKeys = {
   puzzles: {
     all: ["puzzles"] as const,
     list: (params?: Record<string, unknown>) => ["puzzles", "list", params ?? null] as const,
+    library: (params?: Record<string, unknown>) => ["puzzles", "library", params ?? null] as const,
+    activity: (id: string) => ["puzzles", "activity", id] as const,
     detail: (id: string) => ["puzzles", "detail", id] as const,
     stats: ["puzzles", "stats"] as const,
     scoringSettings: ["puzzles", "scoring-settings"] as const,
@@ -238,6 +240,12 @@ export const queryKeys = {
   },
   liveClassChapters: {
     list: (classId: string) => ["live-class-chapters", classId] as const,
+  },
+  activityRun: {
+    all: (classId: string) => ["activity-run", classId] as const,
+    state: (classId: string) => ["activity-run", classId, "state"] as const,
+    monitor: (classId: string, runId: string) => ["activity-run", classId, "monitor", runId] as const,
+    game: (classId: string, gameId: string, ply: number) => ["activity-run", classId, "game", gameId, ply] as const,
   },
   activityQueues: {
     list: (classId: string) => ["activity-queues", classId, "list"] as const,
