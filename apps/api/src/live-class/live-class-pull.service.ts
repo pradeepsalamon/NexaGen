@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import {
@@ -9,11 +10,16 @@ import {
   type PullRosterStudent,
 } from "@nexa-chess/types";
 import {
+  ApprovalStatus,
+  BatchStatus,
   UserRole,
   UserStatus,
   WaitingRoomStatus,
 } from "@prisma/client";
 import { LiveClassAccessService } from "./live-class-access.service";
+
+/** Who a coach may pull directly, and whose guest request is waiting (V4). */
+type CoachReach = { allowed: Set<string>; pending: Set<string> };
 
 /** Coach "pull into class": the roster of absent students and the pull lifecycle. */
 @Injectable()
@@ -22,6 +28,49 @@ export class LiveClassPullService {
     private readonly prisma: PrismaService,
     private readonly access: LiveClassAccessService
   ) {}
+
+  /**
+   * V4 (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md §1.3): a coach pulls
+   * directly only students of a live batch they actively coach, plus anyone an
+   * admin approved as a guest for THIS class (`LIVE_CLASS_GUEST_STUDENT`).
+   * `null` = no limit (admins).
+   */
+  private async coachReach(user: { id: string; role: UserRole }, classId: string): Promise<CoachReach | null> {
+    if (user.role !== UserRole.COACH) return null;
+    const [enrolments, guestRequests] = await Promise.all([
+      this.prisma.batchStudent.findMany({
+        where: {
+          isDeleted: false,
+          batch: {
+            isDeleted: false,
+            status: { not: BatchStatus.ARCHIVED },
+            // A substitute coach owns the class without joining its batch.
+            OR: [
+              { coaches: { some: { coachId: user.id, isDeleted: false } } },
+              { classes: { some: { coachId: user.id, id: classId } } },
+            ],
+          },
+        },
+        select: { studentId: true },
+      }),
+      this.prisma.approvalRequest.findMany({
+        where: {
+          actionType: "LIVE_CLASS_GUEST_STUDENT",
+          classId,
+          status: { in: [ApprovalStatus.APPROVED, ApprovalStatus.PENDING] },
+        },
+        select: { status: true, subjectUserId: true },
+      }),
+    ]);
+    const allowed = new Set(enrolments.map((e) => e.studentId));
+    const pending = new Set<string>();
+    for (const r of guestRequests) {
+      if (!r.subjectUserId) continue;
+      if (r.status === ApprovalStatus.APPROVED) allowed.add(r.subjectUserId);
+      else pending.add(r.subjectUserId);
+    }
+    return { allowed, pending };
+  }
 
   /**
    * Coach-owner/admin: every student in the class's batch with whether they
@@ -36,7 +85,8 @@ export class LiveClassPullService {
     classId: string,
     search?: string,
   ): Promise<PullRosterResponse> {
-    const { liveSession } = await this.access.resolveClassManager(accessToken, classId);
+    const { user, liveSession } = await this.access.resolveClassManager(accessToken, classId);
+    const reach = await this.coachReach(user, classId);
 
     const coachClass = await this.prisma.coachClass.findUnique({
       where: { id: classId },
@@ -117,16 +167,20 @@ export class LiveClassPullService {
 
     const students: PullRosterStudent[] = [...people.values()].map((student) => {
       const pull = pullByStudent.get(student.id);
+      // Outside the coach's reach: findable (to ask an admin), but no presence.
+      const needsApproval = !!reach && !reach.allowed.has(student.id);
       return {
         studentId: student.id,
         name: `${student.firstName} ${student.lastName ?? ""}`.trim(),
         username: student.username,
         avatarUrl: student.avatarUrl,
-        online: !!student.lastSeenAt && student.lastSeenAt.getTime() >= onlineSince,
-        lastSeenAt: student.lastSeenAt?.toISOString() ?? null,
+        online: !needsApproval && !!student.lastSeenAt && student.lastSeenAt.getTime() >= onlineSince,
+        lastSeenAt: needsApproval ? null : student.lastSeenAt?.toISOString() ?? null,
         inClass: inRoom.has(student.id),
         inBatch: batchIds.has(student.id),
         pull: pull ? { status: pull.status, requestedAt: pull.requestedAt.toISOString() } : null,
+        needsApproval,
+        approvalPending: !!reach?.pending.has(student.id),
       };
     });
 
@@ -144,7 +198,10 @@ export class LiveClassPullService {
     return { students };
   }
 
-  /** Coach-owner/admin: send (or re-send) a pull to any active student, in the batch or not. */
+  /**
+   * Admin: send (or re-send) a pull to any active student. Coach-owner: only a
+   * student of their own batches or an approved guest for this class (V4).
+   */
   async pullStudent(
     accessToken: string | undefined,
     classId: string,
@@ -158,6 +215,12 @@ export class LiveClassPullService {
     });
     if (!student) {
       throw new BadRequestException("That student was not found or is inactive.");
+    }
+    const reach = await this.coachReach(user, classId);
+    if (reach && !reach.allowed.has(studentId)) {
+      throw new ForbiddenException(
+        "This student isn't in any of your batches. Ask an admin to let them join this class.",
+      );
     }
 
     const now = new Date();

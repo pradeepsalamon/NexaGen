@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   ForbiddenException,
 } from "@nestjs/common";
+import type { CorrectAttendanceRequest, CorrectAttendanceResponse } from "@nexa-chess/types";
 import { JwtService } from "@nestjs/jwt";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
@@ -15,6 +17,11 @@ import {
   UserRole,
   LiveSessionStatus,
 } from "@prisma/client";
+import {
+  applyAttendanceCorrection,
+  currentAttendanceStatus,
+  loadClassForCorrection,
+} from "./attendance-correction";
 import { selectSessionToClose } from "./attendance-session.util";
 import { authenticateUser } from "../auth/authenticate";
 import { calculateTotalDuration, classRunSeconds, deriveAttendanceStamps, determineStatus } from "./attendance-calc.util";
@@ -674,7 +681,8 @@ export class AttendanceService {
         data: {
           totalDuration,
           attendancePercent: Math.round(attendancePercent * 10) / 10,
-          status,
+          // Finalize can re-run; a status an admin corrected by hand stays.
+          status: attendance.correctedAt ? attendance.status : status,
           ...stamps,
         },
       });
@@ -836,6 +844,36 @@ export class AttendanceService {
       where: { id: policy.id },
       data,
     });
+  }
+
+  /** An admin corrects a student's status directly; a coach asks through ATTENDANCE_CORRECTION. */
+  async correctStudentAttendance(
+    accessToken: string | undefined,
+    classId: string,
+    studentId: string,
+    body: CorrectAttendanceRequest
+  ): Promise<CorrectAttendanceResponse> {
+    const user = await this.getAuthenticatedUser(accessToken);
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException("Admin access required.");
+    }
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "classes" WHERE "id" = ${classId} FOR SHARE`;
+      await tx.$queryRaw`
+        SELECT "id" FROM "class_attendance" WHERE "classId" = ${classId} AND "studentId" = ${studentId} FOR UPDATE`;
+      const cls = await loadClassForCorrection(tx, classId);
+      const before = await currentAttendanceStatus(tx, cls, studentId);
+      if (before === body.status) throw new ConflictException("The attendance already says that.");
+      return applyAttendanceCorrection(tx, {
+        actorId: user.id,
+        before,
+        classId,
+        reason: body.reason,
+        status: body.status,
+        studentId,
+      });
+    });
+    return { correctedAt: result.correctedAt.toISOString(), status: result.status };
   }
 
   /**

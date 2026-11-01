@@ -11,6 +11,7 @@ export const messagingEventSchema = z.enum([
   "CLASS_REMINDER",
   "CLASS_REMINDER_COACH",
   "CLASS_CANCELLED",
+  "CLASS_SUBSTITUTE_ASSIGNED",
   "ASSIGNMENT_ASSIGNED",
   "ASSIGNMENT_DUE_SOON",
   "ASSIGNMENT_GRADED",
@@ -25,7 +26,9 @@ export const messagingEventSchema = z.enum([
   "SUBSCRIPTION_RENEWAL_FAILED",
   "INVOICE_ISSUED",
   "PAYROLL_FINALIZED",
-  "PAYROLL_PAID"
+  "PAYROLL_PAID",
+  "APPROVAL_REQUESTED",
+  "APPROVAL_DECIDED"
 ]);
 export type MessagingEvent = z.infer<typeof messagingEventSchema>;
 
@@ -35,7 +38,9 @@ export const MESSAGING_EVENTS = messagingEventSchema.options;
 export const messagingAudienceSchema = z.enum([
   "STUDENTS",
   "COACHES",
-  "STUDENTS_AND_COACHES"
+  "STUDENTS_AND_COACHES",
+  /** Admin-side events only (approval requests); never a class/assignment audience. */
+  "ADMINS"
 ]);
 export type MessagingAudience = z.infer<typeof messagingAudienceSchema>;
 
@@ -162,6 +167,22 @@ const PAYROLL_VARIABLES = [
   "links.earnings"
 ] as const;
 
+/**
+ * An admin-approval request (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md
+ * §2.7). The reason is the requester's own words; nothing about consent or
+ * money is ever a variable here.
+ */
+const APPROVAL_VARIABLES = [
+  ...RECIPIENT_VARIABLES,
+  "approval.action",
+  "approval.requesterName",
+  "approval.subject",
+  "approval.reason",
+  "approval.decision",
+  "approval.note",
+  "links.approval"
+] as const;
+
 export const MESSAGING_EVENT_DEFINITIONS: Record<
   MessagingEvent,
   MessagingEventDefinition
@@ -201,6 +222,14 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     description: "Sent when a scheduled class is cancelled.",
     variables: CLASS_VARIABLES,
     audiences: ["STUDENTS", "COACHES", "STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
+  },
+  CLASS_SUBSTITUTE_ASSIGNED: {
+    event: "CLASS_SUBSTITUTE_ASSIGNED",
+    label: "Substitute coach assigned",
+    description: "Sent to the coach taking over a class once an admin approves the original coach's request.",
+    variables: CLASS_VARIABLES,
+    audiences: ["COACHES"],
     supportsLeadTime: false
   },
   ASSIGNMENT_ASSIGNED: {
@@ -346,6 +375,23 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     variables: PAYROLL_VARIABLES,
     audiences: ["COACHES"],
     supportsLeadTime: false
+  },
+  APPROVAL_REQUESTED: {
+    event: "APPROVAL_REQUESTED",
+    label: "Approval request received",
+    description:
+      "Sent to every admin who can decide it when a coach asks for something beyond their own authority (e.g. cancelling a class within 24 hours). Never sent to the person who asked.",
+    variables: APPROVAL_VARIABLES,
+    audiences: ["ADMINS"],
+    supportsLeadTime: false
+  },
+  APPROVAL_DECIDED: {
+    event: "APPROVAL_DECIDED",
+    label: "Approval request decided",
+    description: "Sent to the person who asked once an admin approves or rejects the request, or it expires undecided.",
+    variables: APPROVAL_VARIABLES,
+    audiences: ["COACHES"],
+    supportsLeadTime: false
   }
 };
 
@@ -448,6 +494,13 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "payroll.periodLabel": { label: "Payroll period", sample: "September 2026" },
   "payroll.netPayable": { label: "Net pay", sample: "₹19,750.00" },
   "links.earnings": { label: "Link to earnings", sample: "https://nexa.test/coach/earnings" },
+  "approval.action": { label: "What was asked", sample: "Cancel a class within 24 hours of its start" },
+  "approval.requesterName": { label: "Who asked", sample: "Coach Ravi" },
+  "approval.subject": { label: "What it's about (class or student)", sample: "Rook Endgames, Mon, 14 Sep 2026" },
+  "approval.reason": { label: "The requester's reason", sample: "Unwell today" },
+  "approval.decision": { label: "Outcome (approved / rejected / expired)", sample: "approved" },
+  "approval.note": { label: "The admin's note or rejection reason (may be empty)", sample: "Note: we'll schedule a make-up class." },
+  "links.approval": { label: "Link to the request", sample: "https://nexa.test/admin/requests" },
   // System messages (./system-messages)
   "links.reset": { label: "Password reset link", sample: "https://nexa.test/reset-password?token=sample" },
   "links.verify": { label: "Email verification link", sample: "https://nexa.test/verify-email?token=sample" },
@@ -604,6 +657,15 @@ export const DEFAULT_MESSAGING_RULES: Record<
     title: "Class cancelled",
     body: "Hi {{recipient.firstName}}, the class \"{{class.title}}\" on {{class.dateTime}} has been cancelled. We'll share a new time soon."
   },
+  CLASS_SUBSTITUTE_ASSIGNED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "COACHES",
+    leadTimeMinutes: null,
+    title: "You're taking a class",
+    body: "Hi {{recipient.firstName}}, you're now the coach for \"{{class.title}}\" ({{batch.name}}) on {{class.dateTime}}."
+  },
   ASSIGNMENT_ASSIGNED: {
     enabled: false,
     whatsappEnabled: true,
@@ -750,6 +812,26 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "Payment sent",
     body: "Hi {{recipient.firstName}}, your payment of {{payroll.netPayable}} for {{payroll.periodLabel}} has been processed."
+  },
+  // Approval rules ship ENABLED and in-app only: a request that nobody sees
+  // blocks the coach, and the inbox is where it gets decided.
+  APPROVAL_REQUESTED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "ADMINS",
+    leadTimeMinutes: null,
+    title: "Request: {{approval.action}}",
+    body: "{{approval.requesterName}} asks: {{approval.action}} ({{approval.subject}}). Reason: {{approval.reason}}. Review it at {{links.approval}}."
+  },
+  APPROVAL_DECIDED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "COACHES",
+    leadTimeMinutes: null,
+    title: "Your request was {{approval.decision}}",
+    body: "Hi {{recipient.firstName}}, your request ({{approval.action}}, {{approval.subject}}) was {{approval.decision}}. {{approval.note}}"
   }
 };
 

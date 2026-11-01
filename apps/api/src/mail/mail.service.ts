@@ -41,6 +41,16 @@ export class MailService {
   }
 
   /**
+   * Sent to the PREVIOUS parent/guardian email when a student changes the
+   * parent contact on their own profile (V7,
+   * docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md). Deliberately does not
+   * reveal the new contact details. Wording is editable at /admin/messaging.
+   */
+  async sendParentContactChangedNotice(to: string, studentName: string) {
+    await this.sendSystemEmail("PARENT_CONTACT_CHANGED", to, { "student.fullName": studentName });
+  }
+
+  /**
    * The receipt email. Only ever reached after a payment is verified, and the
    * caller claims a one-shot flag before calling, so a redelivered webhook
    * cannot produce a second copy.

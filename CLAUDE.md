@@ -63,6 +63,8 @@ Every request/response shape lives in `packages/types/src/index.ts` (often `z.in
 
 Also required: params/queries via `parseOrBadRequest` (`common/zod-body.pipe.ts`) and `queryEnum`/`queryString` (`common/query-params.ts`), never bare `schema.parse` (a ZodError is a 500). Multipart routes: `@UseInterceptors(RequireAccessTokenInterceptor, FileInterceptor("file", { limits: { fileSize, files: 1, fields } }))`. `common/security/route-auth.spec.ts` fails a handler that never uses its `request`; public routes go on `PUBLIC_ROUTES`. Don't introduce guards unless refactoring every module with maintainer agreement.
 
+**Platform permission model** ([docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md](docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md)): a coach acts directly only within assigned batches/classes and unlocked policy; anything beyond is an admin request, admin approval never overrides consent. Approvals: status-filtered claim + revalidate the requester + change in one transaction; one handler per action in `approval/handlers/`, inbox `/admin/requests`, coach `/coach/requests`. Coach cancel: `resolveCancellationPath` (>24 h direct, else request); a coach pulls only own-batch students or an approved guest.
+
 Mechanics — MFA (`auth/mfa/`, `MFA_ENCRYPTION_KEY`, `MFA_REQUIRED_ROLES`), login/MFA lockouts and their SQL resets, email change, refresh-token rotation, cookies (`getCookieBaseOptions`, `COOKIE_SAME_SITE`), CSRF origin check (**a new webhook route goes on its exempt list**), security headers and the web CSP (**a new third-party host goes in `next.config.mjs` `securityHeaders()`**): [docs/AUTHORIZATION.md](docs/AUTHORIZATION.md) § "Authentication mechanics". Per-resource policy is in the same file.
 
 ### 3.3 Validation
@@ -154,7 +156,7 @@ NestJS `apps/api/src/ai/` is the only caller of stateless Python `services/ai-ru
 - Render cost: `useLiveClassState("a", "b")` selectors, `useRoster()` / `useGridTracks()` instead of raw `useParticipants()` / `useTracks()`, board-store selectors.
 - `LiveClassService` is lifecycle only; each concern is a sibling service using `LiveClassAccessService`; specs register `LIVE_CLASS_SERVICES`.
 - In-class moves/answers go through REST with a status/ply-filtered `updateMany` claim (409 on lost race), then a server-injected packet — never peer data.
-- LiveKit webhook needs its raw body; identity → user id mapping skips `isSpectatorIdentity`. Pre-class settings resolver: `@nexa-chess/types` `live-class-settings.ts`.
+- LiveKit webhook needs its raw body; identity → user id mapping skips `isSpectatorIdentity`. Pre-class settings resolver: `@nexa-chess/types` `live-class-settings.ts`; always pass `systemLocks`/`batchLocks` — an admin-locked field ignores lower layers and a class override can't change it.
 - **Never put follow-up work in a per-call `mutate(…, { onSuccess })`** in the room (the caller may unmount) — await `mutateAsync`.
 
 ---

@@ -1,4 +1,4 @@
-import type { AuthUser, UpdateProfileRequest } from "@nexa-chess/types";
+import { isParentContactChange, type AuthUser, type UpdateProfileRequest } from "@nexa-chess/types";
 
 export type ProfileFormValues = {
   avatarUrl: string;
@@ -12,7 +12,6 @@ export type ProfileFormValues = {
   firstName: string;
   fideId: string;
   fideRating: string;
-  hourlyRate: string;
   lastName: string;
   parentEmail: string;
   parentName: string;
@@ -39,7 +38,6 @@ export const emptyValues: ProfileFormValues = {
   firstName: "",
   fideId: "",
   fideRating: "",
-  hourlyRate: "",
   lastName: "",
   parentEmail: "",
   parentName: "",
@@ -69,7 +67,6 @@ export function valuesFromUser(user: AuthUser): ProfileFormValues {
     firstName: user.firstName,
     fideId: user.studentProfile?.fideId ?? user.coachProfile?.fideId ?? "",
     fideRating: formatNumber(user.coachProfile?.fideRating),
-    hourlyRate: user.coachProfile?.hourlyRate ?? "",
     lastName: user.lastName ?? "",
     parentEmail: user.studentProfile?.parentEmail ?? "",
     parentName: user.studentProfile?.parentName ?? "",
@@ -91,7 +88,7 @@ export function toProfilePayload(
 ): UpdateProfileRequest {
   const payload: UpdateProfileRequest = {
     avatarUrl: optionalString(values.avatarUrl),
-    currentPassword: isEmailChanged(values, user) ? values.currentPassword : undefined,
+    currentPassword: passwordRequiredReason(values, user) ? values.currentPassword : undefined,
     email: values.email.trim(),
     firstName: values.firstName.trim(),
     lastName: optionalString(values.lastName),
@@ -123,7 +120,6 @@ export function toProfilePayload(
       bio: optionalString(values.bio),
       fideId: optionalString(values.fideId),
       fideRating: optionalNumber(values.fideRating),
-      hourlyRate: optionalString(values.hourlyRate),
       qualification: optionalString(values.qualification),
       specialization: optionalString(values.specialization),
       title: values.title as NonNullable<
@@ -139,6 +135,21 @@ export function toProfilePayload(
 /** The API asks for the current password only when the email changes. */
 export function isEmailChanged(values: ProfileFormValues, user: AuthUser | undefined) {
   return Boolean(user) && values.email.trim().toLowerCase() !== user?.email.toLowerCase();
+}
+
+/** Same shared rule the API applies (V7): the parent contact gets invoices and notices. */
+export function isParentContactChanged(values: ProfileFormValues, user: AuthUser | undefined) {
+  return Boolean(user?.studentProfile) && isParentContactChange(user?.studentProfile ?? {}, values);
+}
+
+/** Why the current password is needed for this save, or null when it isn't. */
+export function passwordRequiredReason(values: ProfileFormValues, user: AuthUser | undefined): string | null {
+  const email = isEmailChanged(values, user);
+  const parent = isParentContactChanged(values, user);
+  if (email && parent) return "Required to change your email address and the parent contact.";
+  if (email) return "Required to change your email address.";
+  if (parent) return "Required to change the parent contact. The previous contact will be told.";
+  return null;
 }
 
 export function optionalString(value: string) {

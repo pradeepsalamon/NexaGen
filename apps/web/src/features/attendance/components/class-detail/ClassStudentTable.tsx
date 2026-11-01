@@ -1,11 +1,17 @@
 import { Fragment, memo, useState } from "react";
-import { ChevronDown, ChevronRight, History } from "lucide-react";
+import { ChevronDown, ChevronRight, History, PencilLine } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import type { ClassDetailStudentLog } from "@nexa-chess/types";
 import { AttendanceStatusBadge } from "../AttendanceStatusBadge";
 import { AttendancePercentBar } from "../AttendancePercentBar";
+import {
+  CorrectAttendanceDialog,
+  RequestAttendanceCorrectionDialog,
+  type CorrectionTarget,
+} from "./CorrectAttendanceDialog";
 import { EventTimeline } from "./EventTimeline";
 import { formatDuration } from "@/lib/datetime";
 import { useTableSort } from "@/hooks/useTableSort";
@@ -15,13 +21,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 interface ClassStudentTableProps {
   students: ClassDetailStudentLog[];
   onViewHistory: (student: { id: string; name: string }) => void;
+  /** Offers a correction per student: `direct` for an admin, otherwise a request to one. */
+  correction?: { classId: string; direct: boolean; onCorrected?: () => void };
 }
 
 export const ClassStudentTable = memo(function ClassStudentTable({
   students,
   onViewHistory,
+  correction,
 }: ClassStudentTableProps) {
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
+  const [correcting, setCorrecting] = useState<CorrectionTarget | null>(null);
   const { rows: sortedStudents, sortProps } = useTableSort({
     rows: students,
     accessors: {
@@ -62,7 +72,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                   <SortButton label="Reconnects" {...sortProps("reconnects")} />
                 </TableHead>
                 <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold text-right">
-                  History
+                  {correction ? "Actions" : "History"}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -106,7 +116,14 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                       </div>
                     </TableCell>
                     <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
-                      <AttendanceStatusBadge status={student.status} />
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <AttendanceStatusBadge status={student.status} />
+                        {student.correctedAt ? (
+                          <Badge variant="outline" className="py-0.5 text-[10px] font-semibold">
+                            Corrected
+                          </Badge>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-muted">
                       {formatDuration(student.duration)}
@@ -118,20 +135,38 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                       {student.reconnectCount}
                     </TableCell>
                     <TableCell className="px-3 py-3 md:px-6 md:py-4 text-right">
-                      <SimpleTooltip label="Full attendance history">
-                        <Button
-                          aria-label={`View attendance history for ${student.name}`}
-                          variant="outline"
-                          size="icon"
-                          className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onViewHistory({ id: student.id, name: student.name });
-                          }}
-                        >
-                          <History className="size-4" strokeWidth={2.5} aria-hidden="true" />
-                        </Button>
-                      </SimpleTooltip>
+                      <div className="flex items-center justify-end gap-2">
+                        {correction ? (
+                          <SimpleTooltip label={correction.direct ? "Correct attendance" : "Ask to correct attendance"}>
+                            <Button
+                              aria-label={`${correction.direct ? "Correct" : "Ask to correct"} attendance for ${student.name}`}
+                              variant="outline"
+                              size="icon"
+                              className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setCorrecting({ id: student.id, name: student.name, status: student.status });
+                              }}
+                            >
+                              <PencilLine className="size-4" strokeWidth={2.5} aria-hidden="true" />
+                            </Button>
+                          </SimpleTooltip>
+                        ) : null}
+                        <SimpleTooltip label="Full attendance history">
+                          <Button
+                            aria-label={`View attendance history for ${student.name}`}
+                            variant="outline"
+                            size="icon"
+                            className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onViewHistory({ id: student.id, name: student.name });
+                            }}
+                          >
+                            <History className="size-4" strokeWidth={2.5} aria-hidden="true" />
+                          </Button>
+                        </SimpleTooltip>
+                      </div>
                     </TableCell>
                   </TableRow>
                   {expandedStudent === student.id && student.logs.length > 0 && (
@@ -158,6 +193,20 @@ export const ClassStudentTable = memo(function ClassStudentTable({
           </Table>
         </div>
       </CardContent>
+      {correction?.direct ? (
+        <CorrectAttendanceDialog
+          classId={correction.classId}
+          onClose={() => setCorrecting(null)}
+          onCorrected={correction.onCorrected}
+          student={correcting}
+        />
+      ) : correction ? (
+        <RequestAttendanceCorrectionDialog
+          classId={correction.classId}
+          onClose={() => setCorrecting(null)}
+          student={correcting}
+        />
+      ) : null}
     </Card>
   );
 });

@@ -213,3 +213,20 @@ describe("BatchScheduleService", () => {
     });
   });
 });
+
+// Business decision (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md, §3
+// "Recurring schedules"): ADMIN and SUPER_ADMIN both manage recurring schedules;
+// the web's /admin/schedule is open to both (STAFF_ROLES) to match.
+describe("BatchScheduleService authority", () => {
+  it.each(["ADMIN", "SUPER_ADMIN"])("lets %s manage recurring schedules", async (role) => {
+    const { service, prisma } = makeService();
+    prisma.user.findUnique.mockResolvedValue({ ...ADMIN, role });
+    await expect(service.preview("token", baseBody)).resolves.toBeDefined();
+  });
+
+  it.each(["COACH", "STUDENT"])("refuses %s", async (role) => {
+    const { service, prisma } = makeService();
+    prisma.user.findUnique.mockResolvedValue({ ...ADMIN, role });
+    await expect(service.preview("token", baseBody)).rejects.toMatchObject({ status: 403 });
+  });
+});

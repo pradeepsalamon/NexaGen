@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 export type SelectOption = {
   label: string;
   value: string;
+  /** Shown but not selectable (e.g. a value a locked setting rules out). */
+  disabled?: boolean;
 };
 
 type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
@@ -30,7 +32,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     >
       {placeholder ? <option value="">{placeholder}</option> : null}
       {options.map((option) => (
-        <option key={option.value} value={option.value}>
+        <option key={option.value} disabled={option.disabled} value={option.value}>
           {option.label}
         </option>
       ))}

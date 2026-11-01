@@ -135,6 +135,7 @@ interface CoachScheduleCalendarProps {
   onEdit: (cls: CoachClass) => void;
   onCancel: (cls: CoachClass) => void;
   onRequestReschedule: (cls: CoachClass) => void;
+  onRequestSubstitute: (cls: CoachClass) => void;
 }
 
 /**
@@ -142,7 +143,13 @@ interface CoachScheduleCalendarProps {
  * `GET coach.calendarClasses` for the visible range. Clicking a class opens its
  * `ClassCard`, so start / notes / reschedule / cancel work exactly as in the list.
  */
-export function CoachScheduleCalendar({ view, onEdit, onCancel, onRequestReschedule }: CoachScheduleCalendarProps) {
+export function CoachScheduleCalendar({
+  view,
+  onEdit,
+  onCancel,
+  onRequestReschedule,
+  onRequestSubstitute
+}: CoachScheduleCalendarProps) {
   const timeZone = useUserTimeZone();
   const todayKey = zonedDayKey(Date.now(), timeZone);
 
@@ -366,6 +373,7 @@ export function CoachScheduleCalendar({ view, onEdit, onCancel, onRequestResched
                       onEdit={onEdit}
                       onCancel={onCancel}
                       onRequestReschedule={onRequestReschedule}
+                      onRequestSubstitute={onRequestSubstitute}
                     />
                   ))}
                 </div>
@@ -390,6 +398,7 @@ export function CoachScheduleCalendar({ view, onEdit, onCancel, onRequestResched
                 onEdit={closeThen(onEdit)}
                 onCancel={closeThen(onCancel)}
                 onRequestReschedule={closeThen(onRequestReschedule)}
+                onRequestSubstitute={closeThen(onRequestSubstitute)}
               />
               <div>
                 <p className="mb-1.5 text-sm font-semibold text-app-text">

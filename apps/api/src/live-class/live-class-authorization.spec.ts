@@ -953,6 +953,20 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
       "live_class_settings",
     );
   });
+
+  // V1: a locked field refused by the settings service stops the whole mid-class
+  // change — no snapshot refreeze, no grant push, no broadcast.
+  it("changes nothing in the room when the settings service refuses a locked field", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+    updateSettingsForClass.mockRejectedValue(new ForbiddenException("Locked by academy policy: Recording."));
+
+    await expect(
+      service.updateLiveSettings(ACCESS_TOKEN, "class-1", { liveClassSettings: { recording: "AUTO_START" } }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(liveSessionUpdate).not.toHaveBeenCalled();
+    expect(updateParticipantPermissions).not.toHaveBeenCalled();
+    expect(broadcastData).not.toHaveBeenCalled();
+  });
 });
 
 describe("LiveClassService waiting room", () => {

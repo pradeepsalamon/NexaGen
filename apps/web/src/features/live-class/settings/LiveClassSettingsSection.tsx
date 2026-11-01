@@ -2,16 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, History, Info, SlidersHorizontal } from "lucide-react";
-import type { LiveClassSettingsOverride } from "@nexa-chess/types";
+import {
+  withoutLockedFields,
+  type LiveClassSettingsOverride,
+  type LiveSettingExceptionField,
+} from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { cn } from "@/lib/utils";
+import { LiveSettingExceptionDialog } from "@/features/approvals/components/LiveSettingExceptionDialog";
 import { useAuthStore } from "@/stores/authStore";
 import { ClassSettingsPanel } from "./ClassSettingsPanel";
-import { isEmptyOverride } from "./fields";
+import { SETTINGS_FIELDS, getAtPath, isEmptyOverride } from "./fields";
 import { readLastUsedClassSettings } from "./lastUsed";
 import {
   useClassLiveSettings,
@@ -35,8 +40,10 @@ export function LiveClassSettingsSection({
   const { data: presetData } = useLiveClassPresets();
   const update = useUpdateClassLiveSettings(classId);
   const userId = useAuthStore((state) => state.user?.id);
+  const role = useAuthStore((state) => state.user?.role);
 
   const [open, setOpen] = useState(defaultOpen);
+  const [exceptionField, setExceptionField] = useState<LiveSettingExceptionField | null>(null);
   const [override, setOverride] = useState<LiveClassSettingsOverride>({});
   /** True while the form shows remembered settings the coach hasn't saved here yet. */
   const [prefilled, setPrefilled] = useState(false);
@@ -161,6 +168,17 @@ export function LiveClassSettingsSection({
                 onChange={(next) => applyOverride(next, false)}
                 presets={presetData?.presets ?? []}
                 disabled={!editable}
+                systemLocks={data.systemLocks}
+                batchLocks={data.batchLocks}
+                lockExceptions={data.lockExceptions}
+                onRequestException={role === "COACH" && editable ? setExceptionField : undefined}
+              />
+              <LiveSettingExceptionDialog
+                classId={classId}
+                currentValue={exceptionField ? String(getAtPath(data.resolved, exceptionField) ?? "") : undefined}
+                field={exceptionField}
+                onClose={() => setExceptionField(null)}
+                options={SETTINGS_FIELDS.find((f) => f.path === exceptionField)?.options ?? []}
               />
 
               {editable && (
@@ -175,12 +193,15 @@ export function LiveClassSettingsSection({
                   </Button>
                   <Button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      // Locked fields never apply; leaving a remembered value for
+                      // one in the request would only earn a 403.
+                      const unlocked =
+                        withoutLockedFields(override, [...data.systemLocks, ...data.batchLocks]) ?? {};
                       update.mutate({
-                        liveClassSettings:
-                          Object.keys(override).length > 0 ? override : null,
-                      })
-                    }
+                        liveClassSettings: Object.keys(unlocked).length > 0 ? unlocked : null,
+                      });
+                    }}
                     disabled={update.isPending || !dirty}
                   >
                     {update.isPending ? "Saving…" : "Save settings"}

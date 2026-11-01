@@ -401,6 +401,78 @@ describe("MessagingDispatchService", () => {
     });
   });
 
+  // docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md §2.7
+  describe("APPROVAL_REQUESTED / APPROVAL_DECIDED", () => {
+    const person = (id: string, role: string) => ({
+      id,
+      firstName: id,
+      lastName: null,
+      phoneNumber: null,
+      isEmailVerified: true,
+      role,
+      status: "ACTIVE",
+      isDeleted: false,
+      timezone: "UTC"
+    });
+    const approval = (overrides: Record<string, unknown> = {}) => ({
+      id: "apr_1",
+      actionType: "CLASS_CANCEL",
+      status: "PENDING",
+      reason: "Unwell",
+      rejectionReason: null,
+      requesterId: "coach_a",
+      requester: person("coach_a", "COACH"),
+      class: { startsAt: new Date("2026-09-14T12:30:00.000Z"), title: "Rook Endgames", topic: null },
+      subjectUser: null,
+      ...overrides
+    });
+    const withApproval = async (event: "APPROVAL_REQUESTED" | "APPROVAL_DECIDED", row: ReturnType<typeof approval>) => {
+      await setup(
+        makeRule({
+          audience: event === "APPROVAL_REQUESTED" ? "ADMINS" : "COACHES",
+          body: "{{approval.requesterName}}|{{approval.action}}|{{approval.subject}}|{{approval.decision}}|{{approval.note}}",
+          event,
+          inAppEnabled: true,
+          whatsappEnabled: false
+        })
+      );
+      const extra = prisma as unknown as {
+        approvalRequest: { findUnique: jest.Mock };
+        user: { findMany: jest.Mock };
+      };
+      extra.approvalRequest = { findUnique: jest.fn().mockResolvedValue(row) };
+      extra.user = { findMany: jest.fn().mockResolvedValue([person("admin_1", "ADMIN"), person("super_1", "SUPER_ADMIN")]) };
+      return extra;
+    };
+
+    it("tells each active reviewer, never the requester, with a link to the request", async () => {
+      const extra = await withApproval("APPROVAL_REQUESTED", approval());
+
+      await service.dispatch({ event: "APPROVAL_REQUESTED", approvalRequestId: "apr_1" });
+
+      const where = extra.user.findMany.mock.calls[0][0].where;
+      expect(where).toMatchObject({ id: { not: "coach_a" }, role: { in: ["ADMIN", "SUPER_ADMIN"] }, status: "ACTIVE" });
+      const rows = queuedRows(prisma.messageDelivery.create);
+      expect(rows.map((r) => r.dedupeKey)).toEqual([
+        "APPROVAL_REQUESTED:apr_1:admin_1",
+        "APPROVAL_REQUESTED:apr_1:super_1"
+      ]);
+      expect(rows[0]).toMatchObject({ linkPath: "/admin/requests?id=apr_1" });
+      expect(rows[0].body).toContain("|Cancel a class within 24 hours of its start|Rook Endgames");
+    });
+
+    it("tells the requester the outcome, with the rejection reason", async () => {
+      await withApproval("APPROVAL_DECIDED", approval({ status: "REJECTED", rejectionReason: "Too late" }));
+
+      await service.dispatch({ event: "APPROVAL_DECIDED", approvalRequestId: "apr_1" });
+
+      const rows = queuedRows(prisma.messageDelivery.create);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ dedupeKey: "APPROVAL_DECIDED:apr_1", recipientId: "coach_a" });
+      expect(rows[0].body).toContain("|rejected|Reason: Too late");
+    });
+  });
+
   it("never lets a dispatch failure reach the calling feature", async () => {
     await setup();
     getRule.mockRejectedValue(new Error("database is down"));

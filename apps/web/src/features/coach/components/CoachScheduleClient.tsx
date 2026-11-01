@@ -7,12 +7,11 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { queryKeys } from "@/lib/queryKeys";
-import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
-import { ClassRequestDialog } from "@/features/class-requests/components/ClassRequestDialog";
-import { CoachClassRequestsSection } from "@/features/class-requests/components/CoachClassRequestsSection";
+import { ClassRequestDialog } from "@/features/approvals/components/ClassRequestDialog";
+import { CoachScheduleRequests } from "@/features/approvals/components/CoachScheduleRequests";
 import { useCoachBatches, useUpcomingClasses } from "../hooks/useCoachApi";
-import { cancelClass } from "../api/coachApi";
+import { SubstituteRequestDialog } from "@/features/approvals/components/SubstituteRequestDialog";
+import { useCoachClassCancel } from "@/features/approvals/hooks/useCoachClassCancel";
 import { ClassCard } from "./ClassCard";
 import { ClassNotesDialog } from "./ClassNotesDialog";
 import { CoachScheduleCalendar } from "./CoachScheduleCalendar";
@@ -35,24 +34,15 @@ export function CoachScheduleClient() {
   const batches = batchesData?.batches ?? [];
   const [requestOpen, setRequestOpen] = useState(false);
   const [rescheduleClass, setRescheduleClass] = useState<CoachClass | null>(null);
+  const [substituteFor, setSubstituteFor] = useState<CoachClass | null>(null);
 
   const openRequest = (cls: CoachClass | null) => {
     setRescheduleClass(cls);
     setRequestOpen(true);
   };
 
-  const { run: handleCancel } = useUndoableMutation({
-    strategy: "defer",
-    mutationFn: (classItem: CoachClass) => cancelClass(classItem.id),
-    undo: async () => {},
-    toast: (classItem) => ({ title: `Cancelling class for ${classItem.batchName}` }),
-    invalidates: [
-      queryKeys.coach.dashboard,
-      queryKeys.coach.classes,
-      queryKeys.coach.upcomingClasses,
-      queryKeys.coach.classHistory
-    ]
-  });
+  // V10: direct only more than 24 h ahead; otherwise an admin request.
+  const { cancel: handleCancel, dialog: cancelRequestDialog } = useCoachClassCancel();
 
   const handleEdit = (classItem: CoachClass) => {
     setClassToEdit(classItem);
@@ -103,6 +93,7 @@ export function CoachScheduleClient() {
             onEdit={handleEdit}
             onCancel={handleCancel}
             onRequestReschedule={openRequest}
+            onRequestSubstitute={setSubstituteFor}
           />
         ) : upcomingLoading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -121,6 +112,7 @@ export function CoachScheduleClient() {
                 onEdit={handleEdit}
                 onCancel={handleCancel}
                 onRequestReschedule={openRequest}
+                onRequestSubstitute={setSubstituteFor}
               />
             ))}
           </div>
@@ -133,16 +125,17 @@ export function CoachScheduleClient() {
         )}
       </div>
 
-      <CoachClassRequestsSection />
+      <CoachScheduleRequests />
 
       <ClassNotesDialog open={dialogOpen} onOpenChange={setDialogOpen} classItem={classToEdit} />
+      <SubstituteRequestDialog classItem={substituteFor} onClose={() => setSubstituteFor(null)} />
       <ClassRequestDialog
         open={requestOpen}
         onOpenChange={setRequestOpen}
         batches={batches}
         rescheduleClass={rescheduleClass}
       />
-
+      {cancelRequestDialog}
     </div>
   );
 }

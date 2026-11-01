@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { TrendingUp, Users } from "lucide-react";
+import { ArrowLeftRight, TrendingUp, Users } from "lucide-react";
 import type { CoachStudent } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { ChangeStudentBatchDialog } from "@/features/approvals/components/BatchStudentRequestDialogs";
 import { DataTable } from "@/components/ui/DataTable";
 import { DataTablePagination } from "@/components/ui/DataTablePagination";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
@@ -24,6 +25,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
 
   const [search, setSearch] = useState("");
   const [selectedBatch, setSelectedBatch] = useState<string>(initialBatchId || "ALL");
+  const [changingBatch, setChangingBatch] = useState<CoachStudent | null>(null);
 
   // Sync state if navigating via Link with different search params
   useEffect(() => {
@@ -98,18 +100,32 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
         cell: ({ row }) => {
           const name = `${row.original.firstName} ${row.original.lastName || ""}`.trim();
           return (
-            <SimpleTooltip label="Progress & activity history">
-              <Button
-                asChild
-                className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
-                size="icon"
-                variant="ghost"
-              >
-                <Link aria-label={`View ${name}'s progress and activity history`} href={`/coach/students/${row.original.id}`}>
-                  <TrendingUp aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                </Link>
-              </Button>
-            </SimpleTooltip>
+            <div className="flex items-center justify-center gap-2">
+              <SimpleTooltip label="Progress & activity history">
+                <Button
+                  asChild
+                  className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                  size="icon"
+                  variant="ghost"
+                >
+                  <Link aria-label={`View ${name}'s progress and activity history`} href={`/coach/students/${row.original.id}`}>
+                    <TrendingUp aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                  </Link>
+                </Button>
+              </SimpleTooltip>
+              <SimpleTooltip label="Ask to move or remove">
+                <Button
+                  aria-label={`Ask to move or remove ${name}`}
+                  className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                  onClick={() => setChangingBatch(row.original)}
+                  size="icon"
+                  type="button"
+                  variant="ghost"
+                >
+                  <ArrowLeftRight aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                </Button>
+              </SimpleTooltip>
+            </div>
           );
         }
       }
@@ -186,6 +202,12 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
           </>
         )}
       </div>
+
+      <ChangeStudentBatchDialog
+        batches={batchesData?.batches ?? []}
+        onClose={() => setChangingBatch(null)}
+        student={changingBatch}
+      />
     </div>
   );
 }

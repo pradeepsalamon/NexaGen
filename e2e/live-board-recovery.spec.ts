@@ -29,25 +29,27 @@ async function makeLiveClass(request: APIRequestContext, coach: Cookie[], admin:
   // further out can't be started yet.
   for (let offsetMin = 1; offsetMin < 30; offsetMin += 7) {
     const startsAt = new Date(Date.now() + offsetMin * 60_000);
-    const created = await api(request, "POST", "/class-requests", coach, {
-      type: "EXTRA_CLASS",
-      batchId,
-      startsAt: startsAt.toISOString(),
-      endsAt: new Date(startsAt.getTime() + 60 * 60_000).toISOString(),
-      topic: "E2E Board Recovery",
+    const created = await api(request, "POST", "/approvals", coach, {
+      actionType: "CLASS_EXTRA",
+      payload: {
+        batchId,
+        startsAt: startsAt.toISOString(),
+        endsAt: new Date(startsAt.getTime() + 60 * 60_000).toISOString(),
+        topic: "E2E Board Recovery",
+      },
       reason: "e2e board recovery spec",
     });
     expect(created.ok(), `request: ${await created.text()}`).toBeTruthy();
     const { request: req } = await created.json();
 
-    const approved = await api(request, "POST", `/class-requests/${req.id}/approve`, admin, {});
+    const approved = await api(request, "POST", `/admin/approvals/${req.id}/approve`, admin, {});
     if (approved.ok()) {
       const classId = (await approved.json()).request.classId as string;
       const start = await api(request, "POST", `/live-class/${classId}/start`, coach);
       expect(start.ok(), `start: ${await start.text()}`).toBeTruthy();
       return classId;
     }
-    await api(request, "POST", `/class-requests/${req.id}/withdraw`, coach);
+    await api(request, "POST", `/approvals/${req.id}/cancel`, coach);
     if (approved.status() !== 409) throw new Error(`approve: ${approved.status()} ${await approved.text()}`);
   }
   throw new Error("no free slot for the coach");

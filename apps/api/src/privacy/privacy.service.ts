@@ -86,6 +86,8 @@ export class PrivacyService {
       chessAppearance,
       typography,
       classChangeRequests,
+      approvalRequests,
+      approvalRequestsAboutMe,
       platformStaff,
       helpFeedback,
       helpSuggestions,
@@ -163,6 +165,9 @@ export class PrivacyService {
       p.userChessAppearancePreference.findMany({ where: { userId: id } }),
       p.userTypographyPreference.findMany({ where: { userId: id } }),
       p.classChangeRequest.findMany({ where: { coachId: id } }),
+      // Admin-approval requests this user made, and ones made about them.
+      p.approvalRequest.findMany({ where: { requesterId: id } }),
+      p.approvalRequest.findMany({ where: { subjectUserId: id } }),
       p.platformStaff.findMany({ where: { userId: id } }),
       // Help-centre votes, and help articles a coach suggested or an admin wrote.
       p.knowledgeFeedback.findMany({ where: { userId: id } }),
@@ -203,6 +208,8 @@ export class PrivacyService {
         chessAppearance: records(chessAppearance),
         classAttendance: records(classAttendance),
         classChangeRequests: records(classChangeRequests),
+        approvalRequests: records(approvalRequests),
+        approvalRequestsAboutMe: records(approvalRequestsAboutMe),
         classesTaught: records(classesTaught),
         coachAttendance: records(coachAttendance),
         coachProfile: records(coachProfile),

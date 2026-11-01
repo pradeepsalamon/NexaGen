@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -14,6 +15,7 @@ import { StudentAttendanceDialog } from "@/features/attendance/components/Studen
 import { AttendanceStatusBadge } from "@/features/attendance/components/AttendanceStatusBadge";
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
 import { formatDuration, formatLongDate, formatTime } from "@/lib/datetime";
+import { queryKeys } from "@/lib/queryKeys";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { ClassEndFeedback } from "@/features/feedback/components/ClassEndFeedback";
 import { Badge } from "@/components/ui/Badge";
@@ -53,6 +55,7 @@ function Shell({
 
 export function ClassSummary({ classId }: { classId: string }) {
   const { data, isLoading, isError } = useClassSummary(classId);
+  const queryClient = useQueryClient();
   const tz = useUserTimeZone();
   const [drilldownStudent, setDrilldownStudent] = useState<{
     id: string;
@@ -128,6 +131,12 @@ export function ClassSummary({ classId }: { classId: string }) {
           <ClassStudentTable
             students={data.report.students}
             onViewHistory={setDrilldownStudent}
+            correction={{
+              classId,
+              direct: data.viewerRole === "ADMIN",
+              onCorrected: () =>
+                queryClient.invalidateQueries({ queryKey: queryKeys.attendance.classSummary(classId) }),
+            }}
           />
           <StudentAttendanceDialog
             open={drilldownStudent !== null}
