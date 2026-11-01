@@ -35,6 +35,7 @@ import type {
   ResetPasswordRequest,
   UpdateProfileRequest
 } from "@nexa-chess/types";
+import { isParentContactChange } from "@nexa-chess/types";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { MailService } from "../mail/mail.service";
@@ -563,11 +564,24 @@ export class AuthService {
     const username = this.toNullableString(payload.username);
     const emailChanged = email !== user.email.toLowerCase();
 
+    // The parent contact receives invoices and academy notices (it is the
+    // billing-profile default), so moving it needs the same proof as an email
+    // change and the previous contact is told (V7).
+    const parentContactChanged = Boolean(
+      user.studentProfile &&
+        payload.studentProfile &&
+        isParentContactChange(user.studentProfile, payload.studentProfile)
+    );
+
     // The email is what password reset trusts, so a stolen session alone must
     // not be enough to move it. 400, not 401, so the client doesn't refresh-retry.
-    if (emailChanged) {
+    if (emailChanged || parentContactChanged) {
       if (!payload.currentPassword) {
-        throw new BadRequestException("Enter your current password to change your email.");
+        throw new BadRequestException(
+          emailChanged
+            ? "Enter your current password to change your email."
+            : "Enter your current password to change the parent contact."
+        );
       }
       if (!(await verifySecret(payload.currentPassword, user.password))) {
         throw new BadRequestException("Current password is incorrect.");
@@ -631,7 +645,9 @@ export class AuthService {
             bio: this.toNullableString(payload.coachProfile.bio),
             fideId: this.toNullableString(payload.coachProfile.fideId),
             fideRating: payload.coachProfile.fideRating ?? null,
-            hourlyRate: this.toNullableString(payload.coachProfile.hourlyRate),
+            // hourlyRate is deliberately not written: a coach must not set their
+            // own rate (V6, docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md).
+            // Pay comes from CoachCompensationRate, set by an admin.
             qualification: this.toNullableString(
               payload.coachProfile.qualification
             ),
@@ -652,6 +668,34 @@ export class AuthService {
         where: { id: user.id }
       });
     });
+
+    if (parentContactChanged && user.studentProfile) {
+      const previous = user.studentProfile;
+      await this.prisma.trashAuditLog
+        .create({
+          data: {
+            action: "PARENT_CONTACT_CHANGE",
+            entity: "StudentProfile",
+            entityId: user.id,
+            metadata: {
+              changedEmail: (previous.parentEmail ?? "") !== (payload.studentProfile?.parentEmail ?? ""),
+              changedPhone: (previous.parentPhone ?? "") !== (payload.studentProfile?.parentPhone ?? "")
+            },
+            userId: user.id
+          }
+        })
+        .catch((error: unknown) => {
+          this.logger.warn(`Could not audit parent-contact change for user ${user.id}: ${String(error)}`);
+        });
+      if (previous.parentEmail) {
+        const studentName = `${user.firstName} ${user.lastName ?? ""}`.trim();
+        this.mailService
+          .sendParentContactChangedNotice(previous.parentEmail, studentName)
+          .catch((error: unknown) => {
+            this.logger.warn(`Could not send parent-contact notice for user ${user.id}: ${String(error)}`);
+          });
+      }
+    }
 
     if (emailChanged) {
       await this.revokeOtherSessions(user.id, tokenPayload.sessionId);

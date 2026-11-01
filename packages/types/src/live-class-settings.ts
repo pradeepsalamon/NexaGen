@@ -112,6 +112,135 @@ export const liveClassSettingsOverrideSchema = z.object({
 export type LiveClassSettingsOverride = z.infer<typeof liveClassSettingsOverrideSchema>;
 
 // ──────────────────────────────────────────────
+// Admin locks (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md §2.5)
+// ──────────────────────────────────────────────
+
+/**
+ * Fields an admin may lock at the academy (system policy) or batch layer. A
+ * locked field ignores every lower layer: a coach's class override (or a
+ * preset copied into the class) can never change it. The coach's own mic and
+ * camera defaults and coach auto-join are the coach's own business, not
+ * academy policy, so they are not lockable.
+ */
+export const LOCKABLE_LIVE_SETTINGS = [
+  "student.mic",
+  "student.camera",
+  "student.screenShare",
+  "student.chat",
+  "student.privateChat",
+  "student.reactions",
+  "student.board",
+  "autoJoin.student",
+  "recording",
+  "waitingRoom",
+] as const;
+
+export const lockableLiveSettingSchema = z.enum(LOCKABLE_LIVE_SETTINGS);
+export type LockableLiveSetting = z.infer<typeof lockableLiveSettingSchema>;
+
+/** Short names for errors and audit text (the web form has its own longer help). */
+export const LOCKABLE_LIVE_SETTING_LABELS: Record<LockableLiveSetting, string> = {
+  "student.mic": "Student microphone",
+  "student.camera": "Student camera",
+  "student.screenShare": "Student screen share",
+  "student.chat": "Student chat",
+  "student.privateChat": "Private messages",
+  "student.reactions": "Student reactions",
+  "student.board": "Student board access",
+  "autoJoin.student": "Student auto-join",
+  recording: "Recording",
+  waitingRoom: "Waiting room",
+};
+
+/** A layer's lock list: deduplicated, in catalogue order. */
+export const liveClassLocksSchema = z
+  .array(lockableLiveSettingSchema)
+  .max(LOCKABLE_LIVE_SETTINGS.length * 2)
+  .transform((locks) => LOCKABLE_LIVE_SETTINGS.filter((field) => locks.includes(field)));
+
+/**
+ * The lock list stored beside a layer's settings in the same JSON column
+ * (`LiveClassPolicy.settings.locks`, `Batch.liveClassSettings.locks`). Unknown
+ * or malformed entries are dropped rather than failing the whole layer.
+ */
+export function readLiveClassLocks(layerJson: unknown): LockableLiveSetting[] {
+  if (!layerJson || typeof layerJson !== "object") return [];
+  const raw = (layerJson as { locks?: unknown }).locks;
+  if (!Array.isArray(raw)) return [];
+  const known = raw.filter((value): value is LockableLiveSetting =>
+    (LOCKABLE_LIVE_SETTINGS as readonly string[]).includes(value as string),
+  );
+  return LOCKABLE_LIVE_SETTINGS.filter((field) => known.includes(field));
+}
+
+/** Who locked a field, as shown to the coach. Academy wins when both did. */
+export type LiveClassLockSource = "ACADEMY" | "BATCH";
+
+export function liveClassLockSources(layers: {
+  systemLocks?: readonly LockableLiveSetting[] | null;
+  batchLocks?: readonly LockableLiveSetting[] | null;
+}): Partial<Record<LockableLiveSetting, LiveClassLockSource>> {
+  const out: Partial<Record<LockableLiveSetting, LiveClassLockSource>> = {};
+  for (const field of layers.batchLocks ?? []) out[field] = "BATCH";
+  for (const field of layers.systemLocks ?? []) out[field] = "ACADEMY";
+  return out;
+}
+
+function getOverrideValue(override: LiveClassSettingsOverride, path: LockableLiveSetting): unknown {
+  const [head, tail] = path.split(".") as [string, string | undefined];
+  const node = (override as Record<string, unknown>)[head];
+  if (tail === undefined) return node;
+  return node && typeof node === "object" ? (node as Record<string, unknown>)[tail] : undefined;
+}
+
+/** A copy of `override` with every locked field removed (empty sections dropped). */
+export function withoutLockedFields(
+  override: LiveClassSettingsOverride | null | undefined,
+  locks: readonly LockableLiveSetting[],
+): LiveClassSettingsOverride | null {
+  if (!override) return override ?? null;
+  if (locks.length === 0) return override;
+  const next: Record<string, unknown> = JSON.parse(JSON.stringify(override));
+  for (const path of locks) {
+    const [head, tail] = path.split(".") as [string, string | undefined];
+    if (tail === undefined) {
+      delete next[head];
+    } else if (next[head] && typeof next[head] === "object") {
+      const section = next[head] as Record<string, unknown>;
+      delete section[tail];
+      if (Object.keys(section).length === 0) delete next[head];
+    }
+  }
+  return next as LiveClassSettingsOverride;
+}
+
+/**
+ * The locked fields a write would actually change: the new override sets a
+ * value that differs both from the locked effective value and from what the
+ * layer already held. A stale-but-unchanged value (saved before the lock
+ * existed) is not a change, so old configs keep saving; it is stripped anyway.
+ */
+export function lockedFieldsChanged(input: {
+  next: LiveClassSettingsOverride | null | undefined;
+  previous: LiveClassSettingsOverride | null | undefined;
+  locked: LiveClassSettings;
+  locks: readonly LockableLiveSetting[];
+}): LockableLiveSetting[] {
+  if (!input.next) return [];
+  return input.locks.filter((path) => {
+    const value = getOverrideValue(input.next!, path);
+    if (value === undefined) return false;
+    const lockedValue = getAtSettingsPath(input.locked, path);
+    const previousValue = input.previous ? getOverrideValue(input.previous, path) : undefined;
+    return value !== lockedValue && value !== previousValue;
+  });
+}
+
+function getAtSettingsPath(settings: LiveClassSettings, path: LockableLiveSetting): unknown {
+  return getOverrideValue(settings as unknown as LiveClassSettingsOverride, path);
+}
+
+// ──────────────────────────────────────────────
 // Resolution
 // ──────────────────────────────────────────────
 
@@ -151,16 +280,26 @@ function pruneUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
 /**
  * Resolve the effective settings for a class. `system` is the Layer 1 blob
  * (may be a raw JSON value from the DB — it is re-parsed here), `batch` and
- * `class` are partial overrides. Last layer wins; a class may loosen a batch
- * default on purpose (§26).
+ * `class` are partial overrides. Last layer wins — a class may loosen a batch
+ * default on purpose (§26) — except for locked fields: an academy lock
+ * (`systemLocks`) ignores the batch and class layers, a batch lock
+ * (`batchLocks`) ignores the class layer. The same function feeds the frozen
+ * session snapshot and LiveKit grants, so a lock is enforced at token level.
  */
 export function resolveLiveClassSettings(layers: {
   system?: unknown;
   batch?: LiveClassSettingsOverride | null;
   class?: LiveClassSettingsOverride | null;
+  systemLocks?: readonly LockableLiveSetting[] | null;
+  batchLocks?: readonly LockableLiveSetting[] | null;
 }): LiveClassSettings {
   const base = liveClassSettingsSchema.parse(layers.system ?? {});
-  const merged = mergeOverride(mergeOverride(base, layers.batch), layers.class);
+  const systemLocks = layers.systemLocks ?? [];
+  const allLocks = [...systemLocks, ...(layers.batchLocks ?? [])];
+  const merged = mergeOverride(
+    mergeOverride(base, withoutLockedFields(layers.batch, systemLocks)),
+    withoutLockedFields(layers.class, allLocks),
+  );
   // Re-parse so the output is always a clean, fully-populated object.
   return liveClassSettingsSchema.parse(merged);
 }

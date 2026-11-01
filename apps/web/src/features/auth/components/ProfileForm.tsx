@@ -14,7 +14,7 @@ import { CoachProfileFields } from "./profile-form/CoachProfileFields";
 import {
   type ProfileFormValues,
   emptyValues,
-  isEmailChanged,
+  passwordRequiredReason,
   toProfilePayload,
   valuesFromUser
 } from "./profile-form/profileForm.utils";
@@ -73,8 +73,8 @@ export function ProfileForm() {
     () => values.firstName.trim().length > 0,
     [values.firstName]
   );
-  const emailChanged = isEmailChanged(values, user);
-  const canSubmit = hasRequiredName && (!emailChanged || values.currentPassword.length > 0);
+  const passwordReason = passwordRequiredReason(values, user);
+  const canSubmit = hasRequiredName && (!passwordReason || values.currentPassword.length > 0);
 
   const handleAvatarUpload = useCallback(
     (file: File) => {
@@ -168,7 +168,7 @@ export function ProfileForm() {
         onRemove={handleAvatarRemove}
       />
 
-      <AccountFields emailChanged={emailChanged} values={values} onFieldChange={updateField} />
+      <AccountFields passwordReason={passwordReason} values={values} onFieldChange={updateField} />
 
       {user?.studentProfile ? (
         <StudentProfileFields values={values} onFieldChange={updateField} />

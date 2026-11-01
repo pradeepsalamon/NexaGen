@@ -334,6 +334,10 @@ model User {
   studentPuzzleAttempts           PuzzleAttempt[]                  @relation("StudentPuzzleAttempts")
   classChangeRequests             ClassChangeRequest[]             @relation("ClassChangeRequestCoach")
   reviewedClassChangeRequests     ClassChangeRequest[]             @relation("ClassChangeRequestReviewer")
+  approvalRequests                ApprovalRequest[]                @relation("ApprovalRequester")
+  reviewedApprovalRequests        ApprovalRequest[]                @relation("ApprovalReviewer")
+  approvalSubjectOf               ApprovalRequest[]                @relation("ApprovalSubject")
+  approvalEvents                  ApprovalEvent[]                  @relation("ApprovalEventActor")
   studentProgress                 StudentProgress?                 @relation("StudentProgress")
   puzzleRatingChanges             PuzzleRatingChange[]             @relation("StudentPuzzleRatingChanges")
   revisionItems                   RevisionItem[]                   @relation("StudentRevisionItems")
@@ -739,6 +743,7 @@ model Batch {
   plans               Plan[]               @relation("PlanBatch")
   entitlements        Entitlement[]        @relation("EntitlementBatch")
   classChangeRequests ClassChangeRequest[]
+  approvalRequests    ApprovalRequest[]
   classroomToolStates LiveClassToolState[]
   liveClassChapters   LiveClassChapter[]
   chessGames          ChessGame[]
@@ -911,6 +916,7 @@ model CoachClass {
   assignedLeads            Lead[]                           @relation("LeadAssignedClass")
   feedbackResponses        FeedbackResponse[]               @relation("FeedbackResponseClass")
   changeRequests           ClassChangeRequest[]
+  approvalRequests         ApprovalRequest[]
   chessGames               ChessGame[]
 
   @@unique([scheduleId, occurrenceDate, scheduleRuleId], map: "classes_schedule_occurrence_unique")
@@ -4613,6 +4619,100 @@ model FeedbackAnswer {
 // ──────────────────────────────────────────────
 // COACH CLASS-CHANGE REQUESTS
 // ──────────────────────────────────────────────
+
+// ──────────────────────────────────────────────
+// ADMIN APPROVALS (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md §2.3)
+// ──────────────────────────────────────────────
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+enum ApprovalEventType {
+  CREATED
+  APPROVED
+  REJECTED
+  CANCELLED
+  EXPIRED
+  /// An approval attempt refused because the state changed since the request
+  /// (requester lost authority, target moved/cancelled). The request stays PENDING.
+  REVALIDATION_FAILED
+}
+
+/// One request for an action beyond the requester's own authority, decided by
+/// an admin. Generic across modules: `actionType` names a handler in
+/// `apps/api/src/approval/handlers/` and a catalogue entry in
+/// `@nexa-chess/types` `approvals.ts`; `requestedValue` is that handler's
+/// Zod-validated payload. Approval runs claim → revalidate → execute in one
+/// transaction. Hand-written in the migration: a partial unique index (one
+/// PENDING request per `dedupeKey`) and a CHECK that the reviewer is never the
+/// requester. Not soft-deletable: a decided request is history.
+model ApprovalRequest {
+  id         String         @id @default(cuid())
+  category   String
+  actionType String
+  status     ApprovalStatus @default(PENDING)
+
+  /// SetNull only so a hard user purge can't be blocked; the role stays.
+  requesterId   String?
+  requester     User?    @relation("ApprovalRequester", fields: [requesterId], references: [id], onDelete: SetNull)
+  requesterRole UserRole
+
+  batchId       String?
+  batch         Batch?      @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  classId       String?
+  class         CoachClass? @relation(fields: [classId], references: [id], onDelete: SetNull)
+  /// The student (or other user) the request is about, when there is one.
+  subjectUserId String?
+  subjectUser   User?       @relation("ApprovalSubject", fields: [subjectUserId], references: [id], onDelete: SetNull)
+
+  /// Snapshot of the affected state when asked; the handler compares it at approval.
+  currentValue   Json?
+  requestedValue Json
+  reason         String
+  details        Json?
+  urgent         Boolean   @default(false)
+  dedupeKey      String
+  expiresAt      DateTime
+
+  reviewerId      String?
+  reviewer        User?     @relation("ApprovalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  decidedAt       DateTime?
+  rejectionReason String?
+  executionResult Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events ApprovalEvent[]
+
+  @@index([status, createdAt])
+  @@index([requesterId])
+  @@index([batchId])
+  @@index([classId])
+  @@index([actionType])
+  @@map("approval_requests")
+}
+
+/// Append-only trail of an approval request. A trigger (migration) rejects
+/// DELETE and every UPDATE except the user purge's `actorId → NULL`.
+model ApprovalEvent {
+  id        String            @id @default(cuid())
+  requestId String
+  request   ApprovalRequest   @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  type      ApprovalEventType
+  actorId   String?
+  actor     User?             @relation("ApprovalEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  metadata  Json?
+  createdAt DateTime          @default(now())
+
+  @@index([requestId, createdAt])
+  @@map("approval_events")
+}
 
 enum ClassRequestType {
   EXTRA_CLASS

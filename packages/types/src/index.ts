@@ -21,9 +21,11 @@ import {
 } from "./puzzle-scoring";
 
 import {
+  liveClassLocksSchema,
   liveClassSettingsOverrideSchema,
   type LiveClassSettings,
-  type LiveClassSettingsOverride
+  type LiveClassSettingsOverride,
+  type LockableLiveSetting
 } from "./live-class-settings";
 import { messagingEventSchema, type MessagingEvent } from "./messaging";
 import {
@@ -46,6 +48,7 @@ export * from "./ai";
 export * from "./ai-runtime-contract";
 export * from "./class-summary";
 export * from "./api-endpoints";
+export * from "./approvals";
 export * from "./live-class-settings";
 export * from "./live-class-moderation";
 export * from "./live-class-screen-share";
@@ -247,6 +250,7 @@ export const updateProfileRequestSchema = z.object({
       bio: z.string().max(2000).optional(),
       fideId: z.string().max(80).optional(),
       fideRating: z.number().int().min(0).max(4000).optional(),
+      /** Ignored by the API: a coach can't set their own rate (pay is CoachCompensationRate). */
       hourlyRate: z.string().max(20).optional(),
       qualification: z.string().max(255).optional(),
       specialization: z.string().max(255).optional(),
@@ -384,6 +388,22 @@ export type ForgotPasswordRequest = z.infer<typeof forgotPasswordRequestSchema>;
 export type ResetPasswordRequest = z.infer<typeof resetPasswordRequestSchema>;
 
 export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>;
+
+/**
+ * The one rule (web + API) for "this profile save moves the parent/guardian
+ * contact". That contact receives invoices and notices, so a student changing
+ * it must re-enter their password and the previous email is told (V7,
+ * docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md). Blank and missing are the
+ * same; emails compare case-insensitively; phones ignore spaces.
+ */
+export function isParentContactChange(
+  before: { parentEmail?: string | null; parentPhone?: string | null },
+  after: { parentEmail?: string | null; parentPhone?: string | null }
+): boolean {
+  const email = (value: string | null | undefined) => (value ?? "").trim().toLowerCase();
+  const phone = (value: string | null | undefined) => (value ?? "").replace(/\s+/g, "");
+  return email(before.parentEmail) !== email(after.parentEmail) || phone(before.parentPhone) !== phone(after.parentPhone);
+}
 
 export type CreateBatchRequest = z.infer<typeof createBatchRequestSchema>;
 
@@ -741,11 +761,15 @@ export type LiveClassPolicyResponse = {
   id: string;
   name: string;
   settings: LiveClassSettings;
+  /** Academy-wide locks: no batch default or class override can change these fields. */
+  locks: LockableLiveSetting[];
   updatedAt: string;
 };
 
 export const updateLiveClassPolicyRequestSchema = z.object({
-  settings: liveClassSettingsOverrideSchema
+  settings: liveClassSettingsOverrideSchema,
+  /** Replaces the academy lock list when present; omitted keeps it. */
+  locks: liveClassLocksSchema.optional()
 });
 export type UpdateLiveClassPolicyRequest = z.infer<typeof updateLiveClassPolicyRequestSchema>;
 
@@ -762,6 +786,9 @@ export type LiveClassSettingsForClassResponse = {
   /** Frozen effective config if the class has already started, else null (§38). */
   snapshot: LiveClassSettings | null;
   canEdit: boolean;
+  /** Academy and batch locks; the class layer can't change these fields. */
+  systemLocks: LockableLiveSetting[];
+  batchLocks: LockableLiveSetting[];
 };
 
 export const updateLiveClassSettingsRequestSchema = z.object({
@@ -776,6 +803,9 @@ export type BatchLiveClassSettingsResponse = {
   batchOverride: LiveClassSettingsOverride | null;
   resolved: LiveClassSettings;
   canEdit: boolean;
+  /** Academy locks (the batch default can't change these) and this batch's own locks. */
+  systemLocks: LockableLiveSetting[];
+  batchLocks: LockableLiveSetting[];
 };
 
 /** One `LIVE_SETTINGS_CHANGE` audit row, admin-facing. */
@@ -793,6 +823,9 @@ export type LiveClassSettingsAuditEntry = {
   /** Override blobs (or full settings for the policy) before/after the change. */
   before: LiveClassSettingsOverride | null;
   after: LiveClassSettingsOverride | null;
+  /** The layer's lock list before/after (academy and batch only), else null. */
+  locksBefore: LockableLiveSetting[] | null;
+  locksAfter: LockableLiveSetting[] | null;
 };
 
 export type LiveClassSettingsAuditResponse = {
@@ -848,7 +881,9 @@ export type UpdateChessAppearanceAdminRequest = z.infer<
 >;
 
 export const updateBatchLiveClassSettingsRequestSchema = z.object({
-  liveClassSettings: liveClassSettingsOverrideSchema.nullable()
+  liveClassSettings: liveClassSettingsOverrideSchema.nullable(),
+  /** Replaces this batch's lock list when present; omitted keeps it. */
+  locks: liveClassLocksSchema.optional()
 });
 export type UpdateBatchLiveClassSettingsRequest = z.infer<
   typeof updateBatchLiveClassSettingsRequestSchema

@@ -154,6 +154,11 @@ can't silently switch off.
 
 ## Permission matrix
 
+The target model (direct / approval / admin-only / consent-controlled actions
+for every module), the roadmap and the progress log are in
+[PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md](PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md).
+This table is the policy as built.
+
 R = read, C = create, U = update, D = delete, P = publish/share/launch.
 "own batch" = a batch the coach is a `BatchCoach` of; "enrolled" = a live
 `BatchStudent` row. Admin = `ADMIN` or `SUPER_ADMIN` unless stated.
@@ -166,7 +171,8 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Classes (`CoachClass`) | R (enrolled batch) | R, U notes/topic (own class), cancel own | R C U D | Coach scheduling changes go through `ClassChangeRequest` (admin approves). |
 | Live class: join / token | enrolled, or pulled, or admitted from waiting room; not if removed | own class | any (visible), or hidden spectator seat | Demo guests via `DemoClassRegistration`. |
 | Live class: demo guest puzzle (`GET /live-class/:id/puzzle/guest`) | — (users use `GET …/puzzle`) | — | — | Demo guests only, by the `guestToken` from their join (header `x-nexa-demo-guest`): this class, registration not DENIED, class a LIVE demo. Returns the solution — a guest practises unscored. |
-| Live class: settings, moderation, kick, pull, waiting room, screen-share approval, end | — (may request screen share / admission) | own class | any class | `resolveClassManager`. |
+| Live class: settings, moderation, kick, pull, waiting room, screen-share approval, end | — (may request screen share / admission) | own class (settings: unlocked fields only) | any class | `resolveClassManager`. A field an admin locked at the academy or batch layer can't be changed by any class override (2026-11-01, PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md). |
+| Live class settings locks | — | — | academy + batch locks | Admin-only; audited as `LIVE_SETTINGS_CHANGE` with `locksBefore/After`. |
 | Live class: **recording** start/stop | — | own class | any class | Fixed 2026-10-16 (was any coach). |
 | Recording: view / stream / download | enrolled batch | own class | any | Stream token is signed per viewer + class and re-checked. |
 | Shared board state (recorder) | — | — | — | `GET /live-class/:id/recorder/board-state`: no session, no role. The egress template's LiveKit token is the credential (signed with our LiveKit secret, this class's room, hidden seat). Read-only. The one route authenticated by something other than the access cookie besides webhooks. |
@@ -185,9 +191,9 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Admin email | none | none | policy, direct email, sent log; a plain Admin can't change another admin's verification | Verification status of your own account only via `/auth/email-verification`. [EMAIL_ADMIN](EMAIL_ADMIN.md) |
 | Game Library | own games + LIVE_BOARD games of attended classes | own / own class / own batch / played | all | Only IMPORT games deletable (importer or admin). |
 | Persistent chat | own threads; DM staff or a coach sharing a batch | own threads; groups of own students | all | `directChatAllowed`. |
-| Invoices, payments, subscriptions | own | own manual-payment records for own batches (PENDING until approved) | all | Never refundable via MANUAL. |
+| Invoices, payments, subscriptions | own | own manual-payment records for own batches (PENDING until approved) | all | Never refundable via MANUAL. A manual-payment review is claimed (status-filtered) before money moves, so concurrent reviews have one winner. |
 | Payroll, payslips | — | own | all | |
-| Class change requests | — | C own; R own | approve/reject | |
+| Class change requests | — | C own; R own | approve/reject | Approval revalidates the coach is still an ACTIVE coach of a live, unarchived batch (and still owns a rescheduled class). |
 | Messaging rules, analytics, leads, demo classes, backups, trash, data retention | — | — | admin (trash, demo classes, backups, data retention: SUPER_ADMIN) | A retention window deletes for good, so only a super admin sets one. |
 | Presets (live class) | — | PERSONAL own; use ORG/system | ORG + any | |
 

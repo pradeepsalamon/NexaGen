@@ -13,11 +13,11 @@ import type {
   CreateClassChangeRequest,
   ReviewClassChangeRequest
 } from "@nexa-chess/types";
-import { ClassStatus, Prisma, UserRole } from "@prisma/client";
+import { BatchStatus, ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
 import { assertNoSchedulingConflict, assertNotInPast } from "../coach/class-scheduling.util";
 import { assertWithinBatchDates } from "../common/batch-dates";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { authenticateUser } from "../auth/authenticate";
 
 const requestInclude = {
@@ -88,6 +88,14 @@ export class ClassRequestService {
     } else {
       await this.assertCoachInBatch(coach.id, dto.batchId!);
       batchId = dto.batchId!;
+      // A double-submitted form must not queue the same extra class twice.
+      const duplicate = await this.prisma.classChangeRequest.findFirst({
+        where: { batchId, coachId: coach.id, startsAt, status: "PENDING", type: "EXTRA_CLASS" },
+        select: { id: true }
+      });
+      if (duplicate) {
+        throw new ConflictException("You already have a pending request for an extra class at this time.");
+      }
     }
 
     const batch = await this.prisma.batch.findUnique({
@@ -189,21 +197,31 @@ export class ClassRequestService {
       });
       if (claimed.count === 0) throw new ConflictException("This request was already decided.");
 
+      // The coach's authority is re-checked at approval, not trusted from the
+      // ask: they may have been removed from the batch, archived, or the batch
+      // archived/deleted while the request waited (V3,
+      // docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md). Throwing rolls the
+      // claim back, so the admin can still reject it.
+      const coachTimeZone = await this.assertRequesterStillAuthorized(tx, request);
+
       await assertNoSchedulingConflict(tx as unknown as PrismaService, {
         coachId: request.coachId,
         startsAt: request.startsAt,
         endsAt: request.endsAt,
         excludeClassId: request.classId ?? undefined,
-        timeZone: admin.timezone ?? undefined
+        timeZone: coachTimeZone ?? admin.timezone ?? undefined
       });
 
       if (request.type === "RESCHEDULE") {
+        // Still this coach's class: an admin may have reassigned it meanwhile.
         const moved = await tx.coachClass.updateMany({
-          where: { id: request.classId ?? "", status: ClassStatus.SCHEDULED },
+          where: { coachId: request.coachId, id: request.classId ?? "", status: ClassStatus.SCHEDULED },
           data: { startsAt: request.startsAt, endsAt: request.endsAt }
         });
         if (moved.count === 0) {
-          throw new ConflictException("The class is no longer scheduled, so it can't be moved.");
+          throw new ConflictException(
+            "The class is no longer scheduled for this coach, so it can't be moved."
+          );
         }
         return null;
       }
@@ -271,9 +289,36 @@ export class ClassRequestService {
     };
   }
 
+  /**
+   * Revalidates, inside the approval transaction, that the requesting coach is
+   * still an ACTIVE coach assigned to a live (not deleted, not archived) batch.
+   * Returns the coach's timezone for the schedule-clash check.
+   */
+  private async assertRequesterStillAuthorized(
+    tx: PrismaTransactionClient,
+    request: { batchId: string; coachId: string }
+  ): Promise<string | null> {
+    const link = await tx.batchCoach.findFirst({
+      where: {
+        batch: { isDeleted: false, status: { not: BatchStatus.ARCHIVED } },
+        batchId: request.batchId,
+        coach: { isDeleted: false, role: UserRole.COACH, status: UserStatus.ACTIVE },
+        coachId: request.coachId,
+        isDeleted: false
+      },
+      select: { coach: { select: { timezone: true } } }
+    });
+    if (!link) {
+      throw new ConflictException(
+        "The coach is no longer an active coach of this batch (or the batch is archived), so this request can't be approved. Reject it instead."
+      );
+    }
+    return link.coach.timezone;
+  }
+
   private async assertCoachInBatch(coachId: string, batchId: string) {
     const link = await this.prisma.batchCoach.findFirst({
-      where: { batchId, coachId, isDeleted: false, batch: { isDeleted: false } },
+      where: { batchId, coachId, isDeleted: false, batch: { isDeleted: false, status: { not: BatchStatus.ARCHIVED } } },
       select: { id: true }
     });
     if (!link) throw new ForbiddenException("You are not assigned to this batch.");

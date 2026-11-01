@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, History, Info, SlidersHorizontal } from "lucide-react";
-import type { LiveClassSettingsOverride } from "@nexa-chess/types";
+import { withoutLockedFields, type LiveClassSettingsOverride } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -161,6 +161,8 @@ export function LiveClassSettingsSection({
                 onChange={(next) => applyOverride(next, false)}
                 presets={presetData?.presets ?? []}
                 disabled={!editable}
+                systemLocks={data.systemLocks}
+                batchLocks={data.batchLocks}
               />
 
               {editable && (
@@ -175,12 +177,15 @@ export function LiveClassSettingsSection({
                   </Button>
                   <Button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      // Locked fields never apply; leaving a remembered value for
+                      // one in the request would only earn a 403.
+                      const unlocked =
+                        withoutLockedFields(override, [...data.systemLocks, ...data.batchLocks]) ?? {};
                       update.mutate({
-                        liveClassSettings:
-                          Object.keys(override).length > 0 ? override : null,
-                      })
-                    }
+                        liveClassSettings: Object.keys(unlocked).length > 0 ? unlocked : null,
+                      });
+                    }}
                     disabled={update.isPending || !dirty}
                   >
                     {update.isPending ? "Saving…" : "Save settings"}

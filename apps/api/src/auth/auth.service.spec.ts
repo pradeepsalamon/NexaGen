@@ -48,6 +48,9 @@ type MockPrismaService = {
     create: jest.Mock;
     update: jest.Mock;
   };
+  trashAuditLog: {
+    create: jest.Mock;
+  };
   user: {
     create: jest.Mock;
     findUnique: jest.Mock;
@@ -65,7 +68,11 @@ type MockPrismaService = {
 describe("AuthService", () => {
   let service: AuthService;
   let jwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
-  let mailService: { sendPasswordResetLink: jest.Mock; sendEmailChangedNotice: jest.Mock };
+  let mailService: {
+    sendPasswordResetLink: jest.Mock;
+    sendEmailChangedNotice: jest.Mock;
+    sendParentContactChangedNotice: jest.Mock;
+  };
   let prismaService: MockPrismaService;
   let analyticsEvents: { record: jest.Mock };
   let mfaService: { loginChallenge: jest.Mock };
@@ -100,7 +107,8 @@ describe("AuthService", () => {
 
     mailService = {
       sendPasswordResetLink: jest.fn(),
-      sendEmailChangedNotice: jest.fn().mockResolvedValue(undefined)
+      sendEmailChangedNotice: jest.fn().mockResolvedValue(undefined),
+      sendParentContactChangedNotice: jest.fn().mockResolvedValue(undefined)
     };
 
     // `withDeleted` is the same Prisma client with the soft-delete filter
@@ -137,6 +145,7 @@ describe("AuthService", () => {
         update: jest.fn()
       },
       emailVerificationToken: { updateMany: jest.fn() },
+      trashAuditLog: { create: jest.fn().mockResolvedValue({}) },
       user: userMock,
       withDeleted: { user: userMock },
       $transaction: jest.fn((operations: unknown) => operations)
@@ -802,6 +811,105 @@ describe("AuthService", () => {
         "test@example.com",
         "new@example.com"
       );
+    });
+
+    // V7 (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md): the parent contact
+    // is the billing/notice default, so moving it needs the password and the
+    // previous contact is told.
+    describe("parent contact", () => {
+      const studentWithParent = {
+        ...activeUser,
+        password: "",
+        studentProfile: { ...activeUser.studentProfile, parentEmail: "mum@example.com", parentPhone: "111" }
+      };
+      const keepRest = {
+        experienceLevel: "BEGINNER" as const,
+        parentName: "Jane Doe",
+        referralSource: "ADS" as const
+      };
+
+      beforeEach(async () => {
+        prismaService.user.findUnique.mockReset();
+        prismaService.user.findUnique
+          .mockResolvedValueOnce({ ...studentWithParent, password: await hashSecret("password123") })
+          .mockResolvedValue(null);
+      });
+
+      it("refuses a parent-contact change without the current password", async () => {
+        await expect(
+          service.updateProfile("access-token", {
+            ...profile,
+            studentProfile: { ...keepRest, parentEmail: "attacker@example.com", parentPhone: "111" }
+          })
+        ).rejects.toThrow("Enter your current password to change the parent contact.");
+        expect(prismaService.user.update).not.toHaveBeenCalled();
+        expect(mailService.sendParentContactChangedNotice).not.toHaveBeenCalled();
+      });
+
+      it("refuses a phone-only change with the wrong password", async () => {
+        await expect(
+          service.updateProfile("access-token", {
+            ...profile,
+            currentPassword: "wrong-password",
+            studentProfile: { ...keepRest, parentEmail: "mum@example.com", parentPhone: "999" }
+          })
+        ).rejects.toThrow("Current password is incorrect.");
+        expect(prismaService.user.update).not.toHaveBeenCalled();
+      });
+
+      it("saves with the password, tells the previous contact and audits it", async () => {
+        await service.updateProfile("access-token", {
+          ...profile,
+          currentPassword: "password123",
+          studentProfile: { ...keepRest, parentEmail: "dad@example.com", parentPhone: "111" }
+        });
+
+        expect(prismaService.studentProfile.update).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ parentEmail: "dad@example.com" }) })
+        );
+        expect(mailService.sendParentContactChangedNotice).toHaveBeenCalledWith("mum@example.com", "John Doe");
+        expect(prismaService.trashAuditLog.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            action: "PARENT_CONTACT_CHANGE",
+            entity: "StudentProfile",
+            entityId: "usr-123",
+            metadata: { changedEmail: true, changedPhone: false }
+          })
+        });
+      });
+
+      it("needs no password when the contact is unchanged (case and spacing ignored)", async () => {
+        await service.updateProfile("access-token", {
+          ...profile,
+          studentProfile: { ...keepRest, parentEmail: "MUM@example.com ", parentPhone: " 111" }
+        });
+
+        expect(prismaService.studentProfile.update).toHaveBeenCalled();
+        expect(mailService.sendParentContactChangedNotice).not.toHaveBeenCalled();
+        expect(prismaService.trashAuditLog.create).not.toHaveBeenCalled();
+      });
+    });
+
+    // V6: a coach must not set their own pay rate.
+    it("ignores a coach's own hourlyRate", async () => {
+      prismaService.user.findUnique.mockReset();
+      prismaService.user.findUnique
+        .mockResolvedValueOnce({
+          ...activeUser,
+          role: UserRole.COACH,
+          studentProfile: null,
+          coachProfile: { bio: null, hourlyRate: null, title: "NONE" }
+        })
+        .mockResolvedValue(null);
+
+      await service.updateProfile("access-token", {
+        ...profile,
+        coachProfile: { bio: "GM-level coach", hourlyRate: "9999" }
+      });
+
+      const { data } = prismaService.coachProfile.update.mock.calls[0][0];
+      expect(data.bio).toBe("GM-level coach");
+      expect(data).not.toHaveProperty("hourlyRate");
     });
 
     describe("avatarUrl", () => {

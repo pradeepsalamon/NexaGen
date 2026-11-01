@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from "react";
 import {
+  liveClassLockSources,
   resolveLiveClassSettings,
+  withoutLockedFields,
   type LiveClassPreset,
   type LiveClassSettings,
   type LiveClassSettingsOverride,
+  type LockableLiveSetting,
 } from "@nexa-chess/types";
 import { Select } from "@/components/ui/Select";
 import { ConfigurationSummary } from "./ConfigurationSummary";
@@ -23,7 +26,12 @@ interface ClassSettingsPanelProps {
   presets?: LiveClassPreset[];
   disabled?: boolean;
   showAdvanced?: boolean;
+  /** Academy and batch locks: those fields render read-only. */
+  systemLocks?: LockableLiveSetting[];
+  batchLocks?: LockableLiveSetting[];
 }
+
+const NO_LOCKS: LockableLiveSetting[] = [];
 
 export function ClassSettingsPanel({
   system,
@@ -33,16 +41,23 @@ export function ClassSettingsPanel({
   presets = [],
   disabled = false,
   showAdvanced = true,
+  systemLocks = NO_LOCKS,
+  batchLocks = NO_LOCKS,
 }: ClassSettingsPanelProps) {
   const [appliedPresetId, setAppliedPresetId] = useState("");
 
   const inheritedFrom = useMemo(
-    () => resolveLiveClassSettings({ system, batch: batchOverride }),
-    [system, batchOverride],
+    () => resolveLiveClassSettings({ system, batch: batchOverride, systemLocks, batchLocks }),
+    [system, batchOverride, systemLocks, batchLocks],
   );
   const resolved = useMemo(
-    () => resolveLiveClassSettings({ system, batch: batchOverride, class: value }),
-    [system, batchOverride, value],
+    () =>
+      resolveLiveClassSettings({ system, batch: batchOverride, class: value, systemLocks, batchLocks }),
+    [system, batchOverride, value, systemLocks, batchLocks],
+  );
+  const lockSources = useMemo(
+    () => liveClassLockSources({ systemLocks, batchLocks }),
+    [systemLocks, batchLocks],
   );
 
   const applyPreset = (id: string) => {
@@ -52,7 +67,8 @@ export function ClassSettingsPanel({
       return;
     }
     const preset = presets.find((p) => p.id === id);
-    if (preset) onChange(structuredClone(preset.settings));
+    // A preset's locked fields don't apply (the API drops them too).
+    if (preset) onChange(withoutLockedFields(structuredClone(preset.settings), [...systemLocks, ...batchLocks]) ?? {});
   };
 
   return (
@@ -89,6 +105,7 @@ export function ClassSettingsPanel({
         disabled={disabled}
         showAdvanced={showAdvanced}
         scope="class"
+        lockSources={lockSources}
       />
 
       {!isEmptyOverride(value) || presets.length > 0 ? (

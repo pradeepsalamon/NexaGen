@@ -782,6 +782,21 @@ export const API_ROUTES = {
     responses: "/admin/feedback/responses",
     coachRatings: "/admin/feedback/coach-ratings"
   },
+  // Generic admin approvals (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md).
+  // Requester side: create, own list, read own, cancel own pending.
+  approvals: {
+    create: "/approvals",
+    mine: "/approvals/mine",
+    get: (id: string = ":id") => `/approvals/${id}`,
+    cancel: (id: string = ":id") => `/approvals/${id}/cancel`
+  },
+  // Reviewer side (ADMIN / SUPER_ADMIN).
+  adminApprovals: {
+    list: "/admin/approvals",
+    get: (id: string = ":id") => `/admin/approvals/${id}`,
+    approve: (id: string = ":id") => `/admin/approvals/${id}/approve`,
+    reject: (id: string = ":id") => `/admin/approvals/${id}/reject`
+  },
   // Coach asks, admin approves (coach sees own, admin sees all).
   classRequests: {
     list: "/class-requests",

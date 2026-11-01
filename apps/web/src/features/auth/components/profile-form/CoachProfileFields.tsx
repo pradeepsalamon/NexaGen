@@ -76,12 +76,16 @@ export const CoachProfileFields = memo(function CoachProfileFields({
             value={values.fideId}
           />
         </FormField>
-        <FormField id="profile-hourly-rate" label="Hourly Rate">
+        {/* Read-only: pay is set by the academy (compensation rates), never by the coach. */}
+        <FormField
+          hint="Set by the academy. Your pay rates are on the Earnings page."
+          id="profile-hourly-rate"
+          label="Hourly Rate"
+        >
           <Input
+            aria-describedby="profile-hourly-rate-hint"
             id="profile-hourly-rate"
-            inputMode="decimal"
-            maxLength={20}
-            onChange={(event) => onFieldChange("hourlyRate", event.target.value)}
+            readOnly
             value={values.hourlyRate}
           />
         </FormField>

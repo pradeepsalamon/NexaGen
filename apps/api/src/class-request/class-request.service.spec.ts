@@ -49,7 +49,7 @@ describe("ClassRequestService", () => {
       batch: {
         findUnique: jest.fn().mockResolvedValue({ name: "Batch A", startsAt: null, endsAt: null })
       },
-      batchCoach: { findFirst: jest.fn().mockResolvedValue({ id: "bc-1" }) },
+      batchCoach: { findFirst: jest.fn().mockResolvedValue({ id: "bc-1", coach: { timezone: "Asia/Kolkata" } }) },
       coachClass: {
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn(),
@@ -58,6 +58,7 @@ describe("ClassRequestService", () => {
       },
       classChangeRequest: {
         create: jest.fn().mockResolvedValue(fullRow()),
+        findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue(requestRow()),
         findUniqueOrThrow: jest.fn().mockResolvedValue(fullRow({ status: "APPROVED" })),
         update: jest.fn(),
@@ -136,6 +137,20 @@ describe("ClassRequestService", () => {
       });
     });
 
+    it("refuses a duplicate pending extra class at the same time", async () => {
+      prisma.classChangeRequest.findFirst.mockResolvedValue({ id: "req-old" });
+      await expect(
+        service.create(TOKEN, {
+          type: "EXTRA_CLASS",
+          batchId: "batch-1",
+          startsAt: future(24).toISOString(),
+          endsAt: future(25).toISOString(),
+          reason: "Make-up"
+        })
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.classChangeRequest.create).not.toHaveBeenCalled();
+    });
+
     it("is coach-only", async () => {
       actor = { id: "student-1", role: UserRole.STUDENT };
       await expect(service.list(TOKEN)).rejects.toBeInstanceOf(ForbiddenException);
@@ -174,7 +189,7 @@ describe("ClassRequestService", () => {
       );
       await service.approve(TOKEN, "req-1", {});
       expect(prisma.coachClass.updateMany).toHaveBeenCalledWith({
-        where: { id: "class-1", status: ClassStatus.SCHEDULED },
+        where: { coachId: "coach-1", id: "class-1", status: ClassStatus.SCHEDULED },
         data: expect.objectContaining({ startsAt: expect.any(Date) })
       });
       expect(messaging.dispatchInBackground).not.toHaveBeenCalled();
@@ -212,6 +227,39 @@ describe("ClassRequestService", () => {
     it("is admin-only", async () => {
       actor = { id: "coach-1", role: UserRole.COACH };
       await expect(service.approve(TOKEN, "req-1", {})).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    // V3: the coach's authority is revalidated at approval, not trusted from the ask.
+    it("revalidates that the coach is still an active coach of a live batch", async () => {
+      await service.approve(TOKEN, "req-1", {});
+      expect(prisma.batchCoach.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            batchId: "batch-1",
+            coachId: "coach-1",
+            isDeleted: false,
+            batch: expect.objectContaining({ isDeleted: false, status: { not: "ARCHIVED" } }),
+            coach: expect.objectContaining({ status: UserStatus.ACTIVE, role: UserRole.COACH })
+          })
+        })
+      );
+    });
+
+    it("refuses when the coach was removed, archived or the batch archived since the ask", async () => {
+      prisma.batchCoach.findFirst.mockResolvedValue(null);
+      await expect(service.approve(TOKEN, "req-1", {})).rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.coachClass.create).not.toHaveBeenCalled();
+      expect(messaging.dispatchInBackground).not.toHaveBeenCalled();
+    });
+
+    it("only moves a class the requesting coach still owns", async () => {
+      prisma.classChangeRequest.findUnique.mockResolvedValue(
+        requestRow({ type: "RESCHEDULE", classId: "class-1" })
+      );
+      await service.approve(TOKEN, "req-1", {});
+      expect(prisma.coachClass.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ coachId: "coach-1", id: "class-1" }) })
+      );
     });
   });
 });

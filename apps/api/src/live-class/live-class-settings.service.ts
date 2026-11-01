@@ -9,10 +9,14 @@ import { JwtService } from "@nestjs/jwt";
 import { UserRole } from "@prisma/client";
 import {
   DEFAULT_LIVE_CLASS_SETTINGS,
+  LOCKABLE_LIVE_SETTING_LABELS,
   liveClassSettingsSchema,
   liveClassSettingsOverrideSchema,
+  lockedFieldsChanged,
+  readLiveClassLocks,
   resolveLiveClassSettings,
   validateLiveClassSettings,
+  withoutLockedFields,
   type BatchLiveClassSettingsResponse,
   type LiveClassPolicyResponse,
   type LiveClassSettingsAuditEntry,
@@ -20,6 +24,7 @@ import {
   type LiveClassSettings,
   type LiveClassSettingsForClassResponse,
   type LiveClassSettingsOverride,
+  type LockableLiveSetting,
   type UpdateBatchLiveClassSettingsRequest,
   type UpdateLiveClassPolicyRequest,
   type UpdateLiveClassSettingsRequest,
@@ -35,6 +40,21 @@ export interface ResolvedClassSettings {
   batchOverride: LiveClassSettingsOverride | null;
   classOverride: LiveClassSettingsOverride | null;
   resolved: LiveClassSettings;
+  systemLocks: LockableLiveSetting[];
+  batchLocks: LockableLiveSetting[];
+}
+
+/**
+ * A layer's JSON column holds its settings plus its lock list (`locks`), so no
+ * migration was needed. Settings parsers strip the unknown `locks` key, so code
+ * that predates locks reads the same values as before.
+ */
+function layerJson(
+  settings: LiveClassSettings | LiveClassSettingsOverride | null,
+  locks: readonly LockableLiveSetting[],
+): object | null {
+  if (!settings && locks.length === 0) return null;
+  return locks.length > 0 ? { ...(settings ?? {}), locks: [...locks] } : { ...(settings ?? {}) };
 }
 
 @Injectable()
@@ -77,8 +97,16 @@ export class LiveClassSettingsService {
 
   /** The resolved Layer 1 settings, safe to call from other services. */
   async getSystemSettings(): Promise<LiveClassSettings> {
+    return (await this.getSystemLayer()).settings;
+  }
+
+  /** Layer 1 settings plus the academy-wide lock list. */
+  async getSystemLayer(): Promise<{ settings: LiveClassSettings; locks: LockableLiveSetting[] }> {
     const policy = await this.getActivePolicyRow();
-    return liveClassSettingsSchema.parse(policy.settings ?? {});
+    return {
+      settings: liveClassSettingsSchema.parse(policy.settings ?? {}),
+      locks: readLiveClassLocks(policy.settings),
+    };
   }
 
   async getPolicy(accessToken: string | undefined): Promise<LiveClassPolicyResponse> {
@@ -88,6 +116,7 @@ export class LiveClassSettingsService {
       id: policy.id,
       name: policy.name,
       settings: liveClassSettingsSchema.parse(policy.settings ?? {}),
+      locks: readLiveClassLocks(policy.settings),
       updatedAt: policy.updatedAt.toISOString(),
     };
   }
@@ -101,19 +130,26 @@ export class LiveClassSettingsService {
 
     const policy = await this.getActivePolicyRow();
     const before = liveClassSettingsSchema.parse(policy.settings ?? {});
+    const locksBefore = readLiveClassLocks(policy.settings);
+    // Normalised here too (deduped, catalogue order), not only by the route's Zod pipe.
+    const locks = body.locks ? readLiveClassLocks({ locks: body.locks }) : locksBefore;
     const next = resolveLiveClassSettings({ system: before, class: body.settings });
     this.assertValid(next);
 
     const updated = await this.prisma.liveClassPolicy.update({
       where: { id: policy.id },
-      data: { settings: next },
+      data: { settings: layerJson(next, locks) as never },
     });
-    await this.writeAudit("LiveClassPolicy", policy.id, user.id, before, next, "SYSTEM");
+    await this.writeAudit("LiveClassPolicy", policy.id, user.id, before, next, "SYSTEM", {
+      after: locks,
+      before: locksBefore,
+    });
 
     return {
       id: updated.id,
       name: updated.name,
       settings: next,
+      locks,
       updatedAt: updated.updatedAt.toISOString(),
     };
   }
@@ -152,7 +188,13 @@ export class LiveClassSettingsService {
     const batchNames = new Map(batches.map((b) => [b.id, b.name]));
 
     const entries: LiveClassSettingsAuditEntry[] = rows.map((row) => {
-      const meta = (row.metadata ?? {}) as { before?: unknown; after?: unknown; scope?: unknown };
+      const meta = (row.metadata ?? {}) as {
+        before?: unknown;
+        after?: unknown;
+        scope?: unknown;
+        locksBefore?: unknown;
+        locksAfter?: unknown;
+      };
       return {
         id: row.id,
         entity: row.entity,
@@ -170,6 +212,8 @@ export class LiveClassSettingsService {
         createdAt: row.createdAt.toISOString(),
         before: this.parseOverride(meta.before),
         after: this.parseOverride(meta.after),
+        locksBefore: Array.isArray(meta.locksBefore) ? readLiveClassLocks({ locks: meta.locksBefore }) : null,
+        locksAfter: Array.isArray(meta.locksAfter) ? readLiveClassLocks({ locks: meta.locksAfter }) : null,
       };
     });
 
@@ -210,18 +254,25 @@ export class LiveClassSettingsService {
     return parsed.success ? parsed.data : null;
   }
 
-  /** Resolve effective settings for a class — used by `startClass` snapshot. */
+  /**
+   * Resolve effective settings for a class — used by the `startClass` snapshot,
+   * token minting and mid-class updates. Academy and batch locks are applied
+   * here, so a locked field holds at LiveKit-grant level too.
+   */
   async resolveForClass(classId: string): Promise<ResolvedClassSettings> {
     const cls = await this.loadClassForSettings(classId);
-    const system = await this.getSystemSettings();
+    const { settings: system, locks: systemLocks } = await this.getSystemLayer();
     const batchOverride = this.parseOverride(cls.batch?.liveClassSettings);
+    const batchLocks = readLiveClassLocks(cls.batch?.liveClassSettings);
     const classOverride = this.parseOverride(cls.liveClassSettings);
     const resolved = resolveLiveClassSettings({
       system,
       batch: batchOverride,
       class: classOverride,
+      systemLocks,
+      batchLocks,
     });
-    return { system, batchOverride, classOverride, resolved };
+    return { system, batchOverride, classOverride, resolved, systemLocks, batchLocks };
   }
 
   async getSettingsForClass(
@@ -232,7 +283,8 @@ export class LiveClassSettingsService {
     const cls = await this.loadClassForSettings(classId);
     this.assertCanViewClass(user, cls);
 
-    const { system, batchOverride, classOverride, resolved } = await this.resolveForClass(classId);
+    const { system, batchOverride, classOverride, resolved, systemLocks, batchLocks } =
+      await this.resolveForClass(classId);
     const snapshotRaw = cls.liveSession?.effectiveSettings;
 
     return {
@@ -245,6 +297,8 @@ export class LiveClassSettingsService {
       canEdit:
         LiveClassSettingsService.isAdmin(user.role) ||
         (user.role === UserRole.COACH && cls.coachId === user.id),
+      systemLocks,
+      batchLocks,
     };
   }
 
@@ -258,17 +312,47 @@ export class LiveClassSettingsService {
     this.assertCanEditClass(user, cls);
 
     const before = this.parseOverride(cls.liveClassSettings);
+    const { settings: system, locks: systemLocks } = await this.getSystemLayer();
+    const batchOverride = this.parseOverride(cls.batch?.liveClassSettings);
+    const batchLocks = readLiveClassLocks(cls.batch?.liveClassSettings);
+    const locks = [...new Set([...systemLocks, ...batchLocks])];
+
     // A preset, when supplied, is copied wholesale into the class override
-    // (never a live reference — §23).
-    const nextOverride = body.presetId
+    // (never a live reference — §23) — minus any locked field: one academy
+    // preset serves batches with different locks, so those fields are dropped
+    // rather than refused.
+    const requested = body.presetId
       ? await this.presetOverrideById(body.presetId, user)
       : body.liveClassSettings;
 
+    // V1: a class override never changes an academy- or batch-locked field —
+    // not for a coach, and not for an admin editing one class (an admin changes
+    // a locked value at the layer that locked it). Refused, not silently
+    // ignored, so the caller knows why their change didn't stick.
+    if (!body.presetId) {
+      const changed = lockedFieldsChanged({
+        next: requested,
+        previous: before,
+        locked: resolveLiveClassSettings({ system, batch: batchOverride, systemLocks }),
+        locks,
+      });
+      if (changed.length > 0) {
+        throw new ForbiddenException(
+          `Locked by academy policy: ${changed.map((f) => LOCKABLE_LIVE_SETTING_LABELS[f]).join(", ")}. Ask an admin to change it.`,
+        );
+      }
+    }
+    const nextOverride = withoutLockedFields(requested, locks);
+
     if (nextOverride) {
-      const system = await this.getSystemSettings();
-      const batchOverride = this.parseOverride(cls.batch?.liveClassSettings);
       this.assertValid(
-        resolveLiveClassSettings({ system, batch: batchOverride, class: nextOverride }),
+        resolveLiveClassSettings({
+          system,
+          batch: batchOverride,
+          class: nextOverride,
+          systemLocks,
+          batchLocks,
+        }),
       );
     }
 
@@ -301,14 +385,16 @@ export class LiveClassSettingsService {
       throw new ForbiddenException("You do not have access to this batch.");
     }
 
-    const system = await this.getSystemSettings();
+    const { settings: system, locks: systemLocks } = await this.getSystemLayer();
     const batchOverride = this.parseOverride(batch.liveClassSettings);
     return {
       batchId,
       system,
       batchOverride,
-      resolved: resolveLiveClassSettings({ system, batch: batchOverride }),
+      resolved: resolveLiveClassSettings({ system, batch: batchOverride, systemLocks }),
       canEdit: LiveClassSettingsService.isAdmin(user.role),
+      systemLocks,
+      batchLocks: readLiveClassLocks(batch.liveClassSettings),
     };
   }
 
@@ -329,17 +415,38 @@ export class LiveClassSettingsService {
     }
 
     const before = this.parseOverride(batch.liveClassSettings);
-    const nextOverride = body.liveClassSettings;
+    const locksBefore = readLiveClassLocks(batch.liveClassSettings);
+    const { settings: system, locks: systemLocks } = await this.getSystemLayer();
+
+    // An academy lock binds the batch layer the same way a batch lock binds the class.
+    const changed = lockedFieldsChanged({
+      next: body.liveClassSettings,
+      previous: before,
+      locked: system,
+      locks: systemLocks,
+    });
+    if (changed.length > 0) {
+      throw new ForbiddenException(
+        `Locked by academy policy: ${changed.map((f) => LOCKABLE_LIVE_SETTING_LABELS[f]).join(", ")}. Change it in the academy live-class settings.`,
+      );
+    }
+    const nextOverride = withoutLockedFields(body.liveClassSettings, systemLocks);
+    // A batch can't re-lock what the academy already locked (it would be a no-op).
+    const locks = (body.locks ? readLiveClassLocks({ locks: body.locks }) : locksBefore).filter(
+      (field) => !systemLocks.includes(field),
+    );
     if (nextOverride) {
-      const system = await this.getSystemSettings();
-      this.assertValid(resolveLiveClassSettings({ system, batch: nextOverride }));
+      this.assertValid(resolveLiveClassSettings({ system, batch: nextOverride, systemLocks }));
     }
 
     await this.prisma.batch.update({
       where: { id: batchId },
-      data: { liveClassSettings: (nextOverride ?? null) as never },
+      data: { liveClassSettings: layerJson(nextOverride, locks) as never },
     });
-    await this.writeAudit("Batch", batchId, user.id, before, nextOverride ?? null, "BATCH");
+    await this.writeAudit("Batch", batchId, user.id, before, nextOverride ?? null, "BATCH", {
+      after: locks,
+      before: locksBefore,
+    });
 
     return this.getSettingsForBatch(accessToken, batchId);
   }
@@ -380,6 +487,7 @@ export class LiveClassSettingsService {
     before: unknown,
     after: unknown,
     scope: string,
+    locks?: { before: LockableLiveSetting[]; after: LockableLiveSetting[] },
   ) {
     try {
       await this.prisma.trashAuditLog.create({
@@ -388,7 +496,12 @@ export class LiveClassSettingsService {
           entityId,
           action: "LIVE_SETTINGS_CHANGE",
           userId,
-          metadata: { before, after, scope } as never,
+          metadata: {
+            before,
+            after,
+            scope,
+            ...(locks ? { locksAfter: locks.after, locksBefore: locks.before } : {}),
+          } as never,
         },
       });
     } catch (error) {

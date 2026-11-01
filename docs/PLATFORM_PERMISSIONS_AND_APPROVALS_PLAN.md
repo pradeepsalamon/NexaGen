@@ -1,0 +1,432 @@
+# Platform permissions and admin approvals — master plan
+
+Status: **in progress** (started 2026-11-01). Owner decisions are recorded in §1.3.
+This is the living plan. Each stage updates §7 "Progress" in the same change.
+The per-resource policy as built stays in [AUTHORIZATION.md](AUTHORIZATION.md);
+this file is the target model, the roadmap and the record of what changed.
+
+Contents: 1 Business requirements · 2 Architecture · 3 Current-state findings ·
+4 Permission and approval rules · 5 Roadmap · 6 Testing and security
+requirements · 7 Progress · 8 Outstanding decisions.
+
+---
+
+## 1. Business requirements
+
+### 1.1 Core principle
+
+Coaches run their **assigned** batches, students and classes efficiently.
+They never, on their own, override an academy-level decision, an
+admin-controlled setting, an important student permission or a privileged
+operation. Anything beyond a coach's assigned authority is an **admin request**
+that an admin approves. Normal teaching never waits for an admin.
+
+### 1.2 Authority
+
+| Role | Authority |
+|---|---|
+| Super Admin | Platform administration: admins, coach applications, backups, trash, data retention, demo classes, AI. Plus everything an Admin does. |
+| Admin | Academy-wide management, policies, and **approval authority**. Never approves their own request. Never overrides consent. |
+| Coach | Operational management of assigned batches, students and classes, within academy policy. |
+| Student | Their own permitted preferences and information. |
+| Parent/Guardian | Authority over their child's permissions and privacy, **once a verified guardian identity and consent records exist** (§2.8). Not built. |
+
+### 1.3 Owner decisions (2026-11-01)
+
+| Topic | Decision |
+|---|---|
+| Live classes | Admins can lock individual live-class settings. Coaches change unlocked settings only and never override a locked academy policy. Covers recording, waiting room, cameras, microphones, screen sharing and other applicable controls. |
+| Class cancellation | More than 24 h before the class: the coach cancels directly. Within 24 h: admin approval. After the class has started: an exceptional cancellation process. Emergency reporting stays possible. |
+| Students outside assigned batches | A coach can't directly add a student from outside their batches. They request admin approval, in student-access and live-class participant workflows alike. |
+| Recurring schedules | Admin and Super Admin both manage them, within their scope. |
+| Batch type | Keep the per-class override for now; investigate its effects (done: §3.3). |
+| Privacy and consent | Admin approval never overrides legally required consent or a valid parent/student privacy objection. Guardian identity and consent are designed separately and integrated (§2.8). |
+
+---
+
+## 2. Architecture
+
+The design extends what the codebase already does. It doesn't import a new
+framework.
+
+### 2.1 Enforcement stays in services
+
+No NestJS role guards (CLAUDE.md §3.2). Every rule lives in the service:
+`authenticateUser` → role check → row scope. The web hides controls for
+usability only. Every rule in §4 has a backend check and a test (§6).
+
+### 2.2 Shared rules live once, in `@nexa-chess/types`
+
+Any rule both apps need is a pure function in `packages/types`, used by the API
+(enforcement) and the web (showing the right control). Examples:
+`class-availability.ts`, `resolveBatchType`, the live-settings resolver. New
+ones in this plan:
+
+| Rule | Module | Stage |
+|---|---|---|
+| `isParentContactChange` — when a profile save moves the guardian contact | `index.ts` | 1 ✅ |
+| Live-setting locks: `LOCKABLE_LIVE_SETTINGS`, `readLiveClassLocks`, `withoutLockedFields`, `lockedFieldsChanged`, `liveClassLockSources`; `resolveLiveClassSettings({ systemLocks, batchLocks })` | `live-class-settings.ts` | 2 ✅ |
+| `resolveCancellationPath(class, now)` → `DIRECT` / `APPROVAL` / `EXCEPTIONAL` / `NOT_ALLOWED` | `class-cancellation.ts` | 4 |
+| Approval catalogue: action types, categories, TTLs, requester/reviewer roles, request/response contract | `approvals.ts` | 3 ✅ |
+
+### 2.3 One approval engine, not one per module
+
+**Decision:** build one generic engine and port existing workflows into it,
+instead of adding a sixth bespoke request table.
+
+* **Reuse:** the class-request pattern is correct and becomes the engine's core:
+  a status-filtered claim, revalidation and the change itself, all in one
+  `$transaction`, with messaging after commit.
+* **Not reused:** its table, which is class-specific.
+
+```
+apps/api/src/approval/
+  approval.module.ts, approval.controller.ts, approval.service.ts   lifecycle, auth, listing
+  approval-handler.registry.ts                                       actionType → handler
+  handlers/<action>.handler.ts                                       one file per action type
+packages/types/src/approvals.ts                                      catalogue + Zod payload per type
+```
+
+**Handler contract.** The owning module writes the handler; the engine owns the
+lifecycle.
+
+| Member | Purpose |
+|---|---|
+| `actionType`, `category`, `payloadSchema` | Catalogue entry; payload validated with Zod. |
+| `requesterRoles`, `reviewerRoles` | Who may ask; who may decide (ADMIN/SUPER_ADMIN, or SUPER_ADMIN only). |
+| `dedupeKey(payload)` | One PENDING request per operation (e.g. `CLASS_CANCEL:<classId>`). |
+| `authorize(requester, payload, tx)` | The requester's scope at creation, re-run at approval. |
+| `snapshot(tx, payload)` | The "current value" stored with the request and compared at approval. |
+| `execute(tx, request, reviewer)` | The change itself, in the approval transaction. |
+| `assertConsent?(tx, request)` | Consent gate (§2.8), run at approval. Approval can't skip it. |
+| `afterCommit?(request)` | Messaging and queues. |
+
+**Lifecycle guarantees** (implemented once, in `ApprovalService`):
+
+| Threat | Guard |
+|---|---|
+| Self-approval | `reviewerId <> requesterId`, in the claim's `where` and as a DB `CHECK`. |
+| Duplicate pending request | Partial unique index `(dedupeKey) WHERE status = 'PENDING'` → 409. |
+| Approval after expiry | Claim requires `expiresAt > now()`; a `JobLockService.runExclusive` cron marks rows EXPIRED. |
+| Approval after cancellation, or replay | Status-filtered `updateMany` claim; count 0 → 409. A decided request never returns to PENDING. |
+| State changed while pending | `authorize` re-run for the **requester** plus a `snapshot` comparison → 409 "changed since requested"; nothing executes, and the request stays reviewable so it can be rejected. |
+| Partial execution | Claim, revalidation, change and event row commit together or not at all. |
+| Unauthorized reviewer | Handler `reviewerRoles`. `/admin/approvals/*` is covered automatically by `admin-routes.int-spec.ts`. |
+
+**Existing workflows:**
+
+| Workflow | Plan |
+|---|---|
+| Class change requests | Ported as the first handlers (`CLASS_EXTRA`, `CLASS_RESCHEDULE`). The old table stays read-only for history (migrations are additive). |
+| Manual payments | `ManualPaymentService` keeps the money path (`PaymentService.applyProviderState` stays the single funnel). A thin handler surfaces it in the same inbox. |
+| Account deletion | Stays its own service: it's a data right, not a coach permission. It's listed in the admin inbox. |
+| Coach applications, knowledge suggestions | Unchanged (different actors and semantics). Listed in the inbox. |
+
+### 2.4 Data model (Stage 3, additive)
+
+* `ApprovalRequest`: `id, category, actionType, status (PENDING|APPROVED|REJECTED|CANCELLED|EXPIRED), requesterId, requesterRole, batchId?, classId?, subjectUserId?, currentValue Json, requestedValue Json, reason, details Json?, urgent, dedupeKey, expiresAt, reviewerId?, decidedAt?, rejectionReason?, executionResult Json?, createdAt, updatedAt`.
+  * Requester and reviewer relations are `onDelete: Restrict`; the history is retained like financial history.
+  * The partial unique index and the `CHECK` are hand-written in the migration.
+* `ApprovalEvent`: an append-only trail (`CREATED, APPROVED, REJECTED, CANCELLED, EXPIRED, REVALIDATION_FAILED`) with actor, timestamp and metadata. It's immutable (§2.6).
+* Getters in `PrismaService`, plus a privacy-export section for requests a user made.
+
+### 2.5 Live-setting locks (Stage 2, no migration)
+
+`locks` is an array of lockable field paths, stored inside the existing JSON:
+`LiveClassPolicy.settings` (academy) and `Batch.liveClassSettings` (batch).
+
+* **Resolution:** a field locked at a layer ignores every lower layer's value
+  for it. Order: system → batch → class; a preset is copied into the class.
+* **Coach writes:** a class override that changes a locked field is refused
+  with 403. This applies before the class, during it, and when applying a
+  preset.
+* **Snapshots and tokens:** the frozen session snapshot and LiveKit grants come
+  from the same resolver, so a lock is enforced at token level too.
+* **Lockable fields:** recording mode, waiting room, student mic, camera,
+  screen share, chat, private chat, reactions, board, and auto-join. The coach's
+  own mic and camera defaults aren't academy policy, so they can't be locked.
+* **Exceptions:** an exception to a lock before the class is an approval request
+  (`LIVE_SETTING_EXCEPTION`, Stage 5). During a class there are no exceptions.
+
+### 2.6 Audit
+
+* `trash_audit_logs` (the general audit table) and `approval_events` become
+  **append-only at database level**. A trigger rejects DELETE and any UPDATE,
+  except the `userId → NULL` that the foreign key performs when a user is
+  purged.
+* Test truncation uses `TRUNCATE`, which row triggers don't fire on.
+* Administrative decisions write an audit row in the same transaction as the
+  change.
+
+### 2.7 Notifications
+
+All through `MessagingDispatchService` (CLAUDE.md §3.6e):
+* `APPROVAL_REQUESTED` → admins.
+* `APPROVAL_DECIDED` → the requester.
+* Existing events still fire from handlers' `afterCommit` (e.g.
+  `CLASS_CANCELLED`, `CLASS_SCHEDULED`).
+
+### 2.8 Consent and guardians (separate design, integrated by hook)
+
+Today nothing records consent (V11) and there's no parent identity
+([PARENT_REPORTS.md](PARENT_REPORTS.md)). A separate design,
+`docs/CONSENT_AND_GUARDIANS.md`, must define:
+
+* `GuardianLink` (verified parent–child link).
+* `ConsentRecord { subjectUserId, purpose, grantedById, basis, grantedAt, withdrawnAt }`.
+* The purposes: recording, external-account sync, AI processing, WhatsApp, marketing.
+* Who may grant consent: guardian for a minor, the student when of age.
+
+**Integration rule fixed now:** every consent-controlled action calls one
+`ConsentService.assert(purpose, subject)`, inside the approval handler's
+`assertConsent` as well as on the direct path. No role, approval included,
+bypasses it, and a withdrawal applies to pending requests at approval time.
+Until that design is approved, the hook is not wired, and the C rows in §4 stay
+**not enforceable**, flagged as a risk (§8).
+
+---
+
+## 3. Current-state findings
+
+Audit of `origin/main` on 2026-11-01, re-checked before each fix.
+The earlier cross-user sweep is in [AUTHORIZATION.md](AUTHORIZATION.md) § Audit 2026-10-16.
+
+### 3.1 Existing approval workflows
+
+| Workflow | Table | Race guard | Expiry | Duplicate guard | History |
+|---|---|---|---|---|---|
+| Class change request | `ClassChangeRequest` | ✅ status-filtered claim | past-start only | reschedule only (EXTRA_CLASS added in Stage 1) | columns only |
+| Manual payment | `ManualPaymentRecord` | ❌ → ✅ Stage 1 (V2) | ❌ | idempotency key | payment `raw` |
+| Account deletion | `AccountDeletionRequest` | ✅ | ❌ | one per user | columns only |
+| Coach application | `CoachProfile.approvalStatus` | n/a | ❌ | n/a | columns only |
+| Knowledge suggestion | `KnowledgeArticleVersion` | versioned | ❌ | n/a | `KnowledgeArticleEvent` |
+
+### 3.2 Vulnerabilities and their status
+
+| # | Sev | Finding | Status |
+|---|---|---|---|
+| V1 | Medium | A coach's class-level live settings override the admin academy policy and batch defaults; no field can be locked (`live-class-settings.service.ts` `updateSettingsForClass`, `live-class.service.ts` `updateLiveSettings`). | ✅ Fixed, Stage 2 |
+| V2 | Medium | Manual-payment approve/reject was read-then-write. Payments may go FAILED → PAID, so a concurrent reject and approve could leave a REJECTED record next to a PAID payment and a granted entitlement, or settle twice. | ✅ Fixed, Stage 1 |
+| V3 | Medium | Class-request approval didn't revalidate that the requesting coach was still an active coach of a live, unarchived batch, or that a rescheduled class was still theirs. | ✅ Fixed, Stage 1 |
+| V4 | Low–Med | The live-class pull roster searches every active student in the academy, and a pull admits any of them. | Stage 4 (request flow, owner decision) |
+| V5 | Latent | Per-class `batchType` override; the payroll rate scope supports `classTypes`. | Investigated (§3.3); kept by decision |
+| V6 | Low | A coach set their own `CoachProfile.hourlyRate`, which admins see as the coach's rate. | ✅ Fixed, Stage 1 |
+| V7 | Low | A student (a minor) could silently change `parentEmail`/`parentPhone`, the default invoice and notice contact. | ✅ Mitigated, Stage 1 |
+| V8 | — | Reported as a web/API mismatch on recurring schedules. **Re-check: false positive.** `/admin/schedule` (recurring schedules) is Admin + Super Admin on both sides. `/admin/classes` is a different page (the batch-classes report), SUPER_ADMIN on both. | ✅ Closed; decision pinned by spec |
+| V9 | Low | Audit rows can be updated or deleted. | ✅ Fixed, Stage 3 (DB trigger) |
+| V10 | Info | A coach can cancel their own class up to the start time. | Stage 4 (24 h rule) |
+| V11 | Info | No consent records exist. | Separate design (§2.8) |
+| V12 | Info | A minor can request account deletion without a guardian. | Separate design (§2.8) |
+
+### 3.3 Batch type: effects (investigated 2026-11-01)
+
+`Batch.batchType` (admin default) and `CoachClass.batchType` (per-class coach
+override) are resolved by `resolveBatchType` and used **only for display**:
+
+* the coach's upcoming-class card and select;
+* the student dashboard and class detail;
+* the admin batch form.
+
+They're not used by payroll, attendance, analytics (its `classType` filter is
+demo vs batch), payments, invoices or messaging. The payroll compensation-rate
+scope accepts `classTypes`, but no caller passes a class type
+(`compensation-rate-resolution.service.ts`).
+
+**Rule for the future:** if pay, billing or reporting ever keys on batch type,
+the per-class override must become an approval request (or admin-only) in the
+same change.
+
+---
+
+## 4. Permission and approval rules
+
+Legend:
+* **D**: direct.
+* **R**: request → admin approval.
+* **A**: admin-only (ADMIN + SUPER_ADMIN).
+* **S**: super-admin only.
+* **C**: consent-controlled and non-overridable (§2.8).
+* "Own" means the coach's assigned batch or class.
+
+| Module | Action | Coach | Admin | Student | Status |
+|---|---|---|---|---|---|
+| **Live classes** | Start/end own class within the start window | D | D | — | built |
+| | Change an **unlocked** setting of own class | D | D | — | built |
+| | Change a **locked** setting | ✗ (R before class, Stage 5) | D | — | Stage 2 |
+| | Lock or unlock academy/batch settings | — | A | — | Stage 2 |
+| | Moderate, kick, admit from waiting room (own class) | D | D | — | built |
+| | Pull a student from own batch | D | D | — | built |
+| | Pull or admit a student from **outside** own batches | R | D | — | Stage 4 |
+| | Start/stop recording (own class) | D if unlocked (C once consent exists) | D | — | Stage 2 |
+| **Scheduling** | Edit notes, topic, homework of own class | D | D | — | built |
+| | Extra class / reschedule | R | D | — | built → engine, Stage 3 |
+| | Cancel own class **> 24 h** ahead | D (reason recorded) | D | — | Stage 4 |
+| | Cancel own class **≤ 24 h** ahead | R (urgent; emergency report notifies admins at once) | D | — | Stage 4 |
+| | Cancel after start ("not held") | R, exceptional (affects attendance and payroll) | D | — | Stage 4 |
+| | Recurring schedules | — | A | — | built; pinned by spec |
+| | Per-class batch-type override | D (display only, §3.3) | D | — | built |
+| **Batches** | Create, edit, archive, delete; assign coaches and students | — | A | — | built |
+| | Batch default live settings and locks | — | A | — | Stage 2 |
+| **Students and enrolment** | Read students of own batches | D | D | own | built |
+| | Enrol, remove or transfer a student | R | D | — | Stage 5 |
+| | Give a student from outside own batches access to own class | R | D | — | Stage 4 |
+| | Edit own profile | — | D (any) | D | built |
+| | Change parent/guardian contact | — | D | D + password + previous contact told | ✅ Stage 1 |
+| **Attendance** | Automatic recording (LiveKit) | — | — | — | built |
+| | Correct a student's attendance in own class | R | D (audited) | — | Stage 5 |
+| | Attendance policy | — | A | — | built |
+| **Coach management** | Coach assignment, approval, status | — | A (applications: S) | — | built |
+| | Own pay rate (`hourlyRate`, compensation rates) | read-only | A | — | ✅ Stage 1 |
+| | Request a substitute for own class | R | D | — | Stage 5 (optional) |
+| **Payments and finance** | Record manual payment (own batch student) | R | D | — | built; race fixed Stage 1 |
+| | Discounts, refunds, plans, invoices, payroll | — | A | own invoices | built |
+| **External integrations / game sync** | Link, verify and sync own external chess account | — | — | D | built |
+| | Sync or analyse a student's account on their behalf | — | A + C | — | not built; needs consent |
+| **AI** | AI diagnostics and tools | — | S | — | built (mock only) |
+| | Process a student's data with AI | — | S + C | — | not built; needs consent |
+| **Announcements / communications** | Chat with own batch students; groups of own students | D | D | DM staff/coach | built |
+| | Announcements, messaging rules, WhatsApp templates | — | A | — | built |
+| **Knowledge base / content** | Suggest an article | D (submits for review) | — | — | built |
+| | Publish articles, global puzzles, homework-approved folders | — | A (folders: S) | — | built |
+| | Own private puzzles, assignments to own batches | D | D | — | built |
+| **Account deletion / data rights** | Own data export | D | D | D | built |
+| | Request own account deletion | D | D | D (C: guardian, once built) | built |
+| | Complete a deletion | — | A (not own) | — | built |
+| | Trash, backups, data retention | — | S | — | built |
+| **Academy settings** | Live policy, attendance policy, appearance, typography, puzzle scoring, invoice settings | — | A | own preferences | built |
+| **Approvals** | Approve or reject a request | — | A (never own; some types S) | — | Stage 3 |
+| | View own requests, cancel own pending request | D | D | — | Stage 3 |
+
+**Never overridable:** legally required consent and a valid parent/student
+privacy objection (C rows). An admin approval runs the consent check (§2.8) and
+fails if consent is missing or withdrawn.
+
+---
+
+## 5. Roadmap
+
+Stages are small, isolated and tested. Each updates §7.
+
+| Stage | Scope | Schema | Status |
+|---|---|---|---|
+| **1. Immediate fixes** | V2 manual-payment claim · V3 class-request revalidation (+ EXTRA_CLASS duplicate guard, coach timezone) · V6 hourly rate read-only · V7 parent-contact safeguard · V8 re-check and pin · batch-type investigation | none | ✅ done |
+| **2. Live-setting locks (V1)** | `locks` in policy and batch JSON; resolver honours locks; coach class/preset/mid-class writes refused on locked fields; admin lock UI; coach UI shows locks | none (JSON) | ✅ done |
+| **3. Approval engine + immutable audit (V9)** | `approvals.ts` catalogue; `ApprovalRequest` + `ApprovalEvent`; `ApprovalService` with the §2.3 guarantees; expiry cron; append-only triggers on `trash_audit_logs` and `approval_events`; privacy export | migration `20261101082355_approval_requests_and_append_only_audit` | ✅ done (backend; no action handlers yet) |
+| **4. Cancellation, outside-batch students, inbox (V4, V10)** | `resolveCancellationPath`; `CLASS_CANCEL` / `CLASS_CANCEL_EXCEPTIONAL` handlers (urgent emergency flag); pull roster limited to own batches plus `LIVE_CLASS_GUEST_STUDENT`; **shipped together with** the admin inbox `/admin/requests` and coach `/coach/requests` plus `APPROVAL_REQUESTED`/`APPROVAL_DECIDED` notifications, so no coach workflow is blocked without a way to ask | enum migration (messaging events) | next |
+| **5. Port and unify** | Class change requests ported to engine handlers (data migration, old table read-only); manual payments, account deletions and coach applications listed in the inbox | data migration | |
+| **6. More request types** | Enrolment/transfer, attendance correction (+ audited admin correction), live-setting exception, substitute coach | none | |
+| **7. Consent and guardians** | Separate design (§2.8), then `ConsentService` wired into handlers and direct paths | migration | needs owner/legal decision |
+
+---
+
+## 6. Testing and security requirements
+
+Every stage runs, for what it touched:
+* `npm run typecheck -w apps/<x>` and `npm run lint -w apps/<x>`;
+* `npm run test -w apps/api`;
+* `npm run build -w apps/web` (web changes);
+* `npm run test:integration` against a throwaway `_int` database for schema
+  stages. Never `vps_dev`, never production.
+
+Required coverage (rows are added as stages land):
+
+| Requirement | Where |
+|---|---|
+| Coach can't reach another coach's batch, class or request | `cross-user-access.int-spec.ts` row for every new id-taking route |
+| Coach can't modify academy settings or locks | unit specs + `admin-routes.int-spec.ts` (auto-discovers `/admin/*`) |
+| Coach can't bypass an approval through the direct API | for each R action: the direct route refuses the coach (e.g. a locked setting via `PUT live-settings`, a ≤ 24 h cancel via `PATCH cancel`) |
+| Unauthorized approval, self-approval | engine unit spec + DB `CHECK` int-spec |
+| Duplicate, expired, cancelled, replayed requests | engine unit spec + partial-unique-index int-spec + concurrent approve‖approve and approve‖reject |
+| Admin changes during a pending request | coach removed / archived / batch archived / class cancelled → 409 and nothing executes ✅ (V3: `class-request.service.spec.ts`) |
+| Payment review races | ✅ `manual-payment.service.spec.ts` (approve‖reject, double approve, failed settle released) |
+| Consent withdrawal | Stage 7: withdraw, then approve → refused |
+| Immutable audit | int-spec: UPDATE/DELETE on audit tables raises; the user-purge `SET NULL` still works |
+| Cross-tenant | N/A while single-tenant ([SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md)); add when `tenantId` lands |
+
+---
+
+## 7. Progress
+
+### Stage 1: immediate security and consistency fixes (2026-11-01) ✅
+
+* **V2:** `ManualPaymentService.approve/reject` claim the PENDING record
+  (status-filtered `updateMany`) **before** touching the payment, and release
+  the claim if the payment step throws. Concurrent reviews get exactly one
+  winner; the loser gets 409.
+* **V3:** `ClassRequestService.approve` revalidates, inside the transaction, that
+  the requesting coach is still an ACTIVE coach assigned to a live, unarchived
+  batch. A reschedule moves the class only if it's still that coach's. The
+  clash check uses the coach's timezone (previously the admin's). Duplicate
+  pending EXTRA_CLASS requests at the same time get 409. Creating a request for
+  an archived batch is refused.
+* **V6:** the API ignores a coach-submitted `hourlyRate` (the field is still
+  accepted for older clients). The profile form shows it read-only, pointing to
+  Earnings.
+* **V7:** a student changing the parent email or phone must enter their current
+  password. The previous parent email gets a notice that doesn't reveal the new
+  contact, and an audit row (`PARENT_CONTACT_CHANGE`) is written. The shared
+  rule `isParentContactChange` lives in `@nexa-chess/types`.
+* **V8:** re-checked and closed as a false positive. The owner's decision
+  (Admin and Super Admin manage recurring schedules) is pinned by a spec.
+* **Batch type:** investigated; display-only (§3.3).
+
+### Stage 2: live-setting locks, V1 (2026-11-01) ✅
+
+* `@nexa-chess/types`: `LOCKABLE_LIVE_SETTINGS` (student mic, camera, screen
+  share, chat, private chat, reactions, board; student auto-join; recording;
+  waiting room) with labels. `resolveLiveClassSettings` takes `systemLocks` /
+  `batchLocks`: an academy lock ignores the batch and class layers, a batch
+  lock ignores the class layer. Snapshots and LiveKit grants use the same
+  resolver, so locks hold at token level.
+* Locks are stored as `locks` beside the settings in `LiveClassPolicy.settings`
+  and `Batch.liveClassSettings`. **No migration**; existing parsers strip the key.
+* `LiveClassSettingsService`:
+  * policy and batch saves accept `locks` (admin-only, normalised in the service);
+  * a class override, before or during the class, that changes a locked field
+    → 403 naming the fields. This binds admins editing one class too;
+  * stale-but-unchanged values and preset values for locked fields are
+    stripped, not refused;
+  * a batch default changing an academy-locked field → 403;
+  * audit rows carry `locksBefore` / `locksAfter`.
+* Web:
+  * the shared settings form shows "Locked by academy/batch" (read-only);
+  * the academy and batch editors have a lock toggle per field;
+  * the coach pre-class, preset and in-room panels honour locks and never
+    send locked fields;
+  * the audit log shows lock changes.
+
+### Stage 3: approval engine and append-only audit, V9 (2026-11-01) ✅
+
+* Schema (one additive migration): `ApprovalRequest`, `ApprovalEvent`, enums.
+  Hand-written SQL adds:
+  * the partial unique index on `dedupeKey` for PENDING rows;
+  * the `approval_requests_no_self_review` CHECK;
+  * the `nexa_append_only` trigger on `trash_audit_logs` and `approval_events`.
+    It refuses DELETE and any UPDATE except the foreign key's user→NULL on a
+    hard purge.
+* `apps/api/src/approval/`:
+  * `ApprovalService` implements every §2.3 guarantee: catalogue roles,
+    self-decision refused, duplicates → 409, expiry- and status-filtered claim
+    (no replay, no approve-after-cancel or approve-after-expiry), claim +
+    revalidate + execute + event in one transaction, a
+    `REVALIDATION_FAILED` event when state changed;
+  * an expiry cron under `JOB_LOCKS.approvalExpiry`;
+  * a handler registry (`APPROVAL_HANDLERS`), currently empty, so no request
+    can be made yet;
+  * routes under `API_ROUTES.approvals` (requester) and
+    `API_ROUTES.adminApprovals` (reviewer only; covered automatically by
+    `admin-routes.int-spec.ts`).
+* Privacy export: `approvalRequests` (made by the user) and
+  `approvalRequestsAboutMe`.
+
+---
+
+## 8. Outstanding decisions and risks
+
+| # | Item | Needed from |
+|---|---|---|
+| D1 | Consent and guardian design (§2.8): purposes, legal basis per purpose, guardian verification, age of digital consent per jurisdiction. Blocks enforcement of every C row, including recording of minors. | owner + legal |
+| D2 | Request expiry defaults. Proposed: 72 h for most types; class requests expire at the class start; urgent cancellation requests expire at the class start. | owner (default applied if unanswered) |
+| D3 | Whether a student (minor) may change the parent contact at all, or only through an admin once guardians exist. Current mitigation: password, notice and audit. | owner, with D1 |
+| R1 | V4 stays open until Stage 4: a coach can still pull an outside-batch student into a live class. | — |
+| R2 | Request notifications (`APPROVAL_REQUESTED` / `APPROVAL_DECIDED`) aren't built yet. They need new `MessagingEvent` + `NotificationType` enum values (a migration) and ship with Stage 4. | — |
