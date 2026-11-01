@@ -215,13 +215,26 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedDocument> {
       if (!ctx) throw new DocumentReadError("render-failed", "Your browser could not create a drawing surface.");
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, width, height);
-      const render = p.render({ canvas, canvasContext: ctx, viewport });
-      renderTask = render;
-      await render.promise;
+      let decodeWarning = false;
+      const originalWarn = console.warn;
+      console.warn = (...args: unknown[]) => {
+        const msg = args.map(String).join(" ");
+        if (/decoding failed|instantiateWasm|getJsModule|cannot decode/i.test(msg)) {
+          decodeWarning = true;
+        }
+        originalWarn.apply(console, args);
+      };
+      try {
+        const render = p.render({ canvas, canvasContext: ctx, viewport });
+        renderTask = render;
+        await render.promise;
+      } finally {
+        console.warn = originalWarn;
+      }
       const image = rgbaToGray(ctx.getImageData(0, 0, width, height).data, width, height);
       // pdf.js only warns when an image can't be decoded, and the page would
       // then read as "no diagrams here". Say what really happened.
-      if (image.data.every((value) => value === 255)) {
+      if (decodeWarning || image.data.every((value) => value === 255)) {
         const { fnArray } = await p.getOperatorList();
         if (fnArray.some((fn) => imagePaintOps(pdfjs).has(fn))) {
           throw new DocumentReadError("render-failed", `Page ${pageNumber} has a scanned image that could not be decoded. Reload the page and try again.`);

@@ -38,6 +38,7 @@ const FONT_EMPTY = new Set([" ", "+", "*", "/", ".", "#", "x", "X", "_"]);
 /** A diagram has a glyph on nearly every square; caption text near it doesn't. */
 const MIN_SQUARES_READ = 56;
 const MIN_AGREEMENT = 0.9;
+const MIN_OCCUPIED_AGREEMENT = 0.75;
 
 /** The printed grid from a chess font's letters, or null when these aren't one. */
 export function readChessFontBoard(items: DiagramTextItem[], rect: DiagramRect): (string | null)[][] | null {
@@ -68,10 +69,18 @@ export function readChessFontBoard(items: DiagramTextItem[], rect: DiagramRect):
 /** Whether a font reading and the image reading describe the same board. */
 export function fontReadingAgrees(font: (string | null)[][], image: (string | null)[][]): boolean {
   let same = 0;
+  let fontPieces = 0;
+  let piecesSame = 0;
   for (let r = 0; r < 8; r += 1) {
     for (let c = 0; c < 8; c += 1) {
+      if (font[r][c] !== null) {
+        fontPieces += 1;
+        if (font[r][c] === image[r][c]) piecesSame += 1;
+      }
       if (font[r][c] === image[r][c]) same += 1;
     }
   }
-  return same / 64 >= MIN_AGREEMENT;
+  if (same / 64 < MIN_AGREEMENT) return false;
+  if (fontPieces > 0 && piecesSame / fontPieces < MIN_OCCUPIED_AGREEMENT) return false;
+  return true;
 }

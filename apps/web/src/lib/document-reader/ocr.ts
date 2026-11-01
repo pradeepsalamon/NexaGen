@@ -138,6 +138,12 @@ async function readLine(worker: OcrWorker, image: GrayImage, left: number, right
 }
 
 /**
+ * Shared lock ensuring concurrent or subsequent OCR requests do not queue behind
+ * or interleave with timed-out operations on the single shared Tesseract worker.
+ */
+let ocrChain: Promise<void> = Promise.resolve();
+
+/**
  * The words inside regions of a rendered page, in page pixels. Regions are read in
  * order, line by line. Never throws: a failed load, or one over 30 s, gives [] (a slow
  * load carries on, for the next page), and past `timeLimitMs` you get what was read so far.
@@ -145,7 +151,15 @@ async function readLine(worker: OcrWorker, image: GrayImage, left: number, right
 export async function readTextInRegions(image: GrayImage, regions: PixelRect[], timeLimitMs = TIME_LIMIT_MS): Promise<DocumentTextItem[]> {
   const items: DocumentTextItem[] = [];
   let expired = false;
+
+  const prev = ocrChain;
+  let release: () => void = () => undefined;
+  ocrChain = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
   try {
+    await prev;
     const worker = await Promise.race([getWorker(), after(LOAD_LIMIT_MS, null)]);
     if (!worker) return [];
     const reading = (async () => {
@@ -162,8 +176,11 @@ export async function readTextInRegions(image: GrayImage, regions: PixelRect[], 
     })();
     await Promise.race([reading, after(timeLimitMs, undefined)]);
     expired = true;
+    await reading.catch(() => undefined);
     return [...items];
   } catch {
     return [...items];
+  } finally {
+    release();
   }
 }

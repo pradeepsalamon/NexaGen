@@ -147,6 +147,16 @@ describe("chess fonts in the text layer", () => {
     for (let c = 0; c < 8; c += 1) other[0][c] = "p";
     expect(fontReadingAgrees(empty, empty)).toBe(true);
     expect(fontReadingAgrees(other, empty)).toBe(false);
+    // Sparse board where matching empty squares exceed 90% but occupied squares disagree
+    const sparseFont = empty.map((row) => [...row]);
+    sparseFont[0][0] = "k";
+    sparseFont[0][1] = "q";
+    sparseFont[0][2] = "r";
+    const sparseImage = empty.map((row) => [...row]);
+    sparseImage[0][0] = "K";
+    sparseImage[0][1] = "Q";
+    sparseImage[0][2] = "R";
+    expect(fontReadingAgrees(sparseFont, sparseImage)).toBe(false);
   });
 });
 
