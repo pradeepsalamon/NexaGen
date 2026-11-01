@@ -131,7 +131,9 @@ jobs:
               return
             fi
 
-            conclusion=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$head&per_page=20"               --jq "[.workflow_runs[] | select(any(.pull_requests[]; .number == $number))] | sort_by(.created_at) | last | .conclusion") || return
+            # head_sha identifies the run. Don't filter on the run's pull_requests: GitHub
+            # empties that list once the PR has merged, which never matches.
+            conclusion=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$head&per_page=20"               --jq "[.workflow_runs[]] | sort_by(.created_at) | last | .conclusion") || return
             if [ "$conclusion" = "success" ]; then
               echo "PR #$number's CI passed on $head with this exact tree; skipping the re-run."
               passed=true
