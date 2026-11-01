@@ -200,6 +200,12 @@ Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselve
   that was behind `main`, a direct push, a manual run or a failed lookup runs
   `ci.yml` first, and a failure stops the deploy. Updating a PR's branch before
   merging avoids the second run and its Actions minutes.
+- **Bot PRs don't run CI by themselves**: on a Dependabot PR, `ci.yml`, `ai.yml`
+  and `security.yml` skip their jobs, which GitHub counts as passing. Before
+  merging one, run CI on its branch: `gh workflow run ci.yml --ref <branch>`, plus
+  `ai.yml` if it changes `services/ai-runtime`. Wait for it to pass, update the
+  branch first if it's behind `main` (that needs a new run), then merge. The deploy
+  gate accepts only a manual run for a bot PR and otherwise runs CI before deploying.
 - **Push to `main` deploys**: `deploy-production.yml` detects whether
   `apps/web/**` / `apps/api/**` / `packages/**` changed → gate → SSH to the VPS →
   `scripts/deploy-production.sh <sha> <services>` → `docker compose up -d --build`

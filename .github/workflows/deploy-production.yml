@@ -120,9 +120,9 @@ jobs:
           set -uo pipefail
           passed=false
           check() {
-            pr=$(gh api "repos/$REPO/commits/$SHA/pulls"               --jq '[.[] | select(.merged_at != null and .merge_commit_sha == env.SHA and .base.ref == "main")][0] | "\(.number) \(.head.sha)"') || return
-            [ -n "$pr" ] && [ "$pr" != "null null" ] || { echo "No merged PR for $SHA."; return; }
-            read -r number head <<< "$pr"
+            pr=$(gh api "repos/$REPO/commits/$SHA/pulls"               --jq '[.[] | select(.merged_at != null and .merge_commit_sha == env.SHA and .base.ref == "main")][0] | "\(.number) \(.head.sha) \(.user.login)"') || return
+            [ -n "$pr" ] && [ "$pr" != "null null null" ] || { echo "No merged PR for $SHA."; return; }
+            read -r number head author <<< "$pr"
 
             pushed_tree=$(gh api "repos/$REPO/commits/$SHA" --jq .commit.tree.sha) || return
             head_tree=$(gh api "repos/$REPO/commits/$head" --jq .commit.tree.sha) || return
@@ -131,14 +131,20 @@ jobs:
               return
             fi
 
+            # A bot PR's own CI run skips every job and still reports success, so only
+            # a manual run counts for one. No manual run means CI runs here instead.
+            event=pull_request
+            [ "$author" = "dependabot[bot]" ] && event=workflow_dispatch
+
             # head_sha identifies the run. Don't filter on the run's pull_requests: GitHub
             # empties that list once the PR has merged, which never matches.
-            conclusion=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$head&per_page=20"               --jq "[.workflow_runs[]] | sort_by(.created_at) | last | .conclusion") || return
+            conclusion=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?event=$event&head_sha=$head&per_page=20" \
+              --jq "[.workflow_runs[]] | sort_by(.created_at) | last | .conclusion") || return
             if [ "$conclusion" = "success" ]; then
               echo "PR #$number's CI passed on $head with this exact tree; skipping the re-run."
               passed=true
             else
-              echo "PR #$number's latest CI run concluded '$conclusion'; running CI."
+              echo "PR #$number's latest $event CI run concluded '$conclusion'; running CI."
             fi
           }
           check || true
