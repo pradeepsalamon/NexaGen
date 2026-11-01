@@ -148,4 +148,11 @@ export class AuthController {
       request.cookies?.[AUTH_COOKIE_NAMES.accessToken]
     );
   }
+
+  @Get(API_ROUTES.auth.emailVerificationStatus)
+  async emailVerificationStatus(@Req() request: Request) {
+    return this.authService.emailVerificationStatus(
+      request.cookies?.[AUTH_COOKIE_NAMES.accessToken]
+    );
+  }
 }

@@ -11,6 +11,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { LinkedText } from "@/components/ui/FormattedText";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { ReadOnlySyncedBoard } from "@/features/chessboard/components/board/ReadOnlySyncedBoard";
@@ -129,7 +130,9 @@ function RoomChat({ classId, enabled }: { classId: string; enabled: boolean }) {
                 ) : null}
                 <span className="ml-auto shrink-0 text-xs text-app-muted">{formatTime(m.createdAt, tz)}</span>
               </div>
-              <p className="whitespace-pre-wrap break-words text-app-text">{m.message}</p>
+              <p className="whitespace-pre-wrap break-words text-app-text">
+                <LinkedText text={m.message} />
+              </p>
             </div>
           ))
         )}

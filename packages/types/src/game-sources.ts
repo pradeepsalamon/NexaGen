@@ -58,6 +58,43 @@ export const EXTERNAL_SYNC_LIMITS = {
   rateLimitBackoffMinutes: 15
 } as const;
 
+/** Automatic sync, once a day. `OPTIONAL` leaves it to each student unless a coach or admin set a rule. */
+export const GAME_AUTO_SYNC_POLICIES = ["OFF", "OPTIONAL", "REQUIRED"] as const;
+export const gameAutoSyncPolicySchema = z.enum(GAME_AUTO_SYNC_POLICIES);
+export type GameAutoSyncPolicy = z.infer<typeof gameAutoSyncPolicySchema>;
+
+/** A coach's or admin's rule for one student. */
+export const GAME_AUTO_SYNC_RULES = ["ALWAYS", "NEVER"] as const;
+export const gameAutoSyncRuleSchema = z.enum(GAME_AUTO_SYNC_RULES);
+export type GameAutoSyncRule = z.infer<typeof gameAutoSyncRuleSchema>;
+
+/**
+ * The one rule for whether an account syncs by itself, in order: the academy's
+ * OFF is a master switch; a per-student NEVER is an exception even to REQUIRED
+ * (a parent's objection, say); then REQUIRED, ALWAYS, and the student's choice.
+ * `lockedBy` is who decided, when it wasn't the student.
+ */
+export function resolveAutoSync(input: {
+  policy: GameAutoSyncPolicy;
+  rule: GameAutoSyncRule | null;
+  studentChoice: boolean;
+}): { enabled: boolean; lockedBy: "ACADEMY" | "STAFF" | null } {
+  if (input.policy === "OFF") return { enabled: false, lockedBy: "ACADEMY" };
+  if (input.rule === "NEVER") return { enabled: false, lockedBy: "STAFF" };
+  if (input.policy === "REQUIRED") return { enabled: true, lockedBy: "ACADEMY" };
+  if (input.rule === "ALWAYS") return { enabled: true, lockedBy: "STAFF" };
+  return { enabled: input.studentChoice, lockedBy: null };
+}
+
+export const updateExternalAccountRequestSchema = z.object({ autoSync: z.boolean() });
+export type UpdateExternalAccountRequest = z.infer<typeof updateExternalAccountRequestSchema>;
+
+export const updateGameAutoSyncPolicyRequestSchema = z.object({ policy: gameAutoSyncPolicySchema });
+export type UpdateGameAutoSyncPolicyRequest = z.infer<typeof updateGameAutoSyncPolicyRequestSchema>;
+
+export const updateGameAutoSyncRuleRequestSchema = z.object({ rule: gameAutoSyncRuleSchema.nullable() });
+export type UpdateGameAutoSyncRuleRequest = z.infer<typeof updateGameAutoSyncRuleRequestSchema>;
+
 export type ExternalChessAccountDto = {
   id: string;
   provider: ExternalChessProvider;
@@ -71,17 +108,32 @@ export type ExternalChessAccountDto = {
   nextSyncAllowedAt: string | null;
   syncError: string | null;
   gamesImported: number;
+  /** The student's own choice; pass it to `resolveAutoSync`. */
+  autoSync: boolean;
 };
 
 export type GameSourcesConfig = {
   /** Online-account import is switched on for this deployment. */
   externalImportEnabled: boolean;
+  autoSyncPolicy: GameAutoSyncPolicy;
   pgnLimits: typeof PGN_IMPORT_LIMITS;
   syncLimits: typeof EXTERNAL_SYNC_LIMITS;
 };
 
 export type GameSourcesOverview = {
   config: GameSourcesConfig;
+  accounts: ExternalChessAccountDto[];
+  /** The signed-in student's rule from a coach or admin. */
+  autoSyncRule: GameAutoSyncRule | null;
+};
+
+/** What a coach or admin sees and controls for one student. */
+export type StudentGameSources = {
+  externalImportEnabled: boolean;
+  autoSyncPolicy: GameAutoSyncPolicy;
+  autoSyncRule: GameAutoSyncRule | null;
+  /** The rule was set by an admin; a coach can't change it. */
+  autoSyncRuleByAdmin: boolean;
   accounts: ExternalChessAccountDto[];
 };
 

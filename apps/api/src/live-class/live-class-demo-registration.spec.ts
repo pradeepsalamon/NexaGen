@@ -14,6 +14,7 @@ import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { JobLockService } from "../prisma/job-lock.service";
 import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
@@ -95,7 +96,8 @@ describe("LiveClassDemoService.joinDemoClass", () => {
         { provide: LiveClassSettingsService, useValue: {} },
         { provide: AnalyticsEventService, useValue: {} },
         { provide: WhatsAppService, useValue: { normalizeRecipient, trySendText } },
-        { provide: MailService, useValue: { sendDemoClassRegistrationConfirmation } }
+        { provide: MailService, useValue: { sendDemoClassRegistrationConfirmation } },
+        { provide: SystemMessageRenderer, useValue: { render: jest.fn().mockResolvedValue({ body: "Registered" }) } }
       ]
     }).compile();
 
@@ -131,7 +133,7 @@ describe("LiveClassDemoService.joinDemoClass", () => {
       contactMethod: DemoRegistrationContactMethod.PHONE
     });
     // Best-effort confirmation is fired for a first-time registration.
-    await Promise.resolve();
+    await new Promise(setImmediate);
     expect(trySendText).toHaveBeenCalledTimes(1);
     expect(sendDemoClassRegistrationConfirmation).not.toHaveBeenCalled();
   });

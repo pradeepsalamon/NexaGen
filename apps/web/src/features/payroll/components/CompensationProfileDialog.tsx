@@ -33,6 +33,13 @@ import {
   useUpdateCompensationProfile
 } from "../hooks/usePayrollApi";
 import { DateStringPicker } from "@/components/ui/DatePicker";
+import {
+  INITIAL_TIER_ROWS,
+  TierRatesEditor,
+  formatTierSummary,
+  isValidTierConfig,
+  toTierConfig
+} from "./TierRatesEditor";
 
 const ENGAGEMENT_TYPES = Object.keys(COACH_ENGAGEMENT_TYPE_LABELS) as CoachEngagementType[];
 const COMPENSATION_MODELS = Object.keys(COACH_COMPENSATION_MODEL_LABELS) as CoachCompensationModel[];
@@ -41,7 +48,7 @@ const CALCULATION_TYPE_LABELS: Record<CompensationCalculationType, string> = {
   HOURLY_RATE: "Hourly rate",
   PER_CLASS_RATE: "Per-class rate",
   MONTHLY_SALARY: "Monthly salary",
-  TIER: "Tiered (advanced)",
+  TIER: "Tiered hourly",
   PERCENTAGE: "Percentage"
 };
 const CALCULATION_TYPES = Object.keys(CALCULATION_TYPE_LABELS) as CompensationCalculationType[];
@@ -82,12 +89,19 @@ export function CompensationProfileDialog({
   const [calculationType, setCalculationType] = useState<CompensationCalculationType>("HOURLY_RATE");
   const [rateMajor, setRateMajor] = useState("");
   const [percent, setPercent] = useState("");
+  const [tierRows, setTierRows] = useState(INITIAL_TIER_ROWS);
   const [effectiveFrom, setEffectiveFrom] = useState(() => new Date().toISOString().slice(0, 10));
 
   const rateMinor = toMinorUnits(Number(rateMajor) || 0, currency);
+  const tierConfig = toTierConfig(tierRows, currency);
+  const isTier = calculationType === "TIER";
   const canAddRate =
     effectiveFrom.length > 0 &&
-    (calculationType === "PERCENTAGE" ? Number(percent) > 0 : rateMinor > 0);
+    (isTier
+      ? isValidTierConfig(tierConfig)
+      : calculationType === "PERCENTAGE"
+        ? Number(percent) > 0
+        : rateMinor > 0);
 
   return (
     <Dialog onOpenChange={(open) => !open && onClose()} open>
@@ -191,6 +205,7 @@ export function CompensationProfileDialog({
                         {CALCULATION_TYPE_LABELS[rate.calculationType]}
                         {rate.rateMinor !== null ? ` — ${formatMoney(rate.rateMinor, currency)}` : ""}
                         {rate.percentageBps !== null ? ` — ${rate.percentageBps / 100}%` : ""}
+                        {rate.tierConfig ? ` — ${formatTierSummary(rate.tierConfig, currency)}` : ""}
                       </span>
                       <span className="text-xs text-app-muted">
                         {formatFullDate(rate.effectiveFrom, timeZone)} –{" "}
@@ -218,7 +233,7 @@ export function CompensationProfileDialog({
               )}
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="col-span-2 sm:col-span-1">
+                <div className={isTier ? "col-span-2 sm:col-span-4" : "col-span-2 sm:col-span-1"}>
                   <Label htmlFor="rate-calc-type">Type</Label>
                   <Select
                     id="rate-calc-type"
@@ -245,7 +260,7 @@ export function CompensationProfileDialog({
                       value={percent}
                     />
                   </div>
-                ) : calculationType !== "TIER" ? (
+                ) : !isTier ? (
                   <div>
                     <Label htmlFor="rate-amount">Amount ({currency})</Label>
                     <Input
@@ -258,11 +273,14 @@ export function CompensationProfileDialog({
                     />
                   </div>
                 ) : (
-                  <div className="col-span-2 sm:col-span-2">
-                    <p className="text-xs text-app-muted">
-                      Tiered rates aren&apos;t configurable from this dialog yet — add them via
-                      the API for now.
-                    </p>
+                  <div className="col-span-2 sm:col-span-4">
+                    <TierRatesEditor currency={currency} onChange={setTierRows} rows={tierRows} />
+                    {profile.defaultCompensationModel !== "TIERED" ? (
+                      <p className="mt-2 text-xs text-app-muted">
+                        Payroll only uses this rate once the saved compensation model is{" "}
+                        {COACH_COMPENSATION_MODEL_LABELS.TIERED}.
+                      </p>
+                    ) : null}
                   </div>
                 )}
 
@@ -278,7 +296,7 @@ export function CompensationProfileDialog({
 
                 <div className="flex items-end">
                   <Button
-                    disabled={!canAddRate || calculationType === "TIER"}
+                    disabled={!canAddRate}
                     isLoading={addRate.isPending}
                     onClick={() =>
                       addRate.mutate({
@@ -286,17 +304,19 @@ export function CompensationProfileDialog({
                         body: {
                           compensationModel: defaultCompensationModel,
                           calculationType,
-                          rateMinor: calculationType === "PERCENTAGE" ? undefined : rateMinor,
+                          rateMinor: calculationType === "PERCENTAGE" || isTier ? undefined : rateMinor,
                           percentageBps:
                             calculationType === "PERCENTAGE"
                               ? Math.round(Number(percent) * 100)
                               : undefined,
+                          tierConfig: isTier ? tierConfig : undefined,
                           effectiveFrom: new Date(effectiveFrom).toISOString()
                         }
                       }, {
                         onSuccess: () => {
                           setRateMajor("");
                           setPercent("");
+                          setTierRows(INITIAL_TIER_ROWS);
                         }
                       })
                     }

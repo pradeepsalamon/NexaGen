@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { AnnouncementsPanel } from "./AnnouncementsPanel";
 import { DeliveryLogPanel } from "./DeliveryLogPanel";
 import { MessagingRulesPanel } from "./MessagingRulesPanel";
+import { SystemMessagesPanel } from "./SystemMessagesPanel";
 
 export function MessagingClient() {
   return (
@@ -17,12 +18,16 @@ export function MessagingClient() {
       <Tabs defaultValue="rules">
         <TabsList className="justify-self-end">
           <TabsTrigger value="rules">Message rules</TabsTrigger>
+          <TabsTrigger value="system">System messages</TabsTrigger>
           <TabsTrigger value="announcements">Announcements</TabsTrigger>
           <TabsTrigger value="log">Delivery log</TabsTrigger>
         </TabsList>
 
         <TabsContent value="rules">
           <MessagingRulesPanel />
+        </TabsContent>
+        <TabsContent value="system">
+          <SystemMessagesPanel />
         </TabsContent>
         <TabsContent value="announcements">
           <AnnouncementsPanel />

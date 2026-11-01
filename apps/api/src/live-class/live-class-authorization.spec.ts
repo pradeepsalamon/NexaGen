@@ -22,6 +22,7 @@ import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { JobLockService } from "../prisma/job-lock.service";
 import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
@@ -108,6 +109,7 @@ describe("LiveClassChatService chat authorization", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         {
           provide: LiveClassSettingsService,
           useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
@@ -341,6 +343,7 @@ describe("LiveClassModerationService.moderateParticipant (coach force-mute)", ()
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         {
           provide: AnalyticsEventService,
@@ -671,6 +674,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         {
           provide: LiveClassSettingsService,
           useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
@@ -889,6 +893,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         {
           provide: LiveClassSettingsService,
           useValue: { updateSettingsForClass, resolveForClass, getSettingsForClass },
@@ -1042,6 +1047,7 @@ describe("LiveClassService waiting room", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         {
           provide: AnalyticsEventService,
@@ -1272,6 +1278,7 @@ describe("LiveClassService screen-share requests", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         {
           provide: AnalyticsEventService,
@@ -1563,6 +1570,7 @@ describe("LiveClassModerationService.kickParticipant", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         {
           provide: AnalyticsEventService,

@@ -10,6 +10,7 @@ import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { JobLockService } from "../prisma/job-lock.service";
 import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
@@ -55,6 +56,7 @@ describe("LiveClassService auto-end sweep", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         { provide: AnalyticsEventService, useValue: {} }
       ]

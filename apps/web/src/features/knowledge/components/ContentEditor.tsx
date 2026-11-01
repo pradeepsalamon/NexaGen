@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
+import { TextEditor } from "@/components/ui/TextEditor";
 import { Textarea } from "@/components/ui/Textarea";
 import { cn } from "@/lib/utils";
 import { KnowledgeMarkdown, PgnViewer } from "./KnowledgeMarkdown";
@@ -118,11 +119,12 @@ export function ContentEditor({
         </div>
         {mode === "write" ? (
           <>
-            <Textarea
+            <TextEditor
               className="min-h-[280px] font-mono text-sm"
               id="kb-body"
+              linkTargets="site"
               maxLength={KNOWLEDGE_BODY_MAX}
-              onChange={(e) => set("body", e.target.value)}
+              onChange={(body) => set("body", body)}
               value={value.body}
             />
             <p className="text-xs text-app-muted">{MARKDOWN_HELP}</p>

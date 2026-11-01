@@ -14,6 +14,7 @@ import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types
 import {
   deriveLiveKitGrants,
   liveClassSettingsSchema,
+  markdownToWhatsApp,
   type DemoClassPublicInfo,
   type GuestJoinDemoRequest,
   type GuestJoinDemoResponse,
@@ -28,6 +29,8 @@ import {
 } from "@prisma/client";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { formatDemoTime } from "../messaging/messaging.format";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { signDemoGuestToken } from "./demo-guest-token";
 
@@ -42,6 +45,7 @@ export class LiveClassDemoService {
     private readonly livekit: LiveKitService,
     private readonly whatsapp: WhatsAppService,
     private readonly mail: MailService,
+    private readonly messages: SystemMessageRenderer,
     private readonly waitingRoom: LiveClassWaitingRoomService,
     private readonly jwtService: JwtService
   ) {}
@@ -349,6 +353,7 @@ export class LiveClassDemoService {
     startsAt: Date,
     topic: string
   ) {
+    const joinUrl = `${getFrontendUrl(this.env)}/demo/${classId}`;
     try {
       if (registration.contactMethod === DemoRegistrationContactMethod.EMAIL && registration.email) {
         await this.mail.sendDemoClassRegistrationConfirmation({
@@ -356,16 +361,19 @@ export class LiveClassDemoService {
           guestName: registration.name,
           classTopic: topic,
           startsAt,
-          joinUrl: `${getFrontendUrl(this.env)}/demo/${classId}`
+          joinUrl
         });
       } else if (registration.phoneNumber) {
         // A first-time visitor is outside WhatsApp's 24h customer-service
         // window, so this free-form text may simply not deliver — attempted
         // anyway, best effort, and never awaited by the caller's response.
-        await this.whatsapp.trySendText({
-          to: registration.phoneNumber,
-          body: `Hi ${registration.name}, you're registered for the demo class "${topic}". We'll see you there!`
+        const { body } = await this.messages.render("DEMO_REGISTRATION_WHATSAPP", {
+          "demo.dateTime": formatDemoTime(startsAt),
+          "demo.topic": topic,
+          "guest.name": registration.name,
+          "links.join": joinUrl
         });
+        await this.whatsapp.trySendText({ to: registration.phoneNumber, body: markdownToWhatsApp(body) });
       }
     } catch (error) {
       this.logger.warn(

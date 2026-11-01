@@ -56,6 +56,7 @@ import { HealthModule } from "./health/health.module";
 import { RetentionModule } from "./retention/retention.module";
 import { GameAnalysisModule } from "./game-analysis/game-analysis.module";
 import { GameLibraryModule } from "./game-library/game-library.module";
+import { EmailAdminModule } from "./email-admin/email-admin.module";
 import { GameSourcesModule } from "./game-sources/game-sources.module";
 import { ChatModule } from "./chat/chat.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
@@ -103,6 +104,7 @@ import { FeatureGateGuard } from "./platform/feature-gate.guard";
     StudentMatchModule,
     GameAnalysisModule,
     GameLibraryModule,
+    EmailAdminModule,
     GameSourcesModule,
     ChatModule,
     KnowledgeModule,

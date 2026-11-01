@@ -23,14 +23,16 @@ down. Walkthrough below.
 
 `apps/api/src/messaging/` + `apps/web/src/features/messaging/`, page
 `/admin/messaging`, routes `API_ROUTES.messaging.*` / `.announcements.*`. One
-`MessagingRule` row per `MessagingEvent` (10 events; `CLASS_REMINDER` and
+`MessagingRule` row per `MessagingEvent` (`CLASS_REMINDER` and
 `CLASS_REMINDER_COACH` are the two sides of the same moment, each with its own
 lead time, channels and copy, swept separately in `messaging.scheduler.ts`) holds enabled + per-channel
-toggles (WhatsApp / in-app) + audience + lead time + `{{placeholder}}` templates.
+toggles (WhatsApp / in-app / email) + audience + lead time + `{{placeholder}}` templates.
 **The catalogue, defaults and renderer live in `@nexa-chess/types`
 (`messaging.ts`)** — `MESSAGING_EVENT_DEFINITIONS`, `DEFAULT_MESSAGING_RULES`,
 `renderMessageTemplate`, `findUnknownTemplateVariables`, `sampleVariablesFor`;
 use them, don't reimplement, or the admin preview stops matching the send.
+`MESSAGE_VARIABLE_DOCS` gives every placeholder its label and example value for
+the editors; a new placeholder needs an entry (a spec checks).
 
 - **`MessagingDispatchService.dispatchInBackground(request)` is the only entry
   point** a feature service calls. It never throws — messaging must not fail
@@ -135,6 +137,7 @@ every 5 minutes, and the assignment-due sweep hourly.
 | Assignment due soon | `MessagingScheduler`, on the rule's lead time | on, in-app only |
 | Assignment submitted / graded | a student finishing an assignment | on, in-app only |
 | Assignment overdue (coach) | the hourly due-reminder cron, once per overdue deployment | on, in-app only |
+| Revision due | the hourly `revisionDueReminders` cron, at most once per student per send day, queued within an hour of the send time; skipped on a plan without `smartRevision` | off; in-app only, daily at 5pm in the student's own time zone |
 | Announcement | an admin publishing one (Announcements tab) | off |
 | Welcome message | not fired by self-registration any more — student and coach sign-ups both wait for approval | off |
 | Account approved | an admin approving a pending student, or re-activating an account | off |
@@ -144,10 +147,10 @@ every 5 minutes, and the assignment-due sweep hourly.
 | Invoice issued | invoice generation after a capture (can carry the PDF) | on, in-app only |
 | Payroll finalized / paid | an admin finalizing a payroll period / marking a payout paid | on, in-app only |
 
-Each rule carries: a master on/off, per-channel toggles (**WhatsApp** and the
-**in-app bell**), an audience, **when to send** (immediately, daily at a time,
-or weekly on a day - or a lead time, for the two events that fire ahead of a
-moment), the in-app heading, and the message body. Bodies are `{{placeholder}}` templates —
+Each rule carries: a master on/off, per-channel toggles (**WhatsApp**, the
+**in-app bell** and **email**), an audience, **when to send** (immediately, daily
+at a time, or weekly on a day - or a lead time, for the two events that fire ahead
+of a moment), the heading (in-app heading and email subject), and the message body. Bodies are `{{placeholder}}` templates —
 the catalogue of what each event can bind lives in
 `packages/types/src/messaging.ts` (`MESSAGING_EVENT_DEFINITIONS`), and the same
 `renderMessageTemplate` runs in the admin preview and on the server, so what you
@@ -204,6 +207,66 @@ Things worth knowing before you touch it:
 - **Outside WhatsApp's 24-hour window**, free-form text is rejected by Meta
   (error `131047`). A rule can name an approved template instead, with its
   positional values written as mini-templates.
+
+## Email channel
+
+Off on every rule until an admin turns it on (`emailEnabled`). It uses the same
+outbox as the other channels: dispatch writes an `EMAIL` row, and the worker sends
+it through `MailService.sendRuleEmail`.
+
+- **The address isn't stored on the row.** The worker reads the account's email at
+  send time, so a changed address is respected and a deleted account gets nothing.
+  The log masks it (`a•••@example.com`).
+- **Verified addresses only, once the academy asks for them.** With the policy at
+  Admin → Email set to Off, everyone is mailed. Otherwise an unverified address
+  gets a `SKIPPED` row.
+- **`INVOICE_ISSUED` has no email channel** (`supportsEmail: false`): the invoice
+  email is a system message, so a rule email would be a second copy.
+- A 5xx from the mail server fails at once; anything else retries like WhatsApp.
+  A sweep stops after 4 minutes, before its claims go stale, and later sweeps pick
+  up what's left.
+- Email has no unsubscribe link or per-person opt-out yet.
+- A rule's test email only goes to the admin's own account.
+
+## System messages
+
+The fixed messages outside the rules can be reworded at `/admin/messaging` →
+System messages: sign-in and account emails, the invoice email, demo-class emails
+and WhatsApp texts, and the notices sent to `ADMIN_EMAILS`. Catalogue and defaults:
+`@nexa-chess/types` `system-messages.ts`. Saved wording: `system_message_templates`.
+No row means the default.
+
+- **Send through `SystemMessageRenderer.render`, never hardcoded text.** A new fixed
+  message needs a `SYSTEM_MESSAGE_DEFINITIONS` entry.
+- **Admins change the words only**, not when a message goes out or who gets it.
+- **The code adds an email's button and link** (`actionVariable`), so an edit can't
+  lose a password-reset link. A WhatsApp text has no button, so it lists the link in
+  `requiredVariables`, and the API refuses a body without it.
+- Saving the default wording deletes the row.
+- Direct email (`/admin/email`) is exempt, since staff write it themselves.
+
+### Formatting and links
+
+Rule, system-message, announcement and direct-email bodies are written in `TextEditor`
+and stored as readable text (`**bold**`, `_italic_`, `- lists`, `[label](url)`), never
+HTML. The parser is `@nexa-chess/types` `markdown.ts`; each channel converts from it:
+
+| Channel | Through | Result |
+|---|---|---|
+| Email HTML | `mail/message-html.ts` `messageToEmailHtml` | Everything escaped; only `http(s)` links, underlined and coloured. A `/path` link shows as its label. |
+| Email text part, logs | `markdownToPlainText` | `label (url)` |
+| WhatsApp | `markdownToWhatsApp` | `*bold*`, `_italic_`, `label: url` |
+| In-app, previews | `FormattedText` | React elements |
+
+- **A stored body is source, not output.** Anything sending or showing one goes through a
+  converter above.
+- **Build a body with `renderFormattedTemplate`, not `renderMessageTemplate`.** It escapes
+  each value, so a student named `[Pay here](https://…)` stays text. `FORMATTED_VARIABLES`
+  lists the staff-written values that keep their formatting (only `announcement.body`).
+  Subjects, titles and WhatsApp template parameters are never parsed, so they keep
+  `renderMessageTemplate`.
+- A bare `http(s)` address in a value still becomes a link, because that is how `links.*`
+  values reach the reader.
 
 Announcements (Announcements tab) write the dashboard feed row *and* fire the
 ANNOUNCEMENT rule. The announcement's own audience decides who hears it —

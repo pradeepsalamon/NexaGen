@@ -203,6 +203,7 @@ export class CompensationProfileService {
         coachId,
         calculationType: dto.calculationType,
         rateMinor: dto.rateMinor,
+        tierConfig: dto.tierConfig,
         effectiveFrom: dto.effectiveFrom,
         closedPreviousRateIds: toClose.map((r) => r.id)
       }

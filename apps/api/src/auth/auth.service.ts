@@ -23,6 +23,7 @@ import {
 import type {
   AuthResponse,
   AuthUser,
+  EmailVerificationStatusResponse,
   ForgotPasswordResponse,
   LoginRequest,
   LogoutResponse,
@@ -35,6 +36,7 @@ import type {
   UpdateProfileRequest
 } from "@nexa-chess/types";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
+import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { isProfileImageUrl } from "../upload/upload.service";
@@ -78,6 +80,12 @@ type UserWithProfiles = User & {
 /** Wrong passwords per account before sign-in locks; per IP limits miss spread-out guessing. */
 export const LOGIN_MAX_FAILED_ATTEMPTS = 10;
 export const LOGIN_LOCKOUT_MS = 15 * 60_000;
+
+const UNVERIFIED_SIGN_IN_MESSAGE = {
+  failed: "Verify your email address to sign in. We could not send you a new link, so please contact the academy.",
+  recent: "Verify your email address to sign in. Use the link we recently sent you, and check your spam folder.",
+  sent: "Verify your email address to sign in. We have just sent you a new link."
+} as const;
 
 const dummyPasswordHash =
   "$2b$12$7Hb149Y.levymTZlxpT3M.52k1w61HGHtm49NErn1svp4nVrPi9nO";
@@ -130,7 +138,8 @@ export class AuthService {
     private readonly mailService: MailService,
     private readonly prisma: PrismaService,
     private readonly analyticsEvents: AnalyticsEventService,
-    private readonly mfa: MfaService
+    private readonly mfa: MfaService,
+    private readonly emailVerification: EmailVerificationService
   ) {}
 
   getCookieMaxAges() {
@@ -173,6 +182,7 @@ export class AuthService {
     const { firstName, lastName } = splitStudentName(payload.studentName);
     const passwordHash = await hashSecret(payload.password);
     const acquisition = this.resolveAcquisitionData(payload);
+    const verifyEmail = (await this.emailVerification.policy()) !== "OFF";
 
     const user = await this.prisma.user.create({
       include: { coachProfile: true, studentProfile: true },
@@ -185,8 +195,8 @@ export class AuthService {
         role: UserRole.STUDENT,
         status: UserStatus.PENDING,
         timezone: "Asia/Kolkata",
-        isEmailVerified: true,
-        emailVerifiedAt: new Date(),
+        isEmailVerified: !verifyEmail,
+        emailVerifiedAt: verifyEmail ? null : new Date(),
         ...acquisition,
         studentProfile: {
           create: {
@@ -197,6 +207,8 @@ export class AuthService {
         }
       }
     });
+
+    if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
 
     return {
       email: user.email,
@@ -230,6 +242,7 @@ export class AuthService {
     const { firstName, lastName } = splitStudentName(payload.coachName);
     const passwordHash = await hashSecret(payload.password);
     const acquisition = this.resolveAcquisitionData(payload);
+    const verifyEmail = (await this.emailVerification.policy()) !== "OFF";
 
     const user = await this.prisma.user.create({
       include: { coachProfile: true, studentProfile: true },
@@ -242,8 +255,8 @@ export class AuthService {
         role: UserRole.COACH,
         status: UserStatus.PENDING,
         timezone: "Asia/Kolkata",
-        isEmailVerified: true,
-        emailVerifiedAt: new Date(),
+        isEmailVerified: !verifyEmail,
+        emailVerifiedAt: verifyEmail ? null : new Date(),
         ...acquisition,
         coachProfile: {
           create: {
@@ -257,19 +270,7 @@ export class AuthService {
       }
     });
 
-    /* Temporarily disabled email verification
-    const verificationToken = createOpaqueToken();
-    await this.prisma.emailVerificationToken.create({
-      data: {
-        expiresAt: new Date(Date.now() + 24 * 60 * 60_000), // 24 hours
-        tokenHash: hashOpaqueToken(verificationToken),
-        userId: user.id
-      }
-    });
-    const verifyLink = new URL("/verify-email", this.frontendUrl);
-    verifyLink.searchParams.set("token", verificationToken);
-    await this.mailService.sendEmailVerificationLink(user.email, verifyLink.toString()); 
-    */
+    if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
 
     return {
       email: user.email,
@@ -338,6 +339,12 @@ export class AuthService {
     if (user.status !== UserStatus.ACTIVE) {
       await this.waitForLoginResponseDelay(startedAt);
       throw new UnauthorizedException("This account is not active.");
+    }
+
+    if (await this.emailVerification.blocksSignIn(user)) {
+      const link = await this.emailVerification.sendLinkForRefusedSignIn(user);
+      await this.waitForLoginResponseDelay(startedAt);
+      throw new UnauthorizedException(UNVERIFIED_SIGN_IN_MESSAGE[link]);
     }
 
     // The password is right; a second factor may still stand between it and a session.
@@ -568,6 +575,7 @@ export class AuthService {
     }
 
     await this.assertUniqueProfileIdentity(user.id, email, username);
+    const reverifyEmail = emailChanged && (await this.emailVerification.policy()) !== "OFF";
 
     const updatedUser = await this.prisma.$transaction(async (transaction) => {
       await transaction.user.update({
@@ -578,10 +586,19 @@ export class AuthService {
           lastName: this.toNullableString(payload.lastName),
           phoneNumber: this.toNullableString(payload.phoneNumber),
           timezone: payload.timezone?.trim() || user.timezone,
-          username
+          username,
+          ...(reverifyEmail ? { emailVerifiedAt: null, isEmailVerified: false } : {})
         },
         where: { id: user.id }
       });
+
+      // A link sent to the old address must not vouch for the new one.
+      if (emailChanged) {
+        await transaction.emailVerificationToken.updateMany({
+          data: { usedAt: new Date() },
+          where: { usedAt: null, userId: user.id }
+        });
+      }
 
       if (user.studentProfile && payload.studentProfile) {
         await transaction.studentProfile.update({
@@ -642,6 +659,7 @@ export class AuthService {
       this.mailService.sendEmailChangedNotice(user.email, email).catch((error: unknown) => {
         this.logger.warn(`Could not send email-change notice to user ${user.id}: ${String(error)}`);
       });
+      if (reverifyEmail) void this.emailVerification.sendLinkBestEffort(updatedUser);
     }
 
     return { user: this.toAuthUser(updatedUser) };
@@ -748,6 +766,14 @@ export class AuthService {
     return { message: "Email verified successfully." };
   }
 
+  async emailVerificationStatus(accessToken: string | undefined): Promise<EmailVerificationStatusResponse> {
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    return {
+      isEmailVerified: user.isEmailVerified,
+      policy: await this.emailVerification.policy()
+    };
+  }
+
   async resendVerificationEmail(accessToken: string | undefined) {
     if (!accessToken) {
       throw new UnauthorizedException("Access token is missing.");
@@ -757,20 +783,11 @@ export class AuthService {
     if (!user || user.isEmailVerified) {
       throw new BadRequestException("Invalid request or email is already verified.");
     }
+    if ((await this.emailVerification.policy()) === "OFF") {
+      throw new BadRequestException("Email verification is turned off.");
+    }
 
-    /* Temporarily disabled email verification
-    const verificationToken = createOpaqueToken();
-    await this.prisma.emailVerificationToken.create({
-      data: {
-        expiresAt: new Date(Date.now() + 24 * 60 * 60_000), // 24 hours
-        tokenHash: hashOpaqueToken(verificationToken),
-        userId: user.id
-      }
-    });
-    const verifyLink = new URL("/verify-email", this.frontendUrl);
-    verifyLink.searchParams.set("token", verificationToken);
-    await this.mailService.sendEmailVerificationLink(user.email, verifyLink.toString()); 
-    */
+    await this.emailVerification.sendLink(user);
 
     return { message: "Verification email sent." };
   }

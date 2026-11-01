@@ -2,11 +2,17 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import {
   DEFAULT_MESSAGING_RULES,
   describeSchedule,
+  findUnknownSystemMessageVariables,
   findUnknownTemplateVariables,
+  MESSAGE_VARIABLE_DOCS,
+  MESSAGING_EVENT_DEFINITIONS,
   renderMessageTemplate,
+  SYSTEM_MESSAGE_DEFINITIONS,
+  SYSTEM_MESSAGE_KEYS,
   type MessagingEvent
 } from "@nexa-chess/types";
 import { Prisma } from "@prisma/client";
+import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MessagingDispatchService } from "./messaging-dispatch.service";
@@ -44,6 +50,7 @@ function makeStudent(overrides: Record<string, unknown> = {}) {
   return {
     id: "student_1",
     firstName: "Asha",
+    isEmailVerified: true,
     lastName: "Menon",
     phoneNumber: "+919876543210",
     role: "STUDENT",
@@ -59,6 +66,25 @@ function queuedRows(create: jest.Mock) {
   return create.mock.calls.map(([arg]) => arg.data);
 }
 
+describe("message catalogues", () => {
+  const eventVariables = Object.values(MESSAGING_EVENT_DEFINITIONS).flatMap((d) => d.variables);
+  const systemVariables = Object.values(SYSTEM_MESSAGE_DEFINITIONS).flatMap((d) => d.variables);
+
+  it("documents every placeholder an admin can pick", () => {
+    const undocumented = [...eventVariables, ...systemVariables].filter(
+      (name) => !MESSAGE_VARIABLE_DOCS[name]
+    );
+    expect(undocumented).toEqual([]);
+  });
+
+  it("only uses placeholders each system message can fill", () => {
+    for (const key of SYSTEM_MESSAGE_KEYS) {
+      const { defaults } = SYSTEM_MESSAGE_DEFINITIONS[key];
+      expect(findUnknownSystemMessageVariables(key, `${defaults.subject ?? ""} ${defaults.body}`)).toEqual([]);
+    }
+  });
+});
+
 describe("MessagingDispatchService", () => {
   let service: MessagingDispatchService;
   let prisma: {
@@ -67,9 +93,11 @@ describe("MessagingDispatchService", () => {
   };
   let whatsapp: { normalizeRecipient: jest.Mock };
   let getRule: jest.Mock;
+  let verificationPolicy: jest.Mock;
 
   const setup = async (rule = makeRule(), student = makeStudent()) => {
     getRule = jest.fn().mockResolvedValue(rule);
+    verificationPolicy = jest.fn().mockResolvedValue("OFF");
     prisma = {
       coachClass: {
         findUnique: jest.fn().mockResolvedValue({
@@ -101,6 +129,7 @@ describe("MessagingDispatchService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessagingDispatchService,
+        { provide: EmailVerificationService, useValue: { policy: verificationPolicy } },
         { provide: PrismaService, useValue: prisma },
         { provide: WhatsAppService, useValue: whatsapp },
         {
@@ -265,6 +294,37 @@ describe("MessagingDispatchService", () => {
     });
   });
 
+  it("REVISION_DUE only queues students near their own send time, once per send day", async () => {
+    const hour = new Date().getUTCHours();
+    await setup(
+      makeRule({
+        event: "REVISION_DUE",
+        whatsappEnabled: false,
+        inAppEnabled: true,
+        scheduleMode: "DAILY",
+        scheduleHour: (hour + 1) % 24,
+        scheduleMinute: 0,
+        body: "Revise: {{links.revision}}"
+      })
+    );
+    Object.assign(prisma, {
+      user: {
+        findMany: jest.fn().mockResolvedValue([
+          makeStudent({ id: "near", timezone: "UTC" }),
+          makeStudent({ id: "far", timezone: "Asia/Tokyo" })
+        ])
+      }
+    });
+
+    await service.dispatch({ event: "REVISION_DUE", studentIds: ["near", "far"] });
+
+    const rows = queuedRows(prisma.messageDelivery.create);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ recipientId: "near", linkPath: "/student/revision" });
+    expect(rows[0].dedupeKey).toMatch(/^REVISION_DUE:near:\d+-\d+-\d+$/);
+    expect(rows[0].body).toContain("/student/revision");
+  });
+
   describe("ASSIGNMENT_OVERDUE_COACH", () => {
     const coach = (id: string, overrides: Record<string, unknown> = {}) => ({
       id,
@@ -349,6 +409,60 @@ describe("MessagingDispatchService", () => {
       service.dispatchInBackground({ event: "CLASS_SCHEDULED", classId: CLASS_ID })
     ).not.toThrow();
   });
+
+  describe("email channel", () => {
+    const emailRule = () => makeRule({ whatsappEnabled: false, emailEnabled: true });
+
+    it("queues an email with the rendered subject and body, and no address on the row", async () => {
+      await setup(emailRule());
+
+      const summary = await service.dispatch({ event: "CLASS_SCHEDULED", classId: CLASS_ID });
+
+      expect(summary).toMatchObject({ queuedEmail: 1, queuedWhatsApp: 0, queuedInApp: 0 });
+      const [row] = queuedRows(prisma.messageDelivery.create);
+      expect(row).toMatchObject({
+        channel: "EMAIL",
+        recipientId: "student_1",
+        recipientPhone: null,
+        status: "PENDING",
+        title: "New class"
+      });
+      expect(row.body).toContain("Hi Asha");
+      expect(verificationPolicy).toHaveBeenCalledTimes(1);
+    });
+
+    it("stays off unless the rule turns it on", async () => {
+      await setup(makeRule());
+
+      const summary = await service.dispatch({ event: "CLASS_SCHEDULED", classId: CLASS_ID });
+
+      expect(summary.queuedEmail).toBe(0);
+      expect(queuedRows(prisma.messageDelivery.create).map((row) => row.channel)).toEqual(["WHATSAPP"]);
+      expect(verificationPolicy).not.toHaveBeenCalled();
+    });
+
+    it("sends to an unverified address while verification is off", async () => {
+      await setup(emailRule(), makeStudent({ isEmailVerified: false }));
+
+      const summary = await service.dispatch({ event: "CLASS_SCHEDULED", classId: CLASS_ID });
+
+      expect(summary).toMatchObject({ queuedEmail: 1, unverifiedEmail: 0 });
+    });
+
+    it("logs a skip for an unverified address once the academy asks for verification", async () => {
+      await setup(emailRule(), makeStudent({ isEmailVerified: false }));
+      verificationPolicy.mockResolvedValue("OPTIONAL");
+
+      const summary = await service.dispatch({ event: "CLASS_SCHEDULED", classId: CLASS_ID });
+
+      expect(summary).toMatchObject({ queuedEmail: 0, unverifiedEmail: 1 });
+      expect(queuedRows(prisma.messageDelivery.create)[0]).toMatchObject({
+        channel: "EMAIL",
+        status: "SKIPPED",
+        error: "Email address is not verified."
+      });
+    });
+  });
 });
 
 describe("messaging templates", () => {
@@ -367,6 +481,15 @@ describe("messaging templates", () => {
         "{{class.title}} {{assignment.title}}"
       )
     ).toEqual(["assignment.title"]);
+  });
+
+  it("ships revision reminders off, at a daily hour rather than at midnight", () => {
+    expect(DEFAULT_MESSAGING_RULES.REVISION_DUE).toMatchObject({
+      enabled: false,
+      scheduleHour: 17,
+      scheduleMode: "DAILY",
+      whatsappEnabled: false
+    });
   });
 
   it("ships the two absorbed in-app reminders enabled and the rest off", () => {

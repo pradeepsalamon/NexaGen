@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RowSelectionState } from "@tanstack/react-table";
 import {
   Archive,
+  Mail,
   Pencil,
   Plus,
   RotateCcw,
@@ -39,7 +40,9 @@ import { RowActions } from "@/components/ui/RowActions";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
 import { BulkResultDialog } from "@/components/common/BulkResultDialog";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
+import { DirectEmailDialog, type EmailRecipient } from "@/features/email-admin/components/DirectEmailDialog";
 import { useBulkAction } from "@/hooks/useBulkAction";
+import { useAuthStore } from "@/stores/authStore";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useServerTable } from "@/hooks/useServerTable";
 
@@ -54,6 +57,15 @@ import { restoreTrashItem } from "@/features/trash/api/trashApi";
 import { queryKeys } from "@/lib/queryKeys";
 
 type UserManagementTab = "all" | "create" | "settings";
+
+function toEmailRecipient(user: AuthUser): EmailRecipient {
+  return {
+    email: user.email,
+    id: user.id,
+    isEmailVerified: user.isEmailVerified,
+    name: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email
+  };
+}
 
 const statusOptions = [
   { label: "Active", value: "ACTIVE" },
@@ -117,6 +129,13 @@ export function UserManagementClient() {
     labelOf: (user) => [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email
   });
   const [bulkConfirm, setBulkConfirm] = useState<"archive" | "delete" | null>(null);
+  const [emailing, setEmailing] = useState<EmailRecipient[] | null>(null);
+  const viewerRole = useAuthStore((state) => state.user?.role);
+  // One person from a row also gets their verification controls, read fresh so they follow each change.
+  const emailingOne = emailing?.length === 1 ? users.find((user) => user.id === emailing[0].id) : undefined;
+  const canManageVerification =
+    !!emailingOne &&
+    (viewerRole === "SUPER_ADMIN" || emailingOne.role === "STUDENT" || emailingOne.role === "COACH");
 
   const editUser = useCallback((user: AuthUser) => {
     setEditingUserId(user.id);
@@ -179,7 +198,12 @@ export function UserManagementClient() {
             column={column}
           />
         ),
-        cell: ({ row }) => row.original.email
+        cell: ({ row }) => (
+          <div className="flex flex-wrap items-center gap-2">
+            <span>{row.original.email}</span>
+            {!row.original.isEmailVerified && <Badge variant="warning">Not verified</Badge>}
+          </div>
+        )
       },
       {
         accessorKey: "role",
@@ -237,6 +261,12 @@ export function UserManagementClient() {
                   icon: Pencil,
                   label: "Edit user",
                   onSelect: () => editUser(row.original)
+                },
+                {
+                  ariaLabel: `Email ${name} or manage their verification`,
+                  icon: Mail,
+                  label: "Email & verification",
+                  onSelect: () => setEmailing([toEmailRecipient(row.original)])
                 },
                 {
                   ariaLabel: isArchived ? `Unarchive ${name}` : `Archive ${name}`,
@@ -390,6 +420,7 @@ export function UserManagementClient() {
 
               <BulkActionsBar
                 actions={[
+                  { icon: Mail, label: "Email", onSelect: () => setEmailing(selectedRows.map(toEmailRecipient)) },
                   { disabled: bulk.isPending, icon: Archive, label: "Archive", onSelect: () => setBulkConfirm("archive") },
                   { disabled: bulk.isPending, icon: Trash2, label: "Delete", onSelect: () => setBulkConfirm("delete"), tone: "danger" }
                 ]}
@@ -411,6 +442,13 @@ export function UserManagementClient() {
                   : "Archived users lose access until they are unarchived."}
               </ConfirmationModal>
               <BulkResultDialog onClose={bulk.clearResult} result={bulk.result} />
+              {emailing && (
+                <DirectEmailDialog
+                  initialRecipients={emailing}
+                  onClose={() => setEmailing(null)}
+                  verification={canManageVerification ? toEmailRecipient(emailingOne) : undefined}
+                />
+              )}
             </Card>
           </TabsContent>
 

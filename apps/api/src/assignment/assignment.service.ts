@@ -71,6 +71,7 @@ interface ActivityData {
   allowHints: boolean;
   allowRetry: boolean;
   requiredCompletionPercent: number;
+  minMoves: number | null;
 }
 
 type ActivityInput = {
@@ -86,6 +87,7 @@ type ActivityInput = {
   allowHints?: boolean;
   allowRetry?: boolean;
   requiredCompletionPercent?: number;
+  minMoves?: number | null;
 };
 
 type ActivityDefaults = {
@@ -101,6 +103,7 @@ type ActivityDefaults = {
   allowHints: boolean;
   allowRetry: boolean;
   requiredCompletionPercent: number;
+  minMoves: number | null;
 };
 
 const libraryInclude = {
@@ -272,7 +275,8 @@ export class AssignmentService {
       maxAttempts: existing.maxAttempts,
       allowHints: existing.allowHints,
       allowRetry: existing.allowRetry,
-      requiredCompletionPercent: existing.requiredCompletionPercent
+      requiredCompletionPercent: existing.requiredCompletionPercent,
+      minMoves: existing.minMoves
     });
 
     const isSet = activity.activityType === "PUZZLE_SET";
@@ -654,7 +658,13 @@ export class AssignmentService {
       allowHints: input.allowHints ?? current?.allowHints ?? false,
       allowRetry: input.allowRetry ?? current?.allowRetry ?? true,
       requiredCompletionPercent:
-        input.requiredCompletionPercent ?? current?.requiredCompletionPercent ?? 100
+        input.requiredCompletionPercent ?? current?.requiredCompletionPercent ?? 100,
+      minMoves:
+        type === "FREE_ANALYSIS"
+          ? input.minMoves !== undefined
+            ? input.minMoves
+            : current?.minMoves ?? null
+          : null
     };
 
     if (type === "PUZZLE_SET") {
@@ -812,6 +822,7 @@ export class AssignmentService {
     allowHints: boolean;
     allowRetry: boolean;
     requiredCompletionPercent: number;
+    minMoves: number | null;
   }): AssignmentActivityConfig {
     const studentColor =
       row.studentColor === "white" || row.studentColor === "black" ? row.studentColor : null;
@@ -829,7 +840,8 @@ export class AssignmentService {
       maxAttempts: row.maxAttempts,
       allowHints: row.allowHints,
       allowRetry: row.allowRetry,
-      requiredCompletionPercent: row.requiredCompletionPercent
+      requiredCompletionPercent: row.requiredCompletionPercent,
+      minMoves: row.minMoves
     };
   }
 

@@ -52,6 +52,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.emailVerificationToken;
   }
 
+  get emailSettings() {
+    return this.client.emailSettings;
+  }
+
+  get directEmail() {
+    return this.client.directEmail;
+  }
+
   get batch() {
     return this.client.batch;
   }
@@ -244,6 +252,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.externalChessAccount;
   }
 
+  get gameSourceSettings() {
+    return this.client.gameSourceSettings;
+  }
+
   get gameAnalysis() {
     return this.client.gameAnalysis;
   }
@@ -378,6 +390,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get messageDelivery() {
     return this.client.messageDelivery;
+  }
+
+  get systemMessageTemplate() {
+    return this.client.systemMessageTemplate;
   }
 
   get plan() {

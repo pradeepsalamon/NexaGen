@@ -1,5 +1,6 @@
 import type {
   AuthResponse,
+  EmailVerificationStatusResponse,
   ForgotPasswordRequest,
   ForgotPasswordResponse,
   LoginRequest,
@@ -120,6 +121,10 @@ export function verifyEmail(payload: VerifyEmailRequest) {
     body: payload,
     method: "POST"
   });
+}
+
+export function getEmailVerificationStatus() {
+  return apiFetch<EmailVerificationStatusResponse>(API_ROUTES.auth.emailVerificationStatus, { silent: true });
 }
 
 export function resendVerification() {

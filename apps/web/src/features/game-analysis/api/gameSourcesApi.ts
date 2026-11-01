@@ -1,10 +1,13 @@
 import { API_ROUTES } from "@nexa-chess/types";
 import type {
   ExternalChessAccountDto,
+  GameAutoSyncPolicy,
+  GameAutoSyncRule,
   GameSourcesOverview,
   ImportPgnRequest,
   ImportPgnResponse,
   LinkExternalAccountRequest,
+  StudentGameSources,
   SyncExternalAccountResponse,
 } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
@@ -27,6 +30,22 @@ export function verifyAccount(id: string) {
 
 export function syncAccount(id: string, analyse: boolean) {
   return apiFetch<SyncExternalAccountResponse>(API_ROUTES.gameSources.sync(id), { body: { analyse }, method: "POST" });
+}
+
+export function setAccountAutoSync(id: string, autoSync: boolean) {
+  return apiFetch<ExternalChessAccountDto>(API_ROUTES.gameSources.account(id), { body: { autoSync }, method: "PATCH" });
+}
+
+export function getStudentGameSources(studentId: string) {
+  return apiFetch<StudentGameSources>(API_ROUTES.gameSources.student(studentId));
+}
+
+export function setStudentAutoSyncRule(studentId: string, rule: GameAutoSyncRule | null) {
+  return apiFetch<StudentGameSources>(API_ROUTES.gameSources.student(studentId), { body: { rule }, method: "PUT" });
+}
+
+export function setAutoSyncPolicy(policy: GameAutoSyncPolicy) {
+  return apiFetch<{ policy: GameAutoSyncPolicy }>(API_ROUTES.gameSources.autoSyncPolicy, { body: { policy }, method: "PUT" });
 }
 
 export function unlinkAccount(id: string, deleteGames: boolean) {

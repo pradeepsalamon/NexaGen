@@ -3,8 +3,11 @@ import type {
   CreateAnnouncementRequest,
   MessageDeliveryQuery,
   MessagingEvent,
+  SystemMessageKey,
   TestMessagingRuleRequest,
-  UpdateMessagingRuleRequest
+  TestSystemMessageRequest,
+  UpdateMessagingRuleRequest,
+  UpdateSystemMessageRequest
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
@@ -15,9 +18,12 @@ import {
   getAnnouncements,
   getMessageDeliveries,
   getMessagingRules,
+  getSystemMessages,
   retryMessageDelivery,
   testMessagingRule,
-  updateMessagingRule
+  testSystemMessage,
+  updateMessagingRule,
+  updateSystemMessage
 } from "../api/messagingApi";
 
 export function useMessagingRules() {
@@ -56,6 +62,35 @@ export function useTestMessagingRule() {
       event: MessagingEvent;
       data: TestMessagingRuleRequest;
     }) => testMessagingRule(event, data)
+  });
+}
+
+export function useSystemMessages() {
+  return useQuery({
+    queryKey: queryKeys.messaging.systemMessages,
+    queryFn: getSystemMessages
+  });
+}
+
+export function useUpdateSystemMessage() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: ({ data, key }: { data: UpdateSystemMessageRequest; key: SystemMessageKey }) =>
+      updateSystemMessage(key, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.messaging.systemMessages });
+      toast.success({ title: "Message saved" });
+    }
+  });
+}
+
+/** A test send is an outbound message — never undoable, so it is not wrapped. */
+export function useTestSystemMessage() {
+  return useMutation({
+    mutationFn: ({ data, key }: { data: TestSystemMessageRequest; key: SystemMessageKey }) =>
+      testSystemMessage(key, data)
   });
 }
 

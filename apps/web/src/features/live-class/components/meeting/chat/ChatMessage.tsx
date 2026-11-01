@@ -3,6 +3,7 @@
 import { memo, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Copy, Reply } from "lucide-react";
+import { LinkedText } from "@/components/ui/FormattedText";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { toast } from "sonner";
 import { useLiveClassChat, type ChatMessageData } from "../../../providers/ChatProvider";
@@ -11,25 +12,6 @@ import { formatDate } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { useReducedMotion } from "../../../lib/meetingUi";
 import { ParticipantAvatar } from "../ParticipantAvatar";
-
-function renderTextWithLinks(text: string) {
-  return text.split(/(https?:\/\/[^\s]+)/g).map((part, i) => {
-    if (part.match(/(https?:\/\/[^\s]+)/g)) {
-      return (
-        <a
-          key={i}
-          href={part}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:opacity-80 transition-opacity break-all"
-        >
-          {part}
-        </a>
-      );
-    }
-    return part;
-  });
-}
 
 export const ChatMessage = memo(function ChatMessage({
   msg,
@@ -149,7 +131,7 @@ export const ChatMessage = memo(function ChatMessage({
                       "my-1 border-l-2 border-current pl-2.5 opacity-75 text-[13px] italic bg-app-soft py-1 rounded-r-control",
                   )}
                 >
-                  {renderTextWithLinks(textContent)}
+                  <LinkedText onColour={msg.isOwn} text={textContent} />
                 </div>
               );
             })}

@@ -1,5 +1,5 @@
 import { calculatePayroll, type PayrollCalculationInput } from "./payroll-calculation.engine";
-import type { TeachingSummary } from "@nexa-chess/types";
+import { compensationTierConfigSchema, type TeachingSummary } from "@nexa-chess/types";
 
 /**
  * The payroll calculation engine.
@@ -131,6 +131,15 @@ describe("calculatePayroll — compensation models", () => {
     );
     expect(result.earningsBreakdown.lineItems).toHaveLength(1);
     expect(result.grossEarningsMinor).toBe(5 * 40000);
+  });
+
+  it("TIERED: a saved config can't leave hours unpaid", () => {
+    const valid = (tiers: { uptoHours?: number; rateMinor: number }[]) =>
+      compensationTierConfigSchema.safeParse(tiers).success;
+    expect(valid([{ uptoHours: 20, rateMinor: 1 }, { uptoHours: 40, rateMinor: 1 }, { rateMinor: 1 }])).toBe(true);
+    expect(valid([{ uptoHours: 20, rateMinor: 1 }])).toBe(false);
+    expect(valid([{ uptoHours: 40, rateMinor: 1 }, { uptoHours: 20, rateMinor: 1 }, { rateMinor: 1 }])).toBe(false);
+    expect(valid([{ rateMinor: 1 }, { rateMinor: 1 }])).toBe(false);
   });
 
   it("PERCENTAGE: surfaces the missing-revenue-linkage gap rather than silently paying 0", () => {

@@ -79,21 +79,14 @@ code on 2026-10-31.
 
 ### P3 — feature follow-ups (net-new, each needs a product yes)
 
-- **Smart Revision:** reminders through the messaging rules (there is no
-  revision `MessagingEvent`), and non-puzzle item kinds (lessons / `REPLAY`
-  assignments, course modules, live-class chapters). Item kinds are blocked by
-  design: no graded attempt to cap a self-rating ([SMART_REVISION.md](SMART_REVISION.md)).
-- **No email channel in messaging rules.** `messageChannelSchema` is
-  `WHATSAPP | IN_APP`. Nodemailer is used only for auth mail.
-- **Email verification disabled** on purpose (`auth.service.ts`, commented
-  block at ~L260). Registration marks every account verified.
+- **Smart Revision:** non-puzzle item kinds (lessons / `REPLAY` assignments,
+  course modules, live-class chapters). Blocked by design: no graded attempt to
+  cap a self-rating ([SMART_REVISION.md](SMART_REVISION.md)).
+- **Email opt-out.** Rule emails have no unsubscribe link or per-person opt-out.
+  Add one before using them for anything promotional.
 - **Payroll:** percentage-of-revenue is a stubbed ₹0 line (no revenue linkage,
-  `payroll-calculation.engine.ts` `case "PERCENTAGE"`). Tiered rates are
-  API-only (`CompensationProfileDialog` says so). No tax/TDS, no bank payout
-  integration, no multi-currency, no rate CSV import/export.
-- **`FREE_ANALYSIS` assignments** complete on manual submit only (no move-count
-  target).
-- **Game sources:** no automatic background sync ([GAME_SOURCES.md](GAME_SOURCES.md)).
+  `payroll-calculation.engine.ts` `case "PERCENTAGE"`). No tax/TDS, no bank
+  payout integration, no multi-currency, no rate CSV import/export.
 - **Chat push:** a websocket only if the 4 s poll proves too slow or costly.
   There is no evidence of that yet.
 
@@ -135,6 +128,37 @@ From a ponytail audit of the API's payments, auth, backup and cron paths. The we
 app, live class, chat, assignments, puzzles, payroll and AI were not audited.
 
 None open.
+
+## Resolved (2026-11-01) — email in messaging rules, editable system messages
+
+Rules can send by email (off by default). Every fixed email and demo-class WhatsApp
+text can be reworded, including the notices sent to admins. Both editors list each
+placeholder with its meaning and an example value, and insert it at the cursor.
+Details: [MESSAGING.md](MESSAGING.md) "Email channel" and "System messages".
+
+## Resolved (2026-11-01) — automatic game sync
+
+Daily sync of linked Lichess / Chess.com accounts, off by default. Admins set the
+academy rule, coaches and admins set a per-student rule, and students have their
+own switch. Details: [GAME_SOURCES.md](GAME_SOURCES.md) "Automatic sync".
+
+## Resolved (2026-10-31) — Smart Revision reminders
+
+New `REVISION_DUE` messaging rule, off by default. Details:
+[SMART_REVISION.md](SMART_REVISION.md) "Reminders".
+
+## Resolved (2026-10-31) — `FREE_ANALYSIS` move target
+
+`Assignment.minMoves` (optional): the student still submits by hand, but the API
+and the Submit button hold it until that many moves are played. Each side's move
+counts as one, because the student plays both sides on this board.
+
+## Resolved (2026-10-31) — tiered payroll rates in the admin UI
+
+`CompensationProfileDialog` now authors and shows `TIER` rates
+(`TierRatesEditor`). `compensationTierConfigSchema` also rejects a config whose
+last tier has a cap or whose caps don't rise, because the engine pays nothing
+past the last cap.
 
 ## Resolved (2026-10-31) — invoice dates and numbering in India time
 

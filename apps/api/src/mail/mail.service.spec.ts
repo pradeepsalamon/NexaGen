@@ -1,5 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { MailService } from "./mail.service";
+import { SystemMessageRenderer } from "./system-message-renderer.service";
+import { PrismaService } from "../prisma/prisma.service";
 import { ServiceUnavailableException } from "@nestjs/common";
 import * as nodemailer from "nodemailer";
 import * as configModule from "@nexa-chess/config/api";
@@ -10,9 +12,11 @@ jest.mock("nodemailer");
 describe("MailService", () => {
   let service: MailService;
   let mockSendMail: jest.Mock;
+  let findTemplate: jest.Mock;
 
   beforeEach(() => {
     mockSendMail = jest.fn().mockResolvedValue({});
+    findTemplate = jest.fn().mockResolvedValue(null);
     (nodemailer.createTransport as jest.Mock).mockReturnValue({
       sendMail: mockSendMail,
     });
@@ -103,7 +107,11 @@ describe("MailService", () => {
     jest.spyOn(configModule, "getApiEnv").mockReturnValue(env);
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [MailService],
+      providers: [
+        MailService,
+        SystemMessageRenderer,
+        { provide: PrismaService, useValue: { systemMessageTemplate: { findUnique: findTemplate } } }
+      ],
     }).compile();
 
     return module.get<MailService>(MailService);
@@ -118,6 +126,19 @@ describe("MailService", () => {
       expect(service).toBeDefined();
     });
 
+    it("never trusts a direct email's body as HTML", async () => {
+      await service.sendDirectEmail({
+        body: "<img src=x onerror=alert(1)>",
+        subject: "Hi",
+        to: "user@example.com"
+      });
+
+      const callArgs = mockSendMail.mock.calls[0][0];
+      expect(callArgs.text).toBe("<img src=x onerror=alert(1)>");
+      expect(callArgs.html).not.toContain("<img");
+      expect(callArgs.html).toContain("&lt;img");
+    });
+
     it("should send a password reset email successfully", async () => {
       await service.sendPasswordResetLink("user@example.com", "https://reset.link");
 
@@ -126,9 +147,12 @@ describe("MailService", () => {
           user: "testuser",
           pass: "pass123",
         },
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
         host: "smtp.example.com",
         port: 587,
         secure: false,
+        socketTimeout: 30_000,
       });
 
       expect(mockSendMail).toHaveBeenCalledTimes(1);
@@ -138,6 +162,93 @@ describe("MailService", () => {
       expect(callArgs.subject).toContain("Reset your Nexa Chess password");
       expect(callArgs.text).toContain("https://reset.link");
       expect(callArgs.html).toContain("https://reset.link");
+    });
+
+    it("uses an admin's saved wording, and the link survives an edit that drops it", async () => {
+      findTemplate.mockResolvedValue({
+        actionLabel: "New password",
+        body: "Hello from {{academy.name}}.",
+        subject: "Password help"
+      });
+
+      await service.sendPasswordResetLink("user@example.com", "https://reset.link");
+
+      const callArgs = mockSendMail.mock.calls[0][0];
+      expect(callArgs.subject).toBe("Password help");
+      expect(callArgs.text).toBe("Hello from Nexa Chess.\n\nNew password: https://reset.link");
+      expect(callArgs.html).toContain('href="https://reset.link"');
+      expect(callArgs.html).toContain("New password");
+    });
+
+    it("escapes admin wording and member values in a system email", async () => {
+      findTemplate.mockResolvedValue({
+        actionLabel: null,
+        body: "<b>{{email.new}}</b> see https://nexa.test/a?b=1&c=2.",
+        subject: "Changed"
+      });
+
+      await service.sendEmailChangedNotice("old@example.com", "<script>x</script>@example.com");
+
+      const { html } = mockSendMail.mock.calls[0][0];
+      expect(html).not.toContain("<script>");
+      expect(html).not.toContain("<b>");
+      expect(html).toContain('<a href="https://nexa.test/a?b=1&amp;c=2"');
+    });
+
+    it("formats a body, and a member's value can't add a link or lose a link's characters", async () => {
+      findTemplate.mockResolvedValue({
+        actionLabel: "Go",
+        body: "**Reset** for {{email.new}}: [open it](https://nexa.test/x)",
+        subject: "Changed"
+      });
+
+      await service.sendEmailChangedNotice("old@example.com", "[Pay](https://evil.test)_a_@example.com");
+
+      const { html, text } = mockSendMail.mock.calls[0][0];
+      expect(html).toContain("<strong>Reset</strong>");
+      expect(html).toContain('<a href="https://nexa.test/x"');
+      expect(html).not.toContain(">Pay</a>");
+      expect(text).toContain("[Pay](https://evil.test)_a_@example.com");
+      expect(text).toContain("open it (https://nexa.test/x)");
+    });
+
+    it("keeps a reset link's token intact through the escaping", async () => {
+      await service.sendPasswordResetLink("user@example.com", "https://nexa.test/reset?token=a_b*c_d");
+
+      const { html, text } = mockSendMail.mock.calls[0][0];
+      expect(html).toContain('href="https://nexa.test/reset?token=a_b*c_d"');
+      expect(text).toContain("https://nexa.test/reset?token=a_b*c_d");
+    });
+
+    it("links an address in a direct email", async () => {
+      await service.sendDirectEmail({ body: "See https://nexa.test/a_b.", subject: "Hi", to: "user@example.com" });
+
+      const { html } = mockSendMail.mock.calls[0][0];
+      expect(html).toContain('<a href="https://nexa.test/a_b"');
+    });
+
+    it("leaves no gap where an empty optional value was", async () => {
+      await service.sendAccountDeletionResolved({ completed: false, email: "a@example.com", note: null });
+
+      expect(mockSendMail.mock.calls[0][0].text).toBe(
+        "Your request to delete your Nexa Chess account was not completed."
+      );
+    });
+
+    it("sends a rule email as escaped plain text with a one-line subject", async () => {
+      mockSendMail.mockResolvedValue({ messageId: "<abc@smtp>" });
+
+      const id = await service.sendRuleEmail({
+        body: "<img src=x>",
+        subject: "Hello\r\nBcc: someone@example.com",
+        to: "user@example.com"
+      });
+
+      const callArgs = mockSendMail.mock.calls[0][0];
+      expect(id).toBe("<abc@smtp>");
+      expect(callArgs.subject).toBe("Hello Bcc: someone@example.com");
+      expect(callArgs.text).toBe("<img src=x>");
+      expect(callArgs.html).not.toContain("<img");
     });
   });
 

@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { BadRequestException, ConflictException } from "@nestjs/common";
 import { ClassStatus } from "@prisma/client";
 import { MailService } from "../mail/mail.service";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { DemoInviteService, demoInvitePath } from "./demo-invite.service";
@@ -47,6 +48,7 @@ describe("DemoInviteService", () => {
         DemoInviteService,
         { provide: PrismaService, useValue: prisma },
         { provide: MailService, useValue: { sendDemoClassInvitation } },
+        { provide: SystemMessageRenderer, useValue: { render: jest.fn().mockResolvedValue({ body: "Invited" }) } },
         {
           provide: WhatsAppService,
           useValue: {

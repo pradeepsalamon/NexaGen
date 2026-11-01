@@ -17,6 +17,7 @@ export const JOB_LOCKS = {
   liveClassStaleSweep: "live-class.stale-sweep",
   messagingClassReminders: "messaging.class-reminders",
   messagingDueSoonReminders: "messaging.due-soon-reminders",
+  messagingRevisionReminders: "messaging.revision-reminders",
   paymentProviderEventPrune: "payments.provider-event-prune",
   paymentReconciliation: "payments.reconciliation",
   paymentWebhookRecovery: "payments.webhook-recovery",

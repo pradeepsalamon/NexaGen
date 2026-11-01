@@ -1848,6 +1848,8 @@ const assignmentActivityConfigShape = {
   allowHints: z.boolean().optional(),
   allowRetry: z.boolean().optional(),
   requiredCompletionPercent: z.number().int().min(1).max(100).optional(),
+  /** FREE_ANALYSIS: moves to play before submitting; capped below the 400 a submit can carry. */
+  minMoves: z.number().int().min(1).max(200).nullable().optional(),
   // ── PUZZLE_SET ──
   /** Library puzzle ids, in the order the student solves them. */
   puzzleIds: z.array(z.string().min(1)).max(MAX_ASSIGNMENT_PUZZLES).optional(),
@@ -2021,6 +2023,7 @@ export type AssignmentActivityConfig = {
   allowHints: boolean;
   allowRetry: boolean;
   requiredCompletionPercent: number;
+  minMoves: number | null;
 };
 
 export type AssignmentLibraryItem = AssignmentActivityConfig & {
@@ -2586,7 +2589,9 @@ export * from "./assignment-puzzle-set";
 // ──────────────────────────────────────────────
 // Admin messaging rules + announcements (kept in its own module)
 // ──────────────────────────────────────────────
+export * from "./markdown";
 export * from "./messaging";
+export * from "./system-messages";
 
 // ──────────────────────────────────────────────
 // Payments: provider-agnostic checkout, refunds, subscriptions, invoices
@@ -2743,3 +2748,8 @@ export * from "./platform-plans";
 // Data retention: admin-set windows + the fixed ones (docs/INFRASTRUCTURE.md).
 // ──────────────────────────────────────────────
 export * from "./retention";
+
+// ──────────────────────────────────────────────
+// Admin email: verification policy + direct email (docs/EMAIL_ADMIN.md).
+// ──────────────────────────────────────────────
+export * from "./email-admin";

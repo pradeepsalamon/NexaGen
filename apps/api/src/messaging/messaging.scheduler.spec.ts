@@ -1,5 +1,6 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { MessagingEvent } from "@nexa-chess/types";
+import { EntitlementService } from "../platform/entitlement.service";
 import { JobLockService } from "../prisma/job-lock.service";
 import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
@@ -18,9 +19,11 @@ describe("MessagingScheduler", () => {
   let prisma: {
     assignmentBatch: { findMany: jest.Mock };
     coachClass: { findMany: jest.Mock };
+    revisionItem: { findMany: jest.Mock };
     studentAssignment: { findMany: jest.Mock };
   };
   let dispatch: { dispatch: jest.Mock };
+  let entitlements: { hasFeature: jest.Mock };
   let jobLocks: ReturnType<typeof createJobLockStub>;
   let rules: Record<string, jest.Mock>;
 
@@ -28,9 +31,11 @@ describe("MessagingScheduler", () => {
     prisma = {
       assignmentBatch: { findMany: jest.fn().mockResolvedValue([]) },
       coachClass: { findMany: jest.fn().mockResolvedValue([{ id: "class_1" }]) },
+      revisionItem: { findMany: jest.fn().mockResolvedValue([{ studentId: "student_1" }]) },
       studentAssignment: { findMany: jest.fn().mockResolvedValue([]) }
     };
     jobLocks = createJobLockStub();
+    entitlements = { hasFeature: jest.fn().mockResolvedValue(true) };
     dispatch = {
       dispatch: jest.fn().mockResolvedValue({
         ruleEnabled: true,
@@ -48,6 +53,7 @@ describe("MessagingScheduler", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessagingScheduler,
+        { provide: EntitlementService, useValue: entitlements },
         { provide: JobLockService, useValue: jobLocks },
         { provide: PrismaService, useValue: prisma },
         { provide: MessagingDispatchService, useValue: dispatch },
@@ -94,6 +100,26 @@ describe("MessagingScheduler", () => {
 
     expect(dispatchedEvents()).toEqual(["CLASS_REMINDER"]);
     expect(prisma.coachClass.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("queues revision reminders for students with something due", async () => {
+    await setup({});
+
+    await scheduler.revisionDueReminders();
+
+    expect(dispatch.dispatch).toHaveBeenCalledWith({ event: "REVISION_DUE", studentIds: ["student_1"] });
+  });
+
+  it("skips revision reminders while the rule is off or the plan lacks the feature", async () => {
+    await setup({ REVISION_DUE: rule("REVISION_DUE", { enabled: false }) });
+    await scheduler.revisionDueReminders();
+
+    await setup({});
+    entitlements.hasFeature.mockResolvedValue(false);
+    await scheduler.revisionDueReminders();
+
+    expect(prisma.revisionItem.findMany).not.toHaveBeenCalled();
+    expect(dispatch.dispatch).not.toHaveBeenCalled();
   });
 
   it("does nothing when another instance holds the lock", async () => {

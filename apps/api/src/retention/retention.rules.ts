@@ -33,7 +33,8 @@ export const RETENTION_RULES: readonly FixedRetentionRuleDef[] = [
   },
   // Help-centre searches (free text typed by students, who are minors): only
   // the recent window feeds the unanswered inbox and topic trends.
-  { column: "createdAt", days: 90, label: "Help-centre searches", table: "knowledge_search_logs" }
+  { column: "createdAt", days: 90, label: "Help-centre searches", table: "knowledge_search_logs" },
+  { column: "createdAt", days: 365, label: "Emails sent by staff", table: "direct_emails" }
 ];
 
 /**
