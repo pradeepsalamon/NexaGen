@@ -1,7 +1,7 @@
 # ============================
 # Stage 1 - Prune workspace
 # ============================
-FROM node:22-bookworm-slim AS pruner
+FROM node:26-bookworm-slim AS pruner
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -22,7 +22,7 @@ RUN turbo prune @nexa-chess/api --docker
 # ============================
 # Stage 2 - Build
 # ============================
-FROM node:22-bookworm-slim AS builder
+FROM node:26-bookworm-slim AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -92,7 +92,7 @@ RUN cd /stockfish/src && \
 # ============================
 # Stage 4 - Runtime
 # ============================
-FROM node:22-bookworm-slim AS runner
+FROM node:26-bookworm-slim AS runner
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
