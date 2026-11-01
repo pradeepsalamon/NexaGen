@@ -72,6 +72,8 @@ export class PrivacyService {
       activity,
       feedbackGiven,
       movePollAnswers,
+      mcqAttempts,
+      playoutGames,
       chatMessages,
       notifications,
       orders,
@@ -84,7 +86,11 @@ export class PrivacyService {
       chessAppearance,
       typography,
       classChangeRequests,
-      platformStaff
+      platformStaff,
+      helpFeedback,
+      helpSuggestions,
+      externalChessAccounts,
+      directEmails
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -137,6 +143,8 @@ export class PrivacyService {
       p.studentActivity.findMany({ where: { studentId: id } }),
       p.feedbackResponse.findMany({ include: { answers: true }, where: { studentId: id } }),
       p.liveClassMovePollAnswer.findMany({ where: { studentId: id } }),
+      p.liveClassMcqAttempt.findMany({ where: { studentId: id } }),
+      p.liveClassPlayoutGame.findMany({ where: { studentId: id } }),
       p.liveChatMessage.findMany({
         select: { createdAt: true, id: true, liveSessionId: true, message: true, recipientId: true },
         where: { senderId: id }
@@ -155,7 +163,30 @@ export class PrivacyService {
       p.userChessAppearancePreference.findMany({ where: { userId: id } }),
       p.userTypographyPreference.findMany({ where: { userId: id } }),
       p.classChangeRequest.findMany({ where: { coachId: id } }),
-      p.platformStaff.findMany({ where: { userId: id } })
+      p.platformStaff.findMany({ where: { userId: id } }),
+      // Help-centre votes, and help articles a coach suggested or an admin wrote.
+      p.knowledgeFeedback.findMany({ where: { userId: id } }),
+      p.knowledgeArticleVersion.findMany({
+        select: {
+          articleId: true,
+          body: true,
+          changeNote: true,
+          createdAt: true,
+          id: true,
+          number: true,
+          pgn: true,
+          resourceRef: true,
+          resourceType: true,
+          reviewNote: true,
+          status: true,
+          summary: true,
+          title: true
+        },
+        where: { authorId: id }
+      }),
+      // The one-time verification code is a secret, and is cleared once used anyway.
+      p.externalChessAccount.findMany({ omit: { verificationCode: true }, where: { userId: id } }),
+      p.directEmail.findMany({ omit: { error: true, senderId: true }, where: { recipientId: id } })
     ]);
 
     return {
@@ -176,15 +207,21 @@ export class PrivacyService {
         coachAttendance: records(coachAttendance),
         coachProfile: records(coachProfile),
         courseProgress: records(courseProgress),
+        directEmails: records(directEmails),
         entitlements: records(entitlements),
+        externalChessAccounts: records(externalChessAccounts),
         feedbackGiven: records(feedbackGiven),
+        helpFeedback: records(helpFeedback),
+        helpSuggestions: records(helpSuggestions),
         invoices: records(invoices),
+        mcqAttempts: records(mcqAttempts),
         moduleProgress: records(moduleProgress),
         movePollAnswers: records(movePollAnswers),
         notifications: records(notifications),
         orders: records(orders),
         payments: records(payments),
         platformStaff: records(platformStaff),
+        playoutGames: records(playoutGames),
         practice: records(practice),
         progress: records(progress),
         puzzleAttempts: records(puzzleAttempts),

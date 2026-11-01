@@ -1,4 +1,5 @@
 import type { TrashListRequest } from "@nexa-chess/types";
+import type { ListParams } from "./pagination";
 
 export const queryKeys = {
   auth: {
@@ -6,6 +7,13 @@ export const queryKeys = {
     // is a no-op (AUDIT L3).
     session: ["auth", "me"] as const,
     mfa: ["auth", "mfa"] as const,
+    emailVerification: ["auth", "email-verification"] as const,
+  },
+  emailAdmin: {
+    all: ["email-admin"] as const,
+    overview: ["email-admin", "overview"] as const,
+    sent: (filters: ListParams) => ["email-admin", "sent", filters] as const,
+    unverified: (filters: ListParams) => ["email-admin", "unverified", filters] as const,
   },
   users: {
     all: ["users"] as const,
@@ -69,6 +77,7 @@ export const queryKeys = {
     deliveries: (params?: Record<string, unknown>) =>
       ["messaging", "deliveries", params ?? null] as const,
     announcements: ["messaging", "announcements"] as const,
+    systemMessages: ["messaging", "system-messages"] as const,
   },
   analytics: {
     all: ["analytics"] as const,
@@ -101,6 +110,8 @@ export const queryKeys = {
   puzzles: {
     all: ["puzzles"] as const,
     list: (params?: Record<string, unknown>) => ["puzzles", "list", params ?? null] as const,
+    library: (params?: Record<string, unknown>) => ["puzzles", "library", params ?? null] as const,
+    activity: (id: string) => ["puzzles", "activity", id] as const,
     detail: (id: string) => ["puzzles", "detail", id] as const,
     stats: ["puzzles", "stats"] as const,
     scoringSettings: ["puzzles", "scoring-settings"] as const,
@@ -230,6 +241,12 @@ export const queryKeys = {
   liveClassChapters: {
     list: (classId: string) => ["live-class-chapters", classId] as const,
   },
+  activityRun: {
+    all: (classId: string) => ["activity-run", classId] as const,
+    state: (classId: string) => ["activity-run", classId, "state"] as const,
+    monitor: (classId: string, runId: string) => ["activity-run", classId, "monitor", runId] as const,
+    game: (classId: string, gameId: string, ply: number) => ["activity-run", classId, "game", gameId, ply] as const,
+  },
   activityQueues: {
     list: (classId: string) => ["activity-queues", classId, "list"] as const,
     progress: (classId: string, queueId: string) => ["activity-queues", classId, "progress", queueId] as const,
@@ -273,6 +290,11 @@ export const queryKeys = {
     myDeletionRequest: ["privacy", "deletion-request", "me"] as const,
     deletionRequests: ["privacy", "deletion-requests"] as const,
   },
+  retention: {
+    all: ["retention"] as const,
+    policies: ["retention", "policies"] as const,
+    preview: (category: string, days: number) => ["retention", "preview", category, days] as const,
+  },
   progress: {
     mine: ["progress", "me"] as const,
     student: (id: string) => ["progress", "student", id] as const,
@@ -287,7 +309,8 @@ export const queryKeys = {
       ["game-analysis", "games", studentId ?? "me", filters] as const
   },
   gameSources: {
-    overview: ["game-sources"] as const
+    overview: ["game-sources"] as const,
+    student: (studentId: string) => ["game-sources", "student", studentId] as const
   },
   games: {
     all: ["games"] as const,
@@ -308,4 +331,22 @@ export const queryKeys = {
     mine: ["assignments", "reminders", "mine"] as const,
     overview: (filters: Record<string, unknown>) => ["assignments", "overview", filters] as const,
   },
+  knowledge: {
+    all: ["knowledge"] as const,
+    help: (filters: Record<string, unknown>) => ["knowledge", "help", filters] as const,
+    article: (slug: string) => ["knowledge", "article", slug] as const,
+    suggestions: ["knowledge", "suggestions"] as const,
+    trends: ["knowledge", "trends"] as const,
+    admin: {
+      all: ["knowledge", "admin"] as const,
+      list: (filters: Record<string, unknown>) => ["knowledge", "admin", "list", filters] as const,
+      detail: (id: string) => ["knowledge", "admin", "detail", id] as const,
+      diff: (id: string, from: string, to: string) => ["knowledge", "admin", "diff", id, from, to] as const,
+      submissions: ["knowledge", "admin", "submissions"] as const,
+      categories: ["knowledge", "admin", "categories"] as const,
+      insights: ["knowledge", "admin", "insights"] as const,
+      preview: (filters: Record<string, unknown>) => ["knowledge", "admin", "preview", filters] as const,
+    },
+  },
+  assistantTools: ["admin", "ai", "tools"] as const,
 } as const;

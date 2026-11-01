@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
+  financialYear,
+  formatDocumentNumber,
   invoiceSettingsSchema,
   isValidGstin,
   stateNameFromCode,
@@ -219,14 +221,16 @@ export function InvoiceSettingsPanel() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field
-            hint={`Produces ${form.invoicePrefix}-${new Date().getUTCFullYear()}-000001`}
+            hint={`Produces ${formatDocumentNumber(form.invoicePrefix, financialYear(new Date()), 1)}`}
             label="Invoice prefix"
+            maxLength={4}
             onChange={(value) => set("invoicePrefix", value)}
             value={form.invoicePrefix}
           />
           <Field
-            hint={`Produces ${form.creditNotePrefix}-${new Date().getUTCFullYear()}-000001`}
+            hint={`Produces ${formatDocumentNumber(form.creditNotePrefix, financialYear(new Date()), 1)}`}
             label="Credit note prefix"
+            maxLength={4}
             onChange={(value) => set("creditNotePrefix", value)}
             value={form.creditNotePrefix}
           />

@@ -1,7 +1,13 @@
 # Lichess Puzzle Catalogue & Adaptive Training — Architecture Audit
 
-Status: **design only — nothing implemented, nothing imported.** Audited 2026-10-03
-against `feat/beszel-monitoring` @ `0939b61`.
+Status: **implemented; this is the original audit.** What was built, and how, is
+[PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md](PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md):
+the `lichess_puzzles` table and load tooling, rating maths, the catalogue API +
+UI (`puzzle-catalog.service.ts`, `CatalogBrowser`) and student rated training
+(`puzzle-training.service.ts`, `StudentTrainingClient`). The audit below
+(2026-10-03, against `feat/beszel-monitoring` @ `0939b61`) is kept for its
+measurements and is not updated. §G.3 (Phase 6 set-level and training modules)
+is still not built.
 
 Evidence base: the code paths cited below (read, not assumed), the production
 host's real resources and Postgres settings (read-only), a full profile of the

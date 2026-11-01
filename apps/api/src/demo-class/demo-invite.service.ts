@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
-import type { DemoInviteeInput } from "@nexa-chess/types";
+import { markdownToWhatsApp, type DemoInviteeInput } from "@nexa-chess/types";
 import {
   ClassStatus,
   DemoGuestApproval,
@@ -17,6 +17,8 @@ import {
   Prisma
 } from "@prisma/client";
 import { MailService } from "../mail/mail.service";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { formatDemoTime } from "../messaging/messaging.format";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 
@@ -61,6 +63,7 @@ export class DemoInviteService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly messages: SystemMessageRenderer,
     private readonly whatsapp: WhatsAppService
   ) {}
 
@@ -297,10 +300,13 @@ export class DemoInviteService {
           joinUrl
         });
       } else if (target.phoneNumber) {
-        await this.whatsapp.trySendText({
-          to: target.phoneNumber,
-          body: `Hi ${target.name}, you're invited to the demo class "${topic}". Your personal link — open it once the class starts: ${joinUrl}`
+        const { body } = await this.messages.render("DEMO_INVITATION_WHATSAPP", {
+          "demo.dateTime": formatDemoTime(demoClass.startsAt),
+          "demo.topic": topic,
+          "guest.name": target.name,
+          "links.join": joinUrl
         });
+        await this.whatsapp.trySendText({ to: target.phoneNumber, body: markdownToWhatsApp(body) });
       }
     } catch (error) {
       this.logger.warn(

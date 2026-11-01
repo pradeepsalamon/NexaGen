@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { AnalyticsEventModule } from "../analytics/analytics-event.module";
+import { EmailAdminModule } from "../email-admin/email-admin.module";
 import { MailModule } from "../mail/mail.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { AuthController } from "./auth.controller";
@@ -11,6 +12,7 @@ import { MfaService } from "./mfa/mfa.service";
 @Module({
   imports: [
     JwtModule.register({}),
+    EmailAdminModule,
     MailModule,
     PrismaModule,
     AnalyticsEventModule

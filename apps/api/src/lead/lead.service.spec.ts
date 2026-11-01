@@ -11,6 +11,7 @@ import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
 import { LeadService } from "./lead.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { MailService } from "../mail/mail.service";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { DemoInviteService } from "../demo-class/demo-invite.service";
 
@@ -101,6 +102,7 @@ describe("LeadService", () => {
         { provide: JwtService, useValue: jwtService },
         { provide: PrismaService, useValue: prisma },
         { provide: MailService, useValue: { sendNewLeadNotification } },
+        { provide: SystemMessageRenderer, useValue: {} },
         { provide: WhatsAppService, useValue: { normalizeRecipient } }
       ]
     }).compile();

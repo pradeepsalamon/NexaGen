@@ -113,7 +113,7 @@ describe("CreditNoteService", () => {
   it("issues a numbered credit note for a full refund", async () => {
     await service.issueForRefund(tx as never, fullRefund);
 
-    expect(created().number).toBe("NEXA-CN-2026-000001");
+    expect(created().number).toBe("CN/26-27/00001");
     expect(created().total).toBe(118000);
     expect(created().isFullCredit).toBe(true);
   });

@@ -1,7 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { MESSAGE_MAX_ATTEMPTS } from "@nexa-chess/types";
+import { markdownToWhatsApp, MESSAGE_MAX_ATTEMPTS } from "@nexa-chess/types";
 import type { MessageDelivery } from "@prisma/client";
+import { MailService } from "../mail/mail.service";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
@@ -11,6 +12,8 @@ import { nextAttemptAt } from "./messaging.schedule";
 const BATCH_SIZE = 200;
 /** A claim older than this is assumed abandoned (process died mid-send). */
 const CLAIM_TIMEOUT_MS = 5 * 60_000;
+/** Stop before our own claims go stale, or another container could send them too. */
+const SWEEP_BUDGET_MS = CLAIM_TIMEOUT_MS - 60_000;
 
 /**
  * The outbox sender. Every minute it claims the `message_deliveries` rows that
@@ -26,6 +29,7 @@ export class MessagingDeliveryWorker {
   private running = false;
 
   constructor(
+    private readonly mail: MailService,
     private readonly notifications: NotificationService,
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService
@@ -43,7 +47,10 @@ export class MessagingDeliveryWorker {
 
       let sent = 0;
       let failed = 0;
+      const deadline = Date.now() + SWEEP_BUDGET_MS;
       for (const delivery of claimed) {
+        // Unsent rows wait for their claim to go stale, then a later sweep takes them.
+        if (Date.now() > deadline) break;
         const ok = await this.deliver(delivery);
         if (ok) sent += 1;
         else failed += 1;
@@ -63,7 +70,7 @@ export class MessagingDeliveryWorker {
    * Both cutoffs bind `${iso}::timestamp`, never a JS `Date`: these columns are
    * `timestamp WITHOUT time zone` holding UTC, and a bound Date arrives as
    * `timestamptz` that PostgreSQL then shifts by the session zone (a no-op on
-   * the UTC box, an hours-wide bug on any other). See .agents/AGENTS.md.
+   * the UTC box, an hours-wide bug on any other). See AGENTS.md.
    */
   private async claimDue(now: Date = new Date()): Promise<MessageDelivery[]> {
     const nowIso = now.toISOString();
@@ -101,6 +108,10 @@ export class MessagingDeliveryWorker {
         });
         await this.markSent(delivery.id, attempts, null);
         return true;
+      }
+
+      if (delivery.channel === "EMAIL") {
+        return await this.deliverEmail(delivery, attempts);
       }
 
       if (!this.whatsapp.isConfigured()) {
@@ -146,9 +157,9 @@ export class MessagingDeliveryWorker {
               ...document,
               // The rendered body rides along as the caption, so the recipient
               // gets the words and the file in a single chat bubble.
-              caption: delivery.body
+              caption: markdownToWhatsApp(delivery.body)
             })
-          : await this.whatsapp.trySendText({ to, body: delivery.body });
+          : await this.whatsapp.trySendText({ to, body: markdownToWhatsApp(delivery.body) });
 
       if (outcome.ok) {
         await this.markSent(delivery.id, attempts, outcome.result.messageId);
@@ -172,6 +183,43 @@ export class MessagingDeliveryWorker {
         await this.markFailed(delivery.id, attempts, message);
       }
       return false;
+    }
+  }
+
+  /** The address is read now, so a changed email is respected and a deleted account gets nothing. */
+  private async deliverEmail(delivery: MessageDelivery, attempts: number): Promise<boolean> {
+    if (!this.mail.isConfigured()) {
+      await this.markFailed(delivery.id, attempts, "Email is not configured on this server.");
+      return false;
+    }
+
+    const recipient = delivery.recipientId
+      ? await this.prisma.user.findUnique({
+          where: { id: delivery.recipientId },
+          select: { email: true }
+        })
+      : null;
+    if (!recipient) {
+      await this.markFailed(delivery.id, attempts, "The recipient's account no longer exists.");
+      return false;
+    }
+
+    try {
+      const messageId = await this.mail.sendRuleEmail({
+        to: recipient.email,
+        subject: delivery.title ?? delivery.body.slice(0, 120),
+        body: delivery.body
+      });
+      await this.markSent(delivery.id, attempts, messageId);
+      return true;
+    } catch (error) {
+      // A 5xx is the mail server refusing this message, which would repeat on every retry.
+      const code = (error as { responseCode?: number }).responseCode ?? 0;
+      if (code >= 500) {
+        await this.markFailed(delivery.id, attempts, (error as Error).message);
+        return false;
+      }
+      throw error;
     }
   }
 

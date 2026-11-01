@@ -20,6 +20,7 @@
 // — it is NOT a promise about every book font. Everything this returns is a
 // candidate for coach review.
 
+import { readDiagramSquare } from "./diagram-square-classifier";
 import {
   DIAGRAM_PIECE_TEMPLATES,
   DIAGRAM_TEMPLATE_SIZE,
@@ -60,6 +61,8 @@ export type RecognizedSquare = {
 };
 
 export type RecognizedDiagram = {
+  /** Arrows or lines are drawn over the board: every piece on it needs checking. */
+  annotated: boolean;
   rect: DiagramRect;
   /** 64 squares, row-major from the top-left corner as printed. */
   squares: RecognizedSquare[];
@@ -168,6 +171,22 @@ function downsample(img: GrayImage, factor: number): GrayImage {
 
 // ── 1. board detection ───────────────────────────────────────────────────────
 
+/** 205 on white paper. */
+const NOT_PAPER_RATIO = 205 / 255;
+
+/** Brightness of the page's paper: most of a page is paper, whatever it prints. */
+export function paperLevel(img: GrayImage): number {
+  const histogram = new Uint32Array(256);
+  for (let i = 0; i < img.data.length; i += 1) histogram[img.data[i]] += 1;
+  // The top decile, so a stray bright speck or a white margin strip can't set it.
+  let remaining = Math.floor(img.data.length * 0.1);
+  for (let level = 255; level > 0; level -= 1) {
+    remaining -= histogram[level];
+    if (remaining <= 0) return level;
+  }
+  return 255;
+}
+
 type Component = { minX: number; minY: number; maxX: number; maxY: number; count: number };
 
 /** 8-connected components of `mask` (two-pass union-find). */
@@ -238,9 +257,12 @@ export function detectDiagramBoards(img: GrayImage): DiagramBoardCandidate[] {
   const factor = Math.max(1, Math.ceil(Math.max(img.width, img.height) / DIAGRAM_LIMITS.detectMaxSide));
   const small = downsample(img, factor);
   const { width, height } = small;
-  // "Not paper": text, frames, tinted or hatched squares, pieces.
+  // "Not paper": text, frames, tinted or hatched squares, pieces. Relative to this
+  // page's paper, because an old book scans well below white and a fixed cut-off
+  // would make the whole page one blob.
+  const notPaper = paperLevel(small) * NOT_PAPER_RATIO;
   const raw = new Uint8Array(width * height);
-  for (let i = 0; i < raw.length; i += 1) raw[i] = small.data[i] < 205 ? 1 : 0;
+  for (let i = 0; i < raw.length; i += 1) raw[i] = small.data[i] < notPaper ? 1 : 0;
   // One-pixel dilation bridges hatching and squares that only touch at corners.
   const mask = new Uint8Array(width * height);
   for (let y = 0; y < height; y += 1) {
@@ -739,6 +761,26 @@ export function extractDiagramSquareFeatures(img: GrayImage, rect: DiagramRect):
   });
 }
 
+/** Side of the grayscale patch sampled from each square. */
+export const DIAGRAM_SQUARE_SIZE = CELL_SAMPLES;
+
+/**
+ * The 64 squares of a refined board as grayscale patches in reading order, with
+ * 1 = this board's paper. What the square classifier reads, in training too, so
+ * it shares every sampling quirk of a real reading.
+ */
+export function sampleDiagramSquares(img: GrayImage, rect: DiagramRect): Float32Array[] {
+  const ox = clampInt(Math.floor(rect.x) - 2, 0, img.width - 1);
+  const oy = clampInt(Math.floor(rect.y) - 2, 0, img.height - 1);
+  const ex = clampInt(Math.ceil(rect.x + rect.w) + 2, ox + 1, img.width);
+  const ey = clampInt(Math.ceil(rect.y + rect.h) + 2, oy + 1, img.height);
+  const ii = new Integral(img, ox, oy, ex - ox, ey - oy);
+  const cells: CellSample[] = [];
+  for (let r = 0; r < 8; r += 1) for (let c = 0; c < 8; c += 1) cells.push(sampleCell(ii, rect, r, c));
+  const paper = Math.max(1, emptyModel(cells.filter((c) => c.light)).level);
+  return cells.map((cell) => cell.raw.map((v) => Math.min(1, v / paper)));
+}
+
 /** Best distance per piece type (k, q, r, b, n, p), lower is closer. */
 function classifyShape(
   shape: NonNullable<DiagramSquareFeatures["shape"]>,
@@ -844,11 +886,125 @@ function applyMaterialPrior(
 }
 
 /**
+ * Tuned on, not held out from: 16 annotated book boards (10 found) and 190 ordinary
+ * ones from books, clean renders and the fixtures (0 false alarms).
+ */
+const STROKE_INK = 0.7;
+const STROKE_COVERAGE = 0.8;
+const STROKE_SIDE_COVERAGE = 0.4;
+const STROKE_SIDE_DISTANCE = 4;
+const STROKE_ANGLES = 24;
+
+type InkLine = { samples: number; coverage: number; reachesBothEdges: boolean };
+
+function inkAlong(patch: Float32Array, ox: number, oy: number, dx: number, dy: number): InkLine {
+  const N = DIAGRAM_SQUARE_SIZE;
+  let samples = 0;
+  let ink = 0;
+  let first = false;
+  let last = false;
+  for (let t = -N; t <= N; t += 1) {
+    const x = Math.round(ox + dx * t);
+    const y = Math.round(oy + dy * t);
+    if (x < 0 || y < 0 || x >= N || y >= N) continue;
+    const inked = patch[y * N + x] < STROKE_INK;
+    if (samples === 0) first = inked;
+    last = inked;
+    samples += 1;
+    if (inked) ink += 1;
+  }
+  return { coverage: samples ? ink / samples : 0, reachesBothEdges: first && last, samples };
+}
+
+/**
+ * Whether a thin straight stroke runs edge to edge across a light square. A piece
+ * stops short of the edge (even a wide base covers most of a line, but not its ends)
+ * or is thick where it does reach it, and a speck is short, but an arrow or a printed
+ * line does exactly this.
+ */
+function hasEdgeToEdgeStroke(patch: Float32Array): boolean {
+  const N = DIAGRAM_SQUARE_SIZE;
+  const center = (N - 1) / 2;
+  for (let a = 0; a < STROKE_ANGLES; a += 1) {
+    const angle = (a * Math.PI) / STROKE_ANGLES;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    for (let offset = -12; offset <= 12; offset += 1) {
+      const ox = center - dy * offset;
+      const oy = center + dx * offset;
+      const line = inkAlong(patch, ox, oy, dx, dy);
+      if (line.samples < N * 0.75 || line.coverage < STROKE_COVERAGE || !line.reachesBothEdges) continue;
+      const near = inkAlong(patch, ox - dy * STROKE_SIDE_DISTANCE, oy + dx * STROKE_SIDE_DISTANCE, dx, dy);
+      const far = inkAlong(patch, ox + dy * STROKE_SIDE_DISTANCE, oy - dx * STROKE_SIDE_DISTANCE, dx, dy);
+      if (near.coverage <= STROKE_SIDE_COVERAGE && far.coverage <= STROKE_SIDE_COVERAGE) return true;
+    }
+  }
+  return false;
+}
+
+function hasStrokedLightSquare(patches: Float32Array[]): boolean {
+  return patches.some((patch, i) => ((i >> 3) + (i & 7)) % 2 === 0 && hasEdgeToEdgeStroke(patch));
+}
+
+/**
  * Reads the 64 squares of one board. `rect` is a refined grid (from
  * detectDiagramBoards or refineDiagramBoard). The result is as printed — call
  * diagramGridToPlacement with the confirmed orientation to get a FEN placement.
+ *
+ * The square classifier decides. The older silhouette matcher is a second opinion:
+ * when the classifier isn't sure and the two disagree, the square goes to the coach.
  */
-export function recognizeDiagramBoard(
+export function recognizeDiagramBoard(img: GrayImage, rect: DiagramRect): RecognizedDiagram {
+  const secondOpinion = recognizeDiagramBoardWithTemplates(img, rect);
+  const patches = sampleDiagramSquares(img, rect);
+  const annotated = hasStrokedLightSquare(patches);
+  const squares: RecognizedSquare[] = patches.map((patch, i) => {
+    const reading = readDiagramSquare(patch);
+    const agrees = secondOpinion.squares[i].piece === reading.piece;
+    let confidence = reading.probability;
+    if (confidence < CLASSIFIER_SURE) confidence *= DIAGRAM_LOW_CONFIDENCE / CLASSIFIER_SURE;
+    else if (!agrees && confidence < CLASSIFIER_CERTAIN) confidence = DIAGRAM_LOW_CONFIDENCE * 0.9;
+    if (annotated && reading.piece) confidence = Math.min(confidence, DIAGRAM_LOW_CONFIDENCE * 0.9);
+    return {
+      alternative: confidence < 1 ? reading.alternative : null,
+      col: i & 7,
+      confidence,
+      piece: reading.piece,
+      row: i >> 3,
+    };
+  });
+  flagImpossibleMaterial(squares);
+  const grid: (string | null)[][] = Array.from({ length: 8 }, (_, r) => squares.slice(r * 8, r * 8 + 8).map((s) => s.piece));
+  return {
+    annotated,
+    grid,
+    lowConfidenceCount: squares.filter((s) => s.confidence < DIAGRAM_LOW_CONFIDENCE).length,
+    meanConfidence: squares.reduce((sum, s) => sum + s.confidence, 0) / 64,
+    rect,
+    squares,
+  };
+}
+
+/** Below this the classifier's reading is always shown to the coach. */
+const CLASSIFIER_SURE = 0.7;
+/** At or above this a disagreement with the silhouette matcher doesn't matter. */
+const CLASSIFIER_CERTAIN = 0.95;
+
+/** Two white kings or nine pawns can't both be right: the least certain go to the coach. */
+function flagImpossibleMaterial(squares: RecognizedSquare[]) {
+  for (const [piece, limit] of Object.entries({ K: 1, P: 8, k: 1, p: 8 })) {
+    const holders = squares.filter((s) => s.piece === piece).sort((a, b) => a.confidence - b.confidence);
+    for (const square of holders.slice(0, Math.max(0, holders.length - limit))) {
+      square.confidence = Math.min(square.confidence, DIAGRAM_LOW_CONFIDENCE * 0.9);
+    }
+  }
+}
+
+/**
+ * The silhouette matcher alone: each square against DIAGRAM_PIECE_TEMPLATES. No
+ * training involved, which is what lets the spec leave a piece set out.
+ */
+export function recognizeDiagramBoardWithTemplates(
   img: GrayImage,
   rect: DiagramRect,
   templates: readonly DiagramPieceTemplate[] = DIAGRAM_PIECE_TEMPLATES,
@@ -895,7 +1051,7 @@ export function recognizeDiagramBoard(
   );
   const meanConfidence = squares.reduce((s, q) => s + q.confidence, 0) / 64;
   const lowConfidenceCount = squares.filter((s) => s.confidence < DIAGRAM_LOW_CONFIDENCE).length;
-  return { rect, squares, grid, meanConfidence, lowConfidenceCount };
+  return { annotated: false, rect, squares, grid, meanConfidence, lowConfidenceCount };
 }
 
 // ── 3. grid → FEN, orientation, side to move ────────────────────────────────
@@ -960,6 +1116,8 @@ export function inferOrientationFromPieces(grid: (string | null)[][]): Orientati
 }
 
 export type DiagramTextItem = {
+  /** Width of the run in image pixels, when known. */
+  width?: number;
   text: string;
   /** Centre of the text in image coordinates. */
   x: number;
@@ -1007,12 +1165,14 @@ export function inferOrientationFromLabels(items: DiagramTextItem[], rect: Diagr
  * a diagram on its own never says whose turn it is.
  */
 export function parseSideToMoveHint(text: string): { side: DiagramSide; phrase: string } | null {
-  const re = /\b(white|black|w|b)\s+(to\s+(?:move|play)|moves|plays|wins|draws|mates|to\s+win|to\s+draw)\b/gi;
+  // Spaces, not any whitespace: the column around a board clips sentences, so "White
+  // [merely]" and "[threatens] to play" on two lines must not read as "White to play".
+  const re = /\b(white|black|w|b)(?:[ \t]+(?:to[ \t]+(?:move|play|win|draw)|moves|plays|wins|draws|mates)|['’]s[ \t]+(?:move|turn))\b/gi;
   const found = new Map<DiagramSide, string>();
   for (const m of text.matchAll(re)) {
     const who = m[1].toLowerCase();
     // A lone "w"/"b" only counts in the "W to move" form.
-    if (who.length === 1 && !/^to\s/i.test(m[2])) continue;
+    if (who.length === 1 && !/^.[ \t]+to[ \t]/i.test(m[0])) continue;
     found.set(who.startsWith("w") ? "w" : "b", m[0]);
   }
   if (found.size !== 1) return null;
@@ -1020,17 +1180,36 @@ export function parseSideToMoveHint(text: string): { side: DiagramSide; phrase: 
   return { side, phrase };
 }
 
+/** Text in reading order, one printed line per text line, so nothing reads across a line break. */
+function joinIntoLines(items: DiagramTextItem[], cellHeight: number): string {
+  const lines: DiagramTextItem[][] = [];
+  for (const item of [...items].sort((a, b) => a.y - b.y)) {
+    const line = lines[lines.length - 1];
+    if (line && Math.abs(line[0].y - item.y) <= cellHeight * 0.3) line.push(item);
+    else lines.push([item]);
+  }
+  return lines.map((line) => line.sort((a, b) => a.x - b.x).map((it) => it.text).join(" ")).join("\n");
+}
+
+/** Text items under a board in reading order: where a book prints the moves. */
+export function textBelowDiagram(items: DiagramTextItem[], rect: DiagramRect): string {
+  const ch = rect.h / 8;
+  return joinIntoLines(
+    items.filter((it) => it.x > rect.x - rect.w * 0.25 && it.x < rect.x + rect.w * 1.25 && it.y > rect.y + rect.h && it.y < rect.y + rect.h + ch * 6),
+    ch,
+  );
+}
+
 /** Text items near a board (its caption), in reading order. */
 export function textNearDiagram(items: DiagramTextItem[], rect: DiagramRect): string {
   const ch = rect.h / 8;
-  return items
-    .filter(
+  return joinIntoLines(
+    items.filter(
       (it) =>
         it.x > rect.x - rect.w * 0.25 &&
         it.x < rect.x + rect.w * 1.25 &&
         ((it.y > rect.y + rect.h && it.y < rect.y + rect.h + ch * 2.5) || (it.y < rect.y && it.y > rect.y - ch * 1.5)),
-    )
-    .sort((a, b) => (Math.abs(a.y - b.y) > ch * 0.3 ? a.y - b.y : a.x - b.x))
-    .map((it) => it.text)
-    .join(" ");
+    ),
+    ch,
+  );
 }

@@ -43,8 +43,13 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
-          "When you joined and left each class, chat messages you sent, puzzle attempts, homework results, course progress, poll answers, and your puzzle rating and practice streak.",
+          "When you joined and left each class, chat messages you sent, puzzle attempts, class questions you answered, games you played against the computer in class, homework results, course progress, poll answers, and your puzzle rating and practice streak.",
         label: "Classes and learning"
+      },
+      {
+        detail:
+          "What you search for in the help centre (without your name: only your role and batch, the page you searched from, how many results it found and when), and whether you marked a help article helpful. Coaches can suggest help articles; those suggestions are kept with their name.",
+        label: "Help centre"
       },
       {
         detail:
@@ -82,7 +87,12 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       { detail: "Profile pictures, payment proofs and invoice PDFs are stored with Cloudinary.", label: "Cloudinary" },
       { detail: "Payments are processed by Razorpay, Cashfree or Stripe, depending on how you pay.", label: "Payment providers" },
       { detail: "Class reminders and invoices may be sent over WhatsApp (Meta).", label: "WhatsApp" },
-      { detail: "Account and class emails are sent through our email provider.", label: "Email" },
+      { detail: "Account and class emails, and emails academy staff write to you, are sent through our email provider.", label: "Email" },
+      {
+        detail:
+          "If a student links an account, its username is sent to that site to read the student's public games. With automatic sync on, which the academy or a coach can require, this happens about once a day until the account is unlinked.",
+        label: "Lichess and Chess.com"
+      },
       {
         detail:
           "Error reports go to Sentry with only an internal user ID and your role — never your name, email or messages.",
@@ -99,13 +109,20 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     items: [
       { detail: "Removed a day after they expire.", label: "Sign-in sessions and reset links" },
       { detail: "Removed after 180 days of inactivity unless you booked a demo.", label: "Website visit records" },
+      { detail: "Removed after 90 days.", label: "Help-centre searches" },
+      { detail: "Our copy is removed after a year.", label: "Emails academy staff write to you" },
+      {
+        detail:
+          "Kept for the period the academy sets for each kind of record. Anything older is removed every night. Until a period is set, they are kept.",
+        label: "Chat messages, class chat, notifications, message logs and activity records"
+      },
       {
         detail: "Can be restored for 30 days, then permanently removed — except records we must keep (below).",
         label: "Deleted accounts"
       },
       { detail: "Invoices, payments and payroll records are kept as tax law requires.", label: "Financial records" }
     ],
-    pending: "How long class recordings, chat and learning records are kept, and the legal basis for keeping financial records.",
+    pending: "How long class recordings and learning records are kept, and the legal basis for keeping financial records.",
     title: "How long we keep it"
   },
   {

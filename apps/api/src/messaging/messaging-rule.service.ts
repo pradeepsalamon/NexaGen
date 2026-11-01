@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -9,6 +10,8 @@ import {
   DEFAULT_MESSAGING_RULES,
   MESSAGING_EVENTS,
   MESSAGING_EVENT_DEFINITIONS,
+  markdownToWhatsApp,
+  renderFormattedTemplate,
   renderMessageTemplate,
   sampleVariablesFor,
   type MessageDeliveryItem,
@@ -28,9 +31,10 @@ import {
   type MessagingRule,
   type User
 } from "@prisma/client";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
-import { maskPhoneNumber } from "./messaging.format";
+import { maskEmail, maskPhoneNumber } from "./messaging.format";
 import { authenticateUser } from "../auth/authenticate";
 
 /**
@@ -43,6 +47,7 @@ export class MessagingRuleService {
 
   constructor(
     private readonly jwtService: JwtService,
+    private readonly mail: MailService,
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService
   ) {}
@@ -61,7 +66,8 @@ export class MessagingRuleService {
     return {
       // Catalogue order, not insertion order — the UI reads as a story.
       rules: MESSAGING_EVENTS.map((event) => this.toItem(byEvent.get(event)!)),
-      whatsappConfigured: this.whatsapp.isConfigured()
+      whatsappConfigured: this.whatsapp.isConfigured(),
+      emailConfigured: this.mail.isConfigured()
     };
   }
 
@@ -79,6 +85,11 @@ export class MessagingRuleService {
         `"${definition.label}" cannot be sent to ${dto.audience}.`
       );
     }
+    if (dto.emailEnabled && definition.supportsEmail === false) {
+      throw new BadRequestException(
+        `"${definition.label}" already has its own email under System messages.`
+      );
+    }
 
     const row = await this.prisma.messagingRule.update({
       where: { event },
@@ -90,6 +101,7 @@ export class MessagingRuleService {
         ...(dto.inAppEnabled === undefined
           ? {}
           : { inAppEnabled: dto.inAppEnabled }),
+        ...(dto.emailEnabled === undefined ? {} : { emailEnabled: dto.emailEnabled }),
         ...(dto.audience === undefined ? {} : { audience: dto.audience }),
         // A lead time on an immediate event would be silently ignored.
         ...(dto.leadTimeMinutes === undefined || !definition.supportsLeadTime
@@ -134,7 +146,11 @@ export class MessagingRuleService {
   ): Promise<TestMessagingRuleResponse> {
     const admin = await this.assertAdmin(accessToken);
     const rule = await this.getRule(event);
-    const preview = renderMessageTemplate(rule.body, sampleVariablesFor(event));
+    const preview = renderFormattedTemplate(rule.body, sampleVariablesFor(event));
+
+    if (dto.channel === "EMAIL") {
+      return this.testEmail(event, rule, admin, preview);
+    }
 
     if (!this.whatsapp.isConfigured()) {
       return {
@@ -159,7 +175,7 @@ export class MessagingRuleService {
       };
     }
 
-    const outcome = await this.whatsapp.trySendText({ to, body: preview });
+    const outcome = await this.whatsapp.trySendText({ to, body: markdownToWhatsApp(preview) });
 
     await this.prisma.messageDelivery.create({
       data: {
@@ -182,6 +198,45 @@ export class MessagingRuleService {
     };
   }
 
+  /** Only ever to the admin's own account: recipients are accounts, never typed addresses. */
+  private async testEmail(
+    event: MessagingEvent,
+    rule: MessagingRule,
+    admin: User,
+    preview: string
+  ): Promise<TestMessagingRuleResponse> {
+    if (!this.mail.isConfigured()) {
+      return {
+        sent: false,
+        to: null,
+        preview,
+        error: "Email is not configured — set the SMTP variables."
+      };
+    }
+
+    const subject = renderMessageTemplate(rule.title, sampleVariablesFor(event));
+    let error: string | null = null;
+    try {
+      await this.mail.sendRuleEmail({ to: admin.email, subject, body: preview });
+    } catch (failure) {
+      error = (failure as Error).message;
+    }
+
+    await this.prisma.messageDelivery.create({
+      data: {
+        event,
+        channel: "EMAIL",
+        status: error ? "FAILED" : "SENT",
+        recipientId: admin.id,
+        body: preview,
+        title: subject,
+        error
+      }
+    });
+
+    return { sent: !error, to: maskEmail(admin.email), preview, error };
+  }
+
   async listDeliveries(
     accessToken: string | undefined,
     query: MessageDeliveryQuery
@@ -200,7 +255,7 @@ export class MessagingRuleService {
         orderBy: { createdAt: "desc" },
         take: query.limit,
         include: {
-          recipient: { select: { firstName: true, lastName: true } }
+          recipient: { select: { email: true, firstName: true, lastName: true } }
         }
       }),
       this.prisma.messageDelivery.count({ where: { ...where, status: "PENDING" } }),
@@ -239,7 +294,7 @@ export class MessagingRuleService {
         claimedAt: null,
         error: null
       },
-      include: { recipient: { select: { firstName: true, lastName: true } } }
+      include: { recipient: { select: { email: true, firstName: true, lastName: true } } }
     });
 
     return this.toDeliveryItem(row);
@@ -269,6 +324,8 @@ export class MessagingRuleService {
           inAppEnabled: defaults.inAppEnabled,
           audience: defaults.audience,
           leadTimeMinutes: defaults.leadTimeMinutes,
+          scheduleMode: defaults.scheduleMode,
+          scheduleHour: defaults.scheduleHour,
           title: defaults.title,
           body: defaults.body
         }
@@ -301,6 +358,8 @@ export class MessagingRuleService {
         inAppEnabled: DEFAULT_MESSAGING_RULES[event].inAppEnabled,
         audience: DEFAULT_MESSAGING_RULES[event].audience,
         leadTimeMinutes: DEFAULT_MESSAGING_RULES[event].leadTimeMinutes,
+        scheduleMode: DEFAULT_MESSAGING_RULES[event].scheduleMode,
+        scheduleHour: DEFAULT_MESSAGING_RULES[event].scheduleHour,
         title: DEFAULT_MESSAGING_RULES[event].title,
         body: DEFAULT_MESSAGING_RULES[event].body
       })),
@@ -334,6 +393,7 @@ export class MessagingRuleService {
       enabled: row.enabled,
       whatsappEnabled: row.whatsappEnabled,
       inAppEnabled: row.inAppEnabled,
+      emailEnabled: row.emailEnabled,
       audience: row.audience,
       leadTimeMinutes: row.leadTimeMinutes,
       scheduleMode: row.scheduleMode,
@@ -355,7 +415,7 @@ export class MessagingRuleService {
 
   private toDeliveryItem(
     row: MessageDelivery & {
-      recipient?: { firstName: string; lastName: string | null } | null;
+      recipient?: { email: string; firstName: string; lastName: string | null } | null;
     }
   ): MessageDeliveryItem {
     return {
@@ -366,7 +426,8 @@ export class MessagingRuleService {
       recipientName: row.recipient
         ? `${row.recipient.firstName} ${row.recipient.lastName ?? ""}`.trim()
         : null,
-      recipientMasked: maskPhoneNumber(row.recipientPhone),
+      recipientMasked:
+        row.channel === "EMAIL" ? maskEmail(row.recipient?.email) : maskPhoneNumber(row.recipientPhone),
       body: row.body,
       error: row.error,
       attempts: row.attempts,

@@ -64,6 +64,8 @@ component hardcodes its own styling.
 - `ChessAppearanceSettings` and `UserChessAppearancePreference` are **not
   soft-deletable** and not Trash-registered — cosmetic, not an audit-worthy
   record.
+- Built-in catalogue: board themes Nexa Classic, Classic Green, Blue, Brown,
+  Dark, Minimal; piece sets Classic, Modern, Minimal, Tournament, Wooden.
 
 ## 3.6j Fonts & text size (typography)
 

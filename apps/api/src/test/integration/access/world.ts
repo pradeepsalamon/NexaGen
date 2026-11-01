@@ -120,6 +120,54 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     }
   });
 
+  // A Playout running in that class, with this side's student mid-game. Both
+  // sides' runs are on the same position, like their private puzzles.
+  const playoutConfig = {
+    engine: { movetimeMs: 100, skillLevel: 1 },
+    goal: { type: "CHECKMATE" },
+    hints: ["Look at the back rank."],
+    maxAttempts: 2,
+    restrictions: { lockedPieces: [], maxStudentMoves: null },
+    scoring: { drawPoints: 0, goalPoints: 10, hintPenalty: 1, parBonus: 0, parMoves: null, retryPenalty: 0 },
+    startFen: FEN,
+    studentColor: "white",
+    timeLimitSeconds: null
+  };
+  const playoutActivity = await prisma.libraryActivity.create({
+    data: {
+      configJson: playoutConfig,
+      createdByRole: UserRole.ADMIN,
+      difficulty: PuzzleDifficulty.EASY,
+      kind: "PLAYOUT",
+      status: PuzzleStatus.PUBLISHED,
+      title: `Playout ${label}`,
+      topicId
+    }
+  });
+  const playoutRun = await prisma.liveClassActivityRun.create({
+    data: {
+      activityId: playoutActivity.id,
+      configJson: playoutConfig,
+      difficulty: PuzzleDifficulty.EASY,
+      kind: "PLAYOUT",
+      liveClassId: liveClass.id,
+      title: `Playout ${label}`
+    }
+  });
+  const playoutGame = await prisma.liveClassPlayoutGame.create({
+    data: {
+      attemptNumber: 1,
+      engineMoveMs: 100,
+      engineSkill: 1,
+      fen: FEN,
+      maxScore: 10,
+      runId: playoutRun.id,
+      startFen: FEN,
+      studentColor: "white",
+      studentId: student.id
+    }
+  });
+
   // A chapter in the batch's study list (coach-only).
   const chapter = await prisma.liveClassChapter.create({
     data: {
@@ -157,6 +205,16 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
 
   // Game Library: a simul game the student played, and a class-board game of
   // the class they attended.
+  // CHESS_COM, so a test can still link a LICHESS account for this student.
+  const externalAccount = await prisma.externalChessAccount.create({
+    data: {
+      provider: "CHESS_COM",
+      userId: student.id,
+      username: `side-${label}`,
+      usernameKey: `side-${label}`.toLowerCase(),
+      verifiedAt: new Date()
+    }
+  });
   const game = await prisma.chessGame.create({
     data: {
       batchId: batch.id,
@@ -210,7 +268,31 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     }
   });
 
+  // Knowledge base: an article only this side's batch may read, and a
+  // suggestion by this side's coach waiting for review.
+  const kbArticle = await prisma.knowledgeArticle.create({
+    data: {
+      audience: ["STUDENT", "COACH"],
+      batchScoped: true,
+      batches: { create: [{ batchId: batch.id }] },
+      latestVersionNumber: 1,
+      slug: `batch-notes-${label.toLowerCase()}`,
+      status: "PUBLISHED"
+    }
+  });
+  const kbVersion = await prisma.knowledgeArticleVersion.create({
+    data: { articleId: kbArticle.id, body: `Notes for batch ${label}`, number: 1, publishedAt: new Date(), status: "PUBLISHED", title: `Batch notes ${label}` }
+  });
+  await prisma.knowledgeArticle.update({ data: { publishedVersionId: kbVersion.id }, where: { id: kbArticle.id } });
+  const kbSuggestionArticle = await prisma.knowledgeArticle.create({
+    data: { audience: [], createdById: coach.id, latestVersionNumber: 1, slug: `suggestion-${label.toLowerCase()}` }
+  });
+  const kbSuggestion = await prisma.knowledgeArticleVersion.create({
+    data: { articleId: kbSuggestionArticle.id, authorId: coach.id, body: "Idea", number: 1, status: "SUBMITTED", title: `Suggestion ${label}` }
+  });
+
   return {
+    externalAccount,
     activityQueue,
     assignment,
     attempt,
@@ -224,10 +306,14 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     coach,
     deployment,
     invoice,
+    kbArticle,
+    kbSuggestion,
     liveClass,
     order,
     payrollRecord,
     privatePuzzle,
+    playoutGame,
+    playoutRun,
     rush,
     setDeployment,
     setStudentAssignment,

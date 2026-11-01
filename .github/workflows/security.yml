@@ -21,6 +21,8 @@ permissions:
 jobs:
   semgrep:
     name: Semgrep
+    # Bot PRs only change dependency versions; the weekly full scan still covers them.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     container:
@@ -31,7 +33,7 @@ jobs:
         --config p/nextjs --config p/nodejsscan --config p/jwt
         --config p/secrets --config p/owasp-top-ten
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -48,7 +50,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: semgrep scan $RULES --metrics off --sarif-output semgrep.sarif
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: semgrep-results

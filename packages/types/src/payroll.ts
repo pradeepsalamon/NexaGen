@@ -89,7 +89,16 @@ export const compensationTierSchema = z.object({
 });
 export type CompensationTier = z.infer<typeof compensationTierSchema>;
 
-export const compensationTierConfigSchema = z.array(compensationTierSchema);
+// The engine pays nothing past the last cap, so the last tier must be open-ended.
+export const compensationTierConfigSchema = z.array(compensationTierSchema).refine(
+  (tiers) =>
+    tiers.every((tier, index) =>
+      index === tiers.length - 1
+        ? tier.uptoHours === undefined
+        : tier.uptoHours !== undefined && tier.uptoHours > (tiers[index - 1]?.uptoHours ?? 0)
+    ),
+  { message: "Tier caps must rise in order and the last tier must have no cap" }
+);
 export type CompensationTierConfig = z.infer<typeof compensationTierConfigSchema>;
 
 // ── Compensation rate (effective-dated) ──
@@ -605,7 +614,7 @@ export type PayslipItem = {
   createdAt: string;
 };
 
-/** "NEXA-PAY-2026-000001" — mirrors formatDocumentNumber in ./invoices. */
+/** "NEXA-PAY-2026-000001" (calendar year; payslips are not GST documents). */
 export function formatPayslipNumber(year: number, sequenceNumber: number): string {
   return `NEXA-PAY-${year}-${String(sequenceNumber).padStart(6, "0")}`;
 }

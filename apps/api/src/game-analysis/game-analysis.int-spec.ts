@@ -348,5 +348,100 @@ describe("Game analysis (real app, real Postgres)", () => {
         env.EXTERNAL_GAME_IMPORT_ENABLED = false;
       }
     });
+
+    it("auto sync follows the academy, then the per-student rule, then the student", async () => {
+      const env = getApiEnv();
+      env.EXTERNAL_GAME_IMPORT_ENABLED = true;
+      const service = t.app.get(GameSourcesService);
+      const original = (service as any).providers.CHESS_COM;
+      const fetched: string[] = [];
+      (service as any).providers.CHESS_COM = {
+        fetchGames: async (username: string) => {
+          fetched.push(username);
+          return { games: [], more: false, nextCursor: null };
+        },
+        fetchProfile: async () => ({ exists: true, verificationText: "" }),
+        provider: "CHESS_COM"
+      };
+      const pass = async () => {
+        fetched.length = 0;
+        await t.prisma.externalChessAccount.updateMany({ data: { lastAutoSyncAt: null, nextSyncAllowedAt: null }, where: {} });
+        await service.runAutoSync(new AbortController().signal);
+        return [...fetched].sort();
+      };
+      const [a, b] = [w.a.externalAccount, w.b.externalAccount];
+      const switchTo = (who: any, id: string, autoSync: boolean) => t.call(who, "PATCH", API_ROUTES.gameSources.account(id), { autoSync });
+      const setRule = (who: any, studentId: string, rule: string | null) => t.call(who, "PUT", API_ROUTES.gameSources.student(studentId), { rule });
+      const setPolicy = (who: any, policy: string) => t.call(who, "PUT", API_ROUTES.gameSources.autoSyncPolicy, { policy });
+
+      try {
+        // Off by default, and a student's switch can't turn it on.
+        expect(await pass()).toEqual([]);
+        expect((await switchTo(w.a.student, a.id, true)).status).toBe(403);
+        expect((await setPolicy(w.a.coach, "REQUIRED")).status).toBe(403);
+
+        // Students choose: only the one who said yes.
+        expect((await setPolicy(w.admin, "OPTIONAL")).status).toBe(200);
+        expect((await t.call(w.a.student, "GET", API_ROUTES.gameSources.overview)).body).toMatchObject({ autoSyncRule: null, config: { autoSyncPolicy: "OPTIONAL" } });
+        expect((await switchTo(w.a.student, a.id, true)).status).toBe(200);
+        expect(await pass()).toEqual([a.username]);
+
+        // A coach's ALWAYS turns it on for their student, who can't turn it off.
+        expect((await setRule(w.b.coach, w.b.student.id, "ALWAYS")).status).toBe(200);
+        expect((await switchTo(w.b.student, b.id, false)).status).toBe(403);
+        expect(await pass()).toEqual([a.username, b.username].sort());
+
+        // An admin's NEVER beats the student's yes, and the coach can't lift it.
+        expect((await setRule(w.admin, w.a.student.id, "NEVER")).status).toBe(200);
+        expect((await setRule(w.a.coach, w.a.student.id, null)).status).toBe(403);
+        expect(await pass()).toEqual([b.username]);
+
+        // REQUIRED covers every student, minus that exemption.
+        expect((await setRule(w.b.coach, w.b.student.id, null)).status).toBe(200);
+        expect((await setPolicy(w.admin, "REQUIRED")).status).toBe(200);
+        expect(await pass()).toEqual([b.username]);
+        expect((await setRule(w.admin, w.a.student.id, null)).status).toBe(200);
+        expect((await setRule(w.a.coach, w.a.student.id, "NEVER")).status).toBe(200);
+        expect(await pass()).toEqual([b.username]);
+
+        // An archived student and an unproved link are never read.
+        await t.prisma.user.update({ data: { status: "ARCHIVED" }, where: { id: w.b.student.id } });
+        expect(await pass()).toEqual([]);
+        await t.prisma.user.update({ data: { status: "ACTIVE" }, where: { id: w.b.student.id } });
+        await t.prisma.externalChessAccount.update({ data: { verifiedAt: null, verificationCode: "nexa-secret" }, where: { id: b.id } });
+        expect(await pass()).toEqual([]);
+
+        // The code that proves ownership never reaches staff.
+        const staffView = await t.call(w.b.coach, "GET", API_ROUTES.gameSources.student(w.b.student.id));
+        expect((staffView.body as any).accounts[0]).toMatchObject({ verificationCode: null, verified: false });
+        await t.prisma.externalChessAccount.update({ data: { verifiedAt: new Date(), verificationCode: null }, where: { id: b.id } });
+
+        // Run now: the student's coach can, and the games stay the student's.
+        fetched.length = 0;
+        expect((await t.call(w.b.coach, "POST", API_ROUTES.gameSources.sync(b.id), { analyse: true })).body).toMatchObject({ analysesQueued: 0 });
+        expect(fetched).toEqual([b.username]);
+
+        // A sync that died mid-run doesn't block the scheduler for good.
+        await t.prisma.externalChessAccount.update({
+          data: { lastAutoSyncAt: null, nextSyncAllowedAt: null, syncStatus: "SYNCING", updatedAt: new Date(Date.now() - 11 * 60_000) },
+          where: { id: b.id },
+        });
+        fetched.length = 0;
+        await service.runAutoSync(new AbortController().signal);
+        expect(fetched).toEqual([b.username]);
+
+        // A day's wait after an attempt: a second pass right away reads nothing.
+        await t.prisma.externalChessAccount.updateMany({ data: { nextSyncAllowedAt: null }, where: {} });
+        await t.prisma.externalChessAccount.update({ data: { lastAutoSyncAt: new Date() }, where: { id: b.id } });
+        fetched.length = 0;
+        await service.runAutoSync(new AbortController().signal);
+        expect(fetched).toEqual([]);
+      } finally {
+        env.EXTERNAL_GAME_IMPORT_ENABLED = false;
+        (service as any).providers.CHESS_COM = original;
+        await t.prisma.gameSourceSettings.deleteMany();
+        await t.prisma.studentProfile.updateMany({ data: { gameAutoSyncRule: null, gameAutoSyncRuleByAdmin: false }, where: {} });
+      }
+    });
   });
 });

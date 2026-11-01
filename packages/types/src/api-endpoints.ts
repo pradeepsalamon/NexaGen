@@ -11,6 +11,7 @@ export const API_ROUTES = {
     registerCoach: "/auth/register-coach",
     verifyEmail: "/auth/verify-email",
     resendVerification: "/auth/resend-verification",
+    emailVerificationStatus: "/auth/email-verification",
     mfa: "/auth/mfa",
     mfaSetup: "/auth/mfa/setup",
     mfaEnable: "/auth/mfa/enable",
@@ -25,6 +26,16 @@ export const API_ROUTES = {
     archive: (id: string = ":id") => `/users/${id}/archive`,
     restore: (id: string = ":id") => `/users/${id}/restore`,
     delete: (id: string = ":id") => `/users/${id}`
+  },
+  adminEmail: {
+    overview: "/admin/email",
+    policy: "/admin/email/verification-policy",
+    sent: "/admin/email/sent",
+    unverified: "/admin/email/unverified",
+    verifyAll: "/admin/email/unverified/verify-all",
+    send: (userId: string = ":userId") => `/admin/email/users/${userId}/send`,
+    verification: (userId: string = ":userId") => `/admin/email/users/${userId}/verification`,
+    verificationLink: (userId: string = ":userId") => `/admin/email/users/${userId}/verification-link`
   },
   batches: {
     list: "/batches",
@@ -46,7 +57,40 @@ export const API_ROUTES = {
   // Admin "Live now" monitor: every LIVE class + a hidden spectator seat (ADMIN/SUPER_ADMIN).
   adminAi: {
     echo: "/admin/ai/echo",
-    status: "/admin/ai/status"
+    status: "/admin/ai/status",
+    // Assistant tool registry (docs/KNOWLEDGE_BASE.md §6): list, and dry-run one as yourself.
+    tools: "/admin/ai/tools",
+    runTool: "/admin/ai/tools/run"
+  },
+  // Knowledge base: help centre (every signed-in role), coach suggestions, admin authoring.
+  knowledge: {
+    help: "/knowledge/help",
+    helpArticle: (slug: string = ":slug") => `/knowledge/help/articles/${slug}`,
+    feedback: (id: string = ":id") => `/knowledge/help/articles/${id}/feedback`,
+    suggestions: "/knowledge/suggestions",
+    suggestion: (id: string = ":id") => `/knowledge/suggestions/${id}`,
+    trends: "/knowledge/trends"
+  },
+  adminKnowledge: {
+    articles: "/admin/knowledge/articles",
+    article: (id: string = ":id") => `/admin/knowledge/articles/${id}`,
+    draft: (id: string = ":id") => `/admin/knowledge/articles/${id}/draft`,
+    settings: (id: string = ":id") => `/admin/knowledge/articles/${id}/settings`,
+    publish: (id: string = ":id") => `/admin/knowledge/articles/${id}/publish`,
+    unpublish: (id: string = ":id") => `/admin/knowledge/articles/${id}/unpublish`,
+    archive: (id: string = ":id") => `/admin/knowledge/articles/${id}/archive`,
+    restore: (id: string = ":id") => `/admin/knowledge/articles/${id}/restore`,
+    rollback: (id: string = ":id") => `/admin/knowledge/articles/${id}/rollback`,
+    reject: (id: string = ":id") => `/admin/knowledge/articles/${id}/reject`,
+    diff: (id: string = ":id") => `/admin/knowledge/articles/${id}/diff`,
+    submissions: "/admin/knowledge/submissions",
+    categories: "/admin/knowledge/categories",
+    category: (id: string = ":id") => `/admin/knowledge/categories/${id}`,
+    preview: "/admin/knowledge/preview",
+    insights: "/admin/knowledge/insights",
+    resolveQuery: "/admin/knowledge/insights/resolve",
+    export: "/admin/knowledge/export",
+    import: "/admin/knowledge/import"
   },
   adminLiveClasses: {
     list: "/admin/live-classes",
@@ -167,6 +211,30 @@ export const API_ROUTES = {
       `/live-class/${id}/activity-queues/${queueId}/progress`,
     // Any participant: the running queue as a student may see it (progress only).
     activityQueueCurrent: (id: string = ":id") => `/live-class/${id}/activity-queue/current`,
+    // An MCQ / Playout running in the class (started only by the activity queue).
+    // GET: the caller's own view (any participant).
+    activityRun: (id: string = ":id") => `/live-class/${id}/activity-run`,
+    // Coach-owner / admin. Monitoring is GET-only: no route lets a coach touch a game.
+    activityRunMonitor: (id: string = ":id", runId: string = ":runId") =>
+      `/live-class/${id}/activity-run/${runId}/monitor`,
+    activityRunGame: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/games/${gameId}`,
+    activityRunEnd: (id: string = ":id", runId: string = ":runId") => `/live-class/${id}/activity-run/${runId}/end`,
+    activityRunReveal: (id: string = ":id", runId: string = ":runId") =>
+      `/live-class/${id}/activity-run/${runId}/reveal`,
+    // Student only, and only their own.
+    mcqAnswers: (id: string = ":id", runId: string = ":runId") => `/live-class/${id}/activity-run/${runId}/mcq/answers`,
+    playoutStart: (id: string = ":id", runId: string = ":runId") => `/live-class/${id}/activity-run/${runId}/playout`,
+    playoutMove: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/playout/${gameId}/move`,
+    playoutContinue: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/playout/${gameId}/continue`,
+    playoutHint: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/playout/${gameId}/hint`,
+    playoutRetry: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/playout/${gameId}/retry`,
+    playoutResign: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/playout/${gameId}/resign`,
     // Interactives (classroom tools): GET every tool's state (any participant).
     tools: (id: string = ":id") => `/live-class/${id}/tools`,
     // Puzzle Storm / Racer: GET the current round (any participant), POST start
@@ -211,6 +279,9 @@ export const API_ROUTES = {
     requestWaitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room/request`,
     // Screen-share request (coach-owner/admin): pending + currently-approved requests.
     boardState: (id: string = ":id") => `/live-class/${id}/board-state`,
+    // The egress recording template's read of the saved board. No session: the
+    // caller sends its own LiveKit egress token as `Authorization: Bearer`.
+    recorderBoardState: (id: string = ":id") => `/live-class/${id}/recorder/board-state`,
     screenShareRequests: (id: string = ":id") => `/live-class/${id}/screen-share-requests`,
     // Screen-share request (student): ask to share while the class-wide policy is DISABLED.
     requestScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/request`,
@@ -352,7 +423,9 @@ export const API_ROUTES = {
     accounts: "/game-sources/accounts",
     account: (id: string = ":id") => `/game-sources/accounts/${id}`,
     verify: (id: string = ":id") => `/game-sources/accounts/${id}/verify`,
-    sync: (id: string = ":id") => `/game-sources/accounts/${id}/sync`
+    sync: (id: string = ":id") => `/game-sources/accounts/${id}/sync`,
+    student: (studentId: string = ":studentId") => `/game-sources/students/${studentId}`,
+    autoSyncPolicy: "/admin/game-sources/auto-sync"
   },
   // Persistent chat outside live classes (batch groups, coach <-> student DMs).
   chat: {
@@ -395,6 +468,16 @@ export const API_ROUTES = {
     catalogMaterialise: "/puzzles/catalog/materialise",
     // Copy into a curated folder. Admin only.
     catalogAdopt: "/puzzles/catalog/adopt",
+    // ── Unified library: puzzles + MCQs + Playouts (admin + coach; never students) ──
+    library: "/puzzles/library",
+    // MCQ / Playout authoring. POST, PATCH, DELETE, publish, archive: admin only.
+    activities: "/puzzles/activities",
+    activityImage: "/puzzles/activities/image",
+    activityBulk: "/puzzles/activities/bulk",
+    activity: (id: string = ":id") => `/puzzles/activities/${id}`,
+    activityPublish: (id: string = ":id") => `/puzzles/activities/${id}/publish`,
+    activityArchive: (id: string = ":id") => `/puzzles/activities/${id}/archive`,
+    activityDuplicate: (id: string = ":id") => `/puzzles/activities/${id}/duplicate`,
     get: (id: string = ":id") => `/puzzles/${id}`,
     update: (id: string = ":id") => `/puzzles/${id}`,
     delete: (id: string = ":id") => `/puzzles/${id}`,
@@ -469,7 +552,10 @@ export const API_ROUTES = {
     rule: (event: string = ":event") => `/messaging/rules/${event}`,
     testRule: (event: string = ":event") => `/messaging/rules/${event}/test`,
     deliveries: "/messaging/deliveries",
-    retryDelivery: (id: string = ":id") => `/messaging/deliveries/${id}/retry`
+    retryDelivery: (id: string = ":id") => `/messaging/deliveries/${id}/retry`,
+    systemMessages: "/messaging/system-messages",
+    systemMessage: (key: string = ":key") => `/messaging/system-messages/${key}`,
+    testSystemMessage: (key: string = ":key") => `/messaging/system-messages/${key}/test`
   },
   announcements: {
     // GET is admin (full history); POST publishes + fires the ANNOUNCEMENT rule.
@@ -715,6 +801,12 @@ export const API_ROUTES = {
     deletionRequests: "/admin/privacy/deletion-requests",
     completeDeletionRequest: (id: string = ":id") => `/admin/privacy/deletion-requests/${id}/complete`,
     rejectDeletionRequest: (id: string = ":id") => `/admin/privacy/deletion-requests/${id}/reject`
+  },
+  // Data retention windows, super admin only. `category` is a RetentionCategory.
+  adminRetention: {
+    policies: "/admin/retention/policies",
+    policy: (category: string = ":category") => `/admin/retention/policies/${category}`,
+    preview: (category: string = ":category") => `/admin/retention/policies/${category}/preview`
   },
   progress: {
     mine: "/progress/me",

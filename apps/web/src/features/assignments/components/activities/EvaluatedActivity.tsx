@@ -423,6 +423,11 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
                   Attempt {start.attemptCount}/{config.maxAttempts}
                 </span>
               )}
+              {activityType === "FREE_ANALYSIS" && config.minMoves !== null && (
+                <span className="text-app-muted">
+                  {moves.length}/{config.minMoves} moves
+                </span>
+              )}
               {/* Always rendered: toggling it would re-wrap the row on every move. */}
               <span aria-live="polite" className={cn("text-app-muted", !busy && "invisible")}>
                 Thinking…
@@ -464,7 +469,11 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
                     <Undo2 className="mr-1.5 size-4" strokeWidth={2.5} />
                     Take back
                   </Button>
-                  <Button size="sm" disabled={busy} onClick={() => void doSubmit(moves)}>
+                  <Button
+                    size="sm"
+                    disabled={busy || moves.length < (config.minMoves ?? 0)}
+                    onClick={() => void doSubmit(moves)}
+                  >
                     <Send className="mr-1.5 size-4" strokeWidth={2.5} />
                     Submit assignment
                   </Button>

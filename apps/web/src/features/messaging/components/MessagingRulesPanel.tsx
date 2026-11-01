@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, MessageCircle, Pencil } from "lucide-react";
+import { Bell, Mail, MessageCircle, Pencil } from "lucide-react";
 import {
   MESSAGING_EVENT_DEFINITIONS,
   describeSchedule,
+  markdownToPlainText,
   type MessagingRuleItem
 } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
@@ -17,9 +18,11 @@ import { useMessagingRules, useUpdateMessagingRule } from "../hooks/useMessaging
 import { MessagingRuleEditor } from "./MessagingRuleEditor";
 
 function RuleRow({
+  emailConfigured,
   rule,
   whatsappConfigured
 }: {
+  emailConfigured: boolean;
   rule: MessagingRuleItem;
   whatsappConfigured: boolean;
 }) {
@@ -41,7 +44,7 @@ function RuleRow({
             )}
             <Badge variant="outline">{timing}</Badge>
           </div>
-          <p className="mt-1 line-clamp-2 text-sm text-app-muted">{rule.body}</p>
+          <p className="mt-1 line-clamp-2 text-sm text-app-muted">{markdownToPlainText(rule.body)}</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -65,6 +68,17 @@ function RuleRow({
               {rule.inAppEnabled ? (
                 <SimpleTooltip label="In-app notification">
                   <Bell aria-label="In-app notification" className="size-4" strokeWidth={2.5} />
+                </SimpleTooltip>
+              ) : null}
+              {rule.emailEnabled ? (
+                <SimpleTooltip
+                  label={emailConfigured ? "Email" : "Email is on, but not configured on this server"}
+                >
+                  <Mail
+                    aria-label="Email"
+                    className={emailConfigured ? "size-4" : "size-4 text-app-danger"}
+                    strokeWidth={2.5}
+                  />
                 </SimpleTooltip>
               ) : null}
             </div>
@@ -103,6 +117,7 @@ function RuleRow({
       </div>
 
       <MessagingRuleEditor
+        emailConfigured={emailConfigured}
         onOpenChange={setEditing}
         open={editing}
         rule={rule}
@@ -133,9 +148,17 @@ export function MessagingRulesPanel() {
         </Card>
       ) : null}
 
+      {!data.emailConfigured && data.rules.some((rule) => rule.emailEnabled) ? (
+        <Card className="border-app-warning/40 bg-app-warning/5 p-4 text-sm text-app-text">
+          Email is not configured on this server, so rule emails are recorded as failed until the{" "}
+          <code className="text-xs">SMTP_*</code> variables are set.
+        </Card>
+      ) : null}
+
       <Card className="overflow-hidden p-0">
         {data.rules.map((rule) => (
           <RuleRow
+            emailConfigured={data.emailConfigured}
             key={rule.event}
             rule={rule}
             whatsappConfigured={data.whatsappConfigured}

@@ -228,6 +228,8 @@ export class RefundService {
     }
   ): Promise<void> {
     const settled = await this.prisma.$transaction(async (tx) => {
+      // Lock the parent payment so sibling refunds settling together sum each other's amounts.
+      await tx.$queryRaw`SELECT id FROM "payments" WHERE id = (SELECT "paymentId" FROM "refunds" WHERE id = ${refundId}) FOR UPDATE`;
       const refund = await tx.refund.findUnique({
         where: { id: refundId },
         include: { payment: { include: { refunds: true, order: true } } }

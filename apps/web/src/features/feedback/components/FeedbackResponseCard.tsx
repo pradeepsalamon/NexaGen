@@ -1,5 +1,6 @@
 import type { FeedbackResponseDto } from "@nexa-chess/types";
 import { Card } from "@/components/ui/Card";
+import { LinkedText } from "@/components/ui/FormattedText";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { StarRatingDisplay } from "./StarRating";
@@ -38,7 +39,9 @@ export function FeedbackResponseCard({ response, showCoach = true }: { response:
               {answer.ratingValue !== null ? (
                 <StarRatingDisplay value={answer.ratingValue} />
               ) : (
-                <span className="whitespace-pre-line break-words">{answer.textValue}</span>
+                <span className="whitespace-pre-line break-words">
+                  <LinkedText text={answer.textValue ?? ""} />
+                </span>
               )}
             </dd>
           </div>

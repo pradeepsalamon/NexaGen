@@ -1,6 +1,7 @@
 "use client";
 
 import { Megaphone } from "lucide-react";
+import { FormattedText } from "@/components/ui/FormattedText";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 
@@ -47,11 +48,7 @@ export function Announcements({ announcements }: AnnouncementsProps) {
                 {formatFullDate(announcement.createdAt, timeZone)}
               </span>
             </div>
-            <p
-              className="mt-1 line-clamp-2 text-xs sm:text-sm text-nx-muted"
-            >
-              {announcement.description}
-            </p>
+            <FormattedText className="mt-1 text-xs sm:text-sm text-nx-muted" source={announcement.description} />
           </li>
         ))}
       </ul>

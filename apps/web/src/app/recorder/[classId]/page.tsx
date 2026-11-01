@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { RecorderClient } from "@/features/recorder/components/RecorderClient";
+import { loadRecorderBoard } from "@/features/recorder/lib/loadRecorderBoard";
 import "./recorder.css";
 
 /**
@@ -21,7 +22,15 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 // Nothing here can be prerendered: everything comes from the query string.
 export const dynamic = "force-dynamic";
 
-export default async function RecorderPage(props: { params: Promise<{ classId: string }> }) {
- const params = await props.params;
- return <RecorderClient classId={params.classId} />;
+export default async function RecorderPage(props: {
+  params: Promise<{ classId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [{ classId }, searchParams] = await Promise.all([props.params, props.searchParams]);
+  const token = typeof searchParams.token === "string" ? searchParams.token : null;
+  // The saved board, so the recording opens on the current position rather
+  // than the start position: the coach only sends a full board when someone
+  // asks, and the recorder can't ask (subscribe-only, hidden seat).
+  const initialBoard = await loadRecorderBoard(classId, token);
+  return <RecorderClient classId={classId} initialBoard={initialBoard} />;
 }

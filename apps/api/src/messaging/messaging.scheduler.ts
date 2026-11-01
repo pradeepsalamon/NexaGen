@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { ClassStatus } from "@prisma/client";
+import { EntitlementService } from "../platform/entitlement.service";
 import { JOB_LOCKS, JobLockService, type JobLockName } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { MessagingDispatchService } from "./messaging-dispatch.service";
@@ -28,6 +29,7 @@ export class MessagingScheduler {
 
   constructor(
     private readonly dispatch: MessagingDispatchService,
+    private readonly entitlements: EntitlementService,
     private readonly jobLocks: JobLockService,
     private readonly prisma: PrismaService,
     private readonly rules: MessagingRuleService
@@ -112,7 +114,7 @@ export class MessagingScheduler {
     });
 
     this.logger.log(
-      `Assignment due reminders queued: ${summary.queuedInApp} in-app, ${summary.queuedWhatsApp} WhatsApp.`
+      `Assignment due reminders queued: ${summary.queuedInApp} in-app, ${summary.queuedWhatsApp} WhatsApp, ${summary.queuedEmail} email.`
     );
   }
 
@@ -146,6 +148,39 @@ export class MessagingScheduler {
     if (deployments.length > 0) {
       this.logger.log(`Queued ASSIGNMENT_OVERDUE_COACH for ${deployments.length} deployment(s).`);
     }
+  }
+
+  /**
+   * Hourly, because each student has their own send hour; the dispatcher keeps
+   * only those near it.
+   * shortcut: a private puzzle the student can no longer open still counts, so a
+   * rare false nudge; upgrade by sharing RevisionService availability.
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async revisionDueReminders(): Promise<void> {
+    await this.withLock(JOB_LOCKS.messagingRevisionReminders, async () => {
+      const rule = await this.rules.getRule("REVISION_DUE");
+      if (!rule.enabled || !(await this.entitlements.hasFeature("smartRevision"))) return;
+
+      const rows = await this.prisma.revisionItem.findMany({
+        where: {
+          status: "ACTIVE",
+          dueAt: { lte: new Date() },
+          OR: [{ puzzle: { status: "PUBLISHED", isDeleted: false } }, { topicId: { not: null } }]
+        },
+        distinct: ["studentId"],
+        select: { studentId: true }
+      });
+      if (rows.length === 0) return;
+
+      const summary = await this.dispatch.dispatch({
+        event: "REVISION_DUE",
+        studentIds: rows.map((row) => row.studentId)
+      });
+      this.logger.log(
+        `Revision reminders queued: ${summary.queuedInApp} in-app, ${summary.queuedWhatsApp} WhatsApp, ${summary.queuedEmail} email.`
+      );
+    });
   }
 
   private async withLock(name: JobLockName, run: () => Promise<void>): Promise<void> {

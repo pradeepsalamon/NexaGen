@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import {
   computeTax,
+  financialYear,
   formatDocumentNumber,
   formatMoney,
   INVOICE_STATUS_LABELS,
@@ -27,6 +28,7 @@ import {
   type Invoice,
   type User
 } from "@prisma/client";
+import { DEFAULT_TIME_ZONE } from "../common/time";
 import {
   PrismaService,
   type PrismaTransactionClient
@@ -136,7 +138,7 @@ export class InvoiceService {
     // a multi-line invoice still shows a per-line rate.
     const taxedLines = this.distributeTax(lines, tax);
 
-    const year = input.paidAt.getUTCFullYear();
+    const year = financialYear(input.paidAt);
     const sequence = await tx.invoiceSequence.upsert({
       where: { year },
       create: { year, lastNumber: 1 },
@@ -601,7 +603,7 @@ export class InvoiceService {
     const meta = [
       ["Invoice", invoice.number],
       ["Order", invoice.orderNumber],
-      ["Invoice date", formatUtcDate(invoice.invoiceDate)],
+      ["Invoice date", formatDocumentDate(invoice.invoiceDate)],
       ["Status", INVOICE_STATUS_LABELS[invoice.status]],
       [
         "Payment method",
@@ -793,8 +795,9 @@ function buildDateFilter(
   to: string | undefined
 ): Prisma.DateTimeFilter | null {
   const filter: Prisma.DateTimeFilter = {};
-  if (from) filter.gte = new Date(`${from}T00:00:00.000Z`);
-  if (to) filter.lte = new Date(`${to}T23:59:59.999Z`);
+  // Invoice days are India days; IST has no DST, so the fixed offset is exact.
+  if (from) filter.gte = new Date(`${from}T00:00:00.000+05:30`);
+  if (to) filter.lte = new Date(`${to}T23:59:59.999+05:30`);
   return Object.keys(filter).length > 0 ? filter : null;
 }
 
@@ -806,11 +809,11 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function formatUtcDate(iso: string): string {
+function formatDocumentDate(iso: string): string {
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
-    timeZone: "UTC"
+    timeZone: DEFAULT_TIME_ZONE
   }).format(new Date(iso));
 }

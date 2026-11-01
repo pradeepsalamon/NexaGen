@@ -1,5 +1,6 @@
 import {
   Activity,
+  Archive,
   BarChart3,
   BookOpen,
   Brain,
@@ -16,7 +17,10 @@ import {
   Layers3,
   LayoutDashboard,
   Library,
+  LibraryBig,
+  LifeBuoy,
   LineChart,
+  Mail,
   MessageSquare,
   MessageSquareHeart,
   MessagesSquare,
@@ -31,6 +35,7 @@ import {
   Trash2,
   TrendingUp,
   Trophy,
+  RefreshCw,
   Type,
   UserCheck,
   UserPlus,
@@ -84,6 +89,7 @@ export const studentNavItems: NavItem[] = [
   { href: "/games", label: "Game library", icon: Library, feature: "gameLibrary" },
   { href: "/student/attendance", label: "Attendance", icon: UserCheck },
   { href: "/student/billing", label: "Billing", icon: CreditCard, feature: "studentPayments" },
+  { href: "/help", label: "Help centre", icon: LifeBuoy },
   { href: "/chess-board", label: "Chess board", icon: Palette },
   { href: "/profile", label: "Profile & settings", icon: Settings }
 ];
@@ -103,6 +109,7 @@ export const coachNavItems: NavItem[] = [
   { href: "/coach/presets", label: "Class presets", icon: SlidersHorizontal },
   { href: "/coach/earnings", label: "Earnings", icon: Wallet, feature: "coachPayroll" },
   { href: "/coach/payments", label: "Payments", icon: CreditCard, feature: "studentPayments" },
+  { href: "/help", label: "Help centre", icon: LifeBuoy },
   { href: "/chess-board", label: "Chess board", icon: Palette },
   { href: "/profile", label: "Profile & settings", icon: Settings }
 ];
@@ -125,6 +132,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users, group: "People" },
   { href: "/admin/approvals", label: "Approvals", icon: UserRoundCheck, group: "People" },
   { href: "/admin/leads", label: "Leads", icon: UserPlus, group: "People", feature: "leadsCrm" },
+  { href: "/admin/email", label: "Email", icon: Mail, group: "People" },
   { href: "/admin/messaging", label: "Messaging rules", icon: MessageSquare, group: "People", feature: "messagingAutomation" },
   { href: "/messages", label: "Chats", icon: MessagesSquare, group: "People", feature: "directChat" },
   { href: "/admin/feedback", label: "Coach feedback", icon: MessageSquareHeart, group: "People", feature: "coachFeedback" },
@@ -143,6 +151,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/puzzles", label: "Puzzle library", icon: Puzzle, group: "Learning" },
   { href: "/admin/puzzles/scoring", label: "Puzzle points", icon: Trophy, group: "Learning" },
   { href: "/games", label: "Game library", icon: Library, group: "Learning", feature: "gameLibrary" },
+  { href: "/admin/knowledge", label: "Knowledge base", icon: LibraryBig, group: "Learning" },
   // Finance
   { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Finance", feature: "studentPayments" },
   { href: "/admin/finance/invoices", label: "Invoices", icon: ReceiptText, group: "Finance", feature: "studentPayments" },
@@ -151,10 +160,12 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/live-class", label: "Live class settings", icon: SlidersHorizontal, group: "Settings" },
   { href: "/admin/chess-appearance", label: "Chess appearance", icon: Palette, group: "Settings", feature: "customBranding" },
   { href: "/admin/typography", label: "Fonts & text", icon: Type, group: "Settings", feature: "customBranding" },
+  { href: "/admin/game-sync", label: "Game sync", icon: RefreshCw, group: "Settings", feature: "gameAnalysis" },
   { href: "/admin/subscription", label: "Subscription", icon: Gem, group: "Settings" },
   // Super Admin
   { href: "/admin/backups", label: "Database backups", icon: Database, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/trash", label: "Trash", icon: Trash2, group: "Super Admin", superAdminOnly: true },
+  { href: "/admin/data-retention", label: "Data retention", icon: Archive, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/demo-classes", label: "Demo classes", icon: Video, group: "Super Admin", superAdminOnly: true, feature: "demoClasses" },
   { href: "/admin/classes", label: "Batch classes", icon: LineChart, group: "Super Admin", superAdminOnly: true }
 ];

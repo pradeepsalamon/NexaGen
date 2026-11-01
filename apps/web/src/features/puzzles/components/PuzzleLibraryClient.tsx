@@ -19,10 +19,12 @@ import {
   Copy,
   Eye,
   FileUp,
+  ListChecks,
   Pencil,
   Plus,
   ScanSearch,
   Send,
+  Swords,
   Trash2,
   Trophy,
   Undo2
@@ -61,6 +63,7 @@ import {
   setPuzzleArchived,
   setPuzzlePublished
 } from "../api/puzzleApi";
+import { useLibrary } from "../hooks/useActivitiesApi";
 import {
   useFolderHomework,
   usePuzzleStats,
@@ -77,6 +80,7 @@ import {
   puzzleTopicOptions,
   statusBadgeVariant
 } from "../lib/puzzleMeta";
+import { ActivityLibraryTable } from "./activities/ActivityLibraryTable";
 import { CatalogBrowser } from "./catalog/CatalogBrowser";
 import { PuzzleImportDialog } from "./PuzzleImportDialog";
 import { TopicManager } from "./TopicManager";
@@ -123,17 +127,20 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
   const tabs =
     role === "admin"
       ? [
-          { key: "all", label: "All puzzles", cfg: { scope: "all" } as ScopeConfig },
+          { key: "all", label: "Chess puzzles", cfg: { scope: "all" } as ScopeConfig },
           { key: "admin", label: "Admin puzzles", cfg: { visibility: "GLOBAL" } as ScopeConfig },
           { key: "coach", label: "Coach puzzles", cfg: { visibility: "PRIVATE" } as ScopeConfig }
         ]
       : [
-          { key: "all", label: "All available", cfg: { scope: "all" } as ScopeConfig },
+          { key: "all", label: "Chess puzzles", cfg: { scope: "all" } as ScopeConfig },
           { key: "mine", label: "My puzzles", cfg: { scope: "mine" } as ScopeConfig },
           { key: "admin", label: "Admin library", cfg: { scope: "admin" } as ScopeConfig }
         ];
 
   const stats = usePuzzleStats(role === "admin");
+  // Only the totals are read; the stats card counts each kind, so the numbers match the tabs.
+  const mcqCount = useLibrary({ kind: "MCQ", pageSize: 1 }, role === "admin");
+  const playoutCount = useLibrary({ kind: "PLAYOUT", pageSize: 1 }, role === "admin");
   const [importOpen, setImportOpen] = useState(false);
 
   // Assign straight from the library: one puzzle (row button) or the selection.
@@ -175,8 +182,8 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
           <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Puzzle library</h1>
           <p className="mt-1 text-sm text-app-muted">
             {role === "admin"
-              ? "Manage the shared puzzle library and every coach's puzzles."
-              : "Browse the admin library and manage your own puzzles."}
+              ? "Chess puzzles, MCQs and Playouts in one library, ready to share in any class."
+              : "Browse puzzles, MCQs and Playouts to use in class, and manage your own puzzles."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -198,6 +205,22 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
               Import from PDF
             </Link>
           </Button>
+          {role === "admin" ? (
+            <>
+              <Button asChild variant="outline">
+                <Link href={`${basePath}/activities/new?kind=MCQ`}>
+                  <ListChecks className="mr-2 size-4" strokeWidth={2.5} />
+                  New MCQ
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href={`${basePath}/activities/new?kind=PLAYOUT`}>
+                  <Swords className="mr-2 size-4" strokeWidth={2.5} />
+                  New Playout
+                </Link>
+              </Button>
+            </>
+          ) : null}
           <Button asChild>
             <Link href={`${basePath}/new`}>
               <Plus className="mr-2 size-4" />
@@ -208,14 +231,16 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
       </div>
 
       {role === "admin" && stats.data && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 lg:grid-cols-10">
           {[
-            ["Total", stats.data.total],
+            ["Puzzles", stats.data.total],
             ["Published", stats.data.published],
             ["Drafts", stats.data.draft],
             ["Archived", stats.data.archived],
             ["Global", stats.data.global],
             ["Coach", stats.data.private],
+            ["MCQs", mcqCount.data?.pagination.total ?? 0],
+            ["Playouts", playoutCount.data?.pagination.total ?? 0],
             ["Topics", stats.data.topics],
             ["Lichess copies", stats.data.trainingCache]
           ].map(([label, value]) => (
@@ -232,14 +257,27 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
       {/* Admins land on the folder tree; coaches on their puzzle list. */}
       <Tabs defaultValue={role === "admin" ? "topics" : tabs[0].key}>
         <TabsList className="flex-wrap justify-self-end">
+          <TabsTrigger value="activities">All activities</TabsTrigger>
           {tabs.map((t) => (
             <TabsTrigger key={t.key} value={t.key}>
               {t.label}
             </TabsTrigger>
           ))}
+          <TabsTrigger value="mcq">MCQs</TabsTrigger>
+          <TabsTrigger value="playout">Playouts</TabsTrigger>
           <TabsTrigger value="catalog">Lichess catalogue</TabsTrigger>
           <TabsTrigger value="topics">Topics</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="activities">
+          <ActivityLibraryTable basePath={basePath} role={role} />
+        </TabsContent>
+        <TabsContent value="mcq">
+          <ActivityLibraryTable basePath={basePath} kind="MCQ" role={role} />
+        </TabsContent>
+        <TabsContent value="playout">
+          <ActivityLibraryTable basePath={basePath} kind="PLAYOUT" role={role} />
+        </TabsContent>
 
         {tabs.map((t) => (
           <TabsContent key={t.key} value={t.key}>

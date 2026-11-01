@@ -28,6 +28,7 @@ import { BackupModule } from "./backup/backup.module";
 import { AssignmentModule } from "./assignment/assignment.module";
 import { NotificationModule } from "./notification/notification.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { PuzzleActivityModule } from "./puzzle-activity/puzzle-activity.module";
 import { PuzzleModule } from "./puzzle/puzzle.module";
 import { SimulModule } from "./simul/simul.module";
 import { StudentMatchModule } from "./student-match/student-match.module";
@@ -55,8 +56,10 @@ import { HealthModule } from "./health/health.module";
 import { RetentionModule } from "./retention/retention.module";
 import { GameAnalysisModule } from "./game-analysis/game-analysis.module";
 import { GameLibraryModule } from "./game-library/game-library.module";
+import { EmailAdminModule } from "./email-admin/email-admin.module";
 import { GameSourcesModule } from "./game-sources/game-sources.module";
 import { ChatModule } from "./chat/chat.module";
+import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { PlatformModule } from "./platform/platform.module";
 import { FeatureGateGuard } from "./platform/feature-gate.guard";
 
@@ -95,13 +98,16 @@ import { FeatureGateGuard } from "./platform/feature-gate.guard";
     AssignmentModule,
     NotificationModule,
     AnalyticsModule,
+    PuzzleActivityModule,
     PuzzleModule,
     SimulModule,
     StudentMatchModule,
     GameAnalysisModule,
     GameLibraryModule,
+    EmailAdminModule,
     GameSourcesModule,
     ChatModule,
+    KnowledgeModule,
     MovePollModule,
     PuzzleRushModule,
     ClassroomToolsModule,

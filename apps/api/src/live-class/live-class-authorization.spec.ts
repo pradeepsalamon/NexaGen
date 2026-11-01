@@ -22,6 +22,7 @@ import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { JobLockService } from "../prisma/job-lock.service";
 import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
@@ -108,6 +109,7 @@ describe("LiveClassChatService chat authorization", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         {
           provide: LiveClassSettingsService,
           useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
@@ -341,6 +343,7 @@ describe("LiveClassModerationService.moderateParticipant (coach force-mute)", ()
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         {
           provide: AnalyticsEventService,
@@ -615,6 +618,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
   let recordJoinEvent: jest.Mock;
   let waitingFindUnique: jest.Mock;
   let pullFindFirst: jest.Mock;
+  let activityRunFindFirst: jest.Mock;
 
   const authenticateAs = (id: string, role: UserRole) => {
     jwtService.verifyAsync.mockResolvedValue({ sub: id, type: "access" });
@@ -645,6 +649,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
     recordJoinEvent = jest.fn().mockResolvedValue(undefined);
     waitingFindUnique = jest.fn().mockResolvedValue(null);
     pullFindFirst = jest.fn().mockResolvedValue(null);
+    activityRunFindFirst = jest.fn().mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -653,6 +658,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         {
           provide: PrismaService,
           useValue: {
+            liveClassActivityRun: { findFirst: activityRunFindFirst },
             liveClassPull: { findFirst: pullFindFirst, updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
             liveClassWaitingParticipant: { findUnique: waitingFindUnique },
             coachClass: { findUnique: coachClassFindUnique },
@@ -668,6 +674,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         {
           provide: LiveClassSettingsService,
           useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
@@ -690,6 +697,16 @@ describe("LiveClassService.getToken coach-presence gate", () => {
     await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toMatchObject({
       response: { code: "COACH_NOT_JOINED" }
     });
+  });
+
+  it("lets a student back in without the coach while an activity is running (their game mustn't stop)", async () => {
+    authenticateAs("student-1", UserRole.STUDENT);
+    activityRunFindFirst.mockResolvedValue({ id: "run-1" });
+
+    await expect(service.getToken(ACCESS_TOKEN, "class-1")).resolves.toMatchObject({ token: "livekit-token" });
+    expect(activityRunFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { liveClassId: "class-1", status: "ACTIVE" } })
+    );
   });
 
   it("admits the student when the coach is present with a tab-suffixed identity (AUDIT M23)", async () => {
@@ -876,6 +893,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         {
           provide: LiveClassSettingsService,
           useValue: { updateSettingsForClass, resolveForClass, getSettingsForClass },
@@ -1029,6 +1047,7 @@ describe("LiveClassService waiting room", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         {
           provide: AnalyticsEventService,
@@ -1259,6 +1278,7 @@ describe("LiveClassService screen-share requests", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         {
           provide: AnalyticsEventService,
@@ -1550,6 +1570,7 @@ describe("LiveClassModerationService.kickParticipant", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
+        { provide: SystemMessageRenderer, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         {
           provide: AnalyticsEventService,

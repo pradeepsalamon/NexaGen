@@ -20,15 +20,6 @@ export function generateOrderNumber(prefix: string, now: Date = new Date()): str
   return `${prefix}-${year}-${suffix}`;
 }
 
-/** NEXA/2026/000123 — gapless within a year, from InvoiceSequence. */
-export function formatInvoiceNumber(
-  prefix: string,
-  year: number,
-  sequence: number
-): string {
-  return `${prefix}/${year}/${String(sequence).padStart(6, "0")}`;
-}
-
 export type PricedOrder = {
   subtotal: number;
   taxAmount: number;

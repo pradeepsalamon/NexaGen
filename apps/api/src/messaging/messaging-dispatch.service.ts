@@ -4,6 +4,7 @@ import {
   formatMoney,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
+  renderFormattedTemplate,
   renderMessageTemplate,
   type MessageVariables,
   type MessagingAudience,
@@ -11,17 +12,22 @@ import {
   type MessagingEvent
 } from "@nexa-chess/types";
 import { Prisma, UserRole, UserStatus, type MessagingRule } from "@prisma/client";
+import { zonedYmd } from "../common/time";
+import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MessagingRuleService } from "./messaging-rule.service";
 import { ACADEMY_NAME, formatInZone } from "./messaging.format";
 import { computeScheduledFor } from "./messaging.schedule";
 
+const HOUR_MS = 60 * 60 * 1000;
+
 /** One resolved addressee plus the values its templates bind. */
 interface Recipient {
   userId: string;
   role: UserRole;
   phoneNumber: string | null;
+  isEmailVerified: boolean;
   timezone: string;
   variables: MessageVariables;
   /** Deep link for the in-app notification. */
@@ -68,6 +74,8 @@ export type DispatchRequest =
     }
   /** One coach notice per deployment whose due date passed with unfinished students. */
   | { event: "ASSIGNMENT_OVERDUE_COACH"; assignmentBatchId: string }
+  /** Students with a revision item due; each hears at most once per send day. */
+  | { event: "REVISION_DUE"; studentIds: string[] }
   | { event: "ANNOUNCEMENT"; announcementId: string }
   | { event: "ACCOUNT_WELCOME" | "ACCOUNT_APPROVED"; userId: string }
   /**
@@ -106,7 +114,9 @@ const EMPTY_SUMMARY: MessagingDispatchSummary = {
   recipients: 0,
   queuedWhatsApp: 0,
   queuedInApp: 0,
+  queuedEmail: 0,
   missingPhone: 0,
+  unverifiedEmail: 0,
   scheduledFor: null
 };
 
@@ -127,6 +137,7 @@ export class MessagingDispatchService {
   private readonly logger = new Logger(MessagingDispatchService.name);
 
   constructor(
+    private readonly emailVerification: EmailVerificationService,
     private readonly prisma: PrismaService,
     private readonly rules: MessagingRuleService,
     private readonly whatsapp: WhatsAppService
@@ -143,11 +154,13 @@ export class MessagingDispatchService {
 
   async dispatch(request: DispatchRequest): Promise<MessagingDispatchSummary> {
     const rule = await this.rules.getRule(request.event);
-    if (!rule.enabled || (!rule.whatsappEnabled && !rule.inAppEnabled)) {
+    if (!rule.enabled || (!rule.whatsappEnabled && !rule.inAppEnabled && !rule.emailEnabled)) {
       return { ...EMPTY_SUMMARY };
     }
 
-    const recipients = await this.resolveRecipients(request, rule.audience);
+    const recipients = await this.resolveRecipients(request, rule);
+    // With verification off nobody is asked to confirm, so an unverified address proves nothing.
+    const verifiedOnly = rule.emailEnabled && (await this.emailVerification.policy()) !== "OFF";
     const summary: MessagingDispatchSummary = {
       ...EMPTY_SUMMARY,
       ruleEnabled: true,
@@ -166,7 +179,7 @@ export class MessagingDispatchService {
 
       if (!earliest || scheduledFor < earliest) earliest = scheduledFor;
 
-      const body = renderMessageTemplate(rule.body, recipient.variables);
+      const body = renderFormattedTemplate(rule.body, recipient.variables);
 
       if (rule.whatsappEnabled) {
         const queued = await this.queueWhatsApp(rule, recipient, body, scheduledFor);
@@ -184,6 +197,23 @@ export class MessagingDispatchService {
           scheduledFor
         });
         if (queued) summary.queuedInApp += 1;
+      }
+
+      if (rule.emailEnabled) {
+        const unverified = verifiedOnly && !recipient.isEmailVerified;
+        const queued = await this.queue({
+          rule,
+          recipient,
+          channel: "EMAIL",
+          body,
+          title: renderMessageTemplate(rule.title, recipient.variables),
+          scheduledFor,
+          ...(unverified
+            ? { status: "SKIPPED" as const, error: "Email address is not verified." }
+            : {})
+        });
+        if (unverified) summary.unverifiedEmail += 1;
+        else if (queued) summary.queuedEmail += 1;
       }
     }
 
@@ -243,7 +273,7 @@ export class MessagingDispatchService {
   private async queue(input: {
     rule: MessagingRule;
     recipient: Recipient;
-    channel: "WHATSAPP" | "IN_APP";
+    channel: "WHATSAPP" | "IN_APP" | "EMAIL";
     body: string;
     scheduledFor: Date;
     title?: string;
@@ -295,14 +325,14 @@ export class MessagingDispatchService {
 
   private async resolveRecipients(
     request: DispatchRequest,
-    audience: MessagingAudience
+    rule: MessagingRule
   ): Promise<Recipient[]> {
     switch (request.event) {
       case "CLASS_SCHEDULED":
       case "CLASS_CANCELLED":
       case "CLASS_REMINDER":
       case "CLASS_REMINDER_COACH":
-        return this.classRecipients(request.event, request.classId, audience);
+        return this.classRecipients(request.event, request.classId, rule.audience);
       case "ASSIGNMENT_ASSIGNED":
         return this.assignmentRecipients(request.assignmentBatchId);
       case "ASSIGNMENT_DUE_SOON":
@@ -311,11 +341,13 @@ export class MessagingDispatchService {
         return this.gradedRecipients(request);
       case "ASSIGNMENT_OVERDUE_COACH":
         return this.overdueCoachRecipients(request.assignmentBatchId);
+      case "REVISION_DUE":
+        return this.revisionDueRecipients(request.studentIds, rule);
       case "ANNOUNCEMENT":
         return this.announcementRecipients(request.announcementId);
       case "ACCOUNT_WELCOME":
       case "ACCOUNT_APPROVED":
-        return this.accountRecipients(request.event, request.userId, audience);
+        return this.accountRecipients(request.event, request.userId, rule.audience);
       case "PAYMENT_RECEIVED":
       case "PAYMENT_FAILED":
       case "REFUND_PROCESSED":
@@ -458,6 +490,31 @@ export class MessagingDispatchService {
           dedupeKey: `ASSIGNMENT_DUE_SOON:${r.id}:${r.assignmentBatch.dueDate.toISOString()}`
         })
       );
+  }
+
+  private async revisionDueRecipients(
+    studentIds: string[],
+    rule: MessagingRule
+  ): Promise<Recipient[]> {
+    const students = await this.prisma.user.findMany({
+      where: { id: { in: studentIds }, status: UserStatus.ACTIVE, isDeleted: false }
+    });
+    const now = new Date();
+
+    return students.flatMap((student) => {
+      const sendAt = computeScheduledFor(rule, student.timezone, now);
+      // Queued within an hour of sending, so a student who catches up first hears nothing.
+      if (sendAt.getTime() - now.getTime() > HOUR_MS) return [];
+      const { year, month, day } = zonedYmd(student.timezone, sendAt);
+      return [
+        this.toRecipient(student, {
+          variables: {},
+          linkPath: "/student/revision",
+          linkVariable: "links.revision",
+          dedupeKey: `REVISION_DUE:${student.id}:${year}-${month}-${day}`
+        })
+      ];
+    });
   }
 
   private async gradedRecipients(
@@ -767,6 +824,7 @@ export class MessagingDispatchService {
     user: {
       id: string;
       firstName: string;
+      isEmailVerified: boolean;
       lastName: string | null;
       phoneNumber: string | null;
       role: UserRole;
@@ -781,7 +839,8 @@ export class MessagingDispatchService {
         | "links.login"
         | "links.billing"
         | "links.invoice"
-        | "links.earnings";
+        | "links.earnings"
+        | "links.revision";
       dedupeKey: string | null;
     }
   ): Recipient {
@@ -794,6 +853,7 @@ export class MessagingDispatchService {
       userId: user.id,
       role: user.role,
       phoneNumber: user.phoneNumber,
+      isEmailVerified: user.isEmailVerified,
       timezone: user.timezone,
       linkPath: options.linkPath,
       dedupeKey: options.dedupeKey,

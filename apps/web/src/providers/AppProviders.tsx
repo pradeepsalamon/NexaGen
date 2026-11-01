@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { usePathname } from "next/navigation";
+import { EmailVerificationBanner } from "@/components/layout/EmailVerificationBanner";
 import { Header } from "@/components/layout/Header";
 import { TooltipProvider } from "@/components/ui/Tooltip";
 import { ChessAppearanceProvider } from "@/features/chess-appearance/context/ChessAppearanceProvider";
@@ -60,8 +61,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
               <TypographySync />
               <AcquisitionCapture />
               {!isChromeless && <Header />}
-              {/* <EmailVerificationBanner /> (Temporarily disabled) */}
-              <div className={!isChromeless ? "pt-16" : ""}>{children}</div>
+              <div className={!isChromeless ? "pt-16" : ""}>
+                {!isChromeless && <EmailVerificationBanner />}
+                {children}
+              </div>
             </ChessAppearanceProvider>
           </TooltipProvider>
         </ToastProvider>

@@ -12,7 +12,12 @@ import {
   inferOrientationFromLabels,
   inferOrientationFromPieces,
   parseSideToMoveHint,
+  diagramSquareProbabilities,
+  fontReadingAgrees,
+  readChessFontBoard,
+  parsePrintedMoves,
   recognizeDiagramBoard,
+  recognizeDiagramBoardWithTemplates,
   refineDiagramBoard,
   rgbaToGray,
   sanitizeDiagramFileName,
@@ -29,18 +34,17 @@ import { Chess } from "./chess";
 //   pdfjs-*                     — the fixture PDFs exactly as pdf.js renders
 //                                 them in the browser (capture-pdf-renders.mjs)
 //
-// Measured when written (18 boards, 1152 squares):
-//   boards detected            18/18, and 0 false boards (8×8 table, blank, noise)
-//   squares read correctly     1139/1152 = 98.9%; every misread square flagged
-//                              for review (13/13)
-//   leave-one-set-out          1120/1152 = 97.2%; 25/32 misreads flagged
-// What that means: every board here is drawn with one of the six vendored piece
-// sets the templates come from (built on plain boards only — hatched, noisy and
-// pdf.js-rendered pages are never seen by the generator). Leave-one-set-out is
-// the honest estimate for a book font the templates have never seen; real
-// books with other fonts, skewed scans or heavy annotations will do worse.
-// Known weak spots: Merida's white queen on a book-size board reads as black,
-// blurred Merida pawns read as bishops (both flagged).
+// Measured on 2026-11-01, pieces read correctly, on boards the model never trained on
+// (scripts/diagram-import/real-books, train-square-classifier.py):
+//   a scanned book, privately held out             98.4% (12/18 boards perfect), and
+//                                                  97.4% with its closest font held out too
+//   the old silhouette matcher, same kind of book  66.5%
+//   60 clean renders of 10 unseen piece sets       90.7% (32/60 boards perfect)
+// Clean renders depend on the style: 92–100% for seven sets, 84% and 79% for two
+// unusual ones, 54% for the very stylised pirouetti.
+// The other 94 book boards score over 99%, but they are training data, so that says nothing
+// about a new book. Annotated boards: 10/16 found and 0/190 false alarms, tuned on those
+// same boards. Run real-books.mts measure and the trainer to reproduce these.
 
 const FIXTURES = join(__dirname, "__fixtures__/diagram");
 
@@ -70,8 +74,8 @@ const expand = (placement: string) =>
     .join("");
 
 /** Squares read wrong, as "e4:P->B", plus whether each mistake was flagged for review. */
-function compare(img: GrayImage, d: ExpectedDiagram, rect: { x: number; y: number; w: number; h: number }, templates = DIAGRAM_PIECE_TEMPLATES) {
-  const rec = recognizeDiagramBoard(img, rect, templates);
+function compare(img: GrayImage, d: ExpectedDiagram, rect: { x: number; y: number; w: number; h: number }, templates?: typeof DIAGRAM_PIECE_TEMPLATES) {
+  const rec = templates ? recognizeDiagramBoardWithTemplates(img, rect, templates) : recognizeDiagramBoard(img, rect);
   const orientation = d.flipped ? "black" : "white";
   const got = expand(diagramGridToPlacement(rec.grid, orientation));
   const want = expand(d.fen.split(" ")[0]);
@@ -87,7 +91,93 @@ function compare(img: GrayImage, d: ExpectedDiagram, rect: { x: number; y: numbe
   return { wrong, unflagged, rec };
 }
 
+describe("square classifier", () => {
+  const parity = JSON.parse(readFileSync(join(FIXTURES, "square-model-parity.json"), "utf8")) as { patches: number[][]; probabilities: number[][] };
+
+  it("computes the same probabilities as the PyTorch model it was exported from", () => {
+    parity.patches.forEach((patch, i) => {
+      const got = diagramSquareProbabilities(Float32Array.from(patch));
+      parity.probabilities[i].forEach((want, c) => expect(got[c]).toBeCloseTo(want, 2));
+    });
+  });
+});
+
+describe("annotated diagrams", () => {
+  const withLine = (img: GrayImage, rect: { x: number; y: number; w: number; h: number }): GrayImage => {
+    const data = img.data.slice();
+    for (let t = 0; t < rect.w; t += 0.5) {
+      for (let thick = -1; thick <= 1; thick += 1) {
+        data[Math.round(rect.y + t + thick) * img.width + Math.round(rect.x + t)] = 0;
+      }
+    }
+    return { ...img, data };
+  };
+
+  it("a board with a line drawn across it is annotated, and its pieces go to the coach; the same board without it isn't", () => {
+    const img = images.get("set-classic.pgm.gz") as GrayImage;
+    const { rect } = detectDiagramBoards(img)[0];
+    expect(recognizeDiagramBoard(img, rect).annotated).toBe(false);
+    const marked = recognizeDiagramBoard(withLine(img, rect), rect);
+    expect(marked.annotated).toBe(true);
+    for (const square of marked.squares) if (square.piece) expect(square.confidence).toBeLessThan(DIAGRAM_LOW_CONFIDENCE);
+  });
+});
+
+describe("chess fonts in the text layer", () => {
+  const rect = { x: 100, y: 100, w: 320, h: 320 };
+  const rowsToItems = (rows: string[]) =>
+    rows.map((text, r) => ({ text, width: 320, x: 260, y: 100 + r * 40 + 20 }));
+
+  it("reads a board set in the Alpha/Merida mapping, on either square colour", () => {
+    const grid = readChessFontBoard(rowsToItems(["tMvWlVmT", "oOoOoOoO", " + + + +", "+ + + + ", " + + + +", "+ + + + ", "pPpPpPpP", "RnBqKbNr"]), rect);
+    expect(grid?.[0]).toEqual(["r", "n", "b", "q", "k", "b", "n", "r"]);
+    expect(grid?.[1]).toEqual(["p", "p", "p", "p", "p", "p", "p", "p"]);
+    expect(grid?.[2]).toEqual(Array(8).fill(null));
+    expect(grid?.[7]).toEqual(["R", "N", "B", "Q", "K", "B", "N", "R"]);
+  });
+
+  it("isn't fooled by ordinary text or a stray caption", () => {
+    expect(readChessFontBoard(rowsToItems(["White to move and win in two"]), rect)).toBeNull();
+    expect(readChessFontBoard([{ text: "Nf3", width: 30, x: 200, y: 200 }], rect)).toBeNull();
+  });
+
+  it("a different font's letters only count if the page's pixels agree", () => {
+    const empty = Array.from({ length: 8 }, () => Array<string | null>(8).fill(null));
+    const other = empty.map((row) => [...row]);
+    for (let c = 0; c < 8; c += 1) other[0][c] = "p";
+    expect(fontReadingAgrees(empty, empty)).toBe(true);
+    expect(fontReadingAgrees(other, empty)).toBe(false);
+    // Sparse board where matching empty squares exceed 90% but occupied squares disagree
+    const sparseFont = empty.map((row) => [...row]);
+    sparseFont[0][0] = "k";
+    sparseFont[0][1] = "q";
+    sparseFont[0][2] = "r";
+    const sparseImage = empty.map((row) => [...row]);
+    sparseImage[0][0] = "K";
+    sparseImage[0][1] = "Q";
+    sparseImage[0][2] = "R";
+    expect(fontReadingAgrees(sparseFont, sparseImage)).toBe(false);
+  });
+});
+
+describe("parsePrintedMoves", () => {
+  it("reads numbered algebraic moves, figurines, captures, castling and annotation marks", () => {
+    expect(parsePrintedMoves("1.e4 e5 2.♘f3 ♞c6 3. Bxc5+! 0-0")).toEqual([["e4", "e5", "Nf3", "Nc6", "Bxc5+", "O-O"]]);
+  });
+
+  it("splits runs at ordinary words, longest first, and ignores descriptive notation", () => {
+    expect(parsePrintedMoves("White plays Nf3 and then 2.d4 Nf6 3.c4 wins. P-K4 Kt-B3")).toEqual([["d4", "Nf6", "c4"], ["Nf3"]]);
+  });
+});
+
 describe("detectDiagramBoards", () => {
+  it("finds a board on a page scanned well below white", () => {
+    const img = images.get("set-classic.pgm.gz") as GrayImage;
+    // The whole page at paper level ~200, like an old book's scan.
+    const dim: GrayImage = { ...img, data: img.data.map((v) => Math.round(v * 0.78)) };
+    expect(detectDiagramBoards(dim)).toHaveLength(detectDiagramBoards(img).length);
+  });
+
   it.each(expected.map((e) => [e.file, e.diagrams.length] as const))("%s has %i board(s)", (file, count) => {
     expect(detectDiagramBoards(images.get(file) as GrayImage)).toHaveLength(count);
   });
@@ -168,7 +258,7 @@ describe("recognizeDiagramBoard on the fixtures", () => {
     expect(unflagged).toBe(0);
   });
 
-  it("leave-one-set-out: an unseen piece set still reads ≥ 95% of squares", () => {
+  it("leave-one-set-out, silhouette matcher alone: an unseen piece set still reads ≥ 95% of squares", () => {
     let total = 0;
     let right = 0;
     for (const e of expected) {
@@ -247,16 +337,31 @@ describe("parseSideToMoveHint", () => {
     ["Black to play and win", "b"],
     ["White wins", "w"],
     ["W to move", "w"],
+    ["It is Black's move", "b"],
+    ["White’s turn", "w"],
   ])("%s", (text, side) => {
     expect(parseSideToMoveHint(text)?.side).toBe(side);
   });
 
-  it.each([["Position after 14.O-O"], ["White to move. Black to play."], ["Black and White squares"], ["b moves"]])(
+  it.each([["Position after 14.O-O"], ["White to move. Black to play."], ["Black and White squares"], ["b moves"], ["w's move"]])(
     "is unsure about %s",
     (text) => {
       expect(parseSideToMoveHint(text)).toBeNull();
     },
   );
+
+  // Capablanca's Chess Fundamentals: the column around the board clipped "merely" and
+  // "threatens", which used to leave "White to play" when it is Black's move.
+  it("doesn't read a phrase across a line break in a clipped sentence", () => {
+    const rect = { x: 335, y: 780, w: 420, h: 420 };
+    const line = (y: number, words: [string, number][]) => words.map(([text, x]) => ({ text, x, y }));
+    const items = [
+      ...line(1250, [["It", 195], ["is", 230], ["Black's", 300], ["move,", 380], ["and", 450], ["thinking", 540], ["that", 640], ["White", 760], ["merely", 890]]),
+      ...line(1296, [["threatens", 205], ["to", 300], ["play", 355], ["Q—R", 450], ["6", 510]]),
+    ];
+    expect(parseSideToMoveHint(textNearDiagram(items, rect))).toEqual({ phrase: "Black's move", side: "b" });
+    expect(parseSideToMoveHint(textNearDiagram(items.filter((it) => it.text !== "Black's"), rect))).toBeNull();
+  });
 
   it("reads only the text just under or over the board", () => {
     const rect = { x: 0, y: 100, w: 400, h: 400 };
@@ -265,7 +370,7 @@ describe("parseSideToMoveHint", () => {
       { text: "White to move", x: 200, y: 530 },
       { text: "Black wins", x: 200, y: 1200 },
     ];
-    expect(textNearDiagram(items, rect)).toBe("Black to move White to move");
+    expect(textNearDiagram(items, rect)).toBe("Black to move\nWhite to move");
   });
 });
 

@@ -75,7 +75,6 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
       setStartError((error as Error).message);
     }
     // `start` is expected to be a stable useCallback from the caller.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [start]);
 
   useEffect(() => {

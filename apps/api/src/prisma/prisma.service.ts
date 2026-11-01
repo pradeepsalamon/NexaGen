@@ -52,6 +52,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.emailVerificationToken;
   }
 
+  get emailSettings() {
+    return this.client.emailSettings;
+  }
+
+  get directEmail() {
+    return this.client.directEmail;
+  }
+
   get batch() {
     return this.client.batch;
   }
@@ -244,6 +252,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.externalChessAccount;
   }
 
+  get gameSourceSettings() {
+    return this.client.gameSourceSettings;
+  }
+
   get gameAnalysis() {
     return this.client.gameAnalysis;
   }
@@ -262,6 +274,34 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get chatMessage() {
     return this.client.chatMessage;
+  }
+
+  get knowledgeCategory() {
+    return this.client.knowledgeCategory;
+  }
+
+  get knowledgeArticle() {
+    return this.client.knowledgeArticle;
+  }
+
+  get knowledgeArticleBatch() {
+    return this.client.knowledgeArticleBatch;
+  }
+
+  get knowledgeArticleVersion() {
+    return this.client.knowledgeArticleVersion;
+  }
+
+  get knowledgeArticleEvent() {
+    return this.client.knowledgeArticleEvent;
+  }
+
+  get knowledgeFeedback() {
+    return this.client.knowledgeFeedback;
+  }
+
+  get knowledgeSearchLog() {
+    return this.client.knowledgeSearchLog;
   }
 
   get liveClassPuzzleAssignment() {
@@ -324,6 +364,22 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.liveClassActivityQueueItem;
   }
 
+  get libraryActivity() {
+    return this.client.libraryActivity;
+  }
+
+  get liveClassActivityRun() {
+    return this.client.liveClassActivityRun;
+  }
+
+  get liveClassMcqAttempt() {
+    return this.client.liveClassMcqAttempt;
+  }
+
+  get liveClassPlayoutGame() {
+    return this.client.liveClassPlayoutGame;
+  }
+
   get puzzleScoringSettings() {
     return this.client.puzzleScoringSettings;
   }
@@ -334,6 +390,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get messageDelivery() {
     return this.client.messageDelivery;
+  }
+
+  get systemMessageTemplate() {
+    return this.client.systemMessageTemplate;
   }
 
   get plan() {
@@ -494,6 +554,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get puzzleRatingChange() {
     return this.client.puzzleRatingChange;
+  }
+
+  get retentionPolicy() {
+    return this.client.retentionPolicy;
   }
 
   get revisionItem() {

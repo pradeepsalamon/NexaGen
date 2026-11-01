@@ -304,7 +304,9 @@ model User {
   mfa                             UserMfa?
   passwordResets                  PasswordResetToken[]
   emailVerifications              EmailVerificationToken[]
-  deletedRecords                  TrashAuditLog[]                  @relation("TrashAuditDeletedBy")
+  directEmailsReceived            DirectEmail[]                    @relation("DirectEmailRecipient")
+  directEmailsSent                DirectEmail[]                    @relation("DirectEmailSender")
+  deletedRecords                 TrashAuditLog[]                  @relation("TrashAuditDeletedBy")
   deletedStudentProfiles          StudentProfile[]                 @relation("StudentProfileDeletedBy")
   deletedCoachProfiles            CoachProfile[]                   @relation("CoachProfileDeletedBy")
   deletedBatches                  Batch[]                          @relation("BatchDeletedBy")
@@ -324,6 +326,10 @@ model User {
   deletedPuzzleTopics             PuzzleTopic[]                    @relation("PuzzleTopicDeletedBy")
   homeworkApprovedPuzzleTopics    PuzzleTopic[]                    @relation("PuzzleTopicHomeworkApprovedBy")
   authoredPuzzles                 Puzzle[]                         @relation("AuthoredPuzzles")
+  authoredLibraryActivities       LibraryActivity[]                @relation("AuthoredLibraryActivities")
+  deletedLibraryActivities        LibraryActivity[]                @relation("LibraryActivityDeletedBy")
+  mcqAttempts                     LiveClassMcqAttempt[]            @relation("StudentMcqAttempts")
+  playoutGames                    LiveClassPlayoutGame[]           @relation("StudentPlayoutGames")
   deletedPuzzles                  Puzzle[]                         @relation("PuzzleDeletedBy")
   studentPuzzleAttempts           PuzzleAttempt[]                  @relation("StudentPuzzleAttempts")
   classChangeRequests             ClassChangeRequest[]             @relation("ClassChangeRequestCoach")
@@ -359,6 +365,8 @@ model User {
   analyticsEvents                 AnalyticsEvent[]                 @relation("UserAnalyticsEvents")
   liveClassPresets                LiveClassPreset[]                @relation("UserLiveClassPresets")
   messagingRuleUpdates            MessagingRule[]                  @relation("MessagingRuleUpdatedBy")
+  systemMessageUpdates            SystemMessageTemplate[]          @relation("SystemMessageTemplateUpdatedBy")
+  retentionPolicyUpdates          RetentionPolicy[]                @relation("RetentionPolicyUpdatedBy")
   messageDeliveries               MessageDelivery[]                @relation("UserMessageDeliveries")
   createdAnnouncements            Announcement[]                   @relation("AnnouncementCreatedBy")
   orders                          Order[]                          @relation("UserOrders")
@@ -428,15 +436,20 @@ model User {
   platformStaff            PlatformStaff?
   tenantSubscriptionEvents TenantSubscriptionEvent[]
 
-  createdAt                DateTime                 @default(now())
-  updatedAt                DateTime                 @updatedAt
-  isDeleted                Boolean                  @default(false)
-  deletedAt                DateTime?
-  deletedById              String?
-  deletedBy                User?                    @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
-  deletedUsers             User[]                   @relation("UserDeletedBy")
-  deleteGroupId            String?
-  recordingWatchProgresses RecordingWatchProgress[]
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+  isDeleted                 Boolean                   @default(false)
+  deletedAt                 DateTime?
+  deletedById               String?
+  deletedBy                 User?                     @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedUsers              User[]                    @relation("UserDeletedBy")
+  deleteGroupId             String?
+  recordingWatchProgresses  RecordingWatchProgress[]
+  knowledgeArticlesCreated  KnowledgeArticle[]        @relation("KnowledgeArticleCreatedBy")
+  knowledgeVersionsAuthored KnowledgeArticleVersion[] @relation("KnowledgeVersionAuthor")
+  knowledgeVersionsReviewed KnowledgeArticleVersion[] @relation("KnowledgeVersionReviewer")
+  knowledgeEvents           KnowledgeArticleEvent[]   @relation("KnowledgeEventActor")
+  knowledgeFeedback         KnowledgeFeedback[]       @relation("KnowledgeFeedbackUser")
 
   @@index([role])
   @@index([status])
@@ -473,6 +486,11 @@ model StudentProfile {
   parentPhone String?
 
   parentRelationship String?
+
+  /// A coach's or admin's rule for automatic game sync; null = the student's own choice.
+  gameAutoSyncRule        GameAutoSyncRule?
+  /// Set by an admin, so a coach can't change it.
+  gameAutoSyncRuleByAdmin Boolean           @default(false)
 
   enrolledAt DateTime @default(now())
 
@@ -630,6 +648,55 @@ model EmailVerificationToken {
   @@map("email_verification_tokens")
 }
 
+enum EmailVerificationPolicy {
+  OFF
+  OPTIONAL
+  REQUIRED
+}
+
+/// Single row, id "default". No row means OFF.
+model EmailSettings {
+  id                 String                  @id @default("default")
+  verificationPolicy EmailVerificationPolicy @default(OFF)
+  updatedById        String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@map("email_settings")
+}
+
+enum DirectEmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// An email staff wrote to one person. The row is written before sending, so
+/// nothing goes out unlogged; PENDING means the send never reported back.
+model DirectEmail {
+  id String @id @default(cuid())
+
+  recipientId String
+  recipient   User   @relation("DirectEmailRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  toEmail     String
+
+  senderId String?
+  sender   User?   @relation("DirectEmailSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  subject String
+  body    String
+  status  DirectEmailStatus @default(PENDING)
+  error   String?
+  sentAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([recipientId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("direct_emails")
+}
+
 //
 // BATCHES
 //
@@ -677,13 +744,14 @@ model Batch {
   chessGames          ChessGame[]
   conversation        Conversation?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  isDeleted     Boolean   @default(false)
-  deletedAt     DateTime?
-  deletedById   String?
-  deletedBy     User?     @relation("BatchDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
-  deleteGroupId String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  isDeleted         Boolean                 @default(false)
+  deletedAt         DateTime?
+  deletedById       String?
+  deletedBy         User?                   @relation("BatchDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId     String?
+  knowledgeArticles KnowledgeArticleBatch[]
 
   @@index([status])
   @@index([createdById])
@@ -838,6 +906,7 @@ model CoachClass {
   classroomToolStates      LiveClassToolState[]
   liveClassChapters        LiveClassChapter[]
   activityQueues           LiveClassActivityQueue[]
+  activityRuns             LiveClassActivityRun[]
   demoRegistrations        DemoClassRegistration[]
   assignedLeads            Lead[]                           @relation("LeadAssignedClass")
   feedbackResponses        FeedbackResponse[]               @relation("FeedbackResponseClass")
@@ -1844,6 +1913,7 @@ model Assignment {
   allowHints                Boolean                @default(false)
   allowRetry                Boolean                @default(true)
   requiredCompletionPercent Int                    @default(100)
+  minMoves                  Int? // FREE_ANALYSIS: moves to play before submitting; null = no minimum
 
   // ── PUZZLE_SET only (null otherwise) ──
   /// The author's points override for every puzzle in the set (PuzzleScoringOverride).
@@ -1973,6 +2043,7 @@ enum NotificationType {
   ASSIGNMENT_DUE_SOON
   ASSIGNMENT_GRADED
   ASSIGNMENT_OVERDUE_COACH
+  REVISION_DUE
   CLASS_SCHEDULED
   CLASS_REMINDER
   CLASS_REMINDER_COACH
@@ -2006,6 +2077,7 @@ model Notification {
   @@unique([userId, dedupeKey])
   @@index([userId, readAt])
   @@index([userId, createdAt])
+  @@index([createdAt])
   @@map("notifications")
 }
 
@@ -2131,6 +2203,7 @@ model PuzzleTopic {
   homeworkApprovedBy   User?     @relation("PuzzleTopicHomeworkApprovedBy", fields: [homeworkApprovedById], references: [id], onDelete: SetNull)
 
   puzzles             Puzzle[]
+  libraryActivities   LibraryActivity[]
   homeworkAssignments Assignment[]   @relation("AssignmentSourceTopic")
   revisionItems       RevisionItem[]
 
@@ -2814,6 +2887,7 @@ enum MessagingEvent {
   ASSIGNMENT_DUE_SOON
   ASSIGNMENT_GRADED
   ASSIGNMENT_OVERDUE_COACH
+  REVISION_DUE
   ANNOUNCEMENT
   ACCOUNT_WELCOME
   ACCOUNT_APPROVED
@@ -2840,6 +2914,7 @@ enum MessagingAudience {
 enum MessageChannel {
   WHATSAPP
   IN_APP
+  EMAIL
 }
 
 enum MessageDeliveryStatus {
@@ -2867,6 +2942,7 @@ model MessagingRule {
   enabled         Boolean @default(false)
   whatsappEnabled Boolean @default(true)
   inAppEnabled    Boolean @default(true)
+  emailEnabled    Boolean @default(false)
 
   audience          MessagingAudience     @default(STUDENTS)
   /// Minutes before the moment, for lead-time events (class reminder, due soon).
@@ -2881,7 +2957,7 @@ model MessagingRule {
   /// DAILY only: a weekend send rolls forward to Monday.
   weekdaysOnly      Boolean               @default(false)
 
-  /// In-app heading. WhatsApp has no subject line and ignores it.
+  /// In-app heading and email subject. WhatsApp has no subject line and ignores it.
   title String
   body  String
 
@@ -2955,6 +3031,25 @@ model MessageDelivery {
   @@index([recipientId])
   @@index([createdAt])
   @@map("message_deliveries")
+}
+
+/// An admin's rewording of a fixed system message. No row = the default in
+/// @nexa-chess/types SYSTEM_MESSAGE_DEFINITIONS.
+model SystemMessageTemplate {
+  /// A SystemMessageKey.
+  key String @id
+
+  subject     String?
+  body        String
+  actionLabel String?
+
+  updatedById String?
+  updatedBy   User?   @relation("SystemMessageTemplateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_message_templates")
 }
 
 //
@@ -3690,8 +3785,8 @@ model InvoiceSettings {
 
   logoUrl String?
 
-  invoicePrefix    String @default("NEXA-INV")
-  creditNotePrefix String @default("NEXA-CN")
+  invoicePrefix    String @default("INV")
+  creditNotePrefix String @default("CN")
 
   defaultTaxPercent Float  @default(0)
   taxLabel          String @default("GST")
@@ -3740,7 +3835,7 @@ model InvoiceAuditLog {
 }
 
 model InvoiceSequence {
-  /// Calendar year the sequence belongs to.
+  /// Indian financial year (April–March, IST) by its starting year.
   year       Int @id
   lastNumber Int @default(0)
 
@@ -4796,6 +4891,29 @@ enum ExternalSyncStatus {
   RATE_LIMITED
 }
 
+enum GameAutoSyncPolicy {
+  OFF
+  OPTIONAL
+  REQUIRED
+}
+
+enum GameAutoSyncRule {
+  ALWAYS
+  NEVER
+}
+
+/// Academy-wide automatic game sync setting (singleton, id "default", lazily
+/// created). Not personal data, not soft-deletable.
+model GameSourceSettings {
+  id             String             @id @default("default")
+  autoSyncPolicy GameAutoSyncPolicy @default(OFF)
+  updatedById    String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@map("game_source_settings")
+}
+
 /// One linked account per (student, provider). Username only — never a
 /// password or token. `verifiedAt` is set once the student proved ownership
 /// (the code in their public profile); a username can be verified by one
@@ -4820,6 +4938,10 @@ model ExternalChessAccount {
   nextSyncAllowedAt DateTime?
   syncError         String?
   gamesImported     Int                @default(0)
+  /// The student's own choice; `resolveAutoSync` decides whether it applies.
+  autoSync          Boolean            @default(false)
+  /// When the scheduler last tried this account, so a failing one waits a day.
+  lastAutoSyncAt    DateTime?
 
   games ChessGame[]
 
@@ -4974,8 +5096,8 @@ enum ConversationMemberRole {
 /// A chat thread. BATCH threads are created lazily (unique `batchId`) and get
 /// their audience from BatchStudent / BatchCoach, so there is no second copy of
 /// class membership to drift; DIRECT threads are unique per pair (`directKey`
-/// = the two user ids, sorted). Not soft-deletable, not Trash-registered — a
-/// business record like LiveChatMessage (excluded from the retention sweep).
+/// = the two user ids, sorted). Not soft-deletable, not Trash-registered. Its
+/// messages are pruned only by an admin-set RetentionPolicy (CHAT_MESSAGES).
 model Conversation {
   id String @id @default(cuid())
 
@@ -5046,6 +5168,7 @@ model ChatMessage {
 
   @@unique([senderId, clientId])
   @@index([conversationId, createdAt])
+  @@index([createdAt])
   @@map("chat_messages")
 }
 
@@ -5059,6 +5182,8 @@ enum LiveClassActivityKind {
   PUZZLE
   QUESTION
   CHAPTER
+  MCQ
+  PLAYOUT
 }
 
 /// A coach's prepared lesson sequence for one class: drafted (before or during
@@ -5112,6 +5237,9 @@ model LiveClassActivityQueueItem {
   /// a deleted chapter just makes the item unavailable.
   chapterId String?
 
+  /// MCQ / PLAYOUT: the library activity. No FK: a purged one makes the item unavailable.
+  activityId String?
+
   fen             String?
   prompt          String?
   correctUci      String?
@@ -5121,6 +5249,8 @@ model LiveClassActivityQueueItem {
   /// it. No FK: both belong to the same class, so they go away with the queue.
   puzzleAssignmentId String? @unique
   movePollId         String? @unique
+  /// The MCQ / Playout run this item produced. No FK, like the two above.
+  activityRunId      String? @unique
 
   activatedAt     DateTime?
   completedAt     DateTime?
@@ -5132,7 +5262,216 @@ model LiveClassActivityQueueItem {
   @@index([queueId, position])
   @@index([puzzleId])
   @@index([chapterId])
+  @@index([activityId])
   @@map("live_class_activity_queue_items")
+}
+
+// ──────────────────────────────────────────────
+// UNIFIED PUZZLE LIBRARY: MCQ + PLAYOUT (docs/PUZZLE_ACTIVITIES.md)
+// ──────────────────────────────────────────────
+
+enum LibraryActivityKind {
+  MCQ
+  PLAYOUT
+}
+
+enum LiveClassActivityRunStatus {
+  ACTIVE
+  ENDED
+}
+
+enum PlayoutGameStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum PlayoutResult {
+  WIN
+  LOSS
+  DRAW
+  NONE
+}
+
+enum PlayoutEndReason {
+  GOAL_ACHIEVED
+  CHECKMATE
+  STALEMATE
+  DRAW
+  TIME_UP
+  MOVE_LIMIT
+  RESIGNED
+  RETRIED
+  ACTIVITY_ENDED
+}
+
+/// An MCQ or Playout filed in the same folder tree as chess puzzles. A separate
+/// table from `puzzles` on purpose: every puzzle query (training, homework sets,
+/// courses, revision, the catalogue) assumes a position + solution line.
+/// configJson is McqConfig / PlayoutConfig (validated by @nexa-chess/types) and
+/// holds the answer key: it only ever leaves the API on staff routes.
+model LibraryActivity {
+  id   String              @id @default(cuid())
+  kind LibraryActivityKind
+
+  topicId String
+  folder  PuzzleTopic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+
+  /// COLLATE "natural_sort", like puzzles.title (migration only).
+  title        String
+  description  String?
+  difficulty   PuzzleDifficulty
+  /// Free-text subject; the folder is where it is filed.
+  topic        String?
+  tags         String[]         @default([])
+  thumbnailUrl String?
+  configJson   Json
+
+  status     PuzzleStatus     @default(DRAFT)
+  visibility PuzzleVisibility @default(GLOBAL)
+
+  createdById   String?
+  createdBy     User?     @relation("AuthoredLibraryActivities", fields: [createdById], references: [id], onDelete: SetNull)
+  createdByRole UserRole
+  updatedById   String?
+  publishedById String?
+  publishedAt   DateTime?
+  archivedById  String?
+  archivedAt    DateTime?
+
+  runs LiveClassActivityRun[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("LibraryActivityDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([kind])
+  @@index([topicId])
+  @@index([createdById])
+  @@index([difficulty])
+  @@index([status])
+  @@index([createdAt])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
+  @@map("library_activities")
+}
+
+/// One activity put to one class. configJson is FROZEN at start, so an admin
+/// editing the library item never changes a running class or past results.
+/// One ACTIVE run per class: a hand-written partial unique index. Operational
+/// state: not soft-deletable, not Trash-registered.
+model LiveClassActivityRun {
+  id String @id @default(cuid())
+
+  liveClassId String
+  liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  /// SetNull: purging the library item keeps the class's results (title + config are frozen here).
+  activityId String?
+  activity   LibraryActivity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
+
+  kind        LibraryActivityKind
+  title       String
+  description String?
+  difficulty  PuzzleDifficulty
+  configJson  Json
+
+  startedById String?
+  status      LiveClassActivityRunStatus @default(ACTIVE)
+  startedAt   DateTime                   @default(now())
+  /// MCQ with a timer: when submissions close, for the whole class.
+  endsAt      DateTime?
+  endedAt     DateTime?
+  /// When the MCQ key was revealed to the class.
+  revealedAt  DateTime?
+
+  mcqAttempts  LiveClassMcqAttempt[]
+  playoutGames LiveClassPlayoutGame[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([liveClassId])
+  @@index([activityId])
+  @@map("live_class_activity_runs")
+}
+
+/// One submitted answer. `correct` and `score` are decided on the server.
+/// correctOptionIds is the key this answer was marked against.
+model LiveClassMcqAttempt {
+  id String @id @default(cuid())
+
+  runId String
+  run   LiveClassActivityRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("StudentMcqAttempts", fields: [studentId], references: [id], onDelete: Cascade)
+
+  attemptNumber     Int
+  selectedOptionIds String[]
+  correctOptionIds  String[]
+  correct           Boolean
+  score             Int
+  maxScore          Int
+  /// Measured on the server, from when the try became available.
+  durationSeconds   Int
+  submittedAt       DateTime @default(now())
+
+  @@unique([runId, studentId, attemptNumber])
+  @@index([studentId])
+  @@map("live_class_mcq_attempts")
+}
+
+/// One student's own game against the computer. Nothing is shared between
+/// games: each has its own position, history, clock and engine settings, and
+/// every engine search is handed exactly this row's position and settings.
+/// One IN_PROGRESS game per (run, student): a hand-written partial unique index.
+model LiveClassPlayoutGame {
+  id String @id @default(cuid())
+
+  runId String
+  run   LiveClassActivityRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("StudentPlayoutGames", fields: [studentId], references: [id], onDelete: Cascade)
+
+  attemptNumber Int
+  studentColor  String
+  startFen      String
+  fen           String
+  /// Half-moves played; every write is claimed with `where ply = <seen>`.
+  ply           Int              @default(0)
+  movesJson     Json             @default("[]")
+  pgn           String           @default("")
+  engineSkill   Int
+  engineMoveMs  Int
+
+  status       PlayoutGameStatus @default(IN_PROGRESS)
+  endReason    PlayoutEndReason?
+  result       PlayoutResult?
+  goalAchieved Boolean           @default(false)
+  hintsUsed    Int               @default(0)
+  score        Int?
+  maxScore     Int
+
+  startedAt  DateTime  @default(now())
+  /// This student's own clock, when the activity has a timer.
+  endsAt     DateTime?
+  lastMoveAt DateTime?
+  finishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([runId, studentId, attemptNumber])
+  @@index([studentId])
+  @@map("live_class_playout_games")
 }
 
 // ──────────────────────────────────────────────
@@ -5419,4 +5758,279 @@ model PlatformStaff {
   createdAt DateTime          @default(now())
 
   @@map("platform_staff")
+}
+
+//
+// KNOWLEDGE BASE (help centre; admin-managed, per-role audiences, versioned)
+//
+
+/// Who an article is written for. SUPER_ADMIN reads as ADMIN.
+enum KnowledgeAudience {
+  STUDENT
+  COACH
+  ADMIN
+}
+
+enum KnowledgeArticleKind {
+  /// A how-to / explainer (platform help, navigation, chess lessons).
+  ARTICLE
+  /// A question with its answer (the title is the question).
+  FAQ
+  /// A chess game: PGN shown on a board, the body is the commentary.
+  GAME
+  /// A pointer to something already on the platform (a page, course, puzzle folder, library game).
+  RESOURCE
+}
+
+enum KnowledgeArticleStatus {
+  /// Never published (or a coach suggestion not yet approved).
+  DRAFT
+  PUBLISHED
+  /// Hidden from readers; restorable.
+  ARCHIVED
+}
+
+enum KnowledgeVersionStatus {
+  /// Being written; the only editable state.
+  DRAFT
+  /// A coach's suggestion waiting for an admin.
+  SUBMITTED
+  /// The live version (at most one per article).
+  PUBLISHED
+  /// Was live, replaced by a newer one; kept for history and rollback.
+  SUPERSEDED
+  /// A coach suggestion an admin turned down.
+  REJECTED
+}
+
+/// OD-7: academy-owned, public domain, CC0/CC-BY, or written permission only.
+enum KnowledgeSourceType {
+  OWN_WORK
+  PUBLIC_DOMAIN
+  CC0
+  CC_BY
+  PERMISSION
+}
+
+enum KnowledgeResourceType {
+  PAGE
+  COURSE
+  PUZZLE_FOLDER
+  LIBRARY_GAME
+}
+
+enum KnowledgeEventType {
+  CREATED
+  DRAFT_SAVED
+  SUBMITTED
+  PUBLISHED
+  REJECTED
+  UNPUBLISHED
+  ARCHIVED
+  RESTORED
+  ROLLED_BACK
+  SETTINGS_CHANGED
+}
+
+enum KnowledgeQueryResolution {
+  ANSWERED
+  DISMISSED
+}
+
+model KnowledgeCategory {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  description String?
+  sortOrder   Int                @default(0)
+  archivedAt  DateTime?
+  articles    KnowledgeArticle[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("knowledge_categories")
+}
+
+model KnowledgeArticle {
+  id                  String                    @id @default(cuid())
+  slug                String                    @unique
+  kind                KnowledgeArticleKind      @default(ARTICLE)
+  status              KnowledgeArticleStatus    @default(DRAFT)
+  categoryId          String?
+  category            KnowledgeCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  /// Empty = nobody but staff in the editor.
+  audience            KnowledgeAudience[]
+  /// Limited to the batches in `batches`. Kept even when a purged batch takes its
+  /// row with it, so losing every batch hides the article instead of opening it up.
+  batchScoped         Boolean                   @default(false)
+  /// Pages this article helps with ("/student/assignments"); boosts it in page-aware help.
+  routeTags           String[]
+  /// BCP 47-ish code ("en", "ta", "hi").
+  language            String                    @default("en")
+  /// Articles sharing a group are translations of each other.
+  translationGroupId  String?
+  sourceType          KnowledgeSourceType       @default(OWN_WORK)
+  /// Author / licence credit (required for CC_BY and PERMISSION).
+  sourceNote          String?
+  publishAt           DateTime?
+  expiresAt           DateTime?
+  reviewBy            DateTime?
+  publishedVersionId  String?                   @unique
+  publishedVersion    KnowledgeArticleVersion?  @relation("KnowledgePublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  latestVersionNumber Int                       @default(0)
+  createdById         String?
+  createdBy           User?                     @relation("KnowledgeArticleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  versions            KnowledgeArticleVersion[] @relation("KnowledgeArticleVersions")
+  batches             KnowledgeArticleBatch[]
+  events              KnowledgeArticleEvent[]
+  feedback            KnowledgeFeedback[]
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@index([status])
+  @@index([categoryId])
+  @@index([translationGroupId])
+  @@index([createdById])
+  @@map("knowledge_articles")
+}
+
+/// Batch scope: when an article has rows here, students/coaches see it only through one of these batches.
+model KnowledgeArticleBatch {
+  articleId String
+  article   KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  batchId   String
+  batch     Batch            @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, batchId])
+  @@index([batchId])
+  @@map("knowledge_article_batches")
+}
+
+/// Immutable once it leaves DRAFT/SUBMITTED.
+model KnowledgeArticleVersion {
+  id           String                  @id @default(cuid())
+  articleId    String
+  article      KnowledgeArticle        @relation("KnowledgeArticleVersions", fields: [articleId], references: [id], onDelete: Cascade)
+  publishedFor KnowledgeArticle?       @relation("KnowledgePublishedVersion")
+  number       Int
+  status       KnowledgeVersionStatus  @default(DRAFT)
+  title        String
+  summary      String?
+  /// Markdown.
+  body         String
+  pgn          String?
+  resourceType KnowledgeResourceType?
+  /// A path for PAGE, an id otherwise.
+  resourceRef  String?
+  changeNote   String?
+  /// Injection-pattern and content checks; publishing with any needs an explicit acknowledgement.
+  warnings     String[]
+  authorId     String?
+  author       User?                   @relation("KnowledgeVersionAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  reviewedById String?
+  reviewedBy   User?                   @relation("KnowledgeVersionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+  publishedAt  DateTime?
+  events       KnowledgeArticleEvent[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@unique([articleId, number])
+  @@index([status])
+  @@index([authorId])
+  @@index([reviewedById])
+  @@map("knowledge_article_versions")
+}
+
+/// The change log: who did what, when.
+model KnowledgeArticleEvent {
+  id        String                   @id @default(cuid())
+  articleId String
+  article   KnowledgeArticle         @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  versionId String?
+  version   KnowledgeArticleVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  actorId   String?
+  actor     User?                    @relation("KnowledgeEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  type      KnowledgeEventType
+  /// Before/after of changed settings, the rolled-back-to version, a reject note.
+  detail    Json?
+  createdAt DateTime                 @default(now())
+
+  @@index([articleId, createdAt])
+  @@index([versionId])
+  @@index([actorId])
+  @@map("knowledge_article_events")
+}
+
+/// One helpful / not-helpful vote per reader per article (re-voting overwrites).
+model KnowledgeFeedback {
+  id        String           @id @default(cuid())
+  articleId String
+  article   KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  versionId String?
+  userId    String
+  user      User             @relation("KnowledgeFeedbackUser", fields: [userId], references: [id], onDelete: Cascade)
+  helpful   Boolean
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([articleId, userId])
+  @@index([userId])
+  @@map("knowledge_feedback")
+}
+
+/// Help searches, for the unanswered-questions inbox and topic trends. No user id:
+/// only the role and the searcher's batch ids (trends per batch). Kept 90 days (RETENTION_RULES).
+model KnowledgeSearchLog {
+  id                String                    @id @default(cuid())
+  /// Lower-cased, whitespace-collapsed query.
+  query             String
+  role              KnowledgeAudience
+  batchIds          String[]
+  route             String?
+  resultCount       Int
+  resolution        KnowledgeQueryResolution?
+  resolvedArticleId String?
+  resolvedAt        DateTime?
+  createdAt         DateTime                  @default(now())
+
+  @@index([createdAt])
+  @@index([query])
+  @@map("knowledge_search_logs")
+}
+
+/// A record category whose retention window an admin chooses (`/admin/data-retention`).
+/// Limits and recommendations: `RETENTION_CATALOGUE` in @nexa-chess/types.
+enum RetentionCategory {
+  CHAT_MESSAGES
+  LIVE_CHAT_MESSAGES
+  NOTIFICATIONS
+  MESSAGE_DELIVERIES
+  ANALYTICS_EVENTS
+}
+
+/// The admin-set window for one RetentionCategory. No row, or `days` null, means
+/// kept forever. The nightly sweep (`RetentionService`) deletes rows older than
+/// `days` and records what it removed. Fixed operational windows stay in code
+/// (`RETENTION_RULES`). Not soft-deletable: a setting, not a record.
+model RetentionPolicy {
+  id String @id @default(cuid())
+
+  category RetentionCategory @unique
+  days     Int?
+
+  updatedById String?
+  updatedBy   User?   @relation("RetentionPolicyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  /// When an admin last set `days`. Not @updatedAt: the sweep's own writes
+  /// below must not read as an admin change.
+  changedAt   DateTime?
+
+  /// The last sweep that applied this policy, and how many rows it deleted.
+  lastSweptAt      DateTime?
+  lastDeletedCount Int?
+
+  createdAt DateTime @default(now())
+
+  @@map("retention_policies")
 }

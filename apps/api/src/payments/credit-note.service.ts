@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   computeCreditBreakdown,
+  financialYear,
   formatDocumentNumber,
   type CreateCreditNoteRequest,
   type CreditNoteItem,
@@ -168,7 +169,7 @@ export class CreditNoteService {
 
     const settings = await this.settings.get();
     const issuedAt = new Date();
-    const year = issuedAt.getUTCFullYear();
+    const year = financialYear(issuedAt);
 
     const sequence = await tx.creditNoteSequence.upsert({
       where: { year },

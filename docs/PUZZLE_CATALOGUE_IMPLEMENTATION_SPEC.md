@@ -1,9 +1,10 @@
 # Lichess Puzzle Catalogue — Implementation Spec
 
-Status: **v2 — final architecture.** §15 PRs 1–5b are built (fixes, schema +
-contract, backup exclusion, prepare/load tooling, rating maths and switch-over);
-PR 6 (catalogue API + UI) is in review. The 2026-10-02 release is loaded into
-`vps_dev` only. v1 was reviewed externally; §0 records what changed and why.
+Status: **v2 — final architecture, built.** §15 PRs 1–6 are in the code (fixes,
+schema + contract, backup exclusion, prepare/load tooling, rating maths and
+switch-over, catalogue API + UI). Which release a database holds is recorded in
+its `lichess_catalogue_releases` table, not here (this line used to say "loaded
+into `vps_dev` only", 2026-10-12). v1 was reviewed externally; §0 records what changed and why.
 [PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) holds the
 audit and its measurements. Each numbered section answers one review question.
 

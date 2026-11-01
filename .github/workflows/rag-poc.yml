@@ -1,0 +1,153 @@
+name: RAG proof of concept
+
+# Phase 2 of the AI roadmap (docs/ai/architecture/RAG_POC.md). The PoC must
+# never run on the production VPS or database, so the real evaluation runs
+# here: a GitHub arm64 runner (the production box is ARM64) with a throwaway
+# pgvector service container. Not a deploy gate. The report is uploaded as an
+# artifact and summarised in RAG_POC_REPORT.md by hand. Manual only: the arm64
+# matrix costs about 70 Actions minutes a run, so start it from the Actions tab.
+on:
+  workflow_dispatch:
+    inputs:
+      chunk_tokens:
+        description: Comma-separated chunk sizes
+        default: '400,250'
+
+concurrency:
+  group: rag-poc-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.13.1"
+
+jobs:
+  evaluate:
+    name: Evaluate ${{ matrix.embedder }}, rerank top ${{ matrix.rerank_candidates }} (pgvector, arm64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        embedder: [bge-small, e5-small]
+        # 30 is the spec; 10 tests whether a shorter rerank meets the latency target.
+        rerank_candidates: [30, 10]
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg15
+        env:
+          POSTGRES_USER: poc
+          POSTGRES_PASSWORD: poc
+          POSTGRES_DB: rag_poc
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U poc -d rag_poc"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+
+      - name: Academy FAQ export is current
+        run: |
+          npm install --prefix "$RUNNER_TEMP/ts" --no-save typescript@5.9.3
+          NODE_PATH="$RUNNER_TEMP/ts/node_modules" node scripts/ai/rag-poc/export-academy-faq.mjs --check
+
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.12"
+
+      - name: Install the PoC dependency group (locked)
+        working-directory: services/ai-runtime
+        run: uv sync --frozen --group rag-poc
+
+      - name: Cache models and sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: services/ai-runtime/eval/rag_poc/.cache
+          key: rag-poc-${{ matrix.embedder }}-${{ hashFiles('services/ai-runtime/eval/rag_poc/manifest.json', 'services/ai-runtime/eval/rag_poc/embedders.py') }}
+
+      - name: Fetch and verify the public sources
+        working-directory: services/ai-runtime
+        run: uv run --frozen --group rag-poc python -m eval.rag_poc fetch
+
+      # Two ONNX threads and two pinned cores: the latency the 2-core production box would see.
+      - name: Evaluate
+        working-directory: services/ai-runtime
+        env:
+          EMBEDDER: ${{ matrix.embedder }}
+          RERANK_CANDIDATES: ${{ matrix.rerank_candidates }}
+          CHUNKS: ${{ inputs.chunk_tokens || '400,250' }}
+        run: |
+          taskset -c 0,1 uv run --frozen --group rag-poc python -m eval.rag_poc matrix \
+            --store postgresql://poc:poc@127.0.0.1:5432/rag_poc \
+            --embedders "$EMBEDDER" --chunk-tokens "$CHUNKS" --rerank-candidates "$RERANK_CANDIDATES" \
+            --threads 2 --out "$RUNNER_TEMP/rag_poc"
+          cat "$RUNNER_TEMP/rag_poc/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      # Hard fails (RAG_POC.md §4): any leak, a deletion or re-index failure, a kept forged citation.
+      - name: Hard-fail gates
+        working-directory: services/ai-runtime
+        run: |
+          python3 - "$RUNNER_TEMP/rag_poc/report.json" <<'PY'
+          import json, sys
+          reports = json.load(open(sys.argv[1]))["reports"]
+          problems = []
+          for r in reports:
+              for mode, m in r["modes"].items():
+                  if m["permission"]["restrictedChunksReturned"]:
+                      problems.append(f"{r['config']}/{mode}: restricted chunks returned to a student")
+                  if m["injection"]["pendingReviewChunksReturned"]:
+                      problems.append(f"{r['config']}/{mode}: a document held for review was retrieved")
+                  # The fixture has 5 probe documents; 4 carry a known injection pattern.
+                  if m["injection"]["flagged"] < 4:
+                      problems.append(f"{r['config']}/{mode}: only {m['injection']['flagged']} injection documents flagged (need 4)")
+              for check in ("deletion", "reindex", "duplicateUpload"):
+                  if not r[check]["pass"]:
+                      problems.append(f"{r['config']}: {check} failed: {r[check]}")
+              if r["citations"]["forgedCitationsKept"]:
+                  problems.append(f"{r['config']}: a forged citation survived validation")
+          print("\n".join(problems) or "All hard-fail gates passed.")
+          sys.exit(1 if problems else 0)
+          PY
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: rag-poc-${{ matrix.embedder }}-rc${{ matrix.rerank_candidates }}
+          path: ${{ runner.temp }}/rag_poc
+          if-no-files-found: ignore
+
+  summary:
+    name: Combined report
+    needs: evaluate
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: rag-poc-*
+          path: ${{ runner.temp }}/parts
+
+      - name: Merge
+        working-directory: services/ai-runtime
+        run: |
+          python3 -m eval.rag_poc merge "$RUNNER_TEMP"/parts/*/report.json --out "$RUNNER_TEMP/rag_poc"
+          cat "$RUNNER_TEMP/rag_poc/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rag-poc-report
+          path: ${{ runner.temp }}/rag_poc

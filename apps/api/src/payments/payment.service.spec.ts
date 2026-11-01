@@ -135,6 +135,7 @@ describe("PaymentService.applyProviderState", () => {
     verifyPayment = jest.fn();
 
     const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
       payment: { findUnique: () => Promise.resolve(payment), update: paymentUpdate },
       paymentAttempt: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       order: { update: orderUpdate }
@@ -459,7 +460,7 @@ describe("idempotency-key collisions", () => {
       clientVersion: "6.19.3"
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { isUniqueViolation } = require("./payment.service") as {
       isUniqueViolation: (error: unknown) => boolean;
     };

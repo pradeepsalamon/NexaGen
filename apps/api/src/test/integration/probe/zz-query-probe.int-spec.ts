@@ -33,7 +33,6 @@ describeProbe("query probe", () => {
     const admin = await createUser(t.prisma, UserRole.SUPER_ADMIN);
     for (const q of ["", "?status=A&status=B", "?status=BOGUS", "?difficulty=x", "?page=-1"]) {
       const r = await t.call(admin, "GET", "/puzzles" + q);
-      // eslint-disable-next-line no-console
       console.log("SANITY", q, r.status, JSON.stringify(r.body).slice(0, 200));
     }
   });
@@ -72,7 +71,6 @@ describeProbe("query probe", () => {
         }
       }
     }
-    // eslint-disable-next-line no-console
     console.log(`PROBE ${routes.length} routes\n` + found.join("\n"));
   }, 1_800_000);
 });

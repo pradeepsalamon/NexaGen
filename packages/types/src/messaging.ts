@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { escapeMarkdown } from "./markdown";
 
 // Admin-configurable outbound messaging. One rule per event decides whether a
 // message goes out, on which channels, to whom, how long before the moment it
@@ -14,6 +15,7 @@ export const messagingEventSchema = z.enum([
   "ASSIGNMENT_DUE_SOON",
   "ASSIGNMENT_GRADED",
   "ASSIGNMENT_OVERDUE_COACH",
+  "REVISION_DUE",
   "ANNOUNCEMENT",
   "ACCOUNT_WELCOME",
   "ACCOUNT_APPROVED",
@@ -37,7 +39,7 @@ export const messagingAudienceSchema = z.enum([
 ]);
 export type MessagingAudience = z.infer<typeof messagingAudienceSchema>;
 
-export const messageChannelSchema = z.enum(["WHATSAPP", "IN_APP"]);
+export const messageChannelSchema = z.enum(["WHATSAPP", "IN_APP", "EMAIL"]);
 export type MessageChannel = z.infer<typeof messageChannelSchema>;
 
 export const messageDeliveryStatusSchema = z.enum([
@@ -87,6 +89,8 @@ export interface MessagingEventDefinition {
   supportsLeadTime: boolean;
   /** Sensible lead time when the rule is first created, in minutes. */
   defaultLeadTimeMinutes?: number;
+  /** False when another email already covers this moment. Omitted = true. */
+  supportsEmail?: boolean;
 }
 
 const RECIPIENT_VARIABLES = [
@@ -240,6 +244,15 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     audiences: ["COACHES"],
     supportsLeadTime: false
   },
+  REVISION_DUE: {
+    event: "REVISION_DUE",
+    label: "Revision due",
+    description:
+      "Sent at most once a day to students with puzzles due for revision. Reviews fall due at local midnight, so keep a daily send time.",
+    variables: [...RECIPIENT_VARIABLES, "links.revision"],
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false
+  },
   ANNOUNCEMENT: {
     event: "ANNOUNCEMENT",
     label: "Announcement",
@@ -313,7 +326,9 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
       "Sends the invoice itself once its PDF is ready. On WhatsApp the PDF is attached as a document, so a parent gets the receipt in the chat rather than a link to chase. Fires after the payment is verified, and never twice for one invoice.",
     variables: INVOICE_VARIABLES,
     audiences: ["STUDENTS"],
-    supportsLeadTime: false
+    supportsLeadTime: false,
+    // The invoice email is a system message, so a rule email would be a second copy.
+    supportsEmail: false
   },
   PAYROLL_FINALIZED: {
     event: "PAYROLL_FINALIZED",
@@ -355,6 +370,22 @@ export function renderMessageTemplate(
   });
 }
 
+/** Staff-written text whose formatting should survive. Every other value is data. */
+const FORMATTED_VARIABLES = new Set(["announcement.body"]);
+
+/** A message body: the template's formatting counts, a value's never does (see escapeMarkdown). */
+export function renderFormattedTemplate(template: string, variables: MessageVariables): string {
+  const escaped = Object.fromEntries(
+    Object.entries(variables).map(([name, value]) => [
+      name,
+      FORMATTED_VARIABLES.has(name) || value === undefined || value === null
+        ? value
+        : escapeMarkdown(String(value))
+    ])
+  );
+  return renderMessageTemplate(template, escaped);
+}
+
 /** Every placeholder used in a template, de-duplicated, in first-use order. */
 export function extractTemplateVariables(template: string): string[] {
   const found = new Set<string>();
@@ -373,52 +404,90 @@ export function findUnknownTemplateVariables(
   return extractTemplateVariables(template).filter((name) => !known.has(name));
 }
 
-/** Placeholder values for previews and test sends — never real member data. */
-export function sampleVariablesFor(event: MessagingEvent): MessageVariables {
-  const samples: MessageVariables = {
-    "recipient.firstName": "Asha",
-    "recipient.lastName": "Menon",
-    "recipient.fullName": "Asha Menon",
-    "academy.name": "Nexa Chess",
-    "class.title": "Rook Endgames",
-    "class.topic": "Lucena position",
-    "class.date": "Mon, 14 Sep 2026",
-    "class.time": "6:00 pm",
-    "class.dateTime": "Mon, 14 Sep 2026 at 6:00 pm",
-    "class.startsInMinutes": "30",
-    "class.coachName": "Coach Ravi",
-    "batch.name": "Intermediate B",
-    "links.class": "https://nexa.test/student/classes",
-    "assignment.title": "Knight forks drill",
-    "assignment.dueDate": "Fri, 18 Sep 2026",
-    "assignment.dueTime": "11:59 pm",
-    "assignment.dueDateTime": "Fri, 18 Sep 2026 at 11:59 pm",
-    "links.assignment": "https://nexa.test/student/assignments",
-    "student.fullName": "Asha Menon",
-    "result.score": "82%",
-    "result.outcome": "Passed",
-    "assignment.overdueCount": "3",
-    "assignment.studentCount": "12",
-    "announcement.title": "Holiday break",
-    "announcement.body": "No classes from 20-24 September.",
-    "links.login": "https://nexa.test/login",
-    "payment.amount": "₹999.00",
-    "payment.currency": "INR",
-    "payment.method": "UPI",
-    "payment.status": "Paid",
-    "order.number": "NEXA-2026-7F3K9Q",
-    "plan.name": "Premium Membership",
-    "invoice.number": "NEXA/2026/000123",
-    "links.billing": "https://nexa.test/student/billing",
-    "payroll.periodLabel": "September 2026",
-    "payroll.netPayable": "₹19,750.00",
-    "links.earnings": "https://nexa.test/coach/earnings"
-  };
+/** What each placeholder means, with the example value previews and test sends use. */
+export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: string }> = {
+  "recipient.firstName": { label: "Recipient's first name", sample: "Asha" },
+  "recipient.lastName": { label: "Recipient's last name", sample: "Menon" },
+  "recipient.fullName": { label: "Recipient's full name", sample: "Asha Menon" },
+  "academy.name": { label: "Academy name", sample: "Nexa Chess" },
+  "class.title": { label: "Class title", sample: "Rook Endgames" },
+  "class.topic": { label: "Class topic", sample: "Lucena position" },
+  "class.date": { label: "Class date", sample: "Mon, 14 Sep 2026" },
+  "class.time": { label: "Class start time", sample: "6:00 pm" },
+  "class.dateTime": { label: "Class date and time", sample: "Mon, 14 Sep 2026 at 6:00 pm" },
+  "class.startsInMinutes": { label: "Minutes until the class starts", sample: "30" },
+  "class.coachName": { label: "Coach's name", sample: "Coach Ravi" },
+  "batch.name": { label: "Batch name", sample: "Intermediate B" },
+  "links.class": { label: "Link to the classes page", sample: "https://nexa.test/student/classes" },
+  "assignment.title": { label: "Assignment title", sample: "Knight forks drill" },
+  "assignment.dueDate": { label: "Due date", sample: "Fri, 18 Sep 2026" },
+  "assignment.dueTime": { label: "Due time", sample: "11:59 pm" },
+  "assignment.dueDateTime": { label: "Due date and time", sample: "Fri, 18 Sep 2026 at 11:59 pm" },
+  "assignment.overdueCount": { label: "Students who haven't finished", sample: "3" },
+  "assignment.studentCount": { label: "Students assigned", sample: "12" },
+  "links.assignment": { label: "Link to the assignment", sample: "https://nexa.test/student/assignments" },
+  "student.fullName": { label: "Student's full name", sample: "Asha Menon" },
+  "result.score": { label: "Score", sample: "82%" },
+  "result.outcome": { label: "Result", sample: "Passed" },
+  "announcement.title": { label: "Announcement title", sample: "Holiday break" },
+  "announcement.body": { label: "Announcement text", sample: "No classes from 20-24 September." },
+  "links.login": { label: "Sign-in link", sample: "https://nexa.test/login" },
+  "links.revision": { label: "Link to revision", sample: "https://nexa.test/student/revision" },
+  "payment.amount": { label: "Amount", sample: "₹999.00" },
+  "payment.currency": { label: "Currency", sample: "INR" },
+  "payment.method": { label: "Payment method", sample: "UPI" },
+  "payment.status": { label: "Payment status", sample: "Paid" },
+  "order.number": { label: "Order number", sample: "NEXA-2026-7F3K9Q" },
+  "plan.name": { label: "Plan name", sample: "Premium Membership" },
+  "links.billing": { label: "Link to billing", sample: "https://nexa.test/student/billing" },
+  "invoice.number": { label: "Invoice number", sample: "NEXA/2026/000123" },
+  "invoice.total": { label: "Invoice total", sample: "₹999.00" },
+  "invoice.date": { label: "Invoice date", sample: "Mon, 14 Sep 2026" },
+  "invoice.currency": { label: "Invoice currency", sample: "INR" },
+  "links.invoice": { label: "Link to the invoice", sample: "https://nexa.test/student/billing/invoices/1" },
+  "payroll.periodLabel": { label: "Payroll period", sample: "September 2026" },
+  "payroll.netPayable": { label: "Net pay", sample: "₹19,750.00" },
+  "links.earnings": { label: "Link to earnings", sample: "https://nexa.test/coach/earnings" },
+  // System messages (./system-messages)
+  "links.reset": { label: "Password reset link", sample: "https://nexa.test/reset-password?token=sample" },
+  "links.verify": { label: "Email verification link", sample: "https://nexa.test/verify-email?token=sample" },
+  "email.new": { label: "The new email address", sample: "asha.new@example.com" },
+  "customer.name": { label: "Billed customer's name", sample: "Asha Menon" },
+  "invoice.amount": { label: "Amount paid", sample: "₹999.00" },
+  "invoice.attachmentNote": { label: "Says the PDF is attached (empty if it isn't)", sample: "It is attached to this email as a PDF." },
+  "invoice.downloadNote": { label: "Says when the link expires (empty without a link)", sample: "This download link expires in 7 days." },
+  "seller.name": { label: "Seller's legal name", sample: "Nexa Chess Academy" },
+  "support.line": { label: "How to reach support", sample: "Questions? Reply to this email or write to help@nexa.test." },
+  "links.download": { label: "Invoice download link", sample: "https://nexa.test/invoices/sample.pdf" },
+  "guest.name": { label: "Guest's name", sample: "Asha Menon" },
+  "guest.email": { label: "Guest's email address", sample: "asha@example.com" },
+  "demo.topic": { label: "Demo class topic", sample: "Rook Endgames" },
+  "demo.dateTime": { label: "Demo class date and time (UTC)", sample: "Monday, Sep 14, 06:00 PM UTC" },
+  "links.join": { label: "Link to join the class", sample: "https://nexa.test/demo/sample" },
+  "lead.studentName": { label: "Student's name", sample: "Asha Menon" },
+  "lead.studentAge": { label: "Student's age", sample: "11" },
+  "lead.parentName": { label: "Parent's name", sample: "Priya Menon" },
+  "lead.experience": { label: "Experience level", sample: "Beginner" },
+  "lead.phone": { label: "Phone number", sample: "+91 98765 43210" },
+  "lead.email": { label: "Email address", sample: "priya@example.com" },
+  "lead.source": { label: "Where the lead came from", sample: "Website" },
+  "lead.campaign": { label: "Campaign", sample: "-" },
+  "requester.name": { label: "Requester's name", sample: "Asha Menon" },
+  "requester.email": { label: "Requester's email address", sample: "asha@example.com" },
+  "requester.role": { label: "Requester's role", sample: "STUDENT" },
+  "request.reason": { label: "Reason they gave", sample: "Moving to another academy." },
+  "request.noteLine": { label: "The academy's note (empty if none)", sample: "Note from the academy: Your invoices are kept as the law requires." }
+};
 
-  const known = MESSAGING_EVENT_DEFINITIONS[event].variables;
+/** Example values for a set of placeholders, for previews and test sends — never real member data. */
+export function sampleVariables(names: readonly string[]): MessageVariables {
   return Object.fromEntries(
-    known.map((name) => [name, samples[name] ?? `{{${name}}}`])
+    names.map((name) => [name, MESSAGE_VARIABLE_DOCS[name]?.sample ?? `{{${name}}}`])
   );
+}
+
+export function sampleVariablesFor(event: MessagingEvent): MessageVariables {
+  return sampleVariables(MESSAGING_EVENT_DEFINITIONS[event].variables);
 }
 
 //
@@ -489,6 +558,9 @@ export interface MessagingRuleDefaults {
   inAppEnabled: boolean;
   audience: MessagingAudience;
   leadTimeMinutes: number | null;
+  /** Omitted = IMMEDIATE. */
+  scheduleMode?: MessagingScheduleMode;
+  scheduleHour?: number;
   title: string;
   body: string;
 }
@@ -570,6 +642,19 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "Assignment overdue",
     body: "\"{{assignment.title}}\" for {{batch.name}} was due {{assignment.dueDateTime}}. {{assignment.overdueCount}} of {{assignment.studentCount}} students haven't finished it."
+  },
+  // Off: a daily nudge to minors is the academy's call. 5pm, because reviews
+  // fall due at local midnight and IMMEDIATE would send then.
+  REVISION_DUE: {
+    enabled: false,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    scheduleMode: "DAILY",
+    scheduleHour: 17,
+    title: "Time to revise",
+    body: "Hi {{recipient.firstName}}, you have puzzles ready to revise. A few minutes today keeps them fresh: {{links.revision}}"
   },
   ANNOUNCEMENT: {
     enabled: false,
@@ -679,6 +764,7 @@ export interface MessagingRuleItem {
   enabled: boolean;
   whatsappEnabled: boolean;
   inAppEnabled: boolean;
+  emailEnabled: boolean;
   audience: MessagingAudience;
   /** Minutes before the moment, for lead-time events only. */
   leadTimeMinutes: number | null;
@@ -691,7 +777,7 @@ export interface MessagingRuleItem {
   scheduleDayOfWeek: number | null;
   /** DAILY only: push a Saturday/Sunday send to the following Monday. */
   weekdaysOnly: boolean;
-  /** In-app notification heading. Unused by WhatsApp, which has no subject. */
+  /** In-app heading and email subject. Unused by WhatsApp, which has no subject. */
   title: string;
   body: string;
   /**
@@ -710,12 +796,15 @@ export interface MessagingRuleListResponse {
   rules: MessagingRuleItem[];
   /** False when WHATSAPP_* env is unset — the UI warns instead of lying. */
   whatsappConfigured: boolean;
+  /** False when SMTP_* env is unset. */
+  emailConfigured: boolean;
 }
 
 export const updateMessagingRuleRequestSchema = z.object({
   enabled: z.boolean().optional(),
   whatsappEnabled: z.boolean().optional(),
   inAppEnabled: z.boolean().optional(),
+  emailEnabled: z.boolean().optional(),
   audience: messagingAudienceSchema.optional(),
   leadTimeMinutes: z.number().int().min(1).max(30 * 24 * 60).nullable().optional(),
   scheduleMode: messagingScheduleModeSchema.optional(),
@@ -740,6 +829,8 @@ export interface MessagingRuleResponse {
 }
 
 export const testMessagingRuleRequestSchema = z.object({
+  /** Omitted = WhatsApp. An email test only ever goes to the admin's own account. */
+  channel: z.enum(["WHATSAPP", "EMAIL"]).optional(),
   /** Defaults to the requesting admin's own number. */
   phoneNumber: z.string().trim().max(30).optional()
 });
@@ -761,7 +852,7 @@ export interface MessageDeliveryItem {
   channel: MessageChannel;
   status: MessageDeliveryStatus;
   recipientName: string | null;
-  /** Masked to the last 4 digits — the log is not a phone book. */
+  /** Masked phone or email address — the log is not a phone book. */
   recipientMasked: string | null;
   body: string;
   error: string | null;
@@ -803,7 +894,7 @@ export const createAnnouncementRequestSchema = z
     body: z.string().trim().min(1).max(4000),
     audience: announcementAudienceSchema,
     batchId: z.string().trim().min(1).optional(),
-    /** Off publishes to the dashboard feed only, with no WhatsApp/in-app send. */
+    /** Off publishes to the dashboard feed only, with no WhatsApp/in-app/email send. */
     sendMessages: z.boolean().default(true)
   })
   .refine((value) => value.audience !== "BATCH" || Boolean(value.batchId), {
@@ -842,8 +933,11 @@ export interface MessagingDispatchSummary {
   /** Messages written to the outbox. The cron sends them; see MESSAGE_MAX_ATTEMPTS. */
   queuedWhatsApp: number;
   queuedInApp: number;
+  queuedEmail: number;
   /** Recipients skipped for a missing or unusable phone number. */
   missingPhone: number;
+  /** Recipients skipped because the academy requires verified addresses and theirs isn't. */
+  unverifiedEmail: number;
   /** When the earliest queued message is due; null if it is due now. */
   scheduledFor: string | null;
 }

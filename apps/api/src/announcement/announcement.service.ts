@@ -90,7 +90,9 @@ export class AnnouncementService {
         recipients: 0,
         queuedWhatsApp: 0,
         queuedInApp: 0,
+        queuedEmail: 0,
         missingPhone: 0,
+        unverifiedEmail: 0,
         scheduledFor: null
       }
     };

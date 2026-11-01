@@ -81,7 +81,8 @@ function toUpdatePayload(assignment: AssignmentLibraryItem): UpdateAssignmentReq
     maxAttempts: assignment.maxAttempts,
     allowHints: assignment.allowHints,
     allowRetry: assignment.allowRetry,
-    requiredCompletionPercent: assignment.requiredCompletionPercent
+    requiredCompletionPercent: assignment.requiredCompletionPercent,
+    minMoves: assignment.minMoves
   };
 }
 
@@ -102,6 +103,7 @@ type FormValues = {
   passThresholdPercent: string;
   allowRetry: boolean;
   allowHints: boolean;
+  minMoves: string;
   puzzles: SelectedSetPuzzle[];
   /** Only the fields the author changed; the rest inherit (admin default → each puzzle's own). */
   scoring: PuzzleScoringOverride;
@@ -197,6 +199,7 @@ const DEFAULTS: FormValues = {
   passThresholdPercent: "100",
   allowRetry: true,
   allowHints: false,
+  minMoves: "",
   puzzles: [],
   scoring: {},
   leaderboard: {}
@@ -305,6 +308,7 @@ export function AssignmentFormDialog({
         passThresholdPercent: String(assignment.passThresholdPercent ?? 100),
         allowRetry: assignment.allowRetry,
         allowHints: assignment.allowHints,
+        minMoves: assignment.minMoves ? String(assignment.minMoves) : "",
         puzzles: (assignment.puzzles ?? []).map((p) => ({
           difficulty: p.difficulty,
           puzzleId: p.puzzleId,
@@ -422,6 +426,9 @@ export function AssignmentFormDialog({
     if (values.activityType === "PLAY_VS_ENGINE") {
       activity.engineLevel = parseInt(values.engineLevel, 10) || 5;
       activity.passThresholdPercent = parseInt(values.passThresholdPercent, 10) || 100;
+    }
+    if (values.activityType === "FREE_ANALYSIS") {
+      activity.minMoves = values.minMoves ? parseInt(values.minMoves, 10) : null;
     }
 
     if (mode === "edit" && assignment) {
@@ -834,9 +841,14 @@ export function AssignmentFormDialog({
           )}
 
           {activityType === "FREE_ANALYSIS" && (
-            <p className="rounded-app border border-app-border bg-app-background/50 p-3 text-xs text-app-muted">
-              The student explores freely from the starting position and submits when done.
-            </p>
+            <>
+              <p className="rounded-app border border-app-border bg-app-background/50 p-3 text-xs text-app-muted">
+                The student explores freely from the starting position and submits when done.
+              </p>
+              <FormField id="minMoves" label="Minimum moves (blank = none; each side's move counts as one)">
+                <Input id="minMoves" type="number" min="1" max="200" {...form.register("minMoves")} />
+              </FormField>
+            </>
           )}
 
           {canAssignOnCreate && (

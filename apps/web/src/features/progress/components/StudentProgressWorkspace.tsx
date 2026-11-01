@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { GameInsightsPanel } from "@/features/game-analysis/components/GameInsightsPanel";
+import { StudentGameSyncCard } from "@/features/game-analysis/components/StudentGameSyncCard";
 import { RevisionReportPanel } from "@/features/revision/components/RevisionReportPanel";
 import { useActivitySummary, useProgressFor } from "../hooks/useProgress";
 import {
@@ -101,7 +102,8 @@ export function StudentProgressWorkspace({ studentId }: { studentId: string | nu
         {tab === "revision" ? <RevisionReportPanel studentId={studentId} /> : null}
       </TabsContent>
 
-      <TabsContent value="games">
+      <TabsContent className="space-y-5" value="games">
+        {tab === "games" && studentId ? <StudentGameSyncCard studentId={studentId} /> : null}
         {tab === "games" ? <GameInsightsPanel studentId={studentId} /> : null}
       </TabsContent>
     </Tabs>

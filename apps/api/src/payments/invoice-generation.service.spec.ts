@@ -310,7 +310,7 @@ describe("InvoiceGenerationService queueing", () => {
     // its parse, so the module graph has to be rebuilt for each variant.
     // `require` rather than `import()`: this suite runs as CJS under ts-jest.
     jest.resetModules();
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { InvoiceGenerationService: Service } = require("./invoice-generation.service");
 
     const queue = { add: jest.fn().mockResolvedValue({ id: "job_1" }) };

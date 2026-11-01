@@ -18,6 +18,7 @@ type RouteRule = {
 const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/admin/backups", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/classes", roles: ["SUPER_ADMIN"] },
+  { prefix: "/admin/data-retention", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/demo-classes", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/trash", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin", roles: STAFF_ROLES },
@@ -29,6 +30,8 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/chess-board", roles: null },
   // Game Library and chat: every role; the API scopes what each one sees.
   { prefix: "/games", roles: null },
+  // Help centre: every role; the API decides which articles each one sees.
+  { prefix: "/help", roles: null },
   { prefix: "/messages", roles: null },
   { prefix: "/plans", roles: null },
   { prefix: "/profile", roles: null }

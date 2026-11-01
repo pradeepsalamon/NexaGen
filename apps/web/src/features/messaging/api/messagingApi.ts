@@ -9,9 +9,14 @@ import type {
   MessagingEvent,
   MessagingRuleItem,
   MessagingRuleListResponse,
+  SystemMessageItem,
+  SystemMessageKey,
+  SystemMessageListResponse,
   TestMessagingRuleRequest,
   TestMessagingRuleResponse,
-  UpdateMessagingRuleRequest
+  TestSystemMessageRequest,
+  UpdateMessagingRuleRequest,
+  UpdateSystemMessageRequest
 } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
 
@@ -50,6 +55,24 @@ export function getMessageDeliveries(
 
 export function retryMessageDelivery(id: string): Promise<MessageDeliveryItem> {
   return apiFetch(API_ROUTES.messaging.retryDelivery(id), { method: "POST" });
+}
+
+export function getSystemMessages(): Promise<SystemMessageListResponse> {
+  return apiFetch(API_ROUTES.messaging.systemMessages);
+}
+
+export function updateSystemMessage(
+  key: SystemMessageKey,
+  data: UpdateSystemMessageRequest
+): Promise<SystemMessageItem> {
+  return apiFetch(API_ROUTES.messaging.systemMessage(key), { method: "PUT", body: data });
+}
+
+export function testSystemMessage(
+  key: SystemMessageKey,
+  data: TestSystemMessageRequest
+): Promise<TestMessagingRuleResponse> {
+  return apiFetch(API_ROUTES.messaging.testSystemMessage(key), { method: "POST", body: data });
 }
 
 export function getAnnouncements(): Promise<AnnouncementListResponse> {

@@ -1,6 +1,6 @@
 # Phase 3 specification: after-class summaries
 
-Status: **proposal, not approved** (revision 2, 2026-10-25: §5–§6 move lines from code). Phase 3 starts
+Status: **proposal, not approved** (revision 2, 2026-10-25: §5–§6 move lines from code; revision 3, 2026-10-31: v1 narrowed to a student recap from the coach's voice, §0a). Phase 3 starts
 only when all of these hold:
 
 - the 3a benchmark passes (INFRASTRUCTURE_DECISION.md §4.1), or the owner
@@ -23,6 +23,80 @@ Labels:
 - **[V]** verified in the repo (read-only, 2026-10-19)
 - **[A]** an assumption the build must confirm
 - **[R]** a recommendation
+
+---
+
+## 0a. Owner scope change, 2026-10-31: v1 is a student recap from the coach's voice
+
+**Planning only. Nothing is built, and v1 doesn't start until the open items
+below are decided.** On 2026-10-31 the owner narrowed v1. Where this section
+conflicts with §1–§14, it wins for v1. The rest of the spec stays the target
+for later versions, which will add evidence.
+
+| | §1–§14 (full spec) | **v1 (this section)** |
+|---|---|---|
+| Who reads it | Coach notes + student recap | **Students only** (a class recap) |
+| Evidence | Board, chapters, puzzles, polls, simuls, matches, attendance, notes, room chat (§4) | **The coach's speech only**, as a transcript |
+| Languages | English | **Tamil and English, mixed within one class** |
+| Transcription | Out of scope (OD-13) | **Option A: Chrome's built-in speech recognition in the coach's browser** during class (the `/admin/caption-test` bench on `feat/live-captions-test`, not merged) |
+| Generation | Local `qwen2.5:3b`, off-hours (§5) | Same model and path; transcript chunked (see below) |
+
+**Why only the coach's voice.** It's an adult who can consent. Students'
+voices, the main OD-13 concern, are never captured: the coach's own browser
+recognises only the coach's microphone, never the room mix.
+
+**Planned v1 pipeline [R]:**
+
+1. During class, the coach's Chrome recognises the coach's speech and the web
+   app sends finished lines to the API (a text stream; no audio reaches our
+   server).
+2. The API stores the lines against the class (a new transcript table,
+   additive migration; retention 30 days like `evidenceJson`).
+3. After the class, names of rostered students in the transcript are replaced
+   by `S#` (§4 pseudonymiser) before anything reaches the model.
+4. The transcript is chunked to fit the ~6,000-token input budget, each chunk
+   is summarised, then the partial summaries are merged into one recap
+   (map → reduce). Estimate for a 1-hour class: about 8–10K spoken words ≈
+   12K tokens, **15–25 min of off-hours CPU [A, not measured]**.
+5. Output: the student view only (recap, key concepts, practice ideas). The
+   recap quotes **no moves**: speech gets notation wrong ("night takes F
+   seven"), and v1 has no board evidence to check a move against.
+
+**Risks to test before any build:**
+
+- **Mixed Tamil/English in Chrome.** Web Speech recognises one language per
+  session (`ta-IN` or `en-IN`). In `ta-IN`, English chess terms may come out
+  in Tamil script or garbled. `chessTermFixes.ts` on the test branch covers
+  only a few terms. The planned coach test on `/admin/caption-test` must use
+  a real mixed lesson.
+- **The model reading Tamil.** `qwen2.5:3b` was benchmarked on English
+  synthetic bundles only (INFRASTRUCTURE_DECISION.md §4.6). Its Tamil
+  comprehension is unproven, and the recap's output language (English, Tamil
+  or both) is undecided. Re-benchmark on real transcripts before choosing
+  the model (OD-25).
+- **Audio to Google.** Chrome's recognition sends the coach's audio to
+  Google. It's the coach's voice, but it can contain students' names, so the
+  coach's consent and the privacy page (§10) must say so.
+- **Chrome only.** Coaches on other browsers produce no transcript, so the
+  class gets no recap (`SKIPPED_NO_EVIDENCE`).
+- **Long transcripts.** Map → reduce over 2–3 chunks hasn't been run on this
+  box. The timing above is an estimate.
+
+**Open owner decisions for v1:**
+
+- **OD-13 (revised):** allow transcription of the coach's voice only, with
+  each coach's written consent. Choosing option A implies it; it isn't yet
+  recorded as approved.
+- **OD-5:** does a coach still approve each recap before students see it?
+  The recommendation stays **yes**, even more so for transcripts.
+- **Recap language:** English, Tamil, or the student's choice.
+- OD-25 to OD-29 still apply. OD-12 (room chat) isn't needed for v1.
+
+Fallback if Chrome's mixed-language quality is poor: Groq's free Whisper
+large-v3 on the coach's audio track only (needs an OD-4 exception for coach
+audio), or local `faster-whisper` at night (English only in practice: small.en
+takes about 1.5 h of CPU per class hour, LIVE_CAPTIONS.md §5.2 on
+`feat/ai-capacity-benchmark`).
 
 ---
 

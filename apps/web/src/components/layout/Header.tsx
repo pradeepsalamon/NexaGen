@@ -1,10 +1,11 @@
 "use client";
 
-import { Loader2, LogIn, Menu, Sun, Moon } from "lucide-react";
+import { LifeBuoy, Loader2, LogIn, Menu, Sun, Moon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { UserNavMenu } from "@/components/layout/UserNavMenu";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
@@ -108,6 +109,21 @@ export function Header({
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {rightSlot}
 
+          {activeUser && !pathname.startsWith("/help") && (
+            <span className={cn("hidden sm:block", compact && "sm:hidden lg:block")}>
+              {/* Page-aware help: the help centre lists articles tagged for the page you came from. */}
+              <SimpleTooltip label="Help">
+                <Link
+                  aria-label="Help"
+                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-soft text-app-text shadow-card transition hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                  href={`/help?from=${encodeURIComponent(pathname)}`}
+                  {...(openLinksInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                >
+                  <LifeBuoy aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                </Link>
+              </SimpleTooltip>
+            </span>
+          )}
           {activeUser && (
             <span className={cn("shrink-0", compact && "hidden lg:block")}>
               <NotificationBell openLinksInNewTab={openLinksInNewTab} />

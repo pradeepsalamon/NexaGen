@@ -120,7 +120,7 @@ describe("InvoiceService.issue", () => {
   it("issues one invoice with a sequential number", async () => {
     await service.issue(tx as never, input);
 
-    expect(created().number).toBe("NEXA-INV-2026-000001");
+    expect(created().number).toBe("INV/26-27/00001");
     expect(tx.invoice.create).toHaveBeenCalledTimes(1);
   });
 
@@ -301,10 +301,10 @@ describe("InvoiceService.issue", () => {
     await service.issue(tx as never, { ...input, orderId: "ord_2" });
 
     expect(tx.invoice.create.mock.calls[0][0].data.number).toBe(
-      "NEXA-INV-2026-000001"
+      "INV/26-27/00001"
     );
     expect(tx.invoice.create.mock.calls[1][0].data.number).toBe(
-      "NEXA-INV-2026-000002"
+      "INV/26-27/00002"
     );
   });
 });

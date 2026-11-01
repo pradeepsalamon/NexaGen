@@ -31,6 +31,12 @@ N days per coach / `ONE_TIME`) and **where** (`placements`: `CLASS_END` on
   deactivated. None of these models are soft-deletable or Trash-registered.
 - Shared types, labels and `averageRating` live in `@nexa-chess/types`
   (`feedback.ts`).
+- What admins configure: up to 20 questions per form (star rating 1–5, written
+  answer, multiple choice, yes/no; each optionally required), `expiresAfterDays`
+  for an open request, optional `startsAt` / `endsAt`, `batchIds` (empty = all
+  batches) and `allowSkip`. The dashboard pop-up shows at most once per visit;
+  RECURRING/ONE_TIME forms only ask about coaches the student actually attended
+  a class with.
 
 ## 3.6k1 Move tree, variations & Game Library
 
@@ -177,8 +183,10 @@ coach-made) + `ConversationMember` (read state; `leftAt`) + `ChatMessage`.
 - **No websocket**: the web polls (open thread 4s, list 15s, sidebar unread 30s;
   paused while the tab is hidden). The unread badge on the Messages nav link
   is `useChatNavBadge()` in all three sidebars.
-- Not soft-deletable, not Trash-registered, not in `RETENTION_RULES` (chat is a
-  business record — retention is a policy decision).
+- Not soft-deletable, not Trash-registered. Old messages are deleted only by
+  the admin-set `CHAT_MESSAGES` retention window (default: kept forever;
+  [INFRASTRUCTURE.md](INFRASTRUCTURE.md) "Retention sweep"). A thread whose
+  messages all aged out still lists, with no last message.
 
 ## 3.6k3 Assignment due-date reminders
 
@@ -207,7 +215,7 @@ so finished work is never shown as overdue.
 `packages/types/src/revision.ts` (pure scheduler + contract), `apps/api/src/revision/`,
 `features/revision/`, page `/student/revision`, dashboard card, and the **Revision**
 tab of `StudentProgressWorkspace` (student / coach / admin), routes
-`API_ROUTES.revision.*`. Full rules: [docs/SMART_REVISION.md](docs/SMART_REVISION.md).
+`API_ROUTES.revision.*`. Full rules: [docs/SMART_REVISION.md](SMART_REVISION.md).
 
 - A `RevisionItem` (unique `(studentId, contentKey)`, `puzzle:<id>` / `topic:<id>`)
   **references** a puzzle or a folder, never copies one. A review is an ordinary
@@ -235,9 +243,9 @@ tab of `StudentProgressWorkspace` (student / coach / admin), routes
 
 ## 3.6k3c Game analysis, tactics, game sources, game insights
 
-Method: [docs/GAME_ANALYSIS.md](docs/GAME_ANALYSIS.md) (incl. the benchmark);
-imports: [docs/GAME_SOURCES.md](docs/GAME_SOURCES.md); parents: deliberately
-deferred — [docs/PARENT_REPORTS.md](docs/PARENT_REPORTS.md). Shared rules in
+Method: [docs/GAME_ANALYSIS.md](GAME_ANALYSIS.md) (incl. the benchmark);
+imports: [docs/GAME_SOURCES.md](GAME_SOURCES.md); parents: deliberately
+deferred — [docs/PARENT_REPORTS.md](PARENT_REPORTS.md). Shared rules in
 `packages/types/src/game-analysis*.ts`, `game-tactics.ts`, `game-sources.ts`;
 API `apps/api/src/game-analysis/`, `game-sources/`, `stockfish/`; web
 `features/game-analysis/`, page `/student/insights`, the Engine analysis panel on
@@ -289,12 +297,33 @@ errors block, warnings need the coach; takes a chess.js probe) +
 "From PDF" tab of `SetupPositionWorkspace` (only when `pdfImport` is passed —
 `ClassroomBoard` does, for the coach; lazy-loaded).
 
-- **The PDF never leaves the browser.** No upload route, no storage, nothing to
+- **Reading files is a shared service: `apps/web/src/lib/document-reader`.**
+  `openDocument(file)` takes a PDF, PNG, JPEG or WebP (it checks the bytes),
+  `doc.renderPage(n)` gives grayscale pixels and the text layer, `readPageText(page)`
+  returns the text layer or else OCR with its `source`, and `readTextInRegions` runs
+  OCR on parts of a page. Any web feature can use it. It's browser-only, so a server
+  job can't.
+- **The file never leaves the browser.** No upload route, no storage, nothing to
   clean up server-side. pdf.js loads from `public/vendor/pdfjs/` via a
   `webpackIgnore`'d `import()` (`apps/web/scripts/copy-pdfjs.mjs`, run on
   `predev`/`prebuild`) — **don't bundle it**: Next's webpack rewrites the
   `__webpack_require__` inside pdf.js's own build ("Object.defineProperty called
-  on non-object"). Limits live in `PDF_IMPORT_LIMITS` (`lib/pdf.ts`).
+  on non-object"). Tesseract (OCR, about 7 MB, loaded on first use) comes from
+  `public/vendor/tesseract/` the same way. Limits live in `DOCUMENT_LIMITS`
+  (`document-reader/pdf.ts`). pdf.js' image
+  decoders are served from `public/vendor/pdfjs/wasm/` (`wasmUrl`): without them
+  a JPEG2000 scan, which is how archive and many scanner PDFs store a page,
+  renders blank. A page that renders blank but holds an image is reported as
+  unreadable, not as having no diagrams.
+- **Pieces are read by a small neural network** (`diagram-square-classifier.ts`, a
+  plain TypeScript forward pass; weights in the generated `diagram-square-model.ts`),
+  with the older silhouette matcher as a second opinion for flagging. Train with
+  `scripts/diagram-import/train-square-classifier.py` (Python and PyTorch, never part
+  of the app) on `scripts/diagram-import/real-books/` plus piece sets whose licence
+  allows a paid product: **never train on Lichess's CC BY-NC-SA sets**. Measure with
+  `real-books.mts measure`. Text only ever hints: a chess font is trusted only when
+  the pixels agree (`diagram-font-reading.ts`), and printed moves become a suggested
+  solution only as far as they're legal (`parsePrintedMoves`, `lib/solution.ts`).
 - **A diagram is pieces only.** Side to move, castling, en passant and the move
   counters are never assumed: `CandidateReview` holds null/unaccepted until the
   coach answers (a caption like "White to move" or printed coordinates may

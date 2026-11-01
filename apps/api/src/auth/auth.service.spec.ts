@@ -18,6 +18,7 @@ import { hashRefreshToken, hashSecret } from "./auth.utils";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import type { LoginOutcome } from "./auth.service";
 import { MfaService } from "./mfa/mfa.service";
+import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -33,6 +34,9 @@ type MockPrismaService = {
   coachProfile: {
     create: jest.Mock;
     update: jest.Mock;
+  };
+  emailVerificationToken: {
+    updateMany: jest.Mock;
   };
   passwordResetToken: {
     create: jest.Mock;
@@ -65,6 +69,13 @@ describe("AuthService", () => {
   let prismaService: MockPrismaService;
   let analyticsEvents: { record: jest.Mock };
   let mfaService: { loginChallenge: jest.Mock };
+  let emailVerification: {
+    blocksSignIn: jest.Mock;
+    policy: jest.Mock;
+    sendLink: jest.Mock;
+    sendLinkBestEffort: jest.Mock;
+    sendLinkForRefusedSignIn: jest.Mock;
+  };
 
   const asSession = (outcome: LoginOutcome) => {
     if (outcome.kind !== "session") throw new Error("Expected a session, got an MFA challenge.");
@@ -79,6 +90,13 @@ describe("AuthService", () => {
 
     analyticsEvents = { record: jest.fn().mockResolvedValue(undefined) };
     mfaService = { loginChallenge: jest.fn().mockResolvedValue(null) };
+    emailVerification = {
+      blocksSignIn: jest.fn().mockResolvedValue(false),
+      policy: jest.fn().mockResolvedValue("OFF"),
+      sendLink: jest.fn().mockResolvedValue(undefined),
+      sendLinkBestEffort: jest.fn().mockResolvedValue(true),
+      sendLinkForRefusedSignIn: jest.fn().mockResolvedValue("sent")
+    };
 
     mailService = {
       sendPasswordResetLink: jest.fn(),
@@ -118,6 +136,7 @@ describe("AuthService", () => {
         create: jest.fn(),
         update: jest.fn()
       },
+      emailVerificationToken: { updateMany: jest.fn() },
       user: userMock,
       withDeleted: { user: userMock },
       $transaction: jest.fn((operations: unknown) => operations)
@@ -130,7 +149,8 @@ describe("AuthService", () => {
         { provide: MailService, useValue: mailService },
         { provide: PrismaService, useValue: prismaService },
         { provide: AnalyticsEventService, useValue: analyticsEvents },
-        { provide: MfaService, useValue: mfaService }
+        { provide: MfaService, useValue: mfaService },
+        { provide: EmailVerificationService, useValue: emailVerification }
       ]
     }).compile();
 
@@ -231,6 +251,77 @@ describe("AuthService", () => {
       await expect(service.register(registerPayload, {})).rejects.toThrow(
         ConflictException
       );
+    });
+
+    it("counts as verified and mails nothing while verification is off", async () => {
+      prismaService.user.findUnique.mockResolvedValueOnce(null);
+      prismaService.user.create.mockResolvedValueOnce({ ...activeUser, status: UserStatus.PENDING });
+
+      await service.register(registerPayload, {});
+
+      expect(prismaService.user.create.mock.calls[0][0].data.isEmailVerified).toBe(true);
+      expect(emailVerification.sendLinkBestEffort).not.toHaveBeenCalled();
+    });
+
+    it("starts unverified and sends a link once verification is on", async () => {
+      emailVerification.policy.mockResolvedValue("OPTIONAL");
+      prismaService.user.findUnique.mockResolvedValueOnce(null);
+      prismaService.user.create.mockResolvedValueOnce({ ...activeUser, status: UserStatus.PENDING });
+
+      await service.register(registerPayload, {});
+
+      expect(prismaService.user.create.mock.calls[0][0].data).toMatchObject({
+        emailVerifiedAt: null,
+        isEmailVerified: false
+      });
+      expect(emailVerification.sendLinkBestEffort).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("email verification", () => {
+    const signIn = async (link: "failed" | "recent" | "sent") => {
+      const password = "password123";
+      prismaService.user.findUnique.mockResolvedValueOnce({
+        ...activeUser,
+        failedLoginAttempts: 0,
+        isEmailVerified: false,
+        password: await hashSecret(password)
+      });
+      emailVerification.blocksSignIn.mockResolvedValue(true);
+      emailVerification.sendLinkForRefusedSignIn.mockResolvedValue(link);
+      return service.login({ email: activeUser.email, password }, {});
+    };
+
+    it("refuses an unverified sign-in before any session or second factor", async () => {
+      await expect(signIn("sent")).rejects.toThrow("We have just sent you a new link.");
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
+      expect(mfaService.loginChallenge).not.toHaveBeenCalled();
+    });
+
+    it("says so when the new link could not be sent", async () => {
+      await expect(signIn("failed")).rejects.toThrow("please contact the academy");
+    });
+
+    it("won't send a link while verification is off", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ sessionId: "sess-1", sub: "usr-123", type: "access" });
+      prismaService.authSession.findUnique.mockResolvedValue({ revokedAt: null, userId: "usr-123" });
+      prismaService.user.findUnique.mockResolvedValueOnce({ ...activeUser, isEmailVerified: false });
+
+      await expect(service.resendVerificationEmail("access-token")).rejects.toThrow(
+        "Email verification is turned off."
+      );
+      expect(emailVerification.sendLink).not.toHaveBeenCalled();
+    });
+
+    it("sends a real link while verification is on", async () => {
+      emailVerification.policy.mockResolvedValue("REQUIRED");
+      jwtService.verifyAsync.mockResolvedValue({ sessionId: "sess-1", sub: "usr-123", type: "access" });
+      prismaService.authSession.findUnique.mockResolvedValue({ revokedAt: null, userId: "usr-123" });
+      prismaService.user.findUnique.mockResolvedValueOnce({ ...activeUser, isEmailVerified: false });
+
+      await service.resendVerificationEmail("access-token");
+
+      expect(emailVerification.sendLink).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -641,6 +732,26 @@ describe("AuthService", () => {
       prismaService.authSession.findFirst.mockResolvedValue({ familyId: "fam-1", id: "sess-1" });
       prismaService.authSession.findUnique.mockResolvedValue({ revokedAt: null, userId: "usr-123" });
       prismaService.authSession.updateMany.mockResolvedValue({ count: 2 });
+      prismaService.emailVerificationToken.updateMany.mockResolvedValue({ count: 0 });
+    });
+
+    it("kills old links and asks to verify the new address once verification is on", async () => {
+      emailVerification.policy.mockResolvedValue("REQUIRED");
+
+      await service.updateProfile("access-token", {
+        ...profile,
+        currentPassword: "password123",
+        email: "new@example.com"
+      });
+
+      expect(prismaService.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ emailVerifiedAt: null, isEmailVerified: false }) })
+      );
+      expect(prismaService.emailVerificationToken.updateMany).toHaveBeenCalledWith({
+        data: { usedAt: expect.any(Date) },
+        where: { usedAt: null, userId: "usr-123" }
+      });
+      expect(emailVerification.sendLinkBestEffort).toHaveBeenCalledTimes(1);
     });
 
     it("saves other fields without asking for the password when the email is unchanged", async () => {

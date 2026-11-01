@@ -18,6 +18,22 @@ const DUE_TOMORROW = () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOStrin
 // Every route here has a twin in OWN_CASES on the caller's own data (where a
 // GET exists), so a denial can't pass just because the route itself is broken.
 const CROSS_USER: Case[] = [
+  // MCQ / Playout runs: another class's game can't be read or touched by anyone outside it
+  { name: "student plays a move in another class's Playout game", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.playoutMove(w.b.liveClass.id, w.b.playoutRun.id, w.b.playoutGame.id), body: { ply: 0, uci: "a1a8" } },
+  { name: "student opens a game in another class's Playout", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.playoutStart(w.b.liveClass.id, w.b.playoutRun.id) },
+  { name: "student reads another class's running activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRun(w.b.liveClass.id) },
+  { name: "coach monitors another coach's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.b.liveClass.id, w.b.playoutRun.id) },
+  { name: "coach opens a student board in another coach's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunGame(w.b.liveClass.id, w.b.playoutRun.id, w.b.playoutGame.id) },
+  { name: "coach opens another class's game through their own run", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunGame(w.a.liveClass.id, w.a.playoutRun.id, w.b.playoutGame.id) },
+  { name: "coach ends another coach's activity", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.activityRunEnd(w.b.liveClass.id, w.b.playoutRun.id) },
+  { name: "coach ends another coach's activity through their own class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.activityRunEnd(w.a.liveClass.id, w.b.playoutRun.id) },
+  // Knowledge base (a batch-scoped article is a 404 outside its batch; a suggestion is its coach's own)
+  { name: "student reads another batch's help article", as: (w) => w.a.student, path: (w) => API_ROUTES.knowledge.helpArticle(w.b.kbArticle.slug) },
+  { name: "student votes on another batch's help article", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.knowledge.feedback(w.b.kbArticle.id), body: { helpful: false } },
+  { name: "coach reads another batch's help article", as: (w) => w.a.coach, path: (w) => API_ROUTES.knowledge.helpArticle(w.b.kbArticle.slug) },
+  { name: "coach suggests an edit to another batch's help article", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.knowledge.suggestions, body: (w: World) => ({ articleId: w.b.kbArticle.id, content: { body: "x", title: "hijacked" } }) },
+  { name: "coach edits another coach's suggestion", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.knowledge.suggestion(w.b.kbSuggestion.id), body: { body: "x", title: "hijacked" } },
+  { name: "coach withdraws another coach's suggestion", as: (w) => w.a.coach, method: "DELETE", path: (w) => API_ROUTES.knowledge.suggestion(w.b.kbSuggestion.id) },
   // Student A reaching student B
   { name: "student opens a class of another batch", as: (w) => w.a.student, path: (w) => API_ROUTES.student.classDetail(w.b.class.id) },
   { name: "student reads another student's progress", as: (w) => w.a.student, path: (w) => API_ROUTES.progress.student(w.b.student.id) },
@@ -111,6 +127,11 @@ const CROSS_USER: Case[] = [
   { name: "student requests analysis of another student's game", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.gameAnalysis.forGame(w.b.game.id), body: {} },
   { name: "student cancels analysis of another student's game", as: (w) => w.a.student, method: "DELETE", path: (w) => API_ROUTES.gameAnalysis.forGame(w.b.game.id) },
   { name: "coach reads the engine analysis of another coach's game", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameAnalysis.forGame(w.b.game.id) },
+  { name: "student changes another student's auto-sync switch", as: (w) => w.a.student, method: "PATCH", path: (w) => API_ROUTES.gameSources.account(w.b.externalAccount.id), body: { autoSync: true } },
+  { name: "student starts a sync of another student's account", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.gameSources.sync(w.b.externalAccount.id), body: {} },
+  { name: "coach starts a sync for another batch's student", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.gameSources.sync(w.b.externalAccount.id), body: {} },
+  { name: "coach reads another batch's student's game sources", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameSources.student(w.b.student.id) },
+  { name: "coach sets the auto-sync rule of another batch's student", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.gameSources.student(w.b.student.id), body: { rule: "ALWAYS" } },
   { name: "student reads another student's game insights", as: (w) => w.a.student, path: (w) => API_ROUTES.gameInsights.student(w.b.student.id) },
   { name: "student lists another student's analysed games", as: (w) => w.a.student, path: (w) => API_ROUTES.gameInsights.games(w.b.student.id) },
   { name: "coach reads game insights of a student outside their batches", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameInsights.student(w.b.student.id) },
@@ -130,6 +151,12 @@ const CROSS_USER: Case[] = [
 ];
 
 const OWN_CASES: Case[] = [
+  { name: "student reads own class's running activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRun(w.a.liveClass.id) },
+  { name: "coach monitors own class's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.a.liveClass.id, w.a.playoutRun.id) },
+  { name: "coach opens a student board in own class's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunGame(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
+  { name: "student reads own batch's help article", as: (w) => w.a.student, path: (w) => API_ROUTES.knowledge.helpArticle(w.a.kbArticle.slug) },
+  { name: "coach reads own batch's help article", as: (w) => w.a.coach, path: (w) => API_ROUTES.knowledge.helpArticle(w.a.kbArticle.slug) },
+  { name: "coach edits own suggestion", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.knowledge.suggestion(w.a.kbSuggestion.id), body: { body: "Better idea", title: "Suggestion A" } },
   { name: "student reads own progress", as: (w) => w.a.student, path: () => API_ROUTES.progress.mine },
   { name: "student reads own activity history", as: (w) => w.a.student, path: () => API_ROUTES.progress.historyMine },
   { name: "student reads own activity history by id", as: (w) => w.a.student, path: (w) => API_ROUTES.progress.history(w.a.student.id) },
@@ -178,6 +205,7 @@ const OWN_CASES: Case[] = [
   { name: "coach opens own class's game", as: (w) => w.a.coach, path: (w) => API_ROUTES.games.get(w.a.game.id) },
   { name: "student reads the engine analysis state of own game", as: (w) => w.a.student, path: (w) => API_ROUTES.gameAnalysis.forGame(w.a.game.id) },
   { name: "coach reads the engine analysis state of own class's game", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameAnalysis.forGame(w.a.game.id) },
+  { name: "coach reads own student's game sources", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameSources.student(w.a.student.id) },
   { name: "student reads own game insights", as: (w) => w.a.student, path: () => API_ROUTES.gameInsights.mine },
   { name: "student lists own analysed games", as: (w) => w.a.student, path: () => API_ROUTES.gameInsights.gamesMine },
   { name: "coach reads own student's game insights", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameInsights.student(w.a.student.id) },
@@ -194,6 +222,9 @@ const OWN_CASES: Case[] = [
 
 // Lists must not mention the other side's rows at all.
 const LIST_CASES: Case[] = [
+  { name: "student's help centre", as: (w) => w.a.student, path: () => API_ROUTES.knowledge.help },
+  { name: "coach's help centre", as: (w) => w.a.coach, path: () => API_ROUTES.knowledge.help },
+  { name: "coach's own suggestions", as: (w) => w.a.coach, path: () => API_ROUTES.knowledge.suggestions },
   { name: "student's batch list (scoped, not forbidden)", as: (w) => w.a.student, path: () => API_ROUTES.batches.list },
   { name: "coach's /batches list", as: (w) => w.a.coach, path: () => API_ROUTES.batches.list },
   { name: "student's invoice list", as: (w) => w.a.student, path: () => API_ROUTES.invoices.mine },
@@ -242,6 +273,18 @@ function rushReport(rushId: string) {
 }
 
 const WRONG_ROLE: Case[] = [
+  { name: "student monitors own class's activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.a.liveClass.id, w.a.playoutRun.id) },
+  { name: "student opens a board through the coach's monitor", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRunGame(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
+  { name: "student ends own class's activity", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.activityRunEnd(w.a.liveClass.id, w.a.playoutRun.id) },
+  { name: "coach plays a move in own student's game", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.playoutMove(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id), body: { ply: 0, uci: "a1a8" } },
+  { name: "coach restarts own student's game", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.playoutRetry(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
+  { name: "coach gives up own student's game", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.playoutResign(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
+  { name: "coach asks for the computer's move in own student's game", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.playoutContinue(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
+  { name: "coach takes a hint in own student's game", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.playoutHint(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
+  { name: "student browses the unified library", as: (w) => w.a.student, path: () => API_ROUTES.puzzles.library },
+  { name: "coach creates a library activity", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.puzzles.activities, body: (w: World) => ({ config: { engine: { movetimeMs: 100, skillLevel: 1 }, goal: { type: "CHECKMATE" }, startFen: "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1", studentColor: "white" }, difficulty: "EASY", kind: "PLAYOUT", title: "hijacked", topicId: w.a.privatePuzzle.topicId, tags: [] }) },
+  { name: "student lists help suggestions (coaches only)", as: (w) => w.a.student, path: () => API_ROUTES.knowledge.suggestions },
+  { name: "student reads help topic trends (coaches only)", as: (w) => w.a.student, path: () => API_ROUTES.knowledge.trends },
   { name: "student reads own class's chapters", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.chapters(w.a.liveClass.id) },
   { name: "student deletes all of own class's chapters", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.chapterBulkDelete(w.a.liveClass.id), body: (w: World) => ({ ids: [w.a.chapter.id] }) },
   { name: "student lists own class's activity queues", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityQueues(w.a.liveClass.id) },
@@ -271,7 +314,9 @@ const WRONG_ROLE: Case[] = [
   { name: "student recommends revision to themselves", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.revision.recommend(w.a.student.id), body: (w: World) => ({ puzzleIds: [w.a.privatePuzzle.id] }) },
   { name: "student creates a chat group", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.chat.createGroup, body: (w: World) => ({ memberIds: [w.a.student.id], name: "us" }) },
   { name: "coach reads 'my game insights' (students only)", as: (w) => w.a.coach, path: () => API_ROUTES.gameInsights.mine },
-  { name: "coach links an online chess account (students only)", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.gameSources.accounts, body: { provider: "LICHESS", username: "coachname" } }
+  { name: "coach links an online chess account (students only)", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.gameSources.accounts, body: { provider: "LICHESS", username: "coachname" } },
+  { name: "student reads the staff view of own game sources", as: (w) => w.a.student, path: (w) => API_ROUTES.gameSources.student(w.a.student.id) },
+  { name: "student lifts their own auto-sync rule", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.gameSources.student(w.a.student.id), body: { rule: null } }
 ];
 
 describe("cross-user access (real app, real Postgres)", () => {
@@ -314,7 +359,7 @@ describe("cross-user access (real app, real Postgres)", () => {
     expect(res.status).toBe(200);
     const text = JSON.stringify(res.body);
     const b = w.b;
-    const ids = [b.student, b.class, b.liveClass, b.batch, b.invoice, b.privatePuzzle, b.payrollRecord, b.assignment, b.deployment, b.studentAssignment, b.game, b.boardGame, b.batchChat, b.directChat].map((row) => row.id);
+    const ids = [b.student, b.class, b.liveClass, b.batch, b.invoice, b.privatePuzzle, b.payrollRecord, b.assignment, b.deployment, b.studentAssignment, b.game, b.boardGame, b.batchChat, b.directChat, b.kbArticle, b.kbSuggestion].map((row) => row.id);
     for (const id of ids) {
       expect(text).not.toContain(id);
     }
@@ -329,7 +374,7 @@ describe("cross-user access (real app, real Postgres)", () => {
     const res = await t.call(w.a[role], "GET", API_ROUTES.privacy.dataExport);
     expect(res.status).toBe(200);
     const text = JSON.stringify(res.body);
-    const own = role === "student" ? [w.a.student.id, w.a.invoice.id, w.a.attempt.id] : [w.a.coach.id, w.a.class.id];
+    const own = role === "student" ? [w.a.student.id, w.a.invoice.id, w.a.attempt.id, w.a.externalAccount.id] : [w.a.coach.id, w.a.class.id];
     for (const id of own) expect(text).toContain(id);
     for (const secret of ["password", "refreshTokenHash", "tokenHash", "secret", "idempotencyKey"]) {
       expect(text).not.toContain(`"${secret}"`);
@@ -351,9 +396,19 @@ describe("cross-user access (real app, real Postgres)", () => {
     });
     expect(await t.prisma.liveChatMessage.count({ where: { senderId: a.student.id } })).toBe(0);
     expect(await t.prisma.chatMessage.count({ where: { senderId: a.student.id } })).toBe(0);
+    expect(await t.prisma.knowledgeArticleVersion.findUnique({ where: { id: b.kbSuggestion.id } })).toMatchObject({ status: "SUBMITTED", title: "Suggestion B" });
+    expect(await t.prisma.knowledgeArticleVersion.count({ where: { title: "hijacked" } })).toBe(0);
+    expect(await t.prisma.knowledgeFeedback.count({ where: { articleId: b.kbArticle.id } })).toBe(0);
     expect(await t.prisma.chessGame.findUnique({ where: { id: b.game.id } })).toMatchObject({ version: 1 });
+    expect(await t.prisma.externalChessAccount.findUnique({ where: { id: b.externalAccount.id } })).toMatchObject({ autoSync: false, lastSyncedAt: null });
+    expect(await t.prisma.studentProfile.findUnique({ where: { userId: b.student.id } })).toMatchObject({ gameAutoSyncRule: null });
     expect(await t.prisma.conversation.count({ where: { type: { in: ["DIRECT", "GROUP"] } } })).toBe(2);
     expect(await t.prisma.liveClassPuzzleRushEntry.count({ where: { rushId: b.rush.id } })).toBe(0);
+    expect(await t.prisma.liveClassPlayoutGame.findUnique({ where: { id: b.playoutGame.id } })).toMatchObject({ ply: 0, status: "IN_PROGRESS" });
+    expect(await t.prisma.liveClassPlayoutGame.findUnique({ where: { id: a.playoutGame.id } })).toMatchObject({ hintsUsed: 0, ply: 0, status: "IN_PROGRESS" });
+    expect(await t.prisma.liveClassPlayoutGame.count({ where: { runId: { in: [a.playoutRun.id, b.playoutRun.id] } } })).toBe(2);
+    expect(await t.prisma.liveClassActivityRun.count({ where: { status: "ACTIVE" } })).toBe(2);
+    expect(await t.prisma.libraryActivity.count({ where: { title: "hijacked" } })).toBe(0);
     expect(await t.prisma.revisionItem.count({ where: { source: "COACH" } })).toBe(0);
     expect(await t.prisma.liveClassPuzzleRush.findUnique({ where: { id: b.rush.id } })).toMatchObject({ endedAt: null });
     expect(await t.prisma.liveClassChapter.findMany({ where: { scopeKey: `batch:${b.batch.id}` } })).toEqual([

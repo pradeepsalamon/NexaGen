@@ -1,4 +1,4 @@
-import { BookOpen, Check, CircleCheck, Clock, Loader2, Minus, MessageCircleQuestion, Puzzle, X } from "lucide-react";
+import { BookOpen, Check, CircleCheck, Clock, ListChecks, Loader2, Minus, MessageCircleQuestion, Puzzle, Swords, X } from "lucide-react";
 import {
   ACTIVITY_KIND_LABELS,
   ACTIVITY_RESPONSE_LABELS,
@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export function ActivityKindIcon({ kind, className }: { kind: ActivityKind; className?: string }) {
-  const Icon = kind === "PUZZLE" ? Puzzle : kind === "QUESTION" ? MessageCircleQuestion : BookOpen;
+  const Icon = { CHAPTER: BookOpen, MCQ: ListChecks, PLAYOUT: Swords, PUZZLE: Puzzle, QUESTION: MessageCircleQuestion }[kind];
   return <Icon className={cn("size-4 shrink-0", className)} aria-hidden="true" />;
 }
 

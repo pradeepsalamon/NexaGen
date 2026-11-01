@@ -1,7 +1,9 @@
 import {
   computeCreditBreakdown,
   computeTax,
+  financialYear,
   formatDocumentNumber,
+  invoiceSettingsSchema,
   isValidGstin,
   resolveTaxTreatment,
   stateCodeFromGstin,
@@ -206,16 +208,35 @@ describe("computeCreditBreakdown", () => {
 });
 
 describe("invoice numbering", () => {
-  it("formats the §3 sequential number", () => {
-    expect(formatDocumentNumber("NEXA-INV", 2026, 1)).toBe("NEXA-INV-2026-000001");
-    expect(formatDocumentNumber("NEXA-INV", 2026, 42)).toBe("NEXA-INV-2026-000042");
-    expect(formatDocumentNumber("NEXA-CN", 2026, 7)).toBe("NEXA-CN-2026-000007");
+  it("formats GST Rule 46 numbers within 16 characters", () => {
+    expect(formatDocumentNumber("INV", 2026, 1)).toBe("INV/26-27/00001");
+    expect(formatDocumentNumber("CN", 2026, 7)).toBe("CN/26-27/00007");
+    expect(formatDocumentNumber("NEXA", 2099, 99_999)).toBe("NEXA/99-00/99999");
+    expect(formatDocumentNumber("NEXA", 2099, 99_999).length).toBe(16);
   });
 
-  it("does not truncate once the sequence passes six digits", () => {
-    expect(formatDocumentNumber("NEXA-INV", 2026, 1234567)).toBe(
-      "NEXA-INV-2026-1234567"
-    );
+  it("does not truncate once the sequence passes five digits", () => {
+    expect(formatDocumentNumber("INV", 2026, 123_456)).toBe("INV/26-27/123456");
+  });
+
+  it("shortens the year rather than pass 16 characters", () => {
+    expect(formatDocumentNumber("NEXA", 2026, 100_000)).toBe("NEXA/26/100000");
+    expect(formatDocumentNumber("NEXA", 2026, 99_999_999)).toBe("NEXA/26/99999999");
+    expect(() => formatDocumentNumber("NEXA", 2026, 100_000_000)).toThrow(/16-character/);
+  });
+
+  it("keys the series by the Indian financial year, in IST", () => {
+    expect(financialYear(new Date("2026-03-31T18:29:59Z"))).toBe(2025); // 23:59 IST 31 Mar
+    expect(financialYear(new Date("2026-03-31T18:30:00Z"))).toBe(2026); // 00:00 IST 1 Apr
+    expect(financialYear(new Date("2026-12-31T19:00:00Z"))).toBe(2026); // 00:30 IST 1 Jan 2027
+  });
+
+  it("accepts only short GST-safe prefixes", () => {
+    const parse = (invoicePrefix: string) => invoiceSettingsSchema.shape.invoicePrefix.safeParse(invoicePrefix).success;
+    expect(parse("INV")).toBe(true);
+    expect(parse("NX-1")).toBe(true);
+    expect(parse("NEXA-INV")).toBe(false);
+    expect(parse("IN/V")).toBe(false);
   });
 });
 

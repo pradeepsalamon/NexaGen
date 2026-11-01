@@ -538,6 +538,14 @@ export type InvoiceSellerDetails = {
   logoUrl: string | null;
 };
 
+/** GST Rule 46 allows only letters, digits, `-` and `/` in a document number; `/` is the separator. */
+const documentPrefixSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(4)
+  .regex(/^[A-Za-z0-9-]+$/, { message: "Use up to 4 letters, digits or hyphens." });
+
 export const invoiceSettingsSchema = z.object({
   legalName: z.string().trim().min(1).max(200),
   tradeName: z.string().trim().max(200).nullable().default(null),
@@ -575,8 +583,8 @@ export const invoiceSettingsSchema = z.object({
   logoUrl: z.string().trim().max(500).nullable().default(null),
 
   /** Series prefix. Changing it affects only invoices issued afterwards. */
-  invoicePrefix: z.string().trim().min(1).max(12).default("NEXA-INV"),
-  creditNotePrefix: z.string().trim().min(1).max(12).default("NEXA-CN"),
+  invoicePrefix: documentPrefixSchema.default("INV"),
+  creditNotePrefix: documentPrefixSchema.default("CN"),
 
   /** Default GST percent when a plan does not set its own. */
   defaultTaxPercent: z.number().min(0).max(100).default(0),
@@ -620,8 +628,8 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   gstin: null,
   pan: null,
   logoUrl: null,
-  invoicePrefix: "NEXA-INV",
-  creditNotePrefix: "NEXA-CN",
+  invoicePrefix: "INV",
+  creditNotePrefix: "CN",
   defaultTaxPercent: 0,
   taxLabel: "GST",
   footerText: null,
@@ -653,16 +661,38 @@ export function sellerFromSettings(
   };
 }
 
+/** Indian financial year (April–March, IST) by its starting year: 1 Apr 2026 – 31 Mar 2027 → 2026. */
+export function financialYear(at: Date): number {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    month: "numeric",
+    timeZone: "Asia/Kolkata",
+    year: "numeric"
+  }).formatToParts(at);
+  const year = Number(parts.find((p) => p.type === "year")?.value);
+  const month = Number(parts.find((p) => p.type === "month")?.value);
+  return month >= 4 ? year : year - 1;
+}
+
 /**
- * NEXA-INV-2026-000001 — the §3 format. Gapless within a year, allocated
- * server-side from a row-locked sequence and never reused.
+ * INV/26-27/00001. GST Rule 46: at most 16 characters of letters, digits, `-`
+ * and `/`, unique within a financial year (`fyStartYear`, see financialYear).
+ * When the full form would pass 16 (a 4-character prefix from the 100,000th
+ * document), the year shortens to INV/26/100000 — the sequence is never cut.
+ * Gapless, allocated server-side from a row-locked sequence, never reused.
  */
 export function formatDocumentNumber(
   prefix: string,
-  year: number,
+  fyStartYear: number,
   sequence: number
 ): string {
-  return `${prefix}-${year}-${String(sequence).padStart(6, "0")}`;
+  const yy = (year: number) => String(year % 100).padStart(2, "0");
+  const serial = String(sequence).padStart(5, "0");
+  const full = `${prefix}/${yy(fyStartYear)}-${yy(fyStartYear + 1)}/${serial}`;
+  const number = full.length <= 16 ? full : `${prefix}/${yy(fyStartYear)}/${serial}`;
+  if (number.length > 16) {
+    throw new Error(`Document number ${number} exceeds the GST 16-character limit.`);
+  }
+  return number;
 }
 
 // ── Domain events (§20) ──
@@ -730,7 +760,7 @@ export const adminInvoiceQuerySchema = z.object({
   method: paymentMethodKindSchema.optional(),
   currency: z.string().trim().length(3).toUpperCase().optional(),
   userId: z.string().trim().optional(),
-  /** Inclusive ISO date-only bounds, read in UTC. */
+  /** Inclusive ISO date-only bounds, read as India (IST) days. */
   from: z.string().trim().optional(),
   to: z.string().trim().optional(),
   page: z.coerce.number().int().positive().default(1),

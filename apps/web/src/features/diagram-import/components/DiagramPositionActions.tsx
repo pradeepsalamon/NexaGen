@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { describeDiagramSource, type PuzzleSummary } from "@nexa-chess/types";
@@ -20,13 +20,14 @@ import { useImportGame } from "@/features/game-library/hooks/useGameLibrary";
 import { getPuzzles } from "@/features/puzzles/api/puzzleApi";
 import { useToast } from "@/providers/ToastProvider";
 import { PDF_IMPORT_TAG, storePuzzlePrefill } from "../lib/handoff";
+import { suggestSolutionLine } from "../lib/solution";
 import type { ConfirmedDiagram } from "./DiagramImportWorkbench";
 
 /** Positions already sent to the analysis board in this session: id → game. */
 const openedGames = new Map<string, string>();
 
 function sourceTitle(c: ConfirmedDiagram) {
-  const book = c.fileName.replace(/\.pdf$/i, "") || "PDF";
+  const book = c.fileName.replace(/\.(pdf|png|jpe?g|webp)$/i, "") || "PDF";
   return `${book} — p.${c.candidate.page} #${c.candidate.index}`.slice(0, 120);
 }
 
@@ -68,6 +69,7 @@ export function DiagramPositionActions({ analysis = true, children, confirmed, l
   const [checking, setChecking] = useState(false);
   const [duplicates, setDuplicates] = useState<PuzzleSummary[] | null>(null);
   const placement = confirmed.fen.split(" ")[0];
+  const suggestedLine = useMemo(() => suggestSolutionLine(confirmed.fen, confirmed.candidate.printedText), [confirmed.candidate.printedText, confirmed.fen]);
   const sessionKey = `${confirmed.candidate.id}|${confirmed.fen}`;
 
   const openAnalysis = () => {
@@ -102,6 +104,7 @@ export function DiagramPositionActions({ analysis = true, children, confirmed, l
     storePuzzlePrefill({
       description: provenance(confirmed),
       fen: confirmed.fen,
+      solutionMoves: suggestedLine,
       tags: [PDF_IMPORT_TAG],
       title: sourceTitle(confirmed),
     });
@@ -129,6 +132,12 @@ export function DiagramPositionActions({ analysis = true, children, confirmed, l
 
   return (
     <>
+      {suggestedLine.length > 0 ? (
+        <p className="w-full text-sm text-app-muted" data-testid="diagram-suggested-line">
+          Moves printed by this diagram, all legal from this position: {suggestedLine.map((m) => m.san).join(" ")}. They fill in the
+          puzzle form&apos;s solution for you to check.
+        </p>
+      ) : null}
       {children}
       {analysis ? (
         <Button disabled={importGame.isPending} onClick={openAnalysis} variant="outline">

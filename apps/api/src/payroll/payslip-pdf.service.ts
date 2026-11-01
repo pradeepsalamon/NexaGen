@@ -49,11 +49,9 @@ export class PayslipPdfService {
   private getPrinter(): PdfPrinterLike {
     if (this.printer) return this.printer;
 
-    /* eslint-disable @typescript-eslint/no-var-requires */
     const PdfPrinter = requireFromHere("pdfmake/js/Printer.js").default;
     const URLResolver = requireFromHere("pdfmake/js/URLResolver.js").default;
     const virtualFsModule = requireFromHere("pdfmake/js/virtual-fs.js");
-    /* eslint-enable @typescript-eslint/no-var-requires */
 
     const virtualFs = virtualFsModule.default ?? virtualFsModule;
 

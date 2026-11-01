@@ -4,9 +4,8 @@ import { Chess } from "../common/chess/chess";
 import {
   AssignmentEvaluationService,
   assertValidFen,
-  cpToWinPercent,
-  isAcceptedMateAlternative,
-  moveAccuracy
+  engineMoveAccuracy,
+  isAcceptedMateAlternative
 } from "./assignment-evaluation.service";
 import { StockfishService } from "../stockfish/stockfish.service";
 
@@ -236,16 +235,41 @@ describe("AssignmentEvaluationService", () => {
     });
   });
 
-  describe("accuracy helpers", () => {
-    it("maps centipawns to a win probability around 50% at equality", () => {
-      expect(cpToWinPercent(0)).toBeCloseTo(50, 5);
-      expect(cpToWinPercent(100_000)).toBeGreaterThan(99);
-      expect(cpToWinPercent(-100_000)).toBeLessThan(1);
+  describe("engineMoveAccuracy (shared game-analysis curves)", () => {
+    // Engine results are side-to-move relative, in pawns.
+    const result = (evaluation: number | null, mate: number | null = null) => ({
+      bestMove: "",
+      bestMoveUci: "",
+      depth: 12,
+      evaluation,
+      mate,
+      pv: [],
+      pvUci: []
     });
 
-    it("rewards a move that holds the evaluation and punishes a blunder", () => {
-      expect(moveAccuracy(60, 60)).toBeGreaterThan(99);
-      expect(moveAccuracy(70, 20)).toBeLessThan(20);
+    it("scores a move that holds the evaluation ~100", () => {
+      // White +0.30 before; after, Black to move sees -0.30 (White still +0.30).
+      expect(engineMoveAccuracy(result(0.3), result(-0.3), "white")).toBeGreaterThan(99);
+    });
+
+    it("punishes a blunder", () => {
+      // White +1.00 → after the move Black is +4.00.
+      expect(engineMoveAccuracy(result(1), result(4), "white")).toBeLessThan(20);
+    });
+
+    it("reads scores from Black's side too", () => {
+      expect(engineMoveAccuracy(result(0.5), result(-0.5), "black")).toBeGreaterThan(99);
+      expect(engineMoveAccuracy(result(1), result(4), "black")).toBeLessThan(20);
+    });
+
+    it("keeps a mate the mover is delivering perfect and scores walking into one near 0", () => {
+      expect(engineMoveAccuracy(result(null, 3), result(null, -2), "white")).toBeCloseTo(100, 2);
+      // ~52% → 0%: a loss of ~52 points sits low on the curve (~7.6), not at 0.
+      expect(engineMoveAccuracy(result(0.2), result(null, 1), "white")).toBeLessThan(10);
+    });
+
+    it("treats a result with no score as level, as before", () => {
+      expect(engineMoveAccuracy(result(null), result(null), "white")).toBeGreaterThan(99);
     });
   });
 

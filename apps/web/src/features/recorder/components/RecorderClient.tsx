@@ -11,10 +11,11 @@ import {
   type RemoteTrackPublication,
 } from "livekit-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { LiveBoardState } from "@nexa-chess/types";
 import { ReadOnlySyncedBoard } from "@/features/chessboard/components/board/ReadOnlySyncedBoard";
 import {
-  INITIAL_READ_ONLY_BOARD,
   decodeBoardSyncPacket,
+  readOnlyBoardFromSnapshot,
   reduceReadOnlyBoard,
   type ReadOnlyBoardState,
 } from "@/features/chessboard/lib/readOnlyBoard";
@@ -94,8 +95,17 @@ function VideoTile({
   );
 }
 
-export function RecorderClient({ classId }: { classId: string }) {
-  const [board, setBoard] = useState<ReadOnlyBoardState>(INITIAL_READ_ONLY_BOARD);
+export function RecorderClient({
+  classId,
+  initialBoard,
+}: {
+  classId: string;
+  /** The saved board, read server-side; null starts from the start position. */
+  initialBoard: LiveBoardState | null;
+}) {
+  // Live board_sync packets apply on top, so the first coach packet corrects
+  // anything the (throttled) saved copy missed.
+  const [board, setBoard] = useState<ReadOnlyBoardState>(() => readOnlyBoardFromSnapshot(initialBoard));
   const [tiles, setTiles] = useState<
     { participant: Participant; track?: RemoteTrack }[]
   >([]);

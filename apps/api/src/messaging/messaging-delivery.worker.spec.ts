@@ -1,5 +1,6 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { MessageDelivery } from "@prisma/client";
+import { MailService } from "../mail/mail.service";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
@@ -38,7 +39,12 @@ function makeDelivery(overrides: Partial<MessageDelivery> = {}): MessageDelivery
 
 describe("MessagingDeliveryWorker", () => {
   let worker: MessagingDeliveryWorker;
-  let prisma: { $queryRaw: jest.Mock; messageDelivery: { update: jest.Mock } };
+  let prisma: {
+    $queryRaw: jest.Mock;
+    messageDelivery: { update: jest.Mock };
+    user: { findUnique: jest.Mock };
+  };
+  let mail: { isConfigured: jest.Mock; sendRuleEmail: jest.Mock };
   let whatsapp: {
     isConfigured: jest.Mock;
     trySendText: jest.Mock;
@@ -50,7 +56,12 @@ describe("MessagingDeliveryWorker", () => {
   const setup = async (due: MessageDelivery[]) => {
     prisma = {
       $queryRaw: jest.fn().mockResolvedValue(due),
-      messageDelivery: { update: jest.fn().mockResolvedValue({}) }
+      messageDelivery: { update: jest.fn().mockResolvedValue({}) },
+      user: { findUnique: jest.fn().mockResolvedValue({ email: "asha@example.com" }) }
+    };
+    mail = {
+      isConfigured: jest.fn().mockReturnValue(true),
+      sendRuleEmail: jest.fn().mockResolvedValue("<smtp.1>")
     };
     whatsapp = {
       isConfigured: jest.fn().mockReturnValue(true),
@@ -69,6 +80,7 @@ describe("MessagingDeliveryWorker", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessagingDeliveryWorker,
+        { provide: MailService, useValue: mail },
         { provide: PrismaService, useValue: prisma },
         { provide: WhatsAppService, useValue: whatsapp },
         { provide: NotificationService, useValue: notifications }
@@ -98,6 +110,77 @@ describe("MessagingDeliveryWorker", () => {
       providerMessageId: "wamid.1",
       claimedAt: null
     });
+  });
+
+  describe("email", () => {
+    const email = () => makeDelivery({ channel: "EMAIL", recipientPhone: null });
+
+    it("sends to the account's current address and marks it sent", async () => {
+      await setup([email()]);
+
+      await worker.sweep();
+
+      expect(mail.sendRuleEmail).toHaveBeenCalledWith({
+        to: "asha@example.com",
+        subject: "New class",
+        body: "Class at 6pm"
+      });
+      expect(whatsapp.trySendText).not.toHaveBeenCalled();
+      expect(lastUpdate()).toMatchObject({ status: "SENT", providerMessageId: "<smtp.1>" });
+    });
+
+    it("fails without retrying when SMTP is not configured", async () => {
+      await setup([email()]);
+      mail.isConfigured.mockReturnValue(false);
+
+      await worker.sweep();
+
+      expect(mail.sendRuleEmail).not.toHaveBeenCalled();
+      expect(lastUpdate()).toMatchObject({ status: "FAILED" });
+    });
+
+    it("sends nothing once the account is gone", async () => {
+      await setup([email()]);
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await worker.sweep();
+
+      expect(mail.sendRuleEmail).not.toHaveBeenCalled();
+      expect(lastUpdate()).toMatchObject({ status: "FAILED" });
+    });
+
+    it("retries a temporary mail failure", async () => {
+      await setup([email()]);
+      mail.sendRuleEmail.mockRejectedValue(Object.assign(new Error("try later"), { responseCode: 451 }));
+
+      await worker.sweep();
+
+      expect(lastUpdate()).toMatchObject({ status: "PENDING", attempts: 1, error: "try later" });
+    });
+
+    it("does not retry a message the mail server refused", async () => {
+      await setup([email()]);
+      mail.sendRuleEmail.mockRejectedValue(Object.assign(new Error("no such user"), { responseCode: 550 }));
+
+      await worker.sweep();
+
+      expect(lastUpdate()).toMatchObject({ status: "FAILED", error: "no such user" });
+    });
+  });
+
+  it("stops a long sweep before its claims go stale", async () => {
+    await setup([makeDelivery({ id: "first" }), makeDelivery({ id: "second" })]);
+    const start = Date.now();
+    const clock = jest.spyOn(Date, "now").mockReturnValue(start);
+    whatsapp.trySendText.mockImplementationOnce(async () => {
+      clock.mockReturnValue(start + 5 * 60_000);
+      return { ok: true, result: { messageId: "wamid.1" } };
+    });
+
+    await worker.sweep();
+    clock.mockRestore();
+
+    expect(whatsapp.trySendText).toHaveBeenCalledTimes(1);
   });
 
   it("sends a template message when the row carries one", async () => {
@@ -257,7 +340,7 @@ describe("MessagingDeliveryWorker", () => {
     await worker.sweep();
 
     // A bound Date would arrive as timestamptz and be shifted by the session
-    // zone on any non-UTC box (.agents/AGENTS.md, Date & Time Rule).
+    // zone on any non-UTC box (AGENTS.md, Date & Time Rule).
     const params = prisma.$queryRaw.mock.calls[0].slice(1);
     for (const param of params) {
       expect(param).not.toBeInstanceOf(Date);

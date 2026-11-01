@@ -80,7 +80,8 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
     Stockfish engine (skill level configurable); scored from the game result,
     with move accuracy computed from per-move engine analysis (falls back to
     result-only when the engine pool is offline or the student resigned).
-  - `FREE_ANALYSIS` — an open interactive board the student submits when done.
+  - `FREE_ANALYSIS` — an open interactive board the student submits when done,
+    optionally after a minimum number of moves (`minMoves`).
   - `PUZZLE_SET` — an ordered list of published library puzzles
     (`AssignmentPuzzle`, up to `MAX_ASSIGNMENT_PUZZLES`), built and reordered in
     the same form ("Puzzle set"). The student solves them one at a time
@@ -132,23 +133,26 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   solutions by playing them in `SolutionEditor`. A coach can also turn the live
   shared board into a `SOLVE_LINE` assignment from the board header
   ("Send as assignment" → the same form, position pre-seeded).
-- PDF chess-diagram import (coach + admin): Puzzle Library → **Import from PDF**
-  (`/coach/puzzles/import-pdf`, `/admin/puzzles/import-pdf`) and the coach's
-  in-class Setup Position dialog → **From PDF**. The PDF is read **in the
-  browser** with pdf.js and never uploaded or stored. Pages are scanned for
-  diagrams (or a board is marked by hand), each position is read by classical
-  image processing (no ML model, no external service), and the coach reviews
+- Chess-diagram import from a PDF or a picture (coach + admin): Puzzle Library →
+  **Import from PDF** (`/coach/puzzles/import-pdf`, `/admin/puzzles/import-pdf`)
+  and the coach's in-class Setup Position dialog → **From PDF**. The file (PDF, PNG,
+  JPEG or WebP) is read **in the browser** with pdf.js and Tesseract OCR and never
+  uploaded or stored. Pages are scanned for diagrams (or a board is marked by hand),
+  each square is read by a small neural network that runs in the browser (no
+  external service), and the coach reviews
   it: the source diagram beside an editable board, doubtful squares named, and
   explicit answers for what a diagram can't show (side to move, castling, en
   passant, move number, and which side is at the bottom unless printed
   coordinates say so). Nothing is used until the coach confirms; then it can go
   to the Game Library analysis board (a private import), the class board (after
   a "replace the shared board?" confirmation) or the normal New-puzzle form,
-  prefilled and saved only by the coach. Recognition core and position checks:
+  prefilled, with any legal moves printed by the diagram as a suggested solution,
+  and saved only by the coach. Recognition core and position checks:
   `@nexa-chess/types` `diagram-recognition.ts` / `diagram-position.ts`; web:
-  `features/diagram-import`. pdf.js is served from `public/vendor/pdfjs/`
+  `features/diagram-import`, and the reusable file reader and OCR in
+  `lib/document-reader`. pdf.js and Tesseract are served from `public/vendor/`
   (copied from `node_modules` by `apps/web/scripts/copy-pdfjs.mjs` on
-  `predev`/`prebuild`, gitignored) because Next's webpack breaks its
+  `predev`/`prebuild`, gitignored) because Next's webpack breaks pdf.js's
   pre-bundled build. Measured accuracy and limits: see the spec header in
   `apps/api/src/common/chess/diagram-recognition.spec.ts`.
 - Puzzle Library: a standalone, reusable catalogue of chess-training puzzles
@@ -443,34 +447,20 @@ Default local URLs:
 
 ### Background Dev Server Scripts (`nexa` CLI)
 
-The project includes background management scripts using `tmux` so that servers continue running in the background even after closing the terminal session:
+`scripts/nexa.sh` (symlinked as `nexa` on the VPS) keeps the servers running in
+a background `tmux` session after the terminal closes:
 
 ```bash
-# Start dev servers in watch/hot-reload mode (background tmux session)
-nexa dev          # or: nexa start-dev / start-dev
-
-# Build & launch production-mode staging servers for testing
-nexa stage        # or: nexa start-stage / start-stage
-
-# Check status and health of dev servers
-nexa status       # or: nexa status-dev / status-dev
-
-# Stop all dev servers
-nexa stop         # or: nexa stop-dev / stop-dev
-
-# Quick restart dev servers
-nexa restart
-
-# View live logs
-nexa logs         # shows latest logs for both API & Web
-nexa logs api     # shows API logs
-nexa logs web     # shows Web logs
-
-# Attach to interactive tmux console
+nexa start dev            # watch mode, web :3010 / api :3011
+nexa start stage          # production builds, run in tmux
+nexa start dev web        # one component only (dev/stage)
+nexa status               # tmux session + dev/prod HTTP health
+nexa stop dev             # stop | restart take the same arguments
+nexa logs [api|web]
 nexa attach
 ```
 
-*Note: These commands are available from anywhere in the system terminal (symlinked into `~/bin/`).*
+Full reference: [docs/NEXA_CLI.md](docs/NEXA_CLI.md).
 
 ## Environment
 
@@ -582,7 +572,7 @@ A daily sweep (`apps/api/src/retention/`, 4 AM, single-runner via the `retention
 
 ## Trash And Soft Delete
 
-Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, `PuzzleTopic`, `Course`, and `CourseModule`.
+Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, `PuzzleTopic`, `LibraryActivity`, `Course`, and `CourseModule`.
 
 When adding a new trash-enabled model:
 
@@ -607,695 +597,18 @@ The Trash list merges rows from all trash-entity tables in memory. Sorting and p
 
 Automatic cleanup takes the `trash.cleanup` job lock (`JobLockService`) so horizontally scaled API instances do not run the cleanup concurrently.
 
-## Background Jobs (BullMQ)
-
-Queues run on the `redis` service that LiveKit and egress already share, so
-every BullMQ key is namespaced with `QUEUE_PREFIX`. Wiring lives in
-`apps/api/src/queue/`; `QueueModule.forRoot()` is registered in `app.module.ts`.
-
-Locally, start Redis with `npm run prod:db` (it maps `127.0.0.1:6379`, like
-postgres) and set `REDIS_URL` in `apps/api/.env`.
-
-**Queues are optional.** With `REDIS_URL` unset the API still boots: no worker
-starts and every `@InjectQueue()` resolves to a stand-in that logs the job and
-drops it, so `npm run dev:api` needs no Docker. That also means an enqueue is
-best-effort — anything that must survive gets a persisted row with a status
-column it can be re-driven from, and treats the enqueue as a nudge.
-
-Adding a queue — the feature module owns its name, there is no central registry:
-
-```ts
-// whatsapp.constants.ts
-export const WHATSAPP_QUEUE = "whatsapp";
-
-// whatsapp.module.ts
-@Module({
-  imports: [QueueModule.registerQueue(WHATSAPP_QUEUE)],
-  providers: [WhatsappService, WhatsappProcessor]
-})
-export class WhatsappModule {}
-
-// whatsapp.processor.ts
-@Processor(WHATSAPP_QUEUE, buildWorkerOptions(getApiEnv()))
-export class WhatsappProcessor extends WorkerHost {
-  async process(job: Job<SendMessageJob>) { /* ... */ }
-}
-
-// producing
-constructor(@InjectQueue(WHATSAPP_QUEUE) private readonly queue: Queue) {}
-await this.queue.add("send", payload, { jobId: message.id });
-```
-
-Retries and retention come from `DEFAULT_JOB_OPTIONS` in `queue.config.ts`
-(5 attempts, exponential backoff from 2s; completed jobs trimmed after 24h,
-failed ones kept a week for inspection). Pass a `jobId` derived from your own
-row to make an enqueue idempotent.
-
-## WhatsApp Messaging
-
-`apps/api/src/whatsapp/` wraps the **WhatsApp Cloud API** (Meta Graph API) for
-outbound messages. Import `WhatsAppModule` and inject `WhatsAppService`:
-
-```ts
-await this.whatsapp.sendText({ to: "+91 98765 43210", body: "Class starts in 15 minutes." });
-
-await this.whatsapp.sendTemplate({
-  to: student.phone,
-  name: "class_reminder",       // approved in WhatsApp Manager
-  language: "en_US",
-  bodyParams: [student.name, "6:00 PM"]
-});
-```
-
-Free-form text only reaches a user inside the 24-hour customer-service window;
-outside it, WhatsApp accepts **approved templates only** and rejects text with
-error code `131047`.
-
-Numbers are normalized to E.164 digits without a `+` (the only form the API
-accepts) before sending — `+91 98765-43210`, `00919876543210` and, with
-`WHATSAPP_DEFAULT_COUNTRY_CODE=91`, `09876543210` all resolve to
-`919876543210`. A number that cannot be resolved is a `BadRequestException`, and
-no request is made.
-
-Three rules the module holds to:
-
-- **Optional, like the queues.** With `WHATSAPP_ACCESS_TOKEN` /
-  `WHATSAPP_PHONE_NUMBER_ID` unset, `isConfigured()` is false and a send throws
-  `ServiceUnavailableException` — check it before offering WhatsApp in a UI.
-- **One attempt per call.** Retries belong to the caller so a request never
-  blocks on provider backoff. Failures throw `WhatsAppSendError`, whose
-  `failure.retryable` separates a rate limit or outage from a rejected payload;
-  a BullMQ job can re-throw on the first and drop the second.
-- **`trySendText` / `trySendTemplate` never throw**, returning a
-  `{ ok, result | error }` outcome — use them where WhatsApp failing must not
-  fail the request. `sendTextToMany` fans one message out, de-duplicates the
-  recipients and reports per-recipient outcomes.
-
-Env: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` (both from Meta →
-WhatsApp → API Setup), plus the optional `WHATSAPP_API_BASE_URL`,
-`WHATSAPP_API_VERSION`, `WHATSAPP_DEFAULT_COUNTRY_CODE` and
-`WHATSAPP_TIMEOUT_MS`.
-
-## Admin Messaging
-
-`/admin/messaging` is where an academy decides which moments send a message,
-what each one says, and who receives it. One **rule per event** (`messaging_rules`,
-one row each), edited by an admin, dispatched by the API.
-
-Three crons drive it: the outbox worker every minute, the class-reminder sweep
-every 5 minutes, and the assignment-due sweep hourly.
-
-| Event | Queued by |
-|---|---|
-| New class scheduled | a coach creating a class |
-| Before a class starts (students) | `MessagingScheduler`, on that rule's lead time |
-| Before a class starts (coach) | `MessagingScheduler`, on its own lead time and wording |
-| Class cancelled | a coach cancelling a class |
-| New assignment | an assignment deployed to a batch |
-| Assignment due soon | `MessagingScheduler`, on the rule's lead time |
-| Assignment submitted / graded | a student finishing an assignment |
-| Announcement | an admin publishing one (Announcements tab) |
-| Welcome message | not fired by self-registration any more — student and coach sign-ups both wait for approval |
-| Account approved | an admin approving a pending student, or re-activating an account |
-
-Each rule carries: a master on/off, per-channel toggles (**WhatsApp** and the
-**in-app bell**), an audience, **when to send** (immediately, daily at a time,
-or weekly on a day - or a lead time, for the two events that fire ahead of a
-moment), the in-app heading, and the message body. Bodies are `{{placeholder}}` templates —
-the catalogue of what each event can bind lives in
-`packages/types/src/messaging.ts` (`MESSAGING_EVENT_DEFINITIONS`), and the same
-`renderMessageTemplate` runs in the admin preview and on the server, so what you
-see is what gets sent. A placeholder the event cannot fill is flagged in the
-editor and renders empty.
-
-Things worth knowing before you touch it:
-
-- **Everything ships off except two.** `ASSIGNMENT_DUE_SOON` and
-  `ASSIGNMENT_GRADED` default to on, in-app only, because this feature absorbed
-  the unconditional in-app notifications that used to live in
-  `NotificationScheduler` and `assignment-attempt.service`. Disabling them by
-  default would have silently removed a notification every academy already had.
-- **Dates render in each recipient's own `User.timezone`**, one render per
-  person — the rare server-side format the date rule allows
-  (`messaging.format.ts`).
-- **Nothing is sent in-request.** Dispatch only *queues*: it writes PENDING
-  `message_deliveries` rows and returns. `MessagingDeliveryWorker` (cron, every
-  minute) claims the due ones and delivers them. So a trigger costs no provider
-  round-trip, a crash mid-send loses nothing (the row is committed), and an
-  immediate rule lands within a minute.
-- **Failures retry themselves.** A retryable provider failure (rate limit,
-  outage - `WhatsAppSendError.retryable`) stays PENDING with a later
-  `scheduledFor`: 1m, 5m, 25m, 2h05m, then FAILED after 5 attempts. A rejected
-  payload fails immediately, since it would fail identically forever. An admin
-  can re-queue any failed message from the Delivery log.
-- **The two sides of a class are separate rules.** Students and the coach get
-  their own lead time, channels and copy (students 30 minutes before by default,
-  the coach 60) — a coach reminder reads "you're taking X with Intermediate B",
-  which is not a student's message with a different address. Each sweeps its own
-  window every 5 minutes.
-- **Send times are per recipient.** A "daily at 9am" rule reaches everyone at
-  *their own* 9am (`computeScheduledFor` reads `User.timezone`), with DST and a
-  weekdays-only option handled in `messaging.schedule.ts`.
-- **Dispatch never fails its caller.** Feature services call
-  `MessagingDispatchService.dispatchInBackground(...)`, which swallows and logs.
-  A WhatsApp outage cannot fail class creation.
-- **Every attempt is logged** to `message_deliveries` (Delivery log tab),
-  including skips for a missing phone number and provider failures with Meta's
-  own error text. Numbers are masked to the last 4 digits.
-- **Sends are idempotent** through a `dedupeKey` unique per `(channel, key)`.
-  Because the row is written *before* anything is sent, a repeated sweep
-  collides on insert rather than racing a second send. The two lead-time crons
-  take a job lock (`JobLockService`) first, and the outbox worker claims rows with
-  `FOR UPDATE SKIP LOCKED` + a `claimedAt` stamp (stale claims reaped after 5
-  minutes), so a second API container takes different rows instead of the same
-  ones.
-- **Outside WhatsApp's 24-hour window**, free-form text is rejected by Meta
-  (error `131047`). A rule can name an approved template instead, with its
-  positional values written as mini-templates.
-
-Announcements (Announcements tab) write the dashboard feed row *and* fire the
-ANNOUNCEMENT rule. The announcement's own audience decides who hears it —
-everyone, students, coaches, or one batch — not the rule's, so a published
-broadcast can't be silently narrowed by a settings change. The student dashboard
-only shows announcements addressed to that student.
-
-## Coach Feedback & Ratings
-
-Students rate their coaches through forms an admin designs
-(`apps/api/src/feedback/`, `apps/web/src/features/feedback/`, routes
-`API_ROUTES.feedback.*` / `.adminFeedback.*`, admin page `/admin/feedback`,
-coach page `/coach/feedback`).
-
-- **What is asked** — a form holds up to 20 questions: star rating (1-5),
-  written answer, multiple choice, or yes/no, each optionally required. The
-  coach's rating is the mean of the star-rating answers; a response's own
-  `overallRating` is the mean of its rated questions.
-- **When it is asked** (`trigger`):
-  - *After classes* — after every Nth completed class a student attended with
-    the same coach (`classInterval`, 1 = every class). Only classes that end
-    after the form's start date (or creation, if no start) count.
-  - *Periodically* — once per coach every `intervalDays`.
-  - *Once* — once per coach while the form is live.
-  - A request stays open `expiresAfterDays`; optional `startsAt` / `endsAt`
-    bound the whole form. `batchIds` limits it to some batches (empty = all).
-    Periodic/once forms only ask about coaches the student actually attended a
-    class with.
-- **Where it appears** (`placements`, any combination): the class-ended summary
-  screen, a pop-up on the student dashboard (at most one per visit), and a card
-  at the top of the student dashboard until answered.
-- **Who sees results** — admins see every response with the student's name;
-  a coach sees only their own, anonymously, and only from forms with
-  `showToCoach` on. `allowSkip` lets students dismiss a request for good.
-- "Pending" is computed on read (`feedback-pending.util.ts`), never stored. A
-  submitted or skipped `FeedbackResponse` closes a request; its unique
-  `(formId, studentId, coachId, contextKey)` stops double submission, and the
-  server re-derives the target itself instead of trusting the client's ids.
-- Answers snapshot the question text and type, so editing a form never rewrites
-  past responses. A form with responses can't be deleted — deactivate it.
-  None of these models are soft-deletable or Trash-registered.
-
-## Chess Board Appearance
-
-A single, centralized theme system drives the visual appearance of every
-chessboard in the app (`apps/api/src/chess-appearance/`,
-`apps/web/src/features/chess-appearance/`, routes `API_ROUTES.chessAppearance.*`,
-user page `/chess-board`, admin page `/admin/chess-appearance`).
-
-- **Three-layer resolver, same shape as pre-class settings**: system default
-  (Nexa Classic) → admin global default → the user's own preference, last
-  non-empty layer wins. `resolveChessAppearance` + the catalogs live in
-  `@nexa-chess/types` (`chess-appearance.ts`) so the API and both settings
-  pages can never disagree about what a theme is or how resolution works.
-- **6 board themes** (Nexa Classic, Classic Green, Blue, Brown, Dark, Minimal)
-  are self-authored CSS — a checkerboard built from two stacked
-  `linear-gradient`s plus an optional subtle wood-grain layer, parameterized
-  by CSS custom properties scoped under `[data-nexa-board-theme="<id>"]`. No
-  image assets, no licensing concerns, and any two boards on the same page can
-  run different themes at once.
-- **5 piece sets** (Classic, Modern, Minimal, Tournament, Wooden) are vendored
-  SVGs from lichess's open-source piece library
-  (github.com/lichess-org/lila), filtered to commercially-safe licenses —
-  most of lichess's own sets are non-commercial and were excluded. Full
-  attribution in `apps/web/public/chess/pieces/LICENSES.md`. Scoped the same
-  way, under `[data-nexa-piece-set="<id>"]`.
-- **Every chessboard** (`ChessgroundBoard`, `PracticeBoard`, `PositionEditor`,
-  `PuzzleBoardTile`, `PgnBoardViewer`, `SolutionEditor`, the recorder template)
-  reads its theme, coordinates, animation, and highlight/legal-move/check
-  toggles from `useChessAppearance()` (`ChessAppearanceProvider`, mounted once
-  in `AppProviders.tsx`) instead of hardcoding them — purely cosmetic,
-  per-browser state that never touches FEN/position/move history and is never
-  broadcast over a live-class data channel.
-- **Live preview without saving**: `ChessAppearancePreviewScope` shadows the
-  app-wide context with unsaved draft values for its subtree, so the settings
-  pages' preview board (a real, movable `PracticeBoard`) updates immediately
-  as a form changes, with zero special-casing in the board components
-  themselves.
-- **A user-preference save merges onto the existing stored override**, not a
-  wholesale replace — a single-field change (e.g. the board's `C` keyboard
-  shortcut for coordinates) can't silently clobber a different field the user
-  set earlier from the settings page. The same merge applies to the admin
-  global default.
-- **Admin can disable a built-in theme** (never delete one) to hide it from
-  both picker UIs; a user who already had it selected keeps rendering it.
-
-## Payments
-
-Provider-agnostic checkout across **Razorpay**, **Cashfree** and **Stripe**,
-UPI-first for India and card/wallet-first internationally. Business logic only
-ever talks to `PaymentService`; a `PaymentRouter` picks the gateway, so adding a
-fourth provider means writing one adapter and registering it — nothing else
-changes.
-
-```
-PaymentService
-      ↓
-PaymentRouter                 ← admin-editable rules, /admin/payments → Gateways
-      ↓
-Razorpay │ Cashfree │ Stripe  ← apps/api/src/payments/providers/
-```
-
-### What each gateway is for
-
-| Gateway | Role | Methods |
-|---|---|---|
-| Razorpay | Primary, India | UPI (intent/QR/collect via Checkout), cards, net banking, wallets, EMI, subscriptions |
-| Cashfree | Secondary India / UPI failover | UPI, cards, net banking, wallets, EMI |
-| Stripe | International | Cards, Apple Pay, Google Pay, Stripe-supported local methods, multi-currency, subscriptions |
-
-**The app never touches a card number, CVV, UPI PIN or bank credential.** Every
-one is entered on the gateway's own surface: Razorpay and Cashfree open their
-SDK modal, Stripe redirects to a hosted Checkout Session. The only gateway value
-that reaches a browser is a publishable key or a single-order session token, and
-the API supplies it in the checkout response — nothing is baked into the web
-build.
-
-### Configuration
-
-Each gateway is independent and optional. Unset credentials make that adapter
-report itself unconfigured: the router skips it and the checkout screen stops
-offering the methods only it could serve. With none configured the API still
-boots — the catalogue and billing history read fine, and a checkout attempt is a
-clean 503. See `.env.example` for the full block, including which webhook events
-to subscribe to.
-
-```env
-PAYMENTS_ENABLED=true
-PAYMENTS_MODE=sandbox          # selects provider hostnames only
-RAZORPAY_KEY_ID= RAZORPAY_KEY_SECRET= RAZORPAY_WEBHOOK_SECRET=
-CASHFREE_APP_ID= CASHFREE_SECRET_KEY= CASHFREE_WEBHOOK_SECRET=
-STRIPE_PUBLISHABLE_KEY= STRIPE_SECRET_KEY= STRIPE_WEBHOOK_SECRET=
-```
-
-Webhook endpoints to register in each dashboard:
-
-```
-POST https://<api-host>/payments/webhooks/razorpay
-POST https://<api-host>/payments/webhooks/cashfree
-POST https://<api-host>/payments/webhooks/stripe
-```
-
-### Pricing a batch
-
-An admin sets what a batch costs from the batch itself: **Batches → (a batch) →
-Pricing**. A batch can carry several price options at once — a monthly
-subscription beside a one-time fee — each with its own tax, access length and
-allowed payment methods.
-
-```
-Batch "Intermediate B"
-├─ Monthly       ₹999   + 18% GST   UPI, Cards      → subscription
-└─ Lifetime    ₹4,999   + 18% GST   all methods     → one-time
-```
-
-Those options **are** `Plan` rows carrying the batch id — there is deliberately
-no second pricing model, so the checkout, the invoice, the entitlement and the
-admin's idea of "what this batch costs" are all the same object. Plan codes are
-generated from the batch name and interval; nobody has to invent one.
-
-Changing a price never re-prices anything already sold: an order freezes its
-amounts at checkout and a subscription freezes its amount at subscribe time.
-
-### One-time vs subscription
-
-`ONE_TIME` takes a single payment. `MONTHLY`, `QUARTERLY` and `YEARLY` open a
-**mandate at the gateway** instead — the provider bills each cycle and we mirror
-its state from webhooks, never charging on our own clock. The router is told the
-plan recurs and only considers a gateway that can actually mandate the chosen
-method, which is why §13's warning matters: net banking and most wallets cannot
-hold a mandate, so they are not offered for a recurring plan.
-
-Members cancel from **Billing**, and cancelling at period end keeps the access
-they already paid for.
-
-### Payment methods, twice over
-
-Two independent controls, and they only ever narrow:
-
-| Where | Scope | Use it for |
-|---|---|---|
-| **Payments → Gateways → Payment methods** | Platform-wide | Turning a method off everywhere, and rewording its checkout line |
-| **A batch's price option → Payment methods** | One price option | "This plan is UPI-only" |
-
-A method is offered only if *both* allow it and a configured gateway can serve
-it. A method absent from the platform-wide map is **enabled** — adding a new
-method to the codebase never silently disables it on an existing install.
-
-### Discounts
-
-**Payments → Discounts.** One mechanism covers every kind of offer, because a
-launch code, a UPI-only deal and a batch-specific promotion are the same object
-with a different scope:
-
-| Field | Effect |
-|---|---|
-| `PERCENTAGE` / `FIXED` | 25% off, or ₹500 off. A percentage can be capped |
-| `methods` | How "10% off on UPI" is expressed — the code only prices once that method is chosen |
-| `batchIds` / `planIds` | Restrict to certain batches or price options |
-| `minOrderAmount` | Minimum order value |
-| `startsAt` / `endsAt` | Validity window |
-| `maxRedemptions` / `maxPerUser` | Total uses, and uses per account |
-
-Rules that shape the implementation:
-
-- **Priced server-side, always.** The checkout preview runs the same
-  `computeDiscount` the server does, but the order's `discountAmount` only ever
-  comes from a fresh server-side resolve. A code that expired between preview
-  and pay is simply not applied — the purchase still goes through at the honest
-  price rather than failing.
-- **Tax is charged on the discounted subtotal.** Taxing the list price would
-  overcharge the buyer by the tax on money they never paid.
-- **A code is consumed when money arrives, not when a checkout opens.** An
-  abandoned cart never burns a limited code, and a replayed webhook never
-  consumes a second use (the redemption is unique per order).
-- A code can never make an order negative — one worth more than the order makes
-  it free.
-- The receipt shows the discount as its own negative line, naming the code, so
-  a member can see both what they paid and what they saved.
-
-Deleting a code that has already been claimed **deactivates** it instead: the
-orders that used it point at the row, and a receipt has to keep making sense.
-
-### The rule that shapes everything
-
-**The payment gateway is not the source of truth for access.** A frontend
-saying "success" grants nothing, and neither does a gateway status on its own:
-
-```
-Provider → server-side verification → Payment → Order → Entitlement → access
-```
-
-Only an `Entitlement` row unlocks anything, it is written inside the same
-transaction that marks the payment PAID, and it is unique per `(orderId,
-planId)` — so a replayed webhook, a status-check and a reconciliation sweep all
-converge on one grant and one batch enrolment.
-
-### Money
-
-Always **integer minor units** (paise, cents) in `Int` columns — never a float,
-never a Decimal a rounding bug can shave. `toMinorUnits` / `toMajorUnits` /
-`formatMoney` in `@nexa-chess/types` are the only conversions; Cashfree, which
-speaks rupees, converts at its adapter boundary and nowhere else.
-
-### Duplicate and double-charge protection
-
-| Hazard | What stops it |
-|---|---|
-| Double click, refresh, back/forward, second tab | Unique index on `orders.idempotencyKey`; the client holds one key per plan in `sessionStorage` and the server replays the original order |
-| Webhook delivered twice | Unique `(provider, eventId)` on `payment_webhook_events` — the redelivery collides on insert |
-| Out-of-order webhooks | `PAYMENT_STATUS_RANK`: a status may only move forward, so a stale `PENDING` (or a sibling attempt's `FAILED`) cannot un-pay a captured payment |
-| Benefit granted twice | Unique `(orderId, planId)` on `entitlements` |
-| Retry against another gateway | Off by default (`failoverEnabled`). A provider is only excluded after its attempt reached a *settled* failure — never while it is unclear whether money moved |
-| Browser closed mid-payment | The reconciliation cron asks the gateway directly and applies the answer through the same funnel |
-| Wrong amount captured | Parked at `PROCESSING` with `amount_mismatch`; access is withheld for review |
-
-### Refunds
-
-Admins refund in full or in part from `/admin/payments`. A refund is **never**
-marked complete because the provider's API accepted the request — only a webhook
-or a reconciliation read settles it. A *transport* failure deliberately leaves
-the refund PENDING rather than FAILED, because the gateway may have taken it and
-"failed" invites a second refund for the same money.
-
-### Manual / offline payments
-
-Cash, a coach's personal UPI/GPay, or a bank transfer collected outside the
-app — tracked the same way as a gateway payment, without one. An admin or a
-coach records it from **Payments → Manual payments** (admin) or **Payments**
-(coach, scoped to their own batches). It never goes through `PaymentRouter` or
-a provider adapter: `ManualPaymentService` builds an ordinary `Order` +
-`Payment` (`provider: MANUAL`) directly and reaches `PAID` through the exact
-same `PaymentService.applyProviderState` funnel a gateway capture uses, so the
-entitlement, invoice and `PAYMENT_RECEIVED` message are unchanged code paths.
-
-- **A coach's record is `PENDING` until an admin approves it.** Approving
-  reaches `PAID`; rejecting reaches `FAILED` with a reason the coach can see —
-  both through `applyProviderState`, so nothing about the access/invoice/
-  messaging logic is duplicated. **An admin's own record is auto-approved.**
-- **The offline method (Cash, UPI/GPay, bank transfer, …) is an
-  admin-managed catalogue** (`OfflinePaymentMethod`), not a hardcoded list —
-  deactivate instead of delete once a record references one.
-- **A record can carry an optional proof-of-payment attachment** (a
-  screenshot or a PDF receipt), stored the same private/authenticated way as
-  an invoice PDF (`manual-payment-attachment.storage.ts`) and streamed back
-  through the API, never a bare Cloudinary URL.
-- **Never refundable through this system** — there is no gateway to call.
-  `verify`/`reconcile`/`retry`/refund all reject provider `MANUAL` with a
-  clear error rather than the opaque "no adapter registered" a missing
-  `ProviderRegistry` entry would otherwise produce.
-- **A coach only ever sees the manual entries they themselves submitted** —
-  never a student's online payment history. Money between a student and the
-  academy otherwise stays admin-only, unchanged.
-
-### Invoices and credit notes
-
-Issued once, inside the capture transaction, numbered gaplessly per year from
-`InvoiceSequence` (`NEXA-INV-2026-000123`). Everything the invoice asserts —
-line items, the buyer's billing identity, the seller's registered details, the
-tax split — is **frozen onto the row at issue time**, so a receipt someone
-downloaded a year ago renders identically today.
-
-**The line names the purchase**, not just the plan: a batch's price is a `Plan`
-usually called something like "Term fee", so the line is built as
-`<plan> — <batch> (<interval>)` — "Term fee — Saturday Intermediate (Monthly)".
-That string is copied at issue time, so renaming or deleting the plan later
-never rewrites a receipt someone already downloaded.
-
-**PDFs** are rendered server-side with **pdfmake** (`invoice-pdf.service.ts`),
-not headless Chrome: this box already runs LiveKit egress' Chromium during
-recordings and a second browser competing for two vCPUs is how a class loses its
-recording. pdfmake's table primitive paginates on its own, and the Roboto it
-bundles carries real glyphs for ₹, €, £ and •, so no extra font ships in the
-image. A printable HTML version is served alongside for anyone who would rather
-print.
-
-**Storage is private.** A rendered PDF is archived to Cloudinary as an
-`authenticated` `raw` asset (`invoice-storage.service.ts`) — there is no
-permanently-public URL for a financial document. Downloads always stream through
-the authenticated API route, so changing the id in the URL reaches someone
-else's invoice only if you are an admin. Cloudinary is **optional**: with the
-credentials unset nothing is archived and PDFs are rendered on demand instead,
-so local dev needs no account.
-
-**Rendering runs on BullMQ** (`invoice` queue, `invoice.processor.ts`). The
-capture enqueues a job keyed on the invoice row, so two redelivered webhooks
-collapse into one render, and a container restarted mid-render picks the work
-back up instead of losing it. Queues are optional as everywhere else: with
-`REDIS_URL` unset the service renders inline rather than letting
-`createDisabledQueue` drop the job, so `npm run dev:api` still works without
-Docker. `pdfStatus` remains the source of truth and the sweep remains the net —
-the queue is a nudge.
-
-**A failed render never touches the payment.** Generation runs *after* the
-capture commits. A failure parks the invoice at `pdfStatus: FAILED` — the
-financial `status` stays `PAID` — and the retry sweep picks it up. If the
-archive is missing when someone asks for their receipt, it is re-rendered on the
-spot, so a background failure is invisible to the customer.
-
-**The invoice is delivered on WhatsApp as the PDF itself**, not a link. Once the
-render succeeds, the `INVOICE_ISSUED` messaging rule fires through
-`MessagingDispatchService` like every other outbound message. When the rule has
-WhatsApp enabled, the PDF is uploaded to Meta first and the resulting media
-handle is attached to the outbox row, so the delivery worker sends a `document`
-message (or a template with a DOCUMENT header, when the rule names one) and a
-parent receives the receipt in the chat. Nothing is uploaded for an in-app-only
-rule, and a failed upload degrades to the download link in the body rather than
-dropping the message. It is addressed to the **invoice's** billing phone — the
-parent — not the student's account number.
-
-**Tax** is computed by the shared engine in `@nexa-chess/types`
-(`invoices.ts`): `resolveTaxTreatment` decides CGST+SGST (intra-state),
-IGST (inter-state) or zero-rated export from the seller's and buyer's place of
-supply — never assumed — and the admin preview calls the same function the
-server does. Tax is always charged on the **discounted** subtotal.
-
-**A refund never edits the invoice.** It records `amountRefunded` and moves the
-status; the document that accounts for the reversal is a separate, numbered
-`CreditNote` (`NEXA-CN-2026-000001`), idempotent on the unique `refundId`, with
-tax reversed in the proportion it was charged.
-
-**Business details are configuration**, never constants in the template:
-Admin → Invoices → Billing & invoicing (`InvoiceSettings`, a singleton seeded
-from the legacy `PAYMENTS_*` env vars on first read).
-
-Surfaces: student `/student/billing` (invoices, credit notes, billing details)
-and `/student/billing/invoices/[id]`; admin `/admin/finance/invoices` with
-per-currency roll-ups, filters, CSV export, PDF retry, email resend and the
-audit trail. Routes are `API_ROUTES.invoices.*` / `.adminInvoices.*`.
-
-### Background work
-
-| Job | Cadence | What it does |
-|---|---|---|
-| `PaymentReconciliationService.sweep` | 5 min (job lock `payments.reconciliation`) | Asks each gateway about in-flight payments; expires unpaid orders past their TTL |
-| `PaymentWebhookService.recoverFailedEvents` | 10 min | Replays stored webhook events whose handler threw |
-| `InvoiceProcessor` (BullMQ `invoice` queue) | on demand | Renders + archives an invoice or credit-note PDF, then emails and WhatsApps it. 5 attempts with exponential backoff; failures kept 7 days |
-| `InvoiceGenerationService.sweepFailedGenerations` | 10 min (job lock `invoice.pdf-sweep`) | Retries failed/pending invoice PDFs, and reclaims rows stuck `GENERATING` over 15 min |
-| `RefundService.reconcilePending` | 30 min | Reads the gateway for refunds it has not reported on |
-| `InvoiceGenerationService.sweepUnsentEmails` | 30 min | Re-sends invoice emails that failed after a successful render |
-| `EntitlementService.expireLapsed` | hourly | Marks entitlements past `endsAt` as expired |
-| `ProviderHealthService.pruneOldEvents` | daily | Trims provider telemetry past 30 days |
-
-### Verifying it
-
-Unit tests run with the rest of the suite (`npm run test -w apps/api`) and cover
-the status machine, routing, signature verification, status mapping, the capture
-funnel, entitlements and refunds.
-
-Two database-backed checks go further. They need a built `dist` and a seeded
-database, and they clean up everything they create:
-
-```bash
-npm run build -w apps/api && npm run db:seed
-npm run test:payments:integration -w apps/api   # capture → entitlement → invoice → enrolment
-npm run test:payments:webhooks -w apps/api      # real signed webhooks from all three gateways
-npm run test:payments:pricing -w apps/api       # batch pricing, discounts, discounted tax
-```
-
-The webhook check signs payloads with each gateway's own scheme (Razorpay hex
-HMAC, Cashfree base64 HMAC over timestamp+body, Stripe `t=`/`v1=` with its
-tolerance window), so it exercises the real verification code — including that a
-forged signature, a replayed Cashfree timestamp and an expired Stripe signature
-are all rejected.
-
-### Admin dashboard
-
-`/admin/payments` — revenue (net of refunds, bucketed in the admin's own
-timezone), a filterable transaction table with CSV export, refunds,
-subscriptions, the plan catalogue, discount codes, gateway health, the
-per-method switches and the routing rules. The
-routing preview runs the same `resolvePaymentProvider` the server does, so what
-an admin sees is exactly what a checkout would pick.
-
-Adding a plan there is what makes anything buyable: a plan carries its price,
-currency, billing interval, tax percent and — optionally — the batch a
-successful purchase enrols the student into. For a batch, pricing it from the
-batch's own **Pricing** tab is usually easier (see above).
-
-## Lichess Puzzle Catalogue (import tooling)
-
-The ~6M-puzzle Lichess dump (CC0) loads into `lichess_puzzles` in two stages.
-The app only reads it through the catalogue routes below; see
-`docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md` §13–§14.
-
-**1. Prepare — off the production box** (about 1.75 CPU-hours of chess.js
-validation; it runs in parallel worker threads). Needs `zstd` and GNU `sort`.
-
-```bash
-curl -fLO https://database.lichess.org/lichess_db_puzzle.csv.zst
-npm run puzzles:prepare -w apps/api -- --in lichess_db_puzzle.csv.zst --out ./lichess-release \
-  --dump-date 2026-10-01          # optional: --workers N, --sort-mem 2G
-```
-
-It writes `./lichess-release/<preparedSha256>/{catalogue.tsv.zst, manifest.json, rejects.tsv}`
-and prints the counts. `preparedSha256` is the sha256 of the uncompressed,
-sorted TSV and is the release's identity. Every row is validated (§F.3 of the
-architecture doc), duplicate content keeps only its most-played row in the
-quality gate, and the file is sorted in walk-index order. It exits 1 if more
-than 0.1% of rows are rejected; don't load that release. The core logic is
-`apps/api/src/puzzle/catalogue/lichess-prepare.core.ts` (unit-tested).
-
-**2. Store the release** (write-once — it is the recovery artifact, because
-backups skip the catalogue rows):
-
-```bash
-oci os object bulk-upload -ns "$OCI_NAMESPACE" -bn "$OCI_BUCKET_NAME" --no-overwrite \
-  --src-dir ./lichess-release/<sha> --object-prefix lichess/<sha>/
-```
-
-**3. Load — on the box, off-peak** (about 15–30 min for a full release):
-
-```bash
-oci os object bulk-download -ns "$OCI_NAMESPACE" -bn "$OCI_BUCKET_NAME" --prefix lichess/<sha>/ --dest-dir /tmp/lr
-scripts/lichess-puzzles-load.sh /tmp/lr/lichess/<sha>/manifest.json
-```
-
-The load checks both checksums and that the migration is deployed. It refuses
-to start inside the 19:30–21:30 UTC backup window. Before each rating band it
-pauses while a class is live, the load average is ≥ 1.5, memory is short or
-`/health/ready` is twice its baseline latency. It aborts if the API stays slow
-for 15 minutes or the disk runs short. Each band is its own transaction, and an
-identical row is never rewritten, so **resume = re-run the same command**. Ids
-missing from a newer release are retired (`retiredAt`), and re-appear if a
-later release has them again. The run's report is appended to
-`lichess-load.log`. Thresholds and the target database are environment
-variables documented at the top of the script. To undo: `TRUNCATE
-lichess_puzzles` — no `puzzles` row, attempt or rating references it.
-
-**Using it** (`PuzzleCatalogService`, `API_ROUTES.puzzles.catalog*`, admin and
-coach only — never students):
-
-- `GET /puzzles/catalog` browses by rating window / themes / opening, in
-  walk-index order from a random `seed`, with a keyset cursor and no totals
-  ("Load more"). Rows carry **no solution**. Every query runs in a transaction
-  with `statement_timeout = 3s` (a timeout is `timedOut: true`, "narrow the
-  filters") and `plan_cache_mode = force_custom_plan` — Prisma prepares every
-  statement, and the generic plan Postgres switches to after five runs can't
-  see the band bounds. Below-gate rows are admin-only (`includeBelowGate`).
-- `GET /puzzles/catalog/:sourceId/preview` is the only route that returns the
-  solution line.
-- `POST /puzzles/catalog/materialise` (a coach sharing in class) copies the
-  puzzle into the system **Lichess** folder (slug `__lichess`, created lazily).
-  That folder is the hidden training cache: the library, the share dialog and
-  the course picker leave it out unless it is opened directly, and stats count
-  it as `trainingCache`.
-- `POST /puzzles/catalog/adopt` (admin) copies into — or moves out of the
-  Lichess folder into — a curated folder, with a per-item outcome. A copy
-  already in another curated folder is never moved.
-
-There is at most one `puzzles` row per Lichess id (unique `(source, sourceId)`
-across soft-deleted rows; a concurrent create re-reads the winner). A copy is a
-frozen snapshot — position after the setup move, line, rating, themes as tags —
-whose position and line can't be edited (duplicate it instead), and whose author
-shows as "Lichess". Adopt and PGN import warn, without blocking, when the same
-position + line (`contentHash`) is already in the library.
-
-In the app: Puzzle Library → **Lichess catalogue** tab (admins select puzzles and
-"Add to folder"; anyone can preview with the solution or "Create homework",
-which opens the assignment form with the position and line filled in), and the
-live-class share dialog's **Lichess catalogue** tab, which shares a puzzle
-straight from the catalogue.
-
-## Rate Limiting
-
-`@nestjs/throttler` runs as a global `APP_GUARD` (100 req/min; auth routes drop
-to 5/min, password reset to 3/min — see `auth.controller.ts`). Counters live in
-Redis when `REDIS_URL` is set, so they **survive a restart**: in-memory counters
-reset on every deploy, which hands an attacker a fresh allowance against the
-login and reset limits.
-
-Storage is built in `common/throttler/throttler-storage.factory.ts` and wrapped
-by `ResilientThrottlerStorage`. Because the guard is global, a storage that
-threw would turn a Redis blip into a 500 on *every* route — so the wrapper falls
-back to in-process counting when Redis fails, stops calling Redis for 10s, and
-logs once on the way down and once on recovery. Limits stop being shared and
-reset during that window; the API stays up.
-
-The client is deliberately configured to fail fast (`enableOfflineQueue: false`,
-`commandTimeout: 1000`) — a hung Redis must become a fast fallback, not a
-stalled request. Keys are namespaced `<QUEUE_PREFIX>:throttle:`.
-
-With `REDIS_URL` unset the module keeps its in-memory default and logs a warning
-at boot.
+## Feature guides
+
+Each feature's rules and walkthrough live in its own doc (full index:
+[docs/README.md](docs/README.md)):
+
+- **Background jobs (BullMQ), rate limiting, Sentry** — [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md)
+- **WhatsApp and admin messaging rules** — [docs/MESSAGING.md](docs/MESSAGING.md)
+- **Coach feedback & ratings** — [docs/FEATURES.md](docs/FEATURES.md#36i-coach-feedback--ratings)
+- **Chess board appearance & typography** — [docs/APPEARANCE.md](docs/APPEARANCE.md)
+- **Payments, invoices & credit notes** — [docs/PAYMENTS.md](docs/PAYMENTS.md)
+- **Puzzles and the Lichess catalogue import** — [docs/PUZZLES.md](docs/PUZZLES.md#lichess-puzzle-catalogue-import-tooling)
+- **Live class** — [docs/LIVE_CLASS.md](docs/LIVE_CLASS.md); **classes & scheduling** — [docs/CLASSES.md](docs/CLASSES.md)
 
 ## Verification
 
@@ -1350,9 +663,9 @@ so point it at a local database only:
 RUN_FEEDBACK_E2E=1 DATABASE_URL=<local db> npx playwright test coach-feedback
 ```
 
-`e2e/diagram-import.spec.ts` (PDF diagram import: rejected files, empty PDF,
-book page, flipped board, scan, correction, duplicate warning, analysis board,
-draft puzzle) is opt-in and writes a draft puzzle + a Game Library import as
+`e2e/diagram-import.spec.ts` (diagram import: rejected files, empty PDF, book page,
+flipped board, scan, JPEG2000 scan, image with OCR and a suggested solution, annotated
+board, correction, duplicate warning, analysis board, draft puzzle) is opt-in and writes a draft puzzle + a Game Library import as
 the seeded coach, so run it against a throwaway stack. Add
 `DIAGRAM_IMPORT_CLASS_ID=<a SCHEDULED class of coach@nexa.test inside its start
 window>` (and a LiveKit the API points at) to also cover loading onto the live
@@ -1367,6 +680,7 @@ Fixtures are regenerated with `node scripts/diagram-import/generate-fixtures.mjs
 (PDFs + Jest page images), `node scripts/diagram-import/capture-pdf-renders.mjs`
 (the PDFs as pdf.js renders them) and the piece templates with
 `npx ts-node --transpile-only -O '{"module":"commonjs"}' scripts/diagram-import/generate-piece-templates.ts`.
+The images come from `node scripts/diagram-import/generate-image-fixture.mjs`.
 
 ### Responsive screenshots
 
@@ -1473,7 +787,7 @@ The provided `docker-compose.yml` has been hardened for production environments 
 - **Error Reporting (Sentry)**: Optional. Set `SENTRY_DSN` (API, runtime) and `NEXT_PUBLIC_SENTRY_DSN` (web, build time) in the root `.env` — create one Sentry project per app. Add `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_WEB_PROJECT` to upload web source maps during `docker compose build`. The deploy script tags every error with the commit SHA (`SENTRY_RELEASE`). Only unexpected errors are reported, and events are scrubbed to the user id: no names, emails, cookies, request bodies, query strings or local variables. See CLAUDE.md §3.6d2.
 - **API Health Endpoints**: `GET /health` is liveness only (no dependency touched). `GET /health/ready` runs `SELECT 1` against PostgreSQL and pings Redis, each with a 2s timeout: `200 ok`, `200 degraded` (Redis down; the API still serves because Redis is optional), or `503 unavailable` (PostgreSQL down). Both are public, unauthenticated, not rate limited and kept out of the HTTP access log; failure reasons are logged, never returned. The `api` container healthcheck and the deploy gate use `/health/ready`, and it is the URL to point an external uptime monitor at.
 - **Persistence**: Both PostgreSQL and Redis use Docker named volumes for persistent data storage across restarts.
-- **CI Gate**: `.github/workflows/ci.yml` runs on pull requests into `main`/`dev`, and the `main: CI before merge` ruleset only lets a PR merge into `main` when it is up to date and these checks pass, so a push to `main` deploys without re-running CI: API unit tests, every migration applied to an empty PostgreSQL plus a `prisma migrate diff --exit-code` check that `schema.prisma` has no unmigrated changes, and the production build (which type-checks the app). Only the affected app is checked: a web-only change skips the unit tests and the Postgres job and builds only web, an API-only change builds only the API; a change under `packages/`, the lockfile, `ci.yml` or `scripts/ci/` checks both (other workflow files don't). It diffs the PR's own files and also lints. Within the API, Jest runs only the specs that import a changed file (`--changedSince`, decided by `scripts/ci/jest-scope.sh`); a change to `packages/`, the Prisma schema/migrations, test setup, dependencies, `ci.yml` or `scripts/ci/` runs the full suite.
+- **CI Gate**: `.github/workflows/ci.yml` runs on pull requests into `main`/`dev`, and a push to `main` deploys only when that exact code already passed it on the merged PR, or after it passes on the pushed commit. It covers lint and API unit tests, then every migration applied to an empty PostgreSQL with a `prisma migrate diff --exit-code` check, DB integration tests and the production build. See `docs/DEPLOYMENT.md`.
 - **Pinned Versions**: Container images are explicitly pinned to stable versions that support `ARM64` architecture (e.g. `postgres:15.6-alpine`, `redis:7.2.4-alpine`, `livekit/livekit-server:v1.6.0`).
 
 ## Project Rule

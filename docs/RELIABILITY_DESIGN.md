@@ -8,7 +8,7 @@ missing 20% instead of re-deriving the 80% that's already correct and tested.
 
 Read alongside: `docs/BACKLOG.md` (esp. the LiveKit-webhooks and
 "Resolved 2026-08-30" sections, which cover most of the ground this spec asks
-for), `.agents/AGENTS.md`, `CLAUDE.md` §3.7.
+for), `AGENTS.md`, `CLAUDE.md` §3.7.
 
 ---
 

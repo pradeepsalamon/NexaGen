@@ -61,12 +61,17 @@ export * from "./move-tree";
 // PDF chess-diagram import: recognition core (pure image processing) + position checks.
 export * from "./diagram-recognition";
 export * from "./diagram-position";
+export * from "./diagram-font-reading";
+export * from "./diagram-solution";
+export * from "./diagram-square-classifier";
 export * from "./game-library";
 export * from "./game-analysis";
 export * from "./game-tactics";
 export * from "./game-analysis-report";
 export * from "./game-sources";
 export * from "./chat";
+export * from "./knowledge";
+export * from "./assistant-tools";
 export * from "./assignment-reminders";
 
 // ──────────────────────────────────────────────
@@ -539,6 +544,7 @@ export type TrashEntity =
   | "BatchStudent"
   | "Puzzle"
   | "PuzzleTopic"
+  | "LibraryActivity"
   | "Course"
   | "CourseModule";
 
@@ -1845,6 +1851,8 @@ const assignmentActivityConfigShape = {
   allowHints: z.boolean().optional(),
   allowRetry: z.boolean().optional(),
   requiredCompletionPercent: z.number().int().min(1).max(100).optional(),
+  /** FREE_ANALYSIS: moves to play before submitting; capped below the 400 a submit can carry. */
+  minMoves: z.number().int().min(1).max(200).nullable().optional(),
   // ── PUZZLE_SET ──
   /** Library puzzle ids, in the order the student solves them. */
   puzzleIds: z.array(z.string().min(1)).max(MAX_ASSIGNMENT_PUZZLES).optional(),
@@ -2018,6 +2026,7 @@ export type AssignmentActivityConfig = {
   allowHints: boolean;
   allowRetry: boolean;
   requiredCompletionPercent: number;
+  minMoves: number | null;
 };
 
 export type AssignmentLibraryItem = AssignmentActivityConfig & {
@@ -2572,6 +2581,7 @@ export * from "./live-class-tools";
 export * from "./live-class-chapter";
 export * from "./live-class-activity-queue";
 export * from "./puzzle-rush";
+export * from "./puzzle-activity";
 
 // ──────────────────────────────────────────────
 // Course library (depends on ./puzzle + Assignment types above)
@@ -2582,7 +2592,9 @@ export * from "./assignment-puzzle-set";
 // ──────────────────────────────────────────────
 // Admin messaging rules + announcements (kept in its own module)
 // ──────────────────────────────────────────────
+export * from "./markdown";
 export * from "./messaging";
+export * from "./system-messages";
 
 // ──────────────────────────────────────────────
 // Payments: provider-agnostic checkout, refunds, subscriptions, invoices
@@ -2734,3 +2746,13 @@ export * from "./privacy";
 // SaaS plans: features + limits per academy subscription (docs/SAAS_PLANS.md).
 // ──────────────────────────────────────────────
 export * from "./platform-plans";
+
+// ──────────────────────────────────────────────
+// Data retention: admin-set windows + the fixed ones (docs/INFRASTRUCTURE.md).
+// ──────────────────────────────────────────────
+export * from "./retention";
+
+// ──────────────────────────────────────────────
+// Admin email: verification policy + direct email (docs/EMAIL_ADMIN.md).
+// ──────────────────────────────────────────────
+export * from "./email-admin";
