@@ -94,12 +94,77 @@ jobs:
               - 'package-lock.json'
               - 'turbo.json'
 
-  # No CI here: the `main: CI before merge` ruleset only lets a PR merge when it
-  # is up to date with main and its CI passed, so the pushed commit has the same
-  # tree as code CI already tested.
-  deploy:
+  # Skips the re-run of CI after a PR merge when it would test identical code:
+  # the pushed commit has the same tree as the merged PR's head, and the PR's
+  # latest CI run on that head passed. Same tree means the head already
+  # contained this main, so the PR's tested merge was exactly this code. A PR
+  # that was behind main, a direct push, or any lookup failure runs CI as usual.
+  pr-ci:
     needs: detect-changes
-    if: needs.detect-changes.outputs.web == 'true' || needs.detect-changes.outputs.api == 'true'
+    if: github.event_name == 'push' && (needs.detect-changes.outputs.web == 'true' || needs.detect-changes.outputs.api == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    outputs:
+      passed: ${{ steps.check.outputs.passed }}
+    steps:
+      - name: Check the merged PR's CI covered this exact code
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -uo pipefail
+          passed=false
+          check() {
+            pr=$(gh api "repos/$REPO/commits/$SHA/pulls"               --jq '[.[] | select(.merged_at != null and .merge_commit_sha == env.SHA and .base.ref == "main")][0] | "\(.number) \(.head.sha)"') || return
+            [ -n "$pr" ] && [ "$pr" != "null null" ] || { echo "No merged PR for $SHA."; return; }
+            read -r number head <<< "$pr"
+
+            pushed_tree=$(gh api "repos/$REPO/commits/$SHA" --jq .commit.tree.sha) || return
+            head_tree=$(gh api "repos/$REPO/commits/$head" --jq .commit.tree.sha) || return
+            if [ "$pushed_tree" != "$head_tree" ]; then
+              echo "PR #$number was not up to date with main; running CI."
+              return
+            fi
+
+            conclusion=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$head&per_page=20"               --jq "[.workflow_runs[] | select(any(.pull_requests[]; .number == $number))] | sort_by(.created_at) | last | .conclusion") || return
+            if [ "$conclusion" = "success" ]; then
+              echo "PR #$number's CI passed on $head with this exact tree; skipping the re-run."
+              passed=true
+            else
+              echo "PR #$number's latest CI run concluded '$conclusion'; running CI."
+            fi
+          }
+          check || true
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+
+  # Nothing reaches the VPS unless typecheck, lint, tests, migrations and the
+  # production build all pass on this exact code (here, or on the merged PR).
+  verify:
+    needs: [detect-changes, pr-ci]
+    if: >-
+      always() && !cancelled() && needs.detect-changes.result == 'success' &&
+      (needs.detect-changes.outputs.web == 'true' || needs.detect-changes.outputs.api == 'true') &&
+      needs.pr-ci.outputs.passed != 'true'
+    # A called workflow can't ask for more than this; ci.yml's `changes` job needs pull-requests.
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      skip_api: ${{ needs.detect-changes.outputs.api != 'true' }}
+      skip_web: ${{ needs.detect-changes.outputs.web != 'true' }}
+
+  deploy:
+    needs: [detect-changes, pr-ci, verify]
+    if: >-
+      always() && !cancelled() && needs.detect-changes.result == 'success' &&
+      (needs.detect-changes.outputs.web == 'true' || needs.detect-changes.outputs.api == 'true') &&
+      (needs.verify.result == 'success' || (needs.verify.result == 'skipped' && needs.pr-ci.outputs.passed == 'true'))
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to VPS

@@ -184,24 +184,30 @@ routing `turn.` by SNI to LiveKit, or giving LiveKit its own IP / media VM, wher
 
 Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselves.
 
-- **CI runs on PRs only** (`.github/workflows/ci.yml`, PRs into `main`/`dev`):
-  API unit tests, every migration applied to an empty Postgres +
-  `prisma migrate diff --exit-code` against `schema.prisma`, DB integration
-  tests on that Postgres, lint, and the production build (type-checks the app).
+- **CI runs on PRs and as the deploy gate** (`.github/workflows/ci.yml`, PRs
+  into `main`/`dev`): lint and API unit tests first, then, if those pass, every
+  migration applied to an empty Postgres + `prisma migrate diff --exit-code`
+  against `schema.prisma`, DB integration tests on that Postgres, and the
+  production build (type-checks the app).
   Only the affected app is checked, and Jest runs only the specs importing a
   changed file (`scripts/ci/jest-scope.sh`; full suite when
   packages/schema/test setup/deps/`ci.yml`/`scripts/ci/` change).
 - The **`main: CI before merge` ruleset** requires a PR, those three checks, and
-  an up-to-date branch, so a merge commit is always code CI already tested
-  (admins can bypass — a bypassed merge deploys untested).
+  an up-to-date branch. Admins can bypass it, and GitHub Free doesn't enforce
+  it on a private repo, so the deploy gate below is what protects production.
+- **Deploy gate**: the `pr-ci` job skips CI only when the pushed commit has the
+  same tree as the merged PR's head and that head's latest CI run passed. A PR
+  that was behind `main`, a direct push, a manual run or a failed lookup runs
+  `ci.yml` first, and a failure stops the deploy. Updating a PR's branch before
+  merging avoids the second run and its Actions minutes.
 - **Push to `main` deploys**: `deploy-production.yml` detects whether
-  `apps/web/**` / `apps/api/**` / `packages/**` changed → SSH to the VPS →
+  `apps/web/**` / `apps/api/**` / `packages/**` changed → gate → SSH to the VPS →
   `scripts/deploy-production.sh <sha> <services>` → `docker compose up -d --build`
   for the affected services only. Change detection diffs against the head of
   the last successful push-triggered deploy run (falling back to the previous
   push), so a later push also redeploys what a failed deploy left out. To
   redeploy by hand: Actions → Deploy Production → **Run workflow**
-  (`workflow_dispatch`, services `both`/`api`/`web`); it runs no CI.
+  (`workflow_dispatch`, services `both`/`api`/`web`); it runs CI first.
 - **Migrations first**: the script applies `prisma migrate deploy` from the
   newly built image *before* replacing the running API, so a failed migration
   aborts the deploy without downtime. `apps/api`'s `entrypoint.sh` also runs it
@@ -227,8 +233,8 @@ Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselve
 - **Security & dependency automation**: `.github/workflows/security.yml` runs
   Semgrep on PRs (fails only on findings the PR introduces) and a weekly
   report-only full scan; it is not a deploy gate. `.semgrepignore` excludes
-  tests/generated files. Dependabot (`.github/dependabot.yml`) opens weekly
-  grouped npm PRs; core-stack majors (Next, React, Nest, Prisma) are ignored on
+  tests/generated files. Dependabot (`.github/dependabot.yml`) opens monthly
+  grouped npm PRs, skipping versions under 7 days old; core-stack majors (Next, React, Nest, Prisma) are ignored on
   purpose. Workflow actions are pinned to a commit SHA with the version in a
   trailing comment (`uses: actions/checkout@<sha> # v4.4.0`) — a new step does
   the same; Dependabot's monthly `github-actions` run bumps both together.

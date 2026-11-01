@@ -173,7 +173,7 @@ NestJS `apps/api/src/ai/` is the only caller of stateless Python `services/ai-ru
 
 ## 6. Deployment & ops (context — don't run these yourself)
 
-CI runs on PRs (unit tests, migrations + drift check, integration tests, lint, build); the `main` ruleset requires it. Push to `main` deploys changed services via `scripts/deploy-production.sh`, migrating **before** swapping the API; failures roll back to `:last-good` images. **Migrations are never reversed — keep them additive.** `NEXT_PUBLIC_*` vars are build-time. A new bulk source-data table is excluded from backup dumps in both `scripts/backup_db.sh` and admin backup. New workflow steps pin actions to a commit SHA. Full detail: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) § "CI, automated deploys and rollback".
+CI runs on PRs (lint + unit tests first, then migrations + drift check, integration tests, build); the `main` ruleset requires it. Push to `main` deploys changed services, re-running CI first unless that exact code already passed on the merged PR, via `scripts/deploy-production.sh`, migrating **before** swapping the API; failures roll back to `:last-good` images. **Migrations are never reversed — keep them additive.** `NEXT_PUBLIC_*` vars are build-time. A new bulk source-data table is excluded from backup dumps in both `scripts/backup_db.sh` and admin backup. New workflow steps pin actions to a commit SHA. Full detail: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) § "CI, automated deploys and rollback".
 
 ---
 
