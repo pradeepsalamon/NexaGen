@@ -18,6 +18,15 @@ const DUE_TOMORROW = () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOStrin
 // Every route here has a twin in OWN_CASES on the caller's own data (where a
 // GET exists), so a denial can't pass just because the route itself is broken.
 const CROSS_USER: Case[] = [
+  // MCQ / Playout runs: another class's game can't be read or touched by anyone outside it
+  { name: "student plays a move in another class's Playout game", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.playoutMove(w.b.liveClass.id, w.b.playoutRun.id, w.b.playoutGame.id), body: { ply: 0, uci: "a1a8" } },
+  { name: "student opens a game in another class's Playout", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.playoutStart(w.b.liveClass.id, w.b.playoutRun.id) },
+  { name: "student reads another class's running activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRun(w.b.liveClass.id) },
+  { name: "coach monitors another coach's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.b.liveClass.id, w.b.playoutRun.id) },
+  { name: "coach opens a student board in another coach's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunGame(w.b.liveClass.id, w.b.playoutRun.id, w.b.playoutGame.id) },
+  { name: "coach opens another class's game through their own run", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunGame(w.a.liveClass.id, w.a.playoutRun.id, w.b.playoutGame.id) },
+  { name: "coach ends another coach's activity", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.activityRunEnd(w.b.liveClass.id, w.b.playoutRun.id) },
+  { name: "coach ends another coach's activity through their own class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.activityRunEnd(w.a.liveClass.id, w.b.playoutRun.id) },
   // Knowledge base (a batch-scoped article is a 404 outside its batch; a suggestion is its coach's own)
   { name: "student reads another batch's help article", as: (w) => w.a.student, path: (w) => API_ROUTES.knowledge.helpArticle(w.b.kbArticle.slug) },
   { name: "student votes on another batch's help article", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.knowledge.feedback(w.b.kbArticle.id), body: { helpful: false } },
@@ -137,6 +146,9 @@ const CROSS_USER: Case[] = [
 ];
 
 const OWN_CASES: Case[] = [
+  { name: "student reads own class's running activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRun(w.a.liveClass.id) },
+  { name: "coach monitors own class's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.a.liveClass.id, w.a.playoutRun.id) },
+  { name: "coach opens a student board in own class's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunGame(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
   { name: "student reads own batch's help article", as: (w) => w.a.student, path: (w) => API_ROUTES.knowledge.helpArticle(w.a.kbArticle.slug) },
   { name: "coach reads own batch's help article", as: (w) => w.a.coach, path: (w) => API_ROUTES.knowledge.helpArticle(w.a.kbArticle.slug) },
   { name: "coach edits own suggestion", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.knowledge.suggestion(w.a.kbSuggestion.id), body: { body: "Better idea", title: "Suggestion A" } },
@@ -255,6 +267,16 @@ function rushReport(rushId: string) {
 }
 
 const WRONG_ROLE: Case[] = [
+  { name: "student monitors own class's activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.a.liveClass.id, w.a.playoutRun.id) },
+  { name: "student opens a board through the coach's monitor", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRunGame(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
+  { name: "student ends own class's activity", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.activityRunEnd(w.a.liveClass.id, w.a.playoutRun.id) },
+  { name: "coach plays a move in own student's game", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.playoutMove(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id), body: { ply: 0, uci: "a1a8" } },
+  { name: "coach restarts own student's game", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.playoutRetry(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
+  { name: "coach gives up own student's game", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.playoutResign(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
+  { name: "coach asks for the computer's move in own student's game", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.playoutContinue(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
+  { name: "coach takes a hint in own student's game", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.playoutHint(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
+  { name: "student browses the unified library", as: (w) => w.a.student, path: () => API_ROUTES.puzzles.library },
+  { name: "coach creates a library activity", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.puzzles.activities, body: (w: World) => ({ config: { engine: { movetimeMs: 100, skillLevel: 1 }, goal: { type: "CHECKMATE" }, startFen: "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1", studentColor: "white" }, difficulty: "EASY", kind: "PLAYOUT", title: "hijacked", topicId: w.a.privatePuzzle.topicId, tags: [] }) },
   { name: "student lists help suggestions (coaches only)", as: (w) => w.a.student, path: () => API_ROUTES.knowledge.suggestions },
   { name: "student reads help topic trends (coaches only)", as: (w) => w.a.student, path: () => API_ROUTES.knowledge.trends },
   { name: "student reads own class's chapters", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.chapters(w.a.liveClass.id) },
@@ -372,6 +394,11 @@ describe("cross-user access (real app, real Postgres)", () => {
     expect(await t.prisma.chessGame.findUnique({ where: { id: b.game.id } })).toMatchObject({ version: 1 });
     expect(await t.prisma.conversation.count({ where: { type: { in: ["DIRECT", "GROUP"] } } })).toBe(2);
     expect(await t.prisma.liveClassPuzzleRushEntry.count({ where: { rushId: b.rush.id } })).toBe(0);
+    expect(await t.prisma.liveClassPlayoutGame.findUnique({ where: { id: b.playoutGame.id } })).toMatchObject({ ply: 0, status: "IN_PROGRESS" });
+    expect(await t.prisma.liveClassPlayoutGame.findUnique({ where: { id: a.playoutGame.id } })).toMatchObject({ hintsUsed: 0, ply: 0, status: "IN_PROGRESS" });
+    expect(await t.prisma.liveClassPlayoutGame.count({ where: { runId: { in: [a.playoutRun.id, b.playoutRun.id] } } })).toBe(2);
+    expect(await t.prisma.liveClassActivityRun.count({ where: { status: "ACTIVE" } })).toBe(2);
+    expect(await t.prisma.libraryActivity.count({ where: { title: "hijacked" } })).toBe(0);
     expect(await t.prisma.revisionItem.count({ where: { source: "COACH" } })).toBe(0);
     expect(await t.prisma.liveClassPuzzleRush.findUnique({ where: { id: b.rush.id } })).toMatchObject({ endedAt: null });
     expect(await t.prisma.liveClassChapter.findMany({ where: { scopeKey: `batch:${b.batch.id}` } })).toEqual([

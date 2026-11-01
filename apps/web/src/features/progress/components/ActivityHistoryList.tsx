@@ -38,6 +38,7 @@ function detailText(entry: StudentActivityEntry): string | null {
   if (!entry.detail) return null;
   if (entry.type === "CLASS_QUESTION") return `Played ${entry.detail}`;
   if (entry.type === "HOMEWORK") return ENGINE_RESULT[entry.detail] ?? null;
+  if (entry.type === "CLASS_MCQ") return `Answered ${entry.detail}`;
   return entry.detail;
 }
 
@@ -84,6 +85,16 @@ function ActivityRow({ entry }: { entry: StudentActivityEntry }) {
           <time dateTime={entry.occurredAt}>{formatDateTime(entry.occurredAt, tz)}</time>
         </div>
         {context.length ? <p className="break-words text-xs text-app-muted">{context.join(" · ")}</p> : null}
+        {entry.playout?.pgn ? (
+          <details className="text-xs text-app-muted">
+            <summary className="cursor-pointer font-semibold text-primary-ink">Game record</summary>
+            <p className="mt-1 break-all">Started from: {entry.playout.startFen}</p>
+            <p className="break-all">Ended at: {entry.playout.finalFen}</p>
+            <pre className="custom-scrollbar mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-control bg-app-soft p-2">
+              {entry.playout.pgn}
+            </pre>
+          </details>
+        ) : null}
         {entry.studentNote ? (
           <p className="break-words text-xs text-app-muted">
             <span className="font-semibold text-app-text">Student note:</span> {entry.studentNote}

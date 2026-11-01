@@ -43,6 +43,13 @@ describe("PuzzleTopicService", () => {
       folderHomework: jest.fn()
     };
     prisma = {
+      libraryActivity: {
+        count: jest.fn().mockResolvedValue(0),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findMany: jest.fn().mockResolvedValue([]),
+        groupBy: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 })
+      },
       user: { findUnique: jest.fn().mockResolvedValue(asRole(ADMIN_ID, UserRole.ADMIN)) },
       puzzleTopic: {
         findFirst: jest.fn().mockResolvedValue(null),

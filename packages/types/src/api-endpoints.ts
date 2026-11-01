@@ -200,6 +200,30 @@ export const API_ROUTES = {
       `/live-class/${id}/activity-queues/${queueId}/progress`,
     // Any participant: the running queue as a student may see it (progress only).
     activityQueueCurrent: (id: string = ":id") => `/live-class/${id}/activity-queue/current`,
+    // An MCQ / Playout running in the class (started only by the activity queue).
+    // GET: the caller's own view (any participant).
+    activityRun: (id: string = ":id") => `/live-class/${id}/activity-run`,
+    // Coach-owner / admin. Monitoring is GET-only: no route lets a coach touch a game.
+    activityRunMonitor: (id: string = ":id", runId: string = ":runId") =>
+      `/live-class/${id}/activity-run/${runId}/monitor`,
+    activityRunGame: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/games/${gameId}`,
+    activityRunEnd: (id: string = ":id", runId: string = ":runId") => `/live-class/${id}/activity-run/${runId}/end`,
+    activityRunReveal: (id: string = ":id", runId: string = ":runId") =>
+      `/live-class/${id}/activity-run/${runId}/reveal`,
+    // Student only, and only their own.
+    mcqAnswers: (id: string = ":id", runId: string = ":runId") => `/live-class/${id}/activity-run/${runId}/mcq/answers`,
+    playoutStart: (id: string = ":id", runId: string = ":runId") => `/live-class/${id}/activity-run/${runId}/playout`,
+    playoutMove: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/playout/${gameId}/move`,
+    playoutContinue: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/playout/${gameId}/continue`,
+    playoutHint: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/playout/${gameId}/hint`,
+    playoutRetry: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/playout/${gameId}/retry`,
+    playoutResign: (id: string = ":id", runId: string = ":runId", gameId: string = ":gameId") =>
+      `/live-class/${id}/activity-run/${runId}/playout/${gameId}/resign`,
     // Interactives (classroom tools): GET every tool's state (any participant).
     tools: (id: string = ":id") => `/live-class/${id}/tools`,
     // Puzzle Storm / Racer: GET the current round (any participant), POST start
@@ -431,6 +455,16 @@ export const API_ROUTES = {
     catalogMaterialise: "/puzzles/catalog/materialise",
     // Copy into a curated folder. Admin only.
     catalogAdopt: "/puzzles/catalog/adopt",
+    // ── Unified library: puzzles + MCQs + Playouts (admin + coach; never students) ──
+    library: "/puzzles/library",
+    // MCQ / Playout authoring. POST, PATCH, DELETE, publish, archive: admin only.
+    activities: "/puzzles/activities",
+    activityImage: "/puzzles/activities/image",
+    activityBulk: "/puzzles/activities/bulk",
+    activity: (id: string = ":id") => `/puzzles/activities/${id}`,
+    activityPublish: (id: string = ":id") => `/puzzles/activities/${id}/publish`,
+    activityArchive: (id: string = ":id") => `/puzzles/activities/${id}/archive`,
+    activityDuplicate: (id: string = ":id") => `/puzzles/activities/${id}/duplicate`,
     get: (id: string = ":id") => `/puzzles/${id}`,
     update: (id: string = ":id") => `/puzzles/${id}`,
     delete: (id: string = ":id") => `/puzzles/${id}`,

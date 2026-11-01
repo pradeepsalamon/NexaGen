@@ -8,6 +8,7 @@ export function safePgnBaseName(filename: string): string {
 }
 
 const PROFILE_IMAGE_FOLDER = 'nexa_chess/profiles';
+const ACTIVITY_IMAGE_FOLDER = 'nexa_chess/activities';
 
 // Only images uploaded through /upload/image, so an avatar can't be an external tracking pixel.
 export function isProfileImageUrl(url: string, cloudName = process.env.CLOUDINARY_CLOUD_NAME): boolean {
@@ -25,8 +26,44 @@ export function isProfileImageUrl(url: string, cloudName = process.env.CLOUDINAR
   }
 }
 
+// Only images an admin uploaded for a library activity: no outside host can be
+// put in front of a class of minors as a question or answer image.
+export function isActivityImageUrl(url: string, cloudName = process.env.CLOUDINARY_CLOUD_NAME): boolean {
+  if (!cloudName) return false;
+  try {
+    const { hostname, pathname, protocol } = new URL(url);
+    const prefix = `/${cloudName}/image/upload/`;
+    if (protocol !== 'https:' || hostname !== 'res.cloudinary.com' || !pathname.startsWith(prefix)) {
+      return false;
+    }
+    const rest = pathname.slice(prefix.length).replace(/^v\d+\//, '');
+    return rest.startsWith(`${ACTIVITY_IMAGE_FOLDER}/`) && !rest.includes('..');
+  } catch {
+    return false;
+  }
+}
+
 @Injectable()
 export class UploadService {
+  /** Question and answer images. Random public ids: a URL says nothing about the answer. */
+  uploadActivityImage(file: Express.Multer.File): Promise<UploadApiResponse> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+          folder: ACTIVITY_IMAGE_FOLDER,
+          use_filename: false,
+        },
+        (error, result) => {
+          if (error) return reject(new BadRequestException(error.message));
+          resolve(result as UploadApiResponse);
+        },
+      );
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+
   uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(

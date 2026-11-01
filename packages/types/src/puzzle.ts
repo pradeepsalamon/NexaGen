@@ -128,6 +128,8 @@ export type PuzzleTopicDto = {
   parentId: string | null;
   /** Puzzles filed directly in this folder (subfolders not included). */
   puzzleCount: number;
+  /** MCQs and Playouts filed directly in this folder that this viewer can see. */
+  activityCount: number;
   createdByName: string | null;
   canManage: boolean;
   /** Super Admin's academy-wide homework approval (null = not approved, or revoked). */

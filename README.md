@@ -568,7 +568,7 @@ A daily sweep (`apps/api/src/retention/`, 4 AM, single-runner via the `retention
 
 ## Trash And Soft Delete
 
-Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, `PuzzleTopic`, `Course`, and `CourseModule`.
+Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, `PuzzleTopic`, `LibraryActivity`, `Course`, and `CourseModule`.
 
 When adding a new trash-enabled model:
 

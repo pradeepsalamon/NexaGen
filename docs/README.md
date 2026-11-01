@@ -29,6 +29,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [LIVE_CLASS.md](LIVE_CLASS.md) | Everything inside the live-class room (LiveKit, board sync, moderation, puzzles, simul, …) |
 | [CLASSES.md](CLASSES.md) | Class scheduling, timing rules, batch types, demo classes |
 | [PUZZLES.md](PUZZLES.md) | Puzzle Library, puzzle-set homework, student progress |
+| [PUZZLE_ACTIVITIES.md](PUZZLE_ACTIVITIES.md) | MCQs and Playouts in the Puzzle Library and the live class |
 | [SMART_REVISION.md](SMART_REVISION.md) | Spaced-repetition revision |
 | [STUDENT_ACTIVITY_HISTORY.md](STUDENT_ACTIVITY_HISTORY.md) | Student activity history and progress summary |
 | [FEATURES.md](FEATURES.md) | Feedback, Game Library, chat, reminders, revision, analysis, PDF import, SEO, privacy |

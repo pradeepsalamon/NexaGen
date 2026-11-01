@@ -193,6 +193,7 @@ export function TopicManager({
         <FolderPuzzlesPanel
           basePath={basePath}
           folder={openNode.topic}
+          role={canManage ? "admin" : "coach"}
           subfolderCount={openNode.children.length}
           topics={topics}
           onBack={() => setOpenFolderId(null)}
@@ -328,15 +329,16 @@ export function TopicManager({
                       {topic.description ?? "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {topic.puzzleCount > 0 ? (
-                        <SimpleTooltip label="Open folder to preview and bulk edit its puzzles">
+                      {topic.puzzleCount > 0 || topic.activityCount > 0 ? (
+                        <SimpleTooltip label="Open folder to preview and manage what is in it">
                           <button
                             type="button"
-                            aria-label={`Open ${topic.name} (${topic.puzzleCount} puzzle${topic.puzzleCount === 1 ? "" : "s"})`}
+                            aria-label={`Open ${topic.name} (${topic.puzzleCount} puzzle${topic.puzzleCount === 1 ? "" : "s"}, ${topic.activityCount} MCQ${topic.activityCount === 1 ? "" : "s"} and Playout${topic.activityCount === 1 ? "" : "s"})`}
                             onClick={() => setOpenFolderId(topic.id)}
                             className="rounded-control px-1.5 py-0.5 font-semibold text-primary-ink underline-offset-2 hover:bg-app-soft hover:underline"
                           >
                             {topic.puzzleCount}
+                            {topic.activityCount > 0 ? ` + ${topic.activityCount}` : ""}
                           </button>
                         </SimpleTooltip>
                       ) : (

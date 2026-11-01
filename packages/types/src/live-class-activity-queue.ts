@@ -10,6 +10,8 @@ import { liveClassChapterStateSchema, type LiveClassChapterState } from "./live-
 //   PUZZLE   → shared through the ordinary live puzzle (server-scored attempts)
 //   QUESTION → asked through the ordinary move poll ("what would you play?")
 //   CHAPTER  → a saved chapter, loaded onto the coach's shared board
+//   MCQ      → a library MCQ, run as a LiveClassActivityRun (puzzle-activity.ts)
+//   PLAYOUT  → a library Playout: one independent game per student against the engine
 // so the queue adds no second solver, attempt engine or board. Responses stay
 // where those features already keep them; the queue records which puzzle share
 // or poll each item produced, which is what ties a response to an item.
@@ -31,11 +33,13 @@ export const ACTIVITY_QUEUE_TIMER_MAX_SECONDS = 3600;
 export const activityQueueStatusSchema = z.enum(["DRAFT", "LIVE", "FINISHED"]);
 export type ActivityQueueStatus = z.infer<typeof activityQueueStatusSchema>;
 
-export const activityKindSchema = z.enum(["PUZZLE", "QUESTION", "CHAPTER"]);
+export const activityKindSchema = z.enum(["PUZZLE", "QUESTION", "CHAPTER", "MCQ", "PLAYOUT"]);
 export type ActivityKind = z.infer<typeof activityKindSchema>;
 
 export const ACTIVITY_KIND_LABELS: Record<ActivityKind, string> = {
   CHAPTER: "Position",
+  MCQ: "MCQ",
+  PLAYOUT: "Playout",
   PUZZLE: "Puzzle",
   QUESTION: "Question"
 };
@@ -81,7 +85,9 @@ export const activityQueueItemInputSchema = z.discriminatedUnion("kind", [
     /** The move that counts as correct; without one answers are only "submitted". */
     correctUci: uciSchema.nullable().optional()
   }),
-  z.object({ kind: z.literal("CHAPTER"), chapterId: idSchema })
+  z.object({ kind: z.literal("CHAPTER"), chapterId: idSchema }),
+  z.object({ kind: z.literal("MCQ"), activityId: idSchema }),
+  z.object({ kind: z.literal("PLAYOUT"), activityId: idSchema })
 ]);
 export type ActivityQueueItemInput = z.infer<typeof activityQueueItemInputSchema>;
 
@@ -143,6 +149,10 @@ export type ActivityQueueItem = {
   title: string;
   puzzleId: string | null;
   chapterId: string | null;
+  /** MCQ / PLAYOUT: the library activity it references. */
+  activityId: string | null;
+  /** MCQ / PLAYOUT: the run it produced once the class reached it. */
+  activityRunId: string | null;
   /** QUESTION: the position asked about. */
   fen: string | null;
   prompt: string | null;
@@ -203,7 +213,7 @@ export type StudentActivityQueueResponse = { queue: StudentActivityQueueView | n
 
 /**
  * PENDING      reached, nothing from this student yet (still current)
- * IN_PROGRESS  a puzzle attempt is open
+ * IN_PROGRESS  a puzzle attempt or Playout game is open
  * SUBMITTED    answered a question that has no marked answer
  * CORRECT / INCORRECT  scored by the activity's own rules
  * MISSED       the class moved on without a response
@@ -224,7 +234,7 @@ export type ActivityResponseCell = {
   detail: string | null;
 };
 
-/** Coach-owner / admin: one row per student, one cell per reached PUZZLE / QUESTION item. */
+/** Coach-owner / admin: one row per student, one cell per reached PUZZLE / QUESTION / MCQ / PLAYOUT item. */
 export type ActivityQueueProgressResponse = {
   queueId: string;
   students: { studentId: string; studentName: string }[];
