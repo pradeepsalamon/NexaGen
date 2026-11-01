@@ -302,7 +302,11 @@ errors block, warnings need the coach; takes a chess.js probe) +
   `webpackIgnore`'d `import()` (`apps/web/scripts/copy-pdfjs.mjs`, run on
   `predev`/`prebuild`) — **don't bundle it**: Next's webpack rewrites the
   `__webpack_require__` inside pdf.js's own build ("Object.defineProperty called
-  on non-object"). Limits live in `PDF_IMPORT_LIMITS` (`lib/pdf.ts`).
+  on non-object"). Limits live in `PDF_IMPORT_LIMITS` (`lib/pdf.ts`). Its image
+  decoders are served from `public/vendor/pdfjs/wasm/` (`wasmUrl`): without them
+  a JPEG2000 scan, which is how archive and many scanner PDFs store a page,
+  renders blank. A page that renders blank but holds an image is reported as
+  unreadable, not as having no diagrams.
 - **A diagram is pieces only.** Side to move, castling, en passant and the move
   counters are never assumed: `CandidateReview` holds null/unaccepted until the
   coach answers (a caption like "White to move" or printed coordinates may

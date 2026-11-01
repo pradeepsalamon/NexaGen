@@ -212,6 +212,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
   const scannedPages = Object.keys(pages).map(Number).sort((a, b) => a - b);
   const failedPages = scannedPages.filter((n) => pages[n].status === "failed");
   const scannedAll = scannedPages.length > 0 && !scan;
+  const everyPageFailed = scannedAll && failedPages.length === scannedPages.length;
 
   if (!pdf) {
     return (
@@ -358,7 +359,14 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
 
         <TabsContent value="diagrams">
           {candidates.length === 0 ? (
-            scannedAll ? (
+            everyPageFailed ? (
+              // Unread pages say nothing about diagrams; the alert above has the reason.
+              <EmptyState
+                description="None of the scanned pages could be read, so we can't say whether they have diagrams."
+                icon={ScanSearch}
+                title="Nothing could be read"
+              />
+            ) : scannedAll ? (
               <EmptyState
                 description="No chessboards were found on the scanned pages. If a page does have one (for example a diagram without shaded squares), open “Pages & manual selection” and draw a box around it."
                 icon={ScanSearch}

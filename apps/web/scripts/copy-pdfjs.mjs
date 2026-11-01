@@ -5,7 +5,7 @@
 // output, and Next's webpack rewrites their internal `__webpack_require__`
 // references ("Object.defineProperty called on non-object" at runtime). The PDF
 // diagram import loads these files with a webpackIgnore'd import() instead.
-import { copyFileSync, mkdirSync } from "node:fs";
+import { copyFileSync, cpSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,4 +17,7 @@ mkdirSync(out, { recursive: true });
 for (const file of ["pdf.min.mjs", "pdf.worker.min.mjs"]) {
   copyFileSync(join(pkgDir, "legacy/build", file), join(out, file));
 }
+// The image decoders (`wasmUrl` in lib/pdf.ts) and their licences. Without them
+// a JPEG2000 scan renders blank.
+cpSync(join(pkgDir, "wasm"), join(out, "wasm"), { recursive: true });
 console.log(`pdf.js ${require("pdfjs-dist/package.json").version} → public/vendor/pdfjs`);

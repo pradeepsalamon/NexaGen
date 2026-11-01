@@ -79,6 +79,11 @@ let pdfjsPromise: Promise<PdfJs> | null = null;
 /** Served from public/ by scripts/copy-pdfjs.mjs — see there for why it isn't bundled. */
 const PDFJS_URL = "/vendor/pdfjs/pdf.min.mjs";
 const PDFJS_WORKER_URL = "/vendor/pdfjs/pdf.worker.min.mjs";
+/**
+ * pdf.js' image decoders. Without this, a JPEG2000 image (most archive and many
+ * scanner PDFs) silently paints nothing and the page renders blank.
+ */
+const PDFJS_WASM_URL = "/vendor/pdfjs/wasm/";
 
 /** pdf.js (~1.5 MB with its worker) is only fetched when a coach opens a PDF. */
 function loadPdfJs(): Promise<PdfJs> {
@@ -91,6 +96,18 @@ function loadPdfJs(): Promise<PdfJs> {
     pdfjsPromise = null;
   });
   return pdfjsPromise;
+}
+
+function imagePaintOps({ OPS }: PdfJs): ReadonlySet<number> {
+  return new Set<number>([
+    OPS.paintImageMaskXObject,
+    OPS.paintImageMaskXObjectGroup,
+    OPS.paintImageMaskXObjectRepeat,
+    OPS.paintImageXObject,
+    OPS.paintImageXObjectRepeat,
+    OPS.paintInlineImageXObject,
+    OPS.paintInlineImageXObjectGroup,
+  ]);
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => void, message: string): Promise<T> {
@@ -140,6 +157,7 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedPdf> {
     maxImageSize: 50_000_000,
     stopAtErrors: false,
     useSystemFonts: true,
+    wasmUrl: PDFJS_WASM_URL,
   });
   let doc: PdfDocument;
   try {
@@ -184,6 +202,14 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedPdf> {
         `Page ${pageNumber} took too long to render and was skipped.`,
       );
       const image = rgbaToGray(ctx.getImageData(0, 0, width, height).data, width, height);
+      // pdf.js only warns when an image can't be decoded, and the page would
+      // then read as "no diagrams here". Say what really happened.
+      if (image.data.every((value) => value === 255)) {
+        const { fnArray } = await page.getOperatorList();
+        if (fnArray.some((fn) => imagePaintOps(pdfjs).has(fn))) {
+          throw new PdfImportError("render-failed", `Page ${pageNumber} has a scanned image that could not be decoded. Reload the page and try again.`);
+        }
+      }
 
       const text: DiagramTextItem[] = [];
       try {

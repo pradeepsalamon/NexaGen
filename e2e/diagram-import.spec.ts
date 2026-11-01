@@ -270,6 +270,30 @@ test.describe("PDF diagram import", () => {
     await expect(page.getByText("scanned-page — p.1 #1")).toBeVisible();
   });
 
+  // generate-jpx-fixture.py: the scanned-page.pdf page, stored as JPEG2000.
+  test("a JPEG2000 scan is decoded and read like any other scan", async ({ page }) => {
+    const [d] = expected["scanned-page.pdf"].diagrams ?? [];
+    await upload(page, "scanned-jpeg2000.pdf");
+    await scan(page, 1, 1);
+    await page.getByTestId("diagram-candidate").first().click();
+    // This proves the page was decoded, not that the read is perfect: lossy
+    // compression costs a few squares, which the coach reviews as usual.
+    const got = expandPlacement(placementOf(await fen(page)));
+    const want = expandPlacement(placementOf(d.fen));
+    const right = [...want].filter((square, i) => got[i] === square).length;
+    expect(right).toBeGreaterThanOrEqual(56);
+  });
+
+  test("a scan whose image can't be decoded is reported, not called empty", async ({ page }) => {
+    await page.route("**/vendor/pdfjs/wasm/**", (route) => route.abort());
+    await upload(page, "scanned-jpeg2000.pdf");
+    await scan(page, 1, 1);
+    await expect(page.getByText("1 page could not be read")).toBeVisible();
+    await expect(page.getByText(/scanned image that could not be decoded/)).toBeVisible();
+    await expect(page.getByText("Nothing could be read")).toBeVisible();
+    await expect(page.getByText("No diagrams found")).toBeHidden();
+  });
+
   test("an impossible position cannot be confirmed", async ({ page }) => {
     await upload(page, "book-two-diagrams.pdf");
     await scan(page, 1, 1);
