@@ -2,18 +2,10 @@
 // review of it. Pure apart from the Chess probe (the castling-safe wrapper).
 
 import {
-  detectDiagramBoards,
   diagramGridToPlacement,
   diagramSquareName,
-  inferOrientationFromLabels,
-  inferOrientationFromPieces,
-  parseSideToMoveHint,
   possibleCastlingFlags,
-  recognizeDiagramBoard,
-  refineDiagramBoard,
-  textNearDiagram,
   validateDiagramPosition,
-  DIAGRAM_LOW_CONFIDENCE,
   type DiagramCandidateStatus,
   type DiagramChessProbe,
   type DiagramIssue,
@@ -23,7 +15,11 @@ import {
   type OrientationEvidence,
 } from "@nexa-chess/types";
 import { Chess } from "@/lib/chess";
-import { cropToDataUrl, type RenderedPage } from "./pdf";
+import { hintsFromText, type BoardAnalysis } from "./analysis";
+import { cropToDataUrl } from "./crop";
+import { readTextInRegions, type OpenedDocument, type RenderedPage } from "@/lib/document-reader";
+import { recognizePage, recognizeSelection } from "./recognizer";
+import { toDiagramText } from "./text";
 
 export type DiagramCandidate = {
   id: string;
@@ -42,6 +38,12 @@ export type DiagramCandidate = {
   meanConfidence: number;
   orientation: OrientationEvidence;
   sideHint: { side: DiagramSide; phrase: string } | null;
+  /** Arrows or lines are drawn over the board, so every square needs checking. */
+  annotated: boolean;
+  /** Text printed under the board, where a book prints the moves. */
+  printedText: string;
+  /** Where the page's words came from, if it has any. */
+  textSource: "text-layer" | "ocr" | null;
 };
 
 export type CastlingRights = { K: boolean; Q: boolean; k: boolean; q: boolean };
@@ -176,31 +178,76 @@ export function doubtfulSquareNames(c: DiagramCandidate, orientation: DiagramOri
 
 let nextId = 0;
 
-function buildCandidate(page: RenderedPage, rect: DiagramRect, index: number, origin: DiagramCandidate["origin"]): DiagramCandidate {
-  const rec = recognizeDiagramBoard(page.image, rect);
-  const fromLabels = inferOrientationFromLabels(page.text, rect);
-  const orientation = fromLabels ?? inferOrientationFromPieces(rec.grid);
+/** Boards printed smaller than this are read again from a sharper render. */
+const SHARPEN_BELOW = 400;
+const SHARPEN_TO = 640;
+
+/** Above a board for its caption, below it for the caption and printed moves. */
+function regionsAroundBoard(rect: DiagramRect): DiagramRect[] {
+  const cell = rect.h / 8;
+  const x = rect.x - rect.w * 0.25;
+  const w = rect.w * 1.5;
+  return [
+    { h: cell * 1.5, w, x, y: rect.y - cell * 1.5 },
+    { h: cell * 6, w, x, y: rect.y + rect.h },
+  ];
+}
+
+async function buildCandidate(
+  doc: Pick<OpenedDocument, "renderRegion">,
+  page: RenderedPage,
+  analysis: BoardAnalysis,
+  index: number,
+  origin: DiagramCandidate["origin"],
+): Promise<DiagramCandidate> {
+  let reading = analysis;
+  let crop = cropToDataUrl(page.image, analysis.rect);
+  if (doc.renderRegion && analysis.rect.w < SHARPEN_BELOW) {
+    const region = await doc.renderRegion(page.pageNumber, analysis.rect, SHARPEN_TO);
+    const sharper = region ? await recognizeSelection(region.image, region.rect, toDiagramText(page.text), analysis.rect) : null;
+    if (region && sharper) {
+      reading = { ...sharper, rect: analysis.rect };
+      crop = cropToDataUrl(region.image, sharper.rect);
+    }
+  }
+  // No text layer: a screenshot, a photo or a scan without OCR.
+  let textSource: DiagramCandidate["textSource"] = page.text.length > 0 ? "text-layer" : null;
+  if (page.text.length === 0) {
+    const words = toDiagramText(await readTextInRegions(page.image, regionsAroundBoard(analysis.rect)));
+    if (words.length > 0) {
+      const hints = hintsFromText(words, analysis.rect);
+      reading = {
+        ...reading,
+        orientation: hints.orientation ?? reading.orientation,
+        printedText: hints.printedText,
+        sideHint: hints.sideHint,
+      };
+      textSource = "ocr";
+    }
+  }
   nextId += 1;
   return {
+    annotated: reading.annotated,
+    crop,
+    doubtful: reading.doubtful,
+    grid: reading.grid,
     id: `p${page.pageNumber}-${index}-${nextId}`,
-    page: page.pageNumber,
     index,
-    rect,
-    crop: cropToDataUrl(page.image, rect),
+    meanConfidence: reading.meanConfidence,
+    orientation: reading.orientation ?? { needsConfirmation: true, orientation: "white", source: "none" },
     origin,
-    grid: rec.grid,
-    doubtful: rec.squares
-      .filter((s) => s.confidence < DIAGRAM_LOW_CONFIDENCE)
-      .map((s) => ({ row: s.row, col: s.col, alternative: s.alternative })),
-    meanConfidence: rec.meanConfidence,
-    orientation,
-    sideHint: parseSideToMoveHint(textNearDiagram(page.text, rect)),
+    page: page.pageNumber,
+    printedText: reading.printedText,
+    rect: analysis.rect,
+    sideHint: reading.sideHint,
+    textSource,
   };
 }
 
 /** Every diagram the detector finds on one rendered page. */
-export function findCandidates(page: RenderedPage): DiagramCandidate[] {
-  return detectDiagramBoards(page.image).map((b, i) => buildCandidate(page, b.rect, i + 1, "detected"));
+export async function findCandidates(doc: Pick<OpenedDocument, "renderRegion">, page: RenderedPage): Promise<DiagramCandidate[]> {
+  const boards = await recognizePage(page.image, toDiagramText(page.text));
+  return Promise.all(boards.map((board, i) => buildCandidate(doc, page, board, i + 1, "detected")));
 }
 
 /**
@@ -208,8 +255,12 @@ export function findCandidates(page: RenderedPage): DiagramCandidate[] {
  * a merged frame…). The selection is snapped to the grid but not required to
  * pass the light/dark check.
  */
-export function candidateFromSelection(page: RenderedPage, selection: DiagramRect, index: number): DiagramCandidate | null {
-  const refined = refineDiagramBoard(page.image, selection);
-  if (!refined) return null;
-  return buildCandidate(page, refined.rect, index, "manual");
+export async function candidateFromSelection(
+  doc: Pick<OpenedDocument, "renderRegion">,
+  page: RenderedPage,
+  selection: DiagramRect,
+  index: number,
+): Promise<DiagramCandidate | null> {
+  const board = await recognizeSelection(page.image, selection, toDiagramText(page.text));
+  return board ? buildCandidate(doc, page, board, index, "manual") : null;
 }

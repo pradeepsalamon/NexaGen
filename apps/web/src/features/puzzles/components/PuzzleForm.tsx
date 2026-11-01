@@ -113,6 +113,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
     setTitle(prefill.title);
     setDescription(prefill.description);
     setTagsText(prefill.tags.join(", "));
+    if (prefill.solutionMoves?.length) setSolutionMoves(prefill.solutionMoves);
     setImportedFromPdf(true);
   }, [mode]);
 

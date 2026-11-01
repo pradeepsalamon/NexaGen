@@ -297,12 +297,33 @@ errors block, warnings need the coach; takes a chess.js probe) +
 "From PDF" tab of `SetupPositionWorkspace` (only when `pdfImport` is passed —
 `ClassroomBoard` does, for the coach; lazy-loaded).
 
-- **The PDF never leaves the browser.** No upload route, no storage, nothing to
+- **Reading files is a shared service: `apps/web/src/lib/document-reader`.**
+  `openDocument(file)` takes a PDF, PNG, JPEG or WebP (it checks the bytes),
+  `doc.renderPage(n)` gives grayscale pixels and the text layer, `readPageText(page)`
+  returns the text layer or else OCR with its `source`, and `readTextInRegions` runs
+  OCR on parts of a page. Any web feature can use it. It's browser-only, so a server
+  job can't.
+- **The file never leaves the browser.** No upload route, no storage, nothing to
   clean up server-side. pdf.js loads from `public/vendor/pdfjs/` via a
   `webpackIgnore`'d `import()` (`apps/web/scripts/copy-pdfjs.mjs`, run on
   `predev`/`prebuild`) — **don't bundle it**: Next's webpack rewrites the
   `__webpack_require__` inside pdf.js's own build ("Object.defineProperty called
-  on non-object"). Limits live in `PDF_IMPORT_LIMITS` (`lib/pdf.ts`).
+  on non-object"). Tesseract (OCR, about 7 MB, loaded on first use) comes from
+  `public/vendor/tesseract/` the same way. Limits live in `DOCUMENT_LIMITS`
+  (`document-reader/pdf.ts`). pdf.js' image
+  decoders are served from `public/vendor/pdfjs/wasm/` (`wasmUrl`): without them
+  a JPEG2000 scan, which is how archive and many scanner PDFs store a page,
+  renders blank. A page that renders blank but holds an image is reported as
+  unreadable, not as having no diagrams.
+- **Pieces are read by a small neural network** (`diagram-square-classifier.ts`, a
+  plain TypeScript forward pass; weights in the generated `diagram-square-model.ts`),
+  with the older silhouette matcher as a second opinion for flagging. Train with
+  `scripts/diagram-import/train-square-classifier.py` (Python and PyTorch, never part
+  of the app) on `scripts/diagram-import/real-books/` plus piece sets whose licence
+  allows a paid product: **never train on Lichess's CC BY-NC-SA sets**. Measure with
+  `real-books.mts measure`. Text only ever hints: a chess font is trusted only when
+  the pixels agree (`diagram-font-reading.ts`), and printed moves become a suggested
+  solution only as far as they're legal (`parsePrintedMoves`, `lib/solution.ts`).
 - **A diagram is pieces only.** Side to move, castling, en passant and the move
   counters are never assumed: `CandidateReview` holds null/unaccepted until the
   coach answers (a caption like "White to move" or printed coordinates may
