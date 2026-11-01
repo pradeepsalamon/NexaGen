@@ -69,6 +69,29 @@ describe("approval engine + append-only audit (real Postgres)", () => {
       t.prisma.approvalEvent.update({ data: { type: "APPROVED" }, where: { id: event.id } })
     ).rejects.toThrow(/append-only/);
     await expect(t.prisma.approvalEvent.delete({ where: { id: event.id } })).rejects.toThrow(/append-only/);
+    await expect(
+      t.prisma.approvalEvent.update({ data: { actorId: null }, where: { id: event.id } })
+    ).rejects.toThrow(/append-only/);
+  });
+
+  it("allows one PENDING extra-class request per coach, batch and start time", async () => {
+    const batch = await t.prisma.batch.create({ data: { name: "Extra-class index batch" } });
+    const startsAt = new Date(Date.now() + 48 * 3_600_000);
+    const extra = () =>
+      t.prisma.classChangeRequest.create({
+        data: {
+          batchId: batch.id,
+          coachId: coach.id,
+          endsAt: new Date(startsAt.getTime() + 3_600_000),
+          startsAt,
+          type: "EXTRA_CLASS"
+        }
+      });
+    const first = await extra();
+    await expect(extra()).rejects.toMatchObject({ code: "P2002" });
+
+    await t.prisma.classChangeRequest.update({ data: { status: "WITHDRAWN" }, where: { id: first.id } });
+    await expect(extra()).resolves.toBeDefined();
   });
 
   it("makes trash_audit_logs append-only, but a user purge can still null the actor", async () => {
@@ -84,6 +107,10 @@ describe("approval engine + append-only audit (real Postgres)", () => {
     // Changing the actor to someone else is tampering too.
     await expect(
       t.prisma.trashAuditLog.update({ data: { userId: admin.id }, where: { id: log.id } })
+    ).rejects.toThrow(/append-only/);
+    // So is stripping the actor by hand: only the FK's own SET NULL may do that.
+    await expect(
+      t.prisma.trashAuditLog.update({ data: { userId: null }, where: { id: log.id } })
     ).rejects.toThrow(/append-only/);
 
     // The FK's ON DELETE SET NULL (trash purge hard-deletes users) still works.

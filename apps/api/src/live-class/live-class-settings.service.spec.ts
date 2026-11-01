@@ -12,11 +12,13 @@ describe("LiveClassSettingsService", () => {
   let jwt: { verifyAsync: jest.Mock };
   let prisma: {
     user: { findUnique: jest.Mock };
-    liveClassPolicy: { findFirst: jest.Mock; create: jest.Mock; update: jest.Mock };
+    liveClassPolicy: { findFirst: jest.Mock; findUnique: jest.Mock; create: jest.Mock; update: jest.Mock };
     coachClass: { findUnique: jest.Mock; update: jest.Mock; findMany: jest.Mock };
     batch: { findFirst: jest.Mock; update: jest.Mock; findMany: jest.Mock };
     liveClassPreset: { findUnique: jest.Mock };
     trashAuditLog: { create: jest.Mock; findMany: jest.Mock };
+    $queryRaw: jest.Mock;
+    $transaction: jest.Mock;
   };
 
   const authAs = (id: string, role: UserRole) => {
@@ -30,6 +32,7 @@ describe("LiveClassSettingsService", () => {
       user: { findUnique: jest.fn() },
       liveClassPolicy: {
         findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn(),
         create: jest.fn().mockImplementation(({ data }) => ({
           id: "policy-1",
           name: data.name,
@@ -55,7 +58,15 @@ describe("LiveClassSettingsService", () => {
       },
       liveClassPreset: { findUnique: jest.fn() },
       trashAuditLog: { create: jest.fn().mockResolvedValue({}), findMany: jest.fn().mockResolvedValue([]) },
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      $transaction: jest.fn(),
     };
+    // The row re-read under lock sees whatever the active-policy lookup (or its lazy create) returned.
+    prisma.liveClassPolicy.findUnique = jest.fn().mockImplementation(
+      async () =>
+        (await prisma.liveClassPolicy.findFirst()) ?? prisma.liveClassPolicy.create.mock.results.at(-1)?.value,
+    );
+    prisma.$transaction.mockImplementation((run: (tx: unknown) => unknown) => run(prisma));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -389,6 +400,80 @@ describe("LiveClassSettingsService", () => {
       expect(prisma.batch.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { liveClassSettings: { waitingRoom: "ENABLED", locks: ["waitingRoom"] } } }),
       );
+    });
+
+    it("keeps a batch lock and value that predate an academy lock on the same field", async () => {
+      authAs("admin-1", UserRole.ADMIN);
+      academyPolicy({ recording: "DISABLED", locks: ["recording"] });
+      prisma.batch.findFirst.mockResolvedValue({
+        id: "batch-1",
+        liveClassSettings: { recording: "MANUAL", locks: ["recording"] },
+        coaches: [],
+      });
+
+      // The editor omits the academy-locked field and its lock entirely.
+      await service.updateSettingsForBatch(TOKEN, "batch-1", {
+        liveClassSettings: { waitingRoom: "ENABLED" },
+        locks: ["waitingRoom"],
+      });
+
+      expect(prisma.batch.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            liveClassSettings: { waitingRoom: "ENABLED", recording: "MANUAL", locks: ["recording", "waitingRoom"] },
+          },
+        }),
+      );
+    });
+
+    it("keeps a batch-locked field at the batch value when the class overrides it", async () => {
+      authAs("coach-1", UserRole.COACH);
+      ownClass({
+        liveClassSettings: { student: { mic: "JOIN_UNMUTED" } },
+        batch: { id: "batch-1", liveClassSettings: { student: { mic: "JOIN_MUTED" }, locks: ["student.mic"] } },
+      });
+
+      const res = await service.getSettingsForClass(TOKEN, "class-1");
+      expect(res.resolved.student.mic).toBe("JOIN_MUTED");
+    });
+
+    it("names the batch, not the academy, when a batch lock refuses a class change", async () => {
+      authAs("coach-1", UserRole.COACH);
+      academyPolicy({ recording: "DISABLED", locks: ["recording"] });
+      ownClass({ batch: { id: "batch-1", liveClassSettings: { waitingRoom: "ENABLED", locks: ["waitingRoom"] } } });
+
+      const attempt = service.updateSettingsForClass(TOKEN, "class-1", {
+        liveClassSettings: { waitingRoom: "DISABLED", recording: "AUTO_START" },
+      });
+      await expect(attempt).rejects.toThrow(
+        "Locked by academy policy: Recording. Locked by batch settings: Waiting room. Ask an admin to change it.",
+      );
+    });
+
+    it("re-reads the lock lists under row locks, in policy → batch → class order", async () => {
+      authAs("coach-1", UserRole.COACH);
+      ownClass({ batchId: "batch-1" });
+
+      await service.updateSettingsForClass(TOKEN, "class-1", { liveClassSettings: { student: { chat: "DISABLED" } } });
+
+      const sql = prisma.$queryRaw.mock.calls.map((call: [TemplateStringsArray]) => call[0].join("?"));
+      expect(sql[0]).toContain('"live_class_policies"');
+      expect(sql[1]).toContain('"batches"');
+      expect(sql[2]).toContain('"classes"');
+      expect(sql[2]).toContain("FOR UPDATE");
+      expect(prisma.coachClass.update.mock.invocationCallOrder[0]).toBeGreaterThan(
+        prisma.$queryRaw.mock.invocationCallOrder[2],
+      );
+    });
+
+    it("rolls back (propagates) when the audit row can't be written", async () => {
+      authAs("admin-1", UserRole.ADMIN);
+      prisma.trashAuditLog.create.mockRejectedValue(new Error("audit insert failed"));
+
+      await expect(service.updatePolicy(TOKEN, { settings: {}, locks: ["recording"] })).rejects.toThrow(
+        "audit insert failed",
+      );
+      expect(prisma.$transaction).toHaveBeenCalled();
     });
   });
 

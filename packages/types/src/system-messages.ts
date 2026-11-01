@@ -10,6 +10,7 @@ export const systemMessageKeySchema = z.enum([
   "PASSWORD_RESET",
   "EMAIL_VERIFICATION",
   "EMAIL_CHANGED",
+  "PARENT_CONTACT_CHANGED",
   "ACCOUNT_DELETION_COMPLETED",
   "ACCOUNT_DELETION_DECLINED",
   "INVOICE_EMAIL",
@@ -94,6 +95,21 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
     defaults: {
       subject: "Your {{academy.name}} email address was changed",
       body: "The email address on your {{academy.name}} account was changed to {{email.new}}.\n\nIf you made this change, no action is needed.\nIf you did not, contact the academy immediately: someone else may have access to your account.",
+      actionLabel: null
+    }
+  },
+  PARENT_CONTACT_CHANGED: {
+    key: "PARENT_CONTACT_CHANGED",
+    group: "ACCOUNT",
+    channel: "EMAIL",
+    label: "Parent contact changed",
+    description:
+      "Tells the previous parent/guardian email that a student changed the parent contact on their profile. Never includes the new details.",
+    sentTo: "The previous parent/guardian email address",
+    variables: ["academy.name", "student.fullName"],
+    defaults: {
+      subject: "The parent contact on a {{academy.name}} account was changed",
+      body: "The parent/guardian contact details on {{student.fullName}}'s {{academy.name}} account were changed.\n\nIf you expected this change, no action is needed.\nIf you did not, please contact the academy.",
       actionLabel: null
     }
   },

@@ -214,6 +214,26 @@ export function withoutLockedFields(
   return next as LiveClassSettingsOverride;
 }
 
+/** A copy of `override` holding only the given fields (null when none are set). */
+export function onlyLockedFields(
+  override: LiveClassSettingsOverride | null | undefined,
+  fields: readonly LockableLiveSetting[],
+): LiveClassSettingsOverride | null {
+  if (!override || fields.length === 0) return null;
+  const out: Record<string, unknown> = {};
+  for (const path of fields) {
+    const value = getOverrideValue(override, path);
+    if (value === undefined) continue;
+    const [head, tail] = path.split(".") as [string, string | undefined];
+    if (tail === undefined) {
+      out[head] = value;
+    } else {
+      out[head] = { ...((out[head] as Record<string, unknown> | undefined) ?? {}), [tail]: value };
+    }
+  }
+  return Object.keys(out).length > 0 ? (out as LiveClassSettingsOverride) : null;
+}
+
 /**
  * The locked fields a write would actually change: the new override sets a
  * value that differs both from the locked effective value and from what the

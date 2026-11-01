@@ -285,6 +285,32 @@ describe("ManualPaymentService", () => {
     expect(currentRow().reviewedByUserId).toBeNull();
   });
 
+  it("finishes an approval whose settling never ran (APPROVED record, unpaid payment)", async () => {
+    const stuck = buildRow({ status: "APPROVED", reviewedByUserId: "admin_first" });
+    const { service, applyProviderState, prisma } = await buildModule({
+      row: { ...stuck, payment: { ...stuck.payment, status: PaymentStatus.PENDING } } as ReturnType<typeof buildRow>
+    });
+
+    const result = await service.approve(admin, "mpr_1");
+
+    expect(result.status).toBe("APPROVED");
+    expect(prisma.manualPaymentRecord.updateMany).not.toHaveBeenCalled();
+    expect(applyProviderState).toHaveBeenCalledTimes(1);
+    const [, state] = applyProviderState.mock.calls[0];
+    expect(state.status).toBe(PaymentStatus.PAID);
+    expect(state.raw.approvedBy).toBe("admin_first");
+  });
+
+  it("still refuses an approved record whose payment is already paid", async () => {
+    const done = buildRow({ status: "APPROVED" });
+    const { service, applyProviderState } = await buildModule({
+      row: { ...done, payment: { ...done.payment, status: PaymentStatus.PAID } } as ReturnType<typeof buildRow>
+    });
+
+    await expect(service.approve(admin, "mpr_1")).rejects.toThrow(ConflictException);
+    expect(applyProviderState).not.toHaveBeenCalled();
+  });
+
   it("never lets a coach review a record", async () => {
     const { service } = await buildModule({ row: buildRow({ status: "PENDING" }) });
 

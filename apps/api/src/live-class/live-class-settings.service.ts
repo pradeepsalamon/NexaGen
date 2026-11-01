@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -10,9 +9,11 @@ import { UserRole } from "@prisma/client";
 import {
   DEFAULT_LIVE_CLASS_SETTINGS,
   LOCKABLE_LIVE_SETTING_LABELS,
+  liveClassLockSources,
   liveClassSettingsSchema,
   liveClassSettingsOverrideSchema,
   lockedFieldsChanged,
+  onlyLockedFields,
   readLiveClassLocks,
   resolveLiveClassSettings,
   validateLiveClassSettings,
@@ -29,10 +30,26 @@ import {
   type UpdateLiveClassPolicyRequest,
   type UpdateLiveClassSettingsRequest,
 } from "@nexa-chess/types";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { authenticateUser } from "../auth/authenticate";
 
 type AuthUser = { id: string; role: UserRole };
+type Db = PrismaService | PrismaTransactionClient;
+
+/** Names the layer that locked each refused field, e.g. "Locked by academy policy: X. Locked by batch settings: Y". */
+function describeLockedChange(
+  changed: readonly LockableLiveSetting[],
+  layers: { systemLocks: readonly LockableLiveSetting[]; batchLocks?: readonly LockableLiveSetting[] },
+): string {
+  const sources = liveClassLockSources(layers);
+  const label = (fields: LockableLiveSetting[]) => fields.map((f) => LOCKABLE_LIVE_SETTING_LABELS[f]).join(", ");
+  const academy = changed.filter((f) => sources[f] === "ACADEMY");
+  const batch = changed.filter((f) => sources[f] === "BATCH");
+  const parts: string[] = [];
+  if (academy.length > 0) parts.push(`Locked by academy policy: ${label(academy)}`);
+  if (batch.length > 0) parts.push(`Locked by batch settings: ${label(batch)}`);
+  return parts.join(". ");
+}
 
 /** Effective config for one class plus the raw contributing layers. */
 export interface ResolvedClassSettings {
@@ -57,10 +74,26 @@ function layerJson(
   return locks.length > 0 ? { ...(settings ?? {}), locks: [...locks] } : { ...(settings ?? {}) };
 }
 
+/** `base` with `patch`'s fields laid over it (section by section); null when both are empty. */
+function mergeOverrides(
+  base: LiveClassSettingsOverride | null,
+  patch: LiveClassSettingsOverride | null,
+): LiveClassSettingsOverride | null {
+  if (!patch) return base;
+  if (!base) return patch;
+  const next: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(patch)) {
+    const current = next[key];
+    next[key] =
+      value && typeof value === "object" && current && typeof current === "object"
+        ? { ...(current as object), ...(value as object) }
+        : value;
+  }
+  return next as LiveClassSettingsOverride;
+}
+
 @Injectable()
 export class LiveClassSettingsService {
-  private readonly logger = new Logger(LiveClassSettingsService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -102,11 +135,32 @@ export class LiveClassSettingsService {
 
   /** Layer 1 settings plus the academy-wide lock list. */
   async getSystemLayer(): Promise<{ settings: LiveClassSettings; locks: LockableLiveSetting[] }> {
-    const policy = await this.getActivePolicyRow();
+    return LiveClassSettingsService.systemLayerOf(await this.getActivePolicyRow());
+  }
+
+  private static systemLayerOf(policy: { settings: unknown }) {
     return {
       settings: liveClassSettingsSchema.parse(policy.settings ?? {}),
       locks: readLiveClassLocks(policy.settings),
     };
+  }
+
+  /**
+   * Every settings writer takes row locks in one order — academy policy, then
+   * batch, then class — and re-reads the lock lists after taking them, so a
+   * lock committed concurrently is either seen or waits for the write. The
+   * policy row is created (if missing) before the transaction: a row lock can't
+   * cover a row that doesn't exist yet.
+   */
+  private async lockPolicy(tx: PrismaTransactionClient, policyId: string, mode: "SHARE" | "UPDATE") {
+    if (mode === "UPDATE") {
+      await tx.$queryRaw`SELECT "id" FROM "live_class_policies" WHERE "id" = ${policyId} FOR UPDATE`;
+    } else {
+      await tx.$queryRaw`SELECT "id" FROM "live_class_policies" WHERE "id" = ${policyId} FOR SHARE`;
+    }
+    const policy = await tx.liveClassPolicy.findUnique({ where: { id: policyId } });
+    if (!policy) throw new NotFoundException("Live class policy not found.");
+    return policy;
   }
 
   async getPolicy(accessToken: string | undefined): Promise<LiveClassPolicyResponse> {
@@ -128,21 +182,26 @@ export class LiveClassSettingsService {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertAdmin(user);
 
-    const policy = await this.getActivePolicyRow();
-    const before = liveClassSettingsSchema.parse(policy.settings ?? {});
-    const locksBefore = readLiveClassLocks(policy.settings);
-    // Normalised here too (deduped, catalogue order), not only by the route's Zod pipe.
-    const locks = body.locks ? readLiveClassLocks({ locks: body.locks }) : locksBefore;
-    const next = resolveLiveClassSettings({ system: before, class: body.settings });
-    this.assertValid(next);
+    const { id: policyId } = await this.getActivePolicyRow();
+    // The update and its audit row commit together: an audit failure rolls the change back.
+    const { updated, next, locks } = await this.prisma.$transaction(async (tx) => {
+      const policy = await this.lockPolicy(tx, policyId, "UPDATE");
+      const before = liveClassSettingsSchema.parse(policy.settings ?? {});
+      const locksBefore = readLiveClassLocks(policy.settings);
+      // Normalised here too (deduped, catalogue order), not only by the route's Zod pipe.
+      const locks = body.locks ? readLiveClassLocks({ locks: body.locks }) : locksBefore;
+      const next = resolveLiveClassSettings({ system: before, class: body.settings });
+      this.assertValid(next);
 
-    const updated = await this.prisma.liveClassPolicy.update({
-      where: { id: policy.id },
-      data: { settings: layerJson(next, locks) as never },
-    });
-    await this.writeAudit("LiveClassPolicy", policy.id, user.id, before, next, "SYSTEM", {
-      after: locks,
-      before: locksBefore,
+      const updated = await tx.liveClassPolicy.update({
+        where: { id: policy.id },
+        data: { settings: layerJson(next, locks) as never },
+      });
+      await this.writeAudit(tx, "LiveClassPolicy", policy.id, user.id, before, next, "SYSTEM", {
+        after: locks,
+        before: locksBefore,
+      });
+      return { updated, next, locks };
     });
 
     return {
@@ -222,8 +281,8 @@ export class LiveClassSettingsService {
 
   // ── Layer 2: per-class config ──
 
-  private async loadClassForSettings(classId: string) {
-    const cls = await this.prisma.coachClass.findUnique({
+  private async loadClassForSettings(classId: string, db: Db = this.prisma) {
+    const cls = await db.coachClass.findUnique({
       where: { id: classId },
       include: {
         batch: { select: { id: true, liveClassSettings: true } },
@@ -308,14 +367,8 @@ export class LiveClassSettingsService {
     body: UpdateLiveClassSettingsRequest,
   ): Promise<LiveClassSettingsForClassResponse> {
     const user = await this.getAuthenticatedUser(accessToken);
-    const cls = await this.loadClassForSettings(classId);
-    this.assertCanEditClass(user, cls);
-
-    const before = this.parseOverride(cls.liveClassSettings);
-    const { settings: system, locks: systemLocks } = await this.getSystemLayer();
-    const batchOverride = this.parseOverride(cls.batch?.liveClassSettings);
-    const batchLocks = readLiveClassLocks(cls.batch?.liveClassSettings);
-    const locks = [...new Set([...systemLocks, ...batchLocks])];
+    const loaded = await this.loadClassForSettings(classId);
+    this.assertCanEditClass(user, loaded);
 
     // A preset, when supplied, is copied wholesale into the class override
     // (never a live reference — §23) — minus any locked field: one academy
@@ -324,43 +377,62 @@ export class LiveClassSettingsService {
     const requested = body.presetId
       ? await this.presetOverrideById(body.presetId, user)
       : body.liveClassSettings;
+    const { id: policyId } = await this.getActivePolicyRow();
 
-    // V1: a class override never changes an academy- or batch-locked field —
-    // not for a coach, and not for an admin editing one class (an admin changes
-    // a locked value at the layer that locked it). Refused, not silently
-    // ignored, so the caller knows why their change didn't stick.
-    if (!body.presetId) {
-      const changed = lockedFieldsChanged({
-        next: requested,
-        previous: before,
-        locked: resolveLiveClassSettings({ system, batch: batchOverride, systemLocks }),
-        locks,
-      });
-      if (changed.length > 0) {
-        throw new ForbiddenException(
-          `Locked by academy policy: ${changed.map((f) => LOCKABLE_LIVE_SETTING_LABELS[f]).join(", ")}. Ask an admin to change it.`,
+    await this.prisma.$transaction(async (tx) => {
+      // Lock order: policy → batch → class (see lockPolicy). The lock lists are
+      // read only after the locks are held, so a concurrent lock can't slip in
+      // between the check and the write.
+      const policy = await this.lockPolicy(tx, policyId, "SHARE");
+      if (loaded.batchId) {
+        await tx.$queryRaw`SELECT "id" FROM "batches" WHERE "id" = ${loaded.batchId} FOR SHARE`;
+      }
+      await tx.$queryRaw`SELECT "id" FROM "classes" WHERE "id" = ${classId} FOR UPDATE`;
+      const cls = await this.loadClassForSettings(classId, tx);
+
+      const before = this.parseOverride(cls.liveClassSettings);
+      const { settings: system, locks: systemLocks } = LiveClassSettingsService.systemLayerOf(policy);
+      const batchOverride = this.parseOverride(cls.batch?.liveClassSettings);
+      const batchLocks = readLiveClassLocks(cls.batch?.liveClassSettings);
+      const locks = [...new Set([...systemLocks, ...batchLocks])];
+
+      // V1: a class override never changes an academy- or batch-locked field —
+      // not for a coach, and not for an admin editing one class (an admin changes
+      // a locked value at the layer that locked it). Refused, not silently
+      // ignored, so the caller knows why their change didn't stick.
+      if (!body.presetId) {
+        const changed = lockedFieldsChanged({
+          next: requested,
+          previous: before,
+          locked: resolveLiveClassSettings({ system, batch: batchOverride, systemLocks }),
+          locks,
+        });
+        if (changed.length > 0) {
+          throw new ForbiddenException(
+            `${describeLockedChange(changed, { systemLocks, batchLocks })}. Ask an admin to change it.`,
+          );
+        }
+      }
+      const nextOverride = withoutLockedFields(requested, locks);
+
+      if (nextOverride) {
+        this.assertValid(
+          resolveLiveClassSettings({
+            system,
+            batch: batchOverride,
+            class: nextOverride,
+            systemLocks,
+            batchLocks,
+          }),
         );
       }
-    }
-    const nextOverride = withoutLockedFields(requested, locks);
 
-    if (nextOverride) {
-      this.assertValid(
-        resolveLiveClassSettings({
-          system,
-          batch: batchOverride,
-          class: nextOverride,
-          systemLocks,
-          batchLocks,
-        }),
-      );
-    }
-
-    await this.prisma.coachClass.update({
-      where: { id: classId },
-      data: { liveClassSettings: (nextOverride ?? null) as never },
+      await tx.coachClass.update({
+        where: { id: classId },
+        data: { liveClassSettings: (nextOverride ?? null) as never },
+      });
+      await this.writeAudit(tx, "CoachClass", classId, user.id, before, nextOverride ?? null, "CLASS");
     });
-    await this.writeAudit("CoachClass", classId, user.id, before, nextOverride ?? null, "CLASS");
 
     return this.getSettingsForClass(accessToken, classId);
   }
@@ -406,46 +478,61 @@ export class LiveClassSettingsService {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertAdmin(user);
 
-    const batch = await this.prisma.batch.findFirst({
-      where: { id: batchId, isDeleted: false },
-      select: { id: true, liveClassSettings: true },
-    });
-    if (!batch) {
-      throw new NotFoundException("Batch not found.");
-    }
+    const { id: policyId } = await this.getActivePolicyRow();
 
-    const before = this.parseOverride(batch.liveClassSettings);
-    const locksBefore = readLiveClassLocks(batch.liveClassSettings);
-    const { settings: system, locks: systemLocks } = await this.getSystemLayer();
+    await this.prisma.$transaction(async (tx) => {
+      // Lock order: policy → batch (see lockPolicy).
+      const policy = await this.lockPolicy(tx, policyId, "SHARE");
+      await tx.$queryRaw`SELECT "id" FROM "batches" WHERE "id" = ${batchId} FOR UPDATE`;
+      const batch = await tx.batch.findFirst({
+        where: { id: batchId, isDeleted: false },
+        select: { id: true, liveClassSettings: true },
+      });
+      if (!batch) {
+        throw new NotFoundException("Batch not found.");
+      }
 
-    // An academy lock binds the batch layer the same way a batch lock binds the class.
-    const changed = lockedFieldsChanged({
-      next: body.liveClassSettings,
-      previous: before,
-      locked: system,
-      locks: systemLocks,
-    });
-    if (changed.length > 0) {
-      throw new ForbiddenException(
-        `Locked by academy policy: ${changed.map((f) => LOCKABLE_LIVE_SETTING_LABELS[f]).join(", ")}. Change it in the academy live-class settings.`,
-      );
-    }
-    const nextOverride = withoutLockedFields(body.liveClassSettings, systemLocks);
-    // A batch can't re-lock what the academy already locked (it would be a no-op).
-    const locks = (body.locks ? readLiveClassLocks({ locks: body.locks }) : locksBefore).filter(
-      (field) => !systemLocks.includes(field),
-    );
-    if (nextOverride) {
-      this.assertValid(resolveLiveClassSettings({ system, batch: nextOverride, systemLocks }));
-    }
+      const before = this.parseOverride(batch.liveClassSettings);
+      const locksBefore = readLiveClassLocks(batch.liveClassSettings);
+      const { settings: system, locks: systemLocks } = LiveClassSettingsService.systemLayerOf(policy);
 
-    await this.prisma.batch.update({
-      where: { id: batchId },
-      data: { liveClassSettings: layerJson(nextOverride, locks) as never },
-    });
-    await this.writeAudit("Batch", batchId, user.id, before, nextOverride ?? null, "BATCH", {
-      after: locks,
-      before: locksBefore,
+      // An academy lock binds the batch layer the same way a batch lock binds the class.
+      const changed = lockedFieldsChanged({
+        next: body.liveClassSettings,
+        previous: before,
+        locked: system,
+        locks: systemLocks,
+      });
+      if (changed.length > 0) {
+        throw new ForbiddenException(
+          `${describeLockedChange(changed, { systemLocks })}. Change it in the academy live-class settings.`,
+        );
+      }
+      // While the academy locks a field, the batch can't change it — but what the
+      // batch held for it before (value and lock) is kept, not erased, so it
+      // takes effect again once the academy unlocks.
+      const keptUnderAcademyLock = onlyLockedFields(before, systemLocks);
+      const editable = withoutLockedFields(body.liveClassSettings, systemLocks);
+      const nextOverride = mergeOverrides(editable, keptUnderAcademyLock);
+      const requestedLocks = body.locks ? readLiveClassLocks({ locks: body.locks }) : locksBefore;
+      const locks = readLiveClassLocks({
+        locks: [
+          ...requestedLocks.filter((field) => !systemLocks.includes(field)),
+          ...locksBefore.filter((field) => systemLocks.includes(field)),
+        ],
+      });
+      if (nextOverride) {
+        this.assertValid(resolveLiveClassSettings({ system, batch: nextOverride, systemLocks }));
+      }
+
+      await tx.batch.update({
+        where: { id: batchId },
+        data: { liveClassSettings: layerJson(nextOverride, locks) as never },
+      });
+      await this.writeAudit(tx, "Batch", batchId, user.id, before, nextOverride ?? null, "BATCH", {
+        after: locks,
+        before: locksBefore,
+      });
     });
 
     return this.getSettingsForBatch(accessToken, batchId);
@@ -480,7 +567,12 @@ export class LiveClassSettingsService {
     }
   }
 
+  /**
+   * Written in the caller's transaction and never swallowed: a settings change
+   * without its LIVE_SETTINGS_CHANGE row would be invisible in the audit view.
+   */
   private async writeAudit(
+    tx: PrismaTransactionClient,
     entity: string,
     entityId: string,
     userId: string,
@@ -489,23 +581,19 @@ export class LiveClassSettingsService {
     scope: string,
     locks?: { before: LockableLiveSetting[]; after: LockableLiveSetting[] },
   ) {
-    try {
-      await this.prisma.trashAuditLog.create({
-        data: {
-          entity,
-          entityId,
-          action: "LIVE_SETTINGS_CHANGE",
-          userId,
-          metadata: {
-            before,
-            after,
-            scope,
-            ...(locks ? { locksAfter: locks.after, locksBefore: locks.before } : {}),
-          } as never,
-        },
-      });
-    } catch (error) {
-      this.logger.warn(`Failed to write settings audit for ${entity}:${entityId}`, error as Error);
-    }
+    await tx.trashAuditLog.create({
+      data: {
+        entity,
+        entityId,
+        action: "LIVE_SETTINGS_CHANGE",
+        userId,
+        metadata: {
+          before,
+          after,
+          scope,
+          ...(locks ? { locksAfter: locks.after, locksBefore: locks.before } : {}),
+        } as never,
+      },
+    });
   }
 }

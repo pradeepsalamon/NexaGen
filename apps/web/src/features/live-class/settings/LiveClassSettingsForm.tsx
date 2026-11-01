@@ -62,6 +62,17 @@ const isLockable = (path: string): path is LockableLiveSetting =>
 
 const GROUP_ORDER: SettingsGroup[] = ["media", "participants", "classroom"];
 
+/**
+ * Waiting room and student auto-join can't both be ENABLED (the server rejects
+ * the combination). Each maps to the other so a change can clear its partner —
+ * unless the partner is locked above, in which case the conflicting value is
+ * simply not offered.
+ */
+const MUTUALLY_EXCLUSIVE_ENABLED: Record<string, LockableLiveSetting> = {
+  "autoJoin.student": "waitingRoom",
+  waitingRoom: "autoJoin.student",
+};
+
 export function LiveClassSettingsForm({
   override,
   onOverrideChange,
@@ -87,6 +98,13 @@ export function LiveClassSettingsForm({
     onLocksChange(LOCKABLE_LIVE_SETTINGS.filter((p) => next.includes(p)));
   };
 
+  // ENABLED is not offered when the exclusive partner is locked above at ENABLED.
+  const optionsFor = (path: string, options: { label: string; value: string }[]) => {
+    const partner = MUTUALLY_EXCLUSIVE_ENABLED[path];
+    if (!partner || !lockSources[partner] || getAtPath(resolved, partner) !== "ENABLED") return options;
+    return options.map((option) => (option.value === "ENABLED" ? { ...option, disabled: true } : option));
+  };
+
   const handleChange = (path: string, value: string) => {
     // If the chosen value equals what would be inherited anyway, drop the key so
     // the field keeps showing "inherited" rather than a redundant "custom".
@@ -97,12 +115,12 @@ export function LiveClassSettingsForm({
 
     // Waiting room and student auto-join are mutually exclusive (the server
     // rejects the combination via `validateLiveClassSettings`) — clear the
-    // other field in the same change so the user never hits that 400.
-    if (path === "waitingRoom" && value === "ENABLED" && getAtPath(resolved, "autoJoin.student") === "ENABLED") {
-      next = applyOne(next, "autoJoin.student", "DISABLED");
-    }
-    if (path === "autoJoin.student" && value === "ENABLED" && getAtPath(resolved, "waitingRoom") === "ENABLED") {
-      next = applyOne(next, "waitingRoom", "DISABLED");
+    // other field in the same change so the user never hits that 400. Never
+    // write to a field locked above: the API would refuse the whole save (and
+    // the conflicting option isn't offered then anyway).
+    const partner = MUTUALLY_EXCLUSIVE_ENABLED[path];
+    if (partner && value === "ENABLED" && !lockSources[partner] && getAtPath(resolved, partner) === "ENABLED") {
+      next = applyOne(next, partner, "DISABLED");
     }
 
     onOverrideChange(next);
@@ -185,7 +203,7 @@ export function LiveClassSettingsForm({
                         aria-label={field.label}
                         disabled={disabled || !!lockedAbove}
                         value={effective ?? field.options[0]?.value}
-                        options={field.options}
+                        options={optionsFor(field.path, field.options)}
                         onChange={(e) => handleChange(field.path, e.target.value)}
                       />
                       {canToggleLock && (

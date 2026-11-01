@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
+import { ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ClassRequestService } from "./class-request.service";
@@ -47,6 +47,7 @@ describe("ClassRequestService", () => {
         findUnique: jest.fn().mockImplementation(async () => ({ ...actor, status: UserStatus.ACTIVE, timezone: "UTC" }))
       },
       batch: {
+        findFirst: jest.fn().mockResolvedValue({ id: "batch-1" }),
         findUnique: jest.fn().mockResolvedValue({ name: "Batch A", startsAt: null, endsAt: null })
       },
       batchCoach: { findFirst: jest.fn().mockResolvedValue({ id: "bc-1", coach: { timezone: "Asia/Kolkata" } }) },
@@ -64,6 +65,7 @@ describe("ClassRequestService", () => {
         update: jest.fn(),
         updateMany: jest.fn().mockResolvedValue({ count: 1 })
       },
+      $queryRaw: jest.fn().mockResolvedValue([]),
       $transaction: jest.fn()
     };
   }
@@ -135,6 +137,43 @@ describe("ClassRequestService", () => {
         classId: "class-1",
         originalStartsAt: original.startsAt
       });
+    });
+
+    it("refuses to reschedule a class whose batch is archived", async () => {
+      prisma.coachClass.findUnique.mockResolvedValue({
+        id: "class-1",
+        coachId: "coach-1",
+        batchId: "batch-1",
+        status: ClassStatus.SCHEDULED,
+        startsAt: future(2),
+        endsAt: future(3)
+      });
+      prisma.batch.findFirst.mockResolvedValue(null);
+      await expect(
+        service.create(TOKEN, {
+          type: "RESCHEDULE",
+          classId: "class-1",
+          startsAt: future(24).toISOString(),
+          endsAt: future(25).toISOString(),
+          reason: "Travel"
+        })
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.classChangeRequest.create).not.toHaveBeenCalled();
+    });
+
+    it("maps a concurrent duplicate extra class (unique index) to an extra-class 409", async () => {
+      prisma.classChangeRequest.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError("dup", { clientVersion: "x", code: "P2002" })
+      );
+      await expect(
+        service.create(TOKEN, {
+          type: "EXTRA_CLASS",
+          batchId: "batch-1",
+          startsAt: future(24).toISOString(),
+          endsAt: future(25).toISOString(),
+          reason: "Make-up"
+        })
+      ).rejects.toThrow(/extra class at this time/);
     });
 
     it("refuses a duplicate pending extra class at the same time", async () => {
@@ -242,6 +281,17 @@ describe("ClassRequestService", () => {
             coach: expect.objectContaining({ status: UserStatus.ACTIVE, role: UserRole.COACH })
           })
         })
+      );
+    });
+
+    it("share-locks the batch, batch-coach and coach rows before the authority check", async () => {
+      await service.approve(TOKEN, "req-1", {});
+      const sql = prisma.$queryRaw.mock.calls.map((call: [TemplateStringsArray]) => call[0].join("?"));
+      expect(sql.some((q: string) => q.includes('"batches"') && q.includes("FOR SHARE"))).toBe(true);
+      expect(sql.some((q: string) => q.includes('"batch_coaches"') && q.includes("FOR SHARE"))).toBe(true);
+      expect(sql.some((q: string) => q.includes('"users"') && q.includes("FOR SHARE"))).toBe(true);
+      expect(prisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        prisma.batchCoach.findFirst.mock.invocationCallOrder[0]
       );
     });
 

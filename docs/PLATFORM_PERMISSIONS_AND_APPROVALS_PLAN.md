@@ -252,7 +252,7 @@ Legend:
 |---|---|---|---|---|---|
 | **Live classes** | Start/end own class within the start window | D | D | — | built |
 | | Change an **unlocked** setting of own class | D | D | — | built |
-| | Change a **locked** setting | ✗ (R before class, Stage 5) | D | — | Stage 2 |
+| | Change a **locked** setting | ✗ (R before class, Stage 5) | ✗ on the class; unlock or change it at the academy/batch layer that locked it | — | Stage 2 |
 | | Lock or unlock academy/batch settings | — | A | — | Stage 2 |
 | | Moderate, kick, admit from waiting room (own class) | D | D | — | built |
 | | Pull a student from own batch | D | D | — | built |
@@ -270,7 +270,7 @@ Legend:
 | **Students and enrolment** | Read students of own batches | D | D | own | built |
 | | Enrol, remove or transfer a student | R | D | — | Stage 5 |
 | | Give a student from outside own batches access to own class | R | D | — | Stage 4 |
-| | Edit own profile | — | D (any) | D | built |
+| | Edit own profile | D (pay rate is read-only, set via compensation rates) | D (any) | D | built |
 | | Change parent/guardian contact | — | D | D + password + previous contact told | ✅ Stage 1 |
 | **Attendance** | Automatic recording (LiveKit) | — | — | — | built |
 | | Correct a student's attendance in own class | R | D (audited) | — | Stage 5 |
@@ -360,8 +360,9 @@ Required coverage (rows are added as stages land):
   pending EXTRA_CLASS requests at the same time get 409. Creating a request for
   an archived batch is refused.
 * **V6:** the API ignores a coach-submitted `hourlyRate` (the field is still
-  accepted for older clients). The profile form shows it read-only, pointing to
-  Earnings.
+  accepted for older clients). The profile form no longer shows the legacy
+  `CoachProfile.hourlyRate` (pay comes from `CoachCompensationRate`; Earnings
+  shows it).
 * **V7:** a student changing the parent email or phone must enter their current
   password. The previous parent email gets a notice that doesn't reveal the new
   contact, and an audit row (`PARENT_CONTACT_CHANGE`) is written. The shared
@@ -403,7 +404,8 @@ Required coverage (rows are added as stages land):
   * the `approval_requests_no_self_review` CHECK;
   * the `nexa_append_only` trigger on `trash_audit_logs` and `approval_events`.
     It refuses DELETE and any UPDATE except the foreign key's user→NULL on a
-    hard purge.
+    hard purge (only when nested in the FK action, `pg_trigger_depth() > 1`,
+    since migration `20261101091856_harden_append_only_and_extra_class_unique`).
 * `apps/api/src/approval/`:
   * `ApprovalService` implements every §2.3 guarantee: catalogue roles,
     self-decision refused, duplicates → 409, expiry- and status-filtered claim
@@ -419,6 +421,38 @@ Required coverage (rows are added as stages land):
 * Privacy export: `approvalRequests` (made by the user) and
   `approvalRequestsAboutMe`.
 
+### Review follow-ups to stages 1–3 (2026-11-01) ✅
+
+From the CodeRabbit review of PR #125:
+
+* **Class requests:** a RESCHEDULE for a class in an archived batch is refused
+  at creation; approval share-locks (`FOR SHARE`) the batch, batch-coach and
+  coach rows before revalidating, so an archive or removal waits for it; a
+  partial unique index (`class_change_requests_pending_extra_class_unique`)
+  backs the duplicate EXTRA_CLASS check (older duplicates are withdrawn by the
+  migration).
+* **Manual payments:** approving an APPROVED record whose payment isn't PAID
+  (a process died between claim and settle) now finishes the settlement.
+* **Live-setting locks:** policy, batch and class writers each run in one
+  transaction with the audit row, take row locks policy → batch → class and
+  re-read the lock lists under them; a batch's value and lock under a later
+  academy lock are kept; the 403 names the locking layer; the form never offers
+  waiting room ENABLED against a locked student auto-join ENABLED (or the
+  reverse).
+* **Parent contact (V7):** the audit row is written inside the profile
+  transaction; the notice is the `PARENT_CONTACT_CHANGED` system message
+  (editable at `/admin/messaging`) and no longer claims the old address stops
+  getting notices; the avatar upload/remove handlers stop before touching the
+  stored image when the save would need a password that wasn't entered.
+* **Audit tables:** a direct `userId`/`actorId` → NULL is refused; only the
+  FK's own SET NULL may do it.
+* Not changed, with reasons: explicit `createdAt` on approval rows (Prisma
+  fills `@default(now())` client-side in UTC, verified against an
+  `Asia/Kolkata` session); locks in a dedicated column (the JSON writers are
+  all lock-aware now; revisit only if a pre-lock rollback image is ever
+  deployed); a durable outbox for the parent notice (the outbox only mails
+  accounts, and the old parent email is a typed address: R3 below).
+
 ---
 
 ## 8. Outstanding decisions and risks
@@ -430,3 +464,4 @@ Required coverage (rows are added as stages land):
 | D3 | Whether a student (minor) may change the parent contact at all, or only through an admin once guardians exist. Current mitigation: password, notice and audit. | owner, with D1 |
 | R1 | V4 stays open until Stage 4: a coach can still pull an outside-batch student into a live class. | — |
 | R2 | Request notifications (`APPROVAL_REQUESTED` / `APPROVAL_DECIDED`) aren't built yet. They need new `MessagingEvent` + `NotificationType` enum values (a migration) and ship with Stage 4. | — |
+| R3 | The previous-parent-contact notice (V7) is sent best-effort after commit; an SMTP failure drops it (logged). The messaging outbox only delivers to accounts, so a durable notice to a typed address needs either a guardian account (D1/D3) or an outbox row type for raw addresses. | owner, with D1 |

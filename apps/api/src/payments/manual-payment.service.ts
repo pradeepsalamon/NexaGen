@@ -231,6 +231,26 @@ export class ManualPaymentService {
   async approve(admin: User, recordId: string): Promise<ManualPaymentRecordItem> {
     assertAdmin(admin);
     const record = await this.requireRow(recordId);
+
+    // Recovery: an approval whose process died between the claim and settling
+    // leaves an APPROVED record beside an unpaid payment. Approving again
+    // finishes it (as replayRecord does) instead of 409-ing forever. The
+    // payment funnel is idempotent, so a concurrent recovery settles once.
+    if (record.status === "APPROVED" && record.payment.status !== PaymentStatus.PAID) {
+      await this.settle(
+        record.paymentId,
+        record.method.label,
+        {
+          methodId: record.methodId,
+          reference: record.reference ?? undefined,
+          actorId: record.recordedByUserId,
+          approvedByUserId: record.reviewedByUserId ?? admin.id
+        },
+        "manual:approve"
+      );
+      return this.requireItem(recordId);
+    }
+
     await this.claimReview(recordId, {
       status: "APPROVED",
       reviewedByUserId: admin.id,

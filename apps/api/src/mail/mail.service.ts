@@ -43,32 +43,11 @@ export class MailService {
   /**
    * Sent to the PREVIOUS parent/guardian email when a student changes the
    * parent contact on their own profile (V7,
-   * docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md). The contact receives
-   * invoices and academy notices, so the guardian must learn it moved.
-   * Deliberately does not reveal the new contact details.
+   * docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md). Deliberately does not
+   * reveal the new contact details. Wording is editable at /admin/messaging.
    */
   async sendParentContactChangedNotice(to: string, studentName: string) {
-    const transporter = this.createTransporter();
-
-    await transporter.sendMail({
-      from: this.from,
-      to,
-      subject: "The parent contact on a Nexa Chess account was changed",
-      text: [
-        `The parent/guardian contact details on ${studentName}'s Nexa Chess account were changed, so this address will no longer receive academy notices or invoices for them.`,
-        "",
-        "If you expected this change, no action is needed.",
-        "If you did not, please contact the academy."
-      ].join("\n"),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <h2>Parent contact changed</h2>
-          <p>The parent/guardian contact details on <strong>${escapeHtml(studentName)}</strong>'s Nexa Chess account were changed, so this address will no longer receive academy notices or invoices for them.</p>
-          <p>If you expected this change, no action is needed.</p>
-          <p>If you did not, please contact the academy.</p>
-        </div>
-      `
-    });
+    await this.sendSystemEmail("PARENT_CONTACT_CHANGED", to, { "student.fullName": studentName });
   }
 
   /**

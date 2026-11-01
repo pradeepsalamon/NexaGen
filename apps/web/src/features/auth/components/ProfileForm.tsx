@@ -79,6 +79,11 @@ export function ProfileForm() {
   const handleAvatarUpload = useCallback(
     (file: File) => {
       if (uploadingRef.current) return;
+      if (passwordReason && !values.currentPassword) {
+        // The save would be refused after the old photo was already deleted.
+        toast.error({ title: "Enter your current password to change your photo.", message: passwordReason });
+        return;
+      }
       uploadingRef.current = true;
       setIsUploading(true);
       const uploadPromise = (async () => {
@@ -106,11 +111,16 @@ export function ProfileForm() {
 
       uploadPromise.finally(() => setIsUploading(false));
     },
-    [values, user, updateField, profileMutation, toast]
+    [values, user, passwordReason, updateField, profileMutation, toast]
   );
 
   const handleAvatarRemove = useCallback(() => {
     if (uploadingRef.current || !values.avatarUrl) return;
+    if (passwordReason && !values.currentPassword) {
+      // The save would be refused after the old photo was already deleted.
+      toast.error({ title: "Enter your current password to change your photo.", message: passwordReason });
+      return;
+    }
     const oldUrl = values.avatarUrl;
     uploadingRef.current = true;
     setIsUploading(true);
@@ -136,7 +146,7 @@ export function ProfileForm() {
     });
 
     removePromise.finally(() => setIsUploading(false));
-  }, [values, user, updateField, profileMutation, toast]);
+  }, [values, user, passwordReason, updateField, profileMutation, toast]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

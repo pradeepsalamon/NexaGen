@@ -82,6 +82,13 @@ export class ClassRequestService {
       if (cls.status !== ClassStatus.SCHEDULED) {
         throw new ConflictException("Only a scheduled class can be rescheduled.");
       }
+      const liveBatch = await this.prisma.batch.findFirst({
+        where: { id: cls.batchId, isDeleted: false, status: { not: BatchStatus.ARCHIVED } },
+        select: { id: true }
+      });
+      if (!liveBatch) {
+        throw new ConflictException("This class belongs to an archived batch, so it can't be rescheduled.");
+      }
       batchId = cls.batchId;
       classId = cls.id;
       original = { startsAt: cls.startsAt, endsAt: cls.endsAt };
@@ -132,7 +139,11 @@ export class ClassRequestService {
       return { request: this.toDto(row) };
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        throw new ConflictException("This class already has a pending reschedule request.");
+        throw new ConflictException(
+          dto.type === "EXTRA_CLASS"
+            ? "You already have a pending request for an extra class at this time."
+            : "This class already has a pending reschedule request."
+        );
       }
       throw error;
     }
@@ -298,6 +309,15 @@ export class ClassRequestService {
     tx: PrismaTransactionClient,
     request: { batchId: string; coachId: string }
   ): Promise<string | null> {
+    // Share-lock the rows this check reads so a concurrent archive, batch
+    // delete, coach removal or coach deactivation waits for this transaction
+    // instead of committing between the check and the class write.
+    await tx.$queryRaw`SELECT "id" FROM "batches" WHERE "id" = ${request.batchId} FOR SHARE`;
+    await tx.$queryRaw`
+      SELECT "id" FROM "batch_coaches"
+      WHERE "batchId" = ${request.batchId} AND "coachId" = ${request.coachId}
+      FOR SHARE`;
+    await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${request.coachId} FOR SHARE`;
     const link = await tx.batchCoach.findFirst({
       where: {
         batch: { isDeleted: false, status: { not: BatchStatus.ARCHIVED } },

@@ -48,7 +48,10 @@ export interface ApprovalHandler<P = unknown> {
     reviewer: { id: string; role: UserRole }
   ): Promise<Prisma.InputJsonValue | null>;
   /** After commit (messaging, queues). Never throws into the caller. */
-  afterCommit?(request: ApprovalRequest, outcome: "CREATED" | "APPROVED" | "REJECTED" | "CANCELLED"): void;
+  afterCommit?(
+    request: ApprovalRequest,
+    outcome: "CREATED" | "APPROVED" | "REJECTED" | "CANCELLED"
+  ): void | Promise<void>;
 }
 
 /** Nest token for the list of registered handlers. */

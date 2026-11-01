@@ -12,7 +12,6 @@ export type ProfileFormValues = {
   firstName: string;
   fideId: string;
   fideRating: string;
-  hourlyRate: string;
   lastName: string;
   parentEmail: string;
   parentName: string;
@@ -39,7 +38,6 @@ export const emptyValues: ProfileFormValues = {
   firstName: "",
   fideId: "",
   fideRating: "",
-  hourlyRate: "",
   lastName: "",
   parentEmail: "",
   parentName: "",
@@ -69,7 +67,6 @@ export function valuesFromUser(user: AuthUser): ProfileFormValues {
     firstName: user.firstName,
     fideId: user.studentProfile?.fideId ?? user.coachProfile?.fideId ?? "",
     fideRating: formatNumber(user.coachProfile?.fideRating),
-    hourlyRate: user.coachProfile?.hourlyRate ?? "",
     lastName: user.lastName ?? "",
     parentEmail: user.studentProfile?.parentEmail ?? "",
     parentName: user.studentProfile?.parentName ?? "",

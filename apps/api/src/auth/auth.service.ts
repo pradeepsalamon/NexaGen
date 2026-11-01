@@ -663,16 +663,10 @@ export class AuthService {
         });
       }
 
-      return transaction.user.findUniqueOrThrow({
-        include: { coachProfile: true, studentProfile: true },
-        where: { id: user.id }
-      });
-    });
-
-    if (parentContactChanged && user.studentProfile) {
-      const previous = user.studentProfile;
-      await this.prisma.trashAuditLog
-        .create({
+      // V7: the audit row commits (or rolls back) with the contact change itself.
+      if (parentContactChanged && user.studentProfile) {
+        const previous = user.studentProfile;
+        await transaction.trashAuditLog.create({
           data: {
             action: "PARENT_CONTACT_CHANGE",
             entity: "StudentProfile",
@@ -683,10 +677,17 @@ export class AuthService {
             },
             userId: user.id
           }
-        })
-        .catch((error: unknown) => {
-          this.logger.warn(`Could not audit parent-contact change for user ${user.id}: ${String(error)}`);
         });
+      }
+
+      return transaction.user.findUniqueOrThrow({
+        include: { coachProfile: true, studentProfile: true },
+        where: { id: user.id }
+      });
+    });
+
+    if (parentContactChanged && user.studentProfile) {
+      const previous = user.studentProfile;
       if (previous.parentEmail) {
         const studentName = `${user.firstName} ${user.lastName ?? ""}`.trim();
         this.mailService

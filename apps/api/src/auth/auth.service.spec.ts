@@ -878,6 +878,18 @@ describe("AuthService", () => {
         });
       });
 
+      it("fails the save (no notice) when the audit row can't be written in the transaction", async () => {
+        prismaService.trashAuditLog.create.mockRejectedValueOnce(new Error("audit down"));
+        await expect(
+          service.updateProfile("access-token", {
+            ...profile,
+            currentPassword: "password123",
+            studentProfile: { ...keepRest, parentEmail: "dad@example.com", parentPhone: "111" }
+          })
+        ).rejects.toThrow("audit down");
+        expect(mailService.sendParentContactChangedNotice).not.toHaveBeenCalled();
+      });
+
       it("needs no password when the contact is unchanged (case and spacing ignored)", async () => {
         await service.updateProfile("access-token", {
           ...profile,

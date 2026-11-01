@@ -342,7 +342,11 @@ export class ApprovalService {
   ) {
     if (!handler.afterCommit) return;
     try {
-      handler.afterCommit(request, outcome);
+      // A handler may be async; its rejection must be logged, not left unhandled.
+      const result: unknown = handler.afterCommit(request, outcome);
+      void Promise.resolve(result).catch((error: unknown) =>
+        this.logger.warn(`afterCommit(${outcome}) failed for ${request.id}: ${String(error)}`)
+      );
     } catch (error) {
       this.logger.warn(`afterCommit(${outcome}) failed for ${request.id}: ${String(error)}`);
     }
