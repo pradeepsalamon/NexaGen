@@ -24,9 +24,9 @@ import { START_FEN } from "@/features/chessboard/lib/fen";
 import { cn } from "@/lib/utils";
 import { ImageUploadField } from "./ImageUploadField";
 
+/** Random, so an id says nothing about an answer. `getRandomValues` also works off HTTPS, unlike `randomUUID`. */
 export function newOptionId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `o${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export function emptyMcqConfig(): McqConfig {
