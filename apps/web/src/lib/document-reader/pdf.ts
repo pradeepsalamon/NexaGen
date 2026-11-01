@@ -67,6 +67,7 @@ export async function readPdfFile(file: File): Promise<Uint8Array> {
 
 type PdfJs = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 type PdfDocument = Awaited<ReturnType<PdfJs["getDocument"]>["promise"]>;
+type PdfPage = Awaited<ReturnType<PdfDocument["getPage"]>>;
 
 let pdfjsPromise: Promise<PdfJs> | null = null;
 
@@ -191,11 +192,20 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedDocument> {
   }
 
   const renderPage = async (pageNumber: number): Promise<RenderedPage> => {
-    const page = await doc.getPage(pageNumber);
-    try {
-      const base = page.getViewport({ scale: 1 });
+    let page: PdfPage | null = null;
+    let renderTask: { cancel: () => void } | null = null;
+    let timedOut = false;
+
+    const run = async (): Promise<RenderedPage> => {
+      const p = await doc.getPage(pageNumber);
+      page = p;
+      if (timedOut) {
+        p.cleanup();
+        throw new DocumentReadError("timeout", `Page ${pageNumber} took too long to render and was skipped.`);
+      }
+      const base = p.getViewport({ scale: 1 });
       const scale = Math.min(DOCUMENT_LIMITS.maxScale, DOCUMENT_LIMITS.renderMaxSide / Math.max(base.width, base.height));
-      const viewport = page.getViewport({ scale });
+      const viewport = p.getViewport({ scale });
       const width = Math.floor(viewport.width);
       const height = Math.floor(viewport.height);
       const canvas = document.createElement("canvas");
@@ -205,18 +215,14 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedDocument> {
       if (!ctx) throw new DocumentReadError("render-failed", "Your browser could not create a drawing surface.");
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, width, height);
-      const render = page.render({ canvas, canvasContext: ctx, viewport });
-      await withTimeout(
-        render.promise,
-        DOCUMENT_LIMITS.renderTimeoutMs,
-        () => render.cancel(),
-        `Page ${pageNumber} took too long to render and was skipped.`,
-      );
+      const render = p.render({ canvas, canvasContext: ctx, viewport });
+      renderTask = render;
+      await render.promise;
       const image = rgbaToGray(ctx.getImageData(0, 0, width, height).data, width, height);
       // pdf.js only warns when an image can't be decoded, and the page would
       // then read as "no diagrams here". Say what really happened.
       if (image.data.every((value) => value === 255)) {
-        const { fnArray } = await page.getOperatorList();
+        const { fnArray } = await p.getOperatorList();
         if (fnArray.some((fn) => imagePaintOps(pdfjs).has(fn))) {
           throw new DocumentReadError("render-failed", `Page ${pageNumber} has a scanned image that could not be decoded. Reload the page and try again.`);
         }
@@ -224,7 +230,7 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedDocument> {
 
       const text: DocumentTextItem[] = [];
       try {
-        const content = await withTimeout(page.getTextContent(), 5_000, () => undefined, "text");
+        const content = await withTimeout(p.getTextContent(), 5_000, () => undefined, "text");
         for (const item of content.items) {
           if (!("str" in item) || !item.str.trim()) continue;
           const t = pdfjs.Util.transform(viewport.transform, item.transform);
@@ -240,18 +246,45 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedDocument> {
       canvas.width = 0;
       canvas.height = 0;
       return { pageNumber, image, text, preview };
+    };
+
+    const cleanupPage = () => {
+      const p = page as PdfPage | null;
+      p?.cleanup();
+    };
+
+    try {
+      return await withTimeout(
+        run(),
+        DOCUMENT_LIMITS.renderTimeoutMs,
+        () => {
+          timedOut = true;
+          renderTask?.cancel();
+          cleanupPage();
+        },
+        `Page ${pageNumber} took too long to render and was skipped.`,
+      );
     } catch (err) {
       if (err instanceof DocumentReadError) throw err;
       throw new DocumentReadError("render-failed", `Page ${pageNumber} could not be rendered.`);
     } finally {
-      page.cleanup();
+      cleanupPage();
     }
   };
 
   const renderRegion = async (pageNumber: number, rect: PixelRect, targetSide: number): Promise<RenderedRegion | null> => {
-    const page = await doc.getPage(pageNumber);
-    try {
-      const base = page.getViewport({ scale: 1 });
+    let page: PdfPage | null = null;
+    let renderTask: { cancel: () => void } | null = null;
+    let timedOut = false;
+
+    const run = async (): Promise<RenderedRegion | null> => {
+      const p = await doc.getPage(pageNumber);
+      page = p;
+      if (timedOut) {
+        p.cleanup();
+        return null;
+      }
+      const base = p.getViewport({ scale: 1 });
       const pageScale = Math.min(DOCUMENT_LIMITS.maxScale, DOCUMENT_LIMITS.renderMaxSide / Math.max(base.width, base.height));
       const zoom = targetSide / Math.max(rect.w, rect.h);
       if (zoom <= 1.05) return null;
@@ -261,7 +294,7 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedDocument> {
       const top = Math.max(0, rect.y - margin);
       const width = Math.ceil((rect.w + 2 * margin) * zoom);
       const height = Math.ceil((rect.h + 2 * margin) * zoom);
-      const viewport = page.getViewport({ offsetX: -left * zoom, offsetY: -top * zoom, scale });
+      const viewport = p.getViewport({ offsetX: -left * zoom, offsetY: -top * zoom, scale });
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
@@ -269,17 +302,36 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedDocument> {
       if (!ctx) return null;
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, width, height);
-      const render = page.render({ canvas, canvasContext: ctx, viewport });
-      await withTimeout(render.promise, DOCUMENT_LIMITS.renderTimeoutMs, () => render.cancel(), "region");
+      const render = p.render({ canvas, canvasContext: ctx, viewport });
+      renderTask = render;
+      await render.promise;
       const image = rgbaToGray(ctx.getImageData(0, 0, width, height).data, width, height);
       canvas.width = 0;
       canvas.height = 0;
       return { image, rect: { h: rect.h * zoom, w: rect.w * zoom, x: (rect.x - left) * zoom, y: (rect.y - top) * zoom } };
+    };
+
+    const cleanupPage = () => {
+      const p = page as PdfPage | null;
+      p?.cleanup();
+    };
+
+    try {
+      return await withTimeout(
+        run(),
+        DOCUMENT_LIMITS.renderTimeoutMs,
+        () => {
+          timedOut = true;
+          renderTask?.cancel();
+          cleanupPage();
+        },
+        "region",
+      );
     } catch {
       // The first reading stands.
       return null;
     } finally {
-      page.cleanup();
+      cleanupPage();
     }
   };
 

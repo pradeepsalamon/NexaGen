@@ -121,6 +121,7 @@ async function measure(work: string, extra?: string) {
       sum.boards += 1;
       sum.squares += 64;
       if (!board) {
+        for (const c of want) if (c !== ".") sum.pieces += 1;
         sum.wrong += 64;
         console.log(`  ${book.id} ${name}: board not found`);
         continue;

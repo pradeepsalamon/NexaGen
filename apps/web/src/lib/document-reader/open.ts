@@ -21,7 +21,50 @@ function sniff(head: Uint8Array): Kind {
   return "unknown";
 }
 
-async function openImage(file: File): Promise<OpenedDocument> {
+/** Reads width and height from PNG and WebP headers before allocating an ImageBitmap. */
+function sniffImageDimensions(head: Uint8Array): { width: number; height: number } | null {
+  if (head.length >= 24 && head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) {
+    if (head[12] === 0x49 && head[13] === 0x48 && head[14] === 0x44 && head[15] === 0x52) {
+      const view = new DataView(head.buffer, head.byteOffset, head.byteLength);
+      return { width: view.getUint32(16, false), height: view.getUint32(20, false) };
+    }
+  }
+  if (head.length >= 30) {
+    const ascii = (from: number, to: number) => String.fromCharCode(...head.subarray(from, to));
+    if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") {
+      const chunk = ascii(12, 16);
+      if (chunk === "VP8X") {
+        const width = 1 + (head[24] | (head[25] << 8) | (head[26] << 16));
+        const height = 1 + (head[27] | (head[28] << 8) | (head[29] << 16));
+        return { width, height };
+      }
+      if (chunk === "VP8L" && head.length >= 25 && head[20] === 0x2f) {
+        const b1 = head[21];
+        const b2 = head[22];
+        const b3 = head[23];
+        const b4 = head[24];
+        const width = 1 + (((b2 & 0x3f) << 8) | b1);
+        const height = 1 + (((b4 & 0x0f) << 10) | (b3 << 2) | ((b2 & 0xc0) >> 6));
+        return { width, height };
+      }
+      if (chunk === "VP8 " && head[23] === 0x9d && head[24] === 0x01 && head[25] === 0x2a) {
+        const width = (head[26] | (head[27] << 8)) & 0x3fff;
+        const height = (head[28] | (head[29] << 8)) & 0x3fff;
+        return { width, height };
+      }
+    }
+  }
+  return null;
+}
+
+async function openImage(file: File, head?: Uint8Array): Promise<OpenedDocument> {
+  if (head) {
+    const declared = sniffImageDimensions(head);
+    if (declared && declared.width * declared.height > MAX_IMAGE_PIXELS) {
+      throw new DocumentReadError("too-large", "That image is too large to read. Crop it to the page you need.");
+    }
+  }
+
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file);
@@ -71,7 +114,7 @@ export async function openDocument(file: File): Promise<OpenedDocument> {
   }
   const head = new Uint8Array(await file.slice(0, 1024).arrayBuffer());
   const kind = sniff(head);
-  if (kind === "image") return openImage(file);
+  if (kind === "image") return openImage(file, head);
   if (kind === "pdf") return openPdf(await readPdfFile(file));
   const looksLikePdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf";
   throw new DocumentReadError(

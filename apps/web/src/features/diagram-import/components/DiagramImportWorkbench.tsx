@@ -138,9 +138,11 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
   }, [from, to, pdf]);
 
   const addFromPage = async (doc: OpenedDocument, page: RenderedPage) => {
+    const session = sessionRef.current;
     lastPageRef.current = page;
     setPreviews((p) => ({ ...p, [page.pageNumber]: page.preview }));
     const found = await findCandidates(doc, page);
+    if (session !== sessionRef.current) return [];
     setPages((p) => ({ ...p, [page.pageNumber]: { status: "done", diagrams: found.length } }));
     setCandidates((prev) => {
       // A rescan replaces that page's detected diagrams; hand-marked ones stay.
@@ -198,14 +200,16 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
 
   const addManual = async (pageNumber: number, selection: DiagramRect) => {
     if (!pdf) return;
+    const session = sessionRef.current;
     let page = lastPageRef.current?.pageNumber === pageNumber ? lastPageRef.current : null;
     if (!page) {
       page = await pdf.renderPage(pageNumber);
+      if (session !== sessionRef.current) return false;
       lastPageRef.current = page;
     }
     const index = candidates.filter((c) => c.page === pageNumber).length + 1;
     const cand = await candidateFromSelection(pdf, page, selection, index);
-    if (!cand) return false;
+    if (!cand || session !== sessionRef.current) return false;
     setCandidates((prev) => [...prev, cand].sort((x, y) => x.page - y.page || x.index - y.index));
     setReviews((prev) => ({ ...prev, [cand.id]: initialReview(cand) }));
     setSelectedId(cand.id);
