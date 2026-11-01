@@ -234,8 +234,10 @@ Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselve
   Semgrep on PRs (fails only on findings the PR introduces) and a weekly
   report-only full scan; it is not a deploy gate. `.semgrepignore` excludes
   tests/generated files. Dependabot (`.github/dependabot.yml`) opens monthly
-  grouped npm PRs, skipping versions under 7 days old; core-stack majors (Next, React, Nest, Prisma) are ignored on
-  purpose. Workflow actions are pinned to a commit SHA with the version in a
+  grouped version updates for npm, Actions and the Node image, skipping versions
+  under 7 days old. Major versions are ignored on purpose, but security updates
+  still open when needed. Automatic rebasing is off because it re-runs CI: comment
+  `@dependabot rebase` on a PR that needs it. Workflow actions are pinned to a commit SHA with the version in a
   trailing comment (`uses: actions/checkout@<sha> # v4.4.0`) — a new step does
   the same; Dependabot's monthly `github-actions` run bumps both together.
   `.coderabbit.yaml` holds the CodeRabbit PR-review rules.
