@@ -28,6 +28,7 @@ import { BackupModule } from "./backup/backup.module";
 import { AssignmentModule } from "./assignment/assignment.module";
 import { NotificationModule } from "./notification/notification.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { PuzzleActivityModule } from "./puzzle-activity/puzzle-activity.module";
 import { PuzzleModule } from "./puzzle/puzzle.module";
 import { SimulModule } from "./simul/simul.module";
 import { StudentMatchModule } from "./student-match/student-match.module";
@@ -96,6 +97,7 @@ import { FeatureGateGuard } from "./platform/feature-gate.guard";
     AssignmentModule,
     NotificationModule,
     AnalyticsModule,
+    PuzzleActivityModule,
     PuzzleModule,
     SimulModule,
     StudentMatchModule,

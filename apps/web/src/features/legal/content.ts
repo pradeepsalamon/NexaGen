@@ -43,7 +43,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
-          "When you joined and left each class, chat messages you sent, puzzle attempts, homework results, course progress, poll answers, and your puzzle rating and practice streak.",
+          "When you joined and left each class, chat messages you sent, puzzle attempts, class questions you answered, games you played against the computer in class, homework results, course progress, poll answers, and your puzzle rating and practice streak.",
         label: "Classes and learning"
       },
       {

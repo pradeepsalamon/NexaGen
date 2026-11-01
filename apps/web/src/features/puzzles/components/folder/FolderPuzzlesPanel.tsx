@@ -32,6 +32,7 @@ import {
   difficultyBadgeVariant,
   statusBadgeVariant
 } from "../../lib/puzzleMeta";
+import { ActivityFolderSection } from "../activities/ActivityFolderSection";
 import { PuzzleQuickPreviewDialog } from "../PuzzleQuickPreviewDialog";
 import { BulkEditPuzzlesDialog } from "./BulkEditPuzzlesDialog";
 
@@ -48,12 +49,14 @@ export function FolderPuzzlesPanel({
   basePath,
   folder,
   onBack,
+  role,
   subfolderCount,
   topics
 }: {
   basePath: string;
   folder: PuzzleTopicDto;
   onBack: () => void;
+  role: "admin" | "coach";
   subfolderCount: number;
   topics: PuzzleTopicDto[];
 }) {
@@ -292,6 +295,8 @@ export function FolderPuzzlesPanel({
         />
       ) : null}
       <BulkResultDialog result={result} onClose={() => setResult(null)} />
+
+      {folder.activityCount > 0 ? <ActivityFolderSection basePath={basePath} folderId={folder.id} role={role} /> : null}
     </div>
   );
 }

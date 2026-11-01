@@ -7,7 +7,7 @@ import type { PuzzleDifficulty, PuzzleType } from "./puzzle";
 // Nothing here is stored: the API derives every entry and metric from the
 // records the features already keep (puzzle_attempts, move-poll answers,
 // student_assignments + their attempts, puzzle-rush entries, live puzzle
-// shares + attendance). One HISTORY ENTRY is one activity with its retries
+// shares + attendance, MCQ attempts, Playout games). One HISTORY ENTRY is one activity with its retries
 // grouped; ACCURACY is counted per graded ATTEMPT. See docs/STUDENT_ACTIVITY_HISTORY.md.
 // ──────────────────────────────────────────────────────────────
 
@@ -20,6 +20,8 @@ import type { PuzzleDifficulty, PuzzleType } from "./puzzle";
  * CLASS_QUESTION   a live-class "what would you play?" move poll
  * HOMEWORK         any other assignment (solve a line, play the engine, analysis, replay)
  * PUZZLE_RUSH      a Puzzle Storm / Racer round in class
+ * CLASS_MCQ        a library MCQ answered in class (tries grouped)
+ * CLASS_PLAYOUT    a library Playout played in class (tries grouped)
  */
 export const STUDENT_ACTIVITY_TYPES = [
   "PRACTICE_PUZZLE",
@@ -29,12 +31,16 @@ export const STUDENT_ACTIVITY_TYPES = [
   "HOMEWORK_PUZZLE",
   "CLASS_QUESTION",
   "HOMEWORK",
-  "PUZZLE_RUSH"
+  "PUZZLE_RUSH",
+  "CLASS_MCQ",
+  "CLASS_PLAYOUT"
 ] as const;
 export const studentActivityTypeSchema = z.enum(STUDENT_ACTIVITY_TYPES);
 export type StudentActivityType = z.infer<typeof studentActivityTypeSchema>;
 
 export const STUDENT_ACTIVITY_TYPE_LABELS: Record<StudentActivityType, string> = {
+  CLASS_MCQ: "Class MCQ",
+  CLASS_PLAYOUT: "Class Playout",
   CLASS_PUZZLE: "Class puzzle",
   CLASS_QUESTION: "Class question",
   HOMEWORK: "Assignment",
@@ -154,7 +160,8 @@ export type StudentActivityEntry = {
   wrongMoves: number;
   /**
    * Short, already-safe detail: the move a student played on a question, an
-   * engine game's result (WIN / LOSS / DRAW), a rush's "12 solved · 2 errors".
+   * engine game's result (WIN / LOSS / DRAW), a rush's "12 solved · 2 errors",
+   * a Playout's "Goal achieved · 14 moves".
    */
   detail: string | null;
   puzzle: {
@@ -169,6 +176,8 @@ export type StudentActivityEntry = {
   assignment: { id: string; title: string; dueDate: string } | null;
   /** The classroom activity queue that ran it, when one did. */
   queue: { title: string; position: number } | null;
+  /** A Playout's game record: start and final position plus the PGN. */
+  playout: { startFen: string; finalFen: string; pgn: string; goalAchieved: boolean } | null;
   /** The student's own note on an assignment (there is no per-activity coach feedback). */
   studentNote: string | null;
 };

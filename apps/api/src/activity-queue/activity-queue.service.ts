@@ -32,13 +32,14 @@ import {
   type ReorderActivityQueueRequest,
   type StudentActivityQueueResponse
 } from "@nexa-chess/types";
-import { LiveClassActivityKind, LiveClassActivityQueueStatus, LiveClassMovePollStatus, Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type LiveClassActivityQueueItem as ItemRow } from "@prisma/client";
+import { LibraryActivityKind, LiveClassActivityKind, LiveClassActivityQueueStatus, LiveClassMovePollStatus, Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type LiveClassActivityQueueItem as ItemRow } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
 import { Chess } from "../common/chess/chess";
 import { LiveClassService } from "../live-class/live-class.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { LiveClassMovePollService } from "../move-poll/live-class-move-poll.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { ActivityRunService } from "../puzzle-activity/activity-run.service";
 import { LiveClassPuzzleService } from "../puzzle/live-class-puzzle.service";
 import { PuzzleCatalogService } from "../puzzle/puzzle-catalog.service";
 import { fullName } from "../puzzle/puzzle-auth.helper";
@@ -65,8 +66,8 @@ const DEFAULT_QUESTION_TITLE = "What would you play?";
  * Shared progression: the queue has ONE current item for the whole class and
  * only the coach moves it. Each item is run through the feature that already
  * owns that activity — a PUZZLE through `LiveClassPuzzleService.assign`, a
- * QUESTION through `LiveClassMovePollService.start` — so students solve and
- * answer with the existing UI, and those services stay the authority on
+ * QUESTION through `LiveClassMovePollService.start`, an MCQ / PLAYOUT through
+ * `ActivityRunService.start` — so students solve and answer with one UI each, and those services stay the authority on
  * whether a submission is still accepted (an ended puzzle or poll refuses it).
  * The share / poll each item produced is stored on the item, which is how the
  * progress view ties every response to exactly one item.
@@ -82,7 +83,8 @@ export class ActivityQueueService {
     private readonly livekit: LiveKitService,
     private readonly puzzles: LiveClassPuzzleService,
     private readonly polls: LiveClassMovePollService,
-    private readonly catalog: PuzzleCatalogService
+    private readonly catalog: PuzzleCatalogService,
+    private readonly runs: ActivityRunService
   ) {}
 
   // ── Drafting (coach-owner / admin) ──
@@ -452,8 +454,9 @@ export class ActivityQueueService {
 
     const assignmentIds = reached.flatMap((i) => (i.puzzleAssignmentId ? [i.puzzleAssignmentId] : []));
     const pollIds = reached.flatMap((i) => (i.movePollId ? [i.movePollId] : []));
+    const runIds = reached.flatMap((i) => (i.activityRunId ? [i.activityRunId] : []));
 
-    const [roster, assignments, polls] = await Promise.all([
+    const [roster, assignments, polls, mcqAttempts, playoutGames] = await Promise.all([
       this.loadRoster(cls.batchId),
       assignmentIds.length
         ? this.prisma.liveClassPuzzleAssignment.findMany({
@@ -465,6 +468,18 @@ export class ActivityQueueService {
         ? this.prisma.liveClassMovePoll.findMany({
             where: { id: { in: pollIds } },
             include: { answers: { include: { student: { select: { firstName: true, id: true, lastName: true } } } } }
+          })
+        : Promise.resolve([]),
+      runIds.length
+        ? this.prisma.liveClassMcqAttempt.findMany({
+            where: { runId: { in: runIds } },
+            include: { student: { select: { firstName: true, id: true, lastName: true } } }
+          })
+        : Promise.resolve([]),
+      runIds.length
+        ? this.prisma.liveClassPlayoutGame.findMany({
+            where: { runId: { in: runIds } },
+            include: { student: { select: { firstName: true, id: true, lastName: true } } }
           })
         : Promise.resolve([])
     ]);
@@ -522,6 +537,25 @@ export class ActivityQueueService {
             state: poll.correctUci ? (answer.uci === poll.correctUci ? "CORRECT" : "INCORRECT") : "SUBMITTED"
           });
         }
+      } else if (item.kind === LiveClassActivityKind.MCQ) {
+        if (!item.activityRunId) continue;
+        const rows = mcqAttempts.filter((a) => a.runId === item.activityRunId);
+        for (const studentId of new Set(rows.map((r) => r.studentId))) {
+          const mine = rows.filter((r) => r.studentId === studentId);
+          if (!names.has(studentId)) names.set(studentId, fullName(mine[0].student) ?? "Student");
+          byStudent.set(studentId, {
+            detail: mine.length > 1 ? `${mine.length} tries` : null,
+            state: mine.some((r) => r.correct) ? "CORRECT" : "INCORRECT"
+          });
+        }
+      } else if (item.kind === LiveClassActivityKind.PLAYOUT) {
+        if (!item.activityRunId) continue;
+        const rows = playoutGames.filter((g) => g.runId === item.activityRunId);
+        for (const studentId of new Set(rows.map((r) => r.studentId))) {
+          const mine = rows.filter((r) => r.studentId === studentId);
+          if (!names.has(studentId)) names.set(studentId, fullName(mine[0].student) ?? "Student");
+          byStudent.set(studentId, this.playoutCell(mine));
+        }
       }
 
       const row: Record<string, ActivityResponseCell> = {};
@@ -574,7 +608,8 @@ export class ActivityQueueService {
 
     const assignmentIds = reached.flatMap((i) => (i.puzzleAssignmentId ? [i.puzzleAssignmentId] : []));
     const pollIds = reached.flatMap((i) => (i.movePollId ? [i.movePollId] : []));
-    const [assignments, answers] = await Promise.all([
+    const runIds = reached.flatMap((i) => (i.activityRunId ? [i.activityRunId] : []));
+    const [assignments, answers, myAnswers, myGames] = await Promise.all([
       assignmentIds.length
         ? this.prisma.liveClassPuzzleAssignment.findMany({
             where: { id: { in: assignmentIds } },
@@ -586,8 +621,21 @@ export class ActivityQueueService {
             where: { pollId: { in: pollIds }, studentId: user.id },
             select: { pollId: true }
           })
+        : Promise.resolve([]),
+      runIds.length
+        ? this.prisma.liveClassMcqAttempt.findMany({
+            where: { runId: { in: runIds }, studentId: user.id },
+            select: { runId: true }
+          })
+        : Promise.resolve([]),
+      runIds.length
+        ? this.prisma.liveClassPlayoutGame.findMany({
+            where: { runId: { in: runIds }, status: { not: "IN_PROGRESS" }, studentId: user.id },
+            select: { runId: true }
+          })
         : Promise.resolve([])
     ]);
+    const respondedRuns = new Set([...myAnswers, ...myGames].map((r) => r.runId));
     const attempts = assignments.length
       ? await this.prisma.puzzleAttempt.findMany({
           where: {
@@ -605,6 +653,7 @@ export class ActivityQueueService {
     const mine = reached.map((item) => {
       let responded = false;
       if (item.movePollId) responded = answered.has(item.movePollId);
+      if (item.activityRunId) responded = respondedRuns.has(item.activityRunId);
       const assignment = item.puzzleAssignmentId ? assignmentById.get(item.puzzleAssignmentId) : undefined;
       if (assignment) {
         responded = attempts.some(
@@ -684,8 +733,9 @@ export class ActivityQueueService {
     const isAdmin = manager.user.role === UserRole.ADMIN || manager.user.role === UserRole.SUPER_ADMIN;
     const puzzleIds = inputs.flatMap((i) => (i.kind === "PUZZLE" ? [i.puzzleId] : []));
     const chapterIds = inputs.flatMap((i) => (i.kind === "CHAPTER" ? [i.chapterId] : []));
+    const activityIds = inputs.flatMap((i) => (i.kind === "MCQ" || i.kind === "PLAYOUT" ? [i.activityId] : []));
 
-    const [puzzles, chapters] = await Promise.all([
+    const [puzzles, chapters, activities] = await Promise.all([
       puzzleIds.length
         ? this.prisma.puzzle.findMany({
             where: {
@@ -703,8 +753,19 @@ export class ActivityQueueService {
             where: { id: { in: chapterIds }, scopeKey: this.chapterScopeKey(manager.cls) },
             select: { id: true, title: true }
           })
+        : Promise.resolve([]),
+      activityIds.length
+        ? this.prisma.libraryActivity.findMany({
+            where: {
+              id: { in: activityIds },
+              status: PuzzleStatus.PUBLISHED,
+              ...(isAdmin ? {} : { visibility: PuzzleVisibility.GLOBAL })
+            },
+            select: { id: true, kind: true, title: true }
+          })
         : Promise.resolve([])
     ]);
+    const activityById = new Map(activities.map((a) => [a.id, a]));
     const puzzleById = new Map(puzzles.map((p) => [p.id, p]));
     const chapterById = new Map(chapters.map((c) => [c.id, c]));
 
@@ -750,6 +811,18 @@ export class ActivityQueueService {
           if (!chapter) throw new NotFoundException("Chapter not found.");
           return { chapterId: chapter.id, kind: LiveClassActivityKind.CHAPTER, title: chapter.title };
         }
+        case "MCQ":
+        case "PLAYOUT": {
+          const activity = activityById.get(input.activityId);
+          if (!activity || (activity.kind as string) !== input.kind) {
+            throw new NotFoundException("Activity not found, or not published.");
+          }
+          return {
+            activityId: activity.id,
+            kind: activity.kind === LibraryActivityKind.MCQ ? LiveClassActivityKind.MCQ : LiveClassActivityKind.PLAYOUT,
+            title: activity.title.slice(0, 200)
+          };
+        }
       }
     });
   }
@@ -785,6 +858,10 @@ export class ActivityQueueService {
               );
           }
         }
+      } else if (item.kind === LiveClassActivityKind.MCQ || item.kind === LiveClassActivityKind.PLAYOUT) {
+        if (!item.activityId) throw new BadRequestException("This activity is no longer available.");
+        const run = await this.runs.start(accessToken, classId, item.activityId);
+        data.activityRunId = run.id;
       } else {
         // CHAPTER: the coach's client loads it onto the shared board. `chapterId`
         // has no FK, so a chapter deleted after it was queued still has an id here.
@@ -817,10 +894,23 @@ export class ActivityQueueService {
         });
         if (open?.id === item.movePollId) await this.polls.end(accessToken, classId);
       }
+      if (item.activityRunId) await this.runs.end(accessToken, classId, item.activityRunId);
     } catch (error) {
       // The queue already moved on; a puzzle left open costs the coach one click.
       this.logger.warn(`Couldn't close activity ${item.id} in class ${classId}: ${this.messageOf(error)}`);
     }
+  }
+
+  /** A student's tries at one Playout, summed up into one cell. */
+  private playoutCell(
+    rows: { status: string; goalAchieved: boolean; endReason: string | null; ply: number }[]
+  ): ActivityResponseCell {
+    const detail = rows.length > 1 ? `${rows.length} tries` : null;
+    if (rows.some((r) => r.goalAchieved)) return { detail, state: "CORRECT" };
+    if (rows.some((r) => r.status === "IN_PROGRESS")) return { detail, state: "IN_PROGRESS" };
+    if (rows.some((r) => r.status === "COMPLETED" && r.endReason !== "ACTIVITY_ENDED")) return { detail, state: "INCORRECT" };
+    // Cut off when the class moved on, with moves played: unfinished, not wrong.
+    return rows.some((r) => r.ply > 0) ? { detail: "Unfinished", state: "MISSED" } : { detail, state: "MISSED" };
   }
 
   /** A student's attempts at one puzzle share, summed up into one cell. */
@@ -888,7 +978,8 @@ export class ActivityQueueService {
     const items = rows.flatMap((r) => r.items);
     const puzzleIds = [...new Set(items.flatMap((i) => (i.puzzleId ? [i.puzzleId] : [])))];
     const chapterIds = [...new Set(items.flatMap((i) => (i.chapterId ? [i.chapterId] : [])))];
-    const [puzzles, chapters] = await Promise.all([
+    const activityIds = [...new Set(items.flatMap((i) => (i.activityId ? [i.activityId] : [])))];
+    const [puzzles, chapters, activities] = await Promise.all([
       puzzleIds.length
         ? this.prisma.puzzle.findMany({
             where: { id: { in: puzzleIds }, status: PuzzleStatus.PUBLISHED },
@@ -900,8 +991,15 @@ export class ActivityQueueService {
             where: { id: { in: chapterIds } },
             select: { id: true, state: true }
           })
+        : Promise.resolve([]),
+      activityIds.length
+        ? this.prisma.libraryActivity.findMany({
+            where: { id: { in: activityIds }, status: PuzzleStatus.PUBLISHED },
+            select: { id: true }
+          })
         : Promise.resolve([])
     ]);
+    const liveActivities = new Set(activities.map((a) => a.id));
     const livePuzzles = new Set(puzzles.map((p) => p.id));
     const chapterStates = new Map(chapters.map((c) => [c.id, parseActivityChapterState(c.state)]));
 
@@ -918,10 +1016,14 @@ export class ActivityQueueService {
             ? !!item.puzzleId && livePuzzles.has(item.puzzleId)
             : item.kind === LiveClassActivityKind.CHAPTER
               ? chapterState !== null
-              : true;
+              : item.kind === LiveClassActivityKind.MCQ || item.kind === LiveClassActivityKind.PLAYOUT
+                ? !!item.activityId && liveActivities.has(item.activityId)
+                : true;
         return {
           activatedAt: item.activatedAt?.toISOString() ?? null,
           activationError: item.activationError,
+          activityId: item.activityId,
+          activityRunId: item.activityRunId,
           available,
           chapterId: item.chapterId,
           chapterState,
