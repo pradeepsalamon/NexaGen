@@ -36,6 +36,9 @@ jobs:
   # Which apps this run checks: a PR diffs its files, a deploy passes inputs,
   # a manual run checks both. Same filters as deploy-production.yml.
   changes:
+    # Bot PRs get one manual run of this workflow just before merging, not a run
+    # per update. Every job below needs this one, so the whole run skips.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read

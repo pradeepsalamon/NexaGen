@@ -21,6 +21,8 @@ permissions:
 jobs:
   semgrep:
     name: Semgrep
+    # Bot PRs only change dependency versions; the weekly full scan still covers them.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     container:
