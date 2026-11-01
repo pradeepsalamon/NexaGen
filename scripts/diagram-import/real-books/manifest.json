@@ -1,0 +1,188 @@
+{
+  "description": "Real public-domain scanned chess books used to measure and train the diagram recognizer. The PDFs are downloaded and checksum-verified, never committed. Labels are the positions as printed, read by eye, with the page rendered by lib/pdf.ts's settings; a square printed in the wrong colour is labelled as printed.",
+  "books": [
+    {
+      "id": "chessfundamental00capa",
+      "title": "Chess Fundamentals (J. R. Capablanca, 1921)",
+      "licence": "Public domain: published 1921, author died 1942",
+      "sha256": "8523df9a1d6b808f5279e48a3d6c2a876c53166377785811a4f7a83b33a0d3d0",
+      "boards": {
+        "p30-1": "8/6p1/3k4/8/3K1PP1/8/8/8",
+        "p32-1": "8/6pp/3k4/8/3K1PPP/8/8/8",
+        "p33-1": "8/p6p/4k3/8/4K3/8/P5PP/8",
+        "p35-1": "5rk1/1b3p1p/ppq3p1/2p5/8/1P1P1R1Q/PBP3PP/7K",
+        "p36-1": "5rk1/1bq1bp1p/p1n3p1/1p6/3N4/1P1PR2Q/PBP3PP/7K",
+        "p37-1": "2q2rk1/1b3ppp/pp6/2p5/2P1N3/PP1Q4/1B3PPP/6K1",
+        "p38-1": "2q1rrk1/1bpn1ppp/pp1p4/1B6/4N3/1P1QR3/PBP2PPP/6K1",
+        "p38-2": "r3qrk1/1pp2ppp/p1np4/3Q4/8/P2B1N2/1PP2PPP/3R2K1",
+        "p39-1": "2nb1rk1/1pqrnppp/p2p4/2pQ1N2/6P1/1P1B1N1P/P3RP2/3R2K1",
+        "p43-1": "r1bq1rk1/ppp2ppp/2np1n2/1B2p1B1/1b2P3/2NP1N2/PPP2PPP/R2q1RK1",
+        "p48-1": "rn2kbnr/p4ppp/1pp2q2/4p3/2B1P3/1QN5/PPP2PPP/R1B1K2R",
+        "p49-1": "r2qkbnr/ppp2pp1/2np3p/4p3/2BPP1b1/2N2N2/PPP2PPP/R1BQK2R",
+        "p49-2": "rn1qkbnr/ppp1pppp/8/8/2B3b1/2N2N2/PPPP1PPP/R1BQK2R",
+        "p51-1": "8/p5p1/7p/6k1/8/7K/PP5P/8",
+        "p53-1": "8/6p1/7p/8/4k3/8/6KP/8",
+        "p54-1": "8/6p1/7p/8/8/7k/7P/6K1",
+        "p54-2": "8/6p1/8/8/7p/7k/7P/6K1",
+        "p56-1": "8/ppp4k/8/PPP5/8/8/8/7K",
+        "p57-1": "8/p5kp/8/1P6/8/1K6/P7/8",
+        "p59-1": "8/8/4k3/1p5p/1P2K2P/8/8/8",
+        "p60-1": "8/8/2k5/8/4K3/8/8/8",
+        "p60-2": "8/8/8/8/2k1K3/8/8/8",
+        "p61-1": "4k3/8/8/1p5p/1P5P/8/8/4K3",
+        "p64-1": "8/8/8/4p1p1/8/5P2/6K1/3k4",
+        "p66-1": "k7/8/1K1NN3/8/8/8/8/8",
+        "p66-2": "k7/8/1K1N4/7p/7N/8/8/8",
+        "p67-1": "7k/8/8/6K1/8/3B4/7P/8",
+        "p68-1": "8/8/5Np1/8/8/7p/5K2/7k",
+        "p69-1": "8/8/8/N2b4/8/8/8/8",
+        "p70-1": "4k3/3n4/2p5/1pPp4/pP1P4/P7/8/2B1K3"
+      },
+      "annotated": []
+    },
+    {
+      "id": "middlegameinches00znos",
+      "title": "The Middle Game in Chess (E. Znosko-Borovsky, 1922)",
+      "licence": "Public domain: published 1922, author died 1954",
+      "sha256": "2154f3f12368df267418c441a9ccc6fbc9aaac5f529d669eeedbc3e7c747e440",
+      "boards": {
+        "p45-1": "8/8/8/8/8/8/5PPP/6K1",
+        "p46-1": "8/8/8/8/8/6P1/5P1P/6k1",
+        "p46-2": "8/8/8/8/8/7P/5PP1/6k1",
+        "p47-1": "8/8/8/8/8/5P2/6PP/6K1",
+        "p47-2": "8/8/8/8/8/5P1P/6P1/6K1",
+        "p48-1": "8/8/8/8/8/5P2/5P1P/8",
+        "p52-1": "8/8/8/5p2/5P2/pP3Pp1/P1P3P1/8",
+        "p67-1": "r2qr1k1/2p1bppp/p2p1n2/np2p3/3PP1b1/2P1BN2/PPBN1PPP/R2Q1RK1",
+        "p67-2": "r2qrbk1/2p2pp1/p5np/1p2P1N1/1Pn2P2/P3B2Q/2B3PP/2R2RK1",
+        "p68-1": "rnb1k2r/pppnqppp/4p3/3pP3/3P4/2N5/PPP2PPP/R2QKBNR",
+        "p70-1": "r6k/p1Q4p/2p1b1rq/4p3/B3P3/4P3/PPP3P1/4RRK1"
+      },
+      "annotated": [
+        "p30-1",
+        "p31-1",
+        "p32-1",
+        "p33-1",
+        "p34-1",
+        "p37-1",
+        "p38-1",
+        "p39-1",
+        "p39-2",
+        "p40-1",
+        "p40-2",
+        "p41-1",
+        "p42-1",
+        "p42-2",
+        "p43-1",
+        "p43-2"
+      ]
+    },
+    {
+      "id": "commonsenseinche00laskrich",
+      "title": "Common Sense in Chess (Em. Lasker, 1910)",
+      "licence": "Public domain: published 1896/1910, author died 1941",
+      "sha256": "84905e3d43c50625283aaec590ed3d10043cd66b0718a0a029545f9ebb213cf0",
+      "boards": {
+        "p36-1": "r1b1k2r/ppppnppp/2n3q1/b3P3/2B5/1QN2N2/P4PPP/R1B2RK1",
+        "p39-1": "r1bq1rk1/ppp1n1pp/1b1p1p2/n2P4/4P3/2NB1N2/PB3PPP/R2Q1RK1",
+        "p43-1": "1r2k1r1/pbppnp1p/1bn2P2/7q/Q7/B2B1N2/P4PPP/R3R1K1",
+        "p46-1": "rnb1k2r/ppp1npb1/6qp/3B2p1/3PPp1P/2N2N2/PPP3P1/R1BQ2KR",
+        "p50-1": "rnb1k1nr/p2p1ppp/3B4/1pbN1N1P/4P1P1/3P1Q2/PqP5/R4KR1",
+        "p55-1": "rnbqkb1r/pp1n1ppp/4p3/2PpP3/5P2/2N5/PPP3PP/R1BQKBNR",
+        "p68-1": "rnbq1rk1/ppp2ppp/3b1n2/3P4/2BP4/2N2p2/PPP1N1PP/R1BQK2R"
+      },
+      "annotated": []
+    },
+    {
+      "id": "artofchess00maso",
+      "title": "The Art of Chess (J. Mason, 1913)",
+      "licence": "Public domain: published 1913, author died 1905",
+      "sha256": "70a60fa0d2be2177c858fa148243c90f13df0e78f9d4d53065a6c9fcab455761",
+      "boards": {
+        "p30-1": "8/6k1/1p6/1P1p4/4p3/4P3/4P3/1K6",
+        "p33-1": "8/8/8/2p5/2Pp4/3K2Pk/7P/8",
+        "p36-1": "k7/P7/1P6/4p3/4Pp2/5K2/8/8",
+        "p39-1": "8/8/6pp/k7/1p1K2PP/8/2P5/8",
+        "p42-1": "K7/8/2P2P2/1P3pP1/Pp1p2p1/p2k4/8/8",
+        "p48-1": "4k3/5ppp/8/8/8/8/PPP5/3K4"
+      },
+      "annotated": []
+    },
+    {
+      "id": "chesslyricscolle00mack",
+      "title": "Chess Lyrics (A. F. Mackenzie, 1905)",
+      "licence": "Public domain: published 1905, author died 1905",
+      "sha256": "6edceda901e5344e77a0245e0e14bde07d941d19a452d46d955253f2e7fe2f0f",
+      "boards": {
+        "p30-1": "1K4nb/5Q2/2P1p2N/P3k1pp/8/1P2p1P1/p1P4p/4B2B",
+        "p30-2": "2b4b/3pN3/5n2/p5N1/K2k1P2/8/4P3/2Q5",
+        "p48-1": "3N1b2/4PpRn/2p2k1R/4R2p/7n/K2P4/8/B2Q4",
+        "p66-1": "3N2r1/4p3/2Q3b1/p1R1Pk1N/2p3pq/2b3p1/K2B4/8",
+        "p66-2": "5Q2/1rpR2B1/2p5/N2PP2R/3kn3/1b2p3/NnP5/6K1",
+        "p84-1": "Q7/R1p1r1p1/4k1p1/2B3K1/2b1B3/1p6/1P1R4/8",
+        "p84-2": "1Q6/4N1p1/2p2bP1/7R/p1Rk1B2/P7/2p2PP1/2N1K3",
+        "p90-1": "Q2K4/5p2/6b1/2PP2p1/1P1kN1P1/3N2P1/5P2/5B2",
+        "p90-2": "1K5n/6B1/p2N2pR/3kN1p1/2p3B1/2pp3n/8/1Q6",
+        "p96-1": "1B1KN1Bb/8/4Np2/1P1k4/6pP/1PP4b/5PP1/8",
+        "p96-2": "8/8/1N6/3NPp2/Q2pk3/7P/7P/5K2"
+      },
+      "annotated": []
+    },
+    {
+      "id": "modernchessinstr00steirich",
+      "title": "The Modern Chess Instructor (W. Steinitz, 1889)",
+      "licence": "Public domain: published 1889, author died 1900",
+      "sha256": "ca01c6bf9fc177c97e45a809a8c181b2e599f811ed9791d7860ff63e903fd080",
+      "boards": {
+        "p30-1": "r7/1Pp5/2P3p1/8/6pb/4p1kB/4P1p1/6K1",
+        "p54-1": "r4b1r/p1p1k1pp/b1p2n2/3qP2Q/4p2B/2P5/PP3PPP/RN2K2R",
+        "p60-1": "r2q1rk1/1bp2ppp/p1np1n2/1pb1p3/4P2N/1BPP4/PP2QPPP/RNB2RK1",
+        "p66-1": "r1b1k1nr/ppppq1pp/1bn2p2/1B2p3/P2PP3/2P2N2/1P3PPP/RNBQ1RK1",
+        "p78-1": "1r3rk1/6b1/4b1pp/3pppq1/pP1pP1P1/P1pP1PNP/2P1R2R/Q1NK4",
+        "p78-2": "r7/4nrkp/p2q2p1/5pB1/PP1pQ3/3p4/BP4PP/R4RK1",
+        "p102-1": "r2qr1k1/p1pb1p2/1pnp1n2/1B2p1B1/3PP3/2P4P/P1P2PP1/1R1QR1K1",
+        "p102-2": "4r1k1/p1Q3b1/1p3p2/2pb1qpp/8/1PP1B3/P4NPP/3R2K1",
+        "p108-1": "r1b1k2r/1pppnppp/p1n5/7Q/3q4/2NB4/PPP2PPP/R1B2RK1",
+        "p114-1": "r1bk3r/pppp1pp1/2n2q1p/1N6/1b2P3/2N5/PPP2PPP/R2QKB1R",
+        "p120-1": "2kr3r/pppbqppp/2np1P1n/2b4Q/2BpP3/5N2/PPP3PP/RNBK3R",
+        "p132-1": "4rk1r/ppp2p1p/5n2/2bP4/3n3q/2N2bN1/PPP1B1PP/R1BQK2R"
+      },
+      "annotated": []
+    },
+    {
+      "id": "grandtacticsofch00younrich",
+      "title": "The Grand Tactics of Chess (F. K. Young, 1897)",
+      "licence": "Public domain: published 1897, author died 1931",
+      "sha256": "042b7b07c7ebc1ca22f2ed32e1375835cb5d2a17762408ba9a907c56ae83b125",
+      "boards": {
+        "p45-1": "8/pppppppp/8/8/8/8/8/8",
+        "p48-1": "1k6/1pp3pp/5p2/4p3/4P3/5P2/1PP3PP/1K6",
+        "p51-1": "2k5/8/8/4P3/PP1P1P2/2P5/6PP/6K1",
+        "p54-1": "4k3/8/8/8/8/8/8/8",
+        "p57-1": "8/8/8/8/8/8/PPPPPPPP/RNBQKBNR",
+        "p60-1": "6k1/8/8/4P3/3P1PP1/P1P1BN1P/1PBQN2K/R5R1",
+        "p66-1": "r2rb1k1/1p2nppp/pq2p3/8/3P2N1/1B4RP/PP2QPP1/3R2K1",
+        "p69-1": "3rnrk1/1p2bpp1/1qb1p2p/p1n1P3/2BN4/P1N1B3/1P2QPPP/2RR2K1",
+        "p75-1": "4rrk1/pppq2pp/2npbn2/2b1pp2/8/8/8/8",
+        "p78-1": "6k1/pp3ppp/4p3/3pP3/2pP4/2P5/PP3PPP/6K1",
+        "p81-1": "7k/ppp4p/3p4/4p3/5p2/6p1/8/6K1"
+      },
+      "annotated": []
+    },
+    {
+      "id": "chessopeningsanc00freerich",
+      "title": "Chess Openings Ancient and Modern (Freeborough & Ranken, 1905)",
+      "licence": "Public domain: published 1905, authors died 1904 and 1905",
+      "sha256": "05c61c901cb7bf79630e33176fa08fc12b4bf6e175817ec815d7db4ab2fd9362",
+      "boards": {
+        "p36-1": "rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R",
+        "p39-1": "rnbqkb1r/ppp2ppp/8/3p4/3Pn3/3B1N2/PPP2PPP/RNBQK2R",
+        "p51-1": "r1bqkbnr/ppp3pp/2n1P3/3p2N1/4p3/2P5/PP3PPP/RNBQKB1R",
+        "p51-2": "r1b1kb1r/ppp4p/2nqP1pn/1B1p2N1/4p3/2P4Q/PP3PPP/RNB1K2R",
+        "p72-1": "r3kb1r/p4pp1/2p2n1p/n7/3qp1B1/8/PPPP1PPP/RNBQK2R",
+        "p72-2": "r1b1k2r/p4pp1/2p2n1p/n1b1N3/3qpB2/8/PPPPB1PP/RNBQKR2"
+      },
+      "annotated": []
+    }
+  ]
+}

@@ -133,23 +133,26 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   solutions by playing them in `SolutionEditor`. A coach can also turn the live
   shared board into a `SOLVE_LINE` assignment from the board header
   ("Send as assignment" → the same form, position pre-seeded).
-- PDF chess-diagram import (coach + admin): Puzzle Library → **Import from PDF**
-  (`/coach/puzzles/import-pdf`, `/admin/puzzles/import-pdf`) and the coach's
-  in-class Setup Position dialog → **From PDF**. The PDF is read **in the
-  browser** with pdf.js and never uploaded or stored. Pages are scanned for
-  diagrams (or a board is marked by hand), each position is read by classical
-  image processing (no ML model, no external service), and the coach reviews
+- Chess-diagram import from a PDF or a picture (coach + admin): Puzzle Library →
+  **Import from PDF** (`/coach/puzzles/import-pdf`, `/admin/puzzles/import-pdf`)
+  and the coach's in-class Setup Position dialog → **From PDF**. The file (PDF, PNG,
+  JPEG or WebP) is read **in the browser** with pdf.js and Tesseract OCR and never
+  uploaded or stored. Pages are scanned for diagrams (or a board is marked by hand),
+  each square is read by a small neural network that runs in the browser (no
+  external service), and the coach reviews
   it: the source diagram beside an editable board, doubtful squares named, and
   explicit answers for what a diagram can't show (side to move, castling, en
   passant, move number, and which side is at the bottom unless printed
   coordinates say so). Nothing is used until the coach confirms; then it can go
   to the Game Library analysis board (a private import), the class board (after
   a "replace the shared board?" confirmation) or the normal New-puzzle form,
-  prefilled and saved only by the coach. Recognition core and position checks:
+  prefilled, with any legal moves printed by the diagram as a suggested solution,
+  and saved only by the coach. Recognition core and position checks:
   `@nexa-chess/types` `diagram-recognition.ts` / `diagram-position.ts`; web:
-  `features/diagram-import`. pdf.js is served from `public/vendor/pdfjs/`
+  `features/diagram-import`, and the reusable file reader and OCR in
+  `lib/document-reader`. pdf.js and Tesseract are served from `public/vendor/`
   (copied from `node_modules` by `apps/web/scripts/copy-pdfjs.mjs` on
-  `predev`/`prebuild`, gitignored) because Next's webpack breaks its
+  `predev`/`prebuild`, gitignored) because Next's webpack breaks pdf.js's
   pre-bundled build. Measured accuracy and limits: see the spec header in
   `apps/api/src/common/chess/diagram-recognition.spec.ts`.
 - Puzzle Library: a standalone, reusable catalogue of chess-training puzzles
@@ -660,9 +663,9 @@ so point it at a local database only:
 RUN_FEEDBACK_E2E=1 DATABASE_URL=<local db> npx playwright test coach-feedback
 ```
 
-`e2e/diagram-import.spec.ts` (PDF diagram import: rejected files, empty PDF,
-book page, flipped board, scan, correction, duplicate warning, analysis board,
-draft puzzle) is opt-in and writes a draft puzzle + a Game Library import as
+`e2e/diagram-import.spec.ts` (diagram import: rejected files, empty PDF, book page,
+flipped board, scan, JPEG2000 scan, image with OCR and a suggested solution, annotated
+board, correction, duplicate warning, analysis board, draft puzzle) is opt-in and writes a draft puzzle + a Game Library import as
 the seeded coach, so run it against a throwaway stack. Add
 `DIAGRAM_IMPORT_CLASS_ID=<a SCHEDULED class of coach@nexa.test inside its start
 window>` (and a LiveKit the API points at) to also cover loading onto the live
@@ -677,6 +680,7 @@ Fixtures are regenerated with `node scripts/diagram-import/generate-fixtures.mjs
 (PDFs + Jest page images), `node scripts/diagram-import/capture-pdf-renders.mjs`
 (the PDFs as pdf.js renders them) and the piece templates with
 `npx ts-node --transpile-only -O '{"module":"commonjs"}' scripts/diagram-import/generate-piece-templates.ts`.
+The images come from `node scripts/diagram-import/generate-image-fixture.mjs`.
 
 ### Responsive screenshots
 

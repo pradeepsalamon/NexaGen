@@ -22,7 +22,7 @@ import {
   type CandidateReview,
   type DiagramCandidate,
 } from "../lib/candidates";
-import { openPdf, PDF_IMPORT_LIMITS, PdfImportError, readPdfFile, type OpenedPdf, type RenderedPage } from "../lib/pdf";
+import { DOCUMENT_LIMITS, DocumentReadError, openDocument, type OpenedDocument, type RenderedPage } from "@/lib/document-reader";
 import { DiagramReviewPanel } from "./DiagramReviewPanel";
 import { statusBadgeVariant } from "./statusBadge";
 
@@ -43,12 +43,15 @@ type Props = {
 
 type PageState = { status: "done"; diagrams: number } | { status: "failed"; error: string };
 
+/** Pages one scan may cover; the coach picks the range. */
+const MAX_PAGES_PER_SCAN = 20;
+
 /** Most diagrams kept from one scan; a book page rarely has more than six. */
 const MAX_CANDIDATES = 80;
 
 export function DiagramImportWorkbench({ actions, compact = false }: Props) {
   const [fileName, setFileName] = useState<string | null>(null);
-  const [pdf, setPdf] = useState<OpenedPdf | null>(null);
+  const [pdf, setPdf] = useState<OpenedDocument | null>(null);
   const [opening, setOpening] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [from, setFrom] = useState("1");
@@ -65,7 +68,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
   // write into a newer one (or keep a document nobody can close).
   const sessionRef = useRef(0);
   const openingRef = useRef(false);
-  const pdfRef = useRef<OpenedPdf | null>(null);
+  const pdfRef = useRef<OpenedDocument | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // The last full-resolution page, kept for a manual selection on it.
   const lastPageRef = useRef<RenderedPage | null>(null);
@@ -104,8 +107,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
     const session = sessionRef.current;
     setOpening(true);
     try {
-      const bytes = await readPdfFile(file);
-      const opened = await openPdf(bytes);
+      const opened = await openDocument(file);
       if (session !== sessionRef.current) {
         void opened.destroy();
         return;
@@ -114,11 +116,13 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
       setPdf(opened);
       setFileName(sanitizeDiagramFileName(file.name));
       setFrom("1");
-      setTo(String(Math.min(opened.pageCount, PDF_IMPORT_LIMITS.maxPagesPerScan)));
+      setTo(String(Math.min(opened.pageCount, MAX_PAGES_PER_SCAN)));
+      // A picture is one page, so there is nothing to choose before scanning it.
+      if (opened.kind === "image") void scanPages([1], opened);
     } catch (err) {
-      if (!(err instanceof PdfImportError)) console.warn("PDF import: unexpected failure", err);
+      if (!(err instanceof DocumentReadError)) console.warn("Diagram import: unexpected failure", err);
       if (session === sessionRef.current) {
-        setFileError(err instanceof PdfImportError ? err.message : "That file could not be opened.");
+        setFileError(err instanceof DocumentReadError ? err.message : "That file could not be opened.");
       }
     } finally {
       openingRef.current = false;
@@ -130,13 +134,13 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
     const count = pdf?.pageCount ?? 0;
     const a = Math.max(1, Math.min(count, parseInt(from, 10) || 1));
     const b = Math.max(a, Math.min(count, parseInt(to, 10) || a));
-    return { a, b, tooMany: b - a + 1 > PDF_IMPORT_LIMITS.maxPagesPerScan };
+    return { a, b, tooMany: b - a + 1 > MAX_PAGES_PER_SCAN };
   }, [from, to, pdf]);
 
-  const addFromPage = (page: RenderedPage) => {
+  const addFromPage = async (doc: OpenedDocument, page: RenderedPage) => {
     lastPageRef.current = page;
     setPreviews((p) => ({ ...p, [page.pageNumber]: page.preview }));
-    const found = findCandidates(page);
+    const found = await findCandidates(doc, page);
     setPages((p) => ({ ...p, [page.pageNumber]: { status: "done", diagrams: found.length } }));
     setCandidates((prev) => {
       // A rescan replaces that page's detected diagrams; hand-marked ones stay.
@@ -151,8 +155,8 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
     return found;
   };
 
-  const scanPages = async (pageNumbers: number[]) => {
-    if (!pdf) return;
+  const scanPages = async (pageNumbers: number[], doc: OpenedDocument | null = pdf) => {
+    if (!doc) return;
     cancelRef.current = false;
     const session = sessionRef.current;
     const stale = () => session !== sessionRef.current;
@@ -162,15 +166,16 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
       const n = pageNumbers[i];
       setScan({ current: i + 1, total: pageNumbers.length });
       try {
-        const rendered = await pdf.renderPage(n);
+        const rendered = await doc.renderPage(n);
         if (stale()) return;
-        const found = addFromPage(rendered);
+        const found = await addFromPage(doc, rendered);
+        if (stale()) return;
         firstFound ??= found[0]?.id ?? null;
       } catch (err) {
         if (stale()) return;
         setPages((p) => ({
           ...p,
-          [n]: { status: "failed", error: err instanceof PdfImportError ? err.message : `Page ${n} could not be read.` },
+          [n]: { status: "failed", error: err instanceof DocumentReadError ? err.message : `Page ${n} could not be read.` },
         }));
       }
       // Let the browser paint between pages.
@@ -199,7 +204,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
       lastPageRef.current = page;
     }
     const index = candidates.filter((c) => c.page === pageNumber).length + 1;
-    const cand = candidateFromSelection(page, selection, index);
+    const cand = await candidateFromSelection(pdf, page, selection, index);
     if (!cand) return false;
     setCandidates((prev) => [...prev, cand].sort((x, y) => x.page - y.page || x.index - y.index));
     setReviews((prev) => ({ ...prev, [cand.id]: initialReview(cand) }));
@@ -234,15 +239,15 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
             <Upload className="size-8 text-app-muted" strokeWidth={2.25} />
           )}
           <span className="text-base font-semibold text-app-text">
-            {opening ? "Opening the PDF…" : "Choose a PDF or drop it here"}
+            {opening ? "Opening the file…" : "Choose a PDF or image, or drop it here"}
           </span>
           <span className="max-w-md text-sm text-app-muted">
-            A chess book, worksheet or scan, up to {PDF_IMPORT_LIMITS.maxBytes / (1024 * 1024)} MB. The file is read in your browser
+            A chess book, worksheet, scan, screenshot or photo (PDF, PNG, JPEG or WebP), up to {DOCUMENT_LIMITS.maxBytes / (1024 * 1024)} MB. The file is read in your browser
             and never uploaded or stored.
           </span>
           <input
-            accept="application/pdf,.pdf"
-            aria-label="PDF file"
+            accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+            aria-label="PDF or image file"
             className="sr-only"
             data-testid="diagram-pdf-input"
             disabled={opening}
@@ -255,7 +260,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
           />
         </label>
         {fileError ? (
-          <Alert data-testid="diagram-file-error" title="That PDF can't be used" variant="error">
+          <Alert data-testid="diagram-file-error" title="That file can't be used" variant="error">
             {fileError}
           </Alert>
         ) : null}
@@ -282,30 +287,34 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
           </Button>
         </div>
         <div className="flex flex-wrap items-end justify-end gap-3">
-          <label className="flex flex-col gap-1 text-sm text-app-text">
-            From page
-            <Input
-              className="min-h-9 w-24 px-3"
-              data-testid="diagram-from"
-              max={pdf.pageCount}
-              min={1}
-              onChange={(e) => setFrom(e.target.value)}
-              type="number"
-              value={from}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-app-text">
-            To page
-            <Input
-              className="min-h-9 w-24 px-3"
-              data-testid="diagram-to"
-              max={pdf.pageCount}
-              min={1}
-              onChange={(e) => setTo(e.target.value)}
-              type="number"
-              value={to}
-            />
-          </label>
+          {pdf.kind === "pdf" ? (
+            <>
+              <label className="flex flex-col gap-1 text-sm text-app-text">
+                From page
+                <Input
+                  className="min-h-9 w-24 px-3"
+                  data-testid="diagram-from"
+                  max={pdf.pageCount}
+                  min={1}
+                  onChange={(e) => setFrom(e.target.value)}
+                  type="number"
+                  value={from}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-app-text">
+                To page
+                <Input
+                  className="min-h-9 w-24 px-3"
+                  data-testid="diagram-to"
+                  max={pdf.pageCount}
+                  min={1}
+                  onChange={(e) => setTo(e.target.value)}
+                  type="number"
+                  value={to}
+                />
+              </label>
+            </>
+          ) : null}
           {scan ? (
             <Button onClick={() => (cancelRef.current = true)} variant="outline">
               Stop
@@ -318,7 +327,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
         </div>
         {range.tooMany ? (
           <p className="text-right text-xs text-warning-ink">
-            Scan at most {PDF_IMPORT_LIMITS.maxPagesPerScan} pages at a time.
+            Scan at most {MAX_PAGES_PER_SCAN} pages at a time.
           </p>
         ) : null}
         {scan ? (

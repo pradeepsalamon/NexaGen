@@ -127,6 +127,11 @@ export function DiagramReviewPanel({ candidate, review, onChange, onDiscard, act
             className="w-full max-w-[360px] rounded-control border border-app-border bg-app-surface"
             src={candidate.crop}
           />
+          {candidate.annotated ? (
+            <Alert data-testid="diagram-annotated" title="This diagram has arrows or lines on it" variant="warning">
+              Marks drawn over a board can read as pieces, so check every square.
+            </Alert>
+          ) : null}
           {doubtful.length > 0 ? (
             <Alert title="Check these squares" variant="warning">
               The recognizer was unsure about {doubtful.join(", ")}.
@@ -211,7 +216,7 @@ export function DiagramReviewPanel({ candidate, review, onChange, onDiscard, act
             ok={!!review.sideToMove}
             text={
               review.sideSource === "caption" && candidate.sideHint
-                ? `From the caption: "${candidate.sideHint.phrase}".`
+                ? `${candidate.textSource === "ocr" ? "Read from the picture" : "From the caption"}: "${candidate.sideHint.phrase}".`
                 : review.sideToMove
                   ? "Chosen by you."
                   : "Not shown in the diagram — choose one."
