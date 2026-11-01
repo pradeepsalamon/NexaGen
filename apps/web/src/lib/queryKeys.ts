@@ -274,6 +274,11 @@ export const queryKeys = {
     adminRules: ["payroll", "admin", "rules"] as const,
     adminPayouts: (periodId: string) => ["payroll", "admin", "payouts", periodId] as const,
   },
+  approvals: {
+    all: ["approvals"] as const,
+    mine: ["approvals", "mine"] as const,
+    admin: (status?: string) => ["approvals", "admin", status ?? "all"] as const,
+  },
   classRequests: {
     all: ["class-requests"] as const,
     list: (status?: string) => ["class-requests", "list", status ?? "all"] as const,

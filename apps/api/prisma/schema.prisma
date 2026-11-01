@@ -2062,6 +2062,8 @@ enum NotificationType {
   SUBSCRIPTION_RENEWAL_FAILED
   PAYROLL_FINALIZED
   PAYROLL_PAID
+  APPROVAL_REQUESTED
+  APPROVAL_DECIDED
 }
 
 model Notification {
@@ -2901,6 +2903,8 @@ enum MessagingEvent {
   SUBSCRIPTION_RENEWAL_FAILED
   PAYROLL_FINALIZED
   PAYROLL_PAID
+  APPROVAL_REQUESTED
+  APPROVAL_DECIDED
 }
 
 enum MessagingScheduleMode {
@@ -2913,6 +2917,7 @@ enum MessagingAudience {
   STUDENTS
   COACHES
   STUDENTS_AND_COACHES
+  ADMINS
 }
 
 enum MessageChannel {

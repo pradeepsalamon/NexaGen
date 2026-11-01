@@ -21,6 +21,7 @@ import {
 import { ApprovalStatus, Prisma, UserRole, type ApprovalRequest } from "@prisma/client";
 import { authenticateUser, isAdminRole } from "../auth/authenticate";
 import { parseOrBadRequest } from "../common/zod-body.pipe";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { APPROVAL_HANDLERS, type ApprovalActor, type ApprovalHandler } from "./approval-handler";
@@ -61,6 +62,7 @@ export class ApprovalService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly jobLocks: JobLockService,
+    private readonly messaging: MessagingDispatchService,
     @Inject(APPROVAL_HANDLERS) handlers: ApprovalHandler[]
   ) {
     this.handlers = new Map(handlers.map((handler) => [handler.actionType, handler]));
@@ -124,6 +126,7 @@ export class ApprovalService {
     }
 
     this.runAfterCommit(handler, created, "CREATED");
+    this.messaging.dispatchInBackground({ approvalRequestId: created.id, event: "APPROVAL_REQUESTED" });
     return { request: await this.load(created.id) };
   }
 
@@ -233,6 +236,7 @@ export class ApprovalService {
 
     const decided = await this.prisma.approvalRequest.findUniqueOrThrow({ where: { id } });
     this.runAfterCommit(handler, decided, "APPROVED");
+    this.messaging.dispatchInBackground({ approvalRequestId: id, event: "APPROVAL_DECIDED" });
     return { request: await this.load(id, true) };
   }
 
@@ -249,6 +253,7 @@ export class ApprovalService {
 
     const decided = await this.prisma.approvalRequest.findUniqueOrThrow({ where: { id } });
     this.runAfterCommit(handler, decided, "REJECTED");
+    this.messaging.dispatchInBackground({ approvalRequestId: id, event: "APPROVAL_DECIDED" });
     return { request: await this.load(id, true) };
   }
 
@@ -268,6 +273,7 @@ export class ApprovalService {
     });
     let expired = 0;
     for (const { id } of overdue) {
+      let didExpire = false;
       await this.prisma.$transaction(async (tx) => {
         const { count } = await tx.approvalRequest.updateMany({
           data: { decidedAt: now, status: ApprovalStatus.EXPIRED },
@@ -276,8 +282,11 @@ export class ApprovalService {
         if (count === 1) {
           await tx.approvalEvent.create({ data: { requestId: id, type: "EXPIRED" } });
           expired += 1;
+          didExpire = true;
         }
       });
+      // The requester learns their request ran out instead of waiting on it.
+      if (didExpire) this.messaging.dispatchInBackground({ approvalRequestId: id, event: "APPROVAL_DECIDED" });
     }
     return expired;
   }

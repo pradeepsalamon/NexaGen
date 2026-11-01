@@ -4,6 +4,7 @@ import { APPROVAL_ACTIONS } from "@nexa-chess/types";
 import { Prisma, UserRole, UserStatus } from "@prisma/client";
 import { z } from "zod";
 import { createJobLockStub } from "../prisma/job-lock.testing";
+import type { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import type { JobLockService } from "../prisma/job-lock.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { ApprovalHandler } from "./approval-handler";
@@ -43,7 +44,13 @@ function makeStore() {
     subjectUser: null
   });
 
-  const prisma: Record<string, unknown> = {
+  /**
+   * A client whose writes, inside a transaction, record how to undo
+   * themselves: a failing transaction rolls back only ITS writes, never a
+   * concurrent winner's (a whole-store snapshot restore would).
+   */
+  type Undo = () => void;
+  const client = (journal: Undo[] | null): Record<string, unknown> => ({
     user: { findUnique: jest.fn(async ({ where }: { where: { id: string } }) => {
       const u = users[where.id];
       return u ? { ...u, status: UserStatus.ACTIVE, timezone: "UTC" } : null;
@@ -55,6 +62,9 @@ function makeStore() {
         }
         const row = { createdAt: new Date(), id: `req-${++seq}`, reviewerId: null, status: "PENDING", ...data } as unknown as Row;
         requests.push(row);
+        journal?.push(() => {
+          requests = requests.filter((r) => r !== row);
+        });
         return row;
       }),
       findUnique: jest.fn(async ({ where }: { where: { id: string } }) => {
@@ -71,31 +81,48 @@ function makeStore() {
       ),
       update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         const row = requests.find((r) => r.id === where.id)!;
+        const before = { ...row };
         Object.assign(row, data);
+        journal?.push(() => {
+          for (const key of Object.keys(data)) row[key] = before[key];
+        });
         return row;
       }),
       updateMany: jest.fn(async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
         const hit = requests.filter((r) => matches(r, where));
-        hit.forEach((r) => Object.assign(r, data));
+        for (const row of hit) {
+          const before = { ...row };
+          Object.assign(row, data);
+          journal?.push(() => {
+            for (const key of Object.keys(data)) row[key] = before[key];
+          });
+        }
         return { count: hit.length };
       })
     },
     approvalEvent: {
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
-        events.push({ createdAt: new Date(), id: `ev-${++seq}`, ...data });
+        const event = { createdAt: new Date(), id: `ev-${++seq}`, ...data };
+        events.push(event);
+        journal?.push(() => {
+          events = events.filter((e) => e !== event);
+        });
         return data;
       }),
       findMany: jest.fn(async ({ where }: { where: { requestId: string } }) =>
         events.filter((e) => e.requestId === where.requestId).map((e) => ({ ...e, actor: null }))
       )
-    },
+    }
+  });
+
+  const prisma: Record<string, unknown> = {
+    ...client(null),
     $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>): Promise<unknown> => {
-      const snapshot = { events: structuredClone(events), requests: structuredClone(requests) };
+      const journal: Undo[] = [];
       try {
-        return await fn(prisma);
+        return await fn(client(journal));
       } catch (error) {
-        requests = snapshot.requests;
-        events = snapshot.events;
+        for (const undo of journal.reverse()) undo();
         throw error;
       }
     })
@@ -118,6 +145,7 @@ describe("ApprovalService", () => {
   let jwt: { verifyAsync: jest.Mock };
   let handler: jest.Mocked<ApprovalHandler<{ classId: string }>>;
   let service: ApprovalService;
+  let messaging: { dispatchInBackground: jest.Mock };
   let classState: { owner: string; status: string };
 
   const as = (user: { id: string; role: UserRole }) => {
@@ -134,6 +162,7 @@ describe("ApprovalService", () => {
     } as never);
 
   beforeEach(() => {
+    messaging = { dispatchInBackground: jest.fn() };
     store = makeStore();
     jwt = { verifyAsync: jest.fn() };
     classState = { owner: "coach-1", status: "SCHEDULED" };
@@ -162,6 +191,7 @@ describe("ApprovalService", () => {
       jwt as unknown as JwtService,
       store.prisma as unknown as PrismaService,
       createJobLockStub() as unknown as JobLockService,
+      messaging as unknown as MessagingDispatchService,
       [handler as unknown as ApprovalHandler]
     );
   });
@@ -308,6 +338,9 @@ describe("ApprovalService", () => {
       const results = await Promise.allSettled([service.approve("t", request.id), service.approve("t", request.id)]);
       expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
       expect(handler.execute).toHaveBeenCalledTimes(1);
+      // The loser's rollback undoes only its own writes, so the winner's event stays.
+      expect(store.events().map((e) => e.type)).toEqual(["CREATED", "APPROVED"]);
+      expect(messaging.dispatchInBackground).toHaveBeenCalledTimes(2);
     });
 
     it("can't replay a decided request, or approve a cancelled one", async () => {
@@ -339,6 +372,57 @@ describe("ApprovalService", () => {
       expect(await service.expireOverdueNow()).toBe(1);
       expect(store.requests()[0].status).toBe("EXPIRED");
       expect(store.events().map((e) => e.type)).toContain("EXPIRED");
+    });
+  });
+
+  // §2.7: admins hear about a request, the requester about its outcome.
+  describe("notifications", () => {
+    it("tells the reviewers on create and the requester on approve, reject and expiry", async () => {
+      as(coach);
+      const first = await ask();
+      expect(messaging.dispatchInBackground).toHaveBeenLastCalledWith({
+        approvalRequestId: first.request.id,
+        event: "APPROVAL_REQUESTED"
+      });
+
+      as(admin);
+      await service.approve("t", first.request.id);
+      expect(messaging.dispatchInBackground).toHaveBeenLastCalledWith({
+        approvalRequestId: first.request.id,
+        event: "APPROVAL_DECIDED"
+      });
+
+      classState.status = "SCHEDULED";
+      as(coach);
+      handler.prepare.mockResolvedValueOnce({ currentValue: null, dedupeKey: "second", requestedValue: {} });
+      const second = await ask();
+      as(admin);
+      await service.reject("t", second.request.id, "Not this week");
+      expect(messaging.dispatchInBackground).toHaveBeenLastCalledWith({
+        approvalRequestId: second.request.id,
+        event: "APPROVAL_DECIDED"
+      });
+
+      as(coach);
+      handler.prepare.mockResolvedValueOnce({ currentValue: null, dedupeKey: "third", requestedValue: {} });
+      const third = await ask();
+      store.requests().find((r) => r.id === third.request.id)!.expiresAt = new Date(Date.now() - 1000);
+      messaging.dispatchInBackground.mockClear();
+      await service.expireOverdueNow();
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({
+        approvalRequestId: third.request.id,
+        event: "APPROVAL_DECIDED"
+      });
+    });
+
+    it("announces nothing when an approval doesn't go through", async () => {
+      as(coach);
+      const { request } = await ask();
+      messaging.dispatchInBackground.mockClear();
+      classState.status = "CANCELLED";
+      as(admin);
+      await expect(service.approve("t", request.id)).rejects.toBeInstanceOf(ConflictException);
+      expect(messaging.dispatchInBackground).not.toHaveBeenCalled();
     });
   });
 

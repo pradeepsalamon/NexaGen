@@ -7,12 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { queryKeys } from "@/lib/queryKeys";
-import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { ClassRequestDialog } from "@/features/class-requests/components/ClassRequestDialog";
 import { CoachClassRequestsSection } from "@/features/class-requests/components/CoachClassRequestsSection";
 import { useCoachBatches, useUpcomingClasses } from "../hooks/useCoachApi";
-import { cancelClass } from "../api/coachApi";
+import { useCoachClassCancel } from "@/features/approvals/hooks/useCoachClassCancel";
 import { ClassCard } from "./ClassCard";
 import { ClassNotesDialog } from "./ClassNotesDialog";
 import { CoachScheduleCalendar } from "./CoachScheduleCalendar";
@@ -41,18 +39,8 @@ export function CoachScheduleClient() {
     setRequestOpen(true);
   };
 
-  const { run: handleCancel } = useUndoableMutation({
-    strategy: "defer",
-    mutationFn: (classItem: CoachClass) => cancelClass(classItem.id),
-    undo: async () => {},
-    toast: (classItem) => ({ title: `Cancelling class for ${classItem.batchName}` }),
-    invalidates: [
-      queryKeys.coach.dashboard,
-      queryKeys.coach.classes,
-      queryKeys.coach.upcomingClasses,
-      queryKeys.coach.classHistory
-    ]
-  });
+  // V10: direct only more than 24 h ahead; otherwise an admin request.
+  const { cancel: handleCancel, dialog: cancelRequestDialog } = useCoachClassCancel();
 
   const handleEdit = (classItem: CoachClass) => {
     setClassToEdit(classItem);
@@ -142,7 +130,7 @@ export function CoachScheduleClient() {
         batches={batches}
         rescheduleClass={rescheduleClass}
       />
-
+      {cancelRequestDialog}
     </div>
   );
 }

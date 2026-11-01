@@ -66,7 +66,7 @@ ones in this plan:
 |---|---|---|
 | `isParentContactChange` — when a profile save moves the guardian contact | `index.ts` | 1 ✅ |
 | Live-setting locks: `LOCKABLE_LIVE_SETTINGS`, `readLiveClassLocks`, `withoutLockedFields`, `lockedFieldsChanged`, `liveClassLockSources`; `resolveLiveClassSettings({ systemLocks, batchLocks })` | `live-class-settings.ts` | 2 ✅ |
-| `resolveCancellationPath(class, now)` → `DIRECT` / `APPROVAL` / `EXCEPTIONAL` / `NOT_ALLOWED` | `class-cancellation.ts` | 4 |
+| `resolveCancellationPath(class, now)` → `DIRECT` / `APPROVAL` / `EXCEPTIONAL` / `NOT_ALLOWED` | `class-cancellation.ts` | 4 ✅ |
 | Approval catalogue: action types, categories, TTLs, requester/reviewer roles, request/response contract | `approvals.ts` | 3 ✅ |
 
 ### 2.3 One approval engine, not one per module
@@ -208,13 +208,13 @@ The earlier cross-user sweep is in [AUTHORIZATION.md](AUTHORIZATION.md) § Audit
 | V1 | Medium | A coach's class-level live settings override the admin academy policy and batch defaults; no field can be locked (`live-class-settings.service.ts` `updateSettingsForClass`, `live-class.service.ts` `updateLiveSettings`). | ✅ Fixed, Stage 2 |
 | V2 | Medium | Manual-payment approve/reject was read-then-write. Payments may go FAILED → PAID, so a concurrent reject and approve could leave a REJECTED record next to a PAID payment and a granted entitlement, or settle twice. | ✅ Fixed, Stage 1 |
 | V3 | Medium | Class-request approval didn't revalidate that the requesting coach was still an active coach of a live, unarchived batch, or that a rescheduled class was still theirs. | ✅ Fixed, Stage 1 |
-| V4 | Low–Med | The live-class pull roster searches every active student in the academy, and a pull admits any of them. | Stage 4 (request flow, owner decision) |
+| V4 | Low–Med | The live-class pull roster searches every active student in the academy, and a pull admits any of them. | ✅ Fixed, Stage 4 (own batches or an approved `LIVE_CLASS_GUEST_STUDENT`) |
 | V5 | Latent | Per-class `batchType` override; the payroll rate scope supports `classTypes`. | Investigated (§3.3); kept by decision |
 | V6 | Low | A coach set their own `CoachProfile.hourlyRate`, which admins see as the coach's rate. | ✅ Fixed, Stage 1 |
 | V7 | Low | A student (a minor) could silently change `parentEmail`/`parentPhone`, the default invoice and notice contact. | ✅ Mitigated, Stage 1 |
 | V8 | — | Reported as a web/API mismatch on recurring schedules. **Re-check: false positive.** `/admin/schedule` (recurring schedules) is Admin + Super Admin on both sides. `/admin/classes` is a different page (the batch-classes report), SUPER_ADMIN on both. | ✅ Closed; decision pinned by spec |
 | V9 | Low | Audit rows can be updated or deleted. | ✅ Fixed, Stage 3 (DB trigger) |
-| V10 | Info | A coach can cancel their own class up to the start time. | Stage 4 (24 h rule) |
+| V10 | Info | A coach can cancel their own class up to the start time. | ✅ Fixed, Stage 4 (24 h rule) |
 | V11 | Info | No consent records exist. | Separate design (§2.8) |
 | V12 | Info | A minor can request account deletion without a guardian. | Separate design (§2.8) |
 
@@ -256,20 +256,20 @@ Legend:
 | | Lock or unlock academy/batch settings | — | A | — | Stage 2 |
 | | Moderate, kick, admit from waiting room (own class) | D | D | — | built |
 | | Pull a student from own batch | D | D | — | built |
-| | Pull or admit a student from **outside** own batches | R | D | — | Stage 4 |
+| | Pull or admit a student from **outside** own batches | R | D | — | ✅ Stage 4 |
 | | Start/stop recording (own class) | D if unlocked (C once consent exists) | D | — | Stage 2 |
 | **Scheduling** | Edit notes, topic, homework of own class | D | D | — | built |
 | | Extra class / reschedule | R | D | — | built → engine, Stage 3 |
-| | Cancel own class **> 24 h** ahead | D (reason recorded) | D | — | Stage 4 |
-| | Cancel own class **≤ 24 h** ahead | R (urgent; emergency report notifies admins at once) | D | — | Stage 4 |
-| | Cancel after start ("not held") | R, exceptional (affects attendance and payroll) | D | — | Stage 4 |
+| | Cancel own class **> 24 h** ahead | D | D | — | ✅ Stage 4 |
+| | Cancel own class **≤ 24 h** ahead | R (urgent under 6 h; admins notified at once) | D | — | ✅ Stage 4 |
+| | Cancel after start ("not held") | R, exceptional, always urgent (affects attendance and payroll) | D | — | ✅ Stage 4 |
 | | Recurring schedules | — | A | — | built; pinned by spec |
 | | Per-class batch-type override | D (display only, §3.3) | D | — | built |
 | **Batches** | Create, edit, archive, delete; assign coaches and students | — | A | — | built |
 | | Batch default live settings and locks | — | A | — | Stage 2 |
 | **Students and enrolment** | Read students of own batches | D | D | own | built |
 | | Enrol, remove or transfer a student | R | D | — | Stage 5 |
-| | Give a student from outside own batches access to own class | R | D | — | Stage 4 |
+| | Give a student from outside own batches access to own class | R | D | — | ✅ Stage 4 |
 | | Edit own profile | D (pay rate is read-only, set via compensation rates) | D (any) | D | built |
 | | Change parent/guardian contact | — | D | D + password + previous contact told | ✅ Stage 1 |
 | **Attendance** | Automatic recording (LiveKit) | — | — | — | built |
@@ -312,7 +312,7 @@ Stages are small, isolated and tested. Each updates §7.
 | **1. Immediate fixes** | V2 manual-payment claim · V3 class-request revalidation (+ EXTRA_CLASS duplicate guard, coach timezone) · V6 hourly rate read-only · V7 parent-contact safeguard · V8 re-check and pin · batch-type investigation | none | ✅ done |
 | **2. Live-setting locks (V1)** | `locks` in policy and batch JSON; resolver honours locks; coach class/preset/mid-class writes refused on locked fields; admin lock UI; coach UI shows locks | none (JSON) | ✅ done |
 | **3. Approval engine + immutable audit (V9)** | `approvals.ts` catalogue; `ApprovalRequest` + `ApprovalEvent`; `ApprovalService` with the §2.3 guarantees; expiry cron; append-only triggers on `trash_audit_logs` and `approval_events`; privacy export | migration `20261101082355_approval_requests_and_append_only_audit` | ✅ done (backend; no action handlers yet) |
-| **4. Cancellation, outside-batch students, inbox (V4, V10)** | `resolveCancellationPath`; `CLASS_CANCEL` / `CLASS_CANCEL_EXCEPTIONAL` handlers (urgent emergency flag); pull roster limited to own batches plus `LIVE_CLASS_GUEST_STUDENT`; **shipped together with** the admin inbox `/admin/requests` and coach `/coach/requests` plus `APPROVAL_REQUESTED`/`APPROVAL_DECIDED` notifications, so no coach workflow is blocked without a way to ask | enum migration (messaging events) | next |
+| **4. Cancellation, outside-batch students, inbox (V4, V10)** | `resolveCancellationPath`; `CLASS_CANCEL` / `CLASS_CANCEL_EXCEPTIONAL` handlers (urgent emergency flag); pull roster limited to own batches plus `LIVE_CLASS_GUEST_STUDENT`; **shipped together with** the admin inbox `/admin/requests` and coach `/coach/requests` plus `APPROVAL_REQUESTED`/`APPROVAL_DECIDED` notifications, so no coach workflow is blocked without a way to ask | enum migration `approval_notifications` (messaging events + `ADMINS` audience) | ✅ done |
 | **5. Port and unify** | Class change requests ported to engine handlers (data migration, old table read-only); manual payments, account deletions and coach applications listed in the inbox | data migration | |
 | **6. More request types** | Enrolment/transfer, attendance correction (+ audited admin correction), live-setting exception, substitute coach | none | |
 | **7. Consent and guardians** | Separate design (§2.8), then `ConsentService` wired into handlers and direct paths | migration | needs owner/legal decision |
@@ -453,6 +453,41 @@ From the CodeRabbit review of PR #125:
   deployed); a durable outbox for the parent notice (the outbox only mails
   accounts, and the old parent email is a typed address: R3 below).
 
+### Stage 4: cancellation, outside-batch students, inbox, V4 + V10 (2026-11-01) ✅
+
+* `@nexa-chess/types` `class-cancellation.ts`: `resolveCancellationPath` —
+  `DIRECT` more than 24 h ahead, `APPROVAL` within 24 h, `EXCEPTIONAL` once the
+  start has passed or the class is running, `NOT_ALLOWED` when cancelled or
+  completed.
+* `CoachService.cancelClass` takes only `DIRECT` (403 otherwise, naming the
+  request to make) and is now status-filtered.
+* Handlers in `apps/api/src/approval/handlers/`:
+  * `CLASS_CANCEL` / `CLASS_CANCEL_EXCEPTIONAL` (`class-cancel.handler.ts`):
+    shared dedupe key `CLASS_CANCEL:<classId>`; a regular request expires at the
+    class start and is urgent under 6 h, an exceptional one is always urgent;
+    revalidation row-locks the class and re-checks the coach (owner, ACTIVE),
+    the start time and the status; a running class must be ended before an
+    exceptional approval, and a COMPLETED one can't be cancelled; the cancel is
+    status-filtered and `CLASS_CANCELLED` goes out after commit.
+  * `LIVE_CLASS_GUEST_STUDENT` (`live-class-guest-student.handler.ts`): for a
+    student outside the coach's live batches, for one class, expiring at its
+    end. The APPROVED request is the grant; if the class is live at approval,
+    the pull is sent on the coach's behalf.
+* V4: `LiveClassPullService` lets a coach pull only students of their own live
+  batches or an approved guest for that class (403 otherwise). Search still
+  finds other students, flagged `needsApproval` / `approvalPending` with
+  presence hidden, so the coach can ask.
+* Notifications: `APPROVAL_REQUESTED` (every ACTIVE reviewer, never the
+  requester; new audience `ADMINS`) and `APPROVAL_DECIDED` (requester, on
+  approve, reject or expiry), enabled and in-app only. Migration
+  `approval_notifications`.
+* Web: `/admin/requests` (inbox: filter, urgent badge, approve with an optional
+  note, reject with a required reason, `?id=` deep link from the
+  notification); `/coach/requests` (own requests, withdraw while waiting);
+  `useCoachClassCancel` routes the coach's Cancel button by the 24 h rule; the
+  in-class pull list offers "Ask an admin" for students outside the coach's
+  batches.
+
 ---
 
 ## 8. Outstanding decisions and risks
@@ -462,6 +497,6 @@ From the CodeRabbit review of PR #125:
 | D1 | Consent and guardian design (§2.8): purposes, legal basis per purpose, guardian verification, age of digital consent per jurisdiction. Blocks enforcement of every C row, including recording of minors. | owner + legal |
 | D2 | Request expiry defaults. Proposed: 72 h for most types; class requests expire at the class start; urgent cancellation requests expire at the class start. | owner (default applied if unanswered) |
 | D3 | Whether a student (minor) may change the parent contact at all, or only through an admin once guardians exist. Current mitigation: password, notice and audit. | owner, with D1 |
-| R1 | V4 stays open until Stage 4: a coach can still pull an outside-batch student into a live class. | — |
-| R2 | Request notifications (`APPROVAL_REQUESTED` / `APPROVAL_DECIDED`) aren't built yet. They need new `MessagingEvent` + `NotificationType` enum values (a migration) and ship with Stage 4. | — |
+| R1 | ~~V4 stays open until Stage 4.~~ Closed by Stage 4. | — |
+| R2 | ~~Request notifications aren't built yet.~~ Shipped in Stage 4. | — |
 | R3 | The previous-parent-contact notice (V7) is sent best-effort after commit; an SMTP failure drops it (logged). The messaging outbox only delivers to accounts, so a durable notice to a typed address needs either a guardian account (D1/D3) or an outbox row type for raw addresses. | owner, with D1 |
