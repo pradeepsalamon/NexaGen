@@ -57,6 +57,8 @@ export const PAGE_TITLES = {
   "/admin/puzzles": "Puzzle library",
   "/admin/puzzles/[id]": "Puzzle",
   "/admin/puzzles/[id]/edit": "Edit puzzle",
+  "/admin/puzzles/activities/[id]/edit": "Edit activity",
+  "/admin/puzzles/activities/new": "New activity",
   "/admin/puzzles/import-pdf": "Import from PDF",
   "/admin/puzzles/new": "New puzzle",
   "/admin/puzzles/scoring": "Puzzle points",

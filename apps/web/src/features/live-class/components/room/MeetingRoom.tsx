@@ -20,6 +20,8 @@ import { SimulProvider } from "../../providers/SimulProvider";
 import { MovePollStudentHost } from "../meeting/move-poll/MovePollStudentHost";
 import { MatchHost } from "../meeting/match/MatchHost";
 import { SimulHost } from "../meeting/simul/SimulHost";
+import { ActivityRunHost } from "../meeting/activity-run/ActivityRunHost";
+import { ActivityRunProvider } from "../../providers/ActivityRunProvider";
 import { AudioSessionBridge } from "../meeting/AudioSessionBridge";
 import { PipMicCaptureBridge } from "../meeting/PipMicCaptureBridge";
 import { MeetingEventToasts } from "../meeting/MeetingEventToasts";
@@ -217,15 +219,18 @@ export function MeetingRoom({ token, classId, guestToken = null }: MeetingRoomPr
             <MovePollStudentHost classId={classId} />
             <SimulProvider classId={classId}>
               <MatchProvider classId={classId}>
-                <SimulHost />
-                <MatchHost />
-                <ConnectionStateManager classId={classId}>
-                  <ChatProvider classId={classId}>
-                    {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
-                    <MeetingEventToasts />
-                    <MeetingLayout />
-                  </ChatProvider>
-                </ConnectionStateManager>
+                <ActivityRunProvider>
+                  <SimulHost />
+                  <MatchHost />
+                  <ActivityRunHost />
+                  <ConnectionStateManager classId={classId}>
+                    <ChatProvider classId={classId}>
+                      {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
+                      <MeetingEventToasts />
+                      <MeetingLayout />
+                    </ChatProvider>
+                  </ConnectionStateManager>
+                </ActivityRunProvider>
               </MatchProvider>
             </SimulProvider>
           </ReactionProvider>

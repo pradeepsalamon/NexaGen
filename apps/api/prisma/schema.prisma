@@ -324,6 +324,10 @@ model User {
   deletedPuzzleTopics             PuzzleTopic[]                    @relation("PuzzleTopicDeletedBy")
   homeworkApprovedPuzzleTopics    PuzzleTopic[]                    @relation("PuzzleTopicHomeworkApprovedBy")
   authoredPuzzles                 Puzzle[]                         @relation("AuthoredPuzzles")
+  authoredLibraryActivities       LibraryActivity[]                @relation("AuthoredLibraryActivities")
+  deletedLibraryActivities        LibraryActivity[]                @relation("LibraryActivityDeletedBy")
+  mcqAttempts                     LiveClassMcqAttempt[]            @relation("StudentMcqAttempts")
+  playoutGames                    LiveClassPlayoutGame[]           @relation("StudentPlayoutGames")
   deletedPuzzles                  Puzzle[]                         @relation("PuzzleDeletedBy")
   studentPuzzleAttempts           PuzzleAttempt[]                  @relation("StudentPuzzleAttempts")
   classChangeRequests             ClassChangeRequest[]             @relation("ClassChangeRequestCoach")
@@ -845,6 +849,7 @@ model CoachClass {
   classroomToolStates      LiveClassToolState[]
   liveClassChapters        LiveClassChapter[]
   activityQueues           LiveClassActivityQueue[]
+  activityRuns             LiveClassActivityRun[]
   demoRegistrations        DemoClassRegistration[]
   assignedLeads            Lead[]                           @relation("LeadAssignedClass")
   feedbackResponses        FeedbackResponse[]               @relation("FeedbackResponseClass")
@@ -2137,6 +2142,7 @@ model PuzzleTopic {
   homeworkApprovedBy   User?     @relation("PuzzleTopicHomeworkApprovedBy", fields: [homeworkApprovedById], references: [id], onDelete: SetNull)
 
   puzzles             Puzzle[]
+  libraryActivities   LibraryActivity[]
   homeworkAssignments Assignment[]   @relation("AssignmentSourceTopic")
   revisionItems       RevisionItem[]
 
@@ -5066,6 +5072,8 @@ enum LiveClassActivityKind {
   PUZZLE
   QUESTION
   CHAPTER
+  MCQ
+  PLAYOUT
 }
 
 /// A coach's prepared lesson sequence for one class: drafted (before or during
@@ -5119,6 +5127,9 @@ model LiveClassActivityQueueItem {
   /// a deleted chapter just makes the item unavailable.
   chapterId String?
 
+  /// MCQ / PLAYOUT: the library activity. No FK: a purged one makes the item unavailable.
+  activityId String?
+
   fen             String?
   prompt          String?
   correctUci      String?
@@ -5128,6 +5139,8 @@ model LiveClassActivityQueueItem {
   /// it. No FK: both belong to the same class, so they go away with the queue.
   puzzleAssignmentId String? @unique
   movePollId         String? @unique
+  /// The MCQ / Playout run this item produced. No FK, like the two above.
+  activityRunId      String? @unique
 
   activatedAt     DateTime?
   completedAt     DateTime?
@@ -5139,7 +5152,216 @@ model LiveClassActivityQueueItem {
   @@index([queueId, position])
   @@index([puzzleId])
   @@index([chapterId])
+  @@index([activityId])
   @@map("live_class_activity_queue_items")
+}
+
+// ──────────────────────────────────────────────
+// UNIFIED PUZZLE LIBRARY: MCQ + PLAYOUT (docs/PUZZLE_ACTIVITIES.md)
+// ──────────────────────────────────────────────
+
+enum LibraryActivityKind {
+  MCQ
+  PLAYOUT
+}
+
+enum LiveClassActivityRunStatus {
+  ACTIVE
+  ENDED
+}
+
+enum PlayoutGameStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum PlayoutResult {
+  WIN
+  LOSS
+  DRAW
+  NONE
+}
+
+enum PlayoutEndReason {
+  GOAL_ACHIEVED
+  CHECKMATE
+  STALEMATE
+  DRAW
+  TIME_UP
+  MOVE_LIMIT
+  RESIGNED
+  RETRIED
+  ACTIVITY_ENDED
+}
+
+/// An MCQ or Playout filed in the same folder tree as chess puzzles. A separate
+/// table from `puzzles` on purpose: every puzzle query (training, homework sets,
+/// courses, revision, the catalogue) assumes a position + solution line.
+/// configJson is McqConfig / PlayoutConfig (validated by @nexa-chess/types) and
+/// holds the answer key: it only ever leaves the API on staff routes.
+model LibraryActivity {
+  id   String              @id @default(cuid())
+  kind LibraryActivityKind
+
+  topicId String
+  folder  PuzzleTopic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+
+  /// COLLATE "natural_sort", like puzzles.title (migration only).
+  title        String
+  description  String?
+  difficulty   PuzzleDifficulty
+  /// Free-text subject; the folder is where it is filed.
+  topic        String?
+  tags         String[]         @default([])
+  thumbnailUrl String?
+  configJson   Json
+
+  status     PuzzleStatus     @default(DRAFT)
+  visibility PuzzleVisibility @default(GLOBAL)
+
+  createdById   String?
+  createdBy     User?     @relation("AuthoredLibraryActivities", fields: [createdById], references: [id], onDelete: SetNull)
+  createdByRole UserRole
+  updatedById   String?
+  publishedById String?
+  publishedAt   DateTime?
+  archivedById  String?
+  archivedAt    DateTime?
+
+  runs LiveClassActivityRun[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("LibraryActivityDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([kind])
+  @@index([topicId])
+  @@index([createdById])
+  @@index([difficulty])
+  @@index([status])
+  @@index([createdAt])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
+  @@map("library_activities")
+}
+
+/// One activity put to one class. configJson is FROZEN at start, so an admin
+/// editing the library item never changes a running class or past results.
+/// One ACTIVE run per class: a hand-written partial unique index. Operational
+/// state: not soft-deletable, not Trash-registered.
+model LiveClassActivityRun {
+  id String @id @default(cuid())
+
+  liveClassId String
+  liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  /// SetNull: purging the library item keeps the class's results (title + config are frozen here).
+  activityId String?
+  activity   LibraryActivity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
+
+  kind        LibraryActivityKind
+  title       String
+  description String?
+  difficulty  PuzzleDifficulty
+  configJson  Json
+
+  startedById String?
+  status      LiveClassActivityRunStatus @default(ACTIVE)
+  startedAt   DateTime                   @default(now())
+  /// MCQ with a timer: when submissions close, for the whole class.
+  endsAt      DateTime?
+  endedAt     DateTime?
+  /// When the MCQ key was revealed to the class.
+  revealedAt  DateTime?
+
+  mcqAttempts  LiveClassMcqAttempt[]
+  playoutGames LiveClassPlayoutGame[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([liveClassId])
+  @@index([activityId])
+  @@map("live_class_activity_runs")
+}
+
+/// One submitted answer. `correct` and `score` are decided on the server.
+/// correctOptionIds is the key this answer was marked against.
+model LiveClassMcqAttempt {
+  id String @id @default(cuid())
+
+  runId String
+  run   LiveClassActivityRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("StudentMcqAttempts", fields: [studentId], references: [id], onDelete: Cascade)
+
+  attemptNumber     Int
+  selectedOptionIds String[]
+  correctOptionIds  String[]
+  correct           Boolean
+  score             Int
+  maxScore          Int
+  /// Measured on the server, from when the try became available.
+  durationSeconds   Int
+  submittedAt       DateTime @default(now())
+
+  @@unique([runId, studentId, attemptNumber])
+  @@index([studentId])
+  @@map("live_class_mcq_attempts")
+}
+
+/// One student's own game against the computer. Nothing is shared between
+/// games: each has its own position, history, clock and engine settings, and
+/// every engine search is handed exactly this row's position and settings.
+/// One IN_PROGRESS game per (run, student): a hand-written partial unique index.
+model LiveClassPlayoutGame {
+  id String @id @default(cuid())
+
+  runId String
+  run   LiveClassActivityRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("StudentPlayoutGames", fields: [studentId], references: [id], onDelete: Cascade)
+
+  attemptNumber Int
+  studentColor  String
+  startFen      String
+  fen           String
+  /// Half-moves played; every write is claimed with `where ply = <seen>`.
+  ply           Int              @default(0)
+  movesJson     Json             @default("[]")
+  pgn           String           @default("")
+  engineSkill   Int
+  engineMoveMs  Int
+
+  status       PlayoutGameStatus @default(IN_PROGRESS)
+  endReason    PlayoutEndReason?
+  result       PlayoutResult?
+  goalAchieved Boolean           @default(false)
+  hintsUsed    Int               @default(0)
+  score        Int?
+  maxScore     Int
+
+  startedAt  DateTime  @default(now())
+  /// This student's own clock, when the activity has a timer.
+  endsAt     DateTime?
+  lastMoveAt DateTime?
+  finishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([runId, studentId, attemptNumber])
+  @@index([studentId])
+  @@map("live_class_playout_games")
 }
 
 // ──────────────────────────────────────────────

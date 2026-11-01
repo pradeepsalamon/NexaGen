@@ -541,6 +541,7 @@ export type TrashEntity =
   | "BatchStudent"
   | "Puzzle"
   | "PuzzleTopic"
+  | "LibraryActivity"
   | "Course"
   | "CourseModule";
 
@@ -2574,6 +2575,7 @@ export * from "./live-class-tools";
 export * from "./live-class-chapter";
 export * from "./live-class-activity-queue";
 export * from "./puzzle-rush";
+export * from "./puzzle-activity";
 
 // ──────────────────────────────────────────────
 // Course library (depends on ./puzzle + Assignment types above)
