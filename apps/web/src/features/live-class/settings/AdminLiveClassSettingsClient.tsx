@@ -6,6 +6,7 @@ import {
   DEFAULT_LIVE_CLASS_SETTINGS,
   liveClassSettingsSchema,
   type LiveClassSettings,
+  type LockableLiveSetting,
 } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -23,19 +24,27 @@ function SystemPolicySection() {
   const update = useUpdateLiveClassPolicy();
 
   const [settings, setSettings] = useState<LiveClassSettings>(DEFAULT_LIVE_CLASS_SETTINGS);
+  const [locks, setLocks] = useState<LockableLiveSetting[]>([]);
   useEffect(() => {
-    if (data) setSettings(data.settings);
+    if (data) {
+      setSettings(data.settings);
+      setLocks(data.locks);
+    }
   }, [data]);
 
-  const dirty = data ? JSON.stringify(settings) !== JSON.stringify(data.settings) : false;
+  const dirty = data
+    ? JSON.stringify(settings) !== JSON.stringify(data.settings) ||
+      JSON.stringify(locks) !== JSON.stringify(data.locks)
+    : false;
 
   return (
     <Card className="space-y-4 p-5 sm:p-6">
       <div>
         <h2 className="text-lg font-bold text-app-text">Platform defaults</h2>
         <p className="mt-1 text-sm text-app-muted">
-          The baseline every batch, class and preset inherits from. Batches and coaches can still
-          override individual options.
+          The baseline every batch, class and preset inherits from. Batches and coaches can
+          override individual options unless you lock them: a locked option applies to every
+          class and nobody below the academy can change it.
         </p>
       </div>
 
@@ -51,19 +60,24 @@ function SystemPolicySection() {
             onOverrideChange={(next) => setSettings(liveClassSettingsSchema.parse(next))}
             resolved={settings}
             inheritedFrom={DEFAULT_LIVE_CLASS_SETTINGS}
+            locks={locks}
+            onLocksChange={setLocks}
           />
           <div className="flex justify-end gap-2">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setSettings(data.settings)}
+              onClick={() => {
+                setSettings(data.settings);
+                setLocks(data.locks);
+              }}
               disabled={update.isPending || !dirty}
             >
               Reset
             </Button>
             <Button
               type="button"
-              onClick={() => update.mutate({ settings })}
+              onClick={() => update.mutate({ settings, locks })}
               disabled={update.isPending || !dirty}
             >
               {update.isPending ? "Saving…" : "Save defaults"}

@@ -15,7 +15,8 @@ import type { ProfileFormValues } from "./profileForm.utils";
 import { getTimezoneOptions } from "./profileForm.utils";
 
 interface AccountFieldsProps {
-  emailChanged: boolean;
+  /** Shown as the hint of the current-password field; null hides the field. */
+  passwordReason: string | null;
   values: ProfileFormValues;
   onFieldChange: <TField extends keyof ProfileFormValues>(
     field: TField,
@@ -24,7 +25,7 @@ interface AccountFieldsProps {
 }
 
 export const AccountFields = memo(function AccountFields({
-  emailChanged,
+  passwordReason,
   values,
   onFieldChange
 }: AccountFieldsProps) {
@@ -59,10 +60,10 @@ export const AccountFields = memo(function AccountFields({
         </FormField>
       </div>
 
-      {emailChanged ? (
+      {passwordReason ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <FormField
-            hint="Required to change your email address."
+            hint={passwordReason}
             id="profile-current-password"
             label="Current Password"
           >

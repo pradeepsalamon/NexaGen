@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { RadioTower } from "lucide-react";
 import {
+  liveClassLockSources,
   resolveLiveClassSettings,
+  withoutLockedFields,
   type LiveClassSettingsOverride,
 } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
@@ -32,7 +34,12 @@ export function InRoomClassControls() {
   const inheritedFrom = useMemo(
     () =>
       data
-        ? resolveLiveClassSettings({ system: data.system, batch: data.batchOverride })
+        ? resolveLiveClassSettings({
+            system: data.system,
+            batch: data.batchOverride,
+            systemLocks: data.systemLocks,
+            batchLocks: data.batchLocks,
+          })
         : undefined,
     [data],
   );
@@ -44,9 +51,17 @@ export function InRoomClassControls() {
             system: data.system,
             batch: data.batchOverride,
             class: draft,
+            systemLocks: data.systemLocks,
+            batchLocks: data.batchLocks,
+            classExceptions: data.lockExceptions,
           })
         : undefined,
     [data, draft],
+  );
+  const lockSources = useMemo(
+    () =>
+      data ? liveClassLockSources({ systemLocks: data.systemLocks, batchLocks: data.batchLocks }) : {},
+    [data],
   );
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(data?.classOverride ?? {});
@@ -76,6 +91,8 @@ export function InRoomClassControls() {
         inheritedFrom={inheritedFrom}
         batchOverride={data.batchOverride}
         disabled={apply.isPending}
+        lockSources={lockSources}
+        lockExceptions={data.lockExceptions}
       />
 
       <div className="flex flex-wrap justify-end gap-2">
@@ -89,11 +106,12 @@ export function InRoomClassControls() {
         </Button>
         <Button
           type="button"
-          onClick={() =>
+          onClick={() => {
+            const unlocked = withoutLockedFields(draft, [...data.systemLocks, ...data.batchLocks]) ?? {};
             apply.mutate({
-              liveClassSettings: Object.keys(draft).length > 0 ? draft : null,
-            })
-          }
+              liveClassSettings: Object.keys(unlocked).length > 0 ? unlocked : null,
+            });
+          }}
           disabled={apply.isPending || !dirty}
         >
           {apply.isPending ? "Applying…" : "Apply to class"}

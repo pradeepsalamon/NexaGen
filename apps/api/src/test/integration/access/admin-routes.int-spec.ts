@@ -9,8 +9,7 @@ const ADMIN_PREFIXES = ["/admin", "/analytics", "/announcements", "/batch-schedu
 const ADMIN_ROUTES = [
   "GET /batches/assignable-users",
   "GET /live-class-settings/audit",
-  "POST /class-requests/:id/approve",
-  "POST /class-requests/:id/reject"
+  "PATCH /attendance/class/:id/students/:studentId"
 ];
 // /courses is admin-only except the student's own /courses/mine.
 const isAdminCourseRoute = (path: string) =>

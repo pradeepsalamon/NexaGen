@@ -18,6 +18,14 @@ const DUE_TOMORROW = () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOStrin
 // Every route here has a twin in OWN_CASES on the caller's own data (where a
 // GET exists), so a denial can't pass just because the route itself is broken.
 const CROSS_USER: Case[] = [
+  // Approval requests: a coach can only ask about their own classes and batches
+  { name: "coach lists substitutes for another coach's class", as: (w) => w.a.coach, path: (w) => API_ROUTES.approvals.substituteOptions(w.b.class.id) },
+  { name: "coach asks for a substitute on another coach's class", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.approvals.create, body: (w: World) => ({ actionType: "CLASS_SUBSTITUTE_COACH", payload: { classId: w.b.class.id, substituteCoachId: w.b.coach.id }, reason: "Not mine" }) },
+  { name: "coach asks to correct attendance in another coach's class", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.approvals.create, body: (w: World) => ({ actionType: "ATTENDANCE_CORRECTION", payload: { classId: w.b.class.id, status: "PRESENT", studentId: w.b.student.id }, reason: "Not mine" }) },
+  { name: "coach asks for a setting exception on another coach's class", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.approvals.create, body: (w: World) => ({ actionType: "LIVE_SETTING_EXCEPTION", payload: { classId: w.b.class.id, field: "student.chat", value: "DISABLED" }, reason: "Not mine" }) },
+  { name: "coach asks to add a student to another coach's batch", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.approvals.create, body: (w: World) => ({ actionType: "BATCH_STUDENT_ENROL", payload: { batchId: w.b.batch.id, studentId: w.a.student.id }, reason: "Not mine" }) },
+  { name: "coach asks to remove a student from another coach's batch", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.approvals.create, body: (w: World) => ({ actionType: "BATCH_STUDENT_REMOVE", payload: { batchId: w.b.batch.id, studentId: w.b.student.id }, reason: "Not mine" }) },
+  { name: "coach asks to move a student into another coach's batch", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.approvals.create, body: (w: World) => ({ actionType: "BATCH_STUDENT_TRANSFER", payload: { fromBatchId: w.a.batch.id, studentId: w.a.student.id, toBatchId: w.b.batch.id }, reason: "Not mine" }) },
   // MCQ / Playout runs: another class's game can't be read or touched by anyone outside it
   { name: "student plays a move in another class's Playout game", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.playoutMove(w.b.liveClass.id, w.b.playoutRun.id, w.b.playoutGame.id), body: { ply: 0, uci: "a1a8" } },
   { name: "student opens a game in another class's Playout", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.playoutStart(w.b.liveClass.id, w.b.playoutRun.id) },
@@ -151,6 +159,7 @@ const CROSS_USER: Case[] = [
 ];
 
 const OWN_CASES: Case[] = [
+  { name: "coach lists substitutes for own class", as: (w) => w.a.coach, path: (w) => API_ROUTES.approvals.substituteOptions(w.a.class.id) },
   { name: "student reads own class's running activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRun(w.a.liveClass.id) },
   { name: "coach monitors own class's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.a.liveClass.id, w.a.playoutRun.id) },
   { name: "coach opens a student board in own class's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunGame(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },

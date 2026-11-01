@@ -1,9 +1,12 @@
 "use client";
 
-import { Calendar, Users } from "lucide-react";
+import { useState } from "react";
+import { Calendar, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
+import type { CoachBatch } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { AddStudentRequestDialog } from "@/features/approvals/components/BatchStudentRequestDialogs";
 import { BatchStatusBadge } from "../../batches/components/BatchStatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -19,6 +22,7 @@ function isClosed(status: string) {
 export function CoachBatchesClient() {
   const { data, isLoading } = useCoachBatches();
   const tz = useUserTimeZone();
+  const [addingTo, setAddingTo] = useState<CoachBatch | null>(null);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -75,6 +79,18 @@ export function CoachBatchesClient() {
                       <Link href="/coach/schedule">Schedule</Link>
                     </Button>
                   )}
+                  {batch.status === "ARCHIVED" ? null : (
+                    <Button
+                      className={closed ? "" : "col-span-2"}
+                      onClick={() => setAddingTo(batch)}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <UserPlus aria-hidden="true" className="mr-1.5 size-4" strokeWidth={2.5} />
+                      Ask to add a student
+                    </Button>
+                  )}
                 </div>
               </Card>
             );
@@ -89,6 +105,8 @@ export function CoachBatchesClient() {
           />
         </Card>
       )}
+
+      <AddStudentRequestDialog batch={addingTo} onClose={() => setAddingTo(null)} />
     </div>
   );
 }

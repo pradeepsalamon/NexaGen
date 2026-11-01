@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
+  APPROVAL_ACTIONS,
   formatMoney,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -58,6 +59,7 @@ export type DispatchRequest =
       event:
         | "CLASS_SCHEDULED"
         | "CLASS_CANCELLED"
+        | "CLASS_SUBSTITUTE_ASSIGNED"
         | "CLASS_REMINDER"
         | "CLASS_REMINDER_COACH";
       classId: string;
@@ -107,7 +109,13 @@ export type DispatchRequest =
    * `CoachPayrollRecord` row — never asserted by the caller — and the body
    * template carries no bank/payment detail (CLAUDE.md payroll §28).
    */
-  | { event: "PAYROLL_FINALIZED" | "PAYROLL_PAID"; payrollRecordId: string };
+  | { event: "PAYROLL_FINALIZED" | "PAYROLL_PAID"; payrollRecordId: string }
+  /**
+   * Admin approvals (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md §2.7):
+   * REQUESTED → every admin who may decide it (never the requester); DECIDED →
+   * the requester. Everything shown is read back from the request row.
+   */
+  | { event: "APPROVAL_REQUESTED" | "APPROVAL_DECIDED"; approvalRequestId: string };
 
 const EMPTY_SUMMARY: MessagingDispatchSummary = {
   ruleEnabled: false,
@@ -330,6 +338,7 @@ export class MessagingDispatchService {
     switch (request.event) {
       case "CLASS_SCHEDULED":
       case "CLASS_CANCELLED":
+      case "CLASS_SUBSTITUTE_ASSIGNED":
       case "CLASS_REMINDER":
       case "CLASS_REMINDER_COACH":
         return this.classRecipients(request.event, request.classId, rule.audience);
@@ -362,6 +371,9 @@ export class MessagingDispatchService {
       case "PAYROLL_FINALIZED":
       case "PAYROLL_PAID":
         return this.payrollRecipients(request.event, request.payrollRecordId);
+      case "APPROVAL_REQUESTED":
+      case "APPROVAL_DECIDED":
+        return this.approvalRecipients(request.event, request.approvalRequestId);
     }
   }
 
@@ -803,6 +815,74 @@ export class MessagingDispatchService {
     return [recipient];
   }
 
+  private async approvalRecipients(
+    event: "APPROVAL_REQUESTED" | "APPROVAL_DECIDED",
+    approvalRequestId: string
+  ): Promise<Recipient[]> {
+    const request = await this.prisma.approvalRequest.findUnique({
+      where: { id: approvalRequestId },
+      include: {
+        class: { select: { startsAt: true, title: true, topic: true } },
+        requester: true,
+        subjectUser: { select: { firstName: true, lastName: true } }
+      }
+    });
+    if (!request) return [];
+    const meta = APPROVAL_ACTIONS[request.actionType as keyof typeof APPROVAL_ACTIONS];
+    if (!meta) return [];
+
+    const subjectFor = (timezone: string) =>
+      [
+        request.class
+          ? `${request.class.title || request.class.topic || "Class"}, ${formatInZone(request.class.startsAt, timezone, "dateTime")}`
+          : null,
+        request.subjectUser ? this.fullName(request.subjectUser.firstName, request.subjectUser.lastName) : null
+      ]
+        .filter(Boolean)
+        .join(" · ") || meta.label;
+    const base = (timezone: string) => ({
+      "approval.action": meta.label,
+      "approval.reason": request.reason,
+      "approval.requesterName": request.requester
+        ? this.fullName(request.requester.firstName, request.requester.lastName)
+        : "A former user",
+      "approval.subject": subjectFor(timezone)
+    });
+
+    if (event === "APPROVAL_DECIDED") {
+      const requester = request.requester;
+      if (!requester || requester.isDeleted) return [];
+      const decision =
+        request.status === "APPROVED" ? "approved" : request.status === "REJECTED" ? "rejected" : "expired";
+      const note = request.rejectionReason ? `Reason: ${request.rejectionReason}` : "";
+      return [
+        this.toRecipient(requester, {
+          variables: { ...base(requester.timezone), "approval.decision": decision, "approval.note": note },
+          linkPath: "/coach/requests",
+          linkVariable: "links.approval",
+          dedupeKey: `${event}:${request.id}`
+        })
+      ];
+    }
+
+    const admins = await this.prisma.user.findMany({
+      where: {
+        id: { not: request.requesterId ?? undefined },
+        isDeleted: false,
+        role: { in: meta.reviewerRoles.map((role) => role as UserRole) },
+        status: UserStatus.ACTIVE
+      }
+    });
+    return admins.map((admin) =>
+      this.toRecipient(admin, {
+        variables: { ...base(admin.timezone), "approval.decision": "", "approval.note": "" },
+        linkPath: `/admin/requests?id=${request.id}`,
+        linkVariable: "links.approval",
+        dedupeKey: `${event}:${request.id}:${admin.id}`
+      })
+    );
+  }
+
   // ── shared bits ──
 
   private assignmentVariables(
@@ -840,7 +920,8 @@ export class MessagingDispatchService {
         | "links.billing"
         | "links.invoice"
         | "links.earnings"
-        | "links.revision";
+        | "links.revision"
+        | "links.approval";
       dedupeKey: string | null;
     }
   ): Recipient {

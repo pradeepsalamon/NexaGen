@@ -544,6 +544,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.feedbackForm;
   }
 
+  get approvalRequest() {
+    return this.client.approvalRequest;
+  }
+
+  get approvalEvent() {
+    return this.client.approvalEvent;
+  }
+
   get classChangeRequest() {
     return this.client.classChangeRequest;
   }

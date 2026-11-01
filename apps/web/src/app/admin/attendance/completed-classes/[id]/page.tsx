@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2, CalendarX } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -21,11 +21,17 @@ export default function ClassDetailPage() {
   const [data, setData] = useState<ClassDetailReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [drilldownStudent, setDrilldownStudent] = useState<{ id: string; name: string } | null>(null);
+  const [version, setVersion] = useState(0);
+  const correction = useMemo(
+    () => ({ classId, direct: true, onCorrected: () => setVersion((v) => v + 1) }),
+    [classId]
+  );
 
   useEffect(() => {
     async function loadClassDetail() {
       try {
-        setIsLoading(true);
+        // A reload after a correction keeps the page on screen.
+        setIsLoading(version === 0);
         const result = await apiFetch<ClassDetailReport>(
           API_ROUTES.attendance.classDetail(classId)
         );
@@ -37,7 +43,7 @@ export default function ClassDetailPage() {
       }
     }
     loadClassDetail();
-  }, [classId]);
+  }, [classId, version]);
 
   if (isLoading) {
     return (
@@ -106,6 +112,7 @@ export default function ClassDetailPage() {
       <ClassStudentTable
         students={data.students}
         onViewHistory={setDrilldownStudent}
+        correction={correction}
       />
 
       {/* Summary Stats */}

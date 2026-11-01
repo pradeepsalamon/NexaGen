@@ -2,76 +2,60 @@ import { z } from "zod";
 
 // Coaches never create or move classes themselves; they ask, and an admin's
 // approval is what creates the extra class or moves the scheduled one.
+//
+// Since Stage 5 of docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md these are
+// approval-engine actions (`CLASS_EXTRA`, `CLASS_RESCHEDULE`, see approvals.ts):
+// the coach sends `POST /approvals` with one of the payloads below. The old
+// `class_change_requests` table is frozen history; its rows were copied into
+// `approval_requests` with the same ids.
 
-export const CLASS_REQUEST_TYPES = ["EXTRA_CLASS", "RESCHEDULE"] as const;
-export const classRequestTypeSchema = z.enum(CLASS_REQUEST_TYPES);
-export type ClassRequestType = z.infer<typeof classRequestTypeSchema>;
-
-export const CLASS_REQUEST_STATUSES = ["PENDING", "APPROVED", "REJECTED", "WITHDRAWN"] as const;
-export const classRequestStatusSchema = z.enum(CLASS_REQUEST_STATUSES);
-export type ClassRequestStatus = z.infer<typeof classRequestStatusSchema>;
-
-export const CLASS_REQUEST_TYPE_LABELS: Record<ClassRequestType, string> = {
-  EXTRA_CLASS: "Extra class",
-  RESCHEDULE: "Reschedule"
+const timeWindow = {
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime(),
 };
 
-export const CLASS_REQUEST_STATUS_LABELS: Record<ClassRequestStatus, string> = {
-  APPROVED: "Approved",
-  PENDING: "Pending",
-  REJECTED: "Rejected",
-  WITHDRAWN: "Withdrawn"
-};
+const endsAfterStart = (v: { startsAt: string; endsAt: string }) =>
+  new Date(v.endsAt).getTime() > new Date(v.startsAt).getTime();
+const endsAfterStartMessage = { message: "End time must be after start time.", path: ["endsAt"] };
 
-export const createClassChangeRequestSchema = z
+/** `CLASS_EXTRA`: a new class for one of the coach's batches. */
+export const classExtraPayloadSchema = z
   .object({
-    type: classRequestTypeSchema,
-    /** EXTRA_CLASS: the batch it's for. Ignored for RESCHEDULE (taken from the class). */
-    batchId: z.string().min(1).optional(),
-    /** RESCHEDULE: the class to move. */
-    classId: z.string().min(1).optional(),
-    startsAt: z.string().datetime(),
-    endsAt: z.string().datetime(),
+    batchId: z.string().trim().min(1).max(64),
+    ...timeWindow,
     topic: z.string().trim().max(120).optional(),
-    reason: z.string().trim().min(1, "Tell the admin why.").max(1000)
   })
-  .refine((v) => new Date(v.endsAt).getTime() > new Date(v.startsAt).getTime(), {
-    message: "End time must be after start time.",
-    path: ["endsAt"]
+  .refine(endsAfterStart, endsAfterStartMessage);
+export type ClassExtraPayload = z.infer<typeof classExtraPayloadSchema>;
+
+/** `CLASS_RESCHEDULE`: move one of the coach's scheduled classes. */
+export const classReschedulePayloadSchema = z
+  .object({
+    classId: z.string().trim().min(1).max(64),
+    ...timeWindow,
   })
-  .refine((v) => (v.type === "EXTRA_CLASS" ? !!v.batchId : !!v.classId), {
-    message: "Pick the batch (extra class) or the class (reschedule).",
-    path: ["batchId"]
-  });
-export type CreateClassChangeRequest = z.infer<typeof createClassChangeRequestSchema>;
+  .refine(endsAfterStart, endsAfterStartMessage);
+export type ClassReschedulePayload = z.infer<typeof classReschedulePayloadSchema>;
 
-export const reviewClassChangeRequestSchema = z.object({
-  note: z.string().trim().max(1000).optional()
-});
-export type ReviewClassChangeRequest = z.infer<typeof reviewClassChangeRequestSchema>;
-
-export type ClassChangeRequestDto = {
-  id: string;
-  type: ClassRequestType;
-  status: ClassRequestStatus;
-  coachId: string;
-  coachName: string;
-  batchId: string;
-  batchName: string;
-  /** RESCHEDULE: the class being moved; EXTRA_CLASS: the class created on approval. */
-  classId: string | null;
-  /** RESCHEDULE only: the class's time when the request was made. */
-  originalStartsAt: string | null;
-  originalEndsAt: string | null;
+/**
+ * What the API stores for these actions, so the inbox can show "from → to".
+ * `requestedValue` is the new time; `currentValue` (reschedule only) is the
+ * class's time when the coach asked.
+ */
+export type ClassTimeValue = {
   startsAt: string;
   endsAt: string;
-  topic: string | null;
-  reason: string | null;
-  reviewedByName: string | null;
-  reviewedAt: string | null;
-  reviewNote: string | null;
-  createdAt: string;
+  topic?: string | null;
 };
 
-export type ClassChangeRequestListResponse = { requests: ClassChangeRequestDto[] };
-export type ClassChangeRequestResponse = { request: ClassChangeRequestDto };
+/** Reads a stored class time back out of an approval request's JSON, or null. */
+export function readClassTimeValue(value: unknown): ClassTimeValue | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.startsAt !== "string" || typeof v.endsAt !== "string") return null;
+  return {
+    endsAt: v.endsAt,
+    startsAt: v.startsAt,
+    topic: typeof v.topic === "string" ? v.topic : null,
+  };
+}

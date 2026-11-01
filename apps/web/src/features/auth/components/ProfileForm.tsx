@@ -14,7 +14,7 @@ import { CoachProfileFields } from "./profile-form/CoachProfileFields";
 import {
   type ProfileFormValues,
   emptyValues,
-  isEmailChanged,
+  passwordRequiredReason,
   toProfilePayload,
   valuesFromUser
 } from "./profile-form/profileForm.utils";
@@ -73,12 +73,17 @@ export function ProfileForm() {
     () => values.firstName.trim().length > 0,
     [values.firstName]
   );
-  const emailChanged = isEmailChanged(values, user);
-  const canSubmit = hasRequiredName && (!emailChanged || values.currentPassword.length > 0);
+  const passwordReason = passwordRequiredReason(values, user);
+  const canSubmit = hasRequiredName && (!passwordReason || values.currentPassword.length > 0);
 
   const handleAvatarUpload = useCallback(
     (file: File) => {
       if (uploadingRef.current) return;
+      if (passwordReason && !values.currentPassword) {
+        // The save would be refused after the old photo was already deleted.
+        toast.error({ title: "Enter your current password to change your photo.", message: passwordReason });
+        return;
+      }
       uploadingRef.current = true;
       setIsUploading(true);
       const uploadPromise = (async () => {
@@ -106,11 +111,16 @@ export function ProfileForm() {
 
       uploadPromise.finally(() => setIsUploading(false));
     },
-    [values, user, updateField, profileMutation, toast]
+    [values, user, passwordReason, updateField, profileMutation, toast]
   );
 
   const handleAvatarRemove = useCallback(() => {
     if (uploadingRef.current || !values.avatarUrl) return;
+    if (passwordReason && !values.currentPassword) {
+      // The save would be refused after the old photo was already deleted.
+      toast.error({ title: "Enter your current password to change your photo.", message: passwordReason });
+      return;
+    }
     const oldUrl = values.avatarUrl;
     uploadingRef.current = true;
     setIsUploading(true);
@@ -136,7 +146,7 @@ export function ProfileForm() {
     });
 
     removePromise.finally(() => setIsUploading(false));
-  }, [values, user, updateField, profileMutation, toast]);
+  }, [values, user, passwordReason, updateField, profileMutation, toast]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -168,7 +178,7 @@ export function ProfileForm() {
         onRemove={handleAvatarRemove}
       />
 
-      <AccountFields emailChanged={emailChanged} values={values} onFieldChange={updateField} />
+      <AccountFields passwordReason={passwordReason} values={values} onFieldChange={updateField} />
 
       {user?.studentProfile ? (
         <StudentProfileFields values={values} onFieldChange={updateField} />

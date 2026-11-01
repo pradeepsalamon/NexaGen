@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { DiscountsPanel } from "./DiscountsPanel";
@@ -13,7 +14,12 @@ import { RoutingPanel } from "./RoutingPanel";
 import { SubscriptionsPanel } from "./SubscriptionsPanel";
 
 /** The admin payment dashboard (§16) and its configuration surfaces. */
+const TABS = ["overview", "transactions", "manual", "refunds", "subscriptions", "plans", "discounts", "gateways"];
+
 export function PaymentsAdminClient() {
+  // `?tab=manual` is the admin request inbox's link to the offline-payment queue.
+  const requested = useSearchParams().get("tab");
+  const initialTab = requested && TABS.includes(requested) ? requested : "overview";
   return (
     <div className="space-y-6">
       <PageHeader
@@ -21,7 +27,7 @@ export function PaymentsAdminClient() {
         title="Payments"
       />
 
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue={initialTab}>
         <TabsList className="justify-self-end">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>

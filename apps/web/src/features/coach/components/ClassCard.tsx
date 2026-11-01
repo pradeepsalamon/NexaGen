@@ -19,9 +19,10 @@ interface ClassCardProps {
   onEdit?: (classItem: CoachClass) => void;
   onCancel?: (classItem: CoachClass) => void;
   onRequestReschedule?: (classItem: CoachClass) => void;
+  onRequestSubstitute?: (classItem: CoachClass) => void;
 }
 
-export function ClassCard({ classItem, onEdit, onCancel, onRequestReschedule }: ClassCardProps) {
+export function ClassCard({ classItem, onEdit, onCancel, onRequestReschedule, onRequestSubstitute }: ClassCardProps) {
   const tz = useUserTimeZone();
   // "Start Class" only inside the start window the server enforces; otherwise
   // the button just opens the class page, which says when it opens.
@@ -69,6 +70,11 @@ export function ClassCard({ classItem, onEdit, onCancel, onRequestReschedule }: 
             {classItem.status === "SCHEDULED" && onRequestReschedule && (
               <DropdownMenuItem onClick={() => onRequestReschedule(classItem)}>
                 Request Reschedule
+              </DropdownMenuItem>
+            )}
+            {classItem.status === "SCHEDULED" && onRequestSubstitute && (
+              <DropdownMenuItem onClick={() => onRequestSubstitute(classItem)}>
+                Request Substitute
               </DropdownMenuItem>
             )}
             {classItem.status === "SCHEDULED" && onCancel && (

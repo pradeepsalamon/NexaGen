@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
+  liveClassLockSources,
   resolveLiveClassSettings,
   type LiveClassSettingsOverride,
+  type LockableLiveSetting,
 } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -21,8 +23,12 @@ export function BatchLiveClassSettingsTab({ batchId }: { batchId: string }) {
   const update = useUpdateBatchLiveClassSettings(batchId);
 
   const [override, setOverride] = useState<LiveClassSettingsOverride>({});
+  const [locks, setLocks] = useState<LockableLiveSetting[]>([]);
   useEffect(() => {
-    if (data) setOverride(data.batchOverride ?? {});
+    if (data) {
+      setOverride(data.batchOverride ?? {});
+      setLocks(data.batchLocks);
+    }
   }, [data]);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
@@ -30,14 +36,21 @@ export function BatchLiveClassSettingsTab({ batchId }: { batchId: string }) {
     return <WidgetError message="Couldn't load batch settings." onRetry={() => refetch()} />;
   }
 
-  const resolved = resolveLiveClassSettings({ system: data.system, batch: override });
-  const dirty = JSON.stringify(override) !== JSON.stringify(data.batchOverride ?? {});
+  const resolved = resolveLiveClassSettings({
+    system: data.system,
+    batch: override,
+    systemLocks: data.systemLocks,
+  });
+  const dirty =
+    JSON.stringify(override) !== JSON.stringify(data.batchOverride ?? {}) ||
+    JSON.stringify(locks) !== JSON.stringify(data.batchLocks);
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-app-muted">
-        Defaults for every live class in this batch. Unset options inherit the platform default;
-        a coach can still override any option for an individual class.
+        Defaults for every live class in this batch. Unset options inherit the platform default.
+        A coach can override an option for an individual class unless it is locked here or by
+        the academy.
       </p>
 
       <LiveClassSettingsForm
@@ -47,6 +60,9 @@ export function BatchLiveClassSettingsTab({ batchId }: { batchId: string }) {
         resolved={resolved}
         inheritedFrom={data.system}
         disabled={!data.canEdit || update.isPending}
+        lockSources={liveClassLockSources({ systemLocks: data.systemLocks })}
+        locks={locks}
+        onLocksChange={data.canEdit ? setLocks : undefined}
       />
 
       {data.canEdit && (
@@ -54,7 +70,10 @@ export function BatchLiveClassSettingsTab({ batchId }: { batchId: string }) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => setOverride(data.batchOverride ?? {})}
+            onClick={() => {
+              setOverride(data.batchOverride ?? {});
+              setLocks(data.batchLocks);
+            }}
             disabled={update.isPending || !dirty}
           >
             Reset
@@ -64,6 +83,7 @@ export function BatchLiveClassSettingsTab({ batchId }: { batchId: string }) {
             onClick={() =>
               update.mutate({
                 liveClassSettings: Object.keys(override).length > 0 ? override : null,
+                locks,
               })
             }
             disabled={update.isPending || !dirty}

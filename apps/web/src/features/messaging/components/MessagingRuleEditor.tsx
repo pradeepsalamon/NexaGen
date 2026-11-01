@@ -56,7 +56,8 @@ function toClockValue(hour: number | null, minute: number | null): string {
 const AUDIENCE_LABELS: Record<MessagingAudience, string> = {
   STUDENTS: "Students",
   COACHES: "Coaches",
-  STUDENTS_AND_COACHES: "Students and coaches"
+  STUDENTS_AND_COACHES: "Students and coaches",
+  ADMINS: "Admins"
 };
 
 type Props = {

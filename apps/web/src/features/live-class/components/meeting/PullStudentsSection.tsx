@@ -2,9 +2,10 @@
 
 import { memo, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Magnet, Search, X } from "lucide-react";
+import { ChevronDown, Clock, Magnet, Search, Send, X } from "lucide-react";
 import { compareNatural, type PullRosterStudent } from "@nexa-chess/types";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { RequestApprovalDialog } from "@/features/approvals/components/RequestApprovalDialog";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
@@ -26,14 +27,18 @@ const PullRow = memo(function PullRow({
   student,
   busy,
   onPull,
-  onCancel
+  onCancel,
+  onAsk
 }: {
   student: PullRosterStudent;
   busy: boolean;
   onPull: (student: PullRosterStudent) => void;
   onCancel: (student: PullRosterStudent) => void;
+  onAsk: (student: PullRosterStudent) => void;
 }) {
   const pending = student.pull?.status === "PENDING";
+  // V4: outside the coach's batches → an admin request, not a pull.
+  const gated = student.needsApproval && !pending;
   return (
     <div
       className="flex min-h-11 items-center justify-between gap-3 rounded-control px-3 py-2 transition-colors hover:bg-app-soft"
@@ -68,7 +73,11 @@ const PullRow = memo(function PullRow({
               pending ? "text-warning-ink" : student.online ? "text-success-ink" : "text-app-muted"
             )}
           >
-            {pending
+            {gated
+              ? student.approvalPending
+                ? "Waiting for an admin"
+                : "Not in your batches · needs an admin"
+              : pending
               ? student.online
                 ? "Joining…"
                 : "Will join when they open the app"
@@ -79,7 +88,31 @@ const PullRow = memo(function PullRow({
         </div>
       </div>
 
-      {pending ? (
+      {gated ? (
+        student.approvalPending ? (
+          <SimpleTooltip label="Request sent. An admin will decide.">
+            <span
+              aria-label={`Request for ${student.name} is waiting for an admin`}
+              className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border text-app-muted"
+              role="img"
+            >
+              <Clock className="size-4" strokeWidth={2.5} />
+            </span>
+          </SimpleTooltip>
+        ) : (
+          <SimpleTooltip label={`Ask an admin to let ${student.name} join`}>
+            <button
+              type="button"
+              aria-label={`Ask an admin to let ${student.name} join`}
+              disabled={busy}
+              className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-text transition-colors hover:bg-app-soft disabled:opacity-50"
+              onClick={() => onAsk(student)}
+            >
+              <Send className="size-4" strokeWidth={2.5} />
+            </button>
+          </SimpleTooltip>
+        )
+      ) : pending ? (
         <SimpleTooltip label={`Cancel pull for ${student.name}`}>
           <button
             type="button"
@@ -113,13 +146,16 @@ const PullRow = memo(function PullRow({
  * have the app open. "Pull" sends them straight in — immediately if they are
  * online, or the moment they next open the app. Students from other batches
  * are never listed up front (only while a pull to them is pending); searching
- * by name or username finds any active student in the academy.
+ * by name or username finds any active student in the academy, but one outside
+ * the coach's own batches needs an admin's approval first (V4) — the row offers
+ * that request instead of a pull.
  */
 export function PullStudentsSection({ classId }: { classId: string }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [open, setOpen] = useState(true);
   const [query, setQuery] = useState("");
+  const [asking, setAsking] = useState<PullRosterStudent | null>(null);
   const rosterKey = queryKeys.livePull.roster(classId);
 
   const roster = useQuery({
@@ -173,7 +209,7 @@ export function PullStudentsSection({ classId }: { classId: string }) {
     // batch); the local filter only fills the gap while it loads.
     return search.data.students.filter((s) => !s.inClass);
   }, [absent, query, searching, search.data]);
-  const onlineIdle = absent.filter((s) => s.online && s.pull?.status !== "PENDING");
+  const onlineIdle = absent.filter((s) => s.online && !s.needsApproval && s.pull?.status !== "PENDING");
 
   if (!roster.data) return null;
 
@@ -225,6 +261,7 @@ export function PullStudentsSection({ classId }: { classId: string }) {
                 busy={busyId === s.studentId}
                 onPull={(st) => pull.mutate(st)}
                 onCancel={(st) => cancel.mutate(st)}
+                onAsk={setAsking}
               />
             ))}
             {shown.length === 0 ? (
@@ -241,6 +278,21 @@ export function PullStudentsSection({ classId }: { classId: string }) {
           </div>
         </>
       ) : null}
+      <RequestApprovalDialog
+        open={asking !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setAsking(null);
+            void qc.invalidateQueries({ queryKey: rosterKey });
+            if (debounced) void qc.invalidateQueries({ queryKey: queryKeys.livePull.search(classId, debounced) });
+          }
+        }}
+        actionType="LIVE_CLASS_GUEST_STUDENT"
+        payload={{ classId, studentId: asking?.studentId ?? "" }}
+        title={`Let ${asking?.name ?? "this student"} join?`}
+        description="This student isn't in any of your batches, so an admin has to approve bringing them into this class. Once approved you can pull them in (if the class is live, they're invited straight away)."
+        submitLabel="Ask an admin"
+      />
     </div>
   );
 }

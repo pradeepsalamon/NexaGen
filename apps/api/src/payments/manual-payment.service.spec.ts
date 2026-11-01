@@ -1,4 +1,4 @@
-import { ForbiddenException } from "@nestjs/common";
+import { ConflictException, ForbiddenException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { PaymentStatus, UserRole, type User } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
@@ -105,6 +105,12 @@ describe("ManualPaymentService", () => {
           row = buildRow({ ...row, ...data });
           return Promise.resolve(row);
         }),
+        // Honours the status filter, like the real status-filtered claim.
+        updateMany: jest.fn().mockImplementation(({ where, data }) => {
+          if (where.status && row.status !== where.status) return Promise.resolve({ count: 0 });
+          row = buildRow({ ...row, ...data });
+          return Promise.resolve({ count: 1 });
+        }),
         findUnique: jest.fn().mockImplementation(() => Promise.resolve(row))
       }
     };
@@ -129,7 +135,8 @@ describe("ManualPaymentService", () => {
     return {
       service: module.get(ManualPaymentService),
       prisma,
-      applyProviderState
+      applyProviderState,
+      currentRow: () => row
     };
   };
 
@@ -198,8 +205,9 @@ describe("ManualPaymentService", () => {
       expect.objectContaining({ status: PaymentStatus.PAID }),
       "manual:approve"
     );
-    expect(prisma.manualPaymentRecord.update).toHaveBeenCalledWith(
+    expect(prisma.manualPaymentRecord.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { id: "mpr_1", status: "PENDING" },
         data: expect.objectContaining({ status: "APPROVED", reviewedByUserId: admin.id })
       })
     );
@@ -220,8 +228,9 @@ describe("ManualPaymentService", () => {
       }),
       "manual:reject"
     );
-    expect(prisma.manualPaymentRecord.update).toHaveBeenCalledWith(
+    expect(prisma.manualPaymentRecord.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { id: "mpr_1", status: "PENDING" },
         data: expect.objectContaining({
           status: "REJECTED",
           rejectionReason: "No proof provided"
@@ -229,5 +238,83 @@ describe("ManualPaymentService", () => {
       })
     );
     expect(result.status).toBe("REJECTED");
+  });
+
+  // V2 (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md): the review is claimed
+  // before any money moves, so concurrent reviews have exactly one winner.
+  it("claims the review before settling, so an approve racing a reject never pays", async () => {
+    const { service, applyProviderState, currentRow } = await buildModule({ row: buildRow({ status: "PENDING" }) });
+
+    const results = await Promise.allSettled([
+      service.reject(admin, "mpr_1", "Duplicate entry"),
+      service.approve(admin, "mpr_1")
+    ]);
+
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const loser = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    expect(loser.reason).toBeInstanceOf(ConflictException);
+    expect(applyProviderState).toHaveBeenCalledTimes(1);
+    const [, state] = applyProviderState.mock.calls[0];
+    // Whichever review won, the payment matches the record.
+    expect(state.status).toBe(currentRow().status === "APPROVED" ? PaymentStatus.PAID : PaymentStatus.FAILED);
+  });
+
+  it("settles a double-clicked approval only once", async () => {
+    const { service, applyProviderState } = await buildModule({ row: buildRow({ status: "PENDING" }) });
+
+    const results = await Promise.allSettled([service.approve(admin, "mpr_1"), service.approve(admin, "mpr_1")]);
+
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(applyProviderState).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses to review a record that was already decided", async () => {
+    const { service, applyProviderState } = await buildModule({ row: buildRow({ status: "REJECTED" }) });
+
+    await expect(service.approve(admin, "mpr_1")).rejects.toThrow(ConflictException);
+    await expect(service.reject(admin, "mpr_1", "again")).rejects.toThrow(ConflictException);
+    expect(applyProviderState).not.toHaveBeenCalled();
+  });
+
+  it("puts the claim back when settling fails, so the request can be reviewed again", async () => {
+    const { service, applyProviderState, currentRow } = await buildModule({ row: buildRow({ status: "PENDING" }) });
+    applyProviderState.mockRejectedValueOnce(new Error("db down"));
+
+    await expect(service.approve(admin, "mpr_1")).rejects.toThrow("db down");
+    expect(currentRow().status).toBe("PENDING");
+    expect(currentRow().reviewedByUserId).toBeNull();
+  });
+
+  it("finishes an approval whose settling never ran (APPROVED record, unpaid payment)", async () => {
+    const stuck = buildRow({ status: "APPROVED", reviewedByUserId: "admin_first" });
+    const { service, applyProviderState, prisma } = await buildModule({
+      row: { ...stuck, payment: { ...stuck.payment, status: PaymentStatus.PENDING } } as ReturnType<typeof buildRow>
+    });
+
+    const result = await service.approve(admin, "mpr_1");
+
+    expect(result.status).toBe("APPROVED");
+    expect(prisma.manualPaymentRecord.updateMany).not.toHaveBeenCalled();
+    expect(applyProviderState).toHaveBeenCalledTimes(1);
+    const [, state] = applyProviderState.mock.calls[0];
+    expect(state.status).toBe(PaymentStatus.PAID);
+    expect(state.raw.approvedBy).toBe("admin_first");
+  });
+
+  it("still refuses an approved record whose payment is already paid", async () => {
+    const done = buildRow({ status: "APPROVED" });
+    const { service, applyProviderState } = await buildModule({
+      row: { ...done, payment: { ...done.payment, status: PaymentStatus.PAID } } as ReturnType<typeof buildRow>
+    });
+
+    await expect(service.approve(admin, "mpr_1")).rejects.toThrow(ConflictException);
+    expect(applyProviderState).not.toHaveBeenCalled();
+  });
+
+  it("never lets a coach review a record", async () => {
+    const { service } = await buildModule({ row: buildRow({ status: "PENDING" }) });
+
+    await expect(service.approve(coach, "mpr_1")).rejects.toThrow(ForbiddenException);
+    await expect(service.reject(coach, "mpr_1", "no")).rejects.toThrow(ForbiddenException);
   });
 });

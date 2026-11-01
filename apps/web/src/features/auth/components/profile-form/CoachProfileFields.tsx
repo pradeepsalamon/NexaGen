@@ -76,15 +76,6 @@ export const CoachProfileFields = memo(function CoachProfileFields({
             value={values.fideId}
           />
         </FormField>
-        <FormField id="profile-hourly-rate" label="Hourly Rate">
-          <Input
-            id="profile-hourly-rate"
-            inputMode="decimal"
-            maxLength={20}
-            onChange={(event) => onFieldChange("hourlyRate", event.target.value)}
-            value={values.hourlyRate}
-          />
-        </FormField>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField id="profile-qualification" label="Qualification">

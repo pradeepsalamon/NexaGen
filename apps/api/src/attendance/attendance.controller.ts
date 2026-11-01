@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Patch,
   Put,
   Param,
   Query,
@@ -12,11 +13,16 @@ import type { Request, Response } from "express";
 import { AttendanceStatus } from "@prisma/client";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { optionalQueryEnum, optionalQueryString } from "../common/query-params";
+import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { AttendanceMonitoringService } from "./attendance-monitoring.service";
 import { AttendanceReportService } from "./attendance-report.service";
 import { AttendanceService } from "./attendance.service";
 import { UpdateAttendancePolicyDto } from "./dto/attendance-policy.dto";
-import { API_ROUTES } from "@nexa-chess/types";
+import {
+  API_ROUTES,
+  correctAttendanceRequestSchema,
+  type CorrectAttendanceRequest,
+} from "@nexa-chess/types";
 
 @Controller()
 export class AttendanceController {
@@ -80,6 +86,23 @@ export class AttendanceController {
     return this.reports.getClassAttendanceReport(
       this.getAccessToken(request),
       id
+    );
+  }
+
+  // ── Correction (admin) ──
+
+  @Patch(API_ROUTES.attendance.correctStudent())
+  correctStudent(
+    @Param("id") id: string,
+    @Param("studentId") studentId: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(correctAttendanceRequestSchema)) body: CorrectAttendanceRequest
+  ) {
+    return this.attendanceService.correctStudentAttendance(
+      this.getAccessToken(request),
+      id,
+      studentId,
+      body
     );
   }
 

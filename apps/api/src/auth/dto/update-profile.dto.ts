@@ -91,6 +91,7 @@ export class UpdateCoachProfileDto {
   @IsOptional()
   @IsString()
   @MaxLength(20)
+  /** Accepted for older clients but ignored: a coach can't set their own rate (V6). */
   hourlyRate?: string;
 
   @IsOptional()

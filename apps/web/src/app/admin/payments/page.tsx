@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { PaymentsAdminClient } from "@/features/payments/components/PaymentsAdminClient";
 import { pageTitle } from "@/lib/pageTitles";
 
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <PaymentsAdminClient />;
+  return (
+    <Suspense>
+      <PaymentsAdminClient />
+    </Suspense>
+  );
 }

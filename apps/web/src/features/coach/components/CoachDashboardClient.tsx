@@ -8,14 +8,11 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { StatTile } from "@/components/ui/StatTile";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useCoachDashboard, useTodayClasses } from "../hooks/useCoachApi";
-import { cancelClass } from "../api/coachApi";
+import { useCoachClassCancel } from "@/features/approvals/hooks/useCoachClassCancel";
 import { CoachEarningsSummaryCard } from "@/features/payroll/components/CoachEarningsSummaryCard";
 import { ClassCard } from "./ClassCard";
 import { LatestUpcomingClasses } from "./upcoming/LatestUpcomingClasses";
-import type { CoachClass } from "@nexa-chess/types";
-import { queryKeys } from "@/lib/queryKeys";
 import type { Tone } from "@/lib/tone";
-import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { useRouter } from "next/navigation";
 
 export function CoachDashboardClient() {
@@ -23,18 +20,8 @@ export function CoachDashboardClient() {
   const { data: dashboardData, isLoading: dashboardLoading } = useCoachDashboard();
   const { data: todayData, isLoading: todayLoading } = useTodayClasses();
 
-  const { run: handleCancelClass } = useUndoableMutation({
-    strategy: "defer",
-    mutationFn: (classItem: CoachClass) => cancelClass(classItem.id),
-    undo: async () => {},
-    toast: (classItem) => ({ title: `Cancelling class for ${classItem.batchName}` }),
-    invalidates: [
-      queryKeys.coach.dashboard,
-      queryKeys.coach.classes,
-      queryKeys.coach.upcomingClasses,
-      queryKeys.coach.classHistory
-    ]
-  });
+  // V10: direct only more than 24 h ahead; otherwise an admin request.
+  const { cancel: handleCancelClass, dialog: cancelRequestDialog } = useCoachClassCancel();
 
   const summaryCards: { href: string; icon: LucideIcon; label: string; tone: Tone; value: number }[] = [
     { href: "/coach/batches", icon: Layers, label: "Assigned batches", tone: "primary", value: dashboardData?.batchCount || 0 },
@@ -118,6 +105,7 @@ export function CoachDashboardClient() {
       <LatestUpcomingClasses />
 
       <CoachEarningsSummaryCard />
+      {cancelRequestDialog}
     </div>
   );
 }

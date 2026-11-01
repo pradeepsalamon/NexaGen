@@ -244,23 +244,23 @@ type CallAs = (
 
 /**
  * Coaches can't create classes (they're academy-scheduled), so a spec's class
- * comes from an EXTRA_CLASS request the coach files and an admin approves.
- * `startsAt` must still be in the future when the approval runs.
+ * comes from a CLASS_EXTRA approval request the coach files and an admin
+ * approves. `startsAt` must still be in the future when the approval runs.
  */
 export async function scheduleClass(
   asCoach: CallAs,
   asAdmin: CallAs,
   body: { batchId: string; topic: string; startsAt: string; endsAt: string }
 ): Promise<string> {
-  const created = await asCoach("POST", "/class-requests", {
-    ...body,
+  const created = await asCoach("POST", "/approvals", {
+    actionType: "CLASS_EXTRA",
+    payload: body,
     reason: "E2E test class",
-    type: "EXTRA_CLASS",
   });
   expect(created.ok(), `class request: ${await created.text()}`).toBeTruthy();
   const requestId: string = (await created.json()).request.id;
 
-  const approved = await asAdmin("POST", `/class-requests/${requestId}/approve`, {});
+  const approved = await asAdmin("POST", `/admin/approvals/${requestId}/approve`, {});
   expect(approved.ok(), `approve class request: ${await approved.text()}`).toBeTruthy();
   const classId: string | null = (await approved.json()).request.classId;
   expect(classId, "approved request has no class").toBeTruthy();

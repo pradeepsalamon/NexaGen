@@ -742,6 +742,7 @@ export class AttendanceReportService {
         attendancePercent: att?.attendancePercent ?? 0,
         reconnectCount: att?.reconnectCount || 0,
         logCount: att?.logs?.length || 0,
+        correctedAt: att?.correctedAt?.toISOString() ?? null,
         logs: (att?.logs || []).map((log) => ({
           id: log.id,
           eventType: log.eventType,

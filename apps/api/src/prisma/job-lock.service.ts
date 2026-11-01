@@ -5,6 +5,7 @@ import { PrismaService } from "./prisma.service";
 /** Every cron's lock name lives here, so two jobs can never share one. */
 export const JOB_LOCKS = {
   analyticsStorageSnapshot: "analytics.storage-snapshot",
+  approvalExpiry: "approvals.expiry",
   attendanceHeartbeatSweep: "attendance.heartbeat-sweep",
   attendanceRoomPresenceSweep: "attendance.room-presence-sweep",
   demoScheduleTopUp: "demo-schedule.top-up",

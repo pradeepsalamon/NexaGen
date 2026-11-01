@@ -220,29 +220,59 @@ export class ManualPaymentService {
     return toItem(existing);
   }
 
+  /**
+   * The review is claimed (PENDING → APPROVED, status-filtered) before any money
+   * moves, so a concurrent approve/approve or approve/reject has exactly one
+   * winner: the loser's claim matches nothing and gets a 409. Settling can't run
+   * twice, and a REJECTED record can never end up beside a PAID payment (the
+   * payment funnel itself allows FAILED → PAID for late gateway captures). If
+   * settling fails the claim is put back, so the request can be reviewed again.
+   */
   async approve(admin: User, recordId: string): Promise<ManualPaymentRecordItem> {
     assertAdmin(admin);
     const record = await this.requireRow(recordId);
-    if (record.status !== "PENDING") {
-      throw new ConflictException("This request has already been reviewed.");
+
+    // Recovery: an approval whose process died between the claim and settling
+    // leaves an APPROVED record beside an unpaid payment. Approving again
+    // finishes it (as replayRecord does) instead of 409-ing forever. The
+    // payment funnel is idempotent, so a concurrent recovery settles once.
+    if (record.status === "APPROVED" && record.payment.status !== PaymentStatus.PAID) {
+      await this.settle(
+        record.paymentId,
+        record.method.label,
+        {
+          methodId: record.methodId,
+          reference: record.reference ?? undefined,
+          actorId: record.recordedByUserId,
+          approvedByUserId: record.reviewedByUserId ?? admin.id
+        },
+        "manual:approve"
+      );
+      return this.requireItem(recordId);
     }
 
-    await this.settle(
-      record.paymentId,
-      record.method.label,
-      {
-        methodId: record.methodId,
-        reference: record.reference ?? undefined,
-        actorId: record.recordedByUserId,
-        approvedByUserId: admin.id
-      },
-      "manual:approve"
-    );
-
-    await this.prisma.manualPaymentRecord.update({
-      where: { id: recordId },
-      data: { status: "APPROVED", reviewedByUserId: admin.id, reviewedAt: new Date() }
+    await this.claimReview(recordId, {
+      status: "APPROVED",
+      reviewedByUserId: admin.id,
+      reviewedAt: new Date()
     });
+
+    try {
+      await this.settle(
+        record.paymentId,
+        record.method.label,
+        {
+          methodId: record.methodId,
+          reference: record.reference ?? undefined,
+          actorId: record.recordedByUserId,
+          approvedByUserId: admin.id
+        },
+        "manual:approve"
+      );
+    } catch (error) {
+      await this.releaseReview(recordId, "APPROVED");
+      throw error;
+    }
 
     return this.requireItem(recordId);
   }
@@ -254,40 +284,60 @@ export class ManualPaymentService {
   ): Promise<ManualPaymentRecordItem> {
     assertAdmin(admin);
     const record = await this.requireRow(recordId);
-    if (record.status !== "PENDING") {
-      throw new ConflictException("This request has already been reviewed.");
-    }
-
-    await this.payments.applyProviderState(
-      record.paymentId,
-      {
-        providerPaymentId: `manual_${record.paymentId}`,
-        providerOrderId: null,
-        status: PaymentStatus.FAILED,
-        method: null,
-        methodDetail: record.method.label,
-        amount: null,
-        amountRefunded: 0,
-        currency: record.payment.currency,
-        failureCode: "manual_rejected",
-        failureMessage: reason,
-        paidAt: null,
-        raw: { manual: true, rejectedBy: admin.id, reason }
-      },
-      "manual:reject"
-    );
-
-    await this.prisma.manualPaymentRecord.update({
-      where: { id: recordId },
-      data: {
-        status: "REJECTED",
-        reviewedByUserId: admin.id,
-        reviewedAt: new Date(),
-        rejectionReason: reason
-      }
+    await this.claimReview(recordId, {
+      status: "REJECTED",
+      reviewedByUserId: admin.id,
+      reviewedAt: new Date(),
+      rejectionReason: reason
     });
 
+    try {
+      await this.payments.applyProviderState(
+        record.paymentId,
+        {
+          providerPaymentId: `manual_${record.paymentId}`,
+          providerOrderId: null,
+          status: PaymentStatus.FAILED,
+          method: null,
+          methodDetail: record.method.label,
+          amount: null,
+          amountRefunded: 0,
+          currency: record.payment.currency,
+          failureCode: "manual_rejected",
+          failureMessage: reason,
+          paidAt: null,
+          raw: { manual: true, rejectedBy: admin.id, reason }
+        },
+        "manual:reject"
+      );
+    } catch (error) {
+      await this.releaseReview(recordId, "REJECTED");
+      throw error;
+    }
+
     return this.requireItem(recordId);
+  }
+
+  /** Status-filtered claim of a PENDING record: the double-review guard. */
+  private async claimReview(
+    recordId: string,
+    data: Prisma.ManualPaymentRecordUncheckedUpdateManyInput
+  ): Promise<void> {
+    const { count } = await this.prisma.manualPaymentRecord.updateMany({
+      where: { id: recordId, status: "PENDING" },
+      data
+    });
+    if (count === 0) {
+      throw new ConflictException("This request has already been reviewed.");
+    }
+  }
+
+  /** Undo a claim whose payment step failed, so the request can be reviewed again. */
+  private async releaseReview(recordId: string, claimed: "APPROVED" | "REJECTED"): Promise<void> {
+    await this.prisma.manualPaymentRecord.updateMany({
+      where: { id: recordId, status: claimed },
+      data: { status: "PENDING", reviewedByUserId: null, reviewedAt: null, rejectionReason: null }
+    });
   }
 
   async listAll(status?: ManualPaymentReviewStatus): Promise<ManualPaymentListResponse> {

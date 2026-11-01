@@ -1,9 +1,10 @@
 "use client";
 
 import { History } from "lucide-react";
-import type {
-  LiveClassSettingsAuditEntry,
-  LiveClassSettingsOverride,
+import {
+  LOCKABLE_LIVE_SETTING_LABELS,
+  type LiveClassSettingsAuditEntry,
+  type LiveClassSettingsOverride,
 } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -52,9 +53,21 @@ function changedFields(
   return changes;
 }
 
+/** Locks added/removed at the academy or batch layer. */
+function lockChanges(entry: LiveClassSettingsAuditEntry) {
+  if (!entry.locksBefore || !entry.locksAfter) return [];
+  const before = entry.locksBefore;
+  const after = entry.locksAfter;
+  return [
+    ...after.filter((f) => !before.includes(f)).map((f) => ({ label: LOCKABLE_LIVE_SETTING_LABELS[f], to: "Locked" })),
+    ...before.filter((f) => !after.includes(f)).map((f) => ({ label: LOCKABLE_LIVE_SETTING_LABELS[f], to: "Unlocked" })),
+  ];
+}
+
 function AuditRow({ entry }: { entry: LiveClassSettingsAuditEntry }) {
   const tz = useUserTimeZone();
   const changes = changedFields(entry.before, entry.after);
+  const locks = lockChanges(entry);
   return (
     <li className="flex flex-col gap-2 border-b border-app-border py-3 last:border-0">
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -68,11 +81,16 @@ function AuditRow({ entry }: { entry: LiveClassSettingsAuditEntry }) {
           · {entry.actorName ?? "Unknown"} · {relativeTime(entry.createdAt, tz)}
         </span>
       </div>
-      {changes.length > 0 ? (
+      {changes.length > 0 || locks.length > 0 ? (
         <ul className="space-y-0.5 text-xs text-app-muted">
           {changes.map((c) => (
             <li key={c.label}>
               <span className="text-app-text">{c.label}:</span> {c.from} → {c.to}
+            </li>
+          ))}
+          {locks.map((c) => (
+            <li key={`lock-${c.label}`}>
+              <span className="text-app-text">{c.label}:</span> {c.to}
             </li>
           ))}
         </ul>
