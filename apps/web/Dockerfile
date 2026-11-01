@@ -1,4 +1,4 @@
-FROM node:22-alpine AS pruner
+FROM node:26-alpine AS pruner
 RUN apk update && apk add --no-cache libc6-compat
 WORKDIR /app
 # Keep in step with the root package.json devDependency.
@@ -6,7 +6,7 @@ RUN npm install -g turbo@2.10.12
 COPY . .
 RUN turbo prune @nexa-chess/web --docker
 
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 RUN apk update && apk add --no-cache libc6-compat
 WORKDIR /app
 COPY .gitignore .gitignore
@@ -42,7 +42,7 @@ ARG SENTRY_RELEASE
 
 RUN npx turbo run build --filter=@nexa-chess/web
 
-FROM node:22-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
