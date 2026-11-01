@@ -16,7 +16,7 @@ import type {
   CoachClass,
   CoachClassStudent
 } from "@nexa-chess/types";
-import { resolveBatchType } from "@nexa-chess/types";
+import { resolveBatchType, resolveCancellationPath } from "@nexa-chess/types";
 import { ClassStatus, Prisma, UserRole } from "@prisma/client";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
@@ -352,29 +352,42 @@ export class CoachService {
       throw new NotFoundException("Class not found.");
     }
 
-    // AUDIT H18: a class that already ran (or is running) cannot be cancelled
-    // after the fact; an already-cancelled class is a no-op, not an error worth
-    // re-triggering `cancelledAt`.
-    if (
-      existing.status === ClassStatus.COMPLETED ||
-      existing.status === ClassStatus.LIVE ||
-      existing.status === ClassStatus.IN_PROGRESS
-    ) {
-      throw new ConflictException(
-        `Cannot cancel a class that is ${existing.status.toLowerCase()}.`
-      );
-    }
+    // V10 (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md §1.3): a coach
+    // cancels directly only more than 24 h ahead. Closer to the start it's a
+    // CLASS_CANCEL admin request; after the start, CLASS_CANCEL_EXCEPTIONAL.
+    // (Also AUDIT H18: a class that ran or is running is never cancelled here.)
     if (existing.status === ClassStatus.CANCELLED) {
       throw new ConflictException("Class is already cancelled.");
     }
+    const path = resolveCancellationPath(existing);
+    if (path === "NOT_ALLOWED") {
+      throw new ConflictException(`Cannot cancel a class that is ${existing.status.toLowerCase()}.`);
+    }
+    if (path === "APPROVAL") {
+      throw new ForbiddenException(
+        "This class starts within 24 hours, so cancelling it needs an admin's approval. Send a cancellation request instead."
+      );
+    }
+    if (path === "EXCEPTIONAL") {
+      throw new ForbiddenException(
+        "This class has already started, so cancelling it needs an exceptional cancellation request."
+      );
+    }
 
-    const cls = await this.prisma.coachClass.update({
-      where: { id: classId },
+    // Status-filtered: a class started (or cancelled) since the read isn't touched.
+    const { count } = await this.prisma.coachClass.updateMany({
+      where: { id: classId, coachId, status: ClassStatus.SCHEDULED },
       data: {
         status: ClassStatus.CANCELLED,
         cancelledAt: new Date(),
         cancelledById: coachId
-      },
+      }
+    });
+    if (count !== 1) {
+      throw new ConflictException("The class changed. Reload and try again.");
+    }
+    const cls = await this.prisma.coachClass.findUniqueOrThrow({
+      where: { id: classId },
       include: COACH_CLASS_INCLUDE
     });
 

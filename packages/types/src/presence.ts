@@ -47,6 +47,14 @@ export interface PullRosterStudent {
   /** Enrolled in the class's batch (others came from a search or an earlier pull). */
   inBatch: boolean;
   pull: { status: LiveClassPullStatus; requestedAt: string } | null;
+  /**
+   * V4: a coach may pull only students of their own batches. Anyone else needs
+   * an approved `LIVE_CLASS_GUEST_STUDENT` request first; until then this is
+   * true (and presence isn't shown). Always false for an admin.
+   */
+  needsApproval: boolean;
+  /** A guest request for this student and class is waiting for an admin. */
+  approvalPending: boolean;
 }
 
 export interface PullRosterResponse {

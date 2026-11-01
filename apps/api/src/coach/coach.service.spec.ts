@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
 import { CoachService } from "./coach.service";
@@ -15,6 +15,7 @@ describe("CoachService class scheduling", () => {
   let userFindUnique: jest.Mock;
   let coachClassFindUnique: jest.Mock;
   let coachClassUpdate: jest.Mock;
+  let coachClassUpdateMany: jest.Mock;
   let coachClassFindMany: jest.Mock;
 
   beforeEach(async () => {
@@ -26,6 +27,7 @@ describe("CoachService class scheduling", () => {
     });
     coachClassFindUnique = jest.fn();
     coachClassFindMany = jest.fn().mockResolvedValue([]);
+    coachClassUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
     coachClassUpdate = jest.fn().mockImplementation(({ data }) => ({
       id: "class-1",
       batchId: "batch-1",
@@ -63,7 +65,9 @@ describe("CoachService class scheduling", () => {
               count: jest.fn(),
               findMany: coachClassFindMany,
               findUnique: coachClassFindUnique,
-              update: coachClassUpdate
+              findUniqueOrThrow: jest.fn().mockImplementation(() => coachClassUpdate({ data: { status: ClassStatus.CANCELLED } })),
+              update: coachClassUpdate,
+              updateMany: coachClassUpdateMany
             },
             user: { findUnique: userFindUnique }
           }
@@ -174,15 +178,59 @@ describe("CoachService class scheduling", () => {
       );
     });
 
-    it("cancels a SCHEDULED class", async () => {
+    const inHours = (h: number) => new Date(Date.now() + h * 3_600_000);
+
+    it("cancels a SCHEDULED class more than 24 h ahead, status-filtered", async () => {
       coachClassFindUnique.mockResolvedValue({
         id: "class-1",
         coachId: COACH_ID,
+        startsAt: inHours(30),
         status: ClassStatus.SCHEDULED
       });
 
       await expect(service.cancelClass(ACCESS_TOKEN, "class-1")).resolves.toBeDefined();
-      expect(coachClassUpdate).toHaveBeenCalled();
+      expect(coachClassUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { coachId: COACH_ID, id: "class-1", status: ClassStatus.SCHEDULED }
+        })
+      );
+    });
+
+    // V10: within 24 h it's an admin request, after the start an exceptional one.
+    it("refuses a direct cancel within 24 h of the start", async () => {
+      coachClassFindUnique.mockResolvedValue({
+        id: "class-1",
+        coachId: COACH_ID,
+        startsAt: inHours(23),
+        status: ClassStatus.SCHEDULED
+      });
+
+      await expect(service.cancelClass(ACCESS_TOKEN, "class-1")).rejects.toThrow(/needs an admin's approval/);
+      expect(coachClassUpdateMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses a direct cancel after the start (exceptional path)", async () => {
+      coachClassFindUnique.mockResolvedValue({
+        id: "class-1",
+        coachId: COACH_ID,
+        startsAt: inHours(-1),
+        status: ClassStatus.SCHEDULED
+      });
+
+      await expect(service.cancelClass(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(ForbiddenException);
+      expect(coachClassUpdateMany).not.toHaveBeenCalled();
+    });
+
+    it("409s when the class changed between read and write", async () => {
+      coachClassFindUnique.mockResolvedValue({
+        id: "class-1",
+        coachId: COACH_ID,
+        startsAt: inHours(48),
+        status: ClassStatus.SCHEDULED
+      });
+      coachClassUpdateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.cancelClass(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(ConflictException);
     });
   });
 

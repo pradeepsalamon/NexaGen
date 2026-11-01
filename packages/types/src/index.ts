@@ -60,6 +60,7 @@ export * from "./typography";
 export * from "./batch-type";
 export * from "./chess-fen";
 export * from "./class-availability";
+export * from "./class-cancellation";
 export * from "./move-tree";
 // PDF chess-diagram import: recognition core (pure image processing) + position checks.
 export * from "./diagram-recognition";
