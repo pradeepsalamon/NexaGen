@@ -157,7 +157,7 @@ export const TextEditor = forwardRef<HTMLTextAreaElement, TextEditorProps>(funct
         {tool("Numbered list", ListOrdered, () => linePrefix((index) => `${index + 1}. `))}
         {tool("Link (Ctrl+K)", Link2, openLink, link !== null)}
         {previewable ? (
-          <span className="ml-auto">{tool("Preview", Eye, () => setPreviewing((on) => !on), previewing, disabled)}</span>
+          <span className="ml-auto">{tool("Preview", Eye, () => setPreviewing((on) => !on), previewing, Boolean(disabled))}</span>
         ) : null}
       </div>
 
