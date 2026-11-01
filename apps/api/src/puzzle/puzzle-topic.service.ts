@@ -25,7 +25,7 @@ import {
   type ReassignPuzzleTopicRequest,
   type UpdatePuzzleTopicRequest
 } from "@nexa-chess/types";
-import { Prisma, PuzzleSource, UserRole, type User } from "@prisma/client";
+import { Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
 import { AssignmentPuzzleSetService } from "../assignment/assignment-puzzle-set.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
@@ -74,16 +74,17 @@ export class PuzzleTopicService {
 
   async list(accessToken: string | undefined): Promise<PuzzleTopicListResponse> {
     const user = await this.authStaffOrCoach(accessToken);
-    const [rows, homework] = await Promise.all([
+    const [rows, homework, activities] = await Promise.all([
       this.prisma.puzzleTopic.findMany({
         include: topicInclude,
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
       }),
-      this.puzzleSets.folderHomeworkCounts()
+      this.puzzleSets.folderHomeworkCounts(),
+      this.activityCounts(user)
     ]);
     // Postgres orders names as text ("Set 10" before "Set 2"); re-sort naturally.
     rows.sort((x, y) => x.sortOrder - y.sortOrder || compareNatural(x.name, y.name));
-    return { topics: rows.map((row) => this.toDto(row, user, homework.get(row.id) ?? 0)) };
+    return { topics: rows.map((row) => this.toDto(row, user, homework.get(row.id) ?? 0, activities.get(row.id) ?? 0)) };
   }
 
   async get(accessToken: string | undefined, id: string): Promise<PuzzleTopicResponse> {
@@ -219,9 +220,12 @@ export class PuzzleTopicService {
     const puzzles = await this.prisma.puzzle.count({
       where: { topicId: { in: subtree }, isDeleted: false }
     });
-    if (puzzles > 0) {
+    const activities = await this.prisma.libraryActivity.count({
+      where: { topicId: { in: subtree }, isDeleted: false }
+    });
+    if (puzzles + activities > 0) {
       throw new BadRequestException(
-        "This folder or one of its subfolders still has puzzles. Move them to another folder first."
+        "This folder or one of its subfolders still has puzzles or activities. Move them to another folder first."
       );
     }
 
@@ -250,6 +254,12 @@ export class PuzzleTopicService {
 
     const puzzles = await this.prisma.$transaction(async (tx) => {
       const deleteGroupId = await this.trash.softDeleteGroup(tx, "PuzzleTopic", subtree, user.id);
+      await this.trash.softDeleteManyIntoGroup(
+        tx,
+        "LibraryActivity",
+        { topicId: { in: subtree } },
+        { cascadedFrom: "PuzzleTopic", deleteGroupId, parentId: id, userId: user.id }
+      );
       return this.trash.softDeleteManyIntoGroup(
         tx,
         "Puzzle",
@@ -288,8 +298,12 @@ export class PuzzleTopicService {
         where: { topicId: { in: subtree }, isDeleted: false },
         data: { topicId: dto.toTopicId }
       });
+      const activities = await tx.libraryActivity.updateMany({
+        where: { topicId: { in: subtree }, isDeleted: false },
+        data: { topicId: dto.toTopicId }
+      });
       await this.archiveSubtree(tx, subtree, user.id);
-      return count;
+      return count + activities.count;
     });
     return { success: true, moved };
   }
@@ -381,6 +395,33 @@ export class PuzzleTopicService {
             });
             puzzles += count;
           }
+
+          // MCQs and Playouts come along, keeping their author and status.
+          const activityRows = await tx.libraryActivity.findMany({ where: { topicId: topic.id } });
+          if (activityRows.length) {
+            await tx.libraryActivity.createMany({
+              data: activityRows.map((row) => ({
+                archivedAt: row.archivedAt,
+                archivedById: row.archivedById,
+                configJson: row.configJson as Prisma.InputJsonValue,
+                createdById: row.createdById,
+                createdByRole: row.createdByRole,
+                description: row.description,
+                difficulty: row.difficulty,
+                kind: row.kind,
+                publishedAt: row.publishedAt,
+                publishedById: row.publishedById,
+                status: row.status,
+                tags: row.tags,
+                thumbnailUrl: row.thumbnailUrl,
+                title: row.title,
+                topic: row.topic,
+                topicId: created.id,
+                updatedById: user.id,
+                visibility: row.visibility
+              }))
+            });
+          }
         }
         return { rootId: newIds.get(source.id)!, folders: newIds.size, puzzles };
       },
@@ -414,6 +455,20 @@ export class PuzzleTopicService {
       throw new ForbiddenException("Only the Super Admin can approve folders for homework.");
     }
     return user;
+  }
+
+  /** MCQs and Playouts per folder, as this viewer sees them (a coach only sees what is published). */
+  private async activityCounts(user: User, topicIds?: string[]): Promise<Map<string, number>> {
+    const rows = await this.prisma.libraryActivity.groupBy({
+      by: ["topicId"],
+      where: {
+        isDeleted: false,
+        ...(topicIds ? { topicId: { in: topicIds } } : {}),
+        ...(isAdminRole(user.role) ? {} : { status: PuzzleStatus.PUBLISHED, visibility: PuzzleVisibility.GLOBAL })
+      },
+      _count: { _all: true }
+    });
+    return new Map(rows.map((r) => [r.topicId, r._count._all]));
   }
 
   private loadLinks(): Promise<TopicLink[]> {
@@ -497,11 +552,14 @@ export class PuzzleTopicService {
   }
 
   private async toDtoWithCounts(row: TopicRow, viewer: User): Promise<PuzzleTopicDto> {
-    const counts = await this.puzzleSets.folderHomeworkCounts([row.id]);
-    return this.toDto(row, viewer, counts.get(row.id) ?? 0);
+    const [counts, activities] = await Promise.all([
+      this.puzzleSets.folderHomeworkCounts([row.id]),
+      this.activityCounts(viewer, [row.id])
+    ]);
+    return this.toDto(row, viewer, counts.get(row.id) ?? 0, activities.get(row.id) ?? 0);
   }
 
-  private toDto(row: TopicRow, viewer: User, homeworkPuzzleCount: number): PuzzleTopicDto {
+  private toDto(row: TopicRow, viewer: User, homeworkPuzzleCount: number, activityCount: number): PuzzleTopicDto {
     const approved = row.homeworkApprovedAt !== null;
     return {
       id: row.id,
@@ -512,6 +570,7 @@ export class PuzzleTopicService {
       sortOrder: row.sortOrder,
       parentId: row.parentId,
       puzzleCount: row._count.puzzles,
+      activityCount,
       createdByName: fullName(row.createdBy),
       canManage: isAdminRole(viewer.role),
       homeworkApprovedAt: row.homeworkApprovedAt?.toISOString() ?? null,

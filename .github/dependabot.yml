@@ -4,8 +4,10 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
+    # Wait out freshly published versions, which can be malicious or broken.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     groups:
       minor-and-patch:
@@ -29,6 +31,9 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    # Wait out freshly published versions, which can be malicious or broken.
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns: ["*"]
@@ -39,3 +44,6 @@ updates:
       - /apps/web
     schedule:
       interval: monthly
+    # Wait out freshly published versions, which can be malicious or broken.
+    cooldown:
+      default-days: 7

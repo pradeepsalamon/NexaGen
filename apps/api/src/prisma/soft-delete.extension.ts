@@ -35,6 +35,7 @@ export const softDeleteModels = [
   "BatchStudent",
   "Puzzle",
   "PuzzleTopic",
+  "LibraryActivity",
   "Course",
   "CourseModule"
 ] as const;
@@ -94,6 +95,12 @@ export const trashEntities = [
     label: "PuzzleTopic",
     searchFields: ["name", "description"],
     titleField: "name"
+  },
+  {
+    delegate: "libraryActivity",
+    label: "LibraryActivity",
+    searchFields: ["title", "description"],
+    titleField: "title"
   },
   {
     delegate: "course",

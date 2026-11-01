@@ -55,6 +55,7 @@ const entityOptions = [
   { label: "Batch students", value: "BatchStudent" },
   { label: "Puzzles", value: "Puzzle" },
   { label: "Puzzle topics", value: "PuzzleTopic" },
+  { label: "MCQs and Playouts", value: "LibraryActivity" },
   { label: "Courses", value: "Course" },
   { label: "Course modules", value: "CourseModule" }
 ];

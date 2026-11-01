@@ -146,6 +146,15 @@ export class ActivityHistoryService {
       maxScore: row.max_score,
       occurredAt: row.occurred_at.toISOString(),
       outcome,
+      playout:
+        row.playout_start_fen && row.playout_final_fen
+          ? {
+              finalFen: row.playout_final_fen,
+              goalAchieved: !!row.playout_goal_achieved,
+              pgn: row.playout_pgn ?? "",
+              startFen: row.playout_start_fen
+            }
+          : null,
       puzzle:
         row.puzzle_id && row.puzzle_difficulty && row.puzzle_type
           ? {
@@ -168,6 +177,7 @@ export class ActivityHistoryService {
 
   private titleOf(row: HistoryRow): string {
     if (row.puzzle_title) return row.puzzle_title;
+    if (row.run_title) return row.run_title;
     if (row.type === "CLASS_QUESTION") return row.poll_prompt?.trim() || "What would you play?";
     if (row.type === "PUZZLE_RUSH") return row.rush_mode === "RACER" ? "Puzzle Racer" : "Puzzle Storm";
     if (row.assignment_title) return row.assignment_title;

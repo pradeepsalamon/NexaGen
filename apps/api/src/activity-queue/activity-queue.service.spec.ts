@@ -10,6 +10,7 @@ import { LiveClassMovePollService } from "../move-poll/live-class-move-poll.serv
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveClassPuzzleService } from "../puzzle/live-class-puzzle.service";
 import { PuzzleCatalogService } from "../puzzle/puzzle-catalog.service";
+import { ActivityRunService } from "../puzzle-activity/activity-run.service";
 import { ActivityQueueService } from "./activity-queue.service";
 
 const TOKEN = "t";
@@ -333,7 +334,8 @@ describe("ActivityQueueService", () => {
         { provide: LiveKitService, useValue: livekit },
         { provide: LiveClassPuzzleService, useValue: livePuzzles },
         { provide: LiveClassMovePollService, useValue: polls },
-        { provide: PuzzleCatalogService, useValue: catalog }
+        { provide: PuzzleCatalogService, useValue: catalog },
+        { provide: ActivityRunService, useValue: { end: jest.fn(), start: jest.fn() } }
       ]
     }).compile();
     service = moduleRef.get(ActivityQueueService);

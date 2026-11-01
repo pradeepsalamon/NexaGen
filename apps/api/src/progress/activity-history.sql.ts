@@ -48,6 +48,14 @@ function pollGraded(ctx: HistoryContext): Prisma.Sql {
 }
 
 /**
+ * An MCQ is graded for this viewer once they may know: staff always; a student
+ * when the activity shows verdicts on submit, or after the coach revealed it.
+ */
+function mcqGraded(ctx: HistoryContext): Prisma.Sql {
+  return Prisma.sql`(${ctx.staffViewer}::boolean OR r."revealedAt" IS NOT NULL OR r."configJson"->>'revealMode' = 'ON_SUBMIT')`;
+}
+
+/**
  * The CTE prefix: `pa` (puzzle attempts, flagged), `activity`, `graded`.
  *
  * Puzzle attempts group by (setting, puzzle) — setting = the class, the
@@ -111,6 +119,48 @@ pa AS (
   LEFT JOIN student_assignments sa ON sa.id = pa0.sa_id
   LEFT JOIN assignment_batches ab ON ab.id = sa."assignmentBatchId"
 ),
+mcq AS (
+  SELECT m."runId" AS run_id,
+         count(*)::int AS attempts,
+         bool_or(m.correct) AS correct,
+         max(m.score)::int AS best,
+         max(m."maxScore")::int AS max_score,
+         sum(m."durationSeconds")::int AS dur,
+         min(m."submittedAt") AS first_at,
+         max(m."submittedAt") AS last_at,
+         min(m."attemptNumber") FILTER (WHERE m.correct) AS solved_on,
+         (array_agg(to_jsonb(m."selectedOptionIds") ORDER BY m."attemptNumber" DESC))[1] AS selected
+  FROM live_class_mcq_attempts m
+  WHERE m."studentId" = ${s}
+  GROUP BY m."runId"
+),
+playout AS (
+  SELECT g."runId" AS run_id,
+         count(*) FILTER (WHERE g.moved OR g.judged)::int AS attempts,
+         bool_or(g."goalAchieved") AS achieved,
+         bool_or(g.judged) AS finished,
+         bool_or(g.moved) AS played,
+         max(g.score) FILTER (WHERE g.moved OR g.judged)::int AS best,
+         max(g."maxScore")::int AS max_score,
+         sum(g."hintsUsed") FILTER (WHERE g.moved OR g.judged)::int AS hints,
+         sum(EXTRACT(EPOCH FROM (COALESCE(g."finishedAt", g."lastMoveAt", g."startedAt") - g."startedAt")))
+           FILTER (WHERE g.moved OR g.judged)::int AS dur,
+         min(g."startedAt") FILTER (WHERE g.moved OR g.judged) AS first_at,
+         max(COALESCE(g."finishedAt", g."lastMoveAt", g."startedAt")) FILTER (WHERE g.moved OR g.judged) AS last_at,
+         min(g."attemptNumber") FILTER (WHERE g."goalAchieved") AS solved_on
+  FROM (
+    -- moved: the student played at least one move (the computer may open a game
+    -- by itself). judged: it finished with a verdict, not cut off by the class
+    -- moving on. A game only opened and left is neither, and counts as nothing.
+    SELECT x.*,
+           jsonb_path_exists(x."movesJson", '$[*] ? (@.by == "STUDENT")') AS moved,
+           (x.status = 'COMPLETED' AND x."endReason" <> 'ACTIVITY_ENDED') AS judged
+    FROM live_class_playout_games x
+    WHERE x."studentId" = ${s}
+  ) g
+  GROUP BY g."runId"
+  HAVING bool_or(g.moved OR g.judged)
+),
 hw_att AS (
   SELECT att."studentAssignmentId" AS sa_id,
          count(*) FILTER (WHERE att.status <> 'IN_PROGRESS' OR ${attMoves})::int AS attempts,
@@ -160,7 +210,8 @@ activity AS (
          min(batch_id) AS batch_id,
          NULL::text AS poll_id,
          NULL::text AS sa_id,
-         NULL::text AS rush_id
+         NULL::text AS rush_id,
+         NULL::text AS run_id
   FROM pa
   GROUP BY setting, puzzle_id
 
@@ -174,7 +225,7 @@ activity AS (
          true, ans."answeredAt", ans."answeredAt", 1,
          CASE WHEN ${pollGraded(ctx)} AND ans.uci = p."correctUci" THEN 1 END,
          0, 0, NULL, NULL, NULL, ans.san,
-         NULL, p."liveClassId", NULL, c."batchId", p.id, NULL, NULL
+         NULL, p."liveClassId", NULL, c."batchId", p.id, NULL, NULL, NULL
   FROM live_class_move_poll_answers ans
   JOIN live_class_move_polls p ON p.id = ans."pollId"
   JOIN classes c ON c.id = p."liveClassId"
@@ -185,7 +236,7 @@ activity AS (
   -- Only once the share closed (or the class ended); one row per (class, puzzle).
   SELECT 'missed-puzzle:' || sh."liveClassId" || ':' || sh."puzzleId", 'CLASS_PUZZLE', 'UNANSWERED',
          false, min(sh."startedAt"), min(sh."startedAt"), 0, NULL, 0, 0, NULL, NULL, NULL, NULL,
-         sh."puzzleId", sh."liveClassId", NULL, c."batchId", NULL, NULL, NULL
+         sh."puzzleId", sh."liveClassId", NULL, c."batchId", NULL, NULL, NULL, NULL
   FROM live_class_puzzle_assignments sh
   JOIN classes c ON c.id = sh."liveClassId"
   JOIN class_attendance ca ON ca."classId" = sh."liveClassId" AND ca."studentId" = ${s}
@@ -204,7 +255,7 @@ activity AS (
   -- Questions asked while the student was in the room, never answered (once closed).
   SELECT 'missed-poll:' || p.id, 'CLASS_QUESTION', 'UNANSWERED',
          false, p."startedAt", p."startedAt", 0, NULL, 0, 0, NULL, NULL, NULL, NULL,
-         NULL, p."liveClassId", NULL, c."batchId", p.id, NULL, NULL
+         NULL, p."liveClassId", NULL, c."batchId", p.id, NULL, NULL, NULL
   FROM live_class_move_polls p
   JOIN classes c ON c.id = p."liveClassId"
   JOIN class_attendance ca ON ca."classId" = p."liveClassId" AND ca."studentId" = ${s}
@@ -250,7 +301,7 @@ activity AS (
          CASE WHEN a."activityType" IN ('SOLVE_LINE', 'PLAY_VS_ENGINE') THEN sa."bestScorePercent" END,
          CASE WHEN a."activityType" IN ('SOLVE_LINE', 'PLAY_VS_ENGINE') AND sa."bestScorePercent" IS NOT NULL THEN 100 END,
          CASE WHEN a."activityType" = 'PLAY_VS_ENGINE' THEN x.last_result END,
-         NULL, NULL, ab.id, ab."batchId", NULL, sa.id, NULL
+         NULL, NULL, ab.id, ab."batchId", NULL, sa.id, NULL, NULL
   FROM student_assignments sa
   JOIN assignment_batches ab ON ab.id = sa."assignmentBatchId"
   JOIN assignments a ON a.id = ab."assignmentId"
@@ -266,11 +317,65 @@ activity AS (
          COALESCE(e."finishedAt", e."updatedAt"), e."startedAt", 1, NULL, 0, 0,
          NULL, e.score, NULL,
          e.solved || ' solved · ' || e.errors || CASE WHEN e.errors = 1 THEN ' error' ELSE ' errors' END,
-         NULL, r."liveClassId", NULL, c."batchId", NULL, NULL, r.id
+         NULL, r."liveClassId", NULL, c."batchId", NULL, NULL, r.id, NULL
   FROM live_class_puzzle_rush_entries e
   JOIN live_class_puzzle_rushes r ON r.id = e."rushId"
   JOIN classes c ON c.id = r."liveClassId"
   WHERE e."studentId" = ${s} AND e.moves > 0
+
+  UNION ALL
+  -- Library MCQs answered in class: one entry per run, tries grouped. The answer
+  -- chosen is safe to show: it is the student's own.
+  SELECT 'mcq:' || r.id, 'CLASS_MCQ',
+         CASE WHEN ${mcqGraded(ctx)} THEN CASE WHEN x.correct THEN 'CORRECT' ELSE 'INCORRECT' END ELSE 'UNGRADED' END,
+         true, x.last_at, x.first_at, x.attempts,
+         CASE WHEN ${mcqGraded(ctx)} THEN x.solved_on END,
+         0, 0, x.dur,
+         CASE WHEN ${mcqGraded(ctx)} THEN
+           CASE WHEN x.correct THEN x.best
+                ELSE GREATEST(0, x.best - COALESCE((r."configJson"->>'wrongPenalty')::int, 0)) END
+         END,
+         x.max_score,
+         (SELECT string_agg(o->>'text', ', ')
+            FROM jsonb_array_elements(r."configJson"->'options') o
+           WHERE o->>'id' IN (SELECT jsonb_array_elements_text(x.selected))),
+         NULL, r."liveClassId", NULL, c."batchId", NULL, NULL, NULL, r.id
+  FROM mcq x
+  JOIN live_class_activity_runs r ON r.id = x.run_id
+  JOIN classes c ON c.id = r."liveClassId"
+
+  UNION ALL
+  -- Library Playouts played in class: one entry per run, tries grouped.
+  SELECT 'playout:' || r.id, 'CLASS_PLAYOUT',
+         CASE
+           WHEN x.achieved THEN 'CORRECT'
+           WHEN x.finished THEN 'INCORRECT'
+           WHEN x.played THEN 'INCOMPLETE'
+           ELSE 'NOT_STARTED'
+         END,
+         (x.achieved OR x.finished),
+         x.last_at, x.first_at, x.attempts, x.solved_on, x.hints, 0, NULLIF(x.dur, 0), x.best, x.max_score,
+         CASE WHEN x.achieved THEN 'Goal achieved' WHEN x.finished THEN 'Goal not achieved' END,
+         NULL, r."liveClassId", NULL, c."batchId", NULL, NULL, NULL, r.id
+  FROM playout x
+  JOIN live_class_activity_runs r ON r.id = x.run_id
+  JOIN classes c ON c.id = r."liveClassId"
+
+  UNION ALL
+  -- MCQs and Playouts put to the class while the student was in the room, never touched.
+  SELECT 'missed-run:' || r.id, CASE r.kind WHEN 'MCQ' THEN 'CLASS_MCQ' ELSE 'CLASS_PLAYOUT' END, 'UNANSWERED',
+         false, r."startedAt", r."startedAt", 0, NULL, 0, 0, NULL, NULL, NULL, NULL,
+         NULL, r."liveClassId", NULL, c."batchId", NULL, NULL, NULL, r.id
+  FROM live_class_activity_runs r
+  JOIN classes c ON c.id = r."liveClassId"
+  JOIN class_attendance ca ON ca."classId" = r."liveClassId" AND ca."studentId" = ${s}
+  WHERE r.status = 'ENDED'
+    AND ca.status <> 'ABSENT'
+    AND ca."joinedAt" IS NOT NULL
+    AND ca."joinedAt" <= COALESCE(r."endedAt", r."startedAt")
+    AND (ca."leftAt" IS NULL OR ca."leftAt" >= r."startedAt")
+    AND NOT EXISTS (SELECT 1 FROM mcq x WHERE x.run_id = r.id)
+    AND NOT EXISTS (SELECT 1 FROM playout x WHERE x.run_id = r.id)
 ),
 graded AS (
   SELECT happened_at, type, batch_id, class_id, assignment_id, puzzle_id, correct
@@ -293,6 +398,22 @@ graded AS (
   JOIN assignment_batches ab ON ab.id = sa."assignmentBatchId"
   JOIN assignments a ON a.id = ab."assignmentId"
   WHERE sa."studentId" = ${s} AND a."activityType" = 'SOLVE_LINE' AND att.status IN ('COMPLETED', 'FAILED')
+
+  UNION ALL
+  -- MCQ tries the viewer may know the result of.
+  SELECT m."submittedAt", 'CLASS_MCQ', c."batchId", r."liveClassId", NULL, NULL, m.correct
+  FROM live_class_mcq_attempts m
+  JOIN live_class_activity_runs r ON r.id = m."runId"
+  JOIN classes c ON c.id = r."liveClassId"
+  WHERE m."studentId" = ${s} AND ${mcqGraded(ctx)}
+
+  UNION ALL
+  -- Finished Playout games. One the class moved on from isn't a verdict; nor is a restart.
+  SELECT COALESCE(g."finishedAt", g."startedAt"), 'CLASS_PLAYOUT', c."batchId", r."liveClassId", NULL, NULL, g."goalAchieved"
+  FROM live_class_playout_games g
+  JOIN live_class_activity_runs r ON r.id = g."runId"
+  JOIN classes c ON c.id = r."liveClassId"
+  WHERE g."studentId" = ${s} AND g.status = 'COMPLETED' AND g."endReason" <> 'ACTIVITY_ENDED'
 )`;
 }
 
@@ -342,6 +463,12 @@ export type HistoryRow = {
   poll_id: string | null;
   sa_id: string | null;
   rush_id: string | null;
+  run_id: string | null;
+  run_title: string | null;
+  playout_start_fen: string | null;
+  playout_final_fen: string | null;
+  playout_pgn: string | null;
+  playout_goal_achieved: boolean | null;
   puzzle_title: string | null;
   puzzle_difficulty: string | null;
   puzzle_type: string | null;
@@ -378,6 +505,9 @@ SELECT r.*,
        sa.note AS student_note,
        poll.prompt AS poll_prompt,
        rush.mode::text AS rush_mode,
+       run.title AS run_title,
+       pg."startFen" AS playout_start_fen, pg.fen AS playout_final_fen, pg.pgn AS playout_pgn,
+       pg."goalAchieved" AS playout_goal_achieved,
        q.queue_title, q.queue_position
 FROM (
   SELECT * FROM activity h
@@ -394,12 +524,26 @@ LEFT JOIN assignments a ON a.id = ab."assignmentId"
 LEFT JOIN student_assignments sa ON sa.id = r.sa_id
 LEFT JOIN live_class_move_polls poll ON poll.id = r.poll_id
 LEFT JOIN live_class_puzzle_rushes rush ON rush.id = r.rush_id
+LEFT JOIN live_class_activity_runs run ON run.id = r.run_id
+-- The game a Playout entry shows: the one that reached the goal, else the last try.
+LEFT JOIN LATERAL (
+  SELECT g."startFen", g.fen, g.pgn, g."goalAchieved"
+  FROM live_class_playout_games g
+  WHERE r.type = 'CLASS_PLAYOUT' AND g."runId" = r.run_id AND g."studentId" = ${ctx.studentId}
+  ORDER BY g."goalAchieved" DESC, g."attemptNumber" DESC
+  LIMIT 1
+) pg ON true
 LEFT JOIN LATERAL (
   SELECT u.queue_title, u.queue_position FROM (
     SELECT q1.title AS queue_title, i1.position + 1 AS queue_position, i1."activatedAt" AS activated_at
     FROM live_class_activity_queue_items i1
     JOIN live_class_activity_queues q1 ON q1.id = i1."queueId"
     WHERE r.poll_id IS NOT NULL AND i1."movePollId" = r.poll_id
+    UNION ALL
+    SELECT q3.title, i3.position + 1, i3."activatedAt"
+    FROM live_class_activity_queue_items i3
+    JOIN live_class_activity_queues q3 ON q3.id = i3."queueId"
+    WHERE r.run_id IS NOT NULL AND i3."activityRunId" = r.run_id
     UNION ALL
     SELECT q2.title, i2.position + 1, i2."activatedAt"
     FROM live_class_puzzle_assignments sh
