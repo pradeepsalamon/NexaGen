@@ -65,6 +65,9 @@ export * from "./move-tree";
 // PDF chess-diagram import: recognition core (pure image processing) + position checks.
 export * from "./diagram-recognition";
 export * from "./diagram-position";
+export * from "./diagram-font-reading";
+export * from "./diagram-solution";
+export * from "./diagram-square-classifier";
 export * from "./game-library";
 export * from "./game-analysis";
 export * from "./game-tactics";

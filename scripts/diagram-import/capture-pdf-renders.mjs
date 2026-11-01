@@ -15,7 +15,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const PDFS = join(ROOT, "e2e/fixtures/diagram-import");
 const VENDOR = join(ROOT, "apps/web/public/vendor/pdfjs");
 const OUT = join(ROOT, "apps/api/src/common/chess/__fixtures__/diagram");
-// Keep in step with PDF_IMPORT_LIMITS in lib/pdf.ts.
+// Keep in step with DOCUMENT_LIMITS in apps/web/src/lib/document-reader/pdf.ts.
 const RENDER_MAX_SIDE = 2100;
 const MAX_SCALE = 3;
 

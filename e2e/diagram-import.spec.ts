@@ -270,6 +270,61 @@ test.describe("PDF diagram import", () => {
     await expect(page.getByText("scanned-page — p.1 #1")).toBeVisible();
   });
 
+  // generate-jpx-fixture.py: the scanned-page.pdf page, stored as JPEG2000.
+  test("a JPEG2000 scan is decoded and read like any other scan", async ({ page }) => {
+    const [d] = expected["scanned-page.pdf"].diagrams ?? [];
+    await upload(page, "scanned-jpeg2000.pdf");
+    await scan(page, 1, 1);
+    await page.getByTestId("diagram-candidate").first().click();
+    // This proves the page was decoded, not that the read is perfect: lossy
+    // compression costs a few squares, which the coach reviews as usual.
+    const got = expandPlacement(placementOf(await fen(page)));
+    const want = expandPlacement(placementOf(d.fen));
+    const right = [...want].filter((square, i) => got[i] === square).length;
+    expect(right).toBeGreaterThanOrEqual(56);
+  });
+
+  test("a scan whose image can't be decoded is reported, not called empty", async ({ page }) => {
+    await page.route("**/vendor/pdfjs/wasm/**", (route) => route.abort());
+    await upload(page, "scanned-jpeg2000.pdf");
+    await scan(page, 1, 1);
+    await expect(page.getByText("1 page could not be read")).toBeVisible();
+    await expect(page.getByText(/scanned image that could not be decoded/)).toBeVisible();
+    await expect(page.getByText("Nothing could be read")).toBeVisible();
+    await expect(page.getByText("No diagrams found")).toBeHidden();
+  });
+
+  // generate-image-fixture.mjs: a screenshot-style picture with a caption and moves under the board.
+  test("an image is read without a scan step: board, caption by OCR, and printed moves as a suggested solution", async ({ page }) => {
+    await page.getByTestId("diagram-pdf-input").setInputFiles(join(FIXTURES, "board-screenshot.png"));
+    await expect(page.getByTestId("diagram-candidate").first()).toBeVisible({ timeout: 60_000 });
+    await page.getByTestId("diagram-candidate").first().click();
+    await expect(page.getByTestId("diagram-from")).toHaveCount(0);
+    await expect(page.getByText(/Read from the picture/)).toBeVisible();
+    const want = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PP1/R1BQK2R";
+    await reviewAndCorrect(page, want);
+    await expect(page.getByTestId("diagram-annotated")).toHaveCount(0);
+
+    await page.getByRole("radio", { name: "White" }).first().check();
+    await page.getByRole("radio", { name: "None" }).check();
+    await page.getByLabel(/Use these: en passant none/).click();
+    await page.getByRole("button", { name: "Confirm position" }).click();
+    expect(await fen(page)).toBe(`${want} w - - 0 1`);
+    await expect(page.getByTestId("diagram-suggested-line")).toContainText("d3 d6 Bg5");
+
+    // The puzzle form opens with those moves as its solution, for the coach to check.
+    await page.getByTestId("diagram-save-library").click();
+    await page.waitForURL(/\/coach\/puzzles\/new\?from=pdf/);
+    for (const san of ["d3", "d6", "Bg5"]) await expect(page.getByText(san, { exact: true })).toBeVisible();
+  });
+
+  test("a line drawn across a board warns the coach to check every square", async ({ page }) => {
+    await page.getByTestId("diagram-pdf-input").setInputFiles(join(FIXTURES, "board-annotated.png"));
+    await expect(page.getByTestId("diagram-candidate").first()).toBeVisible({ timeout: 60_000 });
+    await page.getByTestId("diagram-candidate").first().click();
+    await expect(page.getByTestId("diagram-annotated")).toBeVisible();
+  });
+
   test("an impossible position cannot be confirmed", async ({ page }) => {
     await upload(page, "book-two-diagrams.pdf");
     await scan(page, 1, 1);
