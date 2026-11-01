@@ -32,8 +32,8 @@ import { formatInterval, formatNextDue } from "../lib/revisionFormat";
 const GRADE_STYLE: Record<RevisionGrade, string> = {
   AGAIN: "border-app-danger/50 text-app-danger-ink hover:bg-app-danger/10",
   EASY: "border-primary/50 text-primary hover:bg-primary/10",
-  GOOD: "border-accent/50 text-accent-ink hover:bg-accent/10",
-  HARD: "border-secondary/60 text-app-text hover:bg-secondary/15"
+  GOOD: "border-success/50 text-success-ink hover:bg-success/10",
+  HARD: "border-accent/60 text-app-text hover:bg-accent/15"
 };
 
 type BoardProps = {
@@ -262,11 +262,11 @@ function PendingRatingView(props: BoardProps) {
       <Card
         className={cn(
           "space-y-1 p-4",
-          solved ? "border-accent/40 bg-accent/10" : "border-app-danger/30 bg-app-danger/5"
+          solved ? "border-success/40 bg-success/10" : "border-app-danger/30 bg-app-danger/5"
         )}
       >
         <p className="text-sm text-app-muted">You finished this puzzle earlier but didn&apos;t rate it yet.</p>
-        <p className={cn("flex items-center gap-2 text-lg font-extrabold", solved ? "text-accent-ink" : "text-app-danger-ink")}>
+        <p className={cn("flex items-center gap-2 text-lg font-extrabold", solved ? "text-success-ink" : "text-app-danger-ink")}>
           {solved ? <CheckCircle2 className="size-5" strokeWidth={2.5} /> : <XCircle className="size-5" strokeWidth={2.5} />}
           {REVISION_OUTCOME_LABELS[pending.outcome]}
         </p>
@@ -374,13 +374,13 @@ function SolveView(props: BoardProps) {
             <Card
               className={cn(
                 "space-y-1 p-4",
-                result.solved ? "border-accent/40 bg-accent/10" : "border-app-danger/30 bg-app-danger/5"
+                result.solved ? "border-success/40 bg-success/10" : "border-app-danger/30 bg-app-danger/5"
               )}
             >
               <p
                 className={cn(
                   "flex items-center gap-2 text-lg font-extrabold",
-                  result.solved ? "text-accent-ink" : "text-app-danger-ink"
+                  result.solved ? "text-success-ink" : "text-app-danger-ink"
                 )}
               >
                 {result.solved ? (

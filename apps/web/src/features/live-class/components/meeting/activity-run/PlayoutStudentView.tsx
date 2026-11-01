@@ -235,10 +235,10 @@ export function PlayoutStudentView({ classId, run, playout }: { classId: string;
         ) : null}
 
         {game.hints.length > 0 ? (
-          <ol className="space-y-1 rounded-app border border-secondary/40 bg-secondary/10 p-3 text-sm text-app-text">
+          <ol className="space-y-1 rounded-app border border-accent/40 bg-accent/10 p-3 text-sm text-app-text">
             {game.hints.map((hint) => (
               <li key={hint} className="flex items-start gap-1.5">
-                <Lightbulb className="mt-0.5 size-3.5 shrink-0 text-secondary-ink" strokeWidth={2.5} aria-hidden="true" />
+                <Lightbulb className="mt-0.5 size-3.5 shrink-0 text-accent-ink" strokeWidth={2.5} aria-hidden="true" />
                 {hint}
               </li>
             ))}

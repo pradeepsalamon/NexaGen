@@ -50,9 +50,19 @@ const config: Config = {
       colors: {
         accent: {
           DEFAULT: "rgb(var(--rgb-accent) / <alpha-value>)",
-          bright: "rgb(var(--rgb-accent-bright) / <alpha-value>)",
-          light: "rgb(var(--rgb-accent-light) / <alpha-value>)",
+          hover: "rgb(var(--rgb-accent-hover) / <alpha-value>)",
+          soft: "rgb(var(--rgb-accent-soft) / <alpha-value>)",
           ink: "var(--color-accent-ink)"
+        },
+        brand: {
+          700: "rgb(var(--rgb-brand-700) / <alpha-value>)",
+          800: "rgb(var(--rgb-brand-800) / <alpha-value>)",
+          900: "rgb(var(--rgb-brand-900) / <alpha-value>)"
+        },
+        "on-accent": "rgb(var(--rgb-on-accent) / <alpha-value>)",
+        "on-brand": {
+          DEFAULT: "rgb(var(--rgb-on-brand) / <alpha-value>)",
+          muted: "rgb(var(--rgb-on-brand-muted) / <alpha-value>)"
         },
         app: {
           background: "rgb(var(--rgb-background) / <alpha-value>)",
@@ -63,11 +73,15 @@ const config: Config = {
           },
           danger: {
             DEFAULT: "rgb(var(--rgb-danger) / <alpha-value>)",
-            ink: "var(--color-danger-ink)"
+            hover: "rgb(var(--rgb-danger-hover) / <alpha-value>)",
+            ink: "var(--color-danger-ink)",
+            soft: "rgb(var(--rgb-danger-soft) / <alpha-value>)"
           },
           focus: "var(--color-focus)",
+          "line-strong": "rgb(var(--rgb-line-strong) / <alpha-value>)",
           muted: "rgb(var(--rgb-text-muted) / <alpha-value>)",
           soft: "rgb(var(--rgb-surface-soft) / <alpha-value>)",
+          subtle: "rgb(var(--rgb-text-subtle) / <alpha-value>)",
           surface: "rgb(var(--rgb-surface) / <alpha-value>)",
           text: "rgb(var(--rgb-text) / <alpha-value>)"
         },
@@ -79,11 +93,9 @@ const config: Config = {
         primary: {
           DEFAULT: "rgb(var(--rgb-primary) / <alpha-value>)",
           dark: "rgb(var(--rgb-primary-dark) / <alpha-value>)",
-          ink: "var(--color-primary-ink)"
-        },
-        secondary: {
-          DEFAULT: "rgb(var(--rgb-secondary) / <alpha-value>)",
-          ink: "var(--color-secondary-ink)"
+          hover: "rgb(var(--rgb-primary-hover) / <alpha-value>)",
+          ink: "var(--color-primary-ink)",
+          soft: "rgb(var(--rgb-primary-soft) / <alpha-value>)"
         },
         warm: {
           DEFAULT: "rgb(var(--rgb-warm) / <alpha-value>)",
@@ -91,21 +103,24 @@ const config: Config = {
         },
         success: {
           DEFAULT: "rgb(var(--rgb-success) / <alpha-value>)",
-          ink: "var(--color-success-ink)"
+          ink: "var(--color-success-ink)",
+          soft: "rgb(var(--rgb-success-soft) / <alpha-value>)"
         },
         warning: {
           DEFAULT: "rgb(var(--rgb-warning) / <alpha-value>)",
-          ink: "var(--color-warning-ink)"
+          ink: "var(--color-warning-ink)",
+          soft: "rgb(var(--rgb-warning-soft) / <alpha-value>)"
         },
         info: {
           DEFAULT: "rgb(var(--rgb-info) / <alpha-value>)",
-          ink: "var(--color-info-ink)"
+          ink: "var(--color-info-ink)",
+          soft: "rgb(var(--rgb-info-soft) / <alpha-value>)"
         },
         // The redesign's navy/gold palette: theme-switched roles are CSS
         // variables (globals.css), fixed brand shades are plain hex so alpha
         // modifiers (bg-nx-gold-400/15) work.
         nx: {
-          "amber": "#F59E0B",
+          "amber": "#B45309",
           "auth-card": "var(--nx-auth-card)",
           "auth-note": "var(--nx-auth-note)",
           "backdrop": "var(--nx-backdrop)",
@@ -121,22 +136,22 @@ const config: Config = {
           "danger-line": "var(--nx-danger-line)",
           "danger-soft": "var(--nx-danger-soft)",
           "drawer-bar": "var(--nx-drawer-bar)",
-          "emerald": "#10B981",
+          "emerald": "#15803D",
           "emphasis": "var(--nx-emphasis)",
           "faint": "var(--nx-faint)",
           "field": "var(--nx-field)",
           "field-line": "var(--nx-field-line)",
           "glass": "var(--nx-glass)",
-          "gold-200-alt": "#EDC36E",
-          "gold-300": "#E6B960",
-          "gold-350": "#E5B85B",
-          "gold-400": "#E2B355",
-          "gold-450": "#DCA642",
-          "gold-50": "#FDF3DC",
-          "gold-500": "#D49B35",
-          "gold-550-alt": "#D89B32",
-          "gold-600": "#C58927",
-          "gold-700": "#CC922C",
+          "gold-200-alt": "#F0CD8E",
+          "gold-300": "#E9BE72",
+          "gold-350": "#E9BE72",
+          "gold-400": "#E9BE72",
+          "gold-450": "#DDAA52",
+          "gold-50": "#FBF1DC",
+          "gold-500": "#DDAA52",
+          "gold-550-alt": "#DDAA52",
+          "gold-600": "#7A5311",
+          "gold-700": "#7A5311",
           "gold-active": "var(--nx-gold-active)",
           "gold-bright-ink": "var(--nx-gold-bright-ink)",
           "gold-glass": "var(--nx-gold-glass)",
@@ -163,26 +178,26 @@ const config: Config = {
           "line-hover": "var(--nx-line-hover)",
           "line-strong": "var(--nx-line-strong)",
           "line-strong-hover": "var(--nx-line-strong-hover)",
-          "live": "#EF4444",
+          "live": "#DC2626",
           "live-deep": "#B91C1C",
           "live-strong": "#DC2626",
-          "midnight": "#11244A",
-          "mist": "#C8CDD6",
+          "midnight": "#1B2D52",
+          "mist": "#CBD5E1",
           "muted": "var(--nx-muted)",
           "muted-strong": "var(--nx-muted-strong)",
           "nav-ink": "var(--nx-nav-ink)",
-          "navy": "#071B41",
-          "navy-deep": "#030D24",
-          "night": "#040D1F",
-          "night-card": "#07142B",
+          "navy": "#0F1E3A",
+          "navy-deep": "#07142A",
+          "night": "#0B1220",
+          "night-card": "#111A2E",
           "page": "var(--nx-page)",
           "raised": "var(--nx-raised)",
           "raised-hover": "var(--nx-raised-hover)",
           "rose-ink": "var(--nx-rose-ink)",
           "rose-soft": "var(--nx-rose-soft)",
-          "slate": "#64748B",
-          "slate-light": "#94A3B8",
-          "snow-blue": "#F4F7FB",
+          "slate": "#475569",
+          "slate-light": "#64748B",
+          "snow-blue": "#F1F5F9",
           "stat-coral": "var(--nx-stat-coral)",
           "stat-coral-ink": "var(--nx-stat-coral-ink)",
           "stat-coral-line": "var(--nx-stat-coral-line)",
@@ -210,16 +225,16 @@ const config: Config = {
         },
         // Brand palette aligned with NEXA Chess visual guidelines
         navy: {
-          DEFAULT: "#071B41",
-          dark: "#030D24",
-          card: "#0B1A38",
-          light: "#102347"
+          DEFAULT: "#0F1E3A",
+          dark: "#07142A",
+          card: "#111A2E",
+          light: "#1B2D52"
         },
         gold: {
-          DEFAULT: "#BB8B37",
-          bright: "#E2B355",
-          light: "#F1D58F",
-          dark: "#996E25"
+          DEFAULT: "#E9BE72",
+          bright: "#E9BE72",
+          light: "#F0CD8E",
+          dark: "#7A5311"
         },
         "text-primary": "var(--text-primary)",
         "text-secondary": "var(--text-secondary)",
@@ -227,6 +242,7 @@ const config: Config = {
       },
       fontFamily: {
         display: ["var(--font-display)"],
+        mono: ["var(--font-mono)"],
         sans: ["var(--font-sans)"]
       },
       keyframes: {

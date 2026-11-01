@@ -71,7 +71,7 @@ export function MeetingChat() {
       <ChatThreadBar />
 
       {isPrivate && (
-        <div className="flex shrink-0 items-center gap-2 border-b border-app-border/40 bg-secondary/10 px-4 py-2 text-[11px] font-semibold text-app-text">
+        <div className="flex shrink-0 items-center gap-2 border-b border-app-border/40 bg-accent/10 px-4 py-2 text-[11px] font-semibold text-app-text">
           <Lock className="size-3.5 shrink-0 text-app-text/70" />
           <span className="min-w-0 truncate">
             Private — only you and {threadLabel} can see this.

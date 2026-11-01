@@ -250,13 +250,13 @@ function TrainingBoard({
               <Card
                 className={cn(
                   "space-y-2 p-4",
-                  result.solved ? "border-accent/40 bg-accent/10" : "border-warning/40 bg-warning/10"
+                  result.solved ? "border-success/40 bg-success/10" : "border-warning/40 bg-warning/10"
                 )}
               >
                 <p
                   className={cn(
                     "flex items-center gap-2 text-lg font-extrabold",
-                    result.solved ? "text-accent-ink" : "text-warning-ink"
+                    result.solved ? "text-success-ink" : "text-warning-ink"
                   )}
                 >
                   {result.solved ? (
@@ -272,7 +272,7 @@ function TrainingBoard({
                     <>
                       {" · "}your rating{" "}
                       <span
-                        className={cn("font-bold", ratingChange >= 0 ? "text-accent-ink" : "text-warning-ink")}
+                        className={cn("font-bold", ratingChange >= 0 ? "text-success-ink" : "text-warning-ink")}
                       >
                         {formatChange(ratingChange)}
                       </span>
@@ -366,7 +366,7 @@ function RecentResults({ recent }: { recent: PuzzleTrainingRecentResult[] }) {
             className={cn(
               "flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold tabular-nums",
               r.solved
-                ? "border-accent/40 bg-accent/10 text-accent-ink"
+                ? "border-success/40 bg-success/10 text-success-ink"
                 : "border-app-danger/40 bg-app-danger/10 text-app-danger-ink"
             )}
           >

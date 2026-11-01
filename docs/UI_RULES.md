@@ -5,11 +5,12 @@ to everything under `apps/web/src` except the academy marketing site
 (`features/academy`, rendered by `app/page.tsx`), which has its own brand, and the
 recording template (`app/recorder`).
 
-**The navy/gold redesign** (student dashboard, app shell, auth pages) uses the
-`nx-*` colours: theme-switched roles (`text-nx-ink`, `bg-nx-card`,
-`border-nx-line`, `text-nx-gold-ink` …) are CSS variables in `globals.css`, fixed
-brand shades (`nx-navy`, `nx-gold-400` …) are hex in `tailwind.config.ts`, and its
-primary button is the `nx-cta` class. Never branch on `useTheme()` to pick a
+**NexaChess Design System v2** is the colour, type and spacing specification
+(`docs/ui-redesign/`). The older `nx-*` colours (student dashboard, app shell, auth
+pages) now resolve to v2 values and are removed at the end of the redesign, so use
+the tokens below in new code. Sections below that still mandate pills or
+`rounded-full` are replaced when the primitives are converted (milestone M2).
+Never branch on `useTheme()` to pick a
 colour — the variables switch with `data-theme` before first paint; JS only knows
 the theme after hydration, so dark mode would paint light first.
 
@@ -31,20 +32,21 @@ and are mapped in `tailwind.config.ts`.
 | Page / card / soft backgrounds | `bg-app-background`, `bg-app-surface`, `bg-app-soft` | `bg-white`, `bg-gray-50`, `bg-slate-900` |
 | Body / secondary text | `text-app-text`, `text-app-muted` | `text-gray-*`, `text-black` |
 | Borders / dividers | `border-app-border`, `divide-app-border` | `border-gray-*`, `border-white/20` |
-| Brand fills (buttons, chips, active states) | `bg-primary`, `bg-secondary`, `bg-accent`, `bg-warm`, `bg-app-danger` | `bg-blue-600`, `bg-yellow-400` |
-| Text / icons on a `bg-primary` fill | `text-on-primary` (white in light, navy in dark) | `text-white` — primary is gold in dark |
-| **Coloured text or icons on a surface** | the **`-ink`** token: `text-primary-ink`, `text-secondary-ink`, `text-accent-ink`, `text-warm-ink`, `text-app-danger-ink` | `text-primary` on a surface — deep blue is unreadable in dark mode |
-| Status | `success`, `warning`, `info` (+ `-ink` for text) | `green-500`, `amber-100`, `orange-800` |
-| Tints | alpha on a token: `bg-primary/10`, `border-accent/40` (on-scale values, or `bg-primary/[0.06]`) | a separate pale palette colour |
+| Brand fills (buttons, chips, active states) | `bg-primary`, `bg-accent`, `bg-brand-800`, `bg-app-danger` | `bg-blue-600`, `bg-yellow-400` |
+| Text / icons on a fill | `text-on-primary`, `text-on-accent`, `text-on-brand` | `text-white` on `bg-primary` — it is dark text in dark mode |
+| **Coloured text or icons on a surface** | the **`-ink`** token: `text-primary-ink`, `text-accent-ink`, `text-success-ink`, `text-app-danger-ink` | `text-primary` or `text-accent` on a surface; gold text on white is 1.7:1 |
+| Status | `success`, `warning`, `info` (+ `-ink` for text, `-soft` for backgrounds) | `green-500`, `amber-100`, `orange-800` |
+| Tints | the `-soft` tokens, or alpha on a token: `bg-primary/10`, `border-success/40` | a separate pale palette colour |
+| Input borders, unchecked controls | `border-app-line-strong` | `border-app-border`, which is too faint at 3:1 |
 
-- **Brand hues mean one thing each** (keep them): primary (navy; gold in dark)
-  = classes/actions, accent (emerald) = success/active, secondary (gold) =
-  attention/practice,
-  warm (coral) = learning/courses, danger = destructive + LIVE only.
-- **Brand hues are identical in light and dark, except primary**, which is
-  gold in dark (the `nx-cta` colour) because navy vanishes on the navy surfaces.
-  Readable coloured text in dark comes from the `-ink` tokens, which lighten
-  automatically.
+- **Brand hues mean one thing each:** primary (royal blue) = actions, links,
+  selected state. Brand navy = navigation and identity only, never a button.
+  Accent (gold) = restrained reward and highlight, never a status.
+  Success, warning, info = status. Danger = destructive + LIVE only.
+- **Every token has its own dark value.** Coloured text comes from the `-ink`
+  tokens. `warm` is an alias of primary until it is removed: don't use it.
+- **Type:** Inter. Body 16/24 (`text-base`), small 14/20 (`text-sm`), captions and
+  badges 12/16 (`text-xs`). Chess notation uses `font-mono` (JetBrains Mono).
 - **No `dark:` colour overrides in feature code.** Tokens already switch with
   the theme. A hand-written `dark:border-white/10` drifts from the palette and,
   inside a shared component, silently overrides every caller's colour (this is

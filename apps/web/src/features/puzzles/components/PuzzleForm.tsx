@@ -399,7 +399,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
           {validation && (
             <span
               className={`inline-flex items-center gap-1 text-sm ${
-                validation.valid ? "text-accent-ink" : "text-app-danger-ink"
+                validation.valid ? "text-success-ink" : "text-app-danger-ink"
               }`}
             >
               {validation.valid ? (

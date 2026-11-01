@@ -8,7 +8,7 @@ interface AttendancePercentBarProps {
 
 export function AttendancePercentBar({ percent, className, showText = true }: AttendancePercentBarProps) {
   // Status hues, not danger: red stays reserved for destructive actions and LIVE.
-  const colorClass = percent >= 90 ? "bg-success" : percent >= 70 ? "bg-secondary" : "bg-warning";
+  const colorClass = percent >= 90 ? "bg-success" : percent >= 70 ? "bg-accent" : "bg-warning";
 
   return (
     <div className={cn("flex items-center gap-2", className)}>

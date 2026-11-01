@@ -44,7 +44,7 @@ export function EmailVerificationBanner() {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-secondary/40 bg-secondary/10 px-4 py-2 text-sm text-secondary-ink">
+    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-accent/40 bg-accent/10 px-4 py-2 text-sm text-accent-ink">
       <p>Please verify your email address, {user.email}.</p>
       <Button
         disabled={resendMutation.isPending || isSent}

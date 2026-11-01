@@ -72,7 +72,7 @@ export function ContactSection() {
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-[family-name:var(--font-playfair)] tracking-[-0.02em] text-[var(--text-primary)] mb-4">
             Ready to Start?
           </h2>
-          <p className="text-base sm:text-lg text-[var(--text-secondary)] leading-relaxed">
+          <p className="text-base sm:text-lg text-[var(--text-accent)] leading-relaxed">
             Take the first step toward becoming a stronger chess player.
           </p>
         </div>
@@ -105,7 +105,7 @@ export function ContactSection() {
                   <h3 className="text-xl font-bold font-[family-name:var(--font-playfair)] text-[var(--text-primary)] mb-2">
                     {opt.title}
                   </h3>
-                  <p className="text-sm text-[var(--text-secondary)] mb-6 leading-relaxed">
+                  <p className="text-sm text-[var(--text-accent)] mb-6 leading-relaxed">
                     {opt.subtitle}
                   </p>
                 </div>
@@ -147,7 +147,7 @@ export function ContactSection() {
                     <contact.Icon className="size-5" strokeWidth={1.8} />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-accent)]">
                       {contact.label}
                     </div>
                     <div

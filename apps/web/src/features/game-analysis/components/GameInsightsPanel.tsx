@@ -154,7 +154,7 @@ function InsightsBody({ data, studentId }: { data: StudentGameInsights; studentI
 
       <Card className="space-y-3 p-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <Crosshair className="size-4 text-accent-ink" aria-hidden strokeWidth={2.25} />
+          <Crosshair className="size-4 text-success-ink" aria-hidden strokeWidth={2.25} />
           Tactics
         </h3>
         {data.motifs.length === 0 ? (

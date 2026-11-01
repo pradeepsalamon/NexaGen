@@ -120,7 +120,7 @@ export function StudentBatchesClient() {
                     )}
                     {batch.scheduleNotes && (
                       <div className="flex items-start gap-2">
-                        <Clock aria-hidden="true" className="size-4 shrink-0 text-accent mt-0.5" strokeWidth={2.25} />
+                        <Clock aria-hidden="true" className="size-4 shrink-0 text-success mt-0.5" strokeWidth={2.25} />
                         <span className="text-app-text font-medium">{batch.scheduleNotes}</span>
                       </div>
                     )}

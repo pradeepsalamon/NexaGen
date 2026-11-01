@@ -163,7 +163,7 @@ export function PuzzleSolver({
         )}
 
         {solved && (
-          <Card className="flex items-start gap-2 border-accent/40 bg-accent/10 p-3 text-sm text-accent-ink">
+          <Card className="flex items-start gap-2 border-success/40 bg-success/10 p-3 text-sm text-success-ink">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" strokeWidth={2.5} />
             <span>
               Correct — you found the whole line.

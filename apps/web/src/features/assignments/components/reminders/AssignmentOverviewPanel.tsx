@@ -23,7 +23,7 @@ import { useAssignmentOverview } from "../../hooks/useAssignmentsApi";
 
 const STATUS_TONE: Record<AssignmentDueStatus, string> = {
   COMPLETED: "border-success/40 bg-success/10 text-success-ink",
-  DUE_SOON: "border-secondary/40 bg-secondary/10 text-secondary-ink",
+  DUE_SOON: "border-accent/40 bg-accent/10 text-accent-ink",
   DUE_TODAY: "border-warning/40 bg-warning/10 text-warning-ink",
   OVERDUE: "border-app-danger/30 bg-app-danger/10 text-app-danger-ink",
   UPCOMING: "border-app-border bg-app-background text-app-muted"
@@ -184,7 +184,7 @@ function OverviewRow({ row, timeZone }: { row: AssignmentOverviewRow; timeZone: 
 
 const STAT_TONE = {
   danger: "bg-app-danger/10 text-app-danger-ink",
-  secondary: "bg-secondary/10 text-secondary-ink",
+  secondary: "bg-accent/10 text-accent-ink",
   warning: "bg-warning/10 text-warning-ink"
 } as const;
 

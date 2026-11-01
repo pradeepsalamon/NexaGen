@@ -98,7 +98,7 @@ export function CoachHistoryClient() {
             <div className="flex items-center gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button asChild variant="ghost" size="icon" className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black">
+                  <Button asChild variant="ghost" size="icon" className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black">
                     <Link href={`/classes/${row.original.id}`} aria-label={`View ${row.original.title || row.original.topic}`}>
                       <Eye className="size-4" strokeWidth={2.5} aria-hidden="true" />
                     </Link>
@@ -151,7 +151,7 @@ export function CoachHistoryClient() {
                   <TooltipTrigger asChild>
                     <Button
                       aria-label="Download Recording"
-                      className="size-8 rounded-full border border-accent bg-accent p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-white"
+                      className="size-8 rounded-full border border-success bg-success p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-success)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-success)_75%,white)] hover:text-white"
                       onClick={() => handleDownload(row.original.id)}
                       size="icon"
                       type="button"

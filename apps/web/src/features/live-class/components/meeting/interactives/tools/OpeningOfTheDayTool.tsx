@@ -111,7 +111,7 @@ export function OpeningOfTheDayTool({ isManager }: ToolContext) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wide text-secondary-ink">
+          <p className="text-xs font-bold uppercase tracking-wide text-accent-ink">
             {opening.id === daily.id ? "Today's opening" : "Opening"}
           </p>
           <h3 className="text-lg font-extrabold leading-tight text-app-text">

@@ -25,8 +25,8 @@ import {
 const SPIN_MS = 3800;
 const SEGMENT_FILLS = [
   "var(--color-primary)",
+  "var(--color-success)",
   "var(--color-accent)",
-  "var(--color-secondary)",
   "var(--color-warm)",
 ];
 const EMPTY: PickStudentState = { history: [], noRepeat: true };

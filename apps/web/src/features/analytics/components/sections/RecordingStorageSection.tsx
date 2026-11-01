@@ -18,7 +18,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { METRIC_TOOLTIPS } from "../../lib/metricTooltips";
 
 const STATE_STYLES: Record<string, string> = {
-  normal: "text-accent",
+  normal: "text-success",
   warning: "text-warm",
   critical: "text-app-danger",
   unknown: "text-app-muted"
@@ -87,7 +87,7 @@ export function RecordingStorageSection({
                       ? "bg-app-danger"
                       : s.state === "warning"
                         ? "bg-warm"
-                        : "bg-accent"
+                        : "bg-success"
                   )}
                   style={{ width: `${Math.min(100, s.usagePercent ?? 0)}%` }}
                 />

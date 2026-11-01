@@ -18,15 +18,15 @@ export interface ChartColors {
 
 function read(): ChartColors {
   const fallback: ChartColors = {
-    primary: "#2447a0",
-    secondary: "#f4b63f",
-    accent: "#1f9d78",
-    warm: "#e0685a",
-    danger: "#d92d20",
-    muted: "#5e6784",
-    border: "#dde1f0",
+    primary: "#2f5fd0",
+    secondary: "#e9be72",
+    accent: "#15803d",
+    warm: "#2f5fd0",
+    danger: "#dc2626",
+    muted: "#475569",
+    border: "#e2e8f0",
     surface: "#ffffff",
-    text: "#172049",
+    text: "#111827",
     categorical: []
   };
   if (typeof window === "undefined") {
@@ -44,8 +44,8 @@ function read(): ChartColors {
   const v = (name: string, fb: string) => s.getPropertyValue(name).trim() || fb;
   const colors: ChartColors = {
     primary: v("--color-primary", fallback.primary),
-    secondary: v("--color-secondary", fallback.secondary),
-    accent: v("--color-accent", fallback.accent),
+    secondary: v("--color-accent", fallback.secondary),
+    accent: v("--color-success", fallback.accent),
     warm: v("--color-warm", fallback.warm),
     danger: v("--color-danger", fallback.danger),
     muted: v("--color-text-muted", fallback.muted),

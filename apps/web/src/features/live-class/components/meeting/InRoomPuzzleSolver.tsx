@@ -217,7 +217,7 @@ export function InRoomPuzzleSolver({
         {result ? (
           <Card
             className={`flex items-start gap-2 p-2.5 text-sm ${
-              result.solved ? "border-accent/40 bg-accent/10 text-accent-ink" : "text-app-text"
+              result.solved ? "border-success/40 bg-success/10 text-success-ink" : "text-app-text"
             }`}
           >
             {result.solved ? (

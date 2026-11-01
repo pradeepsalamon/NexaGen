@@ -725,7 +725,7 @@ function PuzzleTable({
                               }
                               variant="ghost"
                               size="icon"
-                              className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
+                              className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
                               onClick={() =>
                                 runPublish({ id: p.id, next: p.status !== "PUBLISHED" })
                               }
@@ -746,7 +746,7 @@ function PuzzleTable({
                               }
                               variant="ghost"
                               size="icon"
-                              className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
+                              className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
                               onClick={() =>
                                 runArchive({ id: p.id, next: p.status !== "ARCHIVED" })
                               }

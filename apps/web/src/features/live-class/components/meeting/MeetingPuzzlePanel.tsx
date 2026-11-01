@@ -156,7 +156,7 @@ function pointsValue(entry: LivePuzzleLeaderboardEntry, rankByPoints: boolean) {
 }
 
 const MEDAL_TONE: Record<number, string> = {
-  1: "text-secondary-ink",
+  1: "text-accent-ink",
   2: "text-app-muted",
   3: "text-warm-ink"
 };
@@ -176,7 +176,7 @@ function RankMark({ rank }: { rank: number }) {
 }
 
 const PODIUM_ROW: Record<number, string> = {
-  1: "bg-secondary/[0.10]",
+  1: "bg-accent/[0.10]",
   2: "bg-app-muted/[0.10]",
   3: "bg-warm/[0.08]"
 };
@@ -345,7 +345,7 @@ function LeaderboardSection({
                     {entry.solved ? (
                       <CheckCircle2
                         aria-label="Solved"
-                        className="size-3.5 shrink-0 text-accent-ink"
+                        className="size-3.5 shrink-0 text-success-ink"
                         strokeWidth={2.5}
                       />
                     ) : null}

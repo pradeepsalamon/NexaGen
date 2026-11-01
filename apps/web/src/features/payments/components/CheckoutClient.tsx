@@ -299,13 +299,13 @@ export function CheckoutClient({ planId }: Props) {
           ) : null}
 
           {config.alreadySubscribed ? (
-            <p className="mb-4 rounded-app border border-secondary bg-secondary/10 px-3 py-2 text-sm text-secondary-ink">
+            <p className="mb-4 rounded-app border border-accent bg-accent/10 px-3 py-2 text-sm text-accent-ink">
               You already have an active subscription to this plan.
             </p>
           ) : null}
 
           {config.alreadyOwned ? (
-            <p className="mb-4 rounded-app border border-accent bg-accent/10 px-3 py-2 text-sm text-accent-ink">
+            <p className="mb-4 rounded-app border border-success bg-success/10 px-3 py-2 text-sm text-success-ink">
               You already have active access to this plan. Buying again will
               start a separate purchase.
             </p>
@@ -338,8 +338,8 @@ export function CheckoutClient({ planId }: Props) {
             </div>
             {discount ? (
               <div className="flex justify-between">
-                <dt className="text-accent-ink">Discount ({discount.code})</dt>
-                <dd className="text-accent-ink">
+                <dt className="text-success-ink">Discount ({discount.code})</dt>
+                <dd className="text-success-ink">
                   -{formatMoney(discount.amount, config.currency)}
                 </dd>
               </div>

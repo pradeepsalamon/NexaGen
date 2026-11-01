@@ -63,7 +63,7 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
             <TooltipTrigger asChild>
               <Button
                 aria-label="Restore demo class"
-                className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
+                className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
                 disabled={restorePending}
                 onClick={() => onRestore(demoClass.id)}
                 size="icon"
@@ -99,7 +99,7 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
               <TooltipTrigger asChild>
                 <Button
                   aria-label={`Edit ${demoClass.topic}`}
-                  className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
+                  className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
                   onClick={() => onEdit(demoClass)}
                   size="icon"
                   type="button"

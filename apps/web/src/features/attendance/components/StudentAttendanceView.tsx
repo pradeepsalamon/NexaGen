@@ -194,7 +194,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
 
         {/* KPI 4: Current Streak */}
         <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition hover:shadow-lift">
-          <div className="w-12 h-12 bg-secondary/10 text-secondary-ink rounded-full flex items-center justify-center mb-3">
+          <div className="w-12 h-12 bg-accent/10 text-accent-ink rounded-full flex items-center justify-center mb-3">
             <Flame className="size-6" strokeWidth={2.5} />
           </div>
           <span className="text-2xl font-bold text-app-text">{stats.currentStreak} Classes</span>

@@ -275,7 +275,7 @@ function FinishedPuzzle({
         className={cn(
           "flex items-start gap-2 rounded-control border p-3 text-sm",
           item.status === "SOLVED"
-            ? "border-accent/40 bg-accent/10 text-accent-ink"
+            ? "border-success/40 bg-success/10 text-success-ink"
             : "border-app-border bg-app-soft text-app-text"
         )}
       >
@@ -325,7 +325,7 @@ function MyResults({
   return (
     <Card className="space-y-3 p-4 sm:p-5">
       {allDone ? (
-        <p className="flex items-center gap-2 rounded-control border border-accent/40 bg-accent/10 p-3 text-sm font-semibold text-accent-ink">
+        <p className="flex items-center gap-2 rounded-control border border-success/40 bg-success/10 p-3 text-sm font-semibold text-success-ink">
           <CheckCircle2 className="size-4 shrink-0" strokeWidth={2.5} />
           Set complete! You can still retry any unsolved puzzle that has tries left.
         </p>

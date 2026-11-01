@@ -90,7 +90,7 @@ Per feature in `apps/web/src/features/<feature>/`: `api/<x>Api.ts` (thin `apiFet
 
 **Read [docs/UI_RULES.md](docs/UI_RULES.md) before any UI work** (tokens, which component per control, pre-PR checklist). Highlights:
 
-- Navy/gold redesign: `nx-*` colours + `nx-cta`, theme-switched by CSS variables; never pick colours from `useTheme()`. Otherwise theme tokens (`bg-app-surface`, `text-app-text`, `border-app-border`, `rounded-panel`, `shadow-card`, …; `src/styles/globals.css`, dark = `[data-theme="dark"]`), `-ink` for coloured text, no `dark:` colour overrides. Marketing site (`features/academy`) exempt.
+- Design System v2 tokens (`docs/ui-redesign/`): `primary` royal blue, `accent` gold, `success` green, `brand-*` navy, theme-switched by CSS variables; never pick colours from `useTheme()`. `nx-*` and `warm` are aliases being removed: no new uses. Otherwise theme tokens (`bg-app-surface`, `text-app-text`, `border-app-border`, `rounded-panel`, `shadow-card`, …; `src/styles/globals.css`, dark = `[data-theme="dark"]`), `-ink` for coloured text, no `dark:` colour overrides. Marketing site (`features/academy`) exempt.
 - Reuse `components/ui/` primitives before creating. Buttons: `primary`/`destructive`/`ghost`/`outline`/`secondary`.
 - **Table row actions: `RowActions`** (`components/ui/RowActions.tsx`) — `rounded-full`, `size="icon"`, `aria-label`, `strokeWidth={2.5}` (example in `AGENTS.md`).
 - Icon-only buttons: `aria-label` + **`SimpleTooltip`** (`components/ui/Tooltip.tsx`), not `title=` (except non-interactive nodes / existing Radix `asChild` triggers).

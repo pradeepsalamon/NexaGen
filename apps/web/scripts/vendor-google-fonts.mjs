@@ -34,6 +34,7 @@ const FONTS = [
   { family: "Inter", id: "inter", weights: null, wght: "100..900" },
   { family: "Lexend", id: "lexend", weights: null, wght: "100..900" },
   { family: "Atkinson Hyperlegible", id: "atkinson-hyperlegible", weights: ["400", "700"] },
+  { family: "JetBrains Mono", id: "jetbrains-mono", weights: null, wght: "100..800" },
   { family: "Playfair Display", id: "playfair", weights: ["600", "700"] }
 ];
 
@@ -41,14 +42,15 @@ const FONTS = [
 // the modules it imports). `preload` puts the latin file in a <link rel=preload>.
 const GROUPS = {
   APP: { file: "src/app/fonts.generated.ts", fonts: [
-    { id: "outfit", preload: true },
-    { id: "nunito-sans", preload: true },
+    { id: "outfit" },
+    { id: "nunito-sans" },
     { id: "jost" },
     { id: "lato" },
     { id: "plus-jakarta-sans" },
-    { id: "inter" },
+    { id: "inter", preload: true },
     { id: "lexend" },
-    { id: "atkinson-hyperlegible" }
+    { id: "atkinson-hyperlegible" },
+    { id: "jetbrains-mono" }
   ] },
   ACADEMY: { file: "src/features/academy/fonts.generated.ts", fonts: [{ id: "inter", preload: true }, { id: "playfair" }] }
 };
@@ -105,7 +107,7 @@ async function vendorFont(font) {
 
 function loader(name, subset, entry, { from, last, preload }) {
   const src = entry.files
-    .map((f) => `    { path: "${path.relative(from, f.file)}", style: "normal", weight: "${f.weight}" }`)
+    .map((f) => `    { path: "${path.relative(from, f.file).split(path.sep).join("/")}", style: "normal", weight: "${f.weight}" }`)
     .join(",\n");
   return [
     `const ${name} = localFont({`,

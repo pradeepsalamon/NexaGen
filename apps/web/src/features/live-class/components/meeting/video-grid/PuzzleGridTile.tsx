@@ -121,7 +121,7 @@ export function PuzzleGridTile({
             ) : self?.solved || (self && self.attemptsUsed > 0) ? (
               <p className="flex items-center gap-1 text-[11px] text-app-muted">
                 {self.solved ? (
-                  <CheckCircle2 className="size-3 text-accent-ink" strokeWidth={2.5} />
+                  <CheckCircle2 className="size-3 text-success-ink" strokeWidth={2.5} />
                 ) : null}
                 {self.points !== null ? `${self.points} pts` : ""}
                 {self.rank !== null ? (

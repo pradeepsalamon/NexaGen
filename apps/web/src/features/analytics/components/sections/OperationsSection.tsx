@@ -168,7 +168,7 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
           <WidgetError message="Couldn't load alerts." onRetry={() => alerts.refetch()} />
         ) : (alerts.data?.alerts.length ?? 0) === 0 ? (
           <div className="flex items-center gap-2 rounded-app bg-app-soft p-4 text-sm text-app-muted">
-            <CheckCircle2 className="size-5 text-accent" strokeWidth={2.5} />
+            <CheckCircle2 className="size-5 text-success" strokeWidth={2.5} />
             No issues need attention.
           </div>
         ) : (

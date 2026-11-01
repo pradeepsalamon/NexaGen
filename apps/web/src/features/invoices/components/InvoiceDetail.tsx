@@ -83,7 +83,7 @@ export function InvoiceDetail({
         </div>
 
         {invoice.pdfStatus === "FAILED" ? (
-          <p className="rounded-app bg-secondary/20 px-3 py-2 text-sm text-app-text">
+          <p className="rounded-app bg-accent/20 px-3 py-2 text-sm text-app-text">
             We could not build the PDF for this invoice yet — it will be retried
             automatically. Your payment is unaffected and the figures below are
             final.
@@ -277,7 +277,7 @@ export function InvoiceDetail({
             </div>
 
             {invoice.amountRefunded > 0 ? (
-              <p className="mt-3 rounded-app bg-secondary/20 px-3 py-2 text-xs text-app-text">
+              <p className="mt-3 rounded-app bg-accent/20 px-3 py-2 text-xs text-app-text">
                 {money(invoice.amountRefunded)} of this invoice has been
                 refunded. A credit note has been issued; this invoice itself is
                 unchanged.

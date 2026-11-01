@@ -94,7 +94,7 @@ export function ProgressView({ progress }: { progress: StudentProgressDto }) {
                   {p.ratingChange !== null ? (
                     <span
                       className={`w-12 text-right text-sm font-bold ${
-                        p.ratingChange >= 0 ? "text-accent-ink" : "text-warning-ink"
+                        p.ratingChange >= 0 ? "text-success-ink" : "text-warning-ink"
                       }`}
                     >
                       {p.ratingChange >= 0 ? `+${p.ratingChange}` : p.ratingChange}

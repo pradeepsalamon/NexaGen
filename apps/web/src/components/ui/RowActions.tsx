@@ -29,7 +29,7 @@ const INLINE_TONE: Record<NonNullable<RowAction["tone"]>, string> = {
   default:
     "border-primary bg-primary text-on-primary hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary",
   warning:
-    "border-secondary bg-secondary text-black hover:border-[color-mix(in_srgb,var(--color-secondary)_70%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_70%,white)] hover:text-black"
+    "border-accent bg-accent text-black hover:border-[color-mix(in_srgb,var(--color-accent)_70%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_70%,white)] hover:text-black"
 };
 
 /**

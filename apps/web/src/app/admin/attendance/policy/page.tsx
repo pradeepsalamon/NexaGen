@@ -125,7 +125,7 @@ export default function AttendancePolicyPage() {
 
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-secondary"></span>
+                <span className="w-2 h-2 rounded-full bg-accent"></span>
                 Late Threshold (%)
               </Label>
               <div className="relative">

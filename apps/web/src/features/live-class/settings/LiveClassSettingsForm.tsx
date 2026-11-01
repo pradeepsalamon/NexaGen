@@ -296,7 +296,7 @@ export function LiveClassSettingsForm({
       {warnings.length > 0 && (
         <div
           className={cn(
-            "flex gap-2.5 rounded-control border border-secondary/40 bg-secondary/10 p-3 text-xs text-secondary-ink",
+            "flex gap-2.5 rounded-control border border-accent/40 bg-accent/10 p-3 text-xs text-accent-ink",
             "",
           )}
         >

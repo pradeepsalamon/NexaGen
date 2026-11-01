@@ -34,7 +34,7 @@ export function BoardWorkspace() {
             {/* Header row — keeps the clock above the board instead of floating over it */}
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 pt-3 md:px-8">
               <div className="flex items-center gap-2 text-sm font-semibold text-app-text">
-                <Crown className="size-4 text-secondary-ink" />
+                <Crown className="size-4 text-accent-ink" />
                 <span>Shared Board</span>
                 <SendPositionButton fen={fen} className="ml-1" />
               </div>

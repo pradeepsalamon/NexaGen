@@ -88,8 +88,8 @@ export function ChessLegendsTool({ classId, isManager }: ToolContext) {
             <p key={p.slice(0, 24)}>{p}</p>
           ))}
         </div>
-        <div className="rounded-control border border-accent/40 bg-accent/10 p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-accent-ink">
+        <div className="rounded-control border border-success/40 bg-success/10 p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-success-ink">
             The lesson
           </p>
           <p className="mt-0.5 text-sm text-app-text">{story.lesson}</p>

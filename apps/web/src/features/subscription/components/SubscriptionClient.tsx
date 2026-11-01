@@ -176,7 +176,7 @@ function PlanComparison({ data }: { data: AdminSubscriptionResponse }) {
                   return (
                     <TableCell className={cn("text-center", highlight(plan))} key={plan.id}>
                       {included ? (
-                        <Check aria-label="Included" className="mx-auto size-4 text-accent-ink" strokeWidth={2.5} />
+                        <Check aria-label="Included" className="mx-auto size-4 text-success-ink" strokeWidth={2.5} />
                       ) : (
                         <Minus aria-label="Not included" className="mx-auto size-4 text-app-muted" strokeWidth={2.5} />
                       )}

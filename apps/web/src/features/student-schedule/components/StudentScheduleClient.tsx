@@ -304,14 +304,14 @@ export function StudentScheduleClient() {
                       isSelected
                         ? "border-primary bg-primary/10 shadow-card"
                         : isToday
-                        ? "border-accent bg-accent/10"
+                        ? "border-success bg-success/10"
                         : "border-transparent bg-app-soft/40 hover:bg-app-soft hover:border-app-border"
                     }`}
                   >
                     <span
                       className={`size-6 flex items-center justify-center rounded-full text-xs font-bold ${
                         isToday
-                          ? "bg-accent text-accent-ink"
+                          ? "bg-success text-success-ink"
                           : isSelected
                           ? "bg-primary text-primary-ink"
                           : "text-app-text"
@@ -415,7 +415,7 @@ export function StudentScheduleClient() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <GraduationCap aria-hidden="true" className="size-3.5 text-accent" strokeWidth={2.5} />
+                            <GraduationCap aria-hidden="true" className="size-3.5 text-success" strokeWidth={2.5} />
                             <span>Coach: {cls.coachName}</span>
                           </div>
                         </div>

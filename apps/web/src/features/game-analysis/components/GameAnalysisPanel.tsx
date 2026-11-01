@@ -292,7 +292,7 @@ function Tactics({ report, viewer, onJump }: { report: GameAnalysisReport; viewe
   return (
     <section className="space-y-2">
       <h3 className="flex items-center gap-2 text-sm font-semibold">
-        <Target className="size-4 text-accent-ink" aria-hidden strokeWidth={2.25} />
+        <Target className="size-4 text-success-ink" aria-hidden strokeWidth={2.25} />
         Tactics
       </h3>
       <ul className="space-y-2">

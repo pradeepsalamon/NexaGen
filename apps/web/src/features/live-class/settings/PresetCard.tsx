@@ -75,7 +75,7 @@ export function PresetCard({ preset }: { preset: LiveClassPreset }) {
                   "size-8 rounded-full p-0 text-app-text transition-colors",
                   preset.isDefault
                     ? "border-success text-success-ink"
-                    : "border-secondary hover:border-secondary hover:bg-secondary hover:text-black"
+                    : "border-accent hover:border-accent hover:bg-accent hover:text-black"
                 )}
                 disabled={setDefault.isPending || preset.isDefault}
                 onClick={() => setDefault.mutate(preset.id)}

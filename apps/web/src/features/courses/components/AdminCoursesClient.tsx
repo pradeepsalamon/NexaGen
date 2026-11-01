@@ -182,7 +182,7 @@ export function AdminCoursesClient() {
                             aria-label={c.status === "PUBLISHED" ? "Unpublish course" : "Publish course"}
                             variant="ghost"
                             size="icon"
-                            className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
+                            className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
                             onClick={() => runPublish({ id: c.id, next: c.status !== "PUBLISHED" })}
                           >
                             {c.status === "PUBLISHED" ? (
@@ -197,7 +197,7 @@ export function AdminCoursesClient() {
                             aria-label={c.status === "ARCHIVED" ? "Restore course" : "Archive course"}
                             variant="ghost"
                             size="icon"
-                            className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
+                            className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
                             onClick={() => runArchive({ id: c.id, next: c.status !== "ARCHIVED" })}
                           >
                             {c.status === "ARCHIVED" ? (

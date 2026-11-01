@@ -164,7 +164,7 @@ export function MysteryBoxTool({ classId, isManager }: ToolContext) {
           <div
             className={cn(
               "h-full rounded-full transition-[width] duration-500",
-              reached ? "bg-accent" : "bg-primary",
+              reached ? "bg-success" : "bg-primary",
             )}
             style={{ width: `${pct}%` }}
           />
@@ -181,10 +181,10 @@ export function MysteryBoxTool({ classId, isManager }: ToolContext) {
       >
         {reached && reward ? (
           <div className="animate-in fade-in zoom-in-50 duration-500">
-            <div className="mx-auto flex size-24 items-center justify-center rounded-app bg-accent/15 text-5xl">
+            <div className="mx-auto flex size-24 items-center justify-center rounded-app bg-success/15 text-5xl">
               {reward.emoji}
             </div>
-            <p className="mt-3 text-xs font-bold uppercase tracking-wide text-accent-ink">
+            <p className="mt-3 text-xs font-bold uppercase tracking-wide text-success-ink">
               Mystery box unlocked!
             </p>
             <p className="text-xl font-extrabold text-app-text">
@@ -196,7 +196,7 @@ export function MysteryBoxTool({ classId, isManager }: ToolContext) {
           <>
             <div
               className={cn(
-                "flex size-24 items-center justify-center rounded-app bg-secondary/20 text-secondary-ink",
+                "flex size-24 items-center justify-center rounded-app bg-accent/20 text-accent-ink",
                 pct >= 80 && "motion-safe:animate-bounce",
               )}
             >
@@ -323,7 +323,7 @@ export function MysteryBoxTool({ classId, isManager }: ToolContext) {
                   className={cn(
                     "font-bold",
                     entry.amount > 0
-                      ? "text-accent-ink"
+                      ? "text-success-ink"
                       : "text-app-danger-ink",
                   )}
                 >

@@ -92,11 +92,11 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
         <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5 flex flex-col justify-center h-full">
             <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-control bg-secondary/10 border border-secondary/20">
-                <Users className="h-5 w-5 text-secondary-ink" />
+              <span className="p-2 rounded-control bg-accent/10 border border-accent/20">
+                <Users className="h-5 w-5 text-accent-ink" />
               </span>
             </div>
-            <p className="text-3xl font-bold tracking-tight text-secondary-ink">{stats.avgSessionMinutes}m</p>
+            <p className="text-3xl font-bold tracking-tight text-accent-ink">{stats.avgSessionMinutes}m</p>
             <p className="text-sm font-medium text-app-muted mt-1">Avg Session Length</p>
           </CardContent>
         </Card>

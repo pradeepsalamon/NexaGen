@@ -103,7 +103,7 @@ export function FolderPuzzlesPanel({
           {folder.icon ? (
             <span className="shrink-0">{folder.icon}</span>
           ) : (
-            <Folder className="size-4 shrink-0 fill-secondary/30 text-secondary-ink" strokeWidth={2} />
+            <Folder className="size-4 shrink-0 fill-accent/30 text-accent-ink" strokeWidth={2} />
           )}
           <div className="min-w-0">
             <p className="truncate font-bold text-app-text">{path}</p>

@@ -57,7 +57,7 @@ function VideoTile({ tile, large = false }: { tile: SpectatorTile; large?: boole
   return (
     <div
       className={`relative aspect-video w-full overflow-hidden rounded-control bg-app-soft ${
-        tile.participant.isSpeaking ? "ring-2 ring-accent" : ""
+        tile.participant.isSpeaking ? "ring-2 ring-success" : ""
       }`}
     >
       {track ? (

@@ -126,7 +126,7 @@ export function AdminRequestsClient() {
                     <SimpleTooltip label="Approve">
                       <Button
                         aria-label="Approve request"
-                        className="size-8 rounded-full border border-accent bg-accent p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-white"
+                        className="size-8 rounded-full border border-success bg-success p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-success)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-success)_75%,white)] hover:text-white"
                         onClick={() => {
                           setText("");
                           setDeciding({ request: r, approve: true });

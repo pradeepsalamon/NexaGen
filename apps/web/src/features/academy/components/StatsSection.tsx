@@ -75,7 +75,7 @@ export function StatsSection() {
 
                   <div className="flex flex-col">
                     <Counter target={stat.value} suffix={stat.suffix} isInView={isInView} />
-                    <div className="text-[10px] sm:text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.08em] mt-1.5">
+                    <div className="text-[10px] sm:text-[11px] font-bold text-[var(--text-accent)] uppercase tracking-[0.08em] mt-1.5">
                       {stat.label}
                     </div>
                   </div>
@@ -89,7 +89,7 @@ export function StatsSection() {
 
                   <div className="flex flex-col items-center">
                     <Counter target={stat.value} suffix={stat.suffix} isInView={isInView} />
-                    <div className="text-[11px] lg:text-[12px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.1em] mt-3">
+                    <div className="text-[11px] lg:text-[12px] font-bold text-[var(--text-accent)] uppercase tracking-[0.1em] mt-3">
                       {stat.label}
                     </div>
                   </div>

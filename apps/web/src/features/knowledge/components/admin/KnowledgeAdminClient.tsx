@@ -101,7 +101,7 @@ export function KnowledgeAdminClient() {
           <TabsTrigger value="suggestions">
             <Inbox aria-hidden className="size-4" />
             Coach suggestions
-            {pending > 0 && <span className="rounded-full bg-secondary px-1.5 text-xs font-extrabold text-black">{pending}</span>}
+            {pending > 0 && <span className="rounded-full bg-accent px-1.5 text-xs font-extrabold text-black">{pending}</span>}
           </TabsTrigger>
           <TabsTrigger value="categories">
             <FolderTree aria-hidden className="size-4" />
@@ -189,7 +189,7 @@ function ArticlesPanel() {
       aria-pressed={filter === value}
       className={
         filter === value
-          ? "min-h-9 rounded-full border border-primary bg-primary px-3 text-sm font-semibold text-white"
+          ? "min-h-9 rounded-full border border-primary bg-primary px-3 text-sm font-semibold text-on-primary"
           : "min-h-9 rounded-full border border-app-border bg-app-surface px-3 text-sm font-semibold text-app-text hover:border-primary/50"
       }
       onClick={() => setFilter(value)}

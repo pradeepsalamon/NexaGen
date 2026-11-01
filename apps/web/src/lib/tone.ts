@@ -31,14 +31,14 @@ type ToneStyle = {
 
 export const TONE: Record<Tone, ToneStyle> = {
   accent: {
-    bar: "bg-accent",
-    chip: "bg-accent/25 text-accent-ink",
-    border: "border-accent/30",
-    ghost: "text-accent/25",
-    hover: "hover:bg-accent/10",
-    header: "bg-accent/[0.06]",
-    text: "text-accent-ink",
-    wash: "bg-accent/[0.08]"
+    bar: "bg-success",
+    chip: "bg-success/25 text-success-ink",
+    border: "border-success/30",
+    ghost: "text-success/25",
+    hover: "hover:bg-success/10",
+    header: "bg-success/[0.06]",
+    text: "text-success-ink",
+    wash: "bg-success/[0.08]"
   },
   primary: {
     bar: "bg-primary",
@@ -51,14 +51,14 @@ export const TONE: Record<Tone, ToneStyle> = {
     wash: "bg-primary/[0.06]"
   },
   secondary: {
-    bar: "bg-secondary",
-    chip: "bg-secondary/30 text-secondary-ink",
-    border: "border-secondary/35",
-    ghost: "text-secondary/30",
-    hover: "hover:bg-secondary/10",
-    header: "bg-secondary/[0.07]",
-    text: "text-secondary-ink",
-    wash: "bg-secondary/[0.09]"
+    bar: "bg-accent",
+    chip: "bg-accent/30 text-accent-ink",
+    border: "border-accent/35",
+    ghost: "text-accent/30",
+    hover: "hover:bg-accent/10",
+    header: "bg-accent/[0.07]",
+    text: "text-accent-ink",
+    wash: "bg-accent/[0.09]"
   },
   warm: {
     bar: "bg-warm",

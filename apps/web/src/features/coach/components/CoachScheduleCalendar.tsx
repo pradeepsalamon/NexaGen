@@ -248,7 +248,7 @@ export function CoachScheduleCalendar({
                     aria-label={formatLongDate(day, "UTC")}
                     className={cn(
                       "min-w-0 rounded-panel border bg-app-soft/40 p-2",
-                      isToday ? "border-accent bg-accent/10" : "border-app-border"
+                      isToday ? "border-success bg-success/10" : "border-app-border"
                     )}
                   >
                     <header className="mb-2 flex items-center gap-2 lg:flex-col lg:items-start lg:gap-0.5">
@@ -258,7 +258,7 @@ export function CoachScheduleCalendar({
                       <span
                         className={cn(
                           "flex size-7 items-center justify-center rounded-full text-sm font-bold",
-                          isToday ? "bg-accent text-accent-ink" : "text-app-text"
+                          isToday ? "bg-success text-success-ink" : "text-app-text"
                         )}
                       >
                         {fmtKey(day, { day: "numeric" })}
@@ -302,7 +302,7 @@ export function CoachScheduleCalendar({
                         isSelected
                           ? "border-primary bg-primary/10"
                           : isToday
-                            ? "border-accent bg-accent/10"
+                            ? "border-success bg-success/10"
                             : "border-transparent bg-app-soft/40 hover:border-app-border",
                         !inMonth && "opacity-50"
                       )}
@@ -317,7 +317,7 @@ export function CoachScheduleCalendar({
                         }}
                         className={cn(
                           "flex size-6 items-center justify-center self-center rounded-full text-xs font-bold sm:self-start",
-                          isToday ? "bg-accent text-accent-ink" : "text-app-text"
+                          isToday ? "bg-success text-success-ink" : "text-app-text"
                         )}
                       >
                         {fmtKey(day, { day: "numeric" })}

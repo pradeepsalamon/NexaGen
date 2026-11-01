@@ -184,7 +184,7 @@ export function ClassroomBoard({
       {/* Wraps on a narrow stage instead of running under the side panel. */}
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
         <div className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-app-text">
-          <Crown className="size-4 text-secondary-ink" />
+          <Crown className="size-4 text-accent-ink" />
           Shared Board
           {isCoach ? <SendPositionButton fen={fen} className="ml-1" /> : null}
         </div>

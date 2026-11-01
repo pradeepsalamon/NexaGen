@@ -18,7 +18,7 @@ const buttonVariants = cva(
         primary:
           "border-transparent bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] text-on-primary shadow-[0_2px_6px_-1px_color-mix(in_srgb,var(--color-primary)_35%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)]",
         secondary:
-          "border-[color-mix(in_srgb,var(--color-secondary)_70%,var(--color-border))] bg-secondary text-black shadow-card hover:bg-[color-mix(in_srgb,var(--color-secondary)_84%,white)]"
+          "border-[color-mix(in_srgb,var(--color-accent)_70%,var(--color-border))] bg-accent text-black shadow-card hover:bg-[color-mix(in_srgb,var(--color-accent)_84%,white)]"
       },
       size: {
         default: "min-h-11 px-4 py-2",

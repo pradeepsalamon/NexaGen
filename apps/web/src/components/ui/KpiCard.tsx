@@ -130,7 +130,7 @@ function DeltaChip({
     <span
       className={cn(
         "flex items-center gap-0.5 text-xs font-semibold",
-        good ? "text-accent-ink" : "text-app-danger-ink"
+        good ? "text-success-ink" : "text-app-danger-ink"
       )}
     >
       {up ? (

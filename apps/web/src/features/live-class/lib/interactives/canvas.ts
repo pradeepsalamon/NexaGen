@@ -14,13 +14,13 @@ export function themeColor(name: string, fallback: string): string {
 
 export function brandColors() {
   return {
-    accent: themeColor("--rgb-accent", "rgb(31 157 120)"),
+    accent: themeColor("--rgb-success", "rgb(31 157 120)"),
     border: themeColor("--rgb-border", "rgb(221 225 240)"),
     muted: themeColor("--rgb-text-muted", "rgb(94 103 132)"),
     /** Text on a `primary` fill: white in light, navy in dark (primary is gold there). */
     onPrimary: themeColor("--rgb-on-primary", "rgb(255 255 255)"),
     primary: themeColor("--rgb-primary", "rgb(36 71 160)"),
-    secondary: themeColor("--rgb-secondary", "rgb(244 182 63)"),
+    secondary: themeColor("--rgb-accent", "rgb(244 182 63)"),
     soft: themeColor("--rgb-surface-soft", "rgb(238 241 250)"),
     surface: themeColor("--rgb-surface", "rgb(255 255 255)"),
     text: themeColor("--rgb-text", "rgb(23 32 73)"),

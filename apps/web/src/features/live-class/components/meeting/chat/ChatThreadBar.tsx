@@ -63,7 +63,7 @@ export const ChatThreadBar = memo(function ChatThreadBar() {
             "flex min-h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors",
             activeThread === thread.id
               ? thread.isPrivate
-                ? "bg-secondary/20 text-app-text ring-1 ring-secondary/50"
+                ? "bg-accent/20 text-app-text ring-1 ring-accent/50"
                 : "bg-primary/10 text-primary-ink ring-1 ring-primary/30"
               : "text-app-muted hover:bg-app-soft hover:text-app-text",
           )}
@@ -86,7 +86,7 @@ export const ChatThreadBar = memo(function ChatThreadBar() {
         <button
           type="button"
           onClick={() => openPrivateThread(coachUserId)}
-          className="flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-dashed border-app-border px-3 text-xs font-semibold text-app-muted transition-colors hover:border-secondary/50 hover:text-app-text"
+          className="flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-dashed border-app-border px-3 text-xs font-semibold text-app-muted transition-colors hover:border-accent/50 hover:text-app-text"
         >
           <Lock className="size-3.5 shrink-0" />
           Message coach

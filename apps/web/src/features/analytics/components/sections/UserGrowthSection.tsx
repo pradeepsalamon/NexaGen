@@ -45,7 +45,7 @@ export function UserGrowthSection({
               className={cn(
                 "rounded-control px-2 py-1 text-xs font-semibold capitalize",
                 granularity === g
-                  ? "bg-secondary text-black"
+                  ? "bg-accent text-black"
                   : "text-app-muted hover:bg-app-soft"
               )}
               key={g}

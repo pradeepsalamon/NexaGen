@@ -98,7 +98,7 @@ export function ChatMembersDialog({ conversation, onOpenChange, open }: Props) {
               .filter((m) => m.owner)
               .map((m) => (
                 <div className="flex items-center gap-3 rounded-control px-2 py-2" key={m.id}>
-                  <Crown aria-hidden className="size-4 text-secondary-ink" />
+                  <Crown aria-hidden className="size-4 text-accent-ink" />
                   <span className="flex-1 text-sm font-semibold text-app-text">{m.name}</span>
                   <Badge variant="secondary">Owner</Badge>
                 </div>

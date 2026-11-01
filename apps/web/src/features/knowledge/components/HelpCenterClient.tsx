@@ -251,7 +251,7 @@ function CategoryChip({ active, label, onClick }: { active: boolean; label: stri
       aria-pressed={active}
       className={cn(
         "min-h-9 rounded-full border px-4 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
-        active ? "border-primary bg-primary text-white" : "border-app-border bg-app-surface text-app-text hover:border-primary/50",
+        active ? "border-primary bg-primary text-on-primary" : "border-app-border bg-app-surface text-app-text hover:border-primary/50",
       )}
       onClick={onClick}
       type="button"

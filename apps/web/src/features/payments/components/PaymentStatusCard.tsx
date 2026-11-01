@@ -45,8 +45,8 @@ const ICON_BY_TONE: Record<Tone, LucideIcon> = {
 // The four-colour design language: accent = gained, secondary = waiting,
 // danger = lost, soft = neutral. Same mapping as Badge's variants.
 const RING_BY_TONE: Record<Tone, string> = {
-  success: "border-accent bg-accent/10 text-accent-ink",
-  pending: "border-secondary bg-secondary/10 text-secondary-ink",
+  success: "border-success bg-success/10 text-success-ink",
+  pending: "border-accent bg-accent/10 text-accent-ink",
   danger: "border-app-danger/40 bg-app-danger/[0.08] text-app-danger-ink",
   neutral: "border-app-border bg-app-soft text-app-muted"
 };

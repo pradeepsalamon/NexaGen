@@ -106,7 +106,7 @@ export function ContentEditor({
                 aria-pressed={mode === m}
                 className={cn(
                   "min-h-8 rounded-full px-3 text-xs font-bold capitalize",
-                  mode === m ? "bg-primary text-white" : "text-app-muted hover:text-app-text",
+                  mode === m ? "bg-primary text-on-primary" : "text-app-muted hover:text-app-text",
                 )}
                 key={m}
                 onClick={() => setMode(m)}

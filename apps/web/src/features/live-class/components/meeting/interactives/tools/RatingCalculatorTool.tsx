@@ -155,7 +155,7 @@ export function RatingCalculatorTool() {
                   g.change === null
                     ? "text-app-muted"
                     : g.change >= 0
-                      ? "text-accent-ink"
+                      ? "text-success-ink"
                       : "text-app-danger-ink",
                 )}
               >
@@ -224,7 +224,7 @@ export function RatingCalculatorTool() {
             <p
               className={cn(
                 "text-lg font-extrabold",
-                total >= 0 ? "text-accent-ink" : "text-app-danger-ink",
+                total >= 0 ? "text-success-ink" : "text-app-danger-ink",
               )}
             >
               {fmt(total)}

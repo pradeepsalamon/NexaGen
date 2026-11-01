@@ -215,7 +215,7 @@ export function MeetingVideoGrid({
                         in the full-screen board view. */}
                     <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center gap-1.5">
                       <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-2 py-1 shadow-card backdrop-blur-md">
-                        <Crown className="size-3 text-secondary" />
+                        <Crown className="size-3 text-accent" />
                         <span className="text-[11px] font-semibold text-white/90">Shared Board</span>
                       </div>
                       <RequestControlButton />

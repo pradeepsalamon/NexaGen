@@ -65,7 +65,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Gift,
     id: "mystery-box",
     label: "Mystery Box",
-    tone: "bg-secondary/20 text-secondary-ink",
+    tone: "bg-accent/20 text-accent-ink",
   },
   {
     Component: WallOfMomentsTool,
@@ -81,7 +81,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: UsersRound,
     id: "team-generator",
     label: "Team Generator",
-    tone: "bg-accent/15 text-accent-ink",
+    tone: "bg-success/15 text-success-ink",
   },
   {
     Component: GrandmasterMapperTool,
@@ -89,7 +89,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Crown,
     id: "grandmaster-mapper",
     label: "Grandmaster Mapper",
-    tone: "bg-secondary/20 text-secondary-ink",
+    tone: "bg-accent/20 text-accent-ink",
   },
   {
     Component: ChessBalanceTool,
@@ -121,7 +121,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Sunrise,
     id: "opening-of-the-day",
     label: "Opening of the Day",
-    tone: "bg-secondary/20 text-secondary-ink",
+    tone: "bg-accent/20 text-accent-ink",
   },
   {
     Component: VideoGeneratorTool,
@@ -137,7 +137,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Calculator,
     id: "rating-calculator",
     label: "Rating Calculator",
-    tone: "bg-accent/15 text-accent-ink",
+    tone: "bg-success/15 text-success-ink",
   },
   {
     Component: ClassroomTimerTool,
@@ -162,7 +162,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Flag,
     id: "puzzle-racer",
     label: "Puzzle Racer",
-    tone: "bg-accent/15 text-accent-ink",
+    tone: "bg-success/15 text-success-ink",
     wide: true,
   },
 ];

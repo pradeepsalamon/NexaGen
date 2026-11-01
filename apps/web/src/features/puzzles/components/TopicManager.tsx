@@ -318,7 +318,7 @@ export function TopicManager({
                           <span className="shrink-0">{topic.icon}</span>
                         ) : (
                           <Folder
-                            className="size-4 shrink-0 fill-secondary/30 text-secondary-ink"
+                            className="size-4 shrink-0 fill-accent/30 text-accent-ink"
                             strokeWidth={2}
                           />
                         )}
@@ -424,7 +424,7 @@ export function TopicManager({
                               aria-label={`Archive ${topic.name}`}
                               variant="ghost"
                               size="icon"
-                              className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
+                              className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
                               onClick={() =>
                                 node.totalPuzzleCount > 0 ? setReassigning(node) : runArchive(node)
                               }
@@ -650,7 +650,7 @@ function HomeworkCell({
               aria-label={`Revoke homework approval for ${topic.name}`}
               variant="ghost"
               size="icon"
-              className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
+              className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
               onClick={() => onApprove(false)}
             >
               <ShieldOff className="size-4" strokeWidth={2.5} />
