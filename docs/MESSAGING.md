@@ -62,6 +62,7 @@ the editors; a new placeholder needs an entry (a spec checks).
   (`mediaId`/`link`/`filename`) which the CALLER resolves — dispatch persists it
   onto `message_deliveries` and the worker sends it as a WhatsApp document.
 - `APPROVAL_REQUESTED` / `APPROVAL_DECIDED` ship **enabled, in-app only** (admin approvals, [PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md](PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md) §2.7). `ApprovalService` dispatches REQUESTED after a request commits — to every ACTIVE user in the action's catalogue `reviewerRoles`, never the requester (audience `ADMINS`, the only admin-side audience) — and DECIDED to the requester after an approval, rejection or expiry. Everything shown is read back from the request row.
+- `CLASS_SUBSTITUTE_ASSIGNED` ships **enabled, in-app only**: sent after commit to the coach who now owns a class, once an admin approves a `CLASS_SUBSTITUTE_COACH` request. The audience is coaches only; the batch isn't told by this event.
 - `ASSIGNMENT_OVERDUE_COACH` ships **enabled, in-app only**: the hourly
   `assignmentDueReminders` cron (same job lock as due-soon) finds deployments
   whose `dueDate` passed in the last 48h with someone unfinished and dispatches

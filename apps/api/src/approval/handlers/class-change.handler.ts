@@ -41,7 +41,7 @@ async function assertBatchDates(tx: PrismaTransactionClient, batchId: string, st
  * deactivation waits for this transaction instead of landing between the check
  * and the class write. Returns the coach's timezone for the clash message.
  */
-async function assertCoachStillInBatch(
+export async function assertCoachStillInBatch(
   tx: PrismaTransactionClient,
   coachId: string,
   batchId: string

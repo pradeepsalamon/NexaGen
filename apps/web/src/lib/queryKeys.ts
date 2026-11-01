@@ -279,6 +279,8 @@ export const queryKeys = {
     mine: ["approvals", "mine"] as const,
     admin: (status?: string) => ["approvals", "admin", status ?? "all"] as const,
     queues: ["approvals", "queues"] as const,
+    studentOptions: (q: string) => ["approvals", "options", "students", q] as const,
+    substituteOptions: (classId: string) => ["approvals", "options", "substitutes", classId] as const,
   },
   revision: {
     all: ["revision"] as const,

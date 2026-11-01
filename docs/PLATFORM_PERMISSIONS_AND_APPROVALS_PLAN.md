@@ -68,6 +68,7 @@ ones in this plan:
 | Live-setting locks: `LOCKABLE_LIVE_SETTINGS`, `readLiveClassLocks`, `withoutLockedFields`, `lockedFieldsChanged`, `liveClassLockSources`; `resolveLiveClassSettings({ systemLocks, batchLocks })` | `live-class-settings.ts` | 2 ✅ |
 | `resolveCancellationPath(class, now)` → `DIRECT` / `APPROVAL` / `EXCEPTIONAL` / `NOT_ALLOWED` | `class-cancellation.ts` | 4 ✅ |
 | Approval catalogue: action types, categories, TTLs, requester/reviewer roles, request/response contract | `approvals.ts` | 3 ✅ |
+| Locked-setting exceptions: `LIVE_SETTING_EXCEPTION_FIELDS`, `readLiveClassLockExceptions`, `resolveLiveClassSettings({ classExceptions })` | `live-class-settings.ts` | 6 ✅ |
 
 ### 2.3 One approval engine, not one per module
 
@@ -147,6 +148,11 @@ lifecycle.
   own mic and camera defaults aren't academy policy, so they can't be locked.
 * **Exceptions:** an exception to a lock before the class is an approval request
   (`LIVE_SETTING_EXCEPTION`, Stage 6). During a class there are no exceptions.
+  An approved exception is the field's name in `lockExceptions` on the class's
+  JSON plus the approved value in its override, so the resolver lets that one
+  value through, and the snapshot and LiveKit grants follow. Later saves can't
+  change the value or add to the list. Recording can't be excepted until consent
+  exists (§2.8).
 
 ### 2.6 Audit
 
@@ -252,7 +258,7 @@ Legend:
 |---|---|---|---|---|---|
 | **Live classes** | Start/end own class within the start window | D | D | — | built |
 | | Change an **unlocked** setting of own class | D | D | — | built |
-| | Change a **locked** setting | ✗ (R before class, Stage 6) | ✗ on the class; unlock or change it at the academy/batch layer that locked it | — | Stage 2 |
+| | Change a **locked** setting | ✗ directly; R before the class, this class only (recording: never, until consent exists) | ✗ on the class; unlock or change it at the academy/batch layer that locked it, or approve a coach's exception | — | ✅ Stage 2, exception Stage 6 |
 | | Lock or unlock academy/batch settings | — | A | — | Stage 2 |
 | | Moderate, kick, admit from waiting room (own class) | D | D | — | built |
 | | Pull a student from own batch | D | D | — | built |
@@ -268,16 +274,16 @@ Legend:
 | **Batches** | Create, edit, archive, delete; assign coaches and students | — | A | — | built |
 | | Batch default live settings and locks | — | A | — | Stage 2 |
 | **Students and enrolment** | Read students of own batches | D | D | own | built |
-| | Enrol, remove or transfer a student | R | D | — | Stage 6 |
+| | Enrol, remove or transfer a student (a coach's transfer: between own batches) | R | D | — | ✅ Stage 6 |
 | | Give a student from outside own batches access to own class | R | D | — | ✅ Stage 4 |
 | | Edit own profile | D (pay rate is read-only, set via compensation rates) | D (any) | D | built |
 | | Change parent/guardian contact | — | D | D + password + previous contact told | ✅ Stage 1 |
 | **Attendance** | Automatic recording (LiveKit) | — | — | — | built |
-| | Correct a student's attendance in own class | R | D (audited) | — | Stage 6 |
+| | Correct a student's attendance in own class, after it ends | R | D (audited) | — | ✅ Stage 6 |
 | | Attendance policy | — | A | — | built |
 | **Coach management** | Coach assignment, approval, status | — | A (applications: S) | — | built |
 | | Own pay rate (`hourlyRate`, compensation rates) | read-only | A | — | ✅ Stage 1 |
-| | Request a substitute for own class | R | D | — | Stage 6 (optional) |
+| | Request a substitute for own class | R | D (reassign the class or schedule) | — | ✅ Stage 6 |
 | **Payments and finance** | Record manual payment (own batch student) | R | D | — | built; race fixed Stage 1 |
 | | Discounts, refunds, plans, invoices, payroll | — | A | own invoices | built |
 | **External integrations / game sync** | Link, verify and sync own external chess account | — | — | D | built |
@@ -314,7 +320,7 @@ Stages are small, isolated and tested. Each updates §7.
 | **3. Approval engine + immutable audit (V9)** | `approvals.ts` catalogue; `ApprovalRequest` + `ApprovalEvent`; `ApprovalService` with the §2.3 guarantees; expiry cron; append-only triggers on `trash_audit_logs` and `approval_events`; privacy export | migration `20261101082355_approval_requests_and_append_only_audit` | ✅ done (backend; no action handlers yet) |
 | **4. Cancellation, outside-batch students, inbox (V4, V10)** | `resolveCancellationPath`; `CLASS_CANCEL` / `CLASS_CANCEL_EXCEPTIONAL` handlers (urgent emergency flag); pull roster limited to own batches plus `LIVE_CLASS_GUEST_STUDENT`; **shipped together with** the admin inbox `/admin/requests` and coach `/coach/requests` plus `APPROVAL_REQUESTED`/`APPROVAL_DECIDED` notifications, so no coach workflow is blocked without a way to ask | enum migration `approval_notifications` (messaging events + `ADMINS` audience) | ✅ done |
 | **5. Port and unify** | Class change requests ported to engine handlers (data migration, old table read-only); manual payments, account deletions and coach applications listed in the inbox | data migration `20261101100736_class_requests_into_approvals` | ✅ done |
-| **6. More request types** | Enrolment/transfer, attendance correction (+ audited admin correction), live-setting exception, substitute coach | none | |
+| **6. More request types** | Enrolment/transfer, attendance correction (+ audited admin correction), live-setting exception, substitute coach | additive migration `20261101104132_stage6_attendance_correction_and_substitute_event` | ✅ done |
 | **7. Consent and guardians** | Separate design (§2.8), then `ConsentService` wired into handlers and direct paths | migration | needs owner/legal decision |
 
 ---
@@ -543,6 +549,57 @@ From the CodeRabbit review of PR #125:
 * The permission table's enrolment/transfer, attendance correction, substitute
   and locked-setting exception rows now say Stage 6, matching the roadmap.
 
+### Stage 6: more request types (2026-11-01) ✅
+
+Handlers in `apps/api/src/approval/handlers/`; payload schemas in
+`@nexa-chess/types` `approvals.ts`. Every one is 72 h by default, one pending
+per operation, and re-checked under row locks at approval.
+
+* **Enrolment** (`batch-enrolment.handler.ts`): `BATCH_STUDENT_ENROL`,
+  `BATCH_STUDENT_REMOVE`, `BATCH_STUDENT_TRANSFER`. Approval re-checks that the
+  coach is still an ACTIVE coach of the live batch and that the roster is still
+  as asked. Removal goes through `TrashRepository.softDelete`, so it can be
+  restored; enrolling restores an earlier removal. A paid `Entitlement` isn't
+  touched, the same as when an admin edits a roster. A coach's transfer stays
+  between their own batches, so coaches don't get a directory of other batches;
+  anything else is an admin's roster edit.
+* **Attendance correction** (`attendance-correction.handler.ts`,
+  `attendance/attendance-correction.ts`): `ATTENDANCE_CORRECTION` for a coach,
+  and `PATCH API_ROUTES.attendance.correctStudent` for an admin. Both call
+  `applyAttendanceCorrection` and write an `ATTENDANCE_CORRECTION` audit row (who,
+  before, after, reason) in the same transaction. Only after a class has ended,
+  and not if it was cancelled. A student with no row must be in the batch. The
+  new `class_attendance.correctedAt` makes the status survive a re-run of
+  `finalizeClassAttendance`. Duration and percentage stay as measured; reports
+  show a "Corrected" badge. Approval fails if the status moved after the coach
+  asked. Coach attendance isn't correctable through this; payroll reads only
+  coach attendance, so a student correction never changes pay.
+* **Locked-setting exception** (`live-setting-exception.handler.ts`):
+  `LIVE_SETTING_EXCEPTION`, §2.5. Expires at the class start, urgent under 6 h.
+  Approval takes the same policy → batch → class locks as every settings writer,
+  and fails if the field was unlocked, its locked value changed, or the new value
+  conflicts with another setting. It writes a `LIVE_SETTINGS_CHANGE` audit row.
+* **Substitute coach** (`class-substitute.handler.ts`): `CLASS_SUBSTITUTE_COACH`.
+  Approval changes `CoachClass.coachId` for that one class (status-filtered)
+  after re-checking the class, its time and the substitute's schedule. The
+  substitute doesn't join the batch; `LiveClassPullService` lets a coach reach the
+  students of the batch of a class they own. Payroll follows `coachId`. The new
+  event `CLASS_SUBSTITUTE_ASSIGNED` tells them after commit (enabled, in-app only).
+* **Pickers** (`ApprovalOptionsService`, coach only, names only):
+  `API_ROUTES.approvals.studentOptions` (at least two typed characters, 20 results)
+  and `substituteOptions(classId)` (own class; 404 otherwise).
+* **Web:**
+  * `/coach/batches`: "Ask to add a student";
+  * `/coach/students`: "Ask to move or remove";
+  * class card: "Request Substitute";
+  * class settings: "Ask an admin to change this for this class" on a locked
+    field, and a badge once allowed;
+  * attendance table: a correct action, direct for an admin and a request for a
+    coach. The class page links ended classes to it ("View attendance").
+  * The inbox and the coach's list show what each request would change.
+* **Migration** (additive): `correctedAt`, and `CLASS_SUBSTITUTE_ASSIGNED` on
+  `MessagingEvent` and `NotificationType`.
+
 ---
 
 ## 8. Outstanding decisions and risks
@@ -555,3 +612,5 @@ From the CodeRabbit review of PR #125:
 | R1 | ~~V4 stays open until Stage 4.~~ Closed by Stage 4. | — |
 | R2 | ~~Request notifications aren't built yet.~~ Shipped in Stage 4. | — |
 | R3 | The previous-parent-contact notice (V7) is sent best-effort after commit; an SMTP failure drops it (logged). The messaging outbox only delivers to accounts, so a durable notice to a typed address needs either a guardian account (D1/D3) or an outbox row type for raw addresses. | owner, with D1 |
+| R4 | An approved live-setting exception can't be withdrawn on its own: it lasts until the class starts, or until the lock is lifted. An admin who changes their mind has no per-class undo. | owner, if it comes up |
+| R5 | A substitution is lost if an admin regenerates a recurring schedule, which re-creates future classes with the schedule's coach. A substitute who isn't in the batch can ask to reschedule, but approval refuses (they aren't an active coach of the batch). They can still ask to cancel. | owner, if it comes up |

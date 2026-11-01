@@ -73,8 +73,8 @@ export function AdminRequestsClient() {
         <div>
           <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Requests</h1>
           <p className="mt-1 text-app-muted">
-            Coaches ask here for things beyond their own authority: extra classes, reschedules, cancelling a class
-            within 24 hours.
+            Coaches ask here for things beyond their own authority: schedule changes, a substitute, a student joining
+            or leaving a batch, an attendance correction or a locked class setting.
           </p>
         </div>
         <Select

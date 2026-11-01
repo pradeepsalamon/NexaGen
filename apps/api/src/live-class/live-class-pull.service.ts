@@ -44,7 +44,11 @@ export class LiveClassPullService {
           batch: {
             isDeleted: false,
             status: { not: BatchStatus.ARCHIVED },
-            coaches: { some: { coachId: user.id, isDeleted: false } },
+            // A substitute coach owns the class without joining its batch.
+            OR: [
+              { coaches: { some: { coachId: user.id, isDeleted: false } } },
+              { classes: { some: { coachId: user.id, id: classId } } },
+            ],
           },
         },
         select: { studentId: true },

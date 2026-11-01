@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LIVE_SETTING_EXCEPTION_FIELDS, liveSettingOverride } from "./live-class-settings";
 
 // Admin-approval engine contract (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md
 // §2.3). One generic request shape for every module: the API's handler for an
@@ -84,6 +85,48 @@ export const APPROVAL_ACTIONS = {
     reviewerRoles: ADMINS,
     defaultTtlHours: 24,
   },
+  LIVE_SETTING_EXCEPTION: {
+    category: "LIVE_CLASS",
+    label: "Change a locked live-class setting for one class",
+    requesterRoles: ["COACH"],
+    reviewerRoles: ADMINS,
+    defaultTtlHours: 72,
+  },
+  BATCH_STUDENT_ENROL: {
+    category: "ENROLMENT",
+    label: "Add a student to a batch",
+    requesterRoles: ["COACH"],
+    reviewerRoles: ADMINS,
+    defaultTtlHours: 72,
+  },
+  BATCH_STUDENT_REMOVE: {
+    category: "ENROLMENT",
+    label: "Remove a student from a batch",
+    requesterRoles: ["COACH"],
+    reviewerRoles: ADMINS,
+    defaultTtlHours: 72,
+  },
+  BATCH_STUDENT_TRANSFER: {
+    category: "ENROLMENT",
+    label: "Move a student to another batch",
+    requesterRoles: ["COACH"],
+    reviewerRoles: ADMINS,
+    defaultTtlHours: 72,
+  },
+  ATTENDANCE_CORRECTION: {
+    category: "ATTENDANCE",
+    label: "Correct a student's attendance",
+    requesterRoles: ["COACH"],
+    reviewerRoles: ADMINS,
+    defaultTtlHours: 72,
+  },
+  CLASS_SUBSTITUTE_COACH: {
+    category: "COACHING",
+    label: "Have another coach take a class",
+    requesterRoles: ["COACH"],
+    reviewerRoles: ADMINS,
+    defaultTtlHours: 72,
+  },
 } as const satisfies Record<string, ApprovalActionMeta>;
 
 export type ApprovalActionType = keyof typeof APPROVAL_ACTIONS;
@@ -122,6 +165,76 @@ export const approvalListQuerySchema = z.object({
   urgent: z.enum(["true", "false"]).optional(),
 });
 export type ApprovalListQuery = z.infer<typeof approvalListQuerySchema>;
+
+// ── Stage 6 payloads ──
+
+const idSchema = z.string().trim().min(1).max(64);
+
+export const batchStudentPayloadSchema = z.object({ batchId: idSchema, studentId: idSchema });
+export type BatchStudentPayload = z.infer<typeof batchStudentPayloadSchema>;
+
+export const batchStudentTransferPayloadSchema = z
+  .object({ fromBatchId: idSchema, studentId: idSchema, toBatchId: idSchema })
+  .refine((value) => value.fromBatchId !== value.toBatchId, {
+    message: "Choose a different batch.",
+    path: ["toBatchId"],
+  });
+export type BatchStudentTransferPayload = z.infer<typeof batchStudentTransferPayloadSchema>;
+
+export const attendanceCorrectionStatusSchema = z.enum(["PRESENT", "LATE", "PARTIAL", "ABSENT"]);
+export type AttendanceCorrectionStatus = z.infer<typeof attendanceCorrectionStatusSchema>;
+
+export const attendanceCorrectionPayloadSchema = z.object({
+  classId: idSchema,
+  status: attendanceCorrectionStatusSchema,
+  studentId: idSchema,
+});
+export type AttendanceCorrectionPayload = z.infer<typeof attendanceCorrectionPayloadSchema>;
+
+/** An admin correcting attendance directly; audited like an approved request. */
+export const correctAttendanceRequestSchema = z.object({
+  reason: z.string().trim().min(3, "Give a short reason.").max(1000),
+  status: attendanceCorrectionStatusSchema,
+});
+export type CorrectAttendanceRequest = z.infer<typeof correctAttendanceRequestSchema>;
+export type CorrectAttendanceResponse = { correctedAt: string; status: AttendanceCorrectionStatus };
+
+export const liveSettingExceptionPayloadSchema = z
+  .object({
+    classId: idSchema,
+    field: z.enum(LIVE_SETTING_EXCEPTION_FIELDS),
+    value: z.string().min(1).max(32),
+  })
+  .refine((payload) => liveSettingOverride(payload.field, payload.value) !== null, {
+    message: "That value isn't valid for this setting.",
+    path: ["value"],
+  });
+export type LiveSettingExceptionPayload = z.infer<typeof liveSettingExceptionPayloadSchema>;
+
+export const classSubstitutePayloadSchema = z.object({ classId: idSchema, substituteCoachId: idSchema });
+export type ClassSubstitutePayload = z.infer<typeof classSubstitutePayloadSchema>;
+
+/** What an inbox shows for a Stage 6 request, read from `requestedValue`. */
+export type ApprovalRequestedChange = {
+  field?: string;
+  fieldLabel?: string;
+  fromBatchName?: string;
+  status?: string;
+  substituteName?: string;
+  toBatchName?: string;
+  value?: string;
+};
+
+export function readApprovalRequestedChange(value: unknown): ApprovalRequestedChange {
+  return value && typeof value === "object" ? (value as ApprovalRequestedChange) : {};
+}
+
+// Pickers a coach needs to fill in a request. Names only: nothing here widens
+// what a coach can read about a student or colleague.
+export type ApprovalStudentOption = { id: string; name: string; username: string | null };
+export type ApprovalStudentOptionsResponse = { students: ApprovalStudentOption[] };
+export type ApprovalCoachOption = { id: string; inBatch: boolean; name: string };
+export type ApprovalCoachOptionsResponse = { coaches: ApprovalCoachOption[] };
 
 // ── Responses ──
 

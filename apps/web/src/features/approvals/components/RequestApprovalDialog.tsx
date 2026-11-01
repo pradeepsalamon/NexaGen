@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ApprovalActionType } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
@@ -21,7 +21,8 @@ import { APPROVAL_INVALIDATES } from "../hooks/useApprovals";
 /**
  * Asks an admin for something beyond the coach's own authority
  * (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md). The API decides whether
- * the request is valid; this only collects the reason.
+ * the request is valid; this only collects the reason, below any fields the
+ * caller adds as `children`.
  */
 export function RequestApprovalDialog({
   open,
@@ -30,7 +31,9 @@ export function RequestApprovalDialog({
   payload,
   title,
   description,
-  submitLabel = "Send request"
+  submitLabel = "Send request",
+  canSubmit = true,
+  children
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,6 +42,9 @@ export function RequestApprovalDialog({
   title: string;
   description: string;
   submitLabel?: string;
+  /** False while the caller's own fields are incomplete. */
+  canSubmit?: boolean;
+  children?: ReactNode;
 }) {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -68,9 +74,10 @@ export function RequestApprovalDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="px-6 sm:pl-0">{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {children}
         <FormField error={error ?? undefined} id="approval-reason" label="Reason">
           <Textarea
             id="approval-reason"
@@ -86,7 +93,7 @@ export function RequestApprovalDialog({
             Cancel
           </Button>
           <Button
-            disabled={tooShort || mutation.isPending}
+            disabled={tooShort || !canSubmit || mutation.isPending}
             onClick={() => mutation.mutate()}
             type="button"
             variant="primary"

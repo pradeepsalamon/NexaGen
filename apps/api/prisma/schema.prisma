@@ -1268,6 +1268,11 @@ model ClassAttendance {
   // non-null values (P0 reliability Phase 1).
   lastHeartbeatAt   DateTime?
 
+  // Set when an admin corrected `status` by hand, directly or by approving a
+  // coach's request. Finalize keeps a corrected status; who and why are in
+  // trash_audit_logs (ATTENDANCE_CORRECTION).
+  correctedAt DateTime?
+
   logs AttendanceLog[]
 
   createdAt DateTime @default(now())
@@ -2052,6 +2057,7 @@ enum NotificationType {
   CLASS_REMINDER
   CLASS_REMINDER_COACH
   CLASS_CANCELLED
+  CLASS_SUBSTITUTE_ASSIGNED
   ASSIGNMENT_ASSIGNED
   ANNOUNCEMENT
   ACCOUNT_WELCOME
@@ -2889,6 +2895,7 @@ enum MessagingEvent {
   CLASS_REMINDER
   CLASS_REMINDER_COACH
   CLASS_CANCELLED
+  CLASS_SUBSTITUTE_ASSIGNED
   ASSIGNMENT_ASSIGNED
   ASSIGNMENT_DUE_SOON
   ASSIGNMENT_GRADED

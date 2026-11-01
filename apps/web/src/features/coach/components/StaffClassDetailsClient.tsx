@@ -119,6 +119,9 @@ export function StaffClassDetailsClient({ classId, isCoach }: { classId: string;
       <>
         <h2 className="text-2xl font-bold text-app-text">Class Ended</h2>
         <p className="text-app-muted">This live session has already concluded.</p>
+        <Button className="mt-4" size="lg" variant="outline" onClick={() => router.push(`/live-class/${classId}`)}>
+          View attendance
+        </Button>
       </>
     );
   } else if (isCoach) {

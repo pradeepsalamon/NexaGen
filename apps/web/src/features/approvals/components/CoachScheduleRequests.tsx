@@ -14,7 +14,9 @@ import { ApprovalRequestSummary } from "./ApprovalRequestSummary";
  */
 export function CoachScheduleRequests() {
   const { data } = useMyApprovalRequests();
-  const waiting = (data?.requests ?? []).filter((r) => r.status === "PENDING" && r.category === "SCHEDULING");
+  const waiting = (data?.requests ?? []).filter(
+    (r) => r.status === "PENDING" && (r.category === "SCHEDULING" || r.actionType === "CLASS_SUBSTITUTE_COACH")
+  );
   if (waiting.length === 0) return null;
 
   return (

@@ -2,16 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, History, Info, SlidersHorizontal } from "lucide-react";
-import { withoutLockedFields, type LiveClassSettingsOverride } from "@nexa-chess/types";
+import {
+  withoutLockedFields,
+  type LiveClassSettingsOverride,
+  type LiveSettingExceptionField,
+} from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { cn } from "@/lib/utils";
+import { LiveSettingExceptionDialog } from "@/features/approvals/components/LiveSettingExceptionDialog";
 import { useAuthStore } from "@/stores/authStore";
 import { ClassSettingsPanel } from "./ClassSettingsPanel";
-import { isEmptyOverride } from "./fields";
+import { SETTINGS_FIELDS, getAtPath, isEmptyOverride } from "./fields";
 import { readLastUsedClassSettings } from "./lastUsed";
 import {
   useClassLiveSettings,
@@ -35,8 +40,10 @@ export function LiveClassSettingsSection({
   const { data: presetData } = useLiveClassPresets();
   const update = useUpdateClassLiveSettings(classId);
   const userId = useAuthStore((state) => state.user?.id);
+  const role = useAuthStore((state) => state.user?.role);
 
   const [open, setOpen] = useState(defaultOpen);
+  const [exceptionField, setExceptionField] = useState<LiveSettingExceptionField | null>(null);
   const [override, setOverride] = useState<LiveClassSettingsOverride>({});
   /** True while the form shows remembered settings the coach hasn't saved here yet. */
   const [prefilled, setPrefilled] = useState(false);
@@ -163,6 +170,15 @@ export function LiveClassSettingsSection({
                 disabled={!editable}
                 systemLocks={data.systemLocks}
                 batchLocks={data.batchLocks}
+                lockExceptions={data.lockExceptions}
+                onRequestException={role === "COACH" && editable ? setExceptionField : undefined}
+              />
+              <LiveSettingExceptionDialog
+                classId={classId}
+                currentValue={exceptionField ? String(getAtPath(data.resolved, exceptionField) ?? "") : undefined}
+                field={exceptionField}
+                onClose={() => setExceptionField(null)}
+                options={SETTINGS_FIELDS.find((f) => f.path === exceptionField)?.options ?? []}
               />
 
               {editable && (

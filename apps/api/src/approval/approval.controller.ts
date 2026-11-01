@@ -12,8 +12,9 @@ import {
 } from "@nexa-chess/types";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
-import { queryEnum } from "../common/query-params";
+import { optionalQueryString, queryEnum } from "../common/query-params";
 import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
+import { ApprovalOptionsService } from "./approval-options.service";
 import { ApprovalService } from "./approval.service";
 import { RequestQueuesService } from "./request-queues.service";
 
@@ -21,6 +22,7 @@ import { RequestQueuesService } from "./request-queues.service";
 export class ApprovalController {
   constructor(
     private readonly approvals: ApprovalService,
+    private readonly options: ApprovalOptionsService,
     private readonly queues: RequestQueuesService
   ) {}
 
@@ -44,6 +46,16 @@ export class ApprovalController {
       this.getAccessToken(request),
       queryEnum(status, approvalStatusSchema.options, "status")
     );
+  }
+
+  @Get(API_ROUTES.approvals.studentOptions)
+  studentOptions(@Req() request: Request, @Query("q") q?: unknown) {
+    return this.options.students(this.getAccessToken(request), optionalQueryString(q, "q"));
+  }
+
+  @Get(API_ROUTES.approvals.substituteOptions())
+  substituteOptions(@Req() request: Request, @Param("id") id: string) {
+    return this.options.substitutes(this.getAccessToken(request), id);
   }
 
   @Get(API_ROUTES.approvals.get())

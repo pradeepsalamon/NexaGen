@@ -8,6 +8,7 @@ import {
   type LiveClassPreset,
   type LiveClassSettings,
   type LiveClassSettingsOverride,
+  type LiveSettingExceptionField,
   type LockableLiveSetting,
 } from "@nexa-chess/types";
 import { Select } from "@/components/ui/Select";
@@ -29,6 +30,9 @@ interface ClassSettingsPanelProps {
   /** Academy and batch locks: those fields render read-only. */
   systemLocks?: LockableLiveSetting[];
   batchLocks?: LockableLiveSetting[];
+  /** Locked fields an admin approved a different value for, on this class. */
+  lockExceptions?: LockableLiveSetting[];
+  onRequestException?: (field: LiveSettingExceptionField) => void;
 }
 
 const NO_LOCKS: LockableLiveSetting[] = [];
@@ -43,6 +47,8 @@ export function ClassSettingsPanel({
   showAdvanced = true,
   systemLocks = NO_LOCKS,
   batchLocks = NO_LOCKS,
+  lockExceptions = NO_LOCKS,
+  onRequestException,
 }: ClassSettingsPanelProps) {
   const [appliedPresetId, setAppliedPresetId] = useState("");
 
@@ -52,8 +58,15 @@ export function ClassSettingsPanel({
   );
   const resolved = useMemo(
     () =>
-      resolveLiveClassSettings({ system, batch: batchOverride, class: value, systemLocks, batchLocks }),
-    [system, batchOverride, value, systemLocks, batchLocks],
+      resolveLiveClassSettings({
+        system,
+        batch: batchOverride,
+        class: value,
+        systemLocks,
+        batchLocks,
+        classExceptions: lockExceptions,
+      }),
+    [system, batchOverride, value, systemLocks, batchLocks, lockExceptions],
   );
   const lockSources = useMemo(
     () => liveClassLockSources({ systemLocks, batchLocks }),
@@ -106,6 +119,8 @@ export function ClassSettingsPanel({
         showAdvanced={showAdvanced}
         scope="class"
         lockSources={lockSources}
+        lockExceptions={lockExceptions}
+        onRequestException={onRequestException}
       />
 
       {!isEmptyOverride(value) || presets.length > 0 ? (

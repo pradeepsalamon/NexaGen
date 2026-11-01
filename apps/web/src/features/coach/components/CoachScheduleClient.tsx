@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { ClassRequestDialog } from "@/features/approvals/components/ClassRequestDialog";
 import { CoachScheduleRequests } from "@/features/approvals/components/CoachScheduleRequests";
 import { useCoachBatches, useUpcomingClasses } from "../hooks/useCoachApi";
+import { SubstituteRequestDialog } from "@/features/approvals/components/SubstituteRequestDialog";
 import { useCoachClassCancel } from "@/features/approvals/hooks/useCoachClassCancel";
 import { ClassCard } from "./ClassCard";
 import { ClassNotesDialog } from "./ClassNotesDialog";
@@ -33,6 +34,7 @@ export function CoachScheduleClient() {
   const batches = batchesData?.batches ?? [];
   const [requestOpen, setRequestOpen] = useState(false);
   const [rescheduleClass, setRescheduleClass] = useState<CoachClass | null>(null);
+  const [substituteFor, setSubstituteFor] = useState<CoachClass | null>(null);
 
   const openRequest = (cls: CoachClass | null) => {
     setRescheduleClass(cls);
@@ -91,6 +93,7 @@ export function CoachScheduleClient() {
             onEdit={handleEdit}
             onCancel={handleCancel}
             onRequestReschedule={openRequest}
+            onRequestSubstitute={setSubstituteFor}
           />
         ) : upcomingLoading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -109,6 +112,7 @@ export function CoachScheduleClient() {
                 onEdit={handleEdit}
                 onCancel={handleCancel}
                 onRequestReschedule={openRequest}
+                onRequestSubstitute={setSubstituteFor}
               />
             ))}
           </div>
@@ -124,6 +128,7 @@ export function CoachScheduleClient() {
       <CoachScheduleRequests />
 
       <ClassNotesDialog open={dialogOpen} onOpenChange={setDialogOpen} classItem={classToEdit} />
+      <SubstituteRequestDialog classItem={substituteFor} onClose={() => setSubstituteFor(null)} />
       <ClassRequestDialog
         open={requestOpen}
         onOpenChange={setRequestOpen}

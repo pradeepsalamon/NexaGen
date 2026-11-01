@@ -2,11 +2,13 @@
 
 import { AlertTriangle, Lock, LockOpen, RotateCcw } from "lucide-react";
 import {
+  LIVE_SETTING_EXCEPTION_FIELDS,
   LOCKABLE_LIVE_SETTINGS,
   getLiveClassSettingsWarnings,
   type LiveClassLockSource,
   type LiveClassSettings,
   type LiveClassSettingsOverride,
+  type LiveSettingExceptionField,
   type LockableLiveSetting,
 } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
@@ -49,6 +51,10 @@ interface LiveClassSettingsFormProps {
    * They render read-only with a "Locked by …" badge; the API refuses changes.
    */
   lockSources?: Partial<Record<LockableLiveSetting, LiveClassLockSource>>;
+  /** Locked fields an admin approved a different value for, on this class. */
+  lockExceptions?: readonly LockableLiveSetting[];
+  /** When set, a locked field offers "Ask an admin" (a coach, before the class). */
+  onRequestException?: (field: LiveSettingExceptionField) => void;
   /**
    * Admin editors (scope "system" / "batch"): this layer's own lock list. With
    * `onLocksChange`, each lockable field gets a lock toggle.
@@ -56,6 +62,11 @@ interface LiveClassSettingsFormProps {
   locks?: readonly LockableLiveSetting[];
   onLocksChange?: (next: LockableLiveSetting[]) => void;
 }
+
+const NO_EXCEPTIONS: readonly LockableLiveSetting[] = [];
+
+const canBeExcepted = (path: string): path is LiveSettingExceptionField =>
+  (LIVE_SETTING_EXCEPTION_FIELDS as readonly string[]).includes(path);
 
 const isLockable = (path: string): path is LockableLiveSetting =>
   (LOCKABLE_LIVE_SETTINGS as readonly string[]).includes(path);
@@ -84,6 +95,8 @@ export function LiveClassSettingsForm({
   scope = "class",
   layout = "auto",
   lockSources = {},
+  lockExceptions = NO_EXCEPTIONS,
+  onRequestException,
   locks = [],
   onLocksChange,
 }: LiveClassSettingsFormProps) {
@@ -152,6 +165,7 @@ export function LiveClassSettingsForm({
                 const canToggleLock =
                   !!onLocksChange && !lockedAbove && isLockable(field.path) && !disabled;
                 const lockedHere = isLockable(field.path) && locks.includes(field.path);
+                const excepted = isLockable(field.path) && lockExceptions.includes(field.path);
 
                 return (
                   <div
@@ -175,6 +189,11 @@ export function LiveClassSettingsForm({
                             {scope === "system" ? "Locked for all classes" : "Locked for this batch"}
                           </Badge>
                         ) : null}
+                        {lockedAbove && excepted ? (
+                          <Badge variant="default" className="py-0.5 text-[10px]">
+                            Admin allowed this for this class
+                          </Badge>
+                        ) : null}
                         {scope !== "system" &&
                           !lockedAbove &&
                           (overridden ? (
@@ -189,6 +208,15 @@ export function LiveClassSettingsForm({
                       </div>
                       {field.help && (
                         <p className="mt-0.5 text-xs text-app-muted">{field.help}</p>
+                      )}
+                      {lockedAbove && !excepted && onRequestException && canBeExcepted(field.path) && (
+                        <button
+                          type="button"
+                          className="mt-1 text-xs font-semibold text-primary-ink underline-offset-2 hover:underline"
+                          onClick={() => onRequestException(field.path as LiveSettingExceptionField)}
+                        >
+                          Ask an admin to change this for this class
+                        </button>
                       )}
                     </div>
 

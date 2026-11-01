@@ -790,6 +790,8 @@ export type LiveClassSettingsForClassResponse = {
   /** Academy and batch locks; the class layer can't change these fields. */
   systemLocks: LockableLiveSetting[];
   batchLocks: LockableLiveSetting[];
+  /** Locked fields an admin approved a different value for, on this class only. */
+  lockExceptions: LockableLiveSetting[];
 };
 
 export const updateLiveClassSettingsRequestSchema = z.object({
@@ -1387,6 +1389,8 @@ export const classDetailStudentLogSchema = z.object({
   reconnectCount: z.number(),
   logCount: z.number(),
   logs: z.array(attendanceLogEntrySchema),
+  /** Set once an admin corrected the status by hand; the measured duration stays as it was. */
+  correctedAt: z.string().nullable(),
 });
 
 export const classDetailCoachAttendanceSchema = z.object({

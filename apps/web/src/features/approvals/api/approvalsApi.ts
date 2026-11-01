@@ -1,8 +1,10 @@
 import { API_ROUTES } from "@nexa-chess/types";
 import type {
+  ApprovalCoachOptionsResponse,
   ApprovalRequestListResponse,
   ApprovalRequestResponse,
   ApprovalStatus,
+  ApprovalStudentOptionsResponse,
   CreateApprovalRequest,
   OtherRequestQueuesResponse
 } from "@nexa-chess/types";
@@ -19,6 +21,16 @@ export function listMyApprovalRequests() {
 
 export function cancelApprovalRequest(id: string) {
   return apiFetch<ApprovalRequestResponse>(API_ROUTES.approvals.cancel(id), { method: "POST" });
+}
+
+export function searchStudentOptions(q: string) {
+  return apiFetch<ApprovalStudentOptionsResponse>(
+    `${API_ROUTES.approvals.studentOptions}?q=${encodeURIComponent(q)}`
+  );
+}
+
+export function listSubstituteOptions(classId: string) {
+  return apiFetch<ApprovalCoachOptionsResponse>(API_ROUTES.approvals.substituteOptions(classId));
 }
 
 // Reviewer side.

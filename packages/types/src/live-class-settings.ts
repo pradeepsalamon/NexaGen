@@ -186,6 +186,72 @@ export function liveClassLockSources(layers: {
   return out;
 }
 
+/**
+ * Locked fields an admin may except for one class (`LIVE_SETTING_EXCEPTION`).
+ * Recording stays out until consent records exist: an approval never overrides
+ * consent (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md §2.8).
+ */
+export const LIVE_SETTING_EXCEPTION_FIELDS = [
+  "student.mic",
+  "student.camera",
+  "student.screenShare",
+  "student.chat",
+  "student.privateChat",
+  "student.reactions",
+  "student.board",
+  "autoJoin.student",
+  "waitingRoom",
+] as const satisfies readonly LockableLiveSetting[];
+
+export type LiveSettingExceptionField = (typeof LIVE_SETTING_EXCEPTION_FIELDS)[number];
+
+/** The approved exceptions stored beside a class's override (`CoachClass.liveClassSettings.lockExceptions`). */
+export function readLiveClassLockExceptions(classJson: unknown): LiveSettingExceptionField[] {
+  if (!classJson || typeof classJson !== "object") return [];
+  const raw = (classJson as { lockExceptions?: unknown }).lockExceptions;
+  if (!Array.isArray(raw)) return [];
+  return LIVE_SETTING_EXCEPTION_FIELDS.filter((field) => raw.includes(field));
+}
+
+/** A class's JSON column: its override, plus any approved exceptions. */
+export function classLiveSettingsJson(
+  override: LiveClassSettingsOverride | null,
+  lockExceptions: readonly LockableLiveSetting[],
+): object | null {
+  if (lockExceptions.length === 0) return override;
+  return { ...(override ?? {}), lockExceptions: [...lockExceptions] };
+}
+
+/** `field` set to `value` as an override, or null when the value isn't valid for that field. */
+export function liveSettingOverride(field: LockableLiveSetting, value: unknown): LiveClassSettingsOverride | null {
+  const [head, tail] = field.split(".") as [string, string | undefined];
+  const parsed = liveClassSettingsOverrideSchema.safeParse(tail ? { [head]: { [tail]: value } } : { [head]: value });
+  return parsed.success ? parsed.data : null;
+}
+
+/** `base` with `patch`'s fields laid over it (section by section); null when both are empty. */
+export function mergeLiveClassOverrides(
+  base: LiveClassSettingsOverride | null,
+  patch: LiveClassSettingsOverride | null,
+): LiveClassSettingsOverride | null {
+  if (!patch) return base;
+  if (!base) return patch;
+  const next: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(patch)) {
+    const current = next[key];
+    next[key] =
+      value && typeof value === "object" && current && typeof current === "object"
+        ? { ...(current as object), ...(value as object) }
+        : value;
+  }
+  return next as LiveClassSettingsOverride;
+}
+
+/** The value a resolved config holds for a lockable field. */
+export function liveSettingValue(settings: LiveClassSettings, field: LockableLiveSetting): unknown {
+  return getOverrideValue(settings as unknown as LiveClassSettingsOverride, field);
+}
+
 function getOverrideValue(override: LiveClassSettingsOverride, path: LockableLiveSetting): unknown {
   const [head, tail] = path.split(".") as [string, string | undefined];
   const node = (override as Record<string, unknown>)[head];
@@ -303,8 +369,10 @@ function pruneUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
  * `class` are partial overrides. Last layer wins — a class may loosen a batch
  * default on purpose (§26) — except for locked fields: an academy lock
  * (`systemLocks`) ignores the batch and class layers, a batch lock
- * (`batchLocks`) ignores the class layer. The same function feeds the frozen
- * session snapshot and LiveKit grants, so a lock is enforced at token level.
+ * (`batchLocks`) ignores the class layer, unless an admin approved an exception
+ * for that field on this class (`classExceptions`). The same function feeds the
+ * frozen session snapshot and LiveKit grants, so a lock is enforced at token
+ * level.
  */
 export function resolveLiveClassSettings(layers: {
   system?: unknown;
@@ -312,10 +380,12 @@ export function resolveLiveClassSettings(layers: {
   class?: LiveClassSettingsOverride | null;
   systemLocks?: readonly LockableLiveSetting[] | null;
   batchLocks?: readonly LockableLiveSetting[] | null;
+  classExceptions?: readonly LockableLiveSetting[] | null;
 }): LiveClassSettings {
   const base = liveClassSettingsSchema.parse(layers.system ?? {});
   const systemLocks = layers.systemLocks ?? [];
-  const allLocks = [...systemLocks, ...(layers.batchLocks ?? [])];
+  const exceptions = layers.classExceptions ?? [];
+  const allLocks = [...systemLocks, ...(layers.batchLocks ?? [])].filter((field) => !exceptions.includes(field));
   const merged = mergeOverride(
     mergeOverride(base, withoutLockedFields(layers.batch, systemLocks)),
     withoutLockedFields(layers.class, allLocks),

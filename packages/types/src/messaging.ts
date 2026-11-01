@@ -11,6 +11,7 @@ export const messagingEventSchema = z.enum([
   "CLASS_REMINDER",
   "CLASS_REMINDER_COACH",
   "CLASS_CANCELLED",
+  "CLASS_SUBSTITUTE_ASSIGNED",
   "ASSIGNMENT_ASSIGNED",
   "ASSIGNMENT_DUE_SOON",
   "ASSIGNMENT_GRADED",
@@ -221,6 +222,14 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     description: "Sent when a scheduled class is cancelled.",
     variables: CLASS_VARIABLES,
     audiences: ["STUDENTS", "COACHES", "STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
+  },
+  CLASS_SUBSTITUTE_ASSIGNED: {
+    event: "CLASS_SUBSTITUTE_ASSIGNED",
+    label: "Substitute coach assigned",
+    description: "Sent to the coach taking over a class once an admin approves the original coach's request.",
+    variables: CLASS_VARIABLES,
+    audiences: ["COACHES"],
     supportsLeadTime: false
   },
   ASSIGNMENT_ASSIGNED: {
@@ -647,6 +656,15 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "Class cancelled",
     body: "Hi {{recipient.firstName}}, the class \"{{class.title}}\" on {{class.dateTime}} has been cancelled. We'll share a new time soon."
+  },
+  CLASS_SUBSTITUTE_ASSIGNED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "COACHES",
+    leadTimeMinutes: null,
+    title: "You're taking a class",
+    body: "Hi {{recipient.firstName}}, you're now the coach for \"{{class.title}}\" ({{batch.name}}) on {{class.dateTime}}."
   },
   ASSIGNMENT_ASSIGNED: {
     enabled: false,

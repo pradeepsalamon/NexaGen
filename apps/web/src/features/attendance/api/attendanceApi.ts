@@ -1,5 +1,7 @@
 import {
   API_ROUTES,
+  type CorrectAttendanceRequest,
+  type CorrectAttendanceResponse,
   type LiveClassMonitoring,
   type LiveReliabilityOverview,
   type ReliabilityMetrics,
@@ -8,6 +10,17 @@ import { apiFetch } from "@/lib/api";
 
 export function getLiveClassMonitoring(classId: string): Promise<LiveClassMonitoring> {
   return apiFetch<LiveClassMonitoring>(API_ROUTES.attendance.classLive(classId));
+}
+
+export function correctStudentAttendance(
+  classId: string,
+  studentId: string,
+  body: CorrectAttendanceRequest,
+): Promise<CorrectAttendanceResponse> {
+  return apiFetch<CorrectAttendanceResponse>(API_ROUTES.attendance.correctStudent(classId, studentId), {
+    method: "PATCH",
+    body,
+  });
 }
 
 export function getLiveReliabilityOverview(): Promise<LiveReliabilityOverview> {

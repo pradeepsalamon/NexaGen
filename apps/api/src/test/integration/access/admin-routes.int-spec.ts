@@ -8,7 +8,8 @@ import { registeredRoutes } from "../routes";
 const ADMIN_PREFIXES = ["/admin", "/analytics", "/announcements", "/batch-schedules", "/messaging", "/users"];
 const ADMIN_ROUTES = [
   "GET /batches/assignable-users",
-  "GET /live-class-settings/audit"
+  "GET /live-class-settings/audit",
+  "PATCH /attendance/class/:id/students/:studentId"
 ];
 // /courses is admin-only except the student's own /courses/mine.
 const isAdminCourseRoute = (path: string) =>

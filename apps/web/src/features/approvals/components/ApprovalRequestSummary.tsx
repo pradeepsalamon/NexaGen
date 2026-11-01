@@ -1,10 +1,11 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
-import { readClassTimeValue, type ApprovalRequestDto } from "@nexa-chess/types";
+import { readApprovalRequestedChange, readClassTimeValue, type ApprovalRequestDto } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime, formatRelativeDay, formatTime } from "@/lib/datetime";
+import { enumLabel } from "@/lib/utils";
 import { ApprovalStatusBadge } from "./ApprovalStatusBadge";
 
 /** One request's facts, shared by the admin inbox and the coach's own list. */
@@ -31,6 +32,7 @@ export function ApprovalRequestSummary({
       </div>
       {subject ? <p className="text-sm text-app-text">{subject}</p> : null}
       <ClassTimeChange request={request} />
+      <RequestedChange request={request} />
       <p className="text-sm text-app-muted">
         {showRequester ? `${request.requesterName ?? "Former user"} · ` : ""}
         asked {formatRelativeDay(request.createdAt, tz).toLowerCase()}
@@ -47,6 +49,27 @@ export function ApprovalRequestSummary({
       ) : null}
     </div>
   );
+}
+
+/** What the request would change, for the kinds whose summary line alone doesn't say. */
+function RequestedChange({ request }: { request: ApprovalRequestDto }) {
+  const change = readApprovalRequestedChange(request.requestedValue);
+  const current = (request.currentValue ?? {}) as { lockedValue?: string; status?: string | null };
+  const text = (() => {
+    switch (request.actionType) {
+      case "ATTENDANCE_CORRECTION":
+        return `Attendance: ${current.status ? enumLabel(current.status) : "no record"} → ${enumLabel(change.status ?? "")}`;
+      case "BATCH_STUDENT_TRANSFER":
+        return `Move from ${change.fromBatchName ?? "this batch"} to ${change.toBatchName ?? "another batch"}`;
+      case "CLASS_SUBSTITUTE_COACH":
+        return `${change.substituteName ?? "Another coach"} would take this class`;
+      case "LIVE_SETTING_EXCEPTION":
+        return `${change.fieldLabel ?? "Setting"}: ${enumLabel(current.lockedValue ?? "")} → ${enumLabel(change.value ?? "")}, this class only`;
+      default:
+        return null;
+    }
+  })();
+  return text ? <p className="text-sm text-app-text">{text}</p> : null;
 }
 
 /**

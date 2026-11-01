@@ -9,11 +9,14 @@ import { UserRole } from "@prisma/client";
 import {
   DEFAULT_LIVE_CLASS_SETTINGS,
   LOCKABLE_LIVE_SETTING_LABELS,
+  classLiveSettingsJson,
   liveClassLockSources,
   liveClassSettingsSchema,
   liveClassSettingsOverrideSchema,
   lockedFieldsChanged,
+  mergeLiveClassOverrides,
   onlyLockedFields,
+  readLiveClassLockExceptions,
   readLiveClassLocks,
   resolveLiveClassSettings,
   validateLiveClassSettings,
@@ -59,6 +62,7 @@ export interface ResolvedClassSettings {
   resolved: LiveClassSettings;
   systemLocks: LockableLiveSetting[];
   batchLocks: LockableLiveSetting[];
+  lockExceptions: LockableLiveSetting[];
 }
 
 /**
@@ -72,24 +76,6 @@ function layerJson(
 ): object | null {
   if (!settings && locks.length === 0) return null;
   return locks.length > 0 ? { ...(settings ?? {}), locks: [...locks] } : { ...(settings ?? {}) };
-}
-
-/** `base` with `patch`'s fields laid over it (section by section); null when both are empty. */
-function mergeOverrides(
-  base: LiveClassSettingsOverride | null,
-  patch: LiveClassSettingsOverride | null,
-): LiveClassSettingsOverride | null {
-  if (!patch) return base;
-  if (!base) return patch;
-  const next: Record<string, unknown> = { ...base };
-  for (const [key, value] of Object.entries(patch)) {
-    const current = next[key];
-    next[key] =
-      value && typeof value === "object" && current && typeof current === "object"
-        ? { ...(current as object), ...(value as object) }
-        : value;
-  }
-  return next as LiveClassSettingsOverride;
 }
 
 @Injectable()
@@ -324,14 +310,16 @@ export class LiveClassSettingsService {
     const batchOverride = this.parseOverride(cls.batch?.liveClassSettings);
     const batchLocks = readLiveClassLocks(cls.batch?.liveClassSettings);
     const classOverride = this.parseOverride(cls.liveClassSettings);
+    const lockExceptions = readLiveClassLockExceptions(cls.liveClassSettings);
     const resolved = resolveLiveClassSettings({
       system,
       batch: batchOverride,
       class: classOverride,
       systemLocks,
       batchLocks,
+      classExceptions: lockExceptions,
     });
-    return { system, batchOverride, classOverride, resolved, systemLocks, batchLocks };
+    return { system, batchOverride, classOverride, resolved, systemLocks, batchLocks, lockExceptions };
   }
 
   async getSettingsForClass(
@@ -342,7 +330,7 @@ export class LiveClassSettingsService {
     const cls = await this.loadClassForSettings(classId);
     this.assertCanViewClass(user, cls);
 
-    const { system, batchOverride, classOverride, resolved, systemLocks, batchLocks } =
+    const { system, batchOverride, classOverride, resolved, systemLocks, batchLocks, lockExceptions } =
       await this.resolveForClass(classId);
     const snapshotRaw = cls.liveSession?.effectiveSettings;
 
@@ -358,6 +346,7 @@ export class LiveClassSettingsService {
         (user.role === UserRole.COACH && cls.coachId === user.id),
       systemLocks,
       batchLocks,
+      lockExceptions,
     };
   }
 
@@ -413,7 +402,16 @@ export class LiveClassSettingsService {
           );
         }
       }
-      const nextOverride = withoutLockedFields(requested, locks);
+      // An approved exception holds one value for one locked field, so a save
+      // keeps it however the rest of the override changes. Once the field is
+      // unlocked the exception means nothing, and the value is the coach's to edit.
+      const lockExceptions = readLiveClassLockExceptions(cls.liveClassSettings).filter((field) =>
+        locks.includes(field),
+      );
+      const nextOverride = mergeLiveClassOverrides(
+        withoutLockedFields(requested, locks),
+        onlyLockedFields(before, lockExceptions),
+      );
 
       if (nextOverride) {
         this.assertValid(
@@ -423,13 +421,14 @@ export class LiveClassSettingsService {
             class: nextOverride,
             systemLocks,
             batchLocks,
+            classExceptions: lockExceptions,
           }),
         );
       }
 
       await tx.coachClass.update({
         where: { id: classId },
-        data: { liveClassSettings: (nextOverride ?? null) as never },
+        data: { liveClassSettings: classLiveSettingsJson(nextOverride, lockExceptions) as never },
       });
       await this.writeAudit(tx, "CoachClass", classId, user.id, before, nextOverride ?? null, "CLASS");
     });
@@ -513,7 +512,7 @@ export class LiveClassSettingsService {
       // takes effect again once the academy unlocks.
       const keptUnderAcademyLock = onlyLockedFields(before, systemLocks);
       const editable = withoutLockedFields(body.liveClassSettings, systemLocks);
-      const nextOverride = mergeOverrides(editable, keptUnderAcademyLock);
+      const nextOverride = mergeLiveClassOverrides(editable, keptUnderAcademyLock);
       const requestedLocks = body.locks ? readLiveClassLocks({ locks: body.locks }) : locksBefore;
       const locks = readLiveClassLocks({
         locks: [

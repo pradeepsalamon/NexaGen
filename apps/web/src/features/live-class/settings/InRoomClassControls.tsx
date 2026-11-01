@@ -53,6 +53,7 @@ export function InRoomClassControls() {
             class: draft,
             systemLocks: data.systemLocks,
             batchLocks: data.batchLocks,
+            classExceptions: data.lockExceptions,
           })
         : undefined,
     [data, draft],
@@ -91,6 +92,7 @@ export function InRoomClassControls() {
         batchOverride={data.batchOverride}
         disabled={apply.isPending}
         lockSources={lockSources}
+        lockExceptions={data.lockExceptions}
       />
 
       <div className="flex flex-wrap justify-end gap-2">
