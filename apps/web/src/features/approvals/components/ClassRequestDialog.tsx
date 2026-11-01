@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ClassChangeRequestResponse, CoachBatch, CoachClass, CreateClassChangeRequest } from "@nexa-chess/types";
-import { createClassChangeRequestSchema } from "@nexa-chess/types";
+import {
+  classExtraPayloadSchema,
+  classReschedulePayloadSchema,
+  createApprovalRequestSchema,
+  type ApprovalRequestResponse,
+  type CoachBatch,
+  type CoachClass,
+  type CreateApprovalRequest
+} from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
 import {
@@ -20,8 +27,8 @@ import { Textarea } from "@/components/ui/Textarea";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
-import { createClassRequest, withdrawClassRequest } from "../api/classRequestsApi";
-import { CLASS_REQUEST_INVALIDATES } from "../hooks/useClassRequests";
+import { cancelApprovalRequest, createApprovalRequest } from "../api/approvalsApi";
+import { APPROVAL_INVALIDATES } from "../hooks/useApprovals";
 
 const DURATIONS = [
   { label: "30 minutes", value: "30" },
@@ -41,6 +48,8 @@ function nextHour() {
 /**
  * The coach's way to change the schedule: ask for an extra class for a batch,
  * or to move one scheduled class. Nothing changes until an admin approves.
+ * Both are approval-engine requests (`CLASS_EXTRA` / `CLASS_RESCHEDULE`), so
+ * they land in the admin inbox and the coach's own list.
  */
 export function ClassRequestDialog({
   open,
@@ -83,14 +92,14 @@ export function ClassRequestDialog({
 
   const { run, isPending } = useUndoableMutation({
     strategy: "immediate",
-    mutationFn: async (body: CreateClassChangeRequest) => {
-      const result = await createClassRequest(body);
+    mutationFn: async (body: CreateApprovalRequest) => {
+      const result = await createApprovalRequest(body);
       onOpenChange(false);
       return result;
     },
-    undo: (_vars, result: ClassChangeRequestResponse) => withdrawClassRequest(result.request.id),
+    undo: (_vars, result: ApprovalRequestResponse) => cancelApprovalRequest(result.request.id),
     toast: () => ({ title: "Request sent to the academy" }),
-    invalidates: CLASS_REQUEST_INVALIDATES
+    invalidates: APPROVAL_INVALIDATES
   });
 
   const submit = () => {
@@ -99,15 +108,19 @@ export function ClassRequestDialog({
       return;
     }
     const endsAt = new Date(startsAt.getTime() + Number(duration) * 60000);
-    const body = {
-      type: isReschedule ? "RESCHEDULE" : "EXTRA_CLASS",
-      ...(isReschedule ? { classId: rescheduleClass!.id } : { batchId }),
-      startsAt: startsAt.toISOString(),
-      endsAt: endsAt.toISOString(),
-      topic: topic.trim() || undefined,
+    const window = { endsAt: endsAt.toISOString(), startsAt: startsAt.toISOString() };
+    const payload = isReschedule
+      ? classReschedulePayloadSchema.safeParse({ classId: rescheduleClass!.id, ...window })
+      : classExtraPayloadSchema.safeParse({ batchId, ...window, topic: topic.trim() || undefined });
+    if (!payload.success) {
+      setError(payload.error.issues[0]?.message ?? "Check the details.");
+      return;
+    }
+    const parsed = createApprovalRequestSchema.safeParse({
+      actionType: isReschedule ? "CLASS_RESCHEDULE" : "CLASS_EXTRA",
+      payload: payload.data,
       reason: reason.trim()
-    };
-    const parsed = createClassChangeRequestSchema.safeParse(body);
+    });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Check the details.");
       return;

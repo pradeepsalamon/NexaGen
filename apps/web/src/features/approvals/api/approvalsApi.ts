@@ -3,7 +3,8 @@ import type {
   ApprovalRequestListResponse,
   ApprovalRequestResponse,
   ApprovalStatus,
-  CreateApprovalRequest
+  CreateApprovalRequest,
+  OtherRequestQueuesResponse
 } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
 
@@ -42,4 +43,9 @@ export function rejectApprovalRequest(id: string, reason: string) {
     method: "POST",
     body: { reason }
   });
+}
+
+/** Pending items of the queues that keep their own pages (payments, deletions, coach applications). */
+export function listOtherRequestQueues() {
+  return apiFetch<OtherRequestQueuesResponse>(API_ROUTES.adminApprovals.queues);
 }

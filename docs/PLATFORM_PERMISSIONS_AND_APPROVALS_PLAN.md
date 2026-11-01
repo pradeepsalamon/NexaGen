@@ -118,7 +118,7 @@ lifecycle.
 | Workflow | Plan |
 |---|---|
 | Class change requests | Ported as the first handlers (`CLASS_EXTRA`, `CLASS_RESCHEDULE`). The old table stays read-only for history (migrations are additive). |
-| Manual payments | `ManualPaymentService` keeps the money path (`PaymentService.applyProviderState` stays the single funnel). A thin handler surfaces it in the same inbox. |
+| Manual payments | `ManualPaymentService` keeps the money path (`PaymentService.applyProviderState` stays the single funnel). Listed read-only in the same inbox and decided on its own page (Stage 5; no handler, so there is no second way to settle a payment). |
 | Account deletion | Stays its own service: it's a data right, not a coach permission. It's listed in the admin inbox. |
 | Coach applications, knowledge suggestions | Unchanged (different actors and semantics). Listed in the inbox. |
 
@@ -146,7 +146,7 @@ lifecycle.
   screen share, chat, private chat, reactions, board, and auto-join. The coach's
   own mic and camera defaults aren't academy policy, so they can't be locked.
 * **Exceptions:** an exception to a lock before the class is an approval request
-  (`LIVE_SETTING_EXCEPTION`, Stage 5). During a class there are no exceptions.
+  (`LIVE_SETTING_EXCEPTION`, Stage 6). During a class there are no exceptions.
 
 ### 2.6 Audit
 
@@ -195,7 +195,7 @@ The earlier cross-user sweep is in [AUTHORIZATION.md](AUTHORIZATION.md) § Audit
 
 | Workflow | Table | Race guard | Expiry | Duplicate guard | History |
 |---|---|---|---|---|---|
-| Class change request | `ClassChangeRequest` | ✅ status-filtered claim | past-start only | reschedule only (EXTRA_CLASS added in Stage 1) | columns only |
+| Class change request | `ClassChangeRequest` (engine actions since Stage 5) | ✅ status-filtered claim | past-start only | reschedule only (EXTRA_CLASS added in Stage 1) | columns only |
 | Manual payment | `ManualPaymentRecord` | ❌ → ✅ Stage 1 (V2) | ❌ | idempotency key | payment `raw` |
 | Account deletion | `AccountDeletionRequest` | ✅ | ❌ | one per user | columns only |
 | Coach application | `CoachProfile.approvalStatus` | n/a | ❌ | n/a | columns only |
@@ -252,14 +252,14 @@ Legend:
 |---|---|---|---|---|---|
 | **Live classes** | Start/end own class within the start window | D | D | — | built |
 | | Change an **unlocked** setting of own class | D | D | — | built |
-| | Change a **locked** setting | ✗ (R before class, Stage 5) | ✗ on the class; unlock or change it at the academy/batch layer that locked it | — | Stage 2 |
+| | Change a **locked** setting | ✗ (R before class, Stage 6) | ✗ on the class; unlock or change it at the academy/batch layer that locked it | — | Stage 2 |
 | | Lock or unlock academy/batch settings | — | A | — | Stage 2 |
 | | Moderate, kick, admit from waiting room (own class) | D | D | — | built |
 | | Pull a student from own batch | D | D | — | built |
 | | Pull or admit a student from **outside** own batches | R | D | — | ✅ Stage 4 |
 | | Start/stop recording (own class) | D if unlocked (C once consent exists) | D | — | Stage 2 |
 | **Scheduling** | Edit notes, topic, homework of own class | D | D | — | built |
-| | Extra class / reschedule | R | D | — | built → engine, Stage 3 |
+| | Extra class / reschedule | R | D | — | ✅ engine, Stage 5 |
 | | Cancel own class **> 24 h** ahead | D | D | — | ✅ Stage 4 |
 | | Cancel own class **≤ 24 h** ahead | R (urgent under 6 h; admins notified at once) | D | — | ✅ Stage 4 |
 | | Cancel after start ("not held") | R, exceptional, always urgent (affects attendance and payroll) | D | — | ✅ Stage 4 |
@@ -268,16 +268,16 @@ Legend:
 | **Batches** | Create, edit, archive, delete; assign coaches and students | — | A | — | built |
 | | Batch default live settings and locks | — | A | — | Stage 2 |
 | **Students and enrolment** | Read students of own batches | D | D | own | built |
-| | Enrol, remove or transfer a student | R | D | — | Stage 5 |
+| | Enrol, remove or transfer a student | R | D | — | Stage 6 |
 | | Give a student from outside own batches access to own class | R | D | — | ✅ Stage 4 |
 | | Edit own profile | D (pay rate is read-only, set via compensation rates) | D (any) | D | built |
 | | Change parent/guardian contact | — | D | D + password + previous contact told | ✅ Stage 1 |
 | **Attendance** | Automatic recording (LiveKit) | — | — | — | built |
-| | Correct a student's attendance in own class | R | D (audited) | — | Stage 5 |
+| | Correct a student's attendance in own class | R | D (audited) | — | Stage 6 |
 | | Attendance policy | — | A | — | built |
 | **Coach management** | Coach assignment, approval, status | — | A (applications: S) | — | built |
 | | Own pay rate (`hourlyRate`, compensation rates) | read-only | A | — | ✅ Stage 1 |
-| | Request a substitute for own class | R | D | — | Stage 5 (optional) |
+| | Request a substitute for own class | R | D | — | Stage 6 (optional) |
 | **Payments and finance** | Record manual payment (own batch student) | R | D | — | built; race fixed Stage 1 |
 | | Discounts, refunds, plans, invoices, payroll | — | A | own invoices | built |
 | **External integrations / game sync** | Link, verify and sync own external chess account | — | — | D | built |
@@ -313,7 +313,7 @@ Stages are small, isolated and tested. Each updates §7.
 | **2. Live-setting locks (V1)** | `locks` in policy and batch JSON; resolver honours locks; coach class/preset/mid-class writes refused on locked fields; admin lock UI; coach UI shows locks | none (JSON) | ✅ done |
 | **3. Approval engine + immutable audit (V9)** | `approvals.ts` catalogue; `ApprovalRequest` + `ApprovalEvent`; `ApprovalService` with the §2.3 guarantees; expiry cron; append-only triggers on `trash_audit_logs` and `approval_events`; privacy export | migration `20261101082355_approval_requests_and_append_only_audit` | ✅ done (backend; no action handlers yet) |
 | **4. Cancellation, outside-batch students, inbox (V4, V10)** | `resolveCancellationPath`; `CLASS_CANCEL` / `CLASS_CANCEL_EXCEPTIONAL` handlers (urgent emergency flag); pull roster limited to own batches plus `LIVE_CLASS_GUEST_STUDENT`; **shipped together with** the admin inbox `/admin/requests` and coach `/coach/requests` plus `APPROVAL_REQUESTED`/`APPROVAL_DECIDED` notifications, so no coach workflow is blocked without a way to ask | enum migration `approval_notifications` (messaging events + `ADMINS` audience) | ✅ done |
-| **5. Port and unify** | Class change requests ported to engine handlers (data migration, old table read-only); manual payments, account deletions and coach applications listed in the inbox | data migration | |
+| **5. Port and unify** | Class change requests ported to engine handlers (data migration, old table read-only); manual payments, account deletions and coach applications listed in the inbox | data migration `20261101100736_class_requests_into_approvals` | ✅ done |
 | **6. More request types** | Enrolment/transfer, attendance correction (+ audited admin correction), live-setting exception, substitute coach | none | |
 | **7. Consent and guardians** | Separate design (§2.8), then `ConsentService` wired into handlers and direct paths | migration | needs owner/legal decision |
 
@@ -487,6 +487,61 @@ From the CodeRabbit review of PR #125:
   `useCoachClassCancel` routes the coach's Cancel button by the 24 h rule; the
   in-class pull list offers "Ask an admin" for students outside the coach's
   batches.
+
+### Stage 5: port and unify (2026-11-01) ✅
+
+* **Class change requests are engine actions.** `CLASS_EXTRA` and
+  `CLASS_RESCHEDULE` (`apps/api/src/approval/handlers/class-change.handler.ts`,
+  payload schemas in `@nexa-chess/types` `class-requests.ts`):
+  * dedupe keys `CLASS_EXTRA:<coach>:<batch>:<start ISO>` and
+    `CLASS_RESCHEDULE:<class>` (one pending request each, via the engine's
+    partial unique index);
+  * a request expires after 72 h (D2 default) or at the class start, whichever
+    is first (a reschedule: the earlier of the class's start and the new one);
+  * revalidation share-locks batch, batch-coach and coach rows (a reschedule
+    also row-locks the class), then re-checks everything V3 checked: the coach
+    is still an ACTIVE coach of a live batch, a moved class is still theirs,
+    `SCHEDULED` and at the time it had when asked, the start isn't past, the
+    batch dates and the coach's schedule (`assertNoSchedulingConflict`, coach's
+    timezone);
+  * execution creates the class (and links it to the request's `classId`, then
+    `CLASS_SCHEDULED` after commit) or moves it status-filtered.
+* **Data migration** `20261101100736_class_requests_into_approvals`:
+  * locks `class_change_requests`, then copies every row into
+    `approval_requests` under the **same id** with its history as events
+    (CREATED; APPROVED with the review note; REJECTED with the reason; a
+    withdrawal as CANCELLED). Status map: PENDING → PENDING, APPROVED →
+    APPROVED, REJECTED → REJECTED, WITHDRAWN → CANCELLED;
+  * a still-pending copy gets `expiresAt` = the earliest of the class start(s)
+    and now + 72 h. One already past is expired by the next cron run, which
+    tells the coach;
+  * the old pending rows are marked WITHDRAWN with a note naming their copy;
+  * the `nexa_read_only_history` trigger then refuses direct INSERT, UPDATE and
+    DELETE on `class_change_requests`. Only the foreign keys' own cascades
+    (user/batch hard purge, class delete → `classId` NULL) still run.
+  * Verified on a local Postgres with sample rows of every status; the
+    `approval-constraints` int-spec pins the trigger.
+* **Old routes removed:** `apps/api/src/class-request/`,
+  `API_ROUTES.classRequests` and `features/class-requests/`. The coach's dialog
+  (`features/approvals/components/ClassRequestDialog.tsx`) sends
+  `POST /approvals`; `/admin/class-requests` redirects to `/admin/requests`; the
+  coach's schedule shows their waiting scheduling requests. The inbox shows a
+  reschedule as old time → new time. E2E fixtures use the new routes.
+* **One inbox:** `GET API_ROUTES.adminApprovals.queues` (`RequestQueuesService`)
+  returns the pending count and the oldest five of each queue that keeps its own
+  page, only to someone who could review it there:
+  * offline payments (ADMIN / SUPER_ADMIN, only while `studentPayments` is in
+    the plan);
+  * account deletions (ADMIN / SUPER_ADMIN);
+  * coach applications (SUPER_ADMIN).
+
+  `/admin/requests` shows them under "Also waiting for review" with a link to
+  each page (`/admin/payments?tab=manual`, `/admin/privacy`,
+  `/admin/approvals?tab=coaches`). They stay read-only there by design: a
+  payment settles only through `ManualPaymentService` and `applyProviderState`,
+  and a deletion only through `AccountDeletionService`.
+* The permission table's enrolment/transfer, attendance correction, substitute
+  and locked-setting exception rows now say Stage 6, matching the roadmap.
 
 ---
 

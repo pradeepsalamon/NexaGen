@@ -31,8 +31,8 @@ export function CoachRequestsClient() {
       <div>
         <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">My requests</h1>
         <p className="mt-1 text-app-muted">
-          Things you asked an admin for, such as cancelling a class within 24 hours or bringing in a student
-          from outside your batches.
+          Things you asked an admin for, such as an extra class, a reschedule, cancelling a class within 24
+          hours or bringing in a student from outside your batches.
         </p>
       </div>
 

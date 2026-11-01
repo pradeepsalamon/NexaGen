@@ -9,7 +9,7 @@ const HOUR = 3_600_000;
  * Stage 4 end to end over HTTP (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md
  * §6, "Coach can't bypass an approval through the direct API").
  */
-describe("approval flows: class cancellation (V10) and guest students (V4)", () => {
+describe("approval flows: class cancellation (V10), guest students (V4), class change requests (Stage 5)", () => {
   let t: TestApp;
   let coach: User;
   let admin: User;
@@ -137,5 +137,111 @@ describe("approval flows: class cancellation (V10) and guest students (V4)", () 
     expect(
       (await t.call(coach, "POST", API_ROUTES.liveClass.pullStudent(cls.id), { studentId: outsider.id })).status
     ).toBe(201);
+  });
+
+  // ── Stage 5: class change requests through the engine ──
+
+  it("adds an extra class only once an admin approves the coach's CLASS_EXTRA request", async () => {
+    const startsAt = new Date(Date.now() + 72 * HOUR);
+    const payload = {
+      batchId,
+      endsAt: new Date(startsAt.getTime() + HOUR).toISOString(),
+      startsAt: startsAt.toISOString(),
+      topic: "Make-up class"
+    };
+    const asked = await t.call(coach, "POST", API_ROUTES.approvals.create, {
+      actionType: "CLASS_EXTRA",
+      payload,
+      reason: "Holiday make-up"
+    });
+    expect(asked.status).toBe(201);
+    const id = (asked.body as { request: { id: string } }).request.id;
+    expect(await t.prisma.coachClass.count({ where: { startsAt, topic: "Make-up class" } })).toBe(0);
+
+    // A double-submitted form doesn't queue it twice.
+    const again = await t.call(coach, "POST", API_ROUTES.approvals.create, {
+      actionType: "CLASS_EXTRA",
+      payload,
+      reason: "Holiday make-up"
+    });
+    expect(again.status).toBe(409);
+
+    // Another batch's coach can't ask for this batch.
+    const stranger = await active(UserRole.COACH);
+    const foreign = await t.call(stranger, "POST", API_ROUTES.approvals.create, {
+      actionType: "CLASS_EXTRA",
+      payload,
+      reason: "Not mine"
+    });
+    expect(foreign.status).toBe(403);
+
+    const approved = await t.call(admin, "POST", API_ROUTES.adminApprovals.approve(id), {});
+    expect(approved.status).toBe(201);
+    const classId = (approved.body as { request: { classId: string | null } }).request.classId;
+    expect(classId).toBeTruthy();
+    const cls = await t.prisma.coachClass.findUniqueOrThrow({ where: { id: classId! } });
+    expect(cls).toMatchObject({ batchId, coachId: coach.id, status: "SCHEDULED", topic: "Make-up class" });
+    expect(cls.startsAt.toISOString()).toBe(startsAt.toISOString());
+  });
+
+  it("moves a class only on approval, and not once the coach has left the batch", async () => {
+    const cls = await classIn(96);
+    const target = new Date(Date.now() + 120 * HOUR);
+    const ask = () =>
+      t.call(coach, "POST", API_ROUTES.approvals.create, {
+        actionType: "CLASS_RESCHEDULE",
+        payload: {
+          classId: cls.id,
+          endsAt: new Date(target.getTime() + HOUR).toISOString(),
+          startsAt: target.toISOString()
+        },
+        reason: "Tournament"
+      });
+
+    const first = await ask();
+    expect(first.status).toBe(201);
+    const firstId = (first.body as { request: { id: string } }).request.id;
+    expect((await ask()).status).toBe(409);
+    expect((await t.call(admin, "POST", API_ROUTES.adminApprovals.approve(firstId), {})).status).toBe(201);
+    const moved = await t.prisma.coachClass.findUniqueOrThrow({ where: { id: cls.id } });
+    expect(moved.startsAt.toISOString()).toBe(target.toISOString());
+
+    // A second move, then the coach is removed from the batch before the decision.
+    const other = await classIn(200);
+    const asked = await t.call(coach, "POST", API_ROUTES.approvals.create, {
+      actionType: "CLASS_RESCHEDULE",
+      payload: {
+        classId: other.id,
+        endsAt: new Date(Date.now() + 221 * HOUR).toISOString(),
+        startsAt: new Date(Date.now() + 220 * HOUR).toISOString()
+      },
+      reason: "Clash"
+    });
+    expect(asked.status).toBe(201);
+    const id = (asked.body as { request: { id: string } }).request.id;
+    await t.prisma.batchCoach.updateMany({ data: { isDeleted: true }, where: { batchId, coachId: coach.id } });
+    try {
+      expect((await t.call(admin, "POST", API_ROUTES.adminApprovals.approve(id), {})).status).toBe(409);
+      const untouched = await t.prisma.coachClass.findUniqueOrThrow({ where: { id: other.id } });
+      expect(untouched.startsAt.toISOString()).toBe(other.startsAt.toISOString());
+      const row = await t.prisma.approvalRequest.findUniqueOrThrow({ where: { id } });
+      expect(row.status).toBe("PENDING");
+    } finally {
+      await t.prisma.batchCoach.updateMany({ data: { isDeleted: false }, where: { batchId, coachId: coach.id } });
+    }
+  });
+
+  it("lists the other review queues for reviewers only, coach applications for super admins only", async () => {
+    const superAdmin = await active(UserRole.SUPER_ADMIN);
+    expect((await t.call(coach, "GET", API_ROUTES.adminApprovals.queues)).status).toBe(403);
+
+    const asAdmin = await t.call(admin, "GET", API_ROUTES.adminApprovals.queues);
+    expect(asAdmin.status).toBe(200);
+    const adminKinds = (asAdmin.body as { queues: { kind: string }[] }).queues.map((q) => q.kind);
+    expect(adminKinds).toContain("ACCOUNT_DELETION");
+    expect(adminKinds).not.toContain("COACH_APPLICATION");
+
+    const asSuper = await t.call(superAdmin, "GET", API_ROUTES.adminApprovals.queues);
+    expect((asSuper.body as { queues: { kind: string }[] }).queues.map((q) => q.kind)).toContain("COACH_APPLICATION");
   });
 });

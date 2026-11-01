@@ -169,7 +169,7 @@ Legend:
 | | `StudentProfile`, `CoachProfile` | T | `userId @unique` holds while v1 allows one membership per non-platform user (§N-3). Later: `(tenantId, userId)` |
 | | `AccountDeletionRequest` | T | Handled by the tenant admin. Platform staff see it for support |
 | Org structure | `Batch`, `BatchCoach`, `BatchStudent`, `TrashAuditLog` | T | Composite FK `(tenantId, batchId)` |
-| Scheduling | `CoachClass`, `BatchClassSchedule`, `BatchClassScheduleRule`, `BatchScheduleException`, `ClassChangeRequest` | T | |
+| Scheduling | `CoachClass`, `BatchClassSchedule`, `BatchClassScheduleRule`, `BatchScheduleException`, `ClassChangeRequest` (read-only history since Stage 5) | T | |
 | Demo / marketing | `DemoSchedule` (`slug @unique` → `(tenantId, slug)`), `DemoClassRegistration`, `VisitorSession`, `Lead`, `LeadActivity`, `LeadNote` | T | Public forms resolve the tenant from the host |
 | Attendance | `ClassAttendance`, `AttendanceLog`, `CoachAttendance`, `CoachAttendanceLog` | T | |
 | | `AttendancePolicy` | T\* | |

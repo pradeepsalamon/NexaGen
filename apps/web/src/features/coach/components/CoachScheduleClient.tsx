@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { ClassRequestDialog } from "@/features/class-requests/components/ClassRequestDialog";
-import { CoachClassRequestsSection } from "@/features/class-requests/components/CoachClassRequestsSection";
+import { ClassRequestDialog } from "@/features/approvals/components/ClassRequestDialog";
+import { CoachScheduleRequests } from "@/features/approvals/components/CoachScheduleRequests";
 import { useCoachBatches, useUpcomingClasses } from "../hooks/useCoachApi";
 import { useCoachClassCancel } from "@/features/approvals/hooks/useCoachClassCancel";
 import { ClassCard } from "./ClassCard";
@@ -121,7 +121,7 @@ export function CoachScheduleClient() {
         )}
       </div>
 
-      <CoachClassRequestsSection />
+      <CoachScheduleRequests />
 
       <ClassNotesDialog open={dialogOpen} onOpenChange={setDialogOpen} classItem={classToEdit} />
       <ClassRequestDialog

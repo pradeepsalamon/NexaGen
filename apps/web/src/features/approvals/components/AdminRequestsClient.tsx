@@ -27,12 +27,15 @@ import { approveApprovalRequest, rejectApprovalRequest } from "../api/approvalsA
 import { APPROVAL_INVALIDATES, useApprovalRequests } from "../hooks/useApprovals";
 import { ApprovalRequestSummary } from "./ApprovalRequestSummary";
 import { APPROVAL_STATUS_LABELS, APPROVAL_STATUS_OPTIONS } from "./ApprovalStatusBadge";
+import { OtherRequestQueues } from "./OtherRequestQueues";
 
 type Decision = { request: ApprovalRequestDto; approve: boolean };
 
 const APPROVE_EFFECT: Record<string, string> = {
   CLASS_CANCEL: "This cancels the class and tells the batch.",
   CLASS_CANCEL_EXCEPTIONAL: "This marks the class cancelled. A running class must be ended first.",
+  CLASS_EXTRA: "This adds the class to the batch's schedule and tells its students.",
+  CLASS_RESCHEDULE: "This moves the class to the new time.",
   LIVE_CLASS_GUEST_STUDENT: "The coach may then bring this student into this one class. If it's live, they're invited now."
 };
 
@@ -70,7 +73,8 @@ export function AdminRequestsClient() {
         <div>
           <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Requests</h1>
           <p className="mt-1 text-app-muted">
-            Coaches ask here for things beyond their own authority, like cancelling a class within 24 hours.
+            Coaches ask here for things beyond their own authority: extra classes, reschedules, cancelling a class
+            within 24 hours.
           </p>
         </div>
         <Select
@@ -84,6 +88,8 @@ export function AdminRequestsClient() {
           ]}
         />
       </div>
+
+      <OtherRequestQueues />
 
       {isLoading ? (
         <div className="space-y-3">

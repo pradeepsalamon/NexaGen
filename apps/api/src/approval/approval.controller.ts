@@ -15,10 +15,14 @@ import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { queryEnum } from "../common/query-params";
 import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
 import { ApprovalService } from "./approval.service";
+import { RequestQueuesService } from "./request-queues.service";
 
 @Controller()
 export class ApprovalController {
-  constructor(private readonly approvals: ApprovalService) {}
+  constructor(
+    private readonly approvals: ApprovalService,
+    private readonly queues: RequestQueuesService
+  ) {}
 
   private getAccessToken(request: Request) {
     return request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
@@ -58,6 +62,13 @@ export class ApprovalController {
   list(@Req() request: Request, @Query() query: Record<string, unknown>) {
     const parsed = parseOrBadRequest(approvalListQuerySchema, query, "query");
     return this.approvals.list(this.getAccessToken(request), parsed);
+  }
+
+  // Registered before `get(:id)`, which would otherwise take "queues" as an id.
+  @Get(API_ROUTES.adminApprovals.queues)
+  async otherQueues(@Req() request: Request) {
+    const reviewer = await this.approvals.authenticateReviewer(this.getAccessToken(request));
+    return this.queues.list(reviewer);
   }
 
   @Get(API_ROUTES.adminApprovals.get())

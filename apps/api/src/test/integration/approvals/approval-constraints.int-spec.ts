@@ -74,24 +74,32 @@ describe("approval engine + append-only audit (real Postgres)", () => {
     ).rejects.toThrow(/append-only/);
   });
 
-  it("allows one PENDING extra-class request per coach, batch and start time", async () => {
-    const batch = await t.prisma.batch.create({ data: { name: "Extra-class index batch" } });
+  it("keeps class_change_requests as read-only history (Stage 5), while hard purges still cascade", async () => {
+    const batch = await t.prisma.batch.create({ data: { name: "Frozen history batch" } });
     const startsAt = new Date(Date.now() + 48 * 3_600_000);
-    const extra = () =>
-      t.prisma.classChangeRequest.create({
-        data: {
-          batchId: batch.id,
-          coachId: coach.id,
-          endsAt: new Date(startsAt.getTime() + 3_600_000),
-          startsAt,
-          type: "EXTRA_CLASS"
-        }
-      });
-    const first = await extra();
-    await expect(extra()).rejects.toMatchObject({ code: "P2002" });
+    const data = {
+      batchId: batch.id,
+      coachId: coach.id,
+      endsAt: new Date(startsAt.getTime() + 3_600_000),
+      startsAt,
+      type: "EXTRA_CLASS" as const
+    };
+    await expect(t.prisma.classChangeRequest.create({ data })).rejects.toThrow(/read-only history/);
 
-    await t.prisma.classChangeRequest.update({ data: { status: "WITHDRAWN" }, where: { id: first.id } });
-    await expect(extra()).resolves.toBeDefined();
+    // A row from before the freeze (the trigger is lifted only for this setup).
+    await t.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`ALTER TABLE "class_change_requests" DISABLE TRIGGER "class_change_requests_read_only"`;
+      await tx.classChangeRequest.create({ data: { ...data, id: "frozen-1" } });
+      await tx.$executeRaw`ALTER TABLE "class_change_requests" ENABLE TRIGGER "class_change_requests_read_only"`;
+    });
+    await expect(
+      t.prisma.classChangeRequest.update({ data: { status: "APPROVED" }, where: { id: "frozen-1" } })
+    ).rejects.toThrow(/read-only history/);
+    await expect(t.prisma.classChangeRequest.delete({ where: { id: "frozen-1" } })).rejects.toThrow(/read-only history/);
+
+    // The batch's hard delete (trash purge) still cascades through the FK.
+    await t.prisma.$executeRaw`DELETE FROM "batches" WHERE "id" = ${batch.id}`;
+    expect(await t.prisma.classChangeRequest.findUnique({ where: { id: "frozen-1" } })).toBeNull();
   });
 
   it("makes trash_audit_logs append-only, but a user purge can still null the actor", async () => {

@@ -4,7 +4,6 @@ import {
   BarChart3,
   BookOpen,
   Brain,
-  CalendarClock,
   CalendarDays,
   Captions,
   ClipboardCheck,
@@ -143,7 +142,6 @@ export const adminNavItems: NavItem[] = [
   // Classes & scheduling
   { href: "/admin/batches", label: "Batches", icon: Layers3, group: "Classes" },
   { href: "/admin/schedule", label: "Class scheduler", icon: CalendarDays, group: "Classes" },
-  { href: "/admin/class-requests", label: "Class requests", icon: CalendarClock, group: "Classes" },
   { href: "/admin/requests", label: "Requests", icon: Inbox, group: "Classes" },
   { href: "/admin/attendance", label: "Attendance reports", icon: BarChart3, group: "Classes" },
   { href: "/admin/attendance/policy", label: "Attendance policy", icon: ClipboardCheck, group: "Classes" },

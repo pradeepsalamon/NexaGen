@@ -46,7 +46,6 @@ import { PayrollModule } from "./payroll/payroll.module";
 import { ChessAppearanceModule } from "./chess-appearance/chess-appearance.module";
 import { TypographyModule } from "./typography/typography.module";
 import { ApprovalModule } from "./approval/approval.module";
-import { ClassRequestModule } from "./class-request/class-request.module";
 import { FeedbackModule } from "./feedback/feedback.module";
 import { PrivacyModule } from "./privacy/privacy.module";
 import { ProgressModule } from "./progress/progress.module";
@@ -125,7 +124,6 @@ import { FeatureGateGuard } from "./platform/feature-gate.guard";
     LeadModule,
     FeedbackModule,
     ApprovalModule,
-    ClassRequestModule,
     PrivacyModule,
     ProgressModule,
     RevisionModule,

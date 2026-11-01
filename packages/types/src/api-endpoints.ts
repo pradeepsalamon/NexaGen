@@ -793,17 +793,12 @@ export const API_ROUTES = {
   // Reviewer side (ADMIN / SUPER_ADMIN).
   adminApprovals: {
     list: "/admin/approvals",
+    // Pending items of the other review queues (manual payments, account
+    // deletions, coach applications), for the same inbox. Read-only.
+    queues: "/admin/approvals/queues",
     get: (id: string = ":id") => `/admin/approvals/${id}`,
     approve: (id: string = ":id") => `/admin/approvals/${id}/approve`,
     reject: (id: string = ":id") => `/admin/approvals/${id}/reject`
-  },
-  // Coach asks, admin approves (coach sees own, admin sees all).
-  classRequests: {
-    list: "/class-requests",
-    create: "/class-requests",
-    withdraw: (id: string = ":id") => `/class-requests/${id}/withdraw`,
-    approve: (id: string = ":id") => `/class-requests/${id}/approve`,
-    reject: (id: string = ":id") => `/class-requests/${id}/reject`
   },
   privacy: {
     // The caller's own data as a JSON download.

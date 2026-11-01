@@ -5,7 +5,9 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { APPROVAL_HANDLERS } from "./approval-handler";
 import { ApprovalController } from "./approval.controller";
 import { ApprovalService } from "./approval.service";
+import { RequestQueuesService } from "./request-queues.service";
 import { ClassCancelExceptionalHandler, ClassCancelHandler } from "./handlers/class-cancel.handler";
+import { ClassExtraHandler, ClassRescheduleHandler } from "./handlers/class-change.handler";
 import { LiveClassGuestStudentHandler } from "./handlers/live-class-guest-student.handler";
 
 /**
@@ -20,11 +22,20 @@ import { LiveClassGuestStudentHandler } from "./handlers/live-class-guest-studen
     ApprovalService,
     ClassCancelHandler,
     ClassCancelExceptionalHandler,
+    ClassExtraHandler,
+    ClassRescheduleHandler,
     LiveClassGuestStudentHandler,
+    RequestQueuesService,
     {
       provide: APPROVAL_HANDLERS,
       useFactory: (...handlers: unknown[]) => handlers,
-      inject: [ClassCancelHandler, ClassCancelExceptionalHandler, LiveClassGuestStudentHandler]
+      inject: [
+        ClassCancelHandler,
+        ClassCancelExceptionalHandler,
+        ClassExtraHandler,
+        ClassRescheduleHandler,
+        LiveClassGuestStudentHandler
+      ]
     }
   ],
   exports: [ApprovalService]

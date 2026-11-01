@@ -168,7 +168,7 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Own profile, avatar | R U | R U | R U | Avatar delete: own profile upload only, and only if no other account uses that URL. |
 | Other users | — | R (students of own batches; any active student via pull-roster search) | R C U D (ADMIN can't touch ADMIN/SUPER_ADMIN; only SUPER_ADMIN creates or promotes admins; nobody changes their own role; last SUPER_ADMIN can't be deleted) | |
 | Batches | R (enrolled) | R (own batch) | R C U D | |
-| Classes (`CoachClass`) | R (enrolled batch) | R, U notes/topic (own class), cancel own | R C U D | Coach scheduling changes go through `ClassChangeRequest` (admin approves). |
+| Classes (`CoachClass`) | R (enrolled batch) | R, U notes/topic (own class), cancel own | R C U D | Coach scheduling changes are approval requests (`CLASS_EXTRA`, `CLASS_RESCHEDULE`, `CLASS_CANCEL*`; admin approves in `/admin/requests`). |
 | Live class: join / token | enrolled, or pulled, or admitted from waiting room; not if removed | own class | any (visible), or hidden spectator seat | Demo guests via `DemoClassRegistration`. |
 | Live class: demo guest puzzle (`GET /live-class/:id/puzzle/guest`) | — (users use `GET …/puzzle`) | — | — | Demo guests only, by the `guestToken` from their join (header `x-nexa-demo-guest`): this class, registration not DENIED, class a LIVE demo. Returns the solution — a guest practises unscored. |
 | Live class: settings, moderation, kick, pull, waiting room, screen-share approval, end | — (may request screen share / admission) | own class (settings: unlocked fields only) | any class | `resolveClassManager`. A field an admin locked at the academy or batch layer can't be changed by any class override (2026-11-01, PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md). |
@@ -193,7 +193,7 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Persistent chat | own threads; DM staff or a coach sharing a batch | own threads; groups of own students | all | `directChatAllowed`. |
 | Invoices, payments, subscriptions | own | own manual-payment records for own batches (PENDING until approved) | all | Never refundable via MANUAL. A manual-payment review is claimed (status-filtered) before money moves, so concurrent reviews have one winner. |
 | Payroll, payslips | — | own | all | |
-| Class change requests | — | C own; R own | approve/reject | Approval revalidates the coach is still an ACTIVE coach of a live, unarchived batch (and still owns a rescheduled class). |
+| Approval requests (extra class, reschedule, cancellation, guest student) | — | C own (catalogue roles); R own; withdraw own pending | R all; approve/reject (never their own) | One engine (`apps/api/src/approval/`). Approval revalidates under row locks (coach still ACTIVE in a live batch, class still theirs and unchanged). The inbox's other-queue feed (`GET /admin/approvals/queues`) lists offline payments (needs `studentPayments`), account deletions, and coach applications (SUPER_ADMIN only); each is still decided on its own page. |
 | Messaging rules, analytics, leads, demo classes, backups, trash, data retention | — | — | admin (trash, demo classes, backups, data retention: SUPER_ADMIN) | A retention window deletes for good, so only a super admin sets one. |
 | Presets (live class) | — | PERSONAL own; use ORG/system | ORG + any | |
 

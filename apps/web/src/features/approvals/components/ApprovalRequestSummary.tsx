@@ -1,10 +1,10 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
-import type { ApprovalRequestDto } from "@nexa-chess/types";
+import { readClassTimeValue, type ApprovalRequestDto } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { formatDateTime, formatRelativeDay } from "@/lib/datetime";
+import { formatDateTime, formatRelativeDay, formatTime } from "@/lib/datetime";
 import { ApprovalStatusBadge } from "./ApprovalStatusBadge";
 
 /** One request's facts, shared by the admin inbox and the coach's own list. */
@@ -30,6 +30,7 @@ export function ApprovalRequestSummary({
         ) : null}
       </div>
       {subject ? <p className="text-sm text-app-text">{subject}</p> : null}
+      <ClassTimeChange request={request} />
       <p className="text-sm text-app-muted">
         {showRequester ? `${request.requesterName ?? "Former user"} · ` : ""}
         asked {formatRelativeDay(request.createdAt, tz).toLowerCase()}
@@ -45,5 +46,29 @@ export function ApprovalRequestSummary({
         <p className="text-sm text-app-muted">Approved by {request.reviewerName}</p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Extra-class and reschedule requests: the asked-for time, with the class's
+ * time when the coach asked struck through for a reschedule.
+ */
+function ClassTimeChange({ request }: { request: ApprovalRequestDto }) {
+  const tz = useUserTimeZone();
+  if (request.actionType !== "CLASS_EXTRA" && request.actionType !== "CLASS_RESCHEDULE") return null;
+  const requested = readClassTimeValue(request.requestedValue);
+  if (!requested) return null;
+  const current = request.actionType === "CLASS_RESCHEDULE" ? readClassTimeValue(request.currentValue) : null;
+  return (
+    <p className="text-sm text-app-text">
+      {current ? (
+        <>
+          <span className="text-app-muted line-through">{formatDateTime(current.startsAt, tz)}</span>
+          {" → "}
+        </>
+      ) : null}
+      {formatDateTime(requested.startsAt, tz)} – {formatTime(requested.endsAt, tz)}
+      {requested.topic ? ` · ${requested.topic}` : ""}
+    </p>
   );
 }

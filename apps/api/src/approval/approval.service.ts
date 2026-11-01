@@ -415,7 +415,8 @@ export class ApprovalService {
     return authenticateUser(this.jwtService, this.prisma, accessToken);
   }
 
-  private async authenticateReviewer(accessToken: string | undefined): Promise<ApprovalActor> {
+  /** ADMIN / SUPER_ADMIN only (403 otherwise). Public for the inbox's queue feed. */
+  async authenticateReviewer(accessToken: string | undefined): Promise<ApprovalActor> {
     const user = await this.authenticate(accessToken);
     if (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPER_ADMIN) {
       throw new ForbiddenException("Only admins can review requests.");

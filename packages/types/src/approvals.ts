@@ -55,6 +55,21 @@ export const APPROVAL_ACTIONS = {
     reviewerRoles: ADMINS,
     defaultTtlHours: 24,
   },
+  CLASS_EXTRA: {
+    category: "SCHEDULING",
+    label: "Add an extra class",
+    requesterRoles: ["COACH"],
+    reviewerRoles: ADMINS,
+    // Plan D2 default; the handler expires it sooner at the class start.
+    defaultTtlHours: 72,
+  },
+  CLASS_RESCHEDULE: {
+    category: "SCHEDULING",
+    label: "Reschedule a class",
+    requesterRoles: ["COACH"],
+    reviewerRoles: ADMINS,
+    defaultTtlHours: 72,
+  },
   CLASS_CANCEL_EXCEPTIONAL: {
     category: "SCHEDULING",
     label: "Cancel a class after it started",
@@ -157,3 +172,36 @@ export type ApprovalRequestDto = {
 
 export type ApprovalRequestResponse = { request: ApprovalRequestDto };
 export type ApprovalRequestListResponse = { requests: ApprovalRequestDto[] };
+
+// ── Other review queues (Stage 5) ──
+//
+// Requests that keep their own tables and review flows but are listed in the
+// same admin inbox (`/admin/requests`). Read-only here: each is still decided
+// on its own page. The API returns only the queues the caller may review.
+
+export const OTHER_REQUEST_QUEUE_KINDS = ["MANUAL_PAYMENT", "ACCOUNT_DELETION", "COACH_APPLICATION"] as const;
+export type OtherRequestQueueKind = (typeof OTHER_REQUEST_QUEUE_KINDS)[number];
+
+export const OTHER_REQUEST_QUEUE_LABELS: Record<OtherRequestQueueKind, string> = {
+  MANUAL_PAYMENT: "Offline payments to confirm",
+  ACCOUNT_DELETION: "Account deletion requests",
+  COACH_APPLICATION: "Coach applications",
+};
+
+export type OtherRequestQueueItem = {
+  id: string;
+  /** Who or what it's about, e.g. the student and amount. */
+  title: string;
+  subtitle: string | null;
+  createdAt: string;
+};
+
+export type OtherRequestQueue = {
+  kind: OtherRequestQueueKind;
+  label: string;
+  pendingCount: number;
+  /** The oldest few waiting, oldest first. */
+  items: OtherRequestQueueItem[];
+};
+
+export type OtherRequestQueuesResponse = { queues: OtherRequestQueue[] };
