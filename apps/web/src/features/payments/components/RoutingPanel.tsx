@@ -155,7 +155,7 @@ export function RoutingPanel() {
           <Button
             onClick={() => setDraft(data.config)}
             type="button"
-            variant="outline"
+            variant="neutral"
           >
             Reset
           </Button>

@@ -8,9 +8,7 @@ recording template (`app/recorder`).
 **NexaChess Design System v2** is the colour, type and spacing specification
 (`docs/ui-redesign/`). The older `nx-*` colours (student dashboard, app shell, auth
 pages) now resolve to v2 values and are removed at the end of the redesign, so use
-the tokens below in new code. Sections below that still mandate pills or
-`rounded-full` are replaced when the primitives are converted (milestone M2).
-Never branch on `useTheme()` to pick a
+the tokens below in new code. Never branch on `useTheme()` to pick a
 colour — the variables switch with `data-theme` before first paint; JS only knows
 the theme after hydration, so dark mode would paint light first.
 
@@ -58,11 +56,12 @@ and are mapped in `tailwind.config.ts`.
 
 | Element | Radius token |
 |---|---|
-| Buttons, badges, pills, avatars, icon buttons | `rounded-full` (the components already do this) |
+| Buttons and icon buttons | `rounded-control` (the component already does this; a forced `rounded-full` is a bug outside the room, which converts in M9) |
+| Badges, avatars, on/off switches | `rounded-full` |
 | Text fields: `Input`, `PasswordInput`, `Select`, `Combobox`, `Textarea`, date/time pickers | `rounded-control`, from `fieldClasses()` in `components/ui/fieldStyles.ts` (the components already do this) |
-| Small tiles, chips, list rows, menu items, textareas-in-panels | `rounded-control` (12px) |
-| Cards, panels, tables, dialogs | `rounded-app` (20px) / `rounded-[20px]` |
-| Large feature panels | `rounded-panel` (24px) |
+| Small tiles, chips, list rows, menu items, textareas-in-panels | `rounded-control` (8px) |
+| Cards, panels, tables, dialogs | `rounded-app` (12px) |
+| Large feature panels | `rounded-panel` (16px) |
 
 | Depth | Token |
 |---|---|
@@ -78,25 +77,25 @@ disagree.
 
 | Need | Component | Notes |
 |---|---|---|
-| Any clickable action | `Button` | Variants: `primary` (main CTA), `outline` (secondary), `ghost` (quiet), `secondary` (gold), `destructive`. Never a hand-styled `<button>` for a normal action. Keep one `primary` per area. |
-| Confirm / dismiss pairs | `Button` | The positive action (Apply, Save, Confirm, Done) is **filled** — `primary`, or `destructive` when it deletes. The negative one (Cancel, Clear, Reset, Close, Skip, Decline) is **`outline`**, never `ghost` — a borderless dismiss reads as plain text. |
-| Table row actions | `RowActions` | Filled round icon buttons by `tone` (`default` primary, `warning` gold, `danger` red). Everything inline by default; `inline={n}` groups the rest behind "⋮" only when asked. A hand-written action button must use the same filled classes **and `variant="ghost"`** — never `outline`, whose dark styling repaints it. |
-| Data lists | `DataTable` (TanStack) or `Table` + `TableHeader/Body/Row/Head/Cell` | Never a raw `<table>`. The header is the blue brand row in sentence case; don't colour or uppercase `TableHead` yourself. Body cells that need left/right alignment say so (`text-left`/`text-right`). A table wider than its card scrolls inside it, and `Table` shades the edge that hides columns. When a row has actions or more than ~4 columns, pass `stackOnMobile` to `DataTable` and give every function-header column a `meta: { label }`: below `sm` each row becomes a card, so no action sits off-screen. Columns with ids `select` and `actions` go in the card's header and footer. A plain `Table` whose last column holds row actions passes `pin="end"` to that `TableHead`/`TableCell` so it stays on screen below `lg` (`DataTable` does this for an `actions` column automatically). |
+| Any clickable action | `Button` | Variants: `primary` (main CTA), `neutral` (toolbars, row actions, cancels), `outline` (secondary, blue border), `ghost` (quiet, blue text), `secondary` (gold: reward and the rare secondary CTA, never a status), `destructive`, `danger-soft`. 36px high, 44px on touch screens, through `--control-h`; an explicit `size-*` or `min-h-*` on a control still wins. Never a hand-styled `<button>` for a normal action. Keep one `primary` per area. |
+| Confirm / dismiss pairs | `Button` | The positive action (Apply, Save, Confirm, Done) is **filled** — `primary`, or `destructive` when it deletes. The negative one (Cancel, Clear, Reset, Close, Skip, Decline) is **`neutral`**, never `ghost` — a borderless dismiss reads as plain text. |
+| Table row actions | `RowActions` | `neutral` icon buttons, `size-8`, right-aligned. `tone` colours the icon only (`default` ink, `warning` amber, `danger` red), so a row isn't a strip of filled shapes. Everything inline by default; `inline={n}` groups the rest behind "⋮" only when asked. A hand-written action button is `variant="neutral"` + `className="size-8"` + the same tone classes. |
+| Data lists | `DataTable` (TanStack) or `Table` + `TableHeader/Body/Row/Head/Cell` | Never a raw `<table>`. The header is a sunken `surface-soft` row with 12px muted sentence-case text; don't colour or uppercase `TableHead` yourself. Text is left-aligned by default: right-align numbers you compare (`text-right`), and a `pin="end"` actions column is right-aligned already. A table wider than its card scrolls inside it, and `Table` shades the edge that hides columns. When a row has actions or more than ~4 columns, always pass `stackOnMobile` to `DataTable` and give every function-header column a `meta: { label }`: below `sm` each row becomes a card, so no action sits off-screen. Columns with ids `select` and `actions` go in the card's header and footer. A plain `Table` whose last column holds row actions passes `pin="end"` to that `TableHead`/`TableCell` so it stays on screen below `lg` (`DataTable` does this for an `actions` column automatically). |
 | Sortable column header | `DataTableSortButton` (TanStack `column`) / `SortButton` + `useTableSort` (plain `Table`) | Sorting is **opt-in**: lists load in the API's own order and nothing is sorted (no `initialKey` / `initialSorting`) until the user clicks a header. Each sortable header shows ↑ asc / ↓ desc / faint ↕ unsorted; a click cycles asc → desc → unsorted. Server-paginated lists sort on the server (`sort`/`order`; with none sent, `resolveOrderBy` uses the endpoint's fallback order) — client-sorting one page would misorder the rest. Document-order tables (invoice lines, move lists, ranked leaderboards, the topic folder tree) keep their natural order and have no sort arrows. |
-| Status labels | `Badge` (`default`, `secondary`, `success`, `warning`, `info`, `destructive`, `outline`) | Never a hand-rolled `rounded-full px-2 text-xs` span. Text is sentence case: show an API enum through `enumLabel()` (`lib/utils.ts`), never raw `ACTIVE`, and never `uppercase`. |
+| Status labels | `Badge` (`default`, `secondary` (grey), `accent` (gold: reward only), `success`, `warning`, `info`, `destructive`, `live`, `outline`) | Never a hand-rolled `rounded-full px-2 text-xs` span. Text is sentence case: show an API enum through `enumLabel()` (`lib/utils.ts`), never raw `ACTIVE`, and never `uppercase`. |
 | On/off setting | `Switch` | "Lock …", "Enabled", "Send WhatsApp", preferences. |
 | Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". |
-| Text / number fields | `Input`, `Textarea`, `PasswordInput`, `Select`, `Combobox` | Never raw `<input>` / `<textarea>` / `<select>` (file, colour, range and radio inputs are the exceptions). They share one look (`fieldClasses()`: tinted `nx-field` fill, gold border + ring on focus); change it there, not per form. `leadingIcon` puts an icon inside; `density="compact"` (Input, PasswordInput, Select) is the dense field of multi-column forms such as registration. |
+| Text / number fields | `Input`, `Textarea`, `PasswordInput`, `Select`, `Combobox` | Never raw `<input>` / `<textarea>` / `<select>` (file, colour, range and radio inputs are the exceptions). They share one look (`fieldClasses()`: surface fill, `line-strong` border, blue border + ring on focus, red border on error); change it there, not per form. `leadingIcon` puts an icon inside; `density="compact"` (Input, PasswordInput, Select) is the dense field of multi-column forms such as registration. |
 | Formatted text (messages, announcements, help articles) | `TextEditor`; show the result with `FormattedText` | Toolbar over a `Textarea`, stores readable text, never HTML. Only where the output is displayed through `FormattedText`, `markdownToPlainText`/`markdownToWhatsApp` or the email renderer, or readers see raw `**`. Everything else stays `Textarea`. |
 | Showing text someone typed | `LinkedText` (`components/ui/FormattedText.tsx`) | Chat, feedback, notes: addresses become underlined links and nothing else changes. `onColour` on a coloured surface like your own chat bubble. Never `dangerouslySetInnerHTML` or a local URL regex. |
 | Dates and times | `DatePicker`, `DateStringPicker` (for `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` state), `TimePicker`, `DateRangePicker` | Never `type="date|time|datetime-local"`. |
-| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: primary-tinted `rounded-xl` track, active tab is a solid primary chip with white text. |
-| Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Correct `role`/`aria-live` built in. |
+| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: sunken `bg-app-soft` track, active tab is a solid primary chip. |
+| Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Soft fill + `-ink` text. Correct `role`/`aria-live` built in. Toasts use the same colours. |
 | Confirm before acting | `ConfirmationModal` (+ optional `icon`) | Never `window.confirm`. Undo policy: `lib/undo/README.md`. |
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |
 | Bulk actions on selected rows | `BulkActionsBar` + `useBulkAction` + `BulkResultDialog` | |
-| KPIs / stat tiles | `KpiCard`, `StatTile` | Icon inside the gradient ring. Numbers use the display font with `tabular-nums`, never `font-mono`. Labels are sentence case. Don't hand-roll a KPI tile. |
-| Nothing to show | `EmptyState` | Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. |
+| KPIs / stat tiles | `KpiCard`, `StatTile` | Plain card with a 12px label and a 32/40 value. Numbers use the display font with `tabular-nums`, never `font-mono`. Labels are sentence case. Don't hand-roll a KPI tile. |
+| Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. |
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
 | Page title + actions | `PageHeader` | |
 | Tooltips | `SimpleTooltip` | Never `title=` on an interactive element. |
@@ -133,8 +132,8 @@ disagree.
 - Focus styles: `focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus`
   (the shared components include it). Never `focus:outline-none` without a
   visible replacement.
-- Touch targets ≥ 40px for primary controls; table action icons are 32px
-  (`size-8`) with 8px gaps.
+- Touch targets are 44px for controls on touch screens (`--control-h`); table
+  action icons are 32px (`size-8`) with 8px gaps.
 - Animations use `transition-colors` / `transition-transform` for what actually
   changes — not `transition-all` — and respect `motion-safe:` for anything
   continuous (pulses).

@@ -292,10 +292,10 @@ function ClassActionCard({ cls }: { cls: StudentClassDetail }) {
             <SimpleTooltip label="Download recording">
               <Button
                 aria-label="Download recording"
-                className="size-11 rounded-full"
+                className="size-11"
                 onClick={download}
                 size="icon"
-                variant="outline"
+                variant="neutral"
               >
                 <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
               </Button>

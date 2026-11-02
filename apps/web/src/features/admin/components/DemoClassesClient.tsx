@@ -192,6 +192,7 @@ export function DemoClassesClient() {
                     </Button>
                   </div>
                 }
+                stackOnMobile
                 table={table}
               />
 

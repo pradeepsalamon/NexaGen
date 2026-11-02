@@ -250,18 +250,18 @@ export function StudentScheduleClient() {
               <div className="flex items-center gap-1">
                 <Button
                   aria-label="Previous month"
-                  variant="outline"
+                  variant="neutral"
                   size="icon"
-                  className="size-8 rounded-full"
+                  className="size-8"
                   onClick={() => shiftMonth(-1)}
                 >
                   <ChevronLeft className="size-4" strokeWidth={2.5} />
                 </Button>
                 <Button
                   aria-label="Next month"
-                  variant="outline"
+                  variant="neutral"
                   size="icon"
-                  className="size-8 rounded-full"
+                  className="size-8"
                   onClick={() => shiftMonth(1)}
                 >
                   <ChevronRight className="size-4" strokeWidth={2.5} />

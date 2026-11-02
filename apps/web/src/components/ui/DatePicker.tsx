@@ -117,9 +117,9 @@ export function DatePicker({
         <Button
           aria-label={ariaLabel}
           id={id}
-          variant="outline"
+          variant="neutral"
           className={cn(
-            "min-h-11 justify-start px-4 py-2 text-left font-medium shadow-none hover:bg-nx-field hover:text-nx-ink",
+            "justify-start px-3 text-left font-normal hover:bg-app-surface",
             fieldClasses(),
             withTime ? "w-full" : "w-full min-w-0 max-w-[266px]",
             !value && "text-app-muted",

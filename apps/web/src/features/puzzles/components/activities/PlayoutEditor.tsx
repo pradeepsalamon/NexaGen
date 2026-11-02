@@ -190,7 +190,7 @@ function GoalFields({ config, set }: { config: PlayoutConfig; set: (patch: Parti
                   variant="ghost"
                   aria-label={`Remove piece ${index + 1}`}
                   disabled={goal.placements.length === 1}
-                  className="size-8 rounded-full text-app-danger-ink hover:bg-app-danger/10"
+                  className="size-8 text-app-danger-ink hover:bg-app-danger/10"
                   onClick={() => setGoal({ ...goal, placements: goal.placements.filter((_, i) => i !== index) })}
                 >
                   <Trash2 className="size-4" strokeWidth={2.5} />
@@ -367,7 +367,7 @@ export function PlayoutEditor({
                 size="icon"
                 variant="ghost"
                 aria-label={`Remove hint ${index + 1}`}
-                className="size-8 shrink-0 rounded-full text-app-danger-ink hover:bg-app-danger/10"
+                className="size-8 shrink-0 text-app-danger-ink hover:bg-app-danger/10"
                 onClick={() => set({ hints: config.hints.filter((_, i) => i !== index) })}
               >
                 <Trash2 className="size-4" strokeWidth={2.5} />

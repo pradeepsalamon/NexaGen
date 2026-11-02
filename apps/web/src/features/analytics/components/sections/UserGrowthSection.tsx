@@ -45,7 +45,7 @@ export function UserGrowthSection({
               className={cn(
                 "rounded-control px-2 py-1 text-xs font-semibold capitalize",
                 granularity === g
-                  ? "bg-accent text-black"
+                  ? "bg-primary text-on-primary"
                   : "text-app-muted hover:bg-app-soft"
               )}
               key={g}
@@ -151,7 +151,7 @@ export function UserGrowthSection({
             key={g}
             onClick={() => onGranularityChange(g)}
             size="sm"
-            variant={granularity === g ? "secondary" : "outline"}
+            variant={granularity === g ? "primary" : "neutral"}
           >
             {g}
           </Button>

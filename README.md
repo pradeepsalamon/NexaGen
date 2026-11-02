@@ -762,7 +762,7 @@ Developers should always prefer existing shadcn/ui components before creating cu
 **Data Display**
 
 - BulkActionsBar + `BulkResultDialog` + `useBulkAction` (floating bar for selected table rows, per-row result summary)
-- RowActions (table action column as round icon buttons; optional `inline` groups the rest behind a "⋮" menu)
+- RowActions (table action column as neutral icon buttons; optional `inline` groups the rest behind a "⋮" menu)
 - DatePicker / `DateStringPicker` / TimePicker (never a native `type="date|time|datetime-local"` input; `DateStringPicker` takes the `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` strings those inputs used)
 - Switch (on/off settings: "Lock …", "Enabled", "Send WhatsApp", preferences). Use `Checkbox` only for multi-select lists, table row selection and consent/acknowledgement ticks. Same `checked` / `onCheckedChange` / `label` API as `Checkbox`
 - Alert (tinted `error` / `warning` / `info` / `success` inline message with the right `role`/`aria-live`; `WidgetError` is built on it)

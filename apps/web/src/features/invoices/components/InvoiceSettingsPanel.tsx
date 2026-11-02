@@ -326,7 +326,7 @@ export function InvoiceSettingsPanel() {
         <Button
           disabled={update.isPending}
           onClick={() => data && setForm(data.settings)}
-          variant="outline"
+          variant="neutral"
         >
           Reset
         </Button>

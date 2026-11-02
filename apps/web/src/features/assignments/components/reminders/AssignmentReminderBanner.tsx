@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { AlarmClock, AlertTriangle, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { cn } from "@/lib/utils";
 import { useMyAssignmentReminders } from "../../hooks/useAssignmentsApi";
@@ -36,7 +37,7 @@ export function AssignmentReminderBanner() {
               "flex size-10 shrink-0 items-center justify-center rounded-xl border",
               urgent
                 ? "bg-nx-danger-soft border-nx-danger-line text-nx-danger-ink"
-                : "bg-nx-gold-soft border-nx-gold-line text-nx-gold-ink"
+                : "bg-warning-soft border-warning/30 text-warning-ink"
             )}
           >
             <Icon aria-hidden className="size-5" strokeWidth={2} />
@@ -59,16 +60,12 @@ export function AssignmentReminderBanner() {
           </div>
         </div>
 
-        <Link
-          href="/student/practice"
-          className={cn(
-            "inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full text-xs font-bold border shrink-0 self-start sm:self-center transition-colors",
-            "bg-nx-tile border-nx-line-strong text-nx-ink hover:border-nx-emphasis"
-          )}
-        >
-          <span>See all assignments</span>
-          <ArrowRight className="size-3.5" strokeWidth={2.2} />
-        </Link>
+        <Button asChild className="self-start sm:self-center" size="sm" variant="neutral">
+          <Link href="/student/practice">
+            <span>See all assignments</span>
+            <ArrowRight className="size-3.5" strokeWidth={2.2} />
+          </Link>
+        </Button>
       </div>
 
       <ul className="mt-3.5 space-y-1">

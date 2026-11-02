@@ -133,7 +133,7 @@ export function PastClasses({ classes }: PastClassesProps) {
                     <SimpleTooltip label="Download recording">
                       <Button
                         aria-label={`Download recording for ${c.topic}`}
-                        className="size-8 rounded-full p-0 text-app-muted hover:text-app-text"
+                        className="size-8 p-0 text-app-muted hover:text-app-text"
                         onClick={() => handleDownload(c.id)}
                         size="icon"
                         variant="ghost"

@@ -35,11 +35,11 @@ export function DataTablePagination<TData>({
           disabled={!table.getCanPreviousPage()}
           onClick={() => table.previousPage()}
           type="button"
-          variant="outline"
+          variant="neutral"
         >
           Previous
         </Button>
-        <span className="px-2 text-sm font-bold text-app-muted">
+        <span className="px-2 text-sm font-medium text-app-muted">
           Page {table.getState().pagination.pageIndex + 1} of{" "}
           {table.getPageCount() || 1}
         </span>
@@ -47,7 +47,7 @@ export function DataTablePagination<TData>({
           disabled={!table.getCanNextPage()}
           onClick={() => table.nextPage()}
           type="button"
-          variant="outline"
+          variant="neutral"
         >
           Next
         </Button>

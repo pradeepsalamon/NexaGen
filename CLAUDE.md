@@ -92,7 +92,7 @@ Per feature in `apps/web/src/features/<feature>/`: `api/<x>Api.ts` (thin `apiFet
 
 - Design System v2 tokens (`docs/ui-redesign/`): `primary` royal blue, `accent` gold, `success` green, `brand-*` navy, theme-switched by CSS variables; never pick colours from `useTheme()`. `nx-*` and `warm` are aliases being removed: no new uses. Otherwise theme tokens (`bg-app-surface`, `text-app-text`, `border-app-border`, `rounded-panel`, `shadow-card`, …; `src/styles/globals.css`, dark = `[data-theme="dark"]`), `-ink` for coloured text, no `dark:` colour overrides. Marketing site (`features/academy`) exempt.
 - Reuse `components/ui/` primitives before creating. Buttons: `primary`/`destructive`/`ghost`/`outline`/`secondary`.
-- **Table row actions: `RowActions`** (`components/ui/RowActions.tsx`) — `rounded-full`, `size="icon"`, `aria-label`, `strokeWidth={2.5}` (example in `AGENTS.md`).
+- **Table row actions: `RowActions`** (`components/ui/RowActions.tsx`) — `neutral` icon buttons, `size-8`, `aria-label`, `strokeWidth={2.5}`; `tone` colours the icon only. Buttons are 8px-radius, 36px high (44px on touch, via `--control-h`).
 - Icon-only buttons: `aria-label` + **`SimpleTooltip`** (`components/ui/Tooltip.tsx`), not `title=` (except non-interactive nodes / existing Radix `asChild` triggers).
 - **Formatted text: `TextEditor` + `FormattedText`** (stored as readable text, never HTML); typed text with links: `LinkedText`. Message bodies are built with `renderFormattedTemplate` and sent through a channel converter ([docs/MESSAGING.md](docs/MESSAGING.md)).
 - **Never `window.confirm`.** Undo via `useUndoableMutation` (`lib/undo/`; `immediate` vs `defer`; exclusions in `lib/undo/README.md`). Toasts: `useToast()`.
@@ -192,7 +192,7 @@ CI runs on PRs (lint + unit tests first, then migrations + drift check, integrat
 4. **New API module → token-string auth pattern** (§3.2). No guards.
 5. **Soft-deletable deletes → `TrashRepository.softDelete` in a `$transaction`.**
 6. **Update the relevant doc in the same change** when setup, commands, env vars or behaviour change.
-7. **Table action buttons → `RowActions`** / `rounded-full` icon template, `strokeWidth={2.5}`.
+7. **Table action buttons → `RowActions`** / `variant="neutral"` + `size-8` icon template, `strokeWidth={2.5}`.
 8. Reuse `components/ui/` primitives before writing new UI.
 9. **Payments: integer minor units; access only from an `Entitlement`**; every state change via `PaymentService.applyProviderState`; no adapter outside `payments/providers/`.
 10. **Invoices: a failed PDF never changes a payment**; tax via the shared engine; issued invoices never edited — refunds get credit notes.

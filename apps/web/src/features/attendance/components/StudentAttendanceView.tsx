@@ -140,7 +140,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
           <Button
             variant="primary"
             onClick={handleExportCSV}
-            className="rounded-full shadow-card flex items-center gap-2"
+            className="shadow-card flex items-center gap-2"
           >
             <Download className="size-4" strokeWidth={2.5} />
             <span>Download Attendance Report (CSV)</span>
@@ -278,7 +278,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-4 rounded-full text-xs"
+                className="mt-4 text-xs"
                 onClick={() => {
                   setStatusFilter("ALL");
                   setSearchQuery("");
@@ -344,9 +344,9 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                         <SimpleTooltip label="View attendance logs">
                           <Button
                             aria-label={`View attendance logs for ${record.topic}, ${formattedDate}`}
-                            variant="outline"
+                            variant="neutral"
                             size="icon"
-                            className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary"
+                            className="size-8"
                             disabled={!interactive}
                             onClick={(e) => {
                               e.stopPropagation();

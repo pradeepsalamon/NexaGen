@@ -135,7 +135,7 @@ export function GameAnalysisPanel({ gameId, viewer, currentPly, onJump }: Props)
                   onError: (err) => toast.error(err instanceof Error ? err.message : "Could not cancel."),
                 })
               }
-              variant="outline"
+              variant="neutral"
             >
               <X className="mr-2 size-4" aria-hidden />
               Cancel

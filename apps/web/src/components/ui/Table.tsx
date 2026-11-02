@@ -13,7 +13,7 @@ const Table = forwardRef<
   TableHTMLAttributes<HTMLTableElement>
 >(function Table({ className, ...props }, ref) {
   return (
-    <ScrollShadow className="rounded-[16px]">
+    <ScrollShadow className="rounded-app">
       <table
         className={cn("w-full caption-bottom text-sm", className)}
         ref={ref}
@@ -44,7 +44,7 @@ const TableBody = forwardRef<
 >(function TableBody({ className, ...props }, ref) {
   return (
     <tbody
-      className={cn("[&>tr:last-child]:border-0 [&>tr:nth-child(even)]:bg-app-soft/50", className)}
+      className={cn("[&>tr:last-child]:border-0", className)}
       ref={ref}
       {...props}
     />
@@ -76,7 +76,7 @@ const TableRow = forwardRef<
   return (
     <tr
       className={cn(
-        "border-b border-app-border transition-colors hover:bg-primary/5 data-[state=selected]:bg-primary/10",
+        "border-b border-app-border transition-colors hover:bg-primary-soft data-[state=selected]:bg-primary-soft",
         className
       )}
       ref={ref}
@@ -90,7 +90,7 @@ TableRow.displayName = "TableRow";
 // rest of a wide table scrolls under it.
 const PIN_END = "max-lg:sticky max-lg:right-0 max-lg:z-[1] max-lg:shadow-[-12px_0_12px_-12px_var(--color-scroll-shade)]";
 const PIN_END_CELL =
-  "max-lg:bg-app-surface max-lg:[tr:nth-child(even)>&]:bg-[color-mix(in_srgb,var(--color-surface-soft)_50%,var(--color-surface))]";
+  "max-lg:bg-app-surface max-lg:[tr:hover>&]:bg-primary-soft max-lg:[tr[data-state=selected]>&]:bg-primary-soft";
 
 type PinProps = { pin?: "end" };
 
@@ -102,7 +102,8 @@ const TableHead = forwardRef<
     <th
       className={cn(
         pin === "end" && PIN_END,
-        "h-12 bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] px-3 text-center align-middle text-sm font-bold normal-case tracking-normal text-on-primary [&:has([role=checkbox])]:pr-0",
+        "bg-app-soft px-4 py-2 text-left align-middle text-xs font-semibold normal-case tracking-normal text-app-muted [&:has([role=checkbox])]:pr-0",
+        pin === "end" && "text-right",
         className
       )}
       ref={ref}
@@ -119,7 +120,7 @@ const TableCell = forwardRef<
   return (
     <td
       className={cn(
-        "p-3 text-center align-middle [&:has([role=checkbox])]:pr-0",
+        "px-4 py-3 text-left align-middle [&:has([role=checkbox])]:pr-0",
         pin === "end" && cn(PIN_END, PIN_END_CELL),
         className
       )}

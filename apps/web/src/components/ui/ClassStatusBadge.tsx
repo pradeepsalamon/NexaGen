@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/Badge";
-import { cn } from "@/lib/utils";
 import { getClassStatusBadgeVariant, getStatusLabel } from "@/constants/classes";
 import { resolveClassDisplayStatus, type ClassStatus } from "@nexa-chess/types";
 
@@ -23,17 +22,13 @@ export function ClassStatusBadge({ status, endsAt, className }: ClassStatusBadge
 
   return (
     <Badge
-      variant={getClassStatusBadgeVariant(shown)}
-      className={cn(
-        "text-xs",
-        isLive && "bg-app-danger text-white",
-        className
-      )}
+      variant={isLive ? "live" : getClassStatusBadgeVariant(shown)}
+      className={className}
     >
       {isLive ? (
         <span
           aria-hidden="true"
-          className="size-1.5 rounded-full bg-white motion-safe:animate-pulse"
+          className="size-2 rounded-full bg-app-danger motion-safe:animate-pulse"
         />
       ) : null}
       {isLive ? "Live now" : getStatusLabel(shown)}

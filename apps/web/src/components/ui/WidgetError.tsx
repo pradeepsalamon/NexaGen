@@ -16,7 +16,7 @@ export function WidgetError({
     <Alert
       action={
         onRetry ? (
-          <Button onClick={onRetry} size="sm" variant="outline">
+          <Button onClick={onRetry} size="sm" variant="neutral">
             Retry
           </Button>
         ) : null

@@ -22,7 +22,7 @@ export function PasswordInput({
   return (
     <div className="relative">
       <Input
-        className={compact ? "pr-9" : "pr-12"}
+        className={compact ? "pr-8" : "pr-10"}
         density={density}
         hasError={hasError}
         id={id}
@@ -33,8 +33,8 @@ export function PasswordInput({
         aria-controls={id}
         aria-label={buttonLabel}
         className={cn(
-          "absolute top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded-full text-nx-muted transition hover:bg-nx-hover hover:text-nx-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
-          compact ? "right-1 size-7 min-h-0" : "right-1.5 size-9"
+          "absolute top-1/2 -translate-y-1/2 text-app-subtle hover:bg-app-soft hover:text-app-text",
+          compact ? "right-0.5 size-7" : "right-0.5 size-8"
         )}
         onClick={() => setIsVisible((current) => !current)}
         size="icon"

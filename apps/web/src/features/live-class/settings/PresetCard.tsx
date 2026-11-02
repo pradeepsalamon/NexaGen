@@ -69,13 +69,11 @@ export function PresetCard({ preset }: { preset: LiveClassPreset }) {
             <SimpleTooltip label={preset.isDefault ? "Default preset" : "Set as default"}>
               <Button
                 aria-label={preset.isDefault ? "Default preset" : "Set as default"}
-                variant="outline"
+                variant="neutral"
                 size="icon"
                 className={cn(
-                  "size-8 rounded-full p-0 text-app-text transition-colors",
-                  preset.isDefault
-                    ? "border-success text-success-ink"
-                    : "border-accent hover:border-accent hover:bg-accent hover:text-black"
+                  "size-8 rounded-full p-0 transition-colors",
+                  preset.isDefault && "border-success text-success-ink"
                 )}
                 disabled={setDefault.isPending || preset.isDefault}
                 onClick={() => setDefault.mutate(preset.id)}

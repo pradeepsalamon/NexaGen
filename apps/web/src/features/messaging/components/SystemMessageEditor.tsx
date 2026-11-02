@@ -212,7 +212,7 @@ export function SystemMessageEditor({ message, onOpenChange, open }: Props) {
             <RotateCcw className="size-4" strokeWidth={2.5} />
             Use default wording
           </Button>
-          <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
+          <Button onClick={() => onOpenChange(false)} type="button" variant="neutral">
             Cancel
           </Button>
           <Button disabled={update.isPending || incomplete} onClick={save} type="button">

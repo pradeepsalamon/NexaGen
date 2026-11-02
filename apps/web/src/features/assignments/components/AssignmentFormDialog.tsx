@@ -921,7 +921,7 @@ export function AssignmentFormDialog({
           )}
 
           <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-8 mt-2 border-t border-app-border bg-app-surface px-6 py-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+            <Button type="button" variant="neutral" onClick={() => onOpenChange(false)} disabled={isPending}>
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>

@@ -285,7 +285,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
           <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-app-border">
             <Button
               type="button"
-              variant="outline"
+              variant="neutral"
               onClick={() => onSuccess?.()}
               disabled={isPending}
             >

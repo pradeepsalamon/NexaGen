@@ -164,7 +164,7 @@ export function PgnViewer({ pgn }: { pgn: string }) {
 
   const nav = (label: string, onClick: () => void, disabled: boolean, icon: ReactNode) => (
     <SimpleTooltip label={label}>
-      <Button aria-label={label} className="rounded-full" disabled={disabled} onClick={onClick} size="icon" type="button" variant="outline">
+      <Button aria-label={label} disabled={disabled} onClick={onClick} size="icon" type="button" variant="neutral">
         {icon}
       </Button>
     </SimpleTooltip>

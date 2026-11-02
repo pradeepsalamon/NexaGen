@@ -140,9 +140,9 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                           <SimpleTooltip label={correction.direct ? "Correct attendance" : "Ask to correct attendance"}>
                             <Button
                               aria-label={`${correction.direct ? "Correct" : "Ask to correct"} attendance for ${student.name}`}
-                              variant="outline"
+                              variant="neutral"
                               size="icon"
-                              className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary"
+                              className="size-8"
                               onClick={(event) => {
                                 event.stopPropagation();
                                 setCorrecting({ id: student.id, name: student.name, status: student.status });
@@ -155,9 +155,9 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                         <SimpleTooltip label="Full attendance history">
                           <Button
                             aria-label={`View attendance history for ${student.name}`}
-                            variant="outline"
+                            variant="neutral"
                             size="icon"
-                            className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary"
+                            className="size-8"
                             onClick={(event) => {
                               event.stopPropagation();
                               onViewHistory({ id: student.id, name: student.name });

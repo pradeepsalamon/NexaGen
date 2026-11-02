@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { Lock, Mail, ArrowRight } from "lucide-react";
@@ -87,22 +88,12 @@ export function ForgotPasswordForm() {
         </div>
 
         {/* Send Reset Link Button */}
-        <button
-          type="submit"
-          disabled={forgotPasswordMutation.isPending}
-          className="
-            w-full h-11 sm:h-12 rounded-xl font-bold text-sm
-            inline-flex items-center justify-center gap-2
-            nx-cta
-            shadow-md transition-all duration-200 hover:-translate-y-0.5
-            disabled:opacity-60 cursor-pointer
-          "
-        >
+        <Button disabled={forgotPasswordMutation.isPending} fullWidth size="lg" type="submit">
           <span>
             {forgotPasswordMutation.isPending ? "Sending..." : "Send reset link"}
           </span>
           <ArrowRight className="size-4 stroke-[2.4]" />
-        </button>
+        </Button>
 
         {/* Bottom Back to Login Link */}
         <p className="text-center text-xs text-nx-body pt-2">

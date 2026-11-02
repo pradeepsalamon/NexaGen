@@ -89,7 +89,7 @@ export function RequestApprovalDialog({
           />
         </FormField>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="neutral" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button

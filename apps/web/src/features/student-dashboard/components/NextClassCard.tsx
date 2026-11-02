@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, CalendarX2, Play } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import type { StudentDashboardLiveClass } from "@nexa-chess/types";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -77,13 +78,12 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
           ) : null}
         </div>
 
-        <Link
-          href={`/live-class/${liveClass.id}`}
-          className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-nx-live-strong hover:bg-nx-live-deep text-white text-xs sm:text-sm font-bold shrink-0 transition-colors"
-        >
-          <Play aria-hidden="true" className="size-3.5 fill-current" />
-          <span>Join class</span>
-        </Link>
+        <Button asChild variant="destructive">
+          <Link href={`/live-class/${liveClass.id}`}>
+            <Play aria-hidden="true" className="size-3.5 fill-current" />
+            <span>Join class</span>
+          </Link>
+        </Button>
       </div>
     );
   }
@@ -113,12 +113,9 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
           </div>
         </div>
 
-        <Link
-          href="/student/practice"
-          className="inline-flex items-center justify-center h-9 sm:h-10 px-5 rounded-full text-xs font-bold border shrink-0 transition-colors bg-nx-tile border-nx-line-strong text-nx-ink hover:border-nx-emphasis"
-        >
-          View Assignments
-        </Link>
+        <Button asChild variant="neutral">
+          <Link href="/student/practice">View Assignments</Link>
+        </Button>
       </div>
     );
   }
@@ -152,16 +149,12 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
         </p>
       </div>
 
-      <Link
-        href={`/classes/${nextClass.id}`}
-        className={`inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full text-xs sm:text-sm font-bold shrink-0 transition-colors ${finished
-            ? "border border-nx-line-strong text-nx-ink"
-            : "bg-nx-emphasis text-nx-ink-inverse"
-          }`}
-      >
-        <span>View class</span>
-        <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2.4} />
-      </Link>
+      <Button asChild variant={finished ? "neutral" : "primary"}>
+        <Link href={`/classes/${nextClass.id}`}>
+          <span>View class</span>
+          <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2.4} />
+        </Link>
+      </Button>
     </div>
   );
 }

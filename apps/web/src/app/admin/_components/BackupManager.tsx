@@ -189,10 +189,10 @@ export function BackupManager() {
                     <div className="flex justify-end gap-2">
                       <SimpleTooltip label="Download">
                         <Button
-                          variant="ghost"
+                          variant="neutral"
                           size="icon"
                           aria-label="Download backup"
-                          className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                          className="size-8"
                           onClick={() => handleDownload(backup.key)}
                         >
                           <Download className="size-4" strokeWidth={2.5} />

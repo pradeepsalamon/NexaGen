@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 
 const TONES = {
-  danger: "border-app-danger/40 text-app-danger-ink hover:bg-app-danger",
-  neutral: "border-app-border text-app-text hover:bg-primary",
-  success: "border-success/40 text-success-ink hover:bg-success",
-  warning: "border-warning/40 text-warning-ink hover:bg-warning"
+  danger: "text-app-danger-ink hover:bg-app-danger-soft",
+  neutral: "",
+  success: "text-success-ink hover:bg-success-soft",
+  warning: "text-warning-ink hover:bg-warning-soft"
 } as const;
 
-/** The house rounded-full icon action (AGENTS.md "UI Consistency Rule"). */
+/** The neutral table row action; only the icon carries the tone. */
 export function RowAction({
   disabled,
   icon: Icon,
@@ -29,12 +29,12 @@ export function RowAction({
     <SimpleTooltip label={label}>
       <Button
         aria-label={label}
-        className={`size-8 rounded-full p-0 transition-colors hover:text-white ${TONES[tone]}`}
+        className={`size-8 ${TONES[tone]}`}
         disabled={disabled}
         onClick={onClick}
         size="icon"
         type="button"
-        variant="outline"
+        variant="neutral"
       >
         <Icon aria-hidden="true" className="size-4" strokeWidth={2.5} />
       </Button>

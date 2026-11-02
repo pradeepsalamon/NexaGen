@@ -332,7 +332,7 @@ export function CompensationProfileDialog({
         )}
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="outline">
+          <Button onClick={onClose} type="button" variant="neutral">
             Close
           </Button>
         </DialogFooter>

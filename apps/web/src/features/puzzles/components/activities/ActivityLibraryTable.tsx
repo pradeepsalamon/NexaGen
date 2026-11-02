@@ -304,7 +304,7 @@ export function ActivityLibraryTable({
           />
         ) : null}
         {hasFilters ? (
-          <Button variant="outline" size="sm" onClick={clearFilters}>
+          <Button variant="neutral" size="sm" onClick={clearFilters}>
             Clear
           </Button>
         ) : null}
@@ -483,7 +483,7 @@ export function ActivityLibraryTable({
               </DialogHeader>
               <Select aria-label="Folder" value={moveTo} placeholder="Choose a folder" options={topicOptions} onChange={(e) => setMoveTo(e.target.value)} />
               <DialogFooter>
-                <Button variant="outline" onClick={() => setMoving(false)}>
+                <Button variant="neutral" onClick={() => setMoving(false)}>
                   Cancel
                 </Button>
                 <Button

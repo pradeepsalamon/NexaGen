@@ -125,6 +125,7 @@ export function LeadsManagementClient() {
             columnsLength={columns.length}
             isLoading={isLoading}
             noDataText="No leads yet."
+            stackOnMobile
             table={table}
           />
 

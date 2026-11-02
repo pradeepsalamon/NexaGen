@@ -107,14 +107,14 @@ export function AdminPrivacyClient() {
                   <SimpleTooltip label="Delete the account">
                     <Button
                       aria-label="Delete the account"
-                      className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                      className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                       onClick={() => {
                         setNote("");
                         setDeciding({ complete: true, request: r });
                       }}
                       size="icon"
                       type="button"
-                      variant="ghost"
+                      variant="neutral"
                     >
                       <Check aria-hidden="true" className="size-4" strokeWidth={2.5} />
                     </Button>
@@ -122,7 +122,7 @@ export function AdminPrivacyClient() {
                   <SimpleTooltip label="Decline">
                     <Button
                       aria-label="Decline the request"
-                      className="size-8 rounded-full border border-app-border bg-app-soft p-0 text-app-text shadow-none transition-colors hover:bg-app-border"
+                      className="size-8 border border-app-border bg-app-soft p-0 text-app-text shadow-none transition-colors hover:bg-app-border"
                       onClick={() => {
                         setNote("");
                         setDeciding({ complete: false, request: r });

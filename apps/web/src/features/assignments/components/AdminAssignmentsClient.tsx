@@ -18,7 +18,7 @@ import { ActivityBadge, DifficultyBadge } from "./assignmentBadges";
 import { AssignmentOverviewPanel } from "./reminders/AssignmentOverviewPanel";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
+  "size-8";
 
 export function AdminAssignmentsClient() {
   const { data, isLoading } = useAssignmentLibrary();
@@ -108,7 +108,7 @@ export function AdminAssignmentsClient() {
                     <div className="mt-auto flex items-center gap-2 pt-1">
                       <Button
                         aria-label="Preview"
-                        variant="outline"
+                        variant="neutral"
                         size="icon"
                         className={iconBtn}
                         onClick={() => setPreviewing(item)}
@@ -119,7 +119,7 @@ export function AdminAssignmentsClient() {
                         <>
                           <Button
                             aria-label="Edit assignment"
-                            variant="outline"
+                            variant="neutral"
                             size="icon"
                             className={iconBtn}
                             onClick={() => {
@@ -131,9 +131,9 @@ export function AdminAssignmentsClient() {
                           </Button>
                           <Button
                             aria-label="Delete assignment"
-                            variant="ghost"
+                            variant="neutral"
                             size="icon"
-                            className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                            className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                             onClick={() => runDelete(item)}
                           >
                             <Trash2 className="size-4" strokeWidth={2.5} />

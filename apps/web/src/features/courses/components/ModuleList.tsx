@@ -12,7 +12,7 @@ import { useRemoveModule, useReorderModules } from "../hooks/useCoursesApi";
 import { AttachModuleModal } from "./AttachModuleModal";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
+  "size-8";
 
 export function ModuleList({
   courseId,
@@ -76,7 +76,7 @@ export function ModuleList({
                 <SimpleTooltip label="Move up">
                   <Button
                     aria-label="Move module up"
-                    variant="outline"
+                    variant="neutral"
                     size="icon"
                     className={iconBtn}
                     disabled={index === 0 || reorder.isPending}
@@ -88,7 +88,7 @@ export function ModuleList({
                 <SimpleTooltip label="Move down">
                   <Button
                     aria-label="Move module down"
-                    variant="outline"
+                    variant="neutral"
                     size="icon"
                     className={iconBtn}
                     disabled={index === sorted.length - 1 || reorder.isPending}
@@ -100,9 +100,9 @@ export function ModuleList({
                 <SimpleTooltip label="Remove">
                   <Button
                     aria-label="Remove module"
-                    variant="ghost"
+                    variant="neutral"
                     size="icon"
-                    className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                    className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                     onClick={() => runRemove(m.id)}
                   >
                     <Trash2 className="size-4" strokeWidth={2.5} />

@@ -70,10 +70,10 @@ export function BatchScheduleCalendar({
       <div className="flex items-center justify-between">
         <p className="text-sm font-extrabold text-app-text">{monthLabel}</p>
         <div className="flex gap-1">
-          <Button aria-label="Previous month" variant="outline" size="icon" className="size-9" onClick={() => shift(-1)}>
+          <Button aria-label="Previous month" variant="neutral" size="icon" className="size-9" onClick={() => shift(-1)}>
             <ChevronLeft className="size-4" aria-hidden="true" />
           </Button>
-          <Button aria-label="Next month" variant="outline" size="icon" className="size-9" onClick={() => shift(1)}>
+          <Button aria-label="Next month" variant="neutral" size="icon" className="size-9" onClick={() => shift(1)}>
             <ChevronRight className="size-4" aria-hidden="true" />
           </Button>
         </div>

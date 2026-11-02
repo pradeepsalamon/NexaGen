@@ -514,7 +514,7 @@ export function MessagingRuleEditor({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
+          <Button onClick={() => onOpenChange(false)} type="button" variant="neutral">
             Cancel
           </Button>
           <Button disabled={update.isPending} onClick={save} type="button">

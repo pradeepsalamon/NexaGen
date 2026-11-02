@@ -51,7 +51,7 @@ export function SoundThemePicker({ soundThemes, selectedId, onSelect }: SoundThe
                 type="button"
                 aria-label={isPlaying ? `Stop previewing ${theme.name}` : `Preview ${theme.name} sound`}
                 onClick={() => handlePreview(theme.id)}
-                className="flex size-9 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-text transition hover:border-primary/50 hover:text-primary-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="flex size-9 shrink-0 items-center justify-center rounded-control border border-app-line-strong bg-app-surface text-app-text transition hover:border-primary/50 hover:text-primary-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 {isPlaying ? (
                   <Square className="size-3.5" strokeWidth={2.5} />

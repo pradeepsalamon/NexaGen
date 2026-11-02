@@ -111,6 +111,10 @@
   --radius-control: 0.5rem;
   --radius-app: 0.75rem;
   --radius-panel: 1rem;
+  /* Control heights (D10): raised for touch below, and an explicit size on a control still wins. */
+  --control-h: 2.25rem;
+  --control-h-sm: 2rem;
+  --control-h-lg: 2.75rem;
 
   --font-heading: var(--font-inter);
   --font-body: var(--font-inter);
@@ -247,13 +251,6 @@
   --nx-auth-note: transparent;
   /* Focus ring of every text field (components/ui/fieldStyles.ts). */
   --nx-shadow-focus: 0 0 0 3px rgb(var(--rgb-primary) / 0.25);
-  --nx-shadow-cta-glow: 0 0 #0000;
-  /* .nx-cta is the primary action: royal blue in both themes. */
-  --nx-cta: rgb(var(--rgb-primary));
-  --nx-cta-hover: rgb(var(--rgb-primary-hover));
-  --nx-cta-image: none;
-  --nx-cta-image-hover: none;
-  --nx-cta-ink: rgb(var(--rgb-on-primary));
 }
 
 :root,
@@ -279,16 +276,6 @@
 
 
 @layer components {
-  .nx-cta {
-    background-color: var(--nx-cta);
-    background-image: var(--nx-cta-image);
-    color: var(--nx-cta-ink);
-  }
-
-  .nx-cta:hover {
-    background-color: var(--nx-cta-hover);
-    background-image: var(--nx-cta-image-hover);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -525,6 +512,12 @@
  * the compact `text-sm`. Outside @layer so it beats the utility.
  */
 @media (pointer: coarse) {
+  :root {
+    --control-h: 2.75rem;
+    --control-h-sm: 2.5rem;
+    --control-h-lg: 3rem;
+  }
+
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
   select,
   textarea {

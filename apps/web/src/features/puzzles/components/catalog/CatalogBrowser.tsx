@@ -58,7 +58,7 @@ const DEFAULT_MIN = String(CATALOG_DEFAULT_RATING_MIN);
 const DEFAULT_MAX = String(CATALOG_DEFAULT_RATING_MAX);
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
+  "size-8";
 
 const newSeed = () => Math.floor(Math.random() * 0x7fffffff);
 
@@ -300,7 +300,7 @@ export function CatalogBrowser({
         <SimpleTooltip label="Shuffle">
           <Button
             aria-label="Shuffle"
-            variant="outline"
+            variant="neutral"
             size="icon"
             className={iconBtn}
             onClick={() => {
@@ -398,7 +398,7 @@ export function CatalogBrowser({
             )}
             Add to folder
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setSelected(new Map())}>
+          <Button variant="neutral" size="sm" onClick={() => setSelected(new Map())}>
             Clear
           </Button>
         </div>
@@ -475,7 +475,7 @@ export function CatalogBrowser({
                 <SimpleTooltip label="Preview with solution">
                   <Button
                     aria-label="Preview with solution"
-                    variant="outline"
+                    variant="neutral"
                     size="icon"
                     className={iconBtn}
                     onClick={() => setPreviewId(puzzle.sourceId)}
@@ -496,7 +496,7 @@ export function CatalogBrowser({
                   <SimpleTooltip label="Create homework">
                     <Button
                       aria-label="Create homework"
-                      variant="outline"
+                      variant="neutral"
                       size="icon"
                       className={iconBtn}
                       disabled={homeworkLoading === puzzle.sourceId}

@@ -81,14 +81,14 @@ export function CoachSuggestionsPanel() {
                     {s.version.status === "SUBMITTED" && (
                       <>
                         <SimpleTooltip label="Edit suggestion">
-                          <Button aria-label="Edit suggestion" className="rounded-full" onClick={() => setEditing(s)} size="icon" variant="outline">
+                          <Button aria-label="Edit suggestion" onClick={() => setEditing(s)} size="icon" variant="neutral">
                             <Pencil className="size-4" strokeWidth={2.5} />
                           </Button>
                         </SimpleTooltip>
                         <SimpleTooltip label="Withdraw suggestion">
                           <Button
                             aria-label="Withdraw suggestion"
-                            className="rounded-full bg-app-danger text-white hover:bg-app-danger/85"
+                            className="bg-app-danger text-white hover:bg-app-danger/85"
                             onClick={() => void withdraw.run(s.version.id)}
                             size="icon"
                             variant="ghost"
@@ -195,7 +195,7 @@ export function SuggestionDialog({
         </DialogHeader>
         <ContentEditor kind={kind} onChange={setValue} previewRole="STUDENT" showChangeNote={!!articleId || !!suggestion} value={value} />
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} variant="outline">
+          <Button onClick={() => onOpenChange(false)} variant="neutral">
             Cancel
           </Button>
           <Button disabled={saving} onClick={() => void submit()}>

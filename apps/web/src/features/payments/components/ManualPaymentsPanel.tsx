@@ -120,7 +120,7 @@ export function ManualPaymentsPanel() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button onClick={() => setApproving(null)} type="button" variant="outline">
+              <Button onClick={() => setApproving(null)} type="button" variant="neutral">
                 Cancel
               </Button>
               <Button
@@ -234,12 +234,12 @@ export function ManualPaymentsPanel() {
                           <SimpleTooltip label="Approve — grants access">
                             <Button
                               aria-label={`Approve payment for ${record.studentName ?? "student"}`}
-                              className="size-8 rounded-full border border-success bg-success p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-success)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-success)_75%,white)] hover:text-white"
+                              className="size-8 text-success-ink hover:bg-success-soft"
                               disabled={approve.isPending}
                               onClick={() => setApproving(record)}
                               size="icon"
                               type="button"
-                              variant="ghost"
+                              variant="neutral"
                             >
                               <Check className="size-3.5" strokeWidth={2.5} />
                             </Button>
@@ -247,11 +247,11 @@ export function ManualPaymentsPanel() {
                           <SimpleTooltip label="Reject">
                             <Button
                               aria-label={`Reject payment for ${record.studentName ?? "student"}`}
-                              className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                              className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                               onClick={() => setRejecting(record)}
                               size="icon"
                               type="button"
-                              variant="ghost"
+                              variant="neutral"
                             >
                               <X className="size-3.5" strokeWidth={2.5} />
                             </Button>
@@ -305,7 +305,7 @@ function RejectManualPaymentDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="outline">
+          <Button onClick={onClose} type="button" variant="neutral">
             Cancel
           </Button>
           <Button
@@ -384,11 +384,11 @@ function OfflineMethodsSection() {
                 <SimpleTooltip label="Edit">
                   <Button
                     aria-label={`Edit ${method.label}`}
-                    className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                    className="size-8"
                     onClick={() => setEditing(method)}
                     size="icon"
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                   >
                     <Pencil className="size-3.5" strokeWidth={2.5} />
                   </Button>
@@ -398,7 +398,7 @@ function OfflineMethodsSection() {
                 >
                   <Button
                     aria-label={`${method.isActive ? "Deactivate" : "Reactivate"} ${method.label}`}
-                    className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                    className="size-8"
                     disabled={update.isPending}
                     onClick={() =>
                       update.mutate({
@@ -408,7 +408,7 @@ function OfflineMethodsSection() {
                     }
                     size="icon"
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                   >
                     {method.isActive ? (
                       <X className="size-3.5" strokeWidth={2.5} />
@@ -474,7 +474,7 @@ function OfflineMethodForm({
         >
           {method ? "Save" : "Add"}
         </Button>
-        <Button onClick={onClose} type="button" variant="outline">
+        <Button onClick={onClose} type="button" variant="neutral">
           Cancel
         </Button>
       </div>

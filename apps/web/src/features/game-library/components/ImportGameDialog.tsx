@@ -128,7 +128,7 @@ export function ImportGameDialog({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" disabled={importGame.isPending} onClick={() => handleOpenChange(false)}>
+          <Button variant="neutral" disabled={importGame.isPending} onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={!pgn.trim() || importGame.isPending}>

@@ -43,11 +43,11 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
             <TooltipTrigger asChild>
               <Button
                 aria-label={`Copy link for ${demoClass.topic}`}
-                className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                className="size-8"
                 onClick={() => onCopyLink(demoClass)}
                 size="icon"
                 type="button"
-                variant="ghost"
+                variant="neutral"
               >
                 <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
               </Button>
@@ -63,12 +63,12 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
             <TooltipTrigger asChild>
               <Button
                 aria-label="Restore demo class"
-                className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
+                className="size-8 text-warning-ink hover:bg-warning-soft"
                 disabled={restorePending}
                 onClick={() => onRestore(demoClass.id)}
                 size="icon"
                 type="button"
-                variant="ghost"
+                variant="neutral"
               >
                 <RotateCcw aria-hidden="true" className="size-4" strokeWidth={2.5} />
               </Button>
@@ -81,11 +81,11 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
           <TooltipTrigger asChild>
             <Button
               aria-label={`Details and guests for ${demoClass.topic}`}
-              className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+              className="size-8"
               onClick={() => onViewDetails(demoClass.id)}
               size="icon"
               type="button"
-              variant="ghost"
+              variant="neutral"
             >
               <Users aria-hidden="true" className="size-4" strokeWidth={2.5} />
             </Button>
@@ -99,11 +99,11 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
               <TooltipTrigger asChild>
                 <Button
                   aria-label={`Edit ${demoClass.topic}`}
-                  className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
+                  className="size-8 text-warning-ink hover:bg-warning-soft"
                   onClick={() => onEdit(demoClass)}
                   size="icon"
                   type="button"
-                  variant="ghost"
+                  variant="neutral"
                 >
                   <Pencil aria-hidden="true" className="size-4" strokeWidth={2.5} />
                 </Button>
@@ -115,12 +115,12 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
               <TooltipTrigger asChild>
                 <Button
                   aria-label={`Cancel ${demoClass.topic}`}
-                  className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                  className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                   disabled={cancelPending}
                   onClick={() => onCancel(demoClass.id)}
                   size="icon"
                   type="button"
-                  variant="ghost"
+                  variant="neutral"
                 >
                   <Ban aria-hidden="true" className="size-4" strokeWidth={2.5} />
                 </Button>

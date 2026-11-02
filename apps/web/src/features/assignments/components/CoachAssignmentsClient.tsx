@@ -24,7 +24,7 @@ import { AssignmentOverviewPanel } from "./reminders/AssignmentOverviewPanel";
 import { Badge } from "@/components/ui/Badge";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
+  "size-8";
 
 export function CoachAssignmentsClient() {
   const timeZone = useUserTimeZone();
@@ -156,7 +156,7 @@ export function CoachAssignmentsClient() {
                     </Button>
                     <Button
                       aria-label="Preview"
-                      variant="outline"
+                      variant="neutral"
                       size="icon"
                       className={iconBtn}
                       onClick={() => setPreviewing(item)}
@@ -167,7 +167,7 @@ export function CoachAssignmentsClient() {
                       <>
                         <Button
                           aria-label="Edit assignment"
-                          variant="outline"
+                          variant="neutral"
                           size="icon"
                           className={iconBtn}
                           onClick={() => openEdit(item)}
@@ -176,9 +176,9 @@ export function CoachAssignmentsClient() {
                         </Button>
                         <Button
                           aria-label="Delete assignment"
-                          variant="ghost"
+                          variant="neutral"
                           size="icon"
-                          className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                          className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                           onClick={() => runDelete(item)}
                         >
                           <Trash2 className="size-4" strokeWidth={2.5} />
@@ -234,7 +234,7 @@ export function CoachAssignmentsClient() {
                   <div className="flex items-center gap-2">
                     <Button
                       aria-label={d.activityType === "PUZZLE_SET" ? "View results & leaderboard" : "View submissions"}
-                      variant="outline"
+                      variant="neutral"
                       size="icon"
                       className={iconBtn}
                       onClick={() => setSubmissionsFor(d.id)}
@@ -243,9 +243,9 @@ export function CoachAssignmentsClient() {
                     </Button>
                     <Button
                       aria-label="Withdraw assignment"
-                      variant="ghost"
+                      variant="neutral"
                       size="icon"
-                      className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                      className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                       onClick={() => runWithdraw(d)}
                     >
                       <Trash2 className="size-4" strokeWidth={2.5} />

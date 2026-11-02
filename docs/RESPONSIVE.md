@@ -158,10 +158,10 @@ solves.
 | `Table` / `DataTable` | [`ui/Table.tsx`](../apps/web/src/components/ui/Table.tsx), [`ui/DataTable.tsx`](../apps/web/src/components/ui/DataTable.tsx) | Table is wrapped in `div.w-full.overflow-auto` — **wide tables scroll inside their own box, never the page**. Keep them in that wrapper |
 | `Dialog` | [`ui/Dialog.tsx`](../apps/web/src/components/ui/Dialog.tsx) | Centered modal; content should carry `max-h-[90vh] overflow-y-auto` and `sm:max-w-[…]` (full-bleed with margin on phone) |
 | `DatePicker` | [`ui/DatePicker.tsx`](../apps/web/src/components/ui/DatePicker.tsx) | Opens a `Dialog` (not a popover) so the calendar never clips on small screens; pass `className="w-full"` inside grids |
-| `TimePicker` | [`ui/TimePicker.tsx`](../apps/web/src/components/ui/TimePicker.tsx) | `Popover` with hour/minute/AM-PM selects, `min-h-11` trigger |
+| `TimePicker` | [`ui/TimePicker.tsx`](../apps/web/src/components/ui/TimePicker.tsx) | `Popover` with hour/minute/AM-PM selects, control-height trigger |
 | `Popover` / `DropdownMenu` | [`ui/Popover.tsx`](../apps/web/src/components/ui/Popover.tsx) | `collisionPadding={16}`, portalled; fine on tablet+; prefer `Dialog` when the panel is large or the anchor is near a screen edge on phones |
 | `Tabs` | [`ui/Tabs.tsx`](../apps/web/src/components/ui/Tabs.tsx) | Tab strip should be `overflow-x-auto` when it can exceed the width |
-| Buttons | [`ui/Button.tsx`](../apps/web/src/components/ui/Button.tsx) | `min-h-11` (44 px touch target) at default size; `size="sm"` = `min-h-9`; table-action buttons are `size-8 rounded-full` icon buttons |
+| Buttons | [`ui/Button.tsx`](../apps/web/src/components/ui/Button.tsx) | `--control-h`: 36 px with a mouse, 44 px on touch screens; `size="sm"` 32/40 px; table-action buttons are `size-8` `neutral` icon buttons |
 
 Design tokens (theme-aware, defined in
 [`styles/globals.css`](../apps/web/src/styles/globals.css)): `bg-app-surface`,
@@ -177,7 +177,7 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
 ### 6.1 Auth (`/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`)
 - `AuthLayout` centers a `max-w-[480px]` card; single column at every size.
 - No sidebar, no drawer. Header shows Login CTA (icon only < `sm`).
-- Verify: 320 px — card has side margin, inputs `min-h-11`, no field clipped.
+- Verify: 320 px — card has side margin, inputs at control height, no field clipped.
 
 ### 6.2 Dashboards (`/student`, `/coach`, `/admin`)
 - Card grids: `grid-cols-1` → `lg:grid-cols-2` / `lg:grid-cols-3` (hero + rail),
@@ -217,7 +217,7 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
   stacked phone view is readable.
 - "Ends" = **By date** (`DatePicker`) or **By count** (number → computed end date
   shown as a hint).
-- Delete-rule button: `size-8 rounded-full` danger icon, centered in its column
+- Delete-rule button: `size-8` neutral icon button with a danger icon, centered in its column
   on `sm+`.
 - Preview panel: stat grid `grid-cols-2 sm:grid-cols-4`, occurrence list
   `max-h-72 overflow-y-auto`.
@@ -326,8 +326,8 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
    diagrams, tab strips get `overflow-x-auto` on a wrapper with `min-w-0`.
 3. **`min-w-0` on flex/grid children** that contain text or tables, so they can
    shrink instead of pushing the layout wide. (`main` already has it.)
-4. **Touch targets ≥ 44 px** on interactive controls (`min-h-11`); `size="sm"`
-   (36 px) only for dense desktop toolbars.
+4. **Touch targets ≥ 44 px** on touch screens (`--control-h` does this for
+   controls); `size="sm"` only for dense toolbars.
 5. **Use `dvh`, not `vh`**, for every viewport-relative height (meeting, board,
    dialog caps, page `min-h`). iPad/Android `vh` ignores the browser toolbar,
    so a `90vh` dialog hides its own buttons behind it.

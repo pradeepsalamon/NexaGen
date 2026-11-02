@@ -105,7 +105,7 @@ export function ContentEditor({
               <button
                 aria-pressed={mode === m}
                 className={cn(
-                  "min-h-8 rounded-full px-3 text-xs font-bold capitalize",
+                  "min-h-8 rounded-md px-3 text-xs font-medium capitalize",
                   mode === m ? "bg-primary text-on-primary" : "text-app-muted hover:text-app-text",
                 )}
                 key={m}

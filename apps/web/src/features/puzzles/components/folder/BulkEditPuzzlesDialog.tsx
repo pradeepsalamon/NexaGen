@@ -291,7 +291,7 @@ export function BulkEditPuzzlesDialog({
         <DialogFooter>
           {step === "edit" ? (
             <>
-              <Button variant="outline" onClick={onClose}>
+              <Button variant="neutral" onClick={onClose}>
                 Cancel
               </Button>
               <Button disabled={on.size === 0 || problems.length > 0} onClick={() => setStep("confirm")}>
@@ -300,7 +300,7 @@ export function BulkEditPuzzlesDialog({
             </>
           ) : (
             <>
-              <Button variant="outline" disabled={busy} onClick={() => setStep("edit")}>
+              <Button variant="neutral" disabled={busy} onClick={() => setStep("edit")}>
                 <ArrowLeft className="mr-1.5 size-4" strokeWidth={2.5} />
                 Back
               </Button>

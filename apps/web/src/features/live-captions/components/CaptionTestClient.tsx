@@ -249,7 +249,7 @@ export function CaptionTestClient() {
               <Download className="size-4" strokeWidth={2.5} />
               Download
             </Button>
-            <Button disabled={segments.length === 0 || running} onClick={clear} size="sm" variant="outline">
+            <Button disabled={segments.length === 0 || running} onClick={clear} size="sm" variant="neutral">
               <Eraser className="size-4" strokeWidth={2.5} />
               Clear
             </Button>

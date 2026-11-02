@@ -171,7 +171,7 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} variant="outline">
+          <Button onClick={() => onOpenChange(false)} variant="neutral">
             Cancel
           </Button>
           <Button disabled={!pgn.trim() || tooBig || upload.isPending} onClick={submit}>
@@ -300,7 +300,7 @@ function AccountRow({
           <SimpleTooltip label="Unlink account">
             <Button
               aria-label="Unlink account"
-              className="rounded-full bg-app-danger text-white hover:bg-app-danger/85"
+              className="bg-app-danger text-white hover:bg-app-danger/85"
               onClick={() => setConfirmUnlink(true)}
               size="icon"
               variant="ghost"
@@ -352,7 +352,7 @@ function AccountRow({
             <Switch checked={deleteGames} id={`delete-games-${account.id}`} onCheckedChange={setDeleteGames} />
           </div>
           <DialogFooter>
-            <Button onClick={() => setConfirmUnlink(false)} variant="outline">
+            <Button onClick={() => setConfirmUnlink(false)} variant="neutral">
               Cancel
             </Button>
             <Button

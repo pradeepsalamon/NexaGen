@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, CircleAlert } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,8 +40,8 @@ export function BulkResultDialog({
             <span
               className={
                 failedCount
-                  ? "flex size-14 items-center justify-center rounded-full bg-warning/10 text-warning-ink"
-                  : "flex size-14 items-center justify-center rounded-full bg-success/10 text-success-ink"
+                  ? "flex size-10 items-center justify-center rounded-full bg-warning-soft text-warning-ink"
+                  : "flex size-10 items-center justify-center rounded-full bg-success-soft text-success-ink"
               }
             >
               {failedCount ? (
@@ -60,7 +61,7 @@ export function BulkResultDialog({
                 <p className="text-2xl font-bold text-success-ink">{result.succeeded}</p>
                 <p className="text-xs font-semibold text-success-ink">Succeeded</p>
               </div>
-              <div className="rounded-[14px] border border-warning/35 bg-warning/[0.08] p-3">
+              <div className="rounded-control bg-warning-soft p-3">
                 <p className="text-2xl font-bold text-warning-ink">{failedCount}</p>
                 <p className="text-xs font-semibold text-warning-ink">Skipped</p>
               </div>
@@ -75,8 +76,8 @@ export function BulkResultDialog({
                 ))}
               </ul>
             ) : null}
-            <AlertDialogAction className="inline-flex h-10 min-w-[108px] items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] px-5 text-sm font-bold text-on-primary transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus">
-              Done
+            <AlertDialogAction asChild>
+              <Button>Done</Button>
             </AlertDialogAction>
           </>
         ) : null}

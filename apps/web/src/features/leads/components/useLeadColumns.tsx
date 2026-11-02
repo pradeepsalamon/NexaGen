@@ -21,6 +21,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "studentName",
         enableColumnFilter: true,
+        meta: { label: "Student" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Student"
@@ -64,6 +65,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "status",
         enableColumnFilter: true,
+        meta: { label: "Status" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
@@ -82,6 +84,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "createdAt",
         enableColumnFilter: true,
+        meta: { label: "Received" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Received"

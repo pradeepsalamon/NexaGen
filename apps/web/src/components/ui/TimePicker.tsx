@@ -73,9 +73,9 @@ export function TimePicker({
           type="button"
           aria-label={ariaLabel}
           id={id}
-          variant="outline"
+          variant="neutral"
           className={cn(
-            "min-h-11 w-full justify-start gap-2 px-4 font-medium shadow-none hover:bg-nx-field hover:text-nx-ink",
+            "w-full justify-start gap-2 px-3 font-normal hover:bg-app-surface",
             fieldClasses(),
             className
           )}

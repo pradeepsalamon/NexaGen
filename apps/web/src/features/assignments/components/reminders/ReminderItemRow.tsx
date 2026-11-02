@@ -7,7 +7,7 @@ import { formatDateTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
 const TONE: Record<AssignmentReminderItem["dueStatus"], string> = {
-  DUE_SOON: "border-accent/40 bg-accent/10 text-accent-ink",
+  DUE_SOON: "border-info/40 bg-info/10 text-info-ink",
   DUE_TODAY: "border-warning/40 bg-warning/10 text-warning-ink",
   OVERDUE: "border-app-danger/30 bg-app-danger/10 text-app-danger-ink"
 };

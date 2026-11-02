@@ -22,7 +22,7 @@ const TabsList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.List
     className={cn(
-      "inline-flex min-h-10 w-fit max-w-full items-center gap-1 overflow-x-auto rounded-control border border-primary/15 bg-primary/[0.07] p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+      "inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-control bg-app-soft p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
       className
     )}
     ref={ref}
@@ -37,7 +37,7 @@ const TabsTrigger = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Trigger
     className={cn(
-      "group inline-flex min-h-8 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm font-semibold text-app-muted transition-[color,background-color,box-shadow] duration-150 hover:bg-primary/10 hover:text-primary-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus)] disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-[0_4px_12px_-4px_rgb(var(--rgb-primary)/0.7)] data-[state=active]:hover:bg-primary",
+      "group inline-flex min-h-[var(--control-h-sm)] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-medium text-app-muted transition-colors duration-150 hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:hover:text-on-primary",
       className
     )}
     ref={ref}

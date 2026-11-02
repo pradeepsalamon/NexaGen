@@ -46,8 +46,8 @@ export function DataTable<TData>({
       <div
         className={
           stackOnMobile
-            ? "hidden overflow-hidden rounded-[20px] border border-app-border bg-app-surface shadow-card sm:block"
-            : "overflow-hidden rounded-[20px] border border-app-border bg-app-surface shadow-card"
+            ? "hidden overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card sm:block"
+            : "overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card"
         }
       >
         <Table>
@@ -107,7 +107,7 @@ export function DataTable<TData>({
       {stackOnMobile ? (
         <div className="sm:hidden">
           {isLoading || !rows.length ? (
-            <div className="rounded-[20px] border border-app-border bg-app-surface px-4 py-10 text-center text-sm font-semibold text-app-muted shadow-card">
+            <div className="rounded-app border border-app-border bg-app-surface px-4 py-10 text-center text-sm font-semibold text-app-muted shadow-card">
               {isLoading ? loadingText : noDataText}
             </div>
           ) : (
@@ -139,7 +139,7 @@ function StackedRow<TData>({ cells, selected }: { cells: Cell<TData, unknown>[];
 
   return (
     <li
-      className="rounded-[20px] border border-app-border bg-app-surface p-4 text-sm shadow-card data-[state=selected]:border-primary/50 data-[state=selected]:bg-primary/5"
+      className="rounded-app border border-app-border bg-app-surface p-4 text-sm shadow-card data-[state=selected]:border-primary/50 data-[state=selected]:bg-primary-soft"
       data-state={selected ? "selected" : undefined}
     >
       {primary ? (

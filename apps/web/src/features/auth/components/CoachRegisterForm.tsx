@@ -2,6 +2,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { type FormEvent, useState } from "react";
 import {
   AtSign,
@@ -344,16 +345,17 @@ export function CoachRegisterForm() {
       </div>
 
       {/* Submit Application Button */}
-      <button
-        type="submit"
+      <Button
+        className="mt-1.5"
         disabled={registerMutation.isPending}
-        className={`mt-1.5 w-full h-10 rounded-xl font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2 shadow-md transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-60 cursor-pointer nx-cta`}
+        fullWidth
+        type="submit"
       >
         <span>
           {registerMutation.isPending ? "Submitting..." : "Submit application"}
         </span>
         <ArrowRight className="size-4 stroke-[2.4]" />
-      </button>
+      </Button>
 
       {/* Approval Note */}
       <p

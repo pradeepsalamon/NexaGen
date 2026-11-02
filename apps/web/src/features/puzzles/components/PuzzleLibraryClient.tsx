@@ -87,7 +87,7 @@ import { TopicManager } from "./TopicManager";
 import { enumLabel } from "@/lib/utils";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
+  "size-8";
 
 type ScopeConfig = { scope?: PuzzleListQuery["scope"]; visibility?: PuzzleVisibility };
 
@@ -564,7 +564,7 @@ function PuzzleTable({
           className="w-auto"
         />
         {hasFilters && (
-          <Button variant="outline" size="sm" onClick={clearFilters}>
+          <Button variant="neutral" size="sm" onClick={clearFilters}>
             Clear
           </Button>
         )}
@@ -668,9 +668,9 @@ function PuzzleTable({
                         <SimpleTooltip label={role === "coach" ? "Assign" : "Create assignment"}>
                           <Button
                             aria-label={`Assign ${p.title}`}
-                            variant="ghost"
+                            variant="neutral"
                             size="icon"
-                            className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                            className="size-8"
                             onClick={() => selection.assign([p])}
                           >
                             <ClipboardCheck className="size-4" strokeWidth={2.5} />
@@ -681,7 +681,7 @@ function PuzzleTable({
                         <Button
                           asChild
                           aria-label="Preview puzzle"
-                          variant="outline"
+                          variant="neutral"
                           size="icon"
                           className={iconBtn}
                         >
@@ -693,7 +693,7 @@ function PuzzleTable({
                       <SimpleTooltip label="Duplicate">
                         <Button
                           aria-label="Duplicate puzzle"
-                          variant="outline"
+                          variant="neutral"
                           size="icon"
                           className={iconBtn}
                           onClick={() => runDuplicate(p)}
@@ -707,7 +707,7 @@ function PuzzleTable({
                             <Button
                               asChild
                               aria-label="Edit puzzle"
-                              variant="outline"
+                              variant="neutral"
                               size="icon"
                               className={iconBtn}
                             >
@@ -723,9 +723,9 @@ function PuzzleTable({
                               aria-label={
                                 p.status === "PUBLISHED" ? "Unpublish puzzle" : "Publish puzzle"
                               }
-                              variant="ghost"
+                              variant="neutral"
                               size="icon"
-                              className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
+                              className="size-8 text-warning-ink hover:bg-warning-soft"
                               onClick={() =>
                                 runPublish({ id: p.id, next: p.status !== "PUBLISHED" })
                               }
@@ -744,9 +744,9 @@ function PuzzleTable({
                               aria-label={
                                 p.status === "ARCHIVED" ? "Restore puzzle" : "Archive puzzle"
                               }
-                              variant="ghost"
+                              variant="neutral"
                               size="icon"
-                              className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
+                              className="size-8 text-warning-ink hover:bg-warning-soft"
                               onClick={() =>
                                 runArchive({ id: p.id, next: p.status !== "ARCHIVED" })
                               }
@@ -761,9 +761,9 @@ function PuzzleTable({
                           <SimpleTooltip label="Delete">
                             <Button
                               aria-label="Delete puzzle"
-                              variant="ghost"
+                              variant="neutral"
                               size="icon"
-                              className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                              className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                               onClick={() => runDelete(p)}
                             >
                               <Trash2 className="size-4" strokeWidth={2.5} />

@@ -43,9 +43,9 @@ export type SelectedSetPuzzle = {
 const PAGE = 25;
 
 const iconBtn =
-  "size-8 shrink-0 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary disabled:opacity-40";
+  "size-8 shrink-0";
 const dangerBtn =
-  "size-8 shrink-0 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white";
+  "size-8 shrink-0 text-app-danger-ink hover:bg-app-danger-soft";
 
 /**
  * The ordered puzzle list of a PUZZLE_SET assignment, plus a library picker.
@@ -165,7 +165,7 @@ export function PuzzleSetEditor({
                 <SimpleTooltip label="Move up">
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                     size="icon"
                     aria-label={`Move ${p.title} up`}
                     className={iconBtn}
@@ -178,7 +178,7 @@ export function PuzzleSetEditor({
                 <SimpleTooltip label="Move down">
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                     size="icon"
                     aria-label={`Move ${p.title} down`}
                     className={iconBtn}
@@ -191,7 +191,7 @@ export function PuzzleSetEditor({
                 <SimpleTooltip label="Remove from set">
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                     size="icon"
                     aria-label={`Remove ${p.title}`}
                     className={dangerBtn}
@@ -286,7 +286,7 @@ export function PuzzleSetEditor({
                   <SimpleTooltip label="Preview">
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="neutral"
                       size="icon"
                       aria-label={`Preview ${p.title}`}
                       className={iconBtn}

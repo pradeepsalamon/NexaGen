@@ -55,10 +55,10 @@ export function SectionCard({
         className
       )}
     >
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border p-4 sm:p-5">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border p-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-extrabold text-app-text sm:text-lg">
+            <h2 className="text-base font-semibold text-app-text">
               {title}
             </h2>
             {collapsible ? (
@@ -66,7 +66,7 @@ export function SectionCard({
                 <button
                   aria-expanded={!collapsed}
                   aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
-                  className="rounded-full p-1 text-app-muted hover:bg-app-soft md:hidden"
+                  className="rounded-control p-1 text-app-muted hover:bg-app-soft md:hidden"
                   onClick={() => setCollapsed((c) => !c)}
                   type="button"
                 >
@@ -93,10 +93,10 @@ export function SectionCard({
             <SimpleTooltip label="Refresh this section">
               <Button
                 aria-label="Refresh section"
-                className="size-8 rounded-full p-0"
+                className="size-8 p-0"
                 onClick={onRefresh}
                 size="icon"
-                variant="outline"
+                variant="neutral"
               >
                 <RefreshCw className="size-4" strokeWidth={2.5} />
               </Button>
@@ -104,7 +104,7 @@ export function SectionCard({
           ) : null}
         </div>
       </header>
-      <div className={cn("p-4 sm:p-5", collapsible && collapsed && "hidden md:block")}>
+      <div className={cn("p-4", collapsible && collapsed && "hidden md:block")}>
         {children}
       </div>
     </section>

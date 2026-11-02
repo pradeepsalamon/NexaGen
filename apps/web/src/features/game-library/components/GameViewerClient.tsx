@@ -280,9 +280,8 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
         <div className="flex flex-wrap items-center gap-2">
           <SimpleTooltip label="Copy PGN">
             <Button
-              variant="outline"
+              variant="neutral"
               size="icon"
-              className="rounded-full"
               aria-label="Copy PGN"
               onClick={() => {
                 void navigator.clipboard
@@ -303,7 +302,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-full bg-app-danger text-white hover:bg-app-danger/85"
+                className="bg-app-danger text-white hover:bg-app-danger/85"
                 aria-label="Delete game"
                 onClick={() => setConfirmDelete(true)}
               >
@@ -433,7 +432,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="neutral">Cancel</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
@@ -476,7 +475,7 @@ function NavButton({
 }) {
   return (
     <SimpleTooltip label={label}>
-      <Button variant="outline" size="icon" className="rounded-full" aria-label={label} onClick={onClick} disabled={disabled}>
+      <Button variant="neutral" size="icon" aria-label={label} onClick={onClick} disabled={disabled}>
         {children}
       </Button>
     </SimpleTooltip>

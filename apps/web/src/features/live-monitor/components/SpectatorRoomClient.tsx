@@ -256,7 +256,7 @@ export function SpectatorRoomClient({ classId }: { classId: string }) {
               aria-pressed={room.audioMuted}
               onClick={room.toggleAudioMuted}
               size="icon"
-              variant="outline"
+              variant="neutral"
             >
               {room.audioMuted ? (
                 <VolumeX aria-hidden className="size-4" strokeWidth={2.5} />

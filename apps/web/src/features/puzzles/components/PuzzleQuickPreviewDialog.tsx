@@ -135,17 +135,17 @@ export function PuzzleQuickPreviewDialog({
               <div className="space-y-2">
                 <div className="flex items-center justify-center gap-2">
                   <SimpleTooltip label="Start position">
-                    <Button aria-label="Start position" disabled={ply === 0} onClick={() => setPly(0)} size="icon" type="button" variant="outline">
+                    <Button aria-label="Start position" disabled={ply === 0} onClick={() => setPly(0)} size="icon" type="button" variant="neutral">
                       <ChevronsLeft className="size-4" strokeWidth={2.5} />
                     </Button>
                   </SimpleTooltip>
                   <SimpleTooltip label="Previous move">
-                    <Button aria-label="Previous move" disabled={ply === 0} onClick={() => setPly(ply - 1)} size="icon" type="button" variant="outline">
+                    <Button aria-label="Previous move" disabled={ply === 0} onClick={() => setPly(ply - 1)} size="icon" type="button" variant="neutral">
                       <ChevronLeft className="size-4" strokeWidth={2.5} />
                     </Button>
                   </SimpleTooltip>
                   <SimpleTooltip label="Next move">
-                    <Button aria-label="Next move" disabled={ply >= steps.length} onClick={() => setPly(ply + 1)} size="icon" type="button" variant="outline">
+                    <Button aria-label="Next move" disabled={ply >= steps.length} onClick={() => setPly(ply + 1)} size="icon" type="button" variant="neutral">
                       <ChevronRight className="size-4" strokeWidth={2.5} />
                     </Button>
                   </SimpleTooltip>
@@ -221,7 +221,7 @@ export function PuzzleQuickPreviewDialog({
               </Button>
             </div>
           ) : null}
-          <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
+          <Button onClick={() => onOpenChange(false)} type="button" variant="neutral">
             Close
           </Button>
           {action ? (

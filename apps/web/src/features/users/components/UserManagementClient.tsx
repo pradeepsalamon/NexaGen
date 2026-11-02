@@ -175,6 +175,7 @@ export function UserManagementClient() {
       {
         accessorKey: "firstName",
         enableColumnFilter: true,
+        meta: { label: "Name" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Name"
@@ -192,6 +193,7 @@ export function UserManagementClient() {
       {
         accessorKey: "email",
         enableColumnFilter: true,
+        meta: { label: "Email" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Email"
@@ -208,6 +210,7 @@ export function UserManagementClient() {
       {
         accessorKey: "role",
         enableColumnFilter: true,
+        meta: { label: "Role" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Role"
@@ -223,6 +226,7 @@ export function UserManagementClient() {
       {
         accessorKey: "status",
         enableColumnFilter: true,
+        meta: { label: "Status" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
@@ -410,6 +414,7 @@ export function UserManagementClient() {
                     </Button>
                   </div>
                 }
+                stackOnMobile
                 table={table}
               />
 

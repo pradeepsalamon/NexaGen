@@ -21,7 +21,7 @@ const ACTIVITY_STYLE: Record<AssignmentActivityType, string> = {
   SOLVE_LINE: "border-warm/40 bg-warm/10 text-warm-ink",
   PLAY_VS_ENGINE: "border-success/40 bg-success/10 text-success-ink",
   FREE_ANALYSIS: "border-app-border bg-app-soft text-app-text",
-  PUZZLE_SET: "border-accent/40 bg-accent/10 text-accent-ink"
+  PUZZLE_SET: "border-info/40 bg-info/10 text-info-ink"
 };
 
 export function ActivityBadge({ activityType }: { activityType: AssignmentActivityType }) {
@@ -74,7 +74,7 @@ export function StatusBadge({ status }: { status: AssignmentStatus }) {
 
 const DUE_STYLE: Record<AssignmentDueStatus, string> = {
   COMPLETED: "border-app-border bg-app-background text-app-muted",
-  DUE_SOON: "border-accent/40 bg-accent/10 text-accent-ink",
+  DUE_SOON: "border-info/40 bg-info/10 text-info-ink",
   DUE_TODAY: "border-warning/40 bg-warning/10 text-warning-ink",
   OVERDUE: "border-app-danger/30 bg-app-danger/10 text-app-danger-ink",
   UPCOMING: "border-app-border bg-app-background text-app-muted"

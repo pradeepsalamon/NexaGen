@@ -217,7 +217,7 @@ export function ComboboxInput({
   return (
     <div
       className={cn(
-        "flex min-h-11 w-full items-center gap-2 px-4",
+        "flex min-h-[var(--control-h)] w-full items-center gap-2 px-3",
         fieldClasses({ within: true }),
         isDisabled && "cursor-not-allowed opacity-60"
       )}
@@ -227,7 +227,7 @@ export function ComboboxInput({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={cn(
-          "min-h-10 min-w-0 flex-1 bg-transparent text-sm font-medium text-nx-ink outline-none placeholder:text-nx-muted focus-visible:outline-none",
+          "min-h-8 min-w-0 flex-1 bg-transparent text-sm text-app-text outline-none placeholder:text-app-subtle focus-visible:outline-none",
           className
         )}
         disabled={isDisabled}

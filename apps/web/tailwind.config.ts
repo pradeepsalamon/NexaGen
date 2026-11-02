@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
@@ -42,7 +43,6 @@ const config: Config = {
         "nx-float": "var(--nx-shadow-float)",
         "nx-focus": "var(--nx-shadow-focus)",
         "nx-panel": "var(--nx-shadow-panel)",
-        "nx-cta-glow": "var(--nx-shadow-cta-glow)",
         card: "var(--shadow-card)",
         lift: "var(--shadow-lift)",
         soft: "var(--shadow-soft)"
@@ -277,7 +277,14 @@ const config: Config = {
       }
     }
   },
-  plugins: []
+  plugins: [
+    // Tailwind drops its built-in max-* variants when a screen is an object, as `room` is.
+    plugin(({ addVariant }) => {
+      for (const [name, width] of Object.entries({ sm: "640px", md: "768px", lg: "1024px", xl: "1280px" })) {
+        addVariant(`max-${name}`, `@media not all and (min-width: ${width})`);
+      }
+    })
+  ]
 };
 
 export default config;

@@ -2,6 +2,7 @@
 
 import { TrendingUp, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { AssignmentReminderBanner } from "@/features/assignments/components/reminders/AssignmentReminderBanner";
@@ -40,22 +41,13 @@ export function StudentDashboardClient() {
         </p>
       </div>
 
-      <Link
-        href="/student/progress"
-        className="
-          inline-flex items-center justify-center gap-2
-          h-10 px-5 rounded-full shrink-0
-          bg-gradient-to-r from-nx-gold-300 via-nx-gold-450 to-nx-gold-700
-          hover:from-nx-gold-200-alt hover:to-nx-gold-550-alt
-          text-nx-navy text-xs sm:text-sm font-bold
-          shadow-[0_4px_14px_rgba(212,155,53,0.3)]
-          transition-all duration-200 hover:-translate-y-0.5
-        "
-      >
-        <TrendingUp aria-hidden="true" className="size-4 stroke-[2.4]" />
-        <span>My Progress</span>
-        <ArrowRight aria-hidden="true" className="size-3.5 stroke-[2.4]" />
-      </Link>
+      <Button asChild>
+        <Link href="/student/progress">
+          <TrendingUp aria-hidden="true" className="size-4 stroke-[2.4]" />
+          <span>My Progress</span>
+          <ArrowRight aria-hidden="true" className="size-3.5 stroke-[2.4]" />
+        </Link>
+      </Button>
     </div>
   );
 

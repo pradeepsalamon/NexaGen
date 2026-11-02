@@ -79,7 +79,7 @@ import { puzzleTopicOptions } from "../lib/puzzleMeta";
 import { FolderPuzzlesPanel } from "./folder/FolderPuzzlesPanel";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
+  "size-8";
 
 type TopicNode = PuzzleTopicTreeNode<PuzzleTopicDto>;
 type TopicFormValues = {
@@ -248,7 +248,7 @@ export function TopicManager({
                 aria-label="Clear clipboard"
                 size="icon"
                 variant="ghost"
-                className="size-8 rounded-full"
+                className="size-8"
                 onClick={() => setClipboard(null)}
               >
                 <X className="size-4" strokeWidth={2.5} />
@@ -304,7 +304,7 @@ export function TopicManager({
                             aria-label={open ? `Collapse ${topic.name}` : `Expand ${topic.name}`}
                             aria-expanded={open}
                             onClick={() => toggle(topic.id)}
-                            className="grid size-6 shrink-0 place-items-center rounded-full text-app-muted hover:bg-app-soft hover:text-app-text"
+                            className="grid size-6 shrink-0 place-items-center rounded-control text-app-muted hover:bg-app-soft hover:text-app-text"
                           >
                             <ChevronRight
                               className={cn("size-4 transition-transform", open && "rotate-90")}
@@ -362,7 +362,7 @@ export function TopicManager({
                             <SimpleTooltip label="Add subfolder">
                               <Button
                                 aria-label={`Add subfolder to ${topic.name}`}
-                                variant="outline"
+                                variant="neutral"
                                 size="icon"
                                 className={iconBtn}
                                 onClick={() => setCreatingIn(topic.id)}
@@ -375,9 +375,9 @@ export function TopicManager({
                             <SimpleTooltip label={`Paste "${clipboard!.node.topic.name}" here`}>
                               <Button
                                 aria-label={`Paste into ${topic.name}`}
-                                variant="outline"
+                                variant="neutral"
                                 size="icon"
-                                className={cn(iconBtn, "border-primary text-primary-ink")}
+                                className={cn(iconBtn, " text-primary-ink")}
                                 onClick={() => paste(topic.id)}
                               >
                                 <ClipboardPaste className="size-4" strokeWidth={2.5} />
@@ -387,7 +387,7 @@ export function TopicManager({
                           <SimpleTooltip label="Copy folder">
                             <Button
                               aria-label={`Copy ${topic.name}`}
-                              variant="outline"
+                              variant="neutral"
                               size="icon"
                               className={iconBtn}
                               onClick={() => setClipboard({ mode: "copy", node })}
@@ -398,7 +398,7 @@ export function TopicManager({
                           <SimpleTooltip label="Cut folder (to move it)">
                             <Button
                               aria-label={`Cut ${topic.name}`}
-                              variant="outline"
+                              variant="neutral"
                               size="icon"
                               className={iconBtn}
                               onClick={() => setClipboard({ mode: "cut", node })}
@@ -409,7 +409,7 @@ export function TopicManager({
                           <SimpleTooltip label="Edit or move">
                             <Button
                               aria-label={`Edit ${topic.name}`}
-                              variant="outline"
+                              variant="neutral"
                               size="icon"
                               className={iconBtn}
                               onClick={() => setEditing(topic)}
@@ -422,9 +422,9 @@ export function TopicManager({
                           >
                             <Button
                               aria-label={`Archive ${topic.name}`}
-                              variant="ghost"
+                              variant="neutral"
                               size="icon"
-                              className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
+                              className="size-8 text-warning-ink hover:bg-warning-soft"
                               onClick={() =>
                                 node.totalPuzzleCount > 0 ? setReassigning(node) : runArchive(node)
                               }
@@ -436,9 +436,9 @@ export function TopicManager({
                             <SimpleTooltip label="Delete folder (to Trash)">
                               <Button
                                 aria-label={`Delete ${topic.name}`}
-                                variant="ghost"
+                                variant="neutral"
                                 size="icon"
-                                className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                                className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                                 onClick={() => setDeleting(node)}
                               >
                                 <Trash2 className="size-4" strokeWidth={2.5} />
@@ -559,7 +559,7 @@ function DeleteFolderDialog({
           deleted permanently.
         </p>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>
+          <Button variant="neutral" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button
@@ -633,9 +633,9 @@ function HomeworkCell({
         <SimpleTooltip label={`Assign folder (${topic.homeworkPuzzleCount} puzzle${topic.homeworkPuzzleCount === 1 ? "" : "s"})`}>
           <Button
             aria-label={`Assign folder ${topic.name}`}
-            variant="ghost"
+            variant="neutral"
             size="icon"
-            className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+            className="size-8"
             onClick={onAssign}
           >
             <ClipboardCheck className="size-4" strokeWidth={2.5} />
@@ -648,9 +648,9 @@ function HomeworkCell({
           <SimpleTooltip label="Revoke homework approval (academy-wide)">
             <Button
               aria-label={`Revoke homework approval for ${topic.name}`}
-              variant="ghost"
+              variant="neutral"
               size="icon"
-              className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black"
+              className="size-8 text-warning-ink hover:bg-warning-soft"
               onClick={() => onApprove(false)}
             >
               <ShieldOff className="size-4" strokeWidth={2.5} />
@@ -662,10 +662,10 @@ function HomeworkCell({
             <span className="inline-flex">
               <Button
                 aria-label={`Approve ${topic.name} for homework`}
-                variant="ghost"
+                variant="neutral"
                 size="icon"
                 disabled={!!structuralBlocker}
-                className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                className="size-8"
                 onClick={() => onApprove(true)}
               >
                 <ShieldCheck className="size-4" strokeWidth={2.5} />
@@ -759,7 +759,7 @@ function TopicFormDialog({
           </FormField>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>
+          <Button variant="neutral" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button
@@ -829,7 +829,7 @@ function ReassignDialog({
           />
         </FormField>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>
+          <Button variant="neutral" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button

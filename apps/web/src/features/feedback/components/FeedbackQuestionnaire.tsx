@@ -28,7 +28,7 @@ function ChoicePills({
         <button
           aria-checked={value === option}
           className={cn(
-            "min-h-10 rounded-full border px-4 text-sm font-semibold transition",
+            "min-h-10 rounded-control border px-4 text-sm font-medium transition-colors",
             value === option
               ? "border-primary bg-primary text-on-primary"
               : "border-app-border bg-app-surface text-app-text hover:border-primary"
@@ -139,7 +139,7 @@ export function FeedbackQuestionnaire({
             disabled={busy}
             onClick={() => skip.mutate(target, { onSuccess: () => onDone?.() })}
             type="button"
-            variant="outline"
+            variant="neutral"
           >
             Skip
           </Button>

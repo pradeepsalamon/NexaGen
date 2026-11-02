@@ -116,7 +116,7 @@ const CoachClockControls = memo(function CoachClockControls() {
             />
           </div>
         </div>
-        <Button size="sm" variant="secondary" className="w-full" onClick={apply}>
+        <Button size="sm" variant="neutral" className="w-full" onClick={apply}>
           Set {minutes || 5}+{increment || 0}
         </Button>
         <div className="flex gap-2">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import {
   Dialog,
   DialogContent,
@@ -87,22 +88,16 @@ export function AssignmentReminderPopup() {
         </ul>
 
         <DialogFooter className="flex items-center justify-end gap-2.5 pt-2">
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className={`h-9 px-4 rounded-full text-xs font-bold border transition-colors cursor-pointer bg-nx-raised border-nx-line-strong text-nx-ink hover:border-nx-line-strong-hover hover:bg-nx-raised-hover`}
-          >
+          <Button onClick={() => setOpen(false)} variant="neutral">
             Later
-          </button>
+          </Button>
 
-          <Link
-            href="/student/practice"
-            onClick={() => setOpen(false)}
-            className={`inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full text-xs font-bold transition-all nx-cta`}
-          >
-            <span>Go to assignments</span>
-            <ArrowRight className="size-3.5" strokeWidth={2.3} />
-          </Link>
+          <Button asChild>
+            <Link href="/student/practice" onClick={() => setOpen(false)}>
+              <span>Go to assignments</span>
+              <ArrowRight className="size-3.5" strokeWidth={2.3} />
+            </Link>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

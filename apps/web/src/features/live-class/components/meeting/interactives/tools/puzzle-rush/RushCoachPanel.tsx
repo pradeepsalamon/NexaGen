@@ -78,7 +78,7 @@ export function RushCoachPanel({ classId, mode }: { classId: string; mode: Puzzl
           if (!coachPlaying) setJoinedRushId(mine.id);
         }}
         size="sm"
-        variant={coachPlaying ? "outline" : "secondary"}
+        variant={coachPlaying ? "neutral" : "primary"}
       >
         {coachPlaying ? (
           <ListOrdered aria-hidden="true" className="size-4" strokeWidth={2.5} />

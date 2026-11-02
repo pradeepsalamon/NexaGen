@@ -96,7 +96,7 @@ export function ClassNotesDialog({ open, onOpenChange, classItem }: ClassNotesDi
           <FormInput name="homework" label="Homework (Optional)" placeholder="Work for the students" />
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+            <Button type="button" variant="neutral" onClick={() => onOpenChange(false)} disabled={isPending}>
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>

@@ -299,7 +299,7 @@ export function CheckoutClient({ planId }: Props) {
           ) : null}
 
           {config.alreadySubscribed ? (
-            <p className="mb-4 rounded-app border border-accent bg-accent/10 px-3 py-2 text-sm text-accent-ink">
+            <p className="mb-4 rounded-app border border-info/30 bg-info-soft px-3 py-2 text-sm text-info-ink">
               You already have an active subscription to this plan.
             </p>
           ) : null}

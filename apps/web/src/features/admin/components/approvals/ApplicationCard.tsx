@@ -31,7 +31,7 @@ export function ApplicationCard({ details, footnote, name, onApprove, onDecline 
         <Button
           className="border-app-danger/30 text-app-danger-ink hover:bg-app-danger/10 hover:text-app-danger-ink"
           onClick={onDecline}
-          variant="outline"
+          variant="neutral"
         >
           <X className="mr-2 size-4" />
           Decline

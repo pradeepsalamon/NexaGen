@@ -5,32 +5,32 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-full border text-sm font-bold transition disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-control border text-sm font-medium transition-colors disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-app-border disabled:bg-app-soft disabled:text-app-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
   {
     variants: {
       variant: {
+        "danger-soft":
+          "border-transparent bg-app-danger-soft text-app-danger-ink hover:bg-app-danger/20",
         destructive:
-          "border-transparent bg-app-danger text-white shadow-[0_12px_28px_color-mix(in_srgb,var(--color-danger)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-danger)_88%,black)]",
+          "border-transparent bg-app-danger text-white hover:bg-app-danger-hover",
         ghost:
-          "border-transparent bg-transparent text-app-text hover:bg-app-soft hover:text-app-text",
+          "border-transparent bg-transparent text-primary-ink hover:bg-primary-soft disabled:border-transparent disabled:bg-transparent",
+        neutral:
+          "border-app-line-strong bg-app-surface text-app-text hover:bg-app-soft",
         outline:
-          "border-primary-ink bg-app-surface text-primary-ink hover:bg-primary/10",
+          "border-primary bg-app-surface text-primary-ink hover:bg-primary-soft",
         primary:
-          "border-transparent bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] text-on-primary shadow-[0_2px_6px_-1px_color-mix(in_srgb,var(--color-primary)_35%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)]",
+          "border-transparent bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-dark",
         secondary:
-          "border-[color-mix(in_srgb,var(--color-accent)_70%,var(--color-border))] bg-accent text-black shadow-card hover:bg-[color-mix(in_srgb,var(--color-accent)_84%,white)]"
+          "border-transparent bg-accent text-on-accent hover:bg-accent-hover"
       },
       size: {
-        default: "min-h-11 px-4 py-2",
-        icon: "size-10 p-0",
-        lg: "min-h-12 px-6 py-2.5",
-        sm: "min-h-9 px-3 py-1.5"
+        default: "min-h-[var(--control-h)] px-4 py-1.5",
+        icon: "size-[var(--control-h)] p-0",
+        lg: "min-h-[var(--control-h-lg)] px-6 py-2",
+        sm: "min-h-[var(--control-h-sm)] px-3 py-1"
       }
     },
-    // The pressed-key bottom edge only on text buttons; icon buttons stay evenly bordered.
-    compoundVariants: [
-      { class: "border-b-2", size: ["default", "lg", "sm"], variant: "outline" }
-    ],
     defaultVariants: {
       variant: "primary",
       size: "default"

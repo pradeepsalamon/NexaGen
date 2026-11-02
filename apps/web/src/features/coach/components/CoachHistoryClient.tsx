@@ -98,7 +98,7 @@ export function CoachHistoryClient() {
             <div className="flex items-center gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button asChild variant="ghost" size="icon" className="size-8 rounded-full border border-accent bg-accent p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-black">
+                  <Button asChild variant="neutral" size="icon" className="size-8 text-warning-ink hover:bg-warning-soft">
                     <Link href={`/classes/${row.original.id}`} aria-label={`View ${row.original.title || row.original.topic}`}>
                       <Eye className="size-4" strokeWidth={2.5} aria-hidden="true" />
                     </Link>
@@ -112,14 +112,14 @@ export function CoachHistoryClient() {
                   <TooltipTrigger asChild>
                     <Button
                       aria-label="View completed details"
-                      className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                      className="size-8"
                       onClick={() => {
                         setDetailsClassId(row.original.id);
                         setIsDetailsOpen(true);
                       }}
                       size="icon"
                       type="button"
-                      variant="ghost"
+                      variant="neutral"
                     >
                       <Info aria-hidden="true" className="size-4" strokeWidth={2.5} />
                     </Button>
@@ -133,11 +133,11 @@ export function CoachHistoryClient() {
                   <TooltipTrigger asChild>
                     <Button
                       aria-label="Edit class notes"
-                      className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                      className="size-8"
                       onClick={() => setNotesClass(row.original)}
                       size="icon"
                       type="button"
-                      variant="ghost"
+                      variant="neutral"
                     >
                       <NotebookPen aria-hidden="true" className="size-4" strokeWidth={2.5} />
                     </Button>
@@ -151,11 +151,11 @@ export function CoachHistoryClient() {
                   <TooltipTrigger asChild>
                     <Button
                       aria-label="Download Recording"
-                      className="size-8 rounded-full border border-success bg-success p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-success)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-success)_75%,white)] hover:text-white"
+                      className="size-8 text-success-ink hover:bg-success-soft"
                       onClick={() => handleDownload(row.original.id)}
                       size="icon"
                       type="button"
-                      variant="ghost"
+                      variant="neutral"
                     >
                       <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
                     </Button>

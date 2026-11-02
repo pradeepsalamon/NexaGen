@@ -61,11 +61,11 @@ export function CoachRequestsClient() {
                 <SimpleTooltip label="Withdraw request">
                   <Button
                     aria-label="Withdraw request"
-                    className="shrink-0 rounded-full"
+                    className="shrink-0"
                     onClick={() => withdraw(r.id)}
                     size="icon"
                     type="button"
-                    variant="outline"
+                    variant="neutral"
                   >
                     <Undo2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
                   </Button>

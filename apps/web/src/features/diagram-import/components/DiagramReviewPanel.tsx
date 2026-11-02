@@ -111,7 +111,7 @@ export function DiagramReviewPanel({ candidate, review, onChange, onDiscard, act
             {DIAGRAM_CANDIDATE_STATUS_LABELS[assessment.status]}
           </Badge>
           <SimpleTooltip label="Discard this diagram">
-            <Button aria-label="Discard this diagram" onClick={onDiscard} size="icon" variant="outline">
+            <Button aria-label="Discard this diagram" onClick={onDiscard} size="icon" variant="neutral">
               <Trash2 className="size-4" strokeWidth={2.5} />
             </Button>
           </SimpleTooltip>
@@ -152,7 +152,7 @@ export function DiagramReviewPanel({ candidate, review, onChange, onDiscard, act
                 onClick={() => update({ placement: recognizedPlacement(candidate, review.orientation) })}
                 size="sm"
                 type="button"
-                variant="outline"
+                variant="neutral"
               >
                 <RotateCcw className="size-3.5" strokeWidth={2.5} />
                 Reset
@@ -331,7 +331,7 @@ export function DiagramReviewPanel({ candidate, review, onChange, onDiscard, act
         <div className="flex gap-2">
           <Input className="min-h-9 font-mono font-normal" data-testid="diagram-fen" readOnly value={assessment.fen} />
           <SimpleTooltip label="Copy FEN">
-            <Button aria-label="Copy FEN" onClick={copyFen} size="icon" type="button" variant="outline">
+            <Button aria-label="Copy FEN" onClick={copyFen} size="icon" type="button" variant="neutral">
               <Copy className="size-4" strokeWidth={2.5} />
             </Button>
           </SimpleTooltip>

@@ -125,11 +125,11 @@ export function BatchPricingTab({ batchId }: Props) {
                 <SimpleTooltip label="Edit this price option">
                   <Button
                     aria-label={`Edit ${plan.name}`}
-                    className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                    className="size-8"
                     onClick={() => setEditing(plan)}
                     size="icon"
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                   >
                     <Pencil className="size-3.5" strokeWidth={2.5} />
                   </Button>
@@ -139,12 +139,12 @@ export function BatchPricingTab({ batchId }: Props) {
                   <SimpleTooltip label="Stop selling — past invoices are kept">
                     <Button
                       aria-label={`Archive ${plan.name}`}
-                      className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                      className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                       disabled={archive.isPending}
                       onClick={() => archive.mutate(plan.id)}
                       size="icon"
                       type="button"
-                      variant="ghost"
+                      variant="neutral"
                     >
                       <Archive className="size-3.5" strokeWidth={2.5} />
                     </Button>
@@ -397,7 +397,7 @@ function PriceOptionForm({
         >
           {plan ? "Save option" : "Add option"}
         </Button>
-        <Button onClick={onClose} type="button" variant="outline">
+        <Button onClick={onClose} type="button" variant="neutral">
           Cancel
         </Button>
       </div>

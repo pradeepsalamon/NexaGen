@@ -10,6 +10,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -173,13 +174,12 @@ export function RevisionDashboardCard() {
             </p>
 
             {s.sessionSize > 0 ? (
-              <Link
-                href="/student/revision?start=1"
-                className={`inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full text-xs font-bold transition-all duration-200 hover:-translate-y-0.5 nx-cta shadow-nx-cta-glow`}
-              >
-                <Brain aria-hidden="true" className="size-3.5" strokeWidth={2.2} />
-                <span>Start Revision</span>
-              </Link>
+              <Button asChild size="sm">
+                <Link href="/student/revision?start=1">
+                  <Brain aria-hidden="true" className="size-3.5" strokeWidth={2.2} />
+                  <span>Start Revision</span>
+                </Link>
+              </Button>
             ) : null}
           </div>
         </div>

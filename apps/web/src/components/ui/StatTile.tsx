@@ -31,7 +31,7 @@ export function StatTile({
   const hasRing = typeof progress === "number" && Number.isFinite(progress);
 
   return (
-    <article className="rounded-[20px] border border-app-border bg-app-surface p-5 shadow-card transition-colors duration-200 hover:border-primary">
+    <article className="rounded-app border border-app-border bg-app-surface p-4 shadow-card">
       <div className="mb-3 flex items-center justify-between gap-2">
         {hasRing ? (
           <span aria-hidden="true" className="relative flex size-9 items-center justify-center">
@@ -65,9 +65,8 @@ export function StatTile({
           <span
             aria-hidden="true"
             className={cn(
-              "flex size-10 items-center justify-center rounded-control border shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]",
-              style.chip,
-              style.border
+              "flex size-9 items-center justify-center rounded-control",
+              style.chip
             )}
           >
             <Icon className="size-4" strokeWidth={2.5} />
@@ -77,7 +76,7 @@ export function StatTile({
         {trend ? (
           <span
             className={cn(
-              "shrink-0 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums",
+              "shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
               style.chip
             )}
           >
@@ -88,10 +87,10 @@ export function StatTile({
         ) : null}
       </div>
 
-      <p className="font-display text-2xl font-extrabold leading-none tracking-tight tabular-nums text-app-text sm:text-3xl">
+      <p className="font-display text-2xl font-bold tracking-tight tabular-nums text-app-text sm:text-[2rem] sm:leading-10">
         {value}
       </p>
-      <p className="mt-2 text-sm text-app-muted">{label}</p>
+      <p className="mt-1 text-xs font-medium text-app-muted">{label}</p>
     </article>
   );
 }

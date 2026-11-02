@@ -217,11 +217,11 @@ function History() {
           <SimpleTooltip label="Remove from the dashboard feed">
             <Button
               aria-label={`Delete announcement ${announcement.title}`}
-              className="size-8 shrink-0 rounded-full border-app-danger p-0 text-app-danger hover:bg-app-danger hover:text-white"
+              className="size-8 shrink-0 text-app-danger-ink hover:bg-app-danger-soft"
               onClick={() => void remove.run(announcement.id)}
               size="icon"
               type="button"
-              variant="outline"
+              variant="neutral"
             >
               <Trash2 className="size-4" strokeWidth={2.5} />
             </Button>

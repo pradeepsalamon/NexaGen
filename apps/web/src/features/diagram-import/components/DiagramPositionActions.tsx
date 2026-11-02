@@ -177,7 +177,7 @@ export function DiagramPositionActions({ analysis = true, children, confirmed, l
           </ul>
           <AlertDialogFooter>
             <AlertDialogCancel asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="neutral">Cancel</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button onClick={goToForm}>Create new puzzle anyway</Button>

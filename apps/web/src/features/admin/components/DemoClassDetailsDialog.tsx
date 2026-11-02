@@ -223,9 +223,9 @@ export function DemoClassDetailsDialog({
                               <Button
                                 type="button"
                                 size="icon"
-                                variant="ghost"
+                                variant="neutral"
                                 aria-label={`Copy ${r.name}'s personal link`}
-                                className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                                className="size-8"
                                 onClick={() => copy(demoAbsoluteUrl(r.invitePath as string), "Personal link copied")}
                               >
                                 <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
@@ -237,9 +237,9 @@ export function DemoClassDetailsDialog({
                               <Button
                                 type="button"
                                 size="icon"
-                                variant="ghost"
+                                variant="neutral"
                                 aria-label={`Remove ${r.name}`}
-                                className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                                className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                                 onClick={() => runRemove(r)}
                               >
                                 <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />

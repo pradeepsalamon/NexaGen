@@ -159,11 +159,11 @@ export function DiscountsPanel() {
                 <SimpleTooltip label="Edit this code">
                   <Button
                     aria-label={`Edit ${discount.code}`}
-                    className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                    className="size-8"
                     onClick={() => setEditing(discount)}
                     size="icon"
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                   >
                     <Pencil className="size-3.5" strokeWidth={2.5} />
                   </Button>
@@ -178,11 +178,11 @@ export function DiscountsPanel() {
                 >
                   <Button
                     aria-label={`Remove ${discount.code}`}
-                    className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                    className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                     onClick={() => void remove.run(discount.id)}
                     size="icon"
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                   >
                     <Trash2 className="size-3.5" strokeWidth={2.5} />
                   </Button>
@@ -570,7 +570,7 @@ function DiscountForm({
         >
           {discount ? "Save code" : "Create code"}
         </Button>
-        <Button onClick={onClose} type="button" variant="outline">
+        <Button onClick={onClose} type="button" variant="neutral">
           Cancel
         </Button>
       </div>

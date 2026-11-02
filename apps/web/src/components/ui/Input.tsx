@@ -21,8 +21,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       className={cn(
         "flex w-full",
         fieldClasses({ hasError }),
-        compact ? "min-h-9 px-3 text-xs sm:min-h-[38px]" : "min-h-11 px-4",
-        leadingIcon && (compact ? "pl-8" : "pl-10"),
+        compact ? "min-h-[var(--control-h-sm)] px-2.5 text-xs" : "min-h-[var(--control-h)] px-3",
+        leadingIcon && (compact ? "pl-8" : "pl-9"),
         className
       )}
       ref={ref}
@@ -38,8 +38,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       <span
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute inset-y-0 flex items-center text-nx-muted",
-          compact ? "left-2.5 [&>svg]:size-3.5" : "left-3.5 [&>svg]:size-4"
+          "pointer-events-none absolute inset-y-0 flex items-center text-app-subtle",
+          compact ? "left-2.5 [&>svg]:size-3.5" : "left-3 [&>svg]:size-4"
         )}
       >
         {leadingIcon}

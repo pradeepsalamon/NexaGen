@@ -32,10 +32,10 @@ export function BulkActionsBar({
   return (
     <div
       aria-label="Bulk actions"
-      className="fixed inset-x-0 bottom-5 z-40 mx-auto flex w-fit max-w-[calc(100vw-2rem)] animate-slide-up items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] p-1.5 pl-4 text-on-primary shadow-lift"
+      className="fixed inset-x-0 bottom-5 z-40 mx-auto flex w-fit max-w-[calc(100vw-2rem)] animate-slide-up items-center gap-1.5 rounded-app bg-primary p-1.5 pl-4 text-on-primary shadow-lift"
       role="toolbar"
     >
-      <span aria-live="polite" className="mr-1 whitespace-nowrap text-sm font-bold">
+      <span aria-live="polite" className="mr-1 whitespace-nowrap text-sm font-semibold">
         {count} {count === 1 ? noun : plural} selected
       </span>
       {actions.map((action) => {
@@ -43,9 +43,9 @@ export function BulkActionsBar({
         return (
           <button
             className={cn(
-              "inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+              "inline-flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap rounded-control px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
               action.tone === "danger"
-                ? "bg-app-danger hover:bg-[color-mix(in_srgb,var(--color-danger)_88%,black)]"
+                ? "bg-app-danger text-white hover:bg-app-danger-hover"
                 : "bg-white/15 hover:bg-white/25"
             )}
             disabled={action.disabled}
@@ -61,7 +61,7 @@ export function BulkActionsBar({
       <SimpleTooltip label="Clear selection">
         <button
           aria-label="Clear selection"
-          className="inline-flex size-9 items-center justify-center rounded-full text-on-primary/80 transition-colors hover:bg-white/15 hover:text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="inline-flex size-[var(--control-h)] items-center justify-center rounded-control text-on-primary/80 transition-colors hover:bg-white/15 hover:text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           onClick={onClear}
           type="button"
         >

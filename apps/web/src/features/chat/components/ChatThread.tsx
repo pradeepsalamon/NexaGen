@@ -305,7 +305,7 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
               value={draft}
             />
             <SimpleTooltip label="Send (Enter)">
-              <Button aria-label="Send message" className="rounded-full" disabled={!draft.trim() || !detail} size="icon" type="submit">
+              <Button aria-label="Send message" disabled={!draft.trim() || !detail} size="icon" type="submit">
                 <SendHorizontal className="size-5" strokeWidth={2.5} />
               </Button>
             </SimpleTooltip>

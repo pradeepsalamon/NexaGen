@@ -355,7 +355,7 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
             <>
               {article.draft && (
                 <SimpleTooltip label="Discard the open draft">
-                  <Button aria-label="Discard draft" className="rounded-full" disabled={busy !== null || !article.published} onClick={() => void discardDraft()} size="icon" variant="outline">
+                  <Button aria-label="Discard draft" disabled={busy !== null || !article.published} onClick={() => void discardDraft()} size="icon" variant="neutral">
                     <Undo2 className="size-4" strokeWidth={2.5} />
                   </Button>
                 </SimpleTooltip>
@@ -370,20 +370,20 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
               </Button>
               {article.status === "PUBLISHED" && (
                 <SimpleTooltip label="Unpublish (hide from readers)">
-                  <Button aria-label="Unpublish" className="rounded-full" disabled={busy !== null} onClick={() => void unpublish.run(article)} size="icon" variant="outline">
+                  <Button aria-label="Unpublish" disabled={busy !== null} onClick={() => void unpublish.run(article)} size="icon" variant="neutral">
                     <EyeOff className="size-4" strokeWidth={2.5} />
                   </Button>
                 </SimpleTooltip>
               )}
               {article.status === "ARCHIVED" ? (
                 <SimpleTooltip label="Restore">
-                  <Button aria-label="Restore" className="rounded-full" onClick={() => void restore.run(article)} size="icon" variant="outline">
+                  <Button aria-label="Restore" onClick={() => void restore.run(article)} size="icon" variant="neutral">
                     <ArchiveRestore className="size-4" strokeWidth={2.5} />
                   </Button>
                 </SimpleTooltip>
               ) : (
                 <SimpleTooltip label="Archive">
-                  <Button aria-label="Archive" className="rounded-full" onClick={() => void archive.run(article)} size="icon" variant="outline">
+                  <Button aria-label="Archive" onClick={() => void archive.run(article)} size="icon" variant="neutral">
                     <Archive className="size-4" strokeWidth={2.5} />
                   </Button>
                 </SimpleTooltip>
@@ -392,7 +392,7 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
                 <SimpleTooltip label="Delete permanently">
                   <Button
                     aria-label="Delete permanently"
-                    className="rounded-full bg-app-danger text-white hover:bg-app-danger/85"
+                    className="bg-app-danger text-white hover:bg-app-danger/85"
                     onClick={() => setDeleteOpen(true)}
                     size="icon"
                     variant="ghost"
@@ -672,7 +672,7 @@ function VersionsSection({ article, onRollback }: { article: KnowledgeAdminArtic
                 )}
                 {v.status === "SUPERSEDED" && (
                   <SimpleTooltip label={`Make v${v.number} live again`}>
-                    <Button aria-label={`Roll back to v${v.number}`} className="rounded-full" onClick={() => setRollbackTo(v.id)} size="icon" variant="outline">
+                    <Button aria-label={`Roll back to v${v.number}`} onClick={() => setRollbackTo(v.id)} size="icon" variant="neutral">
                       <RotateCcw className="size-4" strokeWidth={2.5} />
                     </Button>
                   </SimpleTooltip>

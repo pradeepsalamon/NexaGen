@@ -114,9 +114,9 @@ export function AdminCreditNotesPanel() {
                     <Button
                       aria-label={`Download credit note ${creditNote.number}`}
                       asChild
-                      className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                      className="size-8"
                       size="icon"
-                      variant="ghost"
+                      variant="neutral"
                     >
                       <a
                         href={adminCreditNotePdfUrl(creditNote.id)}

@@ -33,7 +33,7 @@ const GRADE_STYLE: Record<RevisionGrade, string> = {
   AGAIN: "border-app-danger/50 text-app-danger-ink hover:bg-app-danger/10",
   EASY: "border-primary/50 text-primary hover:bg-primary/10",
   GOOD: "border-success/50 text-success-ink hover:bg-success/10",
-  HARD: "border-accent/60 text-app-text hover:bg-accent/15"
+  HARD: "border-warning/60 text-warning-ink hover:bg-warning/15"
 };
 
 type BoardProps = {

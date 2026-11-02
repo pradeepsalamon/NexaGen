@@ -21,7 +21,7 @@ const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   function CardHeader({ className, ...props }, ref) {
     return (
       <div
-        className={cn("flex flex-col gap-1.5 p-5", className)}
+        className={cn("flex flex-col gap-1 p-4", className)}
         ref={ref}
         {...props}
       />
@@ -36,7 +36,7 @@ const CardTitle = forwardRef<
 >(function CardTitle({ className, ...props }, ref) {
   return (
     <h3
-      className={cn("text-lg font-extrabold leading-tight", className)}
+      className={cn("text-base font-semibold", className)}
       ref={ref}
       {...props}
     />
@@ -61,7 +61,7 @@ CardDescription.displayName = "CardDescription";
 const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   function CardContent({ className, ...props }, ref) {
     return (
-      <div className={cn("p-5 pt-0", className)} ref={ref} {...props} />
+      <div className={cn("p-4 pt-0", className)} ref={ref} {...props} />
     );
   }
 );
@@ -71,7 +71,7 @@ const CardFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   function CardFooter({ className, ...props }, ref) {
     return (
       <div
-        className={cn("flex items-center p-5 pt-0", className)}
+        className={cn("flex items-center p-4 pt-0", className)}
         ref={ref}
         {...props}
       />

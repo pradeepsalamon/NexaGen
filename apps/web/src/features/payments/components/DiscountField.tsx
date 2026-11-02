@@ -74,7 +74,7 @@ export function DiscountField({
         <SimpleTooltip label="Remove this code">
           <Button
             aria-label={`Remove discount code ${applied.code}`}
-            className="size-7 rounded-full border-app-border p-0 hover:bg-app-soft"
+            className="size-7 hover:bg-app-soft"
             disabled={disabled}
             onClick={() => {
               onApply(null);
@@ -82,7 +82,7 @@ export function DiscountField({
             }}
             size="icon"
             type="button"
-            variant="outline"
+            variant="neutral"
           >
             <X className="size-3.5" strokeWidth={2.5} />
           </Button>

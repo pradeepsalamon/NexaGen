@@ -12,7 +12,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       <textarea
         aria-invalid={hasError}
         className={cn(
-          "min-h-24 w-full resize-y px-4 py-3",
+          "min-h-24 w-full resize-y px-3 py-2",
           fieldClasses({ hasError }),
           className
         )}

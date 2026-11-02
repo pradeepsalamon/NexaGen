@@ -216,7 +216,7 @@ export function ClassroomTimerTool({ isManager, timer }: ToolContext) {
       {isManager ? (
         <div className="flex flex-wrap justify-center gap-2">
           {state.status === "RUNNING" ? (
-            <Button onClick={() => save.mutate(t.pause())} variant="secondary">
+            <Button onClick={() => save.mutate(t.pause())} variant="neutral">
               <Pause aria-hidden="true" className="size-4" strokeWidth={2.5} />
               Pause
             </Button>

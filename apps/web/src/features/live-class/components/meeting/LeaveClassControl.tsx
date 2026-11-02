@@ -109,7 +109,7 @@ export function LeaveClassControl({
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2 sm:gap-2">
-              <Button variant="secondary" onClick={() => setOpen(false)}>
+              <Button variant="neutral" onClick={() => setOpen(false)}>
                 Stay
               </Button>
               <Button variant="destructive" onClick={leave}>

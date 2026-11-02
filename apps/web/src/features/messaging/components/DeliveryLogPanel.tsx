@@ -143,12 +143,12 @@ export function DeliveryLogPanel() {
                   <SimpleTooltip label="Queue it for another try">
                     <Button
                       aria-label="Retry this message"
-                      className="size-7 rounded-full border-app-border p-0 hover:bg-primary hover:text-on-primary"
+                      className="size-7"
                       disabled={retry.isPending}
                       onClick={() => retry.mutate(delivery.id)}
                       size="icon"
                       type="button"
-                      variant="outline"
+                      variant="neutral"
                     >
                       <RotateCw className="size-3.5" strokeWidth={2.5} />
                     </Button>

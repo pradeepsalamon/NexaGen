@@ -51,7 +51,7 @@ export function SubmissionsPanel() {
                   Review & publish
                 </Link>
               </Button>
-              <Button onClick={() => setRejecting(s)} size="sm" variant="outline">
+              <Button onClick={() => setRejecting(s)} size="sm" variant="neutral">
                 <X aria-hidden className="mr-1.5 size-4" strokeWidth={2.5} />
                 Decline
               </Button>
@@ -103,7 +103,7 @@ function RejectDialog({ submission, onClose }: { submission: KnowledgeSubmission
           <Textarea id="kb-reject-note" maxLength={1000} onChange={(e) => setNote(e.target.value)} value={note} />
         </div>
         <DialogFooter>
-          <Button onClick={onClose} variant="outline">
+          <Button onClick={onClose} variant="neutral">
             Cancel
           </Button>
           <Button disabled={busy || !note.trim()} onClick={() => void submit()} variant="destructive">

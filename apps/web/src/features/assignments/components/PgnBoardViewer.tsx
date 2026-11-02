@@ -118,9 +118,9 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
         <div className="mt-3 flex items-center justify-center gap-2">
           <Button
             aria-label="First move"
-            variant="outline"
+            variant="neutral"
             size="icon"
-            className="size-9 rounded-full p-0"
+            className="size-9"
             disabled={atStart}
             onClick={() => setCursor(-1)}
           >
@@ -128,9 +128,9 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
           </Button>
           <Button
             aria-label="Previous move"
-            variant="outline"
+            variant="neutral"
             size="icon"
-            className="size-9 rounded-full p-0"
+            className="size-9"
             disabled={atStart}
             onClick={() => setCursor((c) => Math.max(-1, c - 1))}
           >
@@ -138,9 +138,9 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
           </Button>
           <Button
             aria-label="Next move"
-            variant="outline"
+            variant="neutral"
             size="icon"
-            className="size-9 rounded-full p-0"
+            className="size-9"
             disabled={atEnd}
             onClick={() => setCursor((c) => Math.min(plies.length - 1, c + 1))}
           >
@@ -148,9 +148,9 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
           </Button>
           <Button
             aria-label="Last move"
-            variant="outline"
+            variant="neutral"
             size="icon"
-            className="size-9 rounded-full p-0"
+            className="size-9"
             disabled={atEnd}
             onClick={() => setCursor(plies.length - 1)}
           >

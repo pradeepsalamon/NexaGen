@@ -234,7 +234,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
             <Eye className="size-4" strokeWidth={2.5} />
             {showPreview ? "Hide preview" : "Preview"}
           </Button>
-          <Button type="button" variant="secondary" size="sm" onClick={() => save(false)} disabled={saving}>
+          <Button type="button" variant="neutral" size="sm" onClick={() => save(false)} disabled={saving}>
             Save draft
           </Button>
           <Button type="button" size="sm" onClick={() => save(true)} disabled={saving}>
@@ -441,10 +441,10 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
                   />
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="neutral"
                     size="icon"
                     aria-label={`Remove hint ${i + 1}`}
-                    className="size-9 shrink-0 rounded-full border-app-border p-0"
+                    className="size-9 shrink-0"
                     onClick={() => setHints((h) => h.filter((_, xi) => xi !== i))}
                   >
                     <X className="size-4" strokeWidth={2.5} />

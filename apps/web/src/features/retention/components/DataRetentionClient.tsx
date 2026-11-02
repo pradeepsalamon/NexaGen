@@ -258,7 +258,7 @@ function EditPolicyDialog({
         ) : null}
 
         <DialogFooter className="mt-6">
-          <Button onClick={onClose} type="button" variant="outline">
+          <Button onClick={onClose} type="button" variant="neutral">
             Cancel
           </Button>
           <Button

@@ -279,7 +279,7 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                               aria-controls={`payroll-record-${record.id}`}
                               aria-expanded={expanded === record.id}
                               aria-label={`${expanded === record.id ? "Hide" : "Show"} breakdown for ${record.coachName}`}
-                              className="ml-auto grid size-8 place-items-center rounded-full text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                              className="ml-auto grid size-8 place-items-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
                               onClick={(event) => {
                                 event.stopPropagation();
                                 setExpanded(expanded === record.id ? null : record.id);

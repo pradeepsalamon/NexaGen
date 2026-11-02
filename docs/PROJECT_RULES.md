@@ -69,8 +69,8 @@ docker-compose.yml  (livekit-server config is inline as LIVEKIT_CONFIG here)
    inside a Prisma `$transaction` (see `batch.service.ts#delete`).
 6. **Update docs in the same change.** If you touch setup, commands, env vars, or
    user-visible behavior, update the relevant README/doc in the same PR.
-7. **Data-table action buttons are `rounded-full` icon buttons** — use
-   `RowActions` (`components/ui/RowActions.tsx`, see `AGENTS.md`), Lucide icon with `strokeWidth={2.5}`.
+7. **Data-table action buttons are `neutral` icon buttons** — use
+   `RowActions` (`components/ui/RowActions.tsx`, see `docs/UI_RULES.md`), Lucide icon with `strokeWidth={2.5}`.
 8. **Reuse `apps/web/src/components/ui/` primitives before building new UI.**
 
 ---
@@ -322,10 +322,9 @@ helper for dirty-state UX.
 - Dark mode is the `[data-theme="dark"]` selector (managed by `ThemeProvider` /
   `ThemeToggle` / `ThemeSettings`). Always provide both light and dark treatment.
 - Icon-only buttons: `aria-label` **and** a visible Tooltip/Popover label.
-- Table row actions: `Button variant="outline" size="icon"` +
-  `className="size-8 rounded-full border-[color] p-0 text-app-text transition-colors
-  hover:bg-[color] hover:text-white"`, icon `strokeWidth={2.5}`.
-- Button variants: `primary` | `destructive` | `ghost` | `outline` | `secondary`.
+- Table row actions: `Button variant="neutral" size="icon"` + `className="size-8"`,
+  icon `strokeWidth={2.5}`. A tone colours the icon only, as in `RowActions`.
+- Button variants: `primary` | `neutral` | `outline` | `ghost` | `secondary` | `destructive` | `danger-soft`.
 - Toasts via `sonner`. Confirmations via `AlertDialog` / `ConfirmationModal`.
 - `"use client"` only where required (hooks, events, browser APIs). Keep pages RSC.
 

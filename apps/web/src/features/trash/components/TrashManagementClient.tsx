@@ -213,6 +213,7 @@ export function TrashManagementClient() {
       },
       {
         accessorKey: "entity",
+        meta: { label: "Entity" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Entity"
@@ -223,6 +224,7 @@ export function TrashManagementClient() {
       },
       {
         accessorKey: "title",
+        meta: { label: "Title" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Title"
@@ -242,6 +244,7 @@ export function TrashManagementClient() {
       },
       {
         accessorKey: "deletedAt",
+        meta: { label: "Deleted At" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Deleted At"
@@ -253,6 +256,7 @@ export function TrashManagementClient() {
       {
         id: "deletedBy",
         accessorKey: "deletedBy",
+        meta: { label: "Deleted By" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Deleted By"
@@ -275,17 +279,17 @@ export function TrashManagementClient() {
         header: "Actions",
         cell: ({ row }) => (
           <TooltipProvider>
-            <div className="flex justify-center gap-2">
+            <div className="flex justify-end gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     aria-label={`Restore ${row.original.title}`}
-                    className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                    className="size-8"
                     disabled={restoreMutation.isPending || deleteMutation.isPending}
                     onClick={() => runRestore([row.original])}
                     size="icon"
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                   >
                     <RotateCcw aria-hidden="true" className="size-4" strokeWidth={2.5} />
                   </Button>
@@ -296,12 +300,12 @@ export function TrashManagementClient() {
                 <TooltipTrigger asChild>
                   <Button
                     aria-label={`Delete ${row.original.title} permanently`}
-                    className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                    className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                     disabled={restoreMutation.isPending || deleteMutation.isPending}
                     onClick={() => runDelete([row.original])}
                     size="icon"
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                   >
                     <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
                   </Button>
@@ -473,6 +477,7 @@ export function TrashManagementClient() {
               isLoading={query.isLoading}
               loadingText="Loading trash..."
               noDataText=""
+              stackOnMobile
               table={table}
             />
           )}

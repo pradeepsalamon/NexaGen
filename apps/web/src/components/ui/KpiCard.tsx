@@ -42,8 +42,8 @@ export function KpiCard({
   const body = (
     <div
       className={cn(
-        "group flex h-full flex-col justify-between gap-3 rounded-[20px] border border-app-border bg-app-surface p-4 shadow-card transition",
-        href && "hover:border-primary hover:shadow-soft"
+        "group flex h-full flex-col justify-between gap-3 rounded-app border border-app-border bg-app-surface p-4 shadow-card transition-colors",
+        href && "hover:border-primary"
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -51,12 +51,12 @@ export function KpiCard({
           {Icon ? (
             <span
               aria-hidden="true"
-              className="flex size-9 shrink-0 items-center justify-center rounded-control border border-primary/25 bg-primary/10 text-primary-ink shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] transition-colors group-hover:bg-primary/15"
+              className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-soft text-primary-ink"
             >
               <Icon className="size-4" strokeWidth={2.25} />
             </span>
           ) : null}
-          <span className="text-sm font-semibold text-app-muted">
+          <span className="text-xs font-medium text-app-muted">
             {label}
           </span>
         </div>
@@ -65,7 +65,7 @@ export function KpiCard({
             <SimpleTooltip label={tooltip}>
               <button
                 aria-label={`How ${label} is calculated`}
-                className="rounded-full p-0.5 hover:text-app-text"
+                className="rounded-control p-0.5 hover:text-app-text"
                 // Inside a linked card: opening the tooltip must not navigate.
                 onClick={(event) => {
                   event.preventDefault();
@@ -84,7 +84,7 @@ export function KpiCard({
         <Skeleton className="h-8 w-20" />
       ) : (
         <div className="flex items-end justify-between gap-2">
-          <span className="font-display text-2xl font-extrabold tabular-nums text-app-text">
+          <span className="font-display text-2xl font-bold tracking-tight tabular-nums text-app-text sm:text-[2rem] sm:leading-10">
             {formatValue(kpi?.value ?? null, unit)}
           </span>
           <DeltaChip kpi={kpi} invert={invertDelta} />

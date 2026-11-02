@@ -391,7 +391,7 @@ export function FeedbackFormEditor({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
+          <Button onClick={() => onOpenChange(false)} type="button" variant="neutral">
             Cancel
           </Button>
           <Button disabled={save.isPending} onClick={submit} type="button">

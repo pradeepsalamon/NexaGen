@@ -113,9 +113,9 @@ export function TypographyFields({
                 <button
                   aria-checked={active}
                   className={cn(
-                    "min-h-9 rounded-full px-4 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:cursor-not-allowed disabled:opacity-60",
+                    "min-h-9 rounded-md px-4 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:cursor-not-allowed disabled:opacity-60",
                     active
-                      ? "bg-accent text-black shadow-card"
+                      ? "bg-primary text-on-primary"
                       : "text-app-muted hover:bg-app-surface hover:text-app-text"
                   )}
                   key={size}

@@ -95,7 +95,7 @@ function RuleRow({
               }
               size="sm"
               type="button"
-              variant={rule.enabled ? "outline" : "secondary"}
+              variant={rule.enabled ? "neutral" : "outline"}
             >
               {rule.enabled ? "Turn off" : "Turn on"}
             </Button>
@@ -104,11 +104,11 @@ function RuleRow({
           <SimpleTooltip label="Edit message">
             <Button
               aria-label={`Edit ${definition.label}`}
-              className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+              className="size-8"
               onClick={() => setEditing(true)}
               size="icon"
               type="button"
-              variant="ghost"
+              variant="neutral"
             >
               <Pencil className="size-4" strokeWidth={2.5} />
             </Button>

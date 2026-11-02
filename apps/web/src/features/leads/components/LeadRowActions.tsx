@@ -20,15 +20,15 @@ export const LeadRowActions = memo(function LeadRowActions({
   deletePending
 }: LeadRowActionsProps) {
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="flex items-center justify-end gap-2">
       <SimpleTooltip label="View details">
         <Button
           aria-label={`View details for ${lead.studentName}`}
-          className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+          className="size-8"
           onClick={() => onViewDetails(lead.id)}
           size="icon"
           type="button"
-          variant="ghost"
+          variant="neutral"
         >
           <Info aria-hidden="true" className="size-4" strokeWidth={2.5} />
         </Button>
@@ -37,12 +37,12 @@ export const LeadRowActions = memo(function LeadRowActions({
       <SimpleTooltip label="Delete lead">
         <Button
           aria-label={`Delete lead for ${lead.studentName}`}
-          className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+          className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
           disabled={deletePending}
           onClick={() => onDelete(lead.id)}
           size="icon"
           type="button"
-          variant="ghost"
+          variant="neutral"
         >
           <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
         </Button>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { useMutation } from "@tanstack/react-query";
 import {
   type AuthUser,
@@ -210,21 +211,10 @@ export function LoginForm() {
           </Link>
         </div>
 
-        {/* Submit Button (Navy in Light Mode, Gold in Dark Mode) */}
-        <button
-          type="submit"
-          disabled={loginMutation.isPending}
-          className="
-            w-full h-11 sm:h-12 rounded-xl font-bold text-sm
-            inline-flex items-center justify-center gap-2
-            nx-cta
-            shadow-md transition-all duration-200 hover:-translate-y-0.5
-            disabled:opacity-60 disabled:pointer-events-none cursor-pointer
-          "
-        >
+        <Button disabled={loginMutation.isPending} fullWidth size="lg" type="submit">
           <span>{loginMutation.isPending ? "Logging in..." : "Log in"}</span>
           <ArrowRight className="size-4 stroke-[2.4]" />
-        </button>
+        </Button>
 
         {/* Bottom Switch to Register */}
         <p className="text-center text-xs text-nx-body pt-2">

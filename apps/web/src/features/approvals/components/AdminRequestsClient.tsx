@@ -126,14 +126,14 @@ export function AdminRequestsClient() {
                     <SimpleTooltip label="Approve">
                       <Button
                         aria-label="Approve request"
-                        className="size-8 rounded-full border border-success bg-success p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-success)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-success)_75%,white)] hover:text-white"
+                        className="size-8 text-success-ink hover:bg-success-soft"
                         onClick={() => {
                           setText("");
                           setDeciding({ request: r, approve: true });
                         }}
                         size="icon"
                         type="button"
-                        variant="ghost"
+                        variant="neutral"
                       >
                         <Check aria-hidden="true" className="size-4" strokeWidth={2.5} />
                       </Button>
@@ -141,14 +141,14 @@ export function AdminRequestsClient() {
                     <SimpleTooltip label="Reject">
                       <Button
                         aria-label="Reject request"
-                        className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                        className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                         onClick={() => {
                           setText("");
                           setDeciding({ request: r, approve: false });
                         }}
                         size="icon"
                         type="button"
-                        variant="ghost"
+                        variant="neutral"
                       >
                         <X aria-hidden="true" className="size-4" strokeWidth={2.5} />
                       </Button>
@@ -180,7 +180,7 @@ export function AdminRequestsClient() {
             placeholder={deciding?.approve ? "Note to the coach (optional)" : "Why (the coach sees this)"}
           />
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeciding(null)}>
+            <Button type="button" variant="neutral" onClick={() => setDeciding(null)}>
               Cancel
             </Button>
             <Button

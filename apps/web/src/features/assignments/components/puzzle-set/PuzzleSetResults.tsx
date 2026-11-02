@@ -147,7 +147,7 @@ function StudentTable({ students, maxPoints }: { students: PuzzleSetStudentResul
                           size="icon"
                           aria-expanded={expanded}
                           aria-label={`${expanded ? "Hide" : "Show"} ${s.studentName}'s puzzles`}
-                          className="size-8 rounded-full"
+                          className="size-8"
                           onClick={(e) => {
                             e.stopPropagation();
                             toggle(s.studentId);
@@ -279,7 +279,7 @@ export function RankChip({ rank, small = false }: { rank: number; small?: boolea
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-full font-bold",
         small ? "size-6 text-xs" : "size-8 text-sm",
-        podium ? "bg-accent text-black" : "bg-app-soft text-app-text"
+        podium ? "bg-accent text-on-accent" : "bg-app-soft text-app-text"
       )}
     >
       {rank}

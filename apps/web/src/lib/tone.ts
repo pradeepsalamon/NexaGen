@@ -2,7 +2,7 @@
  * The four brand hues, each with one fixed meaning:
  *   primary   classes, scheduling, primary actions
  *   accent    success, attendance, announcements
- *   secondary practice, assignments, attention
+ *   secondary practice, assignments, attention (amber: gold is never a status)
  *   warm      courses, learning, recordings
  * Danger stays reserved for destructive actions and the LIVE state.
  *
@@ -32,7 +32,7 @@ type ToneStyle = {
 export const TONE: Record<Tone, ToneStyle> = {
   accent: {
     bar: "bg-success",
-    chip: "bg-success/25 text-success-ink",
+    chip: "bg-success-soft text-success-ink",
     border: "border-success/30",
     ghost: "text-success/25",
     hover: "hover:bg-success/10",
@@ -42,7 +42,7 @@ export const TONE: Record<Tone, ToneStyle> = {
   },
   primary: {
     bar: "bg-primary",
-    chip: "bg-primary/[0.12] text-primary-ink",
+    chip: "bg-primary-soft text-primary-ink",
     border: "border-primary/25",
     ghost: "text-primary/[0.12]",
     hover: "hover:bg-primary/[0.06]",
@@ -51,18 +51,18 @@ export const TONE: Record<Tone, ToneStyle> = {
     wash: "bg-primary/[0.06]"
   },
   secondary: {
-    bar: "bg-accent",
-    chip: "bg-accent/30 text-accent-ink",
-    border: "border-accent/35",
-    ghost: "text-accent/30",
-    hover: "hover:bg-accent/10",
-    header: "bg-accent/[0.07]",
-    text: "text-accent-ink",
-    wash: "bg-accent/[0.09]"
+    bar: "bg-warning",
+    chip: "bg-warning-soft text-warning-ink",
+    border: "border-warning/35",
+    ghost: "text-warning/30",
+    hover: "hover:bg-warning/10",
+    header: "bg-warning/[0.07]",
+    text: "text-warning-ink",
+    wash: "bg-warning/[0.09]"
   },
   warm: {
     bar: "bg-warm",
-    chip: "bg-warm/30 text-warm-ink",
+    chip: "bg-primary-soft text-warm-ink",
     border: "border-warm/35",
     ghost: "text-warm/30",
     hover: "hover:bg-warm/10",

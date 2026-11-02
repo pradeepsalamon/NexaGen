@@ -100,13 +100,13 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
         cell: ({ row }) => {
           const name = `${row.original.firstName} ${row.original.lastName || ""}`.trim();
           return (
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-end gap-2">
               <SimpleTooltip label="Progress & activity history">
                 <Button
                   asChild
-                  className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                  className="size-8"
                   size="icon"
-                  variant="ghost"
+                  variant="neutral"
                 >
                   <Link aria-label={`View ${name}'s progress and activity history`} href={`/coach/students/${row.original.id}`}>
                     <TrendingUp aria-hidden="true" className="size-4" strokeWidth={2.5} />
@@ -116,11 +116,11 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
               <SimpleTooltip label="Ask to move or remove">
                 <Button
                   aria-label={`Ask to move or remove ${name}`}
-                  className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
+                  className="size-8"
                   onClick={() => setChangingBatch(row.original)}
                   size="icon"
                   type="button"
-                  variant="ghost"
+                  variant="neutral"
                 >
                   <ArrowLeftRight aria-hidden="true" className="size-4" strokeWidth={2.5} />
                 </Button>

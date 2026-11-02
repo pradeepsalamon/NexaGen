@@ -209,9 +209,9 @@ export function CoachScheduleCalendar({
         <div className="flex items-center gap-1">
           <Button
             aria-label={`Previous ${unit}`}
-            variant="outline"
+            variant="neutral"
             size="icon"
-            className="size-8 rounded-full"
+            className="size-8"
             onClick={() => step(-1)}
           >
             <ChevronLeft className="size-4" strokeWidth={2.5} />
@@ -221,9 +221,9 @@ export function CoachScheduleCalendar({
           </Button>
           <Button
             aria-label={`Next ${unit}`}
-            variant="outline"
+            variant="neutral"
             size="icon"
-            className="size-8 rounded-full"
+            className="size-8"
             onClick={() => step(1)}
           >
             <ChevronRight className="size-4" strokeWidth={2.5} />

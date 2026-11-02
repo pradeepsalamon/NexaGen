@@ -54,6 +54,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "topic",
         enableColumnFilter: true,
+        meta: { label: "Topic" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Topic"
@@ -79,6 +80,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "coachName",
         enableColumnFilter: true,
+        meta: { label: "Assigned Coach" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Assigned Coach"
@@ -90,6 +92,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "startsAt",
         enableColumnFilter: true,
+        meta: { label: "Schedule" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Schedule"
@@ -120,6 +123,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "status",
         enableColumnFilter: true,
+        meta: { label: "Status" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
