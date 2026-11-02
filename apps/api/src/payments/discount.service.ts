@@ -230,6 +230,46 @@ export class DiscountService {
   }
 
   /**
+   * A one-use percentage code only `userId` may apply (a referral welcome
+   * benefit). Same personal-code rules as `createPersonalCode`.
+   */
+  async createPersonalPercentCode(
+    tx: PrismaTransactionClient,
+    input: {
+      userId: string;
+      percent: number;
+      maxDiscountMinor: number | null;
+      endsAt: Date | null;
+      name: string;
+      createdById: string | null;
+    }
+  ): Promise<Discount> {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const code = `WELCOME${randomCodeSuffix(6)}`;
+      try {
+        return await tx.discount.create({
+          data: {
+            code,
+            createdById: input.createdById,
+            description: "Referral welcome benefit. One use, by this account only.",
+            endsAt: input.endsAt,
+            maxDiscountAmount: input.maxDiscountMinor,
+            maxPerUser: 1,
+            maxRedemptions: 1,
+            name: input.name,
+            restrictedToUserId: input.userId,
+            type: "PERCENTAGE",
+            value: input.percent
+          }
+        });
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+      }
+    }
+    throw new ConflictException("Could not create a discount code. Try again.");
+  }
+
+  /**
    * Switches off an unused personal code. False when it was already used or
    * switched off (status-filtered claim, so a capture racing it wins).
    */

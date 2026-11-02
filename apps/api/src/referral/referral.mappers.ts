@@ -2,6 +2,7 @@ import {
   maskProspectName,
   referralStageToneSchema,
   type AdminReferralItem,
+  type ReferralCreditEntryItem,
   type ReferralItem,
   type ReferralRewardItem,
   type ReferralRewardRuleItem,
@@ -34,6 +35,7 @@ export const REFERRAL_ITEM_INCLUDE = {
   _count: { select: { visits: true } },
   code: { select: { code: true } },
   lead: { select: { email: true, parentName: true, phone: true } },
+  referredUser: { select: { email: true, firstName: true, id: true, lastName: true } },
   referrer: { select: { firstName: true, id: true, lastName: true, role: true } },
   stage: true
 } satisfies Prisma.ReferralInclude;
@@ -53,6 +55,7 @@ export function toReferralItem(referral: ReferralWithItemInclude, fullView: bool
     convertedAt: referral.convertedAt?.toISOString() ?? null,
     createdAt: referral.createdAt.toISOString(),
     id: referral.id,
+    joined: referral.referredUserId !== null,
     prospectName: fullView ? referral.prospectName : maskProspectName(referral.prospectName),
     stageChangedAt: referral.stageChangedAt.toISOString(),
     stageId: referral.stageId,
@@ -68,6 +71,9 @@ export function toAdminReferralItem(referral: ReferralWithItemInclude): AdminRef
     ...toReferralItem(referral, true),
     code: referral.code.code,
     leadId: referral.leadId,
+    referredUser: referral.referredUser
+      ? { email: referral.referredUser.email, id: referral.referredUser.id, name: displayName(referral.referredUser) }
+      : null,
     referrerId: referral.referrerId,
     referrerName: displayName(referral.referrer),
     referrerRole: toReferrerRole(referral.referrer.role)
@@ -75,6 +81,7 @@ export function toAdminReferralItem(referral: ReferralWithItemInclude): AdminRef
 }
 
 export const REWARD_ITEM_INCLUDE = {
+  discount: { select: { code: true, endsAt: true, isActive: true, redemptionCount: true } },
   referral: { select: { prospectName: true } },
   referrer: { select: { firstName: true, lastName: true, role: true } },
   rule: { select: { name: true } }
@@ -85,8 +92,20 @@ export function toRewardItem(
   fullView: boolean
 ): ReferralRewardItem {
   const name = reward.referral?.prospectName ?? null;
+  const discount = reward.discount;
   return {
     amountMinor: reward.amountMinor,
+    beneficiary: reward.beneficiary,
+    discountCode: discount?.code ?? null,
+    discountStatus: discount
+      ? discount.redemptionCount > 0
+        ? "USED"
+        : !discount.isActive
+          ? "CANCELLED"
+          : discount.endsAt && discount.endsAt <= new Date()
+            ? "EXPIRED"
+            : "ACTIVE"
+      : null,
     createdAt: reward.createdAt.toISOString(),
     creditedAt: reward.creditedAt?.toISOString() ?? null,
     currency: reward.currency,
@@ -99,7 +118,8 @@ export function toRewardItem(
     referrerRole: toReferrerRole(reward.referrer.role),
     ruleId: reward.ruleId,
     ruleName: reward.rule.name,
-    status: reward.status
+    status: reward.status,
+    unit: reward.unit
   };
 }
 
@@ -112,6 +132,10 @@ export function toRuleItem(rule: Prisma.ReferralRewardRuleGetPayload<{ include: 
   return {
     amountMinor: rule.amountMinor,
     autoApprove: rule.autoApprove,
+    beneficiary: rule.beneficiary,
+    discountValidDays: rule.discountValidDays,
+    maxDiscountMinor: rule.maxDiscountMinor,
+    unit: rule.unit,
     createdAt: rule.createdAt.toISOString(),
     currency: rule.currency,
     description: rule.description,
@@ -147,5 +171,33 @@ export function toWithdrawalItem(
     userId: withdrawal.userId,
     userName: displayName(withdrawal.user),
     userRole: toReferrerRole(withdrawal.user.role)
+  };
+}
+
+export const CREDIT_ENTRY_INCLUDE = {
+  transfer: {
+    select: {
+      fromUser: { select: { firstName: true, lastName: true } },
+      fromUserId: true,
+      toUser: { select: { firstName: true, lastName: true } }
+    }
+  }
+} satisfies Prisma.ReferralCreditEntryInclude;
+
+export function toCreditEntryItem(
+  entry: Prisma.ReferralCreditEntryGetPayload<{ include: typeof CREDIT_ENTRY_INCLUDE }>
+): ReferralCreditEntryItem {
+  const transfer = entry.transfer;
+  return {
+    amountMinor: entry.amountMinor,
+    counterpartyName: transfer
+      ? displayName(transfer.fromUserId === entry.userId ? transfer.toUser : transfer.fromUser)
+      : null,
+    createdAt: entry.createdAt.toISOString(),
+    currency: entry.currency,
+    id: entry.id,
+    note: entry.note,
+    type: entry.type,
+    wallet: entry.wallet
   };
 }

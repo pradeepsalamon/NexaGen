@@ -68,11 +68,63 @@ cancelling a credited reward writes a reversal (a balance can go negative).
 Editing a rule changes only rewards earned afterwards; a rule that has paid is
 switched off instead of deleted.
 
-## Credits wallet
+Each rule also has a **unit** and a **beneficiary**:
 
-`ReferralCreditEntry` is an **append-only ledger**; the balance is its sum.
-Every debit takes `pg_advisory_xact_lock(hashtext('referral-credits:<userId>'))`,
-re-reads the balance and writes the entry in the same transaction.
+| | `REFERRER` (who shared the link) | `REFERRED` (the new member) |
+|---|---|---|
+| `CASH` (minor units) | yes | yes |
+| `POINTS` (whole points) | yes | yes |
+| `DISCOUNT_PERCENT` (whole %, optional cap `maxDiscountMinor`, expiry `discountValidDays`) | no | yes |
+
+`amountMinor` holds the value in the unit. A `REFERRED` rule is always
+`PER_REFERRAL`; `referralRewardRuleProblem` (`@nexa-chess/types`) is the one
+shape rule (web form, Zod schema, update path). `roles` is always the role of
+the person who shared the link — also for `REFERRED` rules ("benefits for
+people a coach referred"). A `REFERRED` reward's `referrerId` column holds the
+**recipient** (the new member). A credited discount reward issues a one-use
+`PERCENTAGE` personal `Discount` (`DiscountService.createPersonalPercentCode`,
+`ReferralReward.discountId`); cancelling it switches the code off, and is
+refused once the code was used or is on an open order.
+
+### The new member's account (`Referral.referredUserId`)
+
+`REFERRED` rewards need an account. `ReferralTrackerService.linkSignup` runs
+on student and coach sign-up: the `nexa_referral` cookie from a link visit,
+else a referral whose lead used the same email. Admins can link/unlink by
+email in the referral dialog (`PUT /admin/referrals/:id/referred-user`).
+`ReferralPipelineService.linkReferredUser` is the one link path: one referral
+per account (unique), never the referrer's own account, unlinking refused once
+benefits were given; linking grants the benefits of every stage already
+reached (`grantReferredBenefits`, dedupe keys make it idempotent). The
+`/r/<code>` landing page lists the benefits (`ReferralVisitResponse.benefits`).
+
+## Wallets: money and points
+
+`ReferralCreditEntry` is an **append-only ledger** with a `wallet` column:
+`CASH` (money, minor units) and `POINTS` (whole points). Each wallet's balance
+is the sum of its entries. Every debit takes
+`pg_advisory_xact_lock(hashtext('referral-credits:<userId>'))`, re-reads the
+balance and writes the entry in the same transaction (a transfer locks both
+users, in id order).
+
+- **Money is never transferable** — there is no route that moves CASH between
+  users. Only withdrawals, payment codes, conversions-in and admin adjustments.
+- **Send points** (`POST /referrals/me/points/transfer`, by the recipient's
+  account email): settings `pointsTransferEnabled`, `pointsTransferRoles`
+  (sender and recipient), `minTransferPoints`, `maxTransferPointsPerDay`
+  (rolling 24 h per sender, 0 = none). Writes a `ReferralPointsTransfer` and a
+  `POINTS_TRANSFER_OUT` / `POINTS_TRANSFER_IN` pair.
+- **Convert points → money** (`POST /referrals/me/points/convert`), **one way
+  only**: `conversionPoints` points = `conversionValueMinor`, rounded down
+  (`referralPointsValueMinor`). `pointsConversionEnabled`,
+  `pointsConversionRoles`, `minConversionPoints`. The rate is snapshotted on
+  `ReferralPointsConversion`; `CONVERSION_OUT` (points) + `CONVERSION_IN` (money).
+- **Pay fees with points** (`pointsPaymentEnabled`, roles `paymentUseRoles`):
+  the payment-code route takes `{ wallet, amount }`; points become a FIXED
+  code worth their converted value. Cancelling returns the cost to the wallet
+  that paid.
+- The admin **Wallets** tab (`GET /admin/referrals/ledger`) lists every
+  movement of every user; admins adjust either wallet.
 
 - **Withdraw** (roles in `withdrawalRoles`, default coach + sales; minimum
   `minWithdrawalMinor`): the amount is held immediately (`WITHDRAWAL` entry).
@@ -87,7 +139,7 @@ re-reads the balance and writes the entry in the same transaction.
   A code worth more than the fee makes it free; the remainder is not kept.
 
 Financial rows (`ReferralReward`, `ReferralCreditEntry`, `ReferralWithdrawal`,
-personal discounts) reference users with `onDelete: Restrict` and are in
+`ReferralPointsTransfer`, `ReferralPointsConversion`, personal discounts) reference users with `onDelete: Restrict` and are in
 `TrashRepository.findUserIdsWithRetainedHistory`. They are never soft-deleted.
 
 ## The SALES role
@@ -115,7 +167,9 @@ contact.
 - `referral_visits` is a log table: `RETENTION_RULES` keeps 365 days (visit
   counts age out with it; referrals and their history stay).
 - The data export includes the user's code, their referrals' progress (not the
-  prospect's name or visitor id), rewards, credits and withdrawals.
+  prospect's name or visitor id), rewards, both wallets, withdrawals, points
+  sent/received (amount and note only — not the other person) and conversions,
+  and the id of the referral that brought them in (not who referred them).
 
 ## Tests
 
@@ -123,6 +177,9 @@ contact.
   `DEFAULT_REFERRAL_STAGES`.
 - `referral.int-spec.ts` (real Postgres): visit → lead → CRM → admin move →
   rewards (per referral, role-scoped, milestone, no double pay), payment code
-  owner-only + cancel, parallel withdrawals, the SALES fence, stage edits.
+  owner-only + cancel, parallel withdrawals, the SALES fence, stage edits; new
+  member benefits (landing list, sign-up auto-link, welcome discount), points
+  send limits, one-way conversion, paying with points, parallel transfers, the
+  admin ledger.
 - `cross-user-access.int-spec.ts`: cancelling another user's withdrawal or
   payment code is a 404.

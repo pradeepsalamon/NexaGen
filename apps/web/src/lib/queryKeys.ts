@@ -88,6 +88,7 @@ export const queryKeys = {
     adminRewards: (params?: Record<string, unknown>) => ["referrals", "admin", "rewards", params ?? null] as const,
     adminWithdrawals: (params?: Record<string, unknown>) => ["referrals", "admin", "withdrawals", params ?? null] as const,
     adminSettings: ["referrals", "admin", "settings"] as const,
+    adminLedger: (params?: Record<string, unknown>) => ["referrals", "admin", "ledger", params ?? null] as const,
   },
   messaging: {
     all: ["messaging"] as const,

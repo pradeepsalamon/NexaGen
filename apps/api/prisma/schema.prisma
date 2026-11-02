@@ -459,18 +459,22 @@ model User {
   knowledgeFeedback         KnowledgeFeedback[]       @relation("KnowledgeFeedbackUser")
 
   // ── Referral program (docs/REFERRALS.md) ──
-  referralCode               ReferralCode?         @relation("ReferralCodeOwner")
-  referralsMade              Referral[]            @relation("ReferralReferrer")
-  referralStageEvents        ReferralStageEvent[]  @relation("ReferralStageEventActor")
-  referralRewards            ReferralReward[]      @relation("ReferralRewardReferrer")
-  referralRewardsReviewed    ReferralReward[]      @relation("ReferralRewardReviewer")
-  referralRewardRulesCreated ReferralRewardRule[]  @relation("ReferralRewardRuleCreatedBy")
-  referralCreditEntries      ReferralCreditEntry[] @relation("ReferralCreditOwner")
-  referralCreditEntriesMade  ReferralCreditEntry[] @relation("ReferralCreditCreatedBy")
-  referralWithdrawals        ReferralWithdrawal[]  @relation("ReferralWithdrawalOwner")
-  referralWithdrawalsHandled ReferralWithdrawal[]  @relation("ReferralWithdrawalReviewer")
-  referralSettingsUpdates    ReferralSettings[]    @relation("ReferralSettingsUpdatedBy")
-  personalDiscounts          Discount[]            @relation("DiscountRestrictedTo")
+  referralCode               ReferralCode?              @relation("ReferralCodeOwner")
+  referralsMade              Referral[]                 @relation("ReferralReferrer")
+  referralStageEvents        ReferralStageEvent[]       @relation("ReferralStageEventActor")
+  referralRewards            ReferralReward[]           @relation("ReferralRewardReferrer")
+  referralRewardsReviewed    ReferralReward[]           @relation("ReferralRewardReviewer")
+  referralRewardRulesCreated ReferralRewardRule[]       @relation("ReferralRewardRuleCreatedBy")
+  referralCreditEntries      ReferralCreditEntry[]      @relation("ReferralCreditOwner")
+  referralCreditEntriesMade  ReferralCreditEntry[]      @relation("ReferralCreditCreatedBy")
+  referralWithdrawals        ReferralWithdrawal[]       @relation("ReferralWithdrawalOwner")
+  referralWithdrawalsHandled ReferralWithdrawal[]       @relation("ReferralWithdrawalReviewer")
+  referralSettingsUpdates    ReferralSettings[]         @relation("ReferralSettingsUpdatedBy")
+  referredBy                 Referral?                  @relation("ReferralReferredUser")
+  referralPointsSent         ReferralPointsTransfer[]   @relation("ReferralPointsTransferFrom")
+  referralPointsReceived     ReferralPointsTransfer[]   @relation("ReferralPointsTransferTo")
+  referralPointsConversions  ReferralPointsConversion[] @relation("ReferralPointsConversionOwner")
+  personalDiscounts          Discount[]                 @relation("DiscountRestrictedTo")
 
   @@index([role])
   @@index([status])
@@ -4099,6 +4103,7 @@ model Discount {
   restrictedToUserId    String?
   restrictedToUser      User?                 @relation("DiscountRestrictedTo", fields: [restrictedToUserId], references: [id], onDelete: Restrict)
   referralCreditEntries ReferralCreditEntry[]
+  referralReward        ReferralReward?       @relation("ReferralRewardDiscount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6208,6 +6213,34 @@ enum ReferralCreditEntryType {
   PAYMENT_CODE
   PAYMENT_CODE_REVERSAL
   ADJUSTMENT
+  POINTS_TRANSFER_OUT
+  POINTS_TRANSFER_IN
+  /// Points spent on a conversion (POINTS wallet).
+  CONVERSION_OUT
+  /// Money a conversion paid in (CASH wallet).
+  CONVERSION_IN
+}
+
+/// CASH is money (withdrawable, never transferable); POINTS can be sent to
+/// other users and converted one way into CASH at the admin rate.
+enum ReferralWallet {
+  CASH
+  POINTS
+}
+
+/// What a reward rule pays: money, points, or (referred users only) a
+/// one-use percentage discount on their own fees.
+enum ReferralRewardUnit {
+  CASH
+  POINTS
+  DISCOUNT_PERCENT
+}
+
+/// Who a rule rewards: the person who shared the link, or the new person
+/// who joined through it.
+enum ReferralBeneficiary {
+  REFERRER
+  REFERRED
 }
 
 enum ReferralWithdrawalStatus {
@@ -6297,6 +6330,11 @@ model Referral {
   /// Name captured from the lead (first name + initial is all a referrer sees).
   prospectName String?
 
+  /// The account the referred person signed up with (auto-linked at sign-up,
+  /// or by an admin). REFERRED-beneficiary rewards go to this user.
+  referredUserId String? @unique
+  referredUser   User?   @relation("ReferralReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+
   stageChangedAt DateTime  @default(now())
   convertedAt    DateTime?
 
@@ -6350,21 +6388,29 @@ model ReferralStageEvent {
 }
 
 model ReferralRewardRule {
-  id             String             @id @default(cuid())
-  name           String
-  description    String?
-  stageId        String
-  stage          ReferralStage      @relation(fields: [stageId], references: [id], onDelete: Restrict)
-  kind           ReferralRewardKind @default(PER_REFERRAL)
-  milestoneCount Int?
-  /// Integer minor units.
-  amountMinor    Int
-  currency       String             @default("INR")
-  /// Empty = every referrer role.
-  roles          UserRole[]
+  id                String              @id @default(cuid())
+  name              String
+  description       String?
+  stageId           String
+  stage             ReferralStage       @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  kind              ReferralRewardKind  @default(PER_REFERRAL)
+  milestoneCount    Int?
+  /// The value in `unit`: minor units (CASH), whole points (POINTS) or whole
+  /// percent (DISCOUNT_PERCENT).
+  amountMinor       Int
+  currency          String              @default("INR")
+  unit              ReferralRewardUnit  @default(CASH)
+  beneficiary       ReferralBeneficiary @default(REFERRER)
+  /// DISCOUNT_PERCENT: the most the code takes off (minor units), and how many
+  /// days it stays valid once issued. Null = no cap / no expiry.
+  maxDiscountMinor  Int?
+  discountValidDays Int?
+  /// Empty = every referrer role. Always the role of the person who shared
+  /// the link, also for REFERRED rules.
+  roles             UserRole[]
   /// Off = each reward waits for an admin before it becomes credits.
-  autoApprove    Boolean            @default(false)
-  isActive       Boolean            @default(true)
+  autoApprove       Boolean             @default(false)
+  isActive          Boolean             @default(true)
 
   createdById String?
   createdBy   User?   @relation("ReferralRewardRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -6389,8 +6435,15 @@ model ReferralReward {
   referral     Referral?            @relation(fields: [referralId], references: [id], onDelete: SetNull)
   /// `rule:<id>:ref:<id>` or `rule:<id>:user:<id>:n:<k>` — one reward per fact.
   dedupeKey    String               @unique
+  /// The value in `unit` (see ReferralRewardRule.amountMinor).
   amountMinor  Int
   currency     String
+  unit         ReferralRewardUnit   @default(CASH)
+  /// REFERRED = `referrerId` holds the referred user (the recipient).
+  beneficiary  ReferralBeneficiary  @default(REFERRER)
+  /// DISCOUNT_PERCENT: the personal code issued when the reward was credited.
+  discountId   String?              @unique
+  discount     Discount?            @relation("ReferralRewardDiscount", fields: [discountId], references: [id], onDelete: Restrict)
   status       ReferralRewardStatus @default(PENDING)
   description  String
   reviewedById String?
@@ -6410,29 +6463,77 @@ model ReferralReward {
 
 /// Append-only credits ledger; a user's balance is the sum of `amountMinor`.
 model ReferralCreditEntry {
-  id           String                  @id @default(cuid())
+  id           String                    @id @default(cuid())
   userId       String
-  user         User                    @relation("ReferralCreditOwner", fields: [userId], references: [id], onDelete: Restrict)
+  user         User                      @relation("ReferralCreditOwner", fields: [userId], references: [id], onDelete: Restrict)
   type         ReferralCreditEntryType
-  /// Signed integer minor units: + earns, - spends.
+  wallet       ReferralWallet            @default(CASH)
+  /// Signed: minor units in the CASH wallet, whole points in POINTS. + earns, - spends.
   amountMinor  Int
   currency     String
   rewardId     String?
-  reward       ReferralReward?         @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  reward       ReferralReward?           @relation(fields: [rewardId], references: [id], onDelete: Restrict)
   withdrawalId String?
-  withdrawal   ReferralWithdrawal?     @relation(fields: [withdrawalId], references: [id], onDelete: Restrict)
+  withdrawal   ReferralWithdrawal?       @relation(fields: [withdrawalId], references: [id], onDelete: Restrict)
   discountId   String?
-  discount     Discount?               @relation(fields: [discountId], references: [id], onDelete: Restrict)
+  discount     Discount?                 @relation(fields: [discountId], references: [id], onDelete: Restrict)
+  transferId   String?
+  transfer     ReferralPointsTransfer?   @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  conversionId String?
+  conversion   ReferralPointsConversion? @relation(fields: [conversionId], references: [id], onDelete: Restrict)
   note         String?
   createdById  String?
-  createdBy    User?                   @relation("ReferralCreditCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt    DateTime                @default(now())
+  createdBy    User?                     @relation("ReferralCreditCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime                  @default(now())
 
   @@index([userId, createdAt])
   @@index([rewardId])
   @@index([withdrawalId])
   @@index([discountId])
+  @@index([transferId])
+  @@index([conversionId])
+  @@index([userId, wallet])
   @@map("referral_credit_entries")
+}
+
+/// Points one user sent another (points only — money is never transferable).
+/// Financial: never soft-deleted; users Restrict.
+model ReferralPointsTransfer {
+  id         String   @id @default(cuid())
+  fromUserId String
+  fromUser   User     @relation("ReferralPointsTransferFrom", fields: [fromUserId], references: [id], onDelete: Restrict)
+  toUserId   String
+  toUser     User     @relation("ReferralPointsTransferTo", fields: [toUserId], references: [id], onDelete: Restrict)
+  points     Int
+  note       String?
+  createdAt  DateTime @default(now())
+
+  creditEntries ReferralCreditEntry[]
+
+  @@index([fromUserId, createdAt])
+  @@index([toUserId, createdAt])
+  @@index([createdAt])
+  @@map("referral_points_transfers")
+}
+
+/// Points turned into money at the rate in force (snapshotted). One way only.
+model ReferralPointsConversion {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation("ReferralPointsConversionOwner", fields: [userId], references: [id], onDelete: Restrict)
+  points         Int
+  amountMinor    Int
+  currency       String
+  /// The rate used: `ratePoints` points = `rateValueMinor` minor units.
+  ratePoints     Int
+  rateValueMinor Int
+  createdAt      DateTime @default(now())
+
+  creditEntries ReferralCreditEntry[]
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("referral_points_conversions")
 }
 
 model ReferralWithdrawal {
@@ -6474,6 +6575,23 @@ model ReferralSettings {
   paymentUseRoles    UserRole[] @default([STUDENT])
   /// Shown on the referrer's board.
   programTerms       String?
+
+  // ── Points (docs/REFERRALS.md § Points) ──
+  /// Points may be sent between these roles (sender and recipient).
+  pointsTransferEnabled   Boolean    @default(true)
+  pointsTransferRoles     UserRole[] @default([STUDENT, COACH, SALES])
+  minTransferPoints       Int        @default(10)
+  /// Rolling 24 hours, per sender. 0 = no limit.
+  maxTransferPointsPerDay Int        @default(5000)
+  /// Points → money, one way: `conversionPoints` points = `conversionValueMinor`.
+  pointsConversionEnabled Boolean    @default(true)
+  pointsConversionRoles   UserRole[] @default([STUDENT, COACH, SALES])
+  conversionPoints        Int        @default(10)
+  conversionValueMinor    Int        @default(100)
+  minConversionPoints     Int        @default(100)
+  /// Points pay fees directly (a personal code worth the converted value),
+  /// for the roles in `paymentUseRoles`.
+  pointsPaymentEnabled    Boolean    @default(true)
 
   updatedById String?
   updatedBy   User?    @relation("ReferralSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)

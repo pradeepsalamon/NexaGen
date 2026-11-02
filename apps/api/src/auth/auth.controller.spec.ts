@@ -109,10 +109,12 @@ describe("AuthController", () => {
 
       const result = await controller.register(dto, req);
 
-      expect(authService.register).toHaveBeenCalledWith(dto, {
-        ipAddress: "127.0.0.1",
-        userAgent: "test-agent"
-      });
+      expect(authService.register).toHaveBeenCalledWith(
+        dto,
+        { ipAddress: "127.0.0.1", userAgent: "test-agent" },
+        // No referral cookie on this request.
+        undefined
+      );
       expect(result).toEqual(pending);
     });
   });

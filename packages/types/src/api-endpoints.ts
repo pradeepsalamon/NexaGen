@@ -770,7 +770,11 @@ export const API_ROUTES = {
     myWithdrawals: "/referrals/me/withdrawals",
     cancelWithdrawal: (id: string = ":id") => `/referrals/me/withdrawals/${id}/cancel`,
     myPaymentCodes: "/referrals/me/payment-codes",
-    cancelPaymentCode: (id: string = ":id") => `/referrals/me/payment-codes/${id}/cancel`
+    cancelPaymentCode: (id: string = ":id") => `/referrals/me/payment-codes/${id}/cancel`,
+    /** Send points to another user (points only — money is never transferable). */
+    transferPoints: "/referrals/me/points/transfer",
+    /** Points → money at the admin rate (one way). */
+    convertPoints: "/referrals/me/points/convert"
   },
   adminReferrals: {
     overview: "/admin/referrals/overview",
@@ -778,6 +782,8 @@ export const API_ROUTES = {
     get: (id: string = ":id") => `/admin/referrals/${id}`,
     moveStage: (id: string = ":id") => `/admin/referrals/${id}/stage`,
     delete: (id: string = ":id") => `/admin/referrals/${id}`,
+    linkUser: (id: string = ":id") => `/admin/referrals/${id}/referred-user`,
+    ledger: "/admin/referrals/ledger",
     referrers: "/admin/referrals/referrers",
     referrerCode: (userId: string = ":userId") => `/admin/referrals/referrers/${userId}/code`,
     referrerAccessLink: (userId: string = ":userId") => `/admin/referrals/referrers/${userId}/access-link`,

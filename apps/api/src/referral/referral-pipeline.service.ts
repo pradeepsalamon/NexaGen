@@ -1,26 +1,28 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   canAutoAdvanceReferral,
   DEFAULT_REFERRAL_STAGES,
   referralMilestonesReached,
   referralStagesReached
 } from "@nexa-chess/types";
-import type { ReferralStage, ReferralStageTrigger, UserRole } from "@prisma/client";
+import type { ReferralBeneficiary, ReferralStage, ReferralStageTrigger, UserRole } from "@prisma/client";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { ReferralCreditsService } from "./referral-credits.service";
 
-type ReferralForMove = {
+export type ReferralForMove = {
   id: string;
   referrerId: string;
+  referredUserId: string | null;
   stageId: string;
   convertedAt: Date | null;
-  referrer: { role: UserRole };
+  referrer: { role: UserRole; firstName: string };
 };
 
-const REFERRAL_FOR_MOVE = {
+export const REFERRAL_FOR_MOVE = {
   convertedAt: true,
   id: true,
-  referrer: { select: { role: true } },
+  referredUserId: true,
+  referrer: { select: { firstName: true, role: true } },
   referrerId: true,
   stageId: true
 } as const;
@@ -148,22 +150,109 @@ export class ReferralPipelineService {
   }
 
   /**
-   * Creates the rewards the reached stages earn. Each reward has a dedupe key
+   * Links (or, with null, unlinks) the account the referred person joined
+   * with, then grants their benefits for the stages already reached. One
+   * referral per account; never the referrer's own account. Unlinking is
+   * refused once benefits were given — cancel them first.
+   */
+  async linkReferredUser(referralId: string, userId: string | null, actorId: string | null) {
+    await this.prisma.$transaction(async (tx) => {
+      const referral = await tx.referral.findUnique({
+        select: {
+          id: true,
+          referredUserId: true,
+          referrerId: true,
+          rewards: { select: { id: true }, where: { beneficiary: "REFERRED", status: { not: "CANCELLED" } } }
+        },
+        where: { id: referralId }
+      });
+      if (!referral) throw new NotFoundException("Referral not found.");
+      if (referral.referredUserId === userId) return;
+      if (userId === referral.referrerId) throw new BadRequestException("A referrer cannot be their own referral.");
+      if (referral.referredUserId && referral.rewards.length > 0) {
+        throw new ConflictException("The new member already received benefits. Cancel them in the Rewards tab first.");
+      }
+      if (userId) {
+        const taken = await tx.referral.findUnique({ select: { id: true }, where: { referredUserId: userId } });
+        if (taken) throw new ConflictException("That account is already linked to another referral.");
+      }
+      const { count } = await tx.referral.updateMany({
+        data: { referredUserId: userId },
+        where: { id: referral.id, referredUserId: referral.referredUserId }
+      });
+      if (count === 0) throw new ConflictException("This referral just changed. Refresh and try again.");
+      if (userId) {
+        // A referral that never reached the lead form gets a name from the account.
+        const user = await tx.user.findUniqueOrThrow({ select: { firstName: true, lastName: true }, where: { id: userId } });
+        await tx.referral.updateMany({
+          data: { prospectName: `${user.firstName} ${user.lastName ?? ""}`.trim().slice(0, 120) },
+          where: { id: referral.id, prospectName: null }
+        });
+      }
+      await tx.referralStageEvent.create({
+        data: {
+          actorId,
+          note: userId ? "New member's account linked." : "New member's account unlinked.",
+          referralId: referral.id
+        }
+      });
+      if (userId) await this.grantReferredBenefits(tx, referral.id);
+    });
+  }
+
+  /**
+   * The new member's account was just linked: give them the benefits of every
+   * stage the referral has already reached (REFERRED rules only — the
+   * referrer's rewards were settled when the stages were reached).
+   */
+  async grantReferredBenefits(tx: PrismaTransactionClient, referralId: string) {
+    const referral = await tx.referral.findUnique({
+      select: { ...REFERRAL_FOR_MOVE, reaches: { select: { stageId: true } } },
+      where: { id: referralId }
+    });
+    if (!referral?.referredUserId) return;
+    await this.grantRewards(
+      tx,
+      referral,
+      referral.reaches.map((reach) => reach.stageId),
+      "REFERRED"
+    );
+  }
+
+  /**
+   * Creates the rewards the reached stages earn — for the referrer, and for
+   * the new member once their account is linked. Each reward has a dedupe key
    * (`rule:…:ref:…` / `rule:…:user:…:n:…`), inserted with skipDuplicates, so
    * moving back and forth — or two racing events — never pays twice.
    */
-  private async grantRewards(tx: PrismaTransactionClient, referral: ReferralForMove, stageIds: string[]) {
+  private async grantRewards(
+    tx: PrismaTransactionClient,
+    referral: ReferralForMove,
+    stageIds: string[],
+    only?: ReferralBeneficiary
+  ) {
     if (stageIds.length === 0) return;
     const rules = await tx.referralRewardRule.findMany({
       include: { stage: { select: { name: true } } },
-      where: { isActive: true, stageId: { in: stageIds } }
+      where: { isActive: true, stageId: { in: stageIds }, ...(only ? { beneficiary: only } : {}) }
     });
 
     for (const rule of rules) {
+      // `roles` is always the role of the person who shared the link.
       if (rule.roles.length > 0 && !rule.roles.includes(referral.referrer.role)) continue;
 
       const grants: { dedupeKey: string; description: string; referralId: string | null }[] = [];
-      if (rule.kind === "PER_REFERRAL") {
+      let recipientId = referral.referrerId;
+      if (rule.beneficiary === "REFERRED") {
+        // No account yet (or the referrer themselves): granted when one is linked.
+        if (!referral.referredUserId || referral.referredUserId === referral.referrerId) continue;
+        recipientId = referral.referredUserId;
+        grants.push({
+          dedupeKey: `rule:${rule.id}:ref:${referral.id}`,
+          description: `${rule.name}: welcome benefit for joining through ${referral.referrer.firstName}'s link`,
+          referralId: referral.id
+        });
+      } else if (rule.kind === "PER_REFERRAL") {
         grants.push({
           dedupeKey: `rule:${rule.id}:ref:${referral.id}`,
           description: `${rule.name}: a referral reached ${rule.stage.name}`,
@@ -191,9 +280,11 @@ export class ReferralPipelineService {
               currency: rule.currency,
               dedupeKey: grant.dedupeKey,
               description: grant.description,
+              beneficiary: rule.beneficiary,
               referralId: grant.referralId,
-              referrerId: referral.referrerId,
-              ruleId: rule.id
+              referrerId: recipientId,
+              ruleId: rule.id,
+              unit: rule.unit
             }
           ],
           skipDuplicates: true

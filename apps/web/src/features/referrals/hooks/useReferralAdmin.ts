@@ -56,6 +56,14 @@ export function useAdminReferralWithdrawals(params: ReferralListParams) {
   });
 }
 
+export function useAdminReferralLedger(params: ReferralListParams) {
+  return useQuery({
+    placeholderData: keepPreviousData,
+    queryFn: () => referralAdminApi.ledger(params),
+    queryKey: queryKeys.referrals.adminLedger(params)
+  });
+}
+
 export function useReferralSettings() {
   return useQuery({ queryFn: referralAdminApi.settings, queryKey: queryKeys.referrals.adminSettings });
 }

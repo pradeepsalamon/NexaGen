@@ -1,9 +1,13 @@
 import { z } from "zod";
+import { formatMoney } from "./payments";
 
 // Referral program (docs/REFERRALS.md). Students, coaches and SALES accounts
 // share a link (`/r/<code>`); every person who opens it is tracked through an
 // admin-editable pipeline, and admin-defined rules turn progress into rewards
-// that land in a credits wallet (withdraw, or pay fees with a personal code).
+// for the referrer and for the new person who joined. Rewards land in two
+// wallets: CASH (money — withdraw or pay fees, never transferable) and POINTS
+// (send to other users, pay fees, or convert one way into CASH at the admin
+// rate).
 
 // ── Roles ──
 
@@ -148,6 +152,37 @@ export type ReferralRewardKind = z.infer<typeof referralRewardKindSchema>;
 export const referralRewardStatusSchema = z.enum(["PENDING", "CREDITED", "CANCELLED"]);
 export type ReferralRewardStatus = z.infer<typeof referralRewardStatusSchema>;
 
+/** CASH = money (minor units); POINTS = whole points; DISCOUNT_PERCENT = whole percent off one payment. */
+export const referralRewardUnitSchema = z.enum(["CASH", "POINTS", "DISCOUNT_PERCENT"]);
+export type ReferralRewardUnit = z.infer<typeof referralRewardUnitSchema>;
+
+export const REFERRAL_REWARD_UNIT_LABELS: Record<ReferralRewardUnit, string> = {
+  CASH: "Money",
+  DISCOUNT_PERCENT: "Discount on fees",
+  POINTS: "Points"
+};
+
+/** REFERRER = the person who shared the link; REFERRED = the new person who joined through it. */
+export const referralBeneficiarySchema = z.enum(["REFERRER", "REFERRED"]);
+export type ReferralBeneficiary = z.infer<typeof referralBeneficiarySchema>;
+
+export const REFERRAL_BENEFICIARY_LABELS: Record<ReferralBeneficiary, string> = {
+  REFERRED: "New member (referred)",
+  REFERRER: "Referrer"
+};
+
+/** "₹500", "250 points" or "10% off". */
+export function formatReferralReward(amount: number, unit: ReferralRewardUnit, currency: string): string {
+  if (unit === "POINTS") return formatReferralPoints(amount);
+  if (unit === "DISCOUNT_PERCENT") return `${amount}% off`;
+  return formatMoney(amount, currency);
+}
+
+export function formatReferralPoints(points: number): string {
+  const abs = Math.abs(points);
+  return `${points < 0 ? "-" : ""}${abs.toLocaleString("en-IN")} ${abs === 1 ? "point" : "points"}`;
+}
+
 /**
  * The milestone multiples a referrer has earned for `count` referrals at a
  * stage with a rule of every `milestoneCount`: 7 with every 3 → [3, 6].
@@ -167,9 +202,14 @@ export type ReferralRewardRuleItem = {
   stageName: string;
   kind: ReferralRewardKind;
   milestoneCount: number | null;
+  /** The value in `unit`: minor units, points or percent. */
   amountMinor: number;
   currency: string;
-  /** Empty = every referrer role. */
+  unit: ReferralRewardUnit;
+  beneficiary: ReferralBeneficiary;
+  maxDiscountMinor: number | null;
+  discountValidDays: number | null;
+  /** Empty = every referrer role (always the role of the person who shared the link). */
   roles: ReferrerRole[];
   autoApprove: boolean;
   isActive: boolean;
@@ -183,17 +223,49 @@ const rewardRuleBaseSchema = z.object({
   stageId: z.string().min(1, "Pick a stage."),
   kind: referralRewardKindSchema,
   milestoneCount: z.number().int().min(2, "A milestone is at least 2 referrals.").max(1000).optional().nullable(),
-  /** Integer minor units (₹500 = 50000). */
+  /** In `unit`: minor units (₹500 = 50000), whole points, or whole percent (1–100). */
   amountMinor: z.number().int().min(1, "Amount must be more than zero.").max(100_000_000),
+  unit: referralRewardUnitSchema.default("CASH"),
+  beneficiary: referralBeneficiarySchema.default("REFERRER"),
+  maxDiscountMinor: z.number().int().min(1).max(100_000_000).optional().nullable(),
+  discountValidDays: z.number().int().min(1).max(3650).optional().nullable(),
   roles: z.array(referrerRoleSchema).max(REFERRER_ROLES.length),
   autoApprove: z.boolean(),
   isActive: z.boolean()
 });
 
-export const createReferralRewardRuleRequestSchema = rewardRuleBaseSchema.refine(
-  (rule) => rule.kind !== "MILESTONE" || (rule.milestoneCount ?? 0) >= 2,
-  { message: "Set how many referrals make a milestone.", path: ["milestoneCount"] }
-);
+/**
+ * The shape rules a reward rule must follow, as one message or null:
+ * a milestone needs a count; a discount is for the referred person only, is
+ * 1–100 percent, and is paid per referral; a referred person's reward is
+ * always per referral (they join once).
+ */
+export function referralRewardRuleProblem(rule: {
+  kind: ReferralRewardKind;
+  milestoneCount?: number | null;
+  unit: ReferralRewardUnit;
+  beneficiary: ReferralBeneficiary;
+  amountMinor: number;
+}): { message: string; path: string } | null {
+  if (rule.kind === "MILESTONE" && (rule.milestoneCount ?? 0) < 2) {
+    return { message: "Set how many referrals make a milestone.", path: "milestoneCount" };
+  }
+  if (rule.beneficiary === "REFERRED" && rule.kind !== "PER_REFERRAL") {
+    return { message: "A new member's benefit is given once, per referral.", path: "kind" };
+  }
+  if (rule.unit === "DISCOUNT_PERCENT" && rule.beneficiary !== "REFERRED") {
+    return { message: "Fee discounts are for the new member. Give referrers money or points.", path: "unit" };
+  }
+  if (rule.unit === "DISCOUNT_PERCENT" && rule.amountMinor > 100) {
+    return { message: "A discount is at most 100%.", path: "amountMinor" };
+  }
+  return null;
+}
+
+export const createReferralRewardRuleRequestSchema = rewardRuleBaseSchema.superRefine((rule, ctx) => {
+  const problem = referralRewardRuleProblem(rule);
+  if (problem) ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem.message, path: [problem.path] });
+});
 export type CreateReferralRewardRuleRequest = z.infer<typeof createReferralRewardRuleRequestSchema>;
 
 export const updateReferralRewardRuleRequestSchema = rewardRuleBaseSchema.partial();
@@ -208,8 +280,15 @@ export type ReferralRewardItem = {
   referrerRole: ReferrerRole;
   referralId: string | null;
   prospectName: string | null;
+  /** The value in `unit`. */
   amountMinor: number;
   currency: string;
+  unit: ReferralRewardUnit;
+  /** REFERRED = `referrerId`/`referrerName` are the new member who received it. */
+  beneficiary: ReferralBeneficiary;
+  /** DISCOUNT_PERCENT once credited: the personal code and whether it is still usable. */
+  discountCode: string | null;
+  discountStatus: "ACTIVE" | "USED" | "CANCELLED" | "EXPIRED" | null;
   status: ReferralRewardStatus;
   description: string;
   createdAt: string;
@@ -230,12 +309,29 @@ export const referralCreditEntryTypeSchema = z.enum([
   "WITHDRAWAL_REVERSAL",
   "PAYMENT_CODE",
   "PAYMENT_CODE_REVERSAL",
-  "ADJUSTMENT"
+  "ADJUSTMENT",
+  "POINTS_TRANSFER_OUT",
+  "POINTS_TRANSFER_IN",
+  "CONVERSION_OUT",
+  "CONVERSION_IN"
 ]);
 export type ReferralCreditEntryType = z.infer<typeof referralCreditEntryTypeSchema>;
 
+/** CASH = money (never transferable); POINTS = sendable, convertible one way into CASH. */
+export const referralWalletSchema = z.enum(["CASH", "POINTS"]);
+export type ReferralWallet = z.infer<typeof referralWalletSchema>;
+
+export const REFERRAL_WALLET_LABELS: Record<ReferralWallet, string> = {
+  CASH: "Money",
+  POINTS: "Points"
+};
+
 export const REFERRAL_CREDIT_ENTRY_LABELS: Record<ReferralCreditEntryType, string> = {
   ADJUSTMENT: "Adjustment",
+  CONVERSION_IN: "Converted from points",
+  CONVERSION_OUT: "Converted to money",
+  POINTS_TRANSFER_IN: "Points received",
+  POINTS_TRANSFER_OUT: "Points sent",
   PAYMENT_CODE: "Payment code",
   PAYMENT_CODE_REVERSAL: "Payment code cancelled",
   REWARD: "Reward",
@@ -247,16 +343,34 @@ export const REFERRAL_CREDIT_ENTRY_LABELS: Record<ReferralCreditEntryType, strin
 export type ReferralCreditEntryItem = {
   id: string;
   type: ReferralCreditEntryType;
-  /** Signed minor units. */
+  wallet: ReferralWallet;
+  /** Signed: minor units (CASH) or points (POINTS). */
   amountMinor: number;
   currency: string;
   note: string | null;
+  /** Transfers: the other person's name. */
+  counterpartyName: string | null;
   createdAt: string;
 };
 
+/** Admin ledger row: every wallet movement of every user. */
+export type AdminReferralLedgerItem = ReferralCreditEntryItem & {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userRole: string;
+  createdByName: string | null;
+};
+
+/** One "formatAmount" for a ledger amount in its wallet. */
+export function formatReferralWalletAmount(amount: number, wallet: ReferralWallet, currency: string): string {
+  return wallet === "POINTS" ? formatReferralPoints(amount) : formatMoney(amount, currency);
+}
+
 export const adjustReferralCreditsRequestSchema = z.object({
   userId: z.string().min(1),
-  /** Signed minor units; never zero. */
+  wallet: referralWalletSchema.default("CASH"),
+  /** Signed, in the wallet's unit (minor units or points); never zero. */
   amountMinor: z
     .number()
     .int()
@@ -309,17 +423,59 @@ export type RejectReferralWithdrawalRequest = z.infer<typeof rejectReferralWithd
 export type ReferralPaymentCodeItem = {
   id: string;
   code: string;
+  /** What the code takes off, in minor units. */
   amountMinor: number;
   currency: string;
+  /** Which wallet paid for it; `points` is how many points it cost (POINTS only). */
+  wallet: ReferralWallet;
+  points: number | null;
   /** ACTIVE = unused; USED = applied to a paid order; CANCELLED = credits returned. */
   status: "ACTIVE" | "USED" | "CANCELLED";
   createdAt: string;
 };
 
 export const createReferralPaymentCodeRequestSchema = z.object({
-  amountMinor: z.number().int().min(1, "Enter an amount.")
+  wallet: referralWalletSchema.default("CASH"),
+  /** Minor units from CASH, or a number of points from POINTS. */
+  amount: z.number().int().min(1, "Enter an amount.").max(100_000_000)
 });
 export type CreateReferralPaymentCodeRequest = z.infer<typeof createReferralPaymentCodeRequestSchema>;
+
+// ── Points: transfers and conversion ──
+
+/** The money value of `points` at the admin rate, rounded down to a whole minor unit. */
+export function referralPointsValueMinor(
+  points: number,
+  rate: { conversionPoints: number; conversionValueMinor: number }
+): number {
+  if (points <= 0 || rate.conversionPoints <= 0 || rate.conversionValueMinor <= 0) return 0;
+  return Math.floor((points * rate.conversionValueMinor) / rate.conversionPoints);
+}
+
+export const transferReferralPointsRequestSchema = z.object({
+  /** The recipient's account email. */
+  email: z.string().trim().toLowerCase().email("Enter the email they sign in with."),
+  points: z.number().int().min(1, "Enter how many points.").max(100_000_000),
+  note: z.string().trim().max(200).optional()
+});
+export type TransferReferralPointsRequest = z.infer<typeof transferReferralPointsRequestSchema>;
+
+export type TransferReferralPointsResponse = {
+  points: number;
+  recipientName: string;
+  pointsBalance: number;
+};
+
+export const convertReferralPointsRequestSchema = z.object({
+  points: z.number().int().min(1, "Enter how many points.").max(100_000_000)
+});
+export type ConvertReferralPointsRequest = z.infer<typeof convertReferralPointsRequestSchema>;
+
+export type ConvertReferralPointsResponse = {
+  points: number;
+  amountMinor: number;
+  currency: string;
+};
 
 // ── Referrals ──
 
@@ -346,6 +502,8 @@ export type ReferralItem = {
   convertedAt: string | null;
   /** SALES (own referrals) and admins only; null otherwise. */
   contact: { phone: string | null; email: string | null; parentName: string | null } | null;
+  /** Signed up: the new member's account is linked (their benefits go there). */
+  joined: boolean;
 };
 
 export type AdminReferralItem = ReferralItem & {
@@ -354,6 +512,7 @@ export type AdminReferralItem = ReferralItem & {
   referrerRole: ReferrerRole;
   code: string;
   leadId: string | null;
+  referredUser: { id: string; name: string; email: string } | null;
 };
 
 export type ReferralStageEventItem = {
@@ -369,6 +528,12 @@ export type AdminReferralDetail = AdminReferralItem & {
   events: ReferralStageEventItem[];
   rewards: ReferralRewardItem[];
 };
+
+/** Link (email) or unlink (null) the new member's account. */
+export const linkReferredUserRequestSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter the account's email.").nullable()
+});
+export type LinkReferredUserRequest = z.infer<typeof linkReferredUserRequestSchema>;
 
 export const moveReferralStageRequestSchema = z.object({
   stageId: z.string().min(1),
@@ -388,6 +553,19 @@ export type ReferralVisitResponse = {
   valid: boolean;
   /** The referrer's first name, for a "Invited by Priya" line. */
   referrerFirstName: string | null;
+  /** What the new member gets for joining through this link. */
+  benefits: ReferralBenefitItem[];
+};
+
+/** A REFERRED-beneficiary rule, as the new member sees it. */
+export type ReferralBenefitItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  stageName: string;
+  amountMinor: number;
+  unit: ReferralRewardUnit;
+  currency: string;
 };
 
 // ── Stage admin ──
@@ -418,6 +596,18 @@ export type ReferralSettingsItem = {
   minWithdrawalMinor: number;
   paymentUseRoles: ReferrerRole[];
   programTerms: string | null;
+  pointsTransferEnabled: boolean;
+  pointsTransferRoles: ReferrerRole[];
+  minTransferPoints: number;
+  /** Rolling 24 hours per sender; 0 = no limit. */
+  maxTransferPointsPerDay: number;
+  pointsConversionEnabled: boolean;
+  pointsConversionRoles: ReferrerRole[];
+  /** `conversionPoints` points = `conversionValueMinor` minor units. */
+  conversionPoints: number;
+  conversionValueMinor: number;
+  minConversionPoints: number;
+  pointsPaymentEnabled: boolean;
 };
 
 export const updateReferralSettingsRequestSchema = z.object({
@@ -427,7 +617,17 @@ export const updateReferralSettingsRequestSchema = z.object({
   withdrawalRoles: z.array(referrerRoleSchema).max(REFERRER_ROLES.length).optional(),
   minWithdrawalMinor: z.number().int().min(0).max(100_000_000).optional(),
   paymentUseRoles: z.array(referrerRoleSchema).max(REFERRER_ROLES.length).optional(),
-  programTerms: z.string().trim().max(4000).optional().nullable()
+  programTerms: z.string().trim().max(4000).optional().nullable(),
+  pointsTransferEnabled: z.boolean().optional(),
+  pointsTransferRoles: z.array(referrerRoleSchema).max(REFERRER_ROLES.length).optional(),
+  minTransferPoints: z.number().int().min(1).max(100_000_000).optional(),
+  maxTransferPointsPerDay: z.number().int().min(0).max(100_000_000).optional(),
+  pointsConversionEnabled: z.boolean().optional(),
+  pointsConversionRoles: z.array(referrerRoleSchema).max(REFERRER_ROLES.length).optional(),
+  conversionPoints: z.number().int().min(1, "At least 1 point.").max(1_000_000).optional(),
+  conversionValueMinor: z.number().int().min(1, "Worth more than zero.").max(100_000_000).optional(),
+  minConversionPoints: z.number().int().min(1).max(100_000_000).optional(),
+  pointsPaymentEnabled: z.boolean().optional()
 });
 export type UpdateReferralSettingsRequest = z.infer<typeof updateReferralSettingsRequestSchema>;
 
@@ -452,17 +652,36 @@ export type MyReferralSummary = {
     converted: number;
   };
   credits: {
+    /** CASH wallet (money). */
     balanceMinor: number;
     pendingRewardsMinor: number;
     earnedMinor: number;
     currency: string;
   };
+  points: {
+    balance: number;
+    pending: number;
+    earned: number;
+    canTransfer: boolean;
+    canConvert: boolean;
+    canPayFees: boolean;
+    minTransferPoints: number;
+    maxTransferPointsPerDay: number;
+    /** Sent in the last 24 hours (counts against the daily limit). */
+    sentLast24h: number;
+    conversionPoints: number;
+    conversionValueMinor: number;
+    minConversionPoints: number;
+  };
   canWithdraw: boolean;
   canPayFees: boolean;
   minWithdrawalMinor: number;
   programTerms: string | null;
-  /** Active rules this referrer can earn from, for "how you earn". */
-  rules: Pick<ReferralRewardRuleItem, "id" | "name" | "description" | "stageName" | "kind" | "milestoneCount" | "amountMinor" | "currency">[];
+  /** Active rules for this referrer's role, for "how you earn" (REFERRER) and "what your friend gets" (REFERRED). */
+  rules: Pick<
+    ReferralRewardRuleItem,
+    "id" | "name" | "description" | "stageName" | "kind" | "milestoneCount" | "amountMinor" | "currency" | "unit" | "beneficiary"
+  >[];
 };
 
 // ── Admin board ──
@@ -482,6 +701,7 @@ export type ReferrerStatsItem = {
   converted: number;
   balanceMinor: number;
   earnedMinor: number;
+  pointsBalance: number;
 };
 
 export type AdminReferralOverview = {
@@ -495,6 +715,10 @@ export type AdminReferralOverview = {
     pendingRewardsMinor: number;
     openWithdrawals: number;
     openWithdrawalsMinor: number;
+    /** Points held across every wallet right now. */
+    pointsOutstanding: number;
+    /** Referrals whose new member has an account linked. */
+    joined: number;
   };
   currency: string;
 };

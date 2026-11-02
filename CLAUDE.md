@@ -141,7 +141,7 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 ### 3.6l2 Referrals and the SALES role
 
-`referral/` + `features/referrals/`, contract `@nexa-chess/types` `referrals.ts`. Every stage change goes through `ReferralPipelineService` (automatic moves forward only; rewards deduped by `dedupeKey`); credits are an append-only ledger debited under a per-user xact lock; paying fees with credits is a personal `Discount` (`restrictedToUserId`). **`authenticateUser` refuses SALES unless `{ allowSales: true }`**. [docs/REFERRALS.md](docs/REFERRALS.md)
+`referral/` + `features/referrals/`, contract `@nexa-chess/types` `referrals.ts`. Every stage change goes through `ReferralPipelineService` (automatic moves forward only; rewards deduped by `dedupeKey`); wallets are one append-only ledger (`wallet` CASH/POINTS) debited under a per-user xact lock — money is never transferable, points transfer and convert one way into money; new-member benefits need `Referral.referredUserId` (`linkReferredUser`); paying fees from a wallet is a personal `Discount` (`restrictedToUserId`). **`authenticateUser` refuses SALES unless `{ allowSales: true }`**. [docs/REFERRALS.md](docs/REFERRALS.md)
 
 ### 3.6m SaaS plans
 

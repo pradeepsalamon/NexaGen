@@ -418,7 +418,9 @@ export class TrashRepository {
         this.prisma.coachCompensationRate.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach }),
         this.prisma.coachPayrollRecord.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach }),
         // Referral money (docs/REFERRALS.md): rewards, the credits ledger, payouts
-        // and personal payment codes are financial history.
+        // and personal payment codes are financial history. Points transfers and
+        // conversions always write ledger entries for both sides, so the ledger
+        // query covers them.
         this.prisma.referralReward.findMany({ distinct: ["referrerId"], select: { referrerId: true }, where: { referrerId: { in: userIds } } }),
         this.prisma.referralCreditEntry.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
         this.prisma.referralWithdrawal.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),

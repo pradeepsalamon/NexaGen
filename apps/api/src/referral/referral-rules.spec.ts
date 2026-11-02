@@ -7,7 +7,10 @@ import {
   maskProspectName,
   referralCodePrefix,
   referralCodeSchema,
+  formatReferralReward,
   referralMilestonesReached,
+  referralPointsValueMinor,
+  referralRewardRuleProblem,
   referralStagesReached
 } from "@nexa-chess/types";
 
@@ -91,5 +94,32 @@ describe("the referral_program migration", () => {
       const row = new RegExp(`\\('${s.id}',\\s*'${s.name}',\\s*'([^']*)',\\s*'${s.tone}',\\s*${s.position},\\s*'${s.trigger}'`).exec(sql);
       expect(row?.[1]).toBe(s.description);
     }
+  });
+});
+
+describe("referral points and benefits", () => {
+  it("values points at the admin rate, rounding down", () => {
+    const rate = { conversionPoints: 10, conversionValueMinor: 100 };
+    expect(referralPointsValueMinor(150, rate)).toBe(1500);
+    expect(referralPointsValueMinor(7, { conversionPoints: 3, conversionValueMinor: 1 })).toBe(2);
+    expect(referralPointsValueMinor(0, rate)).toBe(0);
+    expect(referralPointsValueMinor(10, { conversionPoints: 0, conversionValueMinor: 100 })).toBe(0);
+  });
+
+  it("refuses reward-rule shapes that make no sense", () => {
+    const base = { amountMinor: 10, beneficiary: "REFERRER", kind: "PER_REFERRAL", milestoneCount: null, unit: "CASH" } as const;
+    expect(referralRewardRuleProblem(base)).toBeNull();
+    expect(referralRewardRuleProblem({ ...base, kind: "MILESTONE" })?.path).toBe("milestoneCount");
+    expect(referralRewardRuleProblem({ ...base, unit: "DISCOUNT_PERCENT" })?.path).toBe("unit");
+    expect(referralRewardRuleProblem({ ...base, beneficiary: "REFERRED", kind: "MILESTONE", milestoneCount: 3 })?.path).toBe("kind");
+    expect(referralRewardRuleProblem({ ...base, amountMinor: 101, beneficiary: "REFERRED", unit: "DISCOUNT_PERCENT" })?.path).toBe("amountMinor");
+    expect(referralRewardRuleProblem({ ...base, beneficiary: "REFERRED", unit: "DISCOUNT_PERCENT" })).toBeNull();
+  });
+
+  it("formats each reward unit", () => {
+    expect(formatReferralReward(250, "POINTS", "INR")).toBe("250 points");
+    expect(formatReferralReward(1, "POINTS", "INR")).toBe("1 point");
+    expect(formatReferralReward(15, "DISCOUNT_PERCENT", "INR")).toBe("15% off");
+    expect(formatReferralReward(50000, "CASH", "INR")).toContain("500");
   });
 });

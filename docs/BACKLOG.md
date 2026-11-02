@@ -90,9 +90,10 @@ code on 2026-10-31.
 - **Chat push:** a websocket only if the 4 s poll proves too slow or costly.
   There is no evidence of that yet.
 - **Referrals** ([REFERRALS.md](REFERRALS.md), shipped 2026-11-02): no
-  notifications yet (a stage move or reward could be a `MessagingEvent`), no
-  bulk payout export, and a registered student is not linked back to the
-  referral automatically (an admin marks "Onboarded").
+  notifications yet (a stage move, reward or points received could be a
+  `MessagingEvent`), no bulk payout export. Sign-up links the new member's
+  account automatically, but onboarding is still an admin move. Accounts an
+  admin creates (Users page) are only linked by hand.
 
 ### Needs someone with `vps_dev` / production access
 

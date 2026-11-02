@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, Check } from "lucide-react";
-import { REFERRER_ROLE_LABELS, type ReferralRewardItem } from "@nexa-chess/types";
+import { formatReferralReward, REFERRER_ROLE_LABELS, type ReferralRewardItem } from "@nexa-chess/types";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -20,13 +20,14 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { referralAdminApi } from "../../api/referralAdminApi";
 import { useAdminReferralRewards, useReferralAdminMutation } from "../../hooks/useReferralAdmin";
-import { money, REWARD_STATUS_LABEL, REWARD_STATUS_VARIANT } from "../../lib/referralFormat";
+import { DISCOUNT_STATUS_LABEL, REWARD_STATUS_LABEL, REWARD_STATUS_VARIANT } from "../../lib/referralFormat";
 
 export function RewardsPanel() {
   const timeZone = useUserTimeZone();
   const serverTable = useServerTable({ pageSize: 20 });
   const { clampToPageCount } = serverTable;
-  const { data, isLoading } = useAdminReferralRewards({ ...serverTable.params });
+  const [beneficiary, setBeneficiary] = useState("ALL");
+  const { data, isLoading } = useAdminReferralRewards({ ...serverTable.params, beneficiary });
   const pageCount = data?.pagination.totalPages ?? 1;
   useEffect(() => clampToPageCount(pageCount), [pageCount, clampToPageCount]);
   const [cancelling, setCancelling] = useState<ReferralRewardItem | null>(null);
@@ -48,18 +49,30 @@ export function RewardsPanel() {
         cell: ({ row }) => (
           <div className="min-w-36">
             <p className="font-bold text-app-text">{row.original.referrerName}</p>
-            <p className="text-xs text-app-muted">{REFERRER_ROLE_LABELS[row.original.referrerRole]}</p>
+            {row.original.beneficiary === "REFERRED" ? (
+              <Badge variant="accent">New member</Badge>
+            ) : (
+              <p className="text-xs text-app-muted">{REFERRER_ROLE_LABELS[row.original.referrerRole]}</p>
+            )}
           </div>
         ),
-        header: "Referrer",
-        meta: { label: "Referrer" }
+        header: "Given to",
+        meta: { label: "Given to" }
       },
       {
         accessorKey: "ruleName",
         cell: ({ row }) => (
           <div className="min-w-44">
             <p className="text-app-text">{row.original.ruleName}</p>
-            <p className="text-xs text-app-muted">{row.original.prospectName ?? row.original.description}</p>
+            <p className="text-xs text-app-muted">
+              {row.original.beneficiary === "REFERRED" ? row.original.description : (row.original.prospectName ?? row.original.description)}
+            </p>
+            {row.original.discountCode ? (
+              <p className="font-mono text-xs font-bold text-app-text">
+                {row.original.discountCode}
+                {row.original.discountStatus ? ` · ${DISCOUNT_STATUS_LABEL[row.original.discountStatus]}` : ""}
+              </p>
+            ) : null}
           </div>
         ),
         header: "Reward",
@@ -79,7 +92,11 @@ export function RewardsPanel() {
       },
       {
         accessorKey: "amountMinor",
-        cell: ({ row }) => <span className="block text-right font-bold tabular-nums">{money(row.original.amountMinor, row.original.currency)}</span>,
+        cell: ({ row }) => (
+          <span className="block text-right font-bold tabular-nums">
+            {formatReferralReward(row.original.amountMinor, row.original.unit, row.original.currency)}
+          </span>
+        ),
         header: () => <span className="block text-right">Amount</span>,
         meta: { label: "Amount" }
       },
@@ -124,6 +141,18 @@ export function RewardsPanel() {
     <Card className="grid gap-4 p-4">
       <DataTableToolbar
         filters={
+          <>
+          <Select
+            aria-label="Filter by recipient"
+            className="w-44"
+            onChange={(event) => setBeneficiary(event.target.value)}
+            options={[
+              { label: "Everyone", value: "ALL" },
+              { label: "Referrers", value: "REFERRER" },
+              { label: "New members", value: "REFERRED" }
+            ]}
+            value={beneficiary}
+          />
           <Select
             aria-label="Filter by status"
             className="w-48"
@@ -136,6 +165,7 @@ export function RewardsPanel() {
             ]}
             value={serverTable.status}
           />
+          </>
         }
         onSearchChange={serverTable.setSearch}
         searchPlaceholder="Search referrer or rule..."
@@ -158,8 +188,10 @@ export function RewardsPanel() {
         <div className="grid gap-3">
           <p>
             {cancelling?.status === "CREDITED"
-              ? "The credits are taken back from the referrer's wallet (their balance can go below zero)."
-              : "The referrer will not receive it."}
+              ? cancelling.unit === "DISCOUNT_PERCENT"
+                ? "The discount code is switched off. A code already used at checkout cannot be taken back."
+                : "The amount is taken back from their wallet (their balance can go below zero)."
+              : "They will not receive it."}
           </p>
           <FormField id="reward-cancel-reason" label="Reason (optional)">
             <Textarea id="reward-cancel-reason" maxLength={500} onChange={(event) => setReason(event.target.value)} rows={2} value={reason} />

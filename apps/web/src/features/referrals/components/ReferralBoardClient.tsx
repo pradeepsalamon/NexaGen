@@ -1,5 +1,6 @@
 "use client";
 
+import { formatReferralPoints } from "@nexa-chess/types";
 import { Eye, Gift, UserCheck, Users, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -88,13 +89,9 @@ export function ReferralBoardClient() {
         <StatTile context="Unique people" icon={Users} label="Referred" tone="secondary" value={String(data.totals.referrals)} />
         <StatTile context="Joined the academy" icon={UserCheck} label="Onboarded" tone="accent" value={String(data.totals.converted)} />
         <StatTile
-          context={
-            data.credits.pendingRewardsMinor > 0
-              ? `${money(data.credits.pendingRewardsMinor, data.credits.currency)} pending`
-              : "Ready to use"
-          }
+          context={`+ ${formatReferralPoints(data.points.balance)}`}
           icon={Wallet}
-          label="Credits"
+          label="Wallet"
           tone="reward"
           value={money(data.credits.balanceMinor, data.credits.currency)}
         />

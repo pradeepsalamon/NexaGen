@@ -58,6 +58,7 @@ import {
 } from "./auth.utils";
 import { authenticateUser, verifyAccessToken as verifySharedAccessToken } from "./authenticate";
 import { MfaService } from "./mfa/mfa.service";
+import { ReferralTrackerService } from "../referral/referral-tracker.service";
 
 type SessionContext = {
   ipAddress?: string;
@@ -140,7 +141,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly analyticsEvents: AnalyticsEventService,
     private readonly mfa: MfaService,
-    private readonly emailVerification: EmailVerificationService
+    private readonly emailVerification: EmailVerificationService,
+    private readonly referralTracker: ReferralTrackerService
   ) {}
 
   getCookieMaxAges() {
@@ -157,7 +159,8 @@ export class AuthService {
    */
   async register(
     payload: RegisterRequest,
-    _context: SessionContext
+    _context: SessionContext,
+    referralId?: string
   ): Promise<RegisterResponse> {
     if (payload.password !== payload.confirmPassword) {
       throw new BadRequestException("Passwords must match.");
@@ -210,6 +213,8 @@ export class AuthService {
     });
 
     if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
+    // Joined through a referral link (or booked a demo with this email)?
+    await this.referralTracker.linkSignup({ email: user.email, referralId, userId: user.id });
 
     return {
       email: user.email,
@@ -225,7 +230,8 @@ export class AuthService {
    */
   async registerCoach(
     payload: RegisterCoachRequest,
-    _context: SessionContext
+    _context: SessionContext,
+    referralId?: string
   ): Promise<RegisterCoachResponse> {
     if (payload.password !== payload.confirmPassword) {
       throw new BadRequestException("Passwords must match.");
@@ -272,6 +278,8 @@ export class AuthService {
     });
 
     if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
+    // Joined through a referral link (or booked a demo with this email)?
+    await this.referralTracker.linkSignup({ email: user.email, referralId, userId: user.id });
 
     return {
       email: user.email,

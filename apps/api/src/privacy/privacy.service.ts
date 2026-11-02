@@ -98,7 +98,11 @@ export class PrivacyService {
       referralsMade,
       referralRewards,
       referralCredits,
-      referralWithdrawals
+      referralWithdrawals,
+      referralPointsSent,
+      referralPointsReceived,
+      referralPointsConversions,
+      referredBy
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -207,7 +211,13 @@ export class PrivacyService {
       }),
       p.referralReward.findMany({ omit: { dedupeKey: true, reviewedById: true }, where: { referrerId: id } }),
       p.referralCreditEntry.findMany({ omit: { createdById: true }, where: { userId: id } }),
-      p.referralWithdrawal.findMany({ omit: { reviewedById: true }, where: { userId: id } })
+      p.referralWithdrawal.findMany({ omit: { reviewedById: true }, where: { userId: id } }),
+      // Transfers: the other person's account is theirs, so only the amount and note.
+      p.referralPointsTransfer.findMany({ select: { createdAt: true, id: true, note: true, points: true }, where: { fromUserId: id } }),
+      p.referralPointsTransfer.findMany({ select: { createdAt: true, id: true, note: true, points: true }, where: { toUserId: id } }),
+      p.referralPointsConversion.findMany({ where: { userId: id } }),
+      // The referral that brought this account in — not who referred them.
+      p.referral.findMany({ select: { createdAt: true, id: true }, where: { referredUserId: id } })
     ]);
 
     return {
@@ -253,6 +263,10 @@ export class PrivacyService {
         referralCredits: records(referralCredits),
         referralRewards: records(referralRewards),
         referralWithdrawals: records(referralWithdrawals),
+        referralPointsSent: records(referralPointsSent),
+        referralPointsReceived: records(referralPointsReceived),
+        referralPointsConversions: records(referralPointsConversions),
+        referredBy: records(referredBy),
         referralsMade: records(referralsMade),
         sessions: records(sessions),
         studentProfile: records(studentProfile),

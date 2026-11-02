@@ -13,6 +13,7 @@ import { DataTableToolbar } from "@/components/ui/DataTableToolbar";
 import { RowActions } from "@/components/ui/RowActions";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { Select } from "@/components/ui/Select";
+import { Badge } from "@/components/ui/Badge";
 import { StatTile } from "@/components/ui/StatTile";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useServerTable } from "@/hooks/useServerTable";
@@ -58,7 +59,10 @@ export function PipelinePanel({ onClearReferrer, referrer }: Props) {
         accessorKey: "prospectName",
         cell: ({ row }) => (
           <div className="min-w-36">
-            <p className="font-bold text-app-text">{row.original.prospectName ?? "Visitor"}</p>
+            <p className="flex flex-wrap items-center gap-2 font-bold text-app-text">
+              {row.original.prospectName ?? row.original.referredUser?.name ?? "Visitor"}
+              {row.original.joined ? <Badge variant="success">Signed up</Badge> : null}
+            </p>
             {row.original.contact?.phone ? <p className="text-xs text-app-muted">{row.original.contact.phone}</p> : null}
           </div>
         ),
@@ -131,7 +135,7 @@ export function PipelinePanel({ onClearReferrer, referrer }: Props) {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
       {totals ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <StatTile context={`${totals.visits} link visits`} icon={Users} label="Referrals" tone="primary" value={String(totals.referrals)} />
+          <StatTile context={`${totals.visits} link visits · ${totals.joined} signed up`} icon={Users} label="Referrals" tone="primary" value={String(totals.referrals)} />
           <StatTile
             context={totals.referrals ? `${Math.round((totals.converted / totals.referrals) * 100)}% of referrals` : "No referrals yet"}
             icon={UserCheck}

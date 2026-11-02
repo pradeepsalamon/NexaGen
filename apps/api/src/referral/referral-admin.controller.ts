@@ -5,6 +5,7 @@ import {
   cancelReferralRewardRequestSchema,
   createReferralRewardRuleRequestSchema,
   createReferralStageRequestSchema,
+  linkReferredUserRequestSchema,
   moveReferralStageRequestSchema,
   payReferralWithdrawalRequestSchema,
   rejectReferralWithdrawalRequestSchema,
@@ -18,6 +19,7 @@ import {
   type CancelReferralRewardRequest,
   type CreateReferralRewardRuleRequest,
   type CreateReferralStageRequest,
+  type LinkReferredUserRequest,
   type MoveReferralStageRequest,
   type PaginatedQuery,
   type PayReferralWithdrawalRequest,
@@ -36,7 +38,13 @@ import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { RequireFeature } from "../platform/require-feature.decorator";
 import { ReferralAdminService } from "./referral-admin.service";
 
-type ListQuery = PaginatedQuery & { stageId?: unknown; role?: unknown; referrerId?: unknown; status?: unknown };
+type ListQuery = PaginatedQuery & {
+  stageId?: unknown;
+  role?: unknown;
+  referrerId?: unknown;
+  status?: unknown;
+  beneficiary?: unknown;
+};
 
 @RequireFeature("referralProgram")
 @Controller()
@@ -202,6 +210,11 @@ export class ReferralAdminController {
     return this.admin.updateSettings(this.getAccessToken(request), body);
   }
 
+  @Get(API_ROUTES.adminReferrals.ledger)
+  ledger(@Req() request: Request, @Query() query: ListQuery & { wallet?: unknown; type?: unknown; userId?: unknown }) {
+    return this.admin.ledger(this.getAccessToken(request), query);
+  }
+
   @Get(API_ROUTES.adminReferrals.get())
   get(@Req() request: Request, @Param("id") id: string) {
     return this.admin.get(this.getAccessToken(request), id);
@@ -219,5 +232,14 @@ export class ReferralAdminController {
     @Body(new ZodBodyPipe(moveReferralStageRequestSchema)) body: MoveReferralStageRequest
   ) {
     return this.admin.moveStage(this.getAccessToken(request), id, body);
+  }
+
+  @Put(API_ROUTES.adminReferrals.linkUser())
+  linkReferredUser(
+    @Req() request: Request,
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(linkReferredUserRequestSchema)) body: LinkReferredUserRequest
+  ) {
+    return this.admin.linkReferredUser(this.getAccessToken(request), id, body);
   }
 }

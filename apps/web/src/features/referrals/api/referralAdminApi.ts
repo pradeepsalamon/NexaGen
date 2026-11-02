@@ -2,6 +2,8 @@ import {
   API_ROUTES,
   type AdjustReferralCreditsRequest,
   type AdminReferralDetail,
+  type AdminReferralLedgerItem,
+  type LinkReferredUserRequest,
   type AdminReferralItem,
   type AdminReferralOverview,
   type CancelReferralRewardRequest,
@@ -39,6 +41,9 @@ export const referralAdminApi = {
     apiFetch<SendReferrerAccessLinkResponse>(routes.referrerAccessLink(userId), { body, method: "POST" }),
   moveStage: (id: string, body: MoveReferralStageRequest) =>
     apiFetch<AdminReferralDetail>(routes.moveStage(id), { body, method: "PATCH" }),
+  linkUser: (id: string, body: LinkReferredUserRequest) =>
+    apiFetch<AdminReferralDetail>(routes.linkUser(id), { body, method: "PUT" }),
+  ledger: (params: ReferralListParams) => apiFetch<ReferralPage<AdminReferralLedgerItem>>(withQuery(routes.ledger, params)),
 
   referrers: (params: ReferralListParams) => apiFetch<ReferralPage<ReferrerStatsItem>>(withQuery(routes.referrers, params)),
   updateReferrerCode: (userId: string, body: UpdateReferrerCodeRequest) =>

@@ -10,7 +10,11 @@ import {
   type ReferralPaymentCodeItem,
   type ReferralRewardItem,
   type ReferralWithdrawalItem,
-  type RequestReferralWithdrawalRequest
+  type RequestReferralWithdrawalRequest,
+  type ConvertReferralPointsRequest,
+  type ConvertReferralPointsResponse,
+  type TransferReferralPointsRequest,
+  type TransferReferralPointsResponse
 } from "@nexa-chess/types";
 import { type Prisma, UserRole } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
@@ -21,6 +25,8 @@ import { ReferralCreditsService } from "./referral-credits.service";
 import { ReferralPipelineService } from "./referral-pipeline.service";
 import { ReferralSettingsService } from "./referral-settings.service";
 import {
+  CREDIT_ENTRY_INCLUDE,
+  toCreditEntryItem,
   REFERRAL_ITEM_INCLUDE,
   REWARD_ITEM_INCLUDE,
   RULE_ITEM_INCLUDE,
@@ -61,7 +67,7 @@ export class ReferralService {
       : await this.prisma.referralCode.findUnique({ where: { userId: user.id } });
 
     const byReferrer = { referrerId: user.id };
-    const [stages, reachGroups, currentGroups, referrals, visits, converted, balance, pending, earned, rules] =
+    const [stages, reachGroups, currentGroups, referrals, visits, converted, balances, rewardGroups, rules, sentLast24h] =
       await Promise.all([
         this.pipeline.listStages(),
         this.prisma.referralStageReach.groupBy({ _count: true, by: ["stageId"], where: { referral: byReferrer } }),
@@ -69,15 +75,23 @@ export class ReferralService {
         this.prisma.referral.count({ where: byReferrer }),
         code ? this.prisma.referralVisit.count({ where: { codeId: code.id } }) : 0,
         this.prisma.referral.count({ where: { ...byReferrer, convertedAt: { not: null } } }),
-        this.credits.balance(user.id),
-        this.prisma.referralReward.aggregate({ _sum: { amountMinor: true }, where: { ...byReferrer, status: "PENDING" } }),
-        this.prisma.referralReward.aggregate({ _sum: { amountMinor: true }, where: { ...byReferrer, status: "CREDITED" } }),
+        this.credits.balances(user.id),
+        // Rewards this user received (as referrer, or as a referred new member).
+        this.prisma.referralReward.groupBy({
+          _sum: { amountMinor: true },
+          by: ["unit", "status"],
+          where: { ...byReferrer, status: { in: ["PENDING", "CREDITED"] }, unit: { in: ["CASH", "POINTS"] } }
+        }),
         this.prisma.referralRewardRule.findMany({
           include: RULE_ITEM_INCLUDE,
           orderBy: { createdAt: "asc" },
           where: { isActive: true, OR: [{ roles: { isEmpty: true } }, { roles: { has: user.role } }] }
-        })
+        }),
+        this.credits.pointsSentLast24h(user.id)
       ]);
+    const rewardSum = (unit: "CASH" | "POINTS", status: "PENDING" | "CREDITED") =>
+      rewardGroups.find((group) => group.unit === unit && group.status === status)?._sum.amountMinor ?? 0;
+    const on = (roles: readonly string[]) => settings.enabled && roles.includes(user.role);
 
     const reached = new Map(reachGroups.map((group) => [group.stageId, group._count]));
     const current = new Map(currentGroups.map((group) => [group.stageId, group._count]));
@@ -88,23 +102,39 @@ export class ReferralService {
       code: code?.code ?? null,
       codeActive: Boolean(code?.isActive),
       credits: {
-        balanceMinor: balance,
+        balanceMinor: balances.cash,
         currency: settings.currency,
-        earnedMinor: earned._sum.amountMinor ?? 0,
-        pendingRewardsMinor: pending._sum.amountMinor ?? 0
+        earnedMinor: rewardSum("CASH", "CREDITED"),
+        pendingRewardsMinor: rewardSum("CASH", "PENDING")
+      },
+      points: {
+        balance: balances.points,
+        canConvert: settings.pointsConversionEnabled && on(settings.pointsConversionRoles),
+        canPayFees: settings.pointsPaymentEnabled && on(settings.paymentUseRoles),
+        canTransfer: settings.pointsTransferEnabled && on(settings.pointsTransferRoles),
+        conversionPoints: settings.conversionPoints,
+        conversionValueMinor: settings.conversionValueMinor,
+        earned: rewardSum("POINTS", "CREDITED"),
+        maxTransferPointsPerDay: settings.maxTransferPointsPerDay,
+        minConversionPoints: settings.minConversionPoints,
+        minTransferPoints: settings.minTransferPoints,
+        pending: rewardSum("POINTS", "PENDING"),
+        sentLast24h
       },
       eligible,
       minWithdrawalMinor: settings.minWithdrawalMinor,
       programTerms: settings.programTerms,
       rules: rules.map((rule) => ({
         amountMinor: rule.amountMinor,
+        beneficiary: rule.beneficiary,
         currency: rule.currency,
         description: rule.description,
         id: rule.id,
         kind: rule.kind,
         milestoneCount: rule.milestoneCount,
         name: rule.name,
-        stageName: rule.stage.name
+        stageName: rule.stage.name,
+        unit: rule.unit
       })),
       stages: stages.map((stage) => ({
         ...toStageItem(stage, current.get(stage.id) ?? 0),
@@ -153,18 +183,12 @@ export class ReferralService {
   async listCredits(accessToken: string | undefined): Promise<ReferralCreditEntryItem[]> {
     const user = await this.getReferrer(accessToken);
     const rows = await this.prisma.referralCreditEntry.findMany({
+      include: CREDIT_ENTRY_INCLUDE,
       orderBy: { createdAt: "desc" },
       take: 200,
       where: { userId: user.id }
     });
-    return rows.map((row) => ({
-      amountMinor: row.amountMinor,
-      createdAt: row.createdAt.toISOString(),
-      currency: row.currency,
-      id: row.id,
-      note: row.note,
-      type: row.type
-    }));
+    return rows.map(toCreditEntryItem);
   }
 
   async listWithdrawals(accessToken: string | undefined): Promise<ReferralWithdrawalItem[]> {
@@ -193,7 +217,7 @@ export class ReferralService {
   async listPaymentCodes(accessToken: string | undefined): Promise<ReferralPaymentCodeItem[]> {
     const user = await this.getReferrer(accessToken);
     const entries = await this.prisma.referralCreditEntry.findMany({
-      include: { discount: { select: { code: true, id: true, isActive: true, redemptionCount: true } } },
+      include: { discount: { select: { code: true, id: true, isActive: true, redemptionCount: true, value: true } } },
       orderBy: { createdAt: "desc" },
       take: 100,
       where: { discountId: { not: null }, type: "PAYMENT_CODE", userId: user.id }
@@ -202,11 +226,13 @@ export class ReferralService {
       entry.discount
         ? [
             {
-              amountMinor: -entry.amountMinor,
+              amountMinor: entry.discount.value,
               code: entry.discount.code,
               createdAt: entry.createdAt.toISOString(),
               currency: entry.currency,
               id: entry.discount.id,
+              points: entry.wallet === "POINTS" ? -entry.amountMinor : null,
+              wallet: entry.wallet,
               status:
                 entry.discount.redemptionCount > 0 ? "USED" : entry.discount.isActive ? "ACTIVE" : "CANCELLED"
             } satisfies ReferralPaymentCodeItem
@@ -225,7 +251,9 @@ export class ReferralService {
       createdAt: discount.createdAt.toISOString(),
       currency: discount.currency ?? settings.currency,
       id: discount.id,
-      status: "ACTIVE"
+      points: body.wallet === "POINTS" ? body.amount : null,
+      status: "ACTIVE",
+      wallet: body.wallet
     };
   }
 
@@ -233,5 +261,17 @@ export class ReferralService {
     const user = await this.getReferrer(accessToken);
     await this.credits.cancelPaymentCode(user.id, id);
     return { ok: true };
+  }
+
+  // ── Points ──
+
+  async transferPoints(accessToken: string | undefined, body: TransferReferralPointsRequest): Promise<TransferReferralPointsResponse> {
+    const user = await this.getReferrer(accessToken);
+    return this.credits.transferPoints(user, await this.settings.get(), body);
+  }
+
+  async convertPoints(accessToken: string | undefined, body: ConvertReferralPointsRequest): Promise<ConvertReferralPointsResponse> {
+    const user = await this.getReferrer(accessToken);
+    return this.credits.convertPoints(user, await this.settings.get(), body);
   }
 }

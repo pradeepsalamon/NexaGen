@@ -24,6 +24,13 @@ import {
   VerifyEmailDto
 } from "./dto";
 import { AUTH_COOKIE_NAMES } from "./types";
+import { REFERRAL_COOKIE_NAME } from "../referral/referral.util";
+
+/** The referral a link visit remembered (`nexa_referral`), for linking the new account. */
+function readReferralCookie(request: Request): string | undefined {
+  const value: unknown = request.cookies?.[REFERRAL_COOKIE_NAME];
+  return typeof value === "string" && value.length <= 64 ? value : undefined;
+}
 
 @Controller()
 export class AuthController {
@@ -33,7 +40,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async register(@Body() body: RegisterDto, @Req() request: Request) {
     // No auth cookies: a student account is pending until an admin approves it.
-    return this.authService.register(body, getSessionContext(request));
+    return this.authService.register(body, getSessionContext(request), readReferralCookie(request));
   }
 
   @Post(API_ROUTES.auth.registerCoach)
@@ -43,7 +50,7 @@ export class AuthController {
     @Req() request: Request
   ) {
     // No auth cookies here: the application is pending until an admin approves it.
-    return this.authService.registerCoach(body, getSessionContext(request));
+    return this.authService.registerCoach(body, getSessionContext(request), readReferralCookie(request));
   }
 
   @Post(API_ROUTES.auth.login)

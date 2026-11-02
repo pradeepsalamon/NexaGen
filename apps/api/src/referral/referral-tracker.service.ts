@@ -1,11 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { ReferralVisitResponse } from "@nexa-chess/types";
-import { type LeadStatus, type ReferralStageTrigger, UserStatus } from "@prisma/client";
+import type { ReferralBenefitItem, ReferralVisitResponse } from "@nexa-chess/types";
+import { type LeadStatus, type ReferralStageTrigger, type UserRole, UserStatus } from "@prisma/client";
 import { parseUserAgent } from "../lead/lead-tracking.util";
 import { isUniqueViolation } from "../payments/payments.util";
 import { EntitlementService } from "../platform/entitlement.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { ReferralPipelineService } from "./referral-pipeline.service";
+import { REFERRAL_FOR_MOVE, ReferralPipelineService } from "./referral-pipeline.service";
 import { ReferralSettingsService } from "./referral-settings.service";
 
 /** Lead CRM statuses that move a referral, and where to. */
@@ -61,9 +61,14 @@ export class ReferralTrackerService {
     viewerUserId?: string;
   }): Promise<ReferralVisitResponse & { referralId: string | null; attributionDays: number }> {
     const code = await this.findLiveCode(input.code);
-    if (!code) return { attributionDays: 0, referralId: null, referrerFirstName: null, valid: false };
+    if (!code) return { attributionDays: 0, benefits: [], referralId: null, referrerFirstName: null, valid: false };
 
-    const base = { attributionDays: code.settings.attributionDays, referrerFirstName: code.user.firstName, valid: true };
+    const base = {
+      attributionDays: code.settings.attributionDays,
+      benefits: await this.benefitsFor(code.user.role),
+      referrerFirstName: code.user.firstName,
+      valid: true
+    };
     if (input.viewerUserId === code.userId) return { ...base, referralId: null };
 
     const referralId = await this.findOrCreateReferral(code.id, code.userId, input.visitorId);
@@ -80,6 +85,61 @@ export class ReferralTrackerService {
     return { ...base, referralId };
   }
 
+  /** What a new member gets for joining through a link held by `referrerRole`. */
+  async benefitsFor(referrerRole: UserRole): Promise<ReferralBenefitItem[]> {
+    const rules = await this.prisma.referralRewardRule.findMany({
+      include: { stage: { select: { name: true, position: true } } },
+      orderBy: { createdAt: "asc" },
+      where: {
+        beneficiary: "REFERRED",
+        isActive: true,
+        OR: [{ roles: { isEmpty: true } }, { roles: { has: referrerRole } }]
+      }
+    });
+    return rules.map((rule) => ({
+      amountMinor: rule.amountMinor,
+      currency: rule.currency,
+      description: rule.description,
+      id: rule.id,
+      name: rule.name,
+      stageName: rule.stage.name,
+      unit: rule.unit
+    }));
+  }
+
+  /**
+   * A new account was created: link it to the referral that brought it in —
+   * the referral cookie from a link visit, else a referral whose lead used
+   * the same email — and give its welcome benefits. Never throws into sign-up.
+   */
+  async linkSignup(input: { userId: string; email: string; referralId?: string }): Promise<void> {
+    try {
+      let referralId: string | null = null;
+      if (input.referralId) {
+        const fromCookie = await this.prisma.referral.findUnique({
+          select: { id: true, referredUserId: true, referrerId: true },
+          where: { id: input.referralId }
+        });
+        if (fromCookie && !fromCookie.referredUserId && fromCookie.referrerId !== input.userId) referralId = fromCookie.id;
+      }
+      if (!referralId) {
+        const byEmail = await this.prisma.referral.findFirst({
+          orderBy: { createdAt: "desc" },
+          select: { id: true },
+          where: {
+            lead: { email: { equals: input.email, mode: "insensitive" } },
+            referredUserId: null,
+            referrerId: { not: input.userId }
+          }
+        });
+        referralId = byEmail?.id ?? null;
+      }
+      if (referralId) await this.pipeline.linkReferredUser(referralId, input.userId, null);
+    } catch (error) {
+      this.logger.warn(`Could not link new account ${input.userId} to a referral: ${(error as Error).message}`);
+    }
+  }
+
   private async findOrCreateReferral(codeId: string, referrerId: string, visitorId: string | null): Promise<string> {
     if (visitorId) {
       const existing = await this.prisma.referral.findUnique({
@@ -94,7 +154,7 @@ export class ReferralTrackerService {
         const entry = this.pipeline.entryStage(stages);
         const referral = await tx.referral.create({
           data: { codeId, referrerId, stageId: entry.id, visitorId },
-          select: { convertedAt: true, id: true, referrer: { select: { role: true } }, referrerId: true, stageId: true }
+          select: REFERRAL_FOR_MOVE
         });
         await this.pipeline.recordEntry(tx, referral, stages);
         return referral.id;

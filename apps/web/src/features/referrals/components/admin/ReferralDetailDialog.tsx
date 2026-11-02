@@ -2,22 +2,23 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { ArrowRight, Link2, Trash2, Unlink } from "lucide-react";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import type { ReferralStageItem } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
+import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime, formatFullDate } from "@/lib/datetime";
-import { REFERRER_ROLE_LABELS } from "@nexa-chess/types";
+import { formatReferralReward, REFERRER_ROLE_LABELS } from "@nexa-chess/types";
 import { referralAdminApi } from "../../api/referralAdminApi";
 import { useAdminReferral, useReferralAdminMutation } from "../../hooks/useReferralAdmin";
-import { money, REWARD_STATUS_LABEL, REWARD_STATUS_VARIANT } from "../../lib/referralFormat";
+import { REWARD_STATUS_LABEL, REWARD_STATUS_VARIANT } from "../../lib/referralFormat";
 import { StageBadge } from "../StageBadge";
 
 type Props = {
@@ -38,6 +39,12 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
     { failure: "Could not move the referral", success: "Referral moved" }
   );
 
+  const [linkEmail, setLinkEmail] = useState("");
+  const link = useReferralAdminMutation(
+    (args: { id: string; email: string | null }) => referralAdminApi.linkUser(args.id, { email: args.email }),
+    { failure: "Could not update the account link", success: "Account link updated" }
+  );
+
   const [confirmDelete, setConfirmDelete] = useState(false);
   const remove = useReferralAdminMutation((id: string) => referralAdminApi.deleteReferral(id), {
     failure: "Could not delete the referral",
@@ -47,6 +54,7 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
   useEffect(() => {
     if (data) setStageId(data.stageId);
     setNote("");
+    setLinkEmail("");
   }, [data]);
 
   return (
@@ -96,6 +104,52 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
             ) : null}
 
             <section className="grid gap-3 rounded-app border border-app-border p-3">
+              <h3 className="text-sm font-bold text-app-text">New member&rsquo;s account</h3>
+              {data.referredUser ? (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 text-sm">
+                    <p className="font-bold text-app-text">{data.referredUser.name}</p>
+                    <p className="break-all text-app-muted">{data.referredUser.email}</p>
+                  </div>
+                  <Button
+                    className="shrink-0"
+                    isLoading={link.isPending}
+                    onClick={() => link.mutate({ email: null, id: data.id })}
+                    variant="neutral"
+                  >
+                    <Unlink aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                    Unlink
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-app-muted">
+                    Linked automatically when they sign up from the referral link or with the lead&rsquo;s email. Link it here if
+                    they used another email — their welcome benefits are given straight away.
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      aria-label="Account email"
+                      inputMode="email"
+                      onChange={(event) => setLinkEmail(event.target.value)}
+                      placeholder="Their account email"
+                      value={linkEmail}
+                    />
+                    <Button
+                      className="shrink-0"
+                      disabled={!linkEmail.trim()}
+                      isLoading={link.isPending}
+                      onClick={() => link.mutate({ email: linkEmail.trim(), id: data.id })}
+                    >
+                      <Link2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                      Link account
+                    </Button>
+                  </div>
+                </>
+              )}
+            </section>
+
+            <section className="grid gap-3 rounded-app border border-app-border p-3">
               <h3 className="text-sm font-bold text-app-text">Move to another stage</h3>
               <FormField id="referral-stage" label="Stage">
                 <Select
@@ -125,10 +179,17 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
                 <ul className="grid gap-2">
                   {data.rewards.map((reward) => (
                     <li className="flex items-center justify-between gap-3 rounded-control border border-app-border p-2 text-sm" key={reward.id}>
-                      <span className="min-w-0 truncate text-app-text">{reward.ruleName}</span>
+                      <span className="min-w-0 truncate text-app-text">
+                        {reward.ruleName}
+                        <span className="block text-xs text-app-muted">
+                          {reward.beneficiary === "REFERRED" ? `New member · ${reward.referrerName}` : "Referrer"}
+                        </span>
+                      </span>
                       <span className="flex shrink-0 items-center gap-2">
                         <Badge variant={REWARD_STATUS_VARIANT[reward.status]}>{REWARD_STATUS_LABEL[reward.status]}</Badge>
-                        <span className="font-bold tabular-nums">{money(reward.amountMinor, reward.currency)}</span>
+                        <span className="font-bold tabular-nums">
+                          {formatReferralReward(reward.amountMinor, reward.unit, reward.currency)}
+                        </span>
                       </span>
                     </li>
                   ))}
@@ -151,10 +212,12 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
               <ol className="grid gap-3 border-l border-app-border pl-4">
                 {data.events.map((event) => (
                   <li className="text-sm" key={event.id}>
-                    <p className="text-app-text">
-                      {event.fromStageName ? `${event.fromStageName} → ` : ""}
-                      <span className="font-bold">{event.toStageName ?? "Deleted stage"}</span>
-                    </p>
+                    {event.fromStageName || event.toStageName ? (
+                      <p className="text-app-text">
+                        {event.fromStageName ? `${event.fromStageName} → ` : ""}
+                        <span className="font-bold">{event.toStageName ?? "Deleted stage"}</span>
+                      </p>
+                    ) : null}
                     <p className="text-xs text-app-muted">
                       {formatDateTime(event.createdAt, timeZone)} · {event.actorName ?? "Automatic"}
                     </p>

@@ -41,6 +41,16 @@ export class ReferralSettingsService {
         ...(body.minWithdrawalMinor !== undefined ? { minWithdrawalMinor: body.minWithdrawalMinor } : {}),
         ...(body.paymentUseRoles !== undefined ? { paymentUseRoles: [...new Set(body.paymentUseRoles)] } : {}),
         ...(body.programTerms !== undefined ? { programTerms: body.programTerms || null } : {}),
+        ...(body.pointsTransferEnabled !== undefined ? { pointsTransferEnabled: body.pointsTransferEnabled } : {}),
+        ...(body.pointsTransferRoles !== undefined ? { pointsTransferRoles: [...new Set(body.pointsTransferRoles)] } : {}),
+        ...(body.minTransferPoints !== undefined ? { minTransferPoints: body.minTransferPoints } : {}),
+        ...(body.maxTransferPointsPerDay !== undefined ? { maxTransferPointsPerDay: body.maxTransferPointsPerDay } : {}),
+        ...(body.pointsConversionEnabled !== undefined ? { pointsConversionEnabled: body.pointsConversionEnabled } : {}),
+        ...(body.pointsConversionRoles !== undefined ? { pointsConversionRoles: [...new Set(body.pointsConversionRoles)] } : {}),
+        ...(body.conversionPoints !== undefined ? { conversionPoints: body.conversionPoints } : {}),
+        ...(body.conversionValueMinor !== undefined ? { conversionValueMinor: body.conversionValueMinor } : {}),
+        ...(body.minConversionPoints !== undefined ? { minConversionPoints: body.minConversionPoints } : {}),
+        ...(body.pointsPaymentEnabled !== undefined ? { pointsPaymentEnabled: body.pointsPaymentEnabled } : {}),
         updatedById: adminId
       },
       where: { id: SETTINGS_ID }
@@ -52,10 +62,20 @@ export class ReferralSettingsService {
     const roles = (list: readonly string[]) => list.filter(isReferrerRole) as ReferrerRole[];
     return {
       attributionDays: settings.attributionDays,
+      conversionPoints: settings.conversionPoints,
+      conversionValueMinor: settings.conversionValueMinor,
       currency: settings.currency,
       enabled: settings.enabled,
+      maxTransferPointsPerDay: settings.maxTransferPointsPerDay,
+      minConversionPoints: settings.minConversionPoints,
+      minTransferPoints: settings.minTransferPoints,
       minWithdrawalMinor: settings.minWithdrawalMinor,
       paymentUseRoles: roles(settings.paymentUseRoles),
+      pointsConversionEnabled: settings.pointsConversionEnabled,
+      pointsConversionRoles: roles(settings.pointsConversionRoles),
+      pointsPaymentEnabled: settings.pointsPaymentEnabled,
+      pointsTransferEnabled: settings.pointsTransferEnabled,
+      pointsTransferRoles: roles(settings.pointsTransferRoles),
       programTerms: settings.programTerms,
       referrerRoles: roles(settings.referrerRoles),
       withdrawalRoles: roles(settings.withdrawalRoles)

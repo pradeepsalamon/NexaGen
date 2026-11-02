@@ -1,10 +1,16 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateReferralPaymentCodeRequest, RequestReferralWithdrawalRequest } from "@nexa-chess/types";
+import type {
+  ConvertReferralPointsRequest,
+  CreateReferralPaymentCodeRequest,
+  RequestReferralWithdrawalRequest,
+  TransferReferralPointsRequest
+} from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
 import {
   cancelReferralPaymentCode,
   cancelReferralWithdrawal,
+  convertReferralPoints,
   createReferralPaymentCode,
   getMyReferralCredits,
   getMyReferralPaymentCodes,
@@ -12,7 +18,8 @@ import {
   getMyReferrals,
   getMyReferralSummary,
   getMyReferralWithdrawals,
-  requestReferralWithdrawal
+  requestReferralWithdrawal,
+  transferReferralPoints
 } from "../api/referralApi";
 import type { ReferralListParams } from "../lib/referralQuery";
 
@@ -79,5 +86,13 @@ export function useCreatePaymentCode() {
 }
 
 export function useCancelPaymentCode() {
-  return useWalletMutation((id: string) => cancelReferralPaymentCode(id), "Code cancelled, credits returned", "Could not cancel the code");
+  return useWalletMutation((id: string) => cancelReferralPaymentCode(id), "Code cancelled, balance returned", "Could not cancel the code");
+}
+
+export function useTransferPoints() {
+  return useWalletMutation((body: TransferReferralPointsRequest) => transferReferralPoints(body), "Points sent", "Could not send the points");
+}
+
+export function useConvertPoints() {
+  return useWalletMutation((body: ConvertReferralPointsRequest) => convertReferralPoints(body), "Points converted to money", "Could not convert");
 }

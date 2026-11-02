@@ -5,9 +5,11 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Coins, ListFilter, Pause, PencilLine, Play, Send, UserPlus } from "lucide-react";
 import {
   adjustReferralCreditsRequestSchema,
+  formatReferralPoints,
   referralCodeSchema,
   REFERRER_ROLE_LABELS,
   REFERRER_ROLES,
+  type ReferralWallet,
   type ReferrerStatsItem
 } from "@nexa-chess/types";
 import { Alert } from "@/components/ui/Alert";
@@ -102,11 +104,12 @@ export function ReferrersPanel({ onViewReferrals }: { onViewReferrals: (referrer
         cell: ({ row }) => (
           <div className="text-right">
             <p className="font-bold tabular-nums">{money(row.original.balanceMinor, currency)}</p>
+            <p className="text-xs tabular-nums text-app-muted">{formatReferralPoints(row.original.pointsBalance)}</p>
             <p className="text-xs text-app-muted">{money(row.original.earnedMinor, currency)} earned</p>
           </div>
         ),
-        header: () => <span className="block text-right">Credits</span>,
-        meta: { label: "Credits" }
+        header: () => <span className="block text-right">Wallet</span>,
+        meta: { label: "Wallet" }
       },
       {
         cell: ({ row }) => (
@@ -124,7 +127,7 @@ export function ReferrersPanel({ onViewReferrals }: { onViewReferrals: (referrer
                 tone: row.original.code && !row.original.codeActive ? "default" : "warning"
               },
               { icon: PencilLine, label: "Change code", onSelect: () => setDialog({ kind: "code", referrer: row.original }) },
-              { icon: Coins, label: "Adjust credits", onSelect: () => setDialog({ kind: "credits", referrer: row.original }) }
+              { icon: Coins, label: "Adjust wallet", onSelect: () => setDialog({ kind: "credits", referrer: row.original }) }
             ]}
           />
         ),
@@ -229,6 +232,7 @@ function ChangeCodeDialog({ onClose, referrer }: { referrer: ReferrerStatsItem; 
 
 function AdjustCreditsDialog({ currency, onClose, referrer }: { referrer: ReferrerStatsItem; currency: string; onClose: () => void }) {
   const [amount, setAmount] = useState("");
+  const [wallet, setWallet] = useState<ReferralWallet>("CASH");
   const [deduct, setDeduct] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -238,12 +242,14 @@ function AdjustCreditsDialog({ currency, onClose, referrer }: { referrer: Referr
   });
 
   const submit = async () => {
-    const minor = parseMajorAmount(amount, currency);
-    if (minor === null) return setError("Enter an amount.");
+    const whole = Number(amount.trim());
+    const minor = wallet === "POINTS" ? (Number.isInteger(whole) && whole > 0 ? whole : null) : parseMajorAmount(amount, currency);
+    if (minor === null) return setError(wallet === "POINTS" ? "Enter a whole number of points." : "Enter an amount.");
     const parsed = adjustReferralCreditsRequestSchema.safeParse({
       amountMinor: deduct ? -minor : minor,
       note,
-      userId: referrer.userId
+      userId: referrer.userId,
+      wallet
     });
     if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Check the form.");
     setError(null);
@@ -255,13 +261,25 @@ function AdjustCreditsDialog({ currency, onClose, referrer }: { referrer: Referr
     <Dialog onOpenChange={(open) => (open ? undefined : onClose())} open>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Adjust credits</DialogTitle>
+          <DialogTitle>Adjust wallet</DialogTitle>
           <DialogDescription>
-            {referrer.name} has {money(referrer.balanceMinor, currency)}. The change is recorded in their credit history.
+            {referrer.name} has {money(referrer.balanceMinor, currency)} and {formatReferralPoints(referrer.pointsBalance)}. The
+            change is recorded in their wallet history.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
-          <FormField id="adjust-amount" label={`Amount (${currency})`} required>
+          <FormField id="adjust-wallet" label="Wallet">
+            <Select
+              id="adjust-wallet"
+              onChange={(event) => setWallet(event.target.value as ReferralWallet)}
+              options={[
+                { label: "Money", value: "CASH" },
+                { label: "Points", value: "POINTS" }
+              ]}
+              value={wallet}
+            />
+          </FormField>
+          <FormField id="adjust-amount" label={wallet === "POINTS" ? "Points" : `Amount (${currency})`} required>
             <Input id="adjust-amount" inputMode="decimal" onChange={(event) => setAmount(event.target.value)} value={amount} />
           </FormField>
           <label className="flex items-center gap-3 text-sm text-app-text" htmlFor="adjust-deduct">
@@ -278,7 +296,7 @@ function AdjustCreditsDialog({ currency, onClose, referrer }: { referrer: Referr
             Cancel
           </Button>
           <Button isLoading={adjust.isPending} onClick={() => void submit().catch(() => undefined)}>
-            {deduct ? "Deduct credits" : "Add credits"}
+            {deduct ? "Deduct" : "Add"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,10 @@
 import {
   API_ROUTES,
+  type ConvertReferralPointsRequest,
+  type ConvertReferralPointsResponse,
   type CreateReferralPaymentCodeRequest,
+  type TransferReferralPointsRequest,
+  type TransferReferralPointsResponse,
   type MyReferralSummary,
   type ReferralCreditEntryItem,
   type ReferralItem,
@@ -61,4 +65,12 @@ export function createReferralPaymentCode(body: CreateReferralPaymentCodeRequest
 
 export function cancelReferralPaymentCode(id: string): Promise<{ ok: true }> {
   return apiFetch<{ ok: true }>(API_ROUTES.referrals.cancelPaymentCode(id), { method: "POST" });
+}
+
+export function transferReferralPoints(body: TransferReferralPointsRequest): Promise<TransferReferralPointsResponse> {
+  return apiFetch<TransferReferralPointsResponse>(API_ROUTES.referrals.transferPoints, { body, method: "POST" });
+}
+
+export function convertReferralPoints(body: ConvertReferralPointsRequest): Promise<ConvertReferralPointsResponse> {
+  return apiFetch<ConvertReferralPointsResponse>(API_ROUTES.referrals.convertPoints, { body, method: "POST" });
 }

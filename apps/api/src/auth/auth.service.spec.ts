@@ -1,3 +1,4 @@
+import { NOOP_REFERRAL_TRACKER } from "../referral/referral.testing";
 import { Test, TestingModule } from "@nestjs/testing";
 import {
   BadRequestException,
@@ -159,7 +160,8 @@ describe("AuthService", () => {
         { provide: PrismaService, useValue: prismaService },
         { provide: AnalyticsEventService, useValue: analyticsEvents },
         { provide: MfaService, useValue: mfaService },
-        { provide: EmailVerificationService, useValue: emailVerification }
+        { provide: EmailVerificationService, useValue: emailVerification },
+        NOOP_REFERRAL_TRACKER
       ]
     }).compile();
 

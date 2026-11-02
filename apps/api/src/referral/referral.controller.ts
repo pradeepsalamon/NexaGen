@@ -5,7 +5,11 @@ import { Throttle } from "@nestjs/throttler";
 import { getApiEnv, getCookieBaseOptions } from "@nexa-chess/config/api";
 import {
   API_ROUTES,
+  convertReferralPointsRequestSchema,
   createReferralPaymentCodeRequestSchema,
+  transferReferralPointsRequestSchema,
+  type ConvertReferralPointsRequest,
+  type TransferReferralPointsRequest,
   referralVisitRequestSchema,
   requestReferralWithdrawalRequestSchema,
   type CreateReferralPaymentCodeRequest,
@@ -82,7 +86,7 @@ export class ReferralController {
         path: TRACKING_COOKIE_PATH
       });
     }
-    return { referrerFirstName: result.referrerFirstName, valid: result.valid };
+    return { benefits: result.benefits, referrerFirstName: result.referrerFirstName, valid: result.valid };
   }
 
   // ── Referrer board (students, coaches, sales) ──
@@ -143,5 +147,26 @@ export class ReferralController {
   @HttpCode(200)
   cancelPaymentCode(@Req() request: Request, @Param("id") id: string) {
     return this.referrals.cancelPaymentCode(this.getAccessToken(request), id);
+  }
+
+  // ── Points ──
+
+  @Post(API_ROUTES.referrals.transferPoints)
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  transferPoints(
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(transferReferralPointsRequestSchema)) body: TransferReferralPointsRequest
+  ) {
+    return this.referrals.transferPoints(this.getAccessToken(request), body);
+  }
+
+  @Post(API_ROUTES.referrals.convertPoints)
+  @HttpCode(200)
+  convertPoints(
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(convertReferralPointsRequestSchema)) body: ConvertReferralPointsRequest
+  ) {
+    return this.referrals.convertPoints(this.getAccessToken(request), body);
   }
 }

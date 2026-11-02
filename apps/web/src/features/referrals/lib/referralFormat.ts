@@ -2,6 +2,7 @@ import {
   formatMoney,
   toMinorUnits,
   type ReferralPaymentCodeItem,
+  type ReferralRewardItem,
   type ReferralRewardStatus,
   type ReferralWithdrawalStatus
 } from "@nexa-chess/types";
@@ -56,5 +57,13 @@ export const PAYMENT_CODE_VARIANT: Record<ReferralPaymentCodeItem["status"], Bad
 export const PAYMENT_CODE_LABEL: Record<ReferralPaymentCodeItem["status"], string> = {
   ACTIVE: "Ready to use",
   CANCELLED: "Cancelled",
+  USED: "Used"
+};
+
+/** A welcome discount code's state, for the code chip in the rewards list. */
+export const DISCOUNT_STATUS_LABEL: Record<NonNullable<ReferralRewardItem["discountStatus"]>, string> = {
+  ACTIVE: "Use at checkout",
+  CANCELLED: "Cancelled",
+  EXPIRED: "Expired",
   USED: "Used"
 };

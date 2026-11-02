@@ -11,6 +11,7 @@ import { DataTableToolbar } from "@/components/ui/DataTableToolbar";
 import { Select } from "@/components/ui/Select";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useServerTable } from "@/hooks/useServerTable";
+import { Badge } from "@/components/ui/Badge";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { useMyReferrals } from "../hooks/useReferrals";
@@ -40,7 +41,10 @@ export function MyReferralsTable({ showContact, stages }: Props) {
         accessorKey: "prospectName",
         cell: ({ row }) => (
           <div className="min-w-36">
-            <p className="font-bold text-app-text">{row.original.prospectName ?? "Visitor"}</p>
+            <p className="flex flex-wrap items-center gap-2 font-bold text-app-text">
+              {row.original.prospectName ?? "Visitor"}
+              {row.original.joined ? <Badge variant="success">Signed up</Badge> : null}
+            </p>
             {row.original.prospectName ? null : <p className="text-xs text-app-muted">Opened your link</p>}
           </div>
         ),
