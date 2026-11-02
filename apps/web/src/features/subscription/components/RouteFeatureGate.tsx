@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { PageContent } from "@/components/layout/PageContent";
 import { featureForPath } from "../lib/featureRoutes";
 import { usePlanFeature } from "../hooks/useSubscription";
 import { PlanUpgradeNotice } from "./PlanUpgradeNotice";
@@ -9,15 +10,11 @@ import { PlanUpgradeNotice } from "./PlanUpgradeNotice";
 function GatedRoute({ children, feature }: { children: ReactNode; feature: NonNullable<ReturnType<typeof featureForPath>> }) {
   const enabled = usePlanFeature(feature);
   if (enabled !== false) return <>{children}</>;
-  // Replaces the role layout's own wrapper, so it repeats that padding (app/admin/layout.tsx).
+  // Replaces the role layout's own wrapper.
   return (
-    <div className="min-h-[calc(100dvh-64px)] bg-app-background">
-      <main className="min-w-0 overflow-x-clip p-4 md:p-6 lg:p-8">
-        <div className="mx-auto max-w-6xl">
-          <PlanUpgradeNotice feature={feature} />
-        </div>
-      </main>
-    </div>
+    <PageContent>
+      <PlanUpgradeNotice feature={feature} />
+    </PageContent>
   );
 }
 

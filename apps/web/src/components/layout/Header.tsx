@@ -1,16 +1,17 @@
 "use client";
 
-import { LifeBuoy, Loader2, LogIn, Menu, Sun, Moon } from "lucide-react";
-import Image from "next/image";
+import { LifeBuoy, Loader2, LogIn, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { HEADER_ICON_BUTTON } from "@/components/layout/headerStyles";
 import { UserNavMenu } from "@/components/layout/UserNavMenu";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { useSidebarStore } from "@/stores/sidebarStore";
-import { useTheme } from "@/providers/ThemeProvider";
 import { resolvePageTitle } from "@/lib/pageTitles";
 import { cn } from "@/lib/utils";
 
@@ -37,9 +38,6 @@ export function Header({
   const sidebarOpen = useSidebarStore((state) => state.open);
   const toggleSidebar = useSidebarStore((state) => state.toggle);
 
-  const { mode, toggleMode, isHydrated: themeHydrated } = useTheme();
-  const isDark = themeHydrated && mode === "dark";
-
   const isAuthPending = !isHydrated || isSessionLoading || !isSessionChecked;
   const activeUser = isSessionChecked ? user : undefined;
 
@@ -47,49 +45,36 @@ export function Header({
   const homeHref = activeUser ? dashboardHref : "/";
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-nx-line bg-nx-bar text-nx-ink transition-colors duration-200">
-      <div className="mx-auto flex h-full w-full max-w-[1360px] items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
-        {/* Left: Mobile Hamburger + Logo */}
-        <div className="flex min-w-0 items-center gap-1.5 sm:gap-3 shrink-0">
+    <header className="surface-brand fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-brand-800 px-3 text-on-brand sm:px-4 md:px-6 lg:px-8">
+      <div className="mx-auto flex h-full w-full max-w-7xl items-center justify-between gap-2">
+        {/* Left: menu + logo */}
+        <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-3">
           {hasSidebar ? (
             <button
+              aria-controls="nav-drawer"
               aria-expanded={sidebarOpen}
-              aria-label="Open menu"
-              className={cn(
-                "lg:hidden inline-flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-xl transition-colors",
-                "text-nx-ink hover:bg-nx-hover-faint"
-              )}
+              aria-label={sidebarOpen ? "Close menu" : "Open menu"}
+              className={HEADER_ICON_BUTTON}
               onClick={toggleSidebar}
               type="button"
             >
-              <Menu aria-hidden="true" className="size-5" strokeWidth={2.2} />
+              {sidebarOpen ? (
+                <X aria-hidden="true" className="size-5" strokeWidth={2.25} />
+              ) : (
+                <Menu aria-hidden="true" className="size-5" strokeWidth={2.25} />
+              )}
             </button>
           ) : null}
 
           <Link
             aria-label={activeUser ? "Go to Dashboard" : "Go to Home"}
-            className="shrink-0 flex items-center transition hover:opacity-90"
+            className="flex shrink-0 items-center transition hover:opacity-90"
             href={homeHref}
             {...(openLinksInNewTab
               ? { target: "_blank", rel: "noopener noreferrer" }
               : {})}
           >
-            {/* Both logos render; CSS shows the current theme's (no flash before hydration). */}
-            <Image
-              src="/academy/nexa_logo_light1.png"
-              alt="NEXA Chess"
-              width={140}
-              height={38}
-              priority
-              className="h-7 w-auto max-w-[108px] sm:max-w-none sm:h-9 object-contain object-left dark:hidden"
-            />
-            <Image
-              src="/academy/nexa_logo_dark1.png"
-              alt="NEXA Chess"
-              width={140}
-              height={38}
-              className="hidden h-7 w-auto max-w-[108px] sm:max-w-none sm:h-9 object-contain object-left dark:block"
-            />
+            <Logo iconOnlyOnMobile onDark size={36} />
           </Link>
 
           {leftSlot}
@@ -98,15 +83,15 @@ export function Header({
         {/* Center: the caller's slot, else the page name from PAGE_TITLES. Not a
             heading: each page's PageHeader owns the one <h1>. */}
         {centerSlot ? (
-          <div className="hidden md:block min-w-0 truncate">{centerSlot}</div>
+          <div className="hidden min-w-0 truncate md:block">{centerSlot}</div>
         ) : (
-          <p className="hidden min-w-0 truncate text-center font-display text-base font-extrabold text-nx-ink lg:block">
+          <p className="hidden min-w-0 truncate text-center font-display text-base font-bold text-on-brand lg:block">
             {activeUser ? pageTitle : null}
           </p>
         )}
 
-        {/* Right Controls: Cleanly spaced so it never collides with the left Logo */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        {/* Right: the caller's slot, then account controls */}
+        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
           {rightSlot}
 
           {activeUser && !pathname.startsWith("/help") && (
@@ -115,11 +100,11 @@ export function Header({
               <SimpleTooltip label="Help">
                 <Link
                   aria-label="Help"
-                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-soft text-app-text shadow-card transition hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                  className={HEADER_ICON_BUTTON}
                   href={`/help?from=${encodeURIComponent(pathname)}`}
                   {...(openLinksInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 >
-                  <LifeBuoy aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                  <LifeBuoy aria-hidden="true" className="size-5" strokeWidth={2.25} />
                 </Link>
               </SimpleTooltip>
             </span>
@@ -130,56 +115,25 @@ export function Header({
             </span>
           )}
 
-          {/* Compact single-icon theme button on mobile; full pill on sm+ */}
-          <button
-            type="button"
-            onClick={toggleMode}
-            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            className={cn(
-              "sm:hidden inline-flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors",
-              "bg-nx-tile border-nx-line text-nx-gold-bright-ink"
-            )}
-          >
-            {isDark ? (
-              <Moon className="size-3.5" strokeWidth={2.2} />
-            ) : (
-              <Sun className="size-3.5" strokeWidth={2.2} />
-            )}
-          </button>
-
-          <span className="hidden sm:block shrink-0">
-            <ThemeToggle />
-          </span>
+          <ThemeToggle />
 
           {isAuthPending ? (
             <div
               aria-label="Checking session"
-              className={cn(
-                "inline-flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-full border",
-                "border-nx-line bg-nx-tile text-nx-muted"
-              )}
+              className="inline-flex size-[var(--control-h)] shrink-0 items-center justify-center text-on-brand-muted"
               role="status"
             >
-              <Loader2
-                aria-hidden="true"
-                className="size-4 animate-spin"
-                strokeWidth={2.5}
-              />
+              <Loader2 aria-hidden="true" className="size-4 animate-spin" strokeWidth={2.5} />
             </div>
           ) : activeUser ? (
-            <UserNavMenu
-              user={activeUser}
-              openLinksInNewTab={openLinksInNewTab}
-            />
+            <UserNavMenu user={activeUser} openLinksInNewTab={openLinksInNewTab} />
           ) : pathname === "/login" ? null : (
-            <Link
-              className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-full bg-nx-emphasis px-3 sm:px-4 text-xs font-bold text-nx-ink-inverse transition hover:opacity-90"
-              aria-label="Log in"
-              href="/login"
-            >
-              <LogIn aria-hidden="true" className="size-3.5" strokeWidth={2.4} />
-              <span className="hidden xs:inline">Log in</span>
-            </Link>
+            <Button asChild>
+              <Link aria-label="Log in" href="/login">
+                <LogIn aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                <span className="hidden xs:inline">Log in</span>
+              </Link>
+            </Button>
           )}
         </div>
       </div>

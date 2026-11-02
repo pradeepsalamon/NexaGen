@@ -157,7 +157,8 @@
   --color-scroll-shade: rgb(var(--rgb-scrim) / 0.55);
 }
 
-:root[data-theme="dark"] {
+:root[data-theme="dark"],
+.surface-brand {
   --rgb-primary: 107 147 234;
   --rgb-primary-hover: 132 166 238;
   --rgb-primary-dark: 79 123 224;
@@ -184,6 +185,21 @@
   --rgb-on-success: 7 20 42;
   --rgb-on-warning: 7 20 42;
   --rgb-on-info: 7 20 42;
+}
+
+/* Navy chrome (header, nav drawer) in both themes: whatever sits inside reads the dark palette. */
+.surface-brand {
+  --rgb-background: var(--rgb-brand-900);
+  --rgb-surface: var(--rgb-brand-800);
+  --rgb-surface-soft: var(--rgb-brand-700);
+  --rgb-surface-hover: var(--rgb-brand-700);
+  --rgb-border: var(--rgb-brand-700);
+  --rgb-line-strong: 95 111 144;
+  --rgb-text: var(--rgb-on-brand);
+  --rgb-text-muted: var(--rgb-on-brand-muted);
+  --rgb-text-subtle: var(--rgb-on-brand-muted);
+  --rgb-emphasis: var(--rgb-on-brand);
+  --color-focus: rgb(var(--rgb-primary));
 }
 
 @layer components {

@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 
@@ -34,19 +35,17 @@ export function FormPageShell({
       <header className="sticky top-16 z-20 -mx-4 flex flex-col gap-3 border-b border-app-border bg-app-background/95 px-4 py-3 supports-[backdrop-filter]:bg-app-background/85 supports-[backdrop-filter]:backdrop-blur sm:flex-row sm:items-center sm:justify-between md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <SimpleTooltip label={backLabel}>
-            <Link
-              aria-label={backLabel}
-              className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] text-on-primary shadow-[0_2px_6px_-1px_color-mix(in_srgb,var(--color-primary)_35%,transparent)] transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)] hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
-              href={backHref}
-            >
-              <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            </Link>
+            <Button asChild size="icon" variant="neutral">
+              <Link aria-label={backLabel} href={backHref}>
+                <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              </Link>
+            </Button>
           </SimpleTooltip>
           <div className="min-w-0">
             {eyebrow ? (
               <p className="text-xs font-bold text-primary-ink">{eyebrow}</p>
             ) : null}
-            <h1 className="truncate text-xl font-extrabold leading-tight tracking-tight text-app-text sm:text-2xl">
+            <h1 className="truncate text-2xl font-extrabold leading-tight tracking-tight text-app-text">
               {title}
             </h1>
             {description ? (

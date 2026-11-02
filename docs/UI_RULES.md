@@ -35,6 +35,7 @@ and are mapped in `tailwind.config.ts`.
 | Tints | the `-soft` tokens, or alpha on a token: `bg-primary/10`, `border-success/40` | a separate pale palette colour |
 | Input borders, unchecked controls | `border-app-line-strong` | `border-app-border`, which is too faint at 3:1 |
 | Over video, the board or a dimmed page | `bg-scrim/60`, `text-on-scrim`, `border-on-scrim/10`, `text-on-scrim-danger` (fixed in both themes) | `bg-black/60 text-white` |
+| Inside the navy header or drawer | Put `surface-brand` on the navy container: everything inside reads the dark palette in both themes, so `text-app-text`, `Button` and `Badge` just work | Hand-picking `text-white` for each child |
 | Must stay white (QR code, switch thumb) | `bg-paper` | `bg-white` |
 | Chess sides and draws (swatches, result bars) | `bg-side-white`, `bg-side-black`, `bg-side-draw` | `bg-white`, `bg-neutral-900` |
 | Charts | `useChartColors()`; extra hues are `--color-chart-1` to `-4` | hex in a chart |
@@ -112,7 +113,8 @@ disagree.
 | KPIs / stat tiles | `KpiCard`, `StatTile` | Plain card with a 12px label and a 32/40 value. Numbers use the display font with `tabular-nums`, never `font-mono`. Labels are sentence case. Don't hand-roll a KPI tile. |
 | Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. |
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
-| Page title + actions | `PageHeader` | |
+| Page title + actions | `PageHeader` | Pass `breadcrumbs` on a detail page instead of a `BackButton`. |
+| Role page frame | `PageContent` | The one ground, padding and `max-w-7xl` content width. Role layouts use it; pages don't add their own. |
 | Tooltips | `SimpleTooltip` | Never `title=` on an interactive element. |
 | Icons | `lucide-react` only, sized with classes (`className="size-4"`), `strokeWidth={2.25–2.5}` | No other icon library, no inline `<svg>` icons, no `size={16}` props (they don't follow the text-size setting). |
 

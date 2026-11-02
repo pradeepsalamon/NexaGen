@@ -4,11 +4,12 @@
  *   accent    success, attendance, announcements
  *   secondary practice, assignments, attention (amber: gold is never a status)
  *   warm      courses, learning, recordings
+ *   reward    rating and streaks (gold)
  * Danger stays reserved for destructive actions and the LIVE state.
  *
  * Every value is a literal class string — Tailwind cannot see interpolated names.
  */
-export type Tone = "accent" | "primary" | "secondary" | "warm";
+export type Tone = "accent" | "primary" | "reward" | "secondary" | "warm";
 
 type ToneStyle = {
   /** solid hue, for rules and progress fills */
@@ -49,6 +50,16 @@ export const TONE: Record<Tone, ToneStyle> = {
     header: "bg-primary/[0.05]",
     text: "text-primary-ink",
     wash: "bg-primary/[0.06]"
+  },
+  reward: {
+    bar: "bg-accent",
+    chip: "bg-accent-soft text-accent-ink",
+    border: "border-accent/40",
+    ghost: "text-accent/30",
+    hover: "hover:bg-accent/10",
+    header: "bg-accent/[0.07]",
+    text: "text-accent-ink",
+    wash: "bg-accent/[0.09]"
   },
   secondary: {
     bar: "bg-warning",

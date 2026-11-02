@@ -12,7 +12,7 @@ import {
 } from "@nexa-chess/types";
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
 import { CoachAttendanceDialog } from "@/features/attendance/components/CoachAttendanceDialog";
-import { BackButton } from "@/components/ui/BackButton";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
@@ -81,8 +81,8 @@ export default function AdminCoachTeachingPage() {
   );
 
   return (
-    <div className="space-y-6 max-w-7xl p-4 sm:p-6">
-      <BackButton />
+    <div className="space-y-6">
+      <Breadcrumbs items={[{ href: "/admin/attendance", label: "Attendance" }, { label: "Coach teaching report" }]} />
 
       <div>
         <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">

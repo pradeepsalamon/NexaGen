@@ -141,6 +141,8 @@ Everything marked P0 and P1 in [COMPONENT_INVENTORY.md](COMPONENT_INVENTORY.md) 
 
 `Header`, `NavDrawer` per D2, role sidebars, `UserNavMenu`, notifications popover, `ThemeToggle`, `PageHeader` with breadcrumbs, `FormPageShell`, one content width, `PageLoading`, `not-found`, `global-error`, `PlanUpgradeNotice`.
 
+**Built 2026-11-02, not signed off.** Breadcrumbs exist with one use; other pages adopt them in their own milestones. Still unchecked: signing in as each role, a joined live room, the drawer's drag gesture on a real touch screen.
+
 Fixes known issues: edge-hover dimming, the tab covering content on phones, gold-as-status in the drawer, unnamed drawer states.
 
 **Done when:** all three roles navigate everywhere, with plan and role filtering verified by signing in as each.

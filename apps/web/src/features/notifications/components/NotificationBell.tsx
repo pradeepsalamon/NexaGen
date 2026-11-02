@@ -7,6 +7,7 @@ import { Bell, CheckCheck } from "lucide-react";
 import type { NotificationItem } from "@nexa-chess/types";
 import { FormattedText } from "@/components/ui/FormattedText";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { HEADER_ICON_BUTTON } from "@/components/layout/headerStyles";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useMarkNotificationsRead, useNotifications } from "../hooks/useNotificationsApi";
@@ -58,17 +59,17 @@ export function NotificationBell({
           aria-label={
             unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"
           }
-          className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-soft text-app-text shadow-card transition hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+          className={cn(HEADER_ICON_BUTTON, "relative")}
         >
           <Bell aria-hidden="true" className="size-4" strokeWidth={2.5} />
           {unreadCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-extrabold leading-4 text-on-primary">
+            <span className="absolute right-0.5 top-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-on-primary">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0">
+      <PopoverContent align="end" className="w-[min(20rem,calc(100vw-2rem))] p-0">
         <div className="flex items-center justify-between border-b border-app-border px-3 py-2">
           <span className="text-sm font-bold text-app-text">Notifications</span>
           {unreadCount > 0 && (
