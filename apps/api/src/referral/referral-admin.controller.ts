@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
 import {
   API_ROUTES,
   adjustReferralCreditsRequestSchema,
@@ -80,6 +80,7 @@ export class ReferralAdminController {
   }
 
   @Post(API_ROUTES.adminReferrals.reorderStages)
+  @HttpCode(200)
   reorderStages(@Req() request: Request, @Body(new ZodBodyPipe(reorderReferralStagesRequestSchema)) body: ReorderReferralStagesRequest) {
     return this.admin.reorderStages(this.getAccessToken(request), body);
   }
@@ -131,11 +132,13 @@ export class ReferralAdminController {
   }
 
   @Post(API_ROUTES.adminReferrals.approveReward())
+  @HttpCode(200)
   approveReward(@Req() request: Request, @Param("id") id: string) {
     return this.admin.approveReward(this.getAccessToken(request), id);
   }
 
   @Post(API_ROUTES.adminReferrals.cancelReward())
+  @HttpCode(200)
   cancelReward(
     @Req() request: Request,
     @Param("id") id: string,
@@ -150,6 +153,7 @@ export class ReferralAdminController {
   }
 
   @Post(API_ROUTES.adminReferrals.payWithdrawal())
+  @HttpCode(200)
   payWithdrawal(
     @Req() request: Request,
     @Param("id") id: string,
@@ -159,6 +163,7 @@ export class ReferralAdminController {
   }
 
   @Post(API_ROUTES.adminReferrals.rejectWithdrawal())
+  @HttpCode(200)
   rejectWithdrawal(
     @Req() request: Request,
     @Param("id") id: string,
@@ -168,6 +173,7 @@ export class ReferralAdminController {
   }
 
   @Post(API_ROUTES.adminReferrals.adjustCredits)
+  @HttpCode(200)
   adjustCredits(@Req() request: Request, @Body(new ZodBodyPipe(adjustReferralCreditsRequestSchema)) body: AdjustReferralCreditsRequest) {
     return this.admin.adjustCredits(this.getAccessToken(request), body);
   }

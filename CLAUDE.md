@@ -139,6 +139,10 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 - **Knowledge base** (`knowledge/`, `/help`, `/admin/knowledge`): nothing pre-loaded; `canReadKnowledgeArticle` / `readerWhere` is the one visibility rule (hidden = 404); published versions immutable. [KNOWLEDGE_BASE](docs/KNOWLEDGE_BASE.md)
 - **Privacy** (`privacy/`): secrets never leave an export; **a new model storing personal data gets an export section**; deletions via `UserService.deleteAs`; `features/legal/content.ts` must stay true to the code.
 
+### 3.6l2 Referrals and the SALES role
+
+`referral/` + `features/referrals/`, contract `@nexa-chess/types` `referrals.ts`. Every stage change goes through `ReferralPipelineService` (automatic moves forward only; rewards deduped by `dedupeKey`); credits are an append-only ledger debited under a per-user xact lock; paying fees with credits is a personal `Discount` (`restrictedToUserId`). **`authenticateUser` refuses SALES unless `{ allowSales: true }`**. [docs/REFERRALS.md](docs/REFERRALS.md)
+
 ### 3.6m SaaS plans
 
 `platform/` + `features/subscription/`, catalogue `@nexa-chess/types` `platform-plans.ts`. The API enforces every feature/limit: global `FeatureGateGuard` + `@RequireFeature("key")`, and `EntitlementService.assert*` inside the creating transaction; refusals are **402**. A new catalogued feature must be required by a route (a spec checks) and added to the Enterprise row by migration. Plan changes are `platform_staff` only. [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md)

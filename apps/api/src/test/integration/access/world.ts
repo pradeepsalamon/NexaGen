@@ -291,6 +291,27 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     data: { articleId: kbSuggestionArticle.id, authorId: coach.id, body: "Idea", number: 1, status: "SUBMITTED", title: `Suggestion ${label}` }
   });
 
+  // Referral wallet rows (docs/REFERRALS.md): the coach's payout request and
+  // the student's personal payment code are ids their owner acts on.
+  const referralWithdrawal = await prisma.referralWithdrawal.create({
+    data: { amountMinor: 50000, currency: "INR", payoutDetails: `upi-${label}@bank`, userId: coach.id }
+  });
+  const referralPaymentCode = await prisma.discount.create({
+    data: {
+      code: `REFWORLD${label}`,
+      maxPerUser: 1,
+      maxRedemptions: 1,
+      name: `Referral credits ${label}`,
+      restrictedToUserId: student.id,
+      type: "FIXED",
+      value: 20000,
+      currency: "INR"
+    }
+  });
+  await prisma.referralCreditEntry.create({
+    data: { amountMinor: -20000, currency: "INR", discountId: referralPaymentCode.id, type: "PAYMENT_CODE", userId: student.id }
+  });
+
   return {
     externalAccount,
     activityQueue,
@@ -313,6 +334,8 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     payrollRecord,
     privatePuzzle,
     playoutGame,
+    referralPaymentCode,
+    referralWithdrawal,
     playoutRun,
     rush,
     setDeployment,

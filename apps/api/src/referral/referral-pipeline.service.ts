@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   canAutoAdvanceReferral,
+  DEFAULT_REFERRAL_STAGES,
   referralMilestonesReached,
   referralStagesReached
 } from "@nexa-chess/types";
@@ -39,8 +40,14 @@ export class ReferralPipelineService {
     private readonly credits: ReferralCreditsService
   ) {}
 
-  listStages(client: PrismaTransactionClient | PrismaService = this.prisma): Promise<ReferralStage[]> {
-    return client.referralStage.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
+  async listStages(client: PrismaTransactionClient | PrismaService = this.prisma): Promise<ReferralStage[]> {
+    const read = () => client.referralStage.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
+    const stages = await read();
+    if (stages.length > 0) return stages;
+    // The migration seeds these; a wiped table (a test reset, a hand-cleaned
+    // dev database) gets them back rather than a pipeline with no stages.
+    await client.referralStage.createMany({ data: [...DEFAULT_REFERRAL_STAGES], skipDuplicates: true });
+    return read();
   }
 
   /** The entry stage: the LINK_VISITED stage, else the first one. */

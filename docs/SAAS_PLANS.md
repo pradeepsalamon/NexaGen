@@ -50,6 +50,7 @@ attendance, assignments, the puzzle library, announcements, notifications.
 | `gameLibrary` | `GameLibraryController` |
 | `interactiveClassroom` | simul, matches, move polls, puzzle rush, activity queue, chapters, classroom tools — **writes only** (`allowReads`), because the room reads their state on mount |
 | `leadsCrm` | the `adminLeads.*` routes (the public lead form keeps capturing) |
+| `referralProgram` | the `referrals.*` and `adminReferrals.*` routes; with it off, links and typed codes attribute nothing |
 | `messagingAutomation` | `MessagingController` |
 | `smartRevision` | `RevisionController` |
 | `studentPayments` | payments, invoices, admin payments/invoices, manual payments (never the provider webhooks) |

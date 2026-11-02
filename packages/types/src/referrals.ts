@@ -91,6 +91,25 @@ export type ReferralStageItem = {
   referralCount: number;
 };
 
+/**
+ * The default pipeline, seeded by the `referral_program` migration (and again
+ * by the API if the table is ever empty). Admins rename, reorder and extend it.
+ */
+export const DEFAULT_REFERRAL_STAGES: readonly {
+  id: string;
+  name: string;
+  description: string;
+  tone: ReferralStageTone;
+  position: number;
+  trigger: ReferralStageTrigger;
+}[] = [
+  { description: "Opened the referral link.", id: "refstage_visited", name: "Visited", position: 10, tone: "secondary", trigger: "LINK_VISITED" },
+  { description: "Booked a free demo class.", id: "refstage_booked", name: "Demo booked", position: 20, tone: "info", trigger: "DEMO_BOOKED" },
+  { description: "Joined the demo class.", id: "refstage_attended", name: "Demo attended", position: 30, tone: "warning", trigger: "DEMO_ATTENDED" },
+  { description: "Enrolled at the academy (set by an admin).", id: "refstage_converted", name: "Onboarded", position: 40, tone: "success", trigger: "CONVERTED" },
+  { description: "Decided not to join.", id: "refstage_lost", name: "Not joined", position: 50, tone: "destructive", trigger: "LOST" }
+];
+
 type StageLike = { id: string; position: number; trigger: ReferralStageTrigger };
 
 /** A CONVERTED or LOST stage is final: nothing automatic moves a referral out. */

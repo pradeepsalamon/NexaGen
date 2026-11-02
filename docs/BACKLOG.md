@@ -89,6 +89,10 @@ code on 2026-10-31.
   payout integration, no multi-currency, no rate CSV import/export.
 - **Chat push:** a websocket only if the 4 s poll proves too slow or costly.
   There is no evidence of that yet.
+- **Referrals** ([REFERRALS.md](REFERRALS.md), shipped 2026-11-02): no
+  notifications yet (a stage move or reward could be a `MessagingEvent`), no
+  bulk payout export, and a registered student is not linked back to the
+  referral automatically (an admin marks "Onboarded").
 
 ### Needs someone with `vps_dev` / production access
 

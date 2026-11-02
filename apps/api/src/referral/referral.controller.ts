@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { Body, Controller, Get, Param, Post, Query, Req, Res } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Throttle } from "@nestjs/throttler";
 import { getApiEnv, getCookieBaseOptions } from "@nexa-chess/config/api";
@@ -41,6 +41,7 @@ export class ReferralController {
 
   /** `/r/<code>` landing: count the visit and remember the referral. */
   @Post(API_ROUTES.referrals.visit)
+  @HttpCode(200)
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   async visit(
     @Body(new ZodBodyPipe(referralVisitRequestSchema)) body: ReferralVisitRequest,
@@ -120,6 +121,7 @@ export class ReferralController {
   }
 
   @Post(API_ROUTES.referrals.cancelWithdrawal())
+  @HttpCode(200)
   cancelWithdrawal(@Req() request: Request, @Param("id") id: string) {
     return this.referrals.cancelWithdrawal(this.getAccessToken(request), id);
   }
@@ -138,6 +140,7 @@ export class ReferralController {
   }
 
   @Post(API_ROUTES.referrals.cancelPaymentCode())
+  @HttpCode(200)
   cancelPaymentCode(@Req() request: Request, @Param("id") id: string) {
     return this.referrals.cancelPaymentCode(this.getAccessToken(request), id);
   }

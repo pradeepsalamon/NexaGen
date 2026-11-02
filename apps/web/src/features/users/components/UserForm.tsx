@@ -22,7 +22,7 @@ const baseUserFormSchema = z.object({
     .string()
     .refine((value) => value === "" || value.length >= 8, "Password must be at least 8 characters")
     .optional(),
-  role: z.enum(["STUDENT", "COACH", "ADMIN", "SUPER_ADMIN"]),
+  role: z.enum(["STUDENT", "COACH", "SALES", "ADMIN", "SUPER_ADMIN"]),
   status: z.enum(["ACTIVE", "PENDING", "ARCHIVED", "DELETED"]),
 });
 
@@ -31,6 +31,8 @@ type UserFormValues = z.infer<typeof baseUserFormSchema>;
 const roleOptions = [
   { label: "Student", value: "STUDENT" },
   { label: "Coach", value: "COACH" },
+  // Referral board only (docs/REFERRALS.md).
+  { label: "Sales (referrals only)", value: "SALES" },
   { label: "Admin", value: "ADMIN" },
   { label: "Super Admin", value: "SUPER_ADMIN" }
 ];

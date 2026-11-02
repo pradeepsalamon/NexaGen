@@ -47,6 +47,8 @@ function getRoleLabel(role?: string) {
       return "Coach / Teacher";
     case "STUDENT":
       return "Student";
+    case "SALES":
+      return "Sales";
     default:
       return "Member";
   }
@@ -175,6 +177,7 @@ export function UserNavMenu({
                 <span>Profile &amp; settings</span>
               </Link>
             </DropdownMenuItem>
+            {user.role === "SALES" ? null : (
             <DropdownMenuItem asChild>
               <Link
                 href="/chess-board"
@@ -185,6 +188,7 @@ export function UserNavMenu({
                 <span>Chess board</span>
               </Link>
             </DropdownMenuItem>
+            )}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem

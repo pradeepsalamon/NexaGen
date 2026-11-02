@@ -12,6 +12,7 @@ import {
   CreditCard,
   Database,
   Gem,
+  Gift,
   History,
   Inbox,
   Layers3,
@@ -89,6 +90,7 @@ export const studentNavItems: NavItem[] = [
   { href: "/games", label: "Game library", icon: Library, feature: "gameLibrary" },
   { href: "/student/attendance", label: "Attendance", icon: UserCheck },
   { href: "/student/billing", label: "Billing", icon: CreditCard, feature: "studentPayments" },
+  { href: "/student/referrals", label: "Refer & earn", icon: Gift, feature: "referralProgram" },
   { href: "/help", label: "Help centre", icon: LifeBuoy },
   { href: "/chess-board", label: "Chess board", icon: Palette },
   { href: "/profile", label: "Profile & settings", icon: Settings }
@@ -110,8 +112,15 @@ export const coachNavItems: NavItem[] = [
   { href: "/coach/requests", label: "My requests", icon: Inbox },
   { href: "/coach/earnings", label: "Earnings", icon: Wallet, feature: "coachPayroll" },
   { href: "/coach/payments", label: "Payments", icon: CreditCard, feature: "studentPayments" },
+  { href: "/coach/referrals", label: "Refer & earn", icon: Gift, feature: "referralProgram" },
   { href: "/help", label: "Help centre", icon: LifeBuoy },
   { href: "/chess-board", label: "Chess board", icon: Palette },
+  { href: "/profile", label: "Profile & settings", icon: Settings }
+];
+
+/** SALES accounts exist only for referrals. */
+export const salesNavItems: NavItem[] = [
+  { href: "/sales", label: "Referral board", icon: Gift, feature: "referralProgram" },
   { href: "/profile", label: "Profile & settings", icon: Settings }
 ];
 
@@ -133,6 +142,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users, group: "People" },
   { href: "/admin/approvals", label: "Approvals", icon: UserRoundCheck, group: "People" },
   { href: "/admin/leads", label: "Leads", icon: UserPlus, group: "People", feature: "leadsCrm" },
+  { href: "/admin/referrals", label: "Referrals", icon: Gift, group: "People", feature: "referralProgram" },
   { href: "/admin/email", label: "Email", icon: Mail, group: "People" },
   { href: "/admin/messaging", label: "Messaging rules", icon: MessageSquare, group: "People", feature: "messagingAutomation" },
   { href: "/messages", label: "Chats", icon: MessagesSquare, group: "People", feature: "directChat" },

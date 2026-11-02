@@ -440,8 +440,8 @@ export class ReferralAdminService {
   }
 
   private async assertStageExists(stageId: string) {
-    const stage = await this.prisma.referralStage.findUnique({ select: { id: true }, where: { id: stageId } });
-    if (!stage) throw new BadRequestException("Pick a stage that exists.");
+    const stages = await this.pipeline.listStages();
+    if (!stages.some((stage) => stage.id === stageId)) throw new BadRequestException("Pick a stage that exists.");
   }
 
   // ── Rewards ──
@@ -488,9 +488,20 @@ export class ReferralAdminService {
     query: PaginatedQuery & { status?: unknown }
   ): Promise<ReferralPage<ReferralWithdrawalItem>> {
     await this.getAdmin(accessToken);
-    const { page, pageSize, skip, take } = resolvePagination(query);
+    const { page, pageSize, skip, take, search } = resolvePagination(query);
     const status = queryEnum(query.status, referralWithdrawalStatusSchema.options, "status");
-    const where: Prisma.ReferralWithdrawalWhereInput = status ? { status } : {};
+    const where: Prisma.ReferralWithdrawalWhereInput = {
+      ...(status ? { status } : {}),
+      ...(search
+        ? {
+            OR: [
+              { user: { firstName: { contains: search, mode: "insensitive" } } },
+              { user: { lastName: { contains: search, mode: "insensitive" } } },
+              { user: { email: { contains: search, mode: "insensitive" } } }
+            ]
+          }
+        : {})
+    };
     const [rows, total] = await Promise.all([
       this.prisma.referralWithdrawal.findMany({ include: WITHDRAWAL_ITEM_INCLUDE, orderBy: { createdAt: "desc" }, skip, take, where }),
       this.prisma.referralWithdrawal.count({ where })

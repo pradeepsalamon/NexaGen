@@ -18,6 +18,7 @@ import {
   CircleCheckBig
 } from "lucide-react";
 import { createLeadRequestSchema, type LeadExperienceLevel } from "@nexa-chess/types";
+import { readReferralCode } from "@/features/referrals/lib/referralStorage";
 import { useCreateLeadMutation } from "../hooks/useLeadPublicApi";
 
 const demoBenefits = [
@@ -113,7 +114,9 @@ export function DemoBookingSection() {
         studentAge,
         experienceLevel,
         phone: cleanPhone,
-        email
+        email,
+        // From a /r/<code> visit; the API prefers its own attribution cookie.
+        referralCode: readReferralCode()
       },
       {
         onSuccess: () => {

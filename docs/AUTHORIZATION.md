@@ -22,6 +22,10 @@ file is the policy.
   `authenticateUser` (identity + `ACTIVE` + a live session, see below) and then
   checks the resource. The web's `routeAccess.ts` / `middleware.ts` and hidden
   buttons are routing and usability only.
+- **SALES is fenced.** `authenticateUser` refuses a `SALES` account (403)
+  unless the service passes `{ allowSales: true }` — only the referral board,
+  auth/MFA, `GET /subscription`, own display preferences and the privacy
+  export do (docs/REFERRALS.md).
 - **Ids from the client are claims.** A body/URL id is loaded and checked
   against the caller (`getXVisibilityWhere`, `resolveClassManager`,
   `resolveParticipant`, `assertOwnerOrAdmin`, `canManage`…); role and ownership

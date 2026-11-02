@@ -23,6 +23,8 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/admin/trash", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin", roles: STAFF_ROLES },
   { prefix: "/coach", roles: ["COACH"] },
+  // Referral-only accounts: the referral board and their own profile, nothing else.
+  { prefix: "/sales", roles: ["SALES"] },
   { prefix: "/student", roles: ["STUDENT"] },
   { prefix: "/checkout", roles: null },
   // One class page for every role; it renders the view the role may use.
@@ -50,6 +52,8 @@ const PUBLIC_PREFIXES = [
   "/forgot-password",
   "/login",
   "/privacy",
+  // Referral links: /r/<code> records the visit, then opens the academy page.
+  "/r",
   "/register",
   "/reset-password",
   "/signup",
@@ -68,10 +72,17 @@ export function isProtectedPath(pathname: string): boolean {
   return matchRule(pathname) !== undefined;
 }
 
+/** The only protected pages a SALES account opens (the API refuses it everything else). */
+const SALES_PREFIXES = ["/sales", "/profile"] as const;
+
 /** True when the path is public, or the role may open it. */
 export function canAccessPath(pathname: string, role: string | undefined): boolean {
   const rule = matchRule(pathname);
-  if (!rule || rule.roles === null) return true;
+  if (!rule) return true;
+  if (role === "SALES") {
+    return SALES_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  }
+  if (rule.roles === null) return true;
   return role !== undefined && rule.roles.includes(role);
 }
 
@@ -83,6 +94,7 @@ export function getRoleDashboardHref(role?: string): string {
   if (isStaffRole(role)) return "/admin";
   if (role === "COACH") return "/coach";
   if (role === "STUDENT") return "/student";
+  if (role === "SALES") return "/sales";
   return "/";
 }
 

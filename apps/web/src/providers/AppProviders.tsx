@@ -35,7 +35,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
     pathname?.startsWith("/reset-password") ||
     pathname?.startsWith("/verify-email");
 
-  const isChromeless = isMeetingRoute || isAuthRoute || pathname === "/";
+  // A referral link (/r/<code>) is a brief hand-off to the home page.
+  const isReferralLink = pathname?.startsWith("/r/");
+  const isChromeless = isMeetingRoute || isAuthRoute || isReferralLink || pathname === "/";
 
   const [queryClient] = useState(
     () =>

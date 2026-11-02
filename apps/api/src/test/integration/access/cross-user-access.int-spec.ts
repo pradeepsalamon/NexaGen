@@ -155,7 +155,10 @@ const CROSS_USER: Case[] = [
   { name: "student starts a DM with another student", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.chat.startDirect, body: (w: World) => ({ userId: w.b.student.id }) },
   { name: "student starts a DM with a coach who doesn't teach them", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.chat.startDirect, body: (w: World) => ({ userId: w.b.coach.id }) },
   { name: "coach starts a DM with another coach's student", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.chat.startDirect, body: (w: World) => ({ userId: w.b.student.id }) },
-  { name: "coach puts another coach's student in a group", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.chat.createGroup, body: (w: World) => ({ memberIds: [w.b.student.id], name: "poach" }) }
+  { name: "coach puts another coach's student in a group", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.chat.createGroup, body: (w: World) => ({ memberIds: [w.b.student.id], name: "poach" }) },
+  // Referral wallet: a withdrawal or payment code is its owner's alone
+  { name: "coach cancels another coach's referral withdrawal", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.referrals.cancelWithdrawal(w.b.referralWithdrawal.id) },
+  { name: "student cancels another student's referral payment code", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.referrals.cancelPaymentCode(w.b.referralPaymentCode.id) }
 ];
 
 const OWN_CASES: Case[] = [
@@ -226,7 +229,9 @@ const OWN_CASES: Case[] = [
   { name: "coach reads own DM", as: (w) => w.a.coach, path: (w) => API_ROUTES.chat.messages(w.a.directChat.id) },
   { name: "coach reads own batch's group chat", as: (w) => w.a.coach, path: (w) => API_ROUTES.chat.conversation(w.a.batchChat.id) },
   { name: "student's chat unread count", as: (w) => w.a.student, path: () => API_ROUTES.chat.unread },
-  { name: "student's own assignment reminders", as: (w) => w.a.student, path: () => API_ROUTES.assignments.reminders }
+  { name: "student's own assignment reminders", as: (w) => w.a.student, path: () => API_ROUTES.assignments.reminders },
+  { name: "coach cancels own referral withdrawal", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.referrals.cancelWithdrawal(w.a.referralWithdrawal.id) },
+  { name: "student cancels own referral payment code", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.referrals.cancelPaymentCode(w.a.referralPaymentCode.id) }
 ];
 
 // Lists must not mention the other side's rows at all.
@@ -399,6 +404,8 @@ describe("cross-user access (real app, real Postgres)", () => {
     // The homework + the puzzle set; no third deployment reached B's batch.
     expect(await t.prisma.assignmentBatch.count({ where: { batchId: b.batch.id } })).toBe(2);
     expect(await t.prisma.puzzleAttempt.count({ where: { studentAssignmentId: { not: null } } })).toBe(0);
+    expect((await t.prisma.referralWithdrawal.findUniqueOrThrow({ where: { id: b.referralWithdrawal.id } })).status).toBe("REQUESTED");
+    expect((await t.prisma.discount.findUniqueOrThrow({ where: { id: b.referralPaymentCode.id } })).isActive).toBe(true);
     expect(await t.prisma.liveSession.findUnique({ where: { classId: b.liveClass.id } })).toMatchObject({
       recordingStatus: null,
       status: "LIVE"
