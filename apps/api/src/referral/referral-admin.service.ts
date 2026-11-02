@@ -23,6 +23,7 @@ import {
   type ReferralWithdrawalItem,
   type ReferrerStatsItem,
   type RejectReferralWithdrawalRequest,
+  type SendReferrerAccessLinkRequest,
   type ReorderReferralStagesRequest,
   type UpdateReferralRewardRuleRequest,
   type UpdateReferralSettingsRequest,
@@ -35,6 +36,7 @@ import { paginationMeta, resolveOrderBy, resolvePagination } from "../common/pag
 import { queryEnum, queryString } from "../common/query-params";
 import { isUniqueViolation } from "../payments/payments.util";
 import { PrismaService } from "../prisma/prisma.service";
+import { ReferralAccessService } from "./referral-access.service";
 import { ReferralCreditsService } from "./referral-credits.service";
 import { ReferralPipelineService } from "./referral-pipeline.service";
 import { ReferralSettingsService } from "./referral-settings.service";
@@ -59,7 +61,8 @@ export class ReferralAdminService {
     private readonly prisma: PrismaService,
     private readonly settings: ReferralSettingsService,
     private readonly pipeline: ReferralPipelineService,
-    private readonly credits: ReferralCreditsService
+    private readonly credits: ReferralCreditsService,
+    private readonly access: ReferralAccessService
   ) {}
 
   private async getAdmin(accessToken: string | undefined) {
@@ -178,7 +181,30 @@ export class ReferralAdminService {
     return this.get(accessToken, id);
   }
 
+  /**
+   * Removes a referral (spam, a duplicate, a test). One that earned rewards is
+   * kept: cancel those first, so the money trail stays readable.
+   */
+  async deleteReferral(accessToken: string | undefined, id: string) {
+    await this.getAdmin(accessToken);
+    const referral = await this.prisma.referral.findUnique({
+      include: { _count: { select: { rewards: { where: { status: { not: "CANCELLED" } } } } } },
+      where: { id }
+    });
+    if (!referral) throw new NotFoundException("Referral not found.");
+    if (referral._count.rewards > 0) {
+      throw new ConflictException("This referral has earned rewards. Cancel them in the Rewards tab first.");
+    }
+    await this.prisma.referral.delete({ where: { id } });
+    return { ok: true };
+  }
+
   // ── Referrers ──
+
+  async sendAccessLink(accessToken: string | undefined, userId: string, body: SendReferrerAccessLinkRequest) {
+    await this.getAdmin(accessToken);
+    return this.access.sendAccessLink(userId, body);
+  }
 
   async referrers(accessToken: string | undefined, query: PaginatedQuery & { role?: unknown }): Promise<ReferralPage<ReferrerStatsItem>> {
     await this.getAdmin(accessToken);
@@ -242,7 +268,9 @@ export class ReferralAdminService {
         converted: convertedMap.get(user.id) ?? 0,
         earnedMinor: earnedMap.get(user.id) ?? 0,
         email: user.email,
+        lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
         name: displayName(user),
+        phoneNumber: user.phoneNumber,
         referrals: referralMap.get(user.id) ?? 0,
         role: toReferrerRole(user.role),
         userId: user.id,

@@ -471,6 +471,9 @@ export type ReferrerStatsItem = {
   userId: string;
   name: string;
   email: string;
+  phoneNumber: string | null;
+  /** Never signed in yet (SALES accounts waiting for their link). */
+  lastLoginAt: string | null;
   role: ReferrerRole;
   code: string | null;
   codeActive: boolean;
@@ -508,4 +511,25 @@ export type UpdateReferrerCodeRequest = z.infer<typeof updateReferrerCodeRequest
 export type ReferralPage<T> = {
   items: T[];
   pagination: { total: number; page: number; pageSize: number; totalPages: number };
+};
+
+// ── Sales sign-in links ──
+
+export const sendReferrerAccessLinkRequestSchema = z.object({
+  channels: z.array(z.enum(["EMAIL", "WHATSAPP"])).min(1, "Pick email, WhatsApp or both.").max(2),
+  /** Saved on the account when given; WhatsApp needs one. */
+  phoneNumber: z
+    .string()
+    .trim()
+    .max(20)
+    .refine((value) => value === "" || value.replace(/\D/g, "").length >= 10, "Enter a valid phone number.")
+    .optional()
+});
+export type SendReferrerAccessLinkRequest = z.infer<typeof sendReferrerAccessLinkRequestSchema>;
+
+export type SendReferrerAccessLinkResponse = {
+  email: "SENT" | "FAILED" | "SKIPPED";
+  whatsapp: "SENT" | "FAILED" | "SKIPPED";
+  /** Why WhatsApp failed (not configured, bad number…). */
+  whatsappError: string | null;
 };

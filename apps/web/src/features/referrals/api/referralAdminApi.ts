@@ -17,6 +17,8 @@ import {
   type ReferralWithdrawalItem,
   type ReferrerStatsItem,
   type RejectReferralWithdrawalRequest,
+  type SendReferrerAccessLinkRequest,
+  type SendReferrerAccessLinkResponse,
   type UpdateReferralRewardRuleRequest,
   type UpdateReferralSettingsRequest,
   type UpdateReferralStageRequest,
@@ -32,6 +34,9 @@ export const referralAdminApi = {
   overview: () => apiFetch<AdminReferralOverview>(routes.overview),
   list: (params: ReferralListParams) => apiFetch<ReferralPage<AdminReferralItem>>(withQuery(routes.list, params)),
   get: (id: string) => apiFetch<AdminReferralDetail>(routes.get(id)),
+  deleteReferral: (id: string) => apiFetch<Ok>(routes.delete(id), { method: "DELETE" }),
+  sendAccessLink: (userId: string, body: SendReferrerAccessLinkRequest) =>
+    apiFetch<SendReferrerAccessLinkResponse>(routes.referrerAccessLink(userId), { body, method: "POST" }),
   moveStage: (id: string, body: MoveReferralStageRequest) =>
     apiFetch<AdminReferralDetail>(routes.moveStage(id), { body, method: "PATCH" }),
 

@@ -8,6 +8,8 @@ import { extractTemplateVariables } from "./messaging";
 
 export const systemMessageKeySchema = z.enum([
   "PASSWORD_RESET",
+  "ACCOUNT_ACCESS_EMAIL",
+  "ACCOUNT_ACCESS_WHATSAPP",
   "EMAIL_VERIFICATION",
   "EMAIL_CHANGED",
   "PARENT_CONTACT_CHANGED",
@@ -67,6 +69,36 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
       subject: "Reset your {{academy.name}} password",
       body: "Use the button below to choose a new password. This link expires in 30 minutes.\n\nIf you did not request it, you can ignore this email.",
       actionLabel: "Reset password"
+    }
+  },
+  ACCOUNT_ACCESS_EMAIL: {
+    key: "ACCOUNT_ACCESS_EMAIL",
+    group: "ACCOUNT",
+    channel: "EMAIL",
+    label: "Sign-in link from an admin (email)",
+    description: "Sent when an admin sends a sales account its sign-in link. The link sets a password.",
+    sentTo: "The sales account",
+    variables: ["academy.name", "recipient.firstName", "links.reset"],
+    actionVariable: "links.reset",
+    defaults: {
+      subject: "Your {{academy.name}} referral board",
+      body: "Hi {{recipient.firstName}},\n\nUse the button below to set your password and sign in to your referral board. This link works once and expires in 24 hours.",
+      actionLabel: "Set password and sign in"
+    }
+  },
+  ACCOUNT_ACCESS_WHATSAPP: {
+    key: "ACCOUNT_ACCESS_WHATSAPP",
+    group: "ACCOUNT",
+    channel: "WHATSAPP",
+    label: "Sign-in link from an admin (WhatsApp)",
+    description: "The same sign-in link by WhatsApp. It must include the link.",
+    sentTo: "The sales account",
+    variables: ["academy.name", "recipient.firstName", "links.reset"],
+    requiredVariables: ["links.reset"],
+    defaults: {
+      subject: null,
+      body: "Hi {{recipient.firstName}}, set your password and sign in to your {{academy.name}} referral board here (works once, expires in 24 hours): {{links.reset}}",
+      actionLabel: null
     }
   },
   EMAIL_VERIFICATION: {

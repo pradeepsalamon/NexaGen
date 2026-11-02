@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Trash2 } from "lucide-react";
+import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import type { ReferralStageItem } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -36,6 +37,12 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
       referralAdminApi.moveStage(args.id, { note: args.note, stageId: args.stageId }),
     { failure: "Could not move the referral", success: "Referral moved" }
   );
+
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const remove = useReferralAdminMutation((id: string) => referralAdminApi.deleteReferral(id), {
+    failure: "Could not delete the referral",
+    success: "Referral deleted"
+  });
 
   useEffect(() => {
     if (data) setStageId(data.stageId);
@@ -131,6 +138,14 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
               )}
             </section>
 
+            <section className="flex flex-col gap-2 rounded-app border border-app-danger/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-app-muted">Spam, a duplicate or a test? Delete it. One with rewards keeps them: cancel those first.</p>
+              <Button className="shrink-0" onClick={() => setConfirmDelete(true)} variant="danger-soft">
+                <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                Delete referral
+              </Button>
+            </section>
+
             <section>
               <h3 className="mb-2 text-sm font-bold text-app-text">History</h3>
               <ol className="grid gap-3 border-l border-app-border pl-4">
@@ -151,6 +166,24 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
           </div>
         )}
       </DialogContent>
+      <ConfirmationModal
+        confirmLabel="Delete referral"
+        isConfirming={remove.isPending}
+        isOpen={confirmDelete}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={() =>
+          data &&
+          remove.mutate(data.id, {
+            onSuccess: () => {
+              setConfirmDelete(false);
+              onClose();
+            }
+          })
+        }
+        title="Delete this referral?"
+      >
+        Its history goes with it. The lead in Leads is not touched.
+      </ConfirmationModal>
     </Dialog>
   );
 }

@@ -1,7 +1,10 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
+import { MailModule } from "../mail/mail.module";
 import { PaymentsModule } from "../payments/payments.module";
 import { PrismaModule } from "../prisma/prisma.module";
+import { WhatsAppModule } from "../whatsapp/whatsapp.module";
+import { ReferralAccessService } from "./referral-access.service";
 import { ReferralAdminController } from "./referral-admin.controller";
 import { ReferralAdminService } from "./referral-admin.service";
 import { ReferralCreditsService } from "./referral-credits.service";
@@ -15,8 +18,9 @@ import { ReferralService } from "./referral.service";
 @Module({
   controllers: [ReferralAdminController, ReferralController],
   exports: [ReferralTrackerService],
-  imports: [JwtModule.register({}), PaymentsModule, PrismaModule],
+  imports: [JwtModule.register({}), MailModule, PaymentsModule, PrismaModule, WhatsAppModule],
   providers: [
+    ReferralAccessService,
     ReferralAdminService,
     ReferralCreditsService,
     ReferralPipelineService,

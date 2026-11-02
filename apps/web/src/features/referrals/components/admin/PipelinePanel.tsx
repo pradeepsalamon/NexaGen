@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Eye, Gift, Banknote, UserCheck, Users } from "lucide-react";
+import { Banknote, Eye, Gift, UserCheck, Users, X } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { REFERRER_ROLE_LABELS, REFERRER_ROLES, type AdminReferralItem } from "@nexa-chess/types";
 import { Card } from "@/components/ui/Card";
 import { DataTable } from "@/components/ui/DataTable";
@@ -23,7 +24,13 @@ import { ReferralFunnel } from "../ReferralFunnel";
 import { StageBadge } from "../StageBadge";
 import { ReferralDetailDialog } from "./ReferralDetailDialog";
 
-export function PipelinePanel() {
+type Props = {
+  /** Set from the Referrers tab: show one referrer's referrals. */
+  referrer: { id: string; name: string } | null;
+  onClearReferrer: () => void;
+};
+
+export function PipelinePanel({ onClearReferrer, referrer }: Props) {
   const timeZone = useUserTimeZone();
   const { data: overview } = useReferralOverview();
   const serverTable = useServerTable({ pageSize: 20 });
@@ -32,8 +39,14 @@ export function PipelinePanel() {
   const [openId, setOpenId] = useState<string | null>(null);
 
   const params = useMemo(
-    () => ({ ...serverTable.params, role: serverTable.status, stageId: stageId ?? undefined, status: undefined }),
-    [serverTable.params, serverTable.status, stageId]
+    () => ({
+      ...serverTable.params,
+      referrerId: referrer?.id,
+      role: serverTable.status,
+      stageId: stageId ?? undefined,
+      status: undefined
+    }),
+    [serverTable.params, serverTable.status, stageId, referrer?.id]
   );
   const { data, isLoading } = useAdminReferrals(params);
   const pageCount = data?.pagination.totalPages ?? 1;
@@ -158,6 +171,17 @@ export function PipelinePanel() {
       ) : null}
 
       <Card className="grid gap-4 p-4">
+        {referrer ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm text-app-text">
+            <span>
+              Showing referrals by <span className="font-bold">{referrer.name}</span>
+            </span>
+            <Button onClick={onClearReferrer} size="sm" variant="neutral">
+              <X aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              Show everyone
+            </Button>
+          </div>
+        ) : null}
         <DataTableToolbar
           filters={
             <Select

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
@@ -16,7 +17,8 @@ const TABS = ["pipeline", "referrers", "rewards", "withdrawals", "rules", "stage
 /** Admin referral board (docs/REFERRALS.md). `?tab=withdrawals` deep-links a tab. */
 export function AdminReferralsClient() {
   const requested = useSearchParams().get("tab");
-  const initialTab = TABS.find((tab) => tab === requested) ?? "pipeline";
+  const [tab, setTab] = useState<string>(TABS.find((t) => t === requested) ?? "pipeline");
+  const [referrer, setReferrer] = useState<{ id: string; name: string } | null>(null);
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5 pb-10">
@@ -24,7 +26,7 @@ export function AdminReferralsClient() {
         description="Referral links for students, coaches and sales staff: the pipeline, reward rules and payouts."
         title="Referrals"
       />
-      <Tabs defaultValue={initialTab}>
+      <Tabs onValueChange={setTab} value={tab}>
         <TabsList className="justify-self-end">
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="referrers">Referrers</TabsTrigger>
@@ -35,10 +37,15 @@ export function AdminReferralsClient() {
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="pipeline">
-          <PipelinePanel />
+          <PipelinePanel onClearReferrer={() => setReferrer(null)} referrer={referrer} />
         </TabsContent>
         <TabsContent value="referrers">
-          <ReferrersPanel />
+          <ReferrersPanel
+            onViewReferrals={(row) => {
+              setReferrer({ id: row.userId, name: row.name });
+              setTab("pipeline");
+            }}
+          />
         </TabsContent>
         <TabsContent value="rewards">
           <RewardsPanel />

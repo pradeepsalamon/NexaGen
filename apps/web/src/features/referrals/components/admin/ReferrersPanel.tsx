@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Coins, Pause, PencilLine, Play } from "lucide-react";
+import { Coins, ListFilter, Pause, PencilLine, Play, Send, UserPlus } from "lucide-react";
 import {
   adjustReferralCreditsRequestSchema,
   referralCodeSchema,
@@ -20,7 +20,7 @@ import { DataTableToolbar } from "@/components/ui/DataTableToolbar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
-import { RowActions } from "@/components/ui/RowActions";
+import { RowActions, type RowAction } from "@/components/ui/RowActions";
 import { Select } from "@/components/ui/Select";
 import { Switch } from "@/components/ui/Switch";
 import { Textarea } from "@/components/ui/Textarea";
@@ -29,10 +29,11 @@ import { useServerTable } from "@/hooks/useServerTable";
 import { referralAdminApi } from "../../api/referralAdminApi";
 import { useReferralAdminMutation, useReferralOverview, useReferrers } from "../../hooks/useReferralAdmin";
 import { money, parseMajorAmount } from "../../lib/referralFormat";
+import { NewSalesAccountDialog, SendAccessLinkDialog } from "./SalesAccessDialogs";
 
-type DialogState = { kind: "code" | "credits"; referrer: ReferrerStatsItem } | null;
+type DialogState = { kind: "access" | "code" | "credits"; referrer: ReferrerStatsItem } | { kind: "new-sales" } | null;
 
-export function ReferrersPanel() {
+export function ReferrersPanel({ onViewReferrals }: { onViewReferrals: (referrer: ReferrerStatsItem) => void }) {
   const serverTable = useServerTable({ pageSize: 20 });
   const { clampToPageCount } = serverTable;
   const params = useMemo(
@@ -58,6 +59,11 @@ export function ReferrersPanel() {
           <div className="min-w-40">
             <p className="font-bold text-app-text">{row.original.name}</p>
             <p className="break-all text-xs text-app-muted">{row.original.email}</p>
+            {row.original.role === "SALES" && !row.original.lastLoginAt ? (
+              <Badge className="mt-1" variant="info">
+                Never signed in
+              </Badge>
+            ) : null}
           </div>
         ),
         header: "Referrer",
@@ -75,7 +81,7 @@ export function ReferrersPanel() {
           row.original.code ? (
             <span className="flex items-center gap-2">
               <span className="font-mono font-bold">{row.original.code}</span>
-              {row.original.codeActive ? null : <Badge variant="warning">Paused</Badge>}
+              {row.original.code && !row.original.codeActive ? <Badge variant="warning">Paused</Badge> : null}
             </span>
           ) : (
             <span className="text-app-muted">Not opened yet</span>
@@ -106,6 +112,10 @@ export function ReferrersPanel() {
         cell: ({ row }) => (
           <RowActions
             actions={[
+              { icon: ListFilter, label: "View referrals", onSelect: () => onViewReferrals(row.original) },
+              ...(row.original.role === "SALES"
+                ? [{ icon: Send, label: "Send sign-in link", onSelect: () => setDialog({ kind: "access", referrer: row.original }) } satisfies RowAction]
+                : []),
               {
                 icon: row.original.code && !row.original.codeActive ? Play : Pause,
                 label: row.original.code && !row.original.codeActive ? "Resume link" : "Pause link",
@@ -122,7 +132,7 @@ export function ReferrersPanel() {
         id: "actions"
       }
     ],
-    [currency, toggle]
+    [currency, onViewReferrals, toggle]
   );
 
   const { table } = useDataTable<ReferrerStatsItem, unknown>({
@@ -138,10 +148,16 @@ export function ReferrersPanel() {
 
   return (
     <Card className="grid gap-4 p-4">
-      <p className="text-sm text-app-muted">
-        Everyone who has opened their referral board, plus every sales account. Students and coaches get a code the first
-        time they open &ldquo;Refer &amp; earn&rdquo;.
-      </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-app-muted">
+          Everyone who has opened their referral board, plus every sales account. Students and coaches get a code the first
+          time they open &ldquo;Refer &amp; earn&rdquo;.
+        </p>
+        <Button className="shrink-0" onClick={() => setDialog({ kind: "new-sales" })}>
+          <UserPlus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+          New sales account
+        </Button>
+      </div>
       <DataTableToolbar
         filters={
           <Select
@@ -159,6 +175,8 @@ export function ReferrersPanel() {
       <DataTable columnsLength={columns.length} isLoading={isLoading} noDataText="No referrers yet." stackOnMobile table={table} />
       <DataTablePagination table={table} totalRows={data?.pagination.total ?? 0} />
 
+      {dialog?.kind === "new-sales" ? <NewSalesAccountDialog onClose={() => setDialog(null)} /> : null}
+      {dialog?.kind === "access" ? <SendAccessLinkDialog onClose={() => setDialog(null)} referrer={dialog.referrer} /> : null}
       {dialog?.kind === "code" ? <ChangeCodeDialog onClose={() => setDialog(null)} referrer={dialog.referrer} /> : null}
       {dialog?.kind === "credits" ? (
         <AdjustCreditsDialog currency={currency} onClose={() => setDialog(null)} referrer={dialog.referrer} />

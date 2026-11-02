@@ -187,6 +187,38 @@ describe("referral programme (real app, real Postgres)", () => {
     expect(mine.items[0]).toMatchObject({ contact: { phone: "9000011111" }, prospectName: "Kavya Rao" });
   });
 
+  it("sends a sales account a one-use set-password link (sales only, admin only)", async () => {
+    const coach = await active(UserRole.COACH);
+    const path = (id: string) => API_ROUTES.adminReferrals.referrerAccessLink(id);
+    expect((await t.call(admin, "POST", path(coach.id), { channels: ["EMAIL"] })).status).toBe(404);
+    expect((await t.call(sales, "POST", path(sales.id), { channels: ["EMAIL"] })).status).toBe(403);
+    expect((await t.call(admin, "POST", path(sales.id), { channels: [] })).status).toBe(400);
+    expect((await t.call(admin, "POST", path(sales.id), { channels: ["WHATSAPP"] })).status).toBe(400); // no phone yet
+
+    const before = await t.prisma.passwordResetToken.count({ where: { userId: sales.id } });
+    const sent = await t.call(admin, "POST", path(sales.id), { channels: ["EMAIL", "WHATSAPP"], phoneNumber: "+91 98765 43210" });
+    expect(sent.status).toBe(200);
+    // No SMTP or WhatsApp in the test box: each channel reports, nothing throws.
+    expect(sent.body).toMatchObject({ email: expect.stringMatching(/SENT|FAILED/), whatsapp: expect.stringMatching(/SENT|FAILED/) });
+    expect(await t.prisma.passwordResetToken.count({ where: { userId: sales.id } })).toBe(before + 1);
+    const token = await t.prisma.passwordResetToken.findFirstOrThrow({ orderBy: { createdAt: "desc" }, where: { userId: sales.id } });
+    expect(token.expiresAt.getTime() - Date.now()).toBeGreaterThan(23 * 60 * 60 * 1000);
+    expect((await t.prisma.user.findUniqueOrThrow({ where: { id: sales.id } })).phoneNumber).toBe("+91 98765 43210");
+  });
+
+  it("lets admins delete a referral, but not one that earned rewards", async () => {
+    const priya = await t.prisma.referral.findFirstOrThrow({ where: { prospectName: "Priya Sharma" } });
+    expect((await t.call(admin, "DELETE", API_ROUTES.adminReferrals.delete(priya.id))).status).toBe(409);
+    // A visit-only referral (no rewards) can go.
+    const before = await t.prisma.referral.count();
+    await browser()("POST", API_ROUTES.referrals.visit, { code: (await summary(student)).code });
+    const spam = await t.prisma.referral.findFirstOrThrow({ orderBy: { createdAt: "desc" }, where: { leadId: null } });
+    expect(await t.prisma.referral.count()).toBe(before + 1);
+    expect((await t.call(student, "DELETE", API_ROUTES.adminReferrals.delete(spam.id))).status).toBe(403);
+    expect((await t.call(admin, "DELETE", API_ROUTES.adminReferrals.delete(spam.id))).status).toBe(200);
+    expect(await t.prisma.referral.findUnique({ where: { id: spam.id } })).toBeNull();
+  });
+
   it("lets admins edit the pipeline; deleting a stage moves its referrals back", async () => {
     const stage = (await t.call(admin, "POST", API_ROUTES.adminReferrals.stages, { name: "Contacted", tone: "accent" })).body as { id: string };
     const kavya = await t.prisma.referral.findFirstOrThrow({ where: { prospectName: "Kavya Rao" } });

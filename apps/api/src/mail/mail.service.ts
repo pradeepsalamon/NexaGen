@@ -31,6 +31,11 @@ export class MailService {
     await this.sendSystemEmail("PASSWORD_RESET", to, { "links.reset": resetLink });
   }
 
+  /** An admin sends a sales account its sign-in (set-password) link. */
+  async sendAccountAccessLink(to: string, firstName: string, link: string) {
+    await this.sendSystemEmail("ACCOUNT_ACCESS_EMAIL", to, { "links.reset": link, "recipient.firstName": firstName });
+  }
+
   async sendEmailVerificationLink(to: string, verificationLink: string) {
     await this.sendSystemEmail("EMAIL_VERIFICATION", to, { "links.verify": verificationLink });
   }

@@ -8,6 +8,7 @@ import {
   moveReferralStageRequestSchema,
   payReferralWithdrawalRequestSchema,
   rejectReferralWithdrawalRequestSchema,
+  sendReferrerAccessLinkRequestSchema,
   reorderReferralStagesRequestSchema,
   updateReferralRewardRuleRequestSchema,
   updateReferralSettingsRequestSchema,
@@ -21,12 +22,14 @@ import {
   type PaginatedQuery,
   type PayReferralWithdrawalRequest,
   type RejectReferralWithdrawalRequest,
+  type SendReferrerAccessLinkRequest,
   type ReorderReferralStagesRequest,
   type UpdateReferralRewardRuleRequest,
   type UpdateReferralSettingsRequest,
   type UpdateReferralStageRequest,
   type UpdateReferrerCodeRequest
 } from "@nexa-chess/types";
+import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
@@ -67,6 +70,17 @@ export class ReferralAdminController {
     @Body(new ZodBodyPipe(updateReferrerCodeRequestSchema)) body: UpdateReferrerCodeRequest
   ) {
     return this.admin.updateReferrerCode(this.getAccessToken(request), userId, body);
+  }
+
+  @Post(API_ROUTES.adminReferrals.referrerAccessLink())
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  sendAccessLink(
+    @Req() request: Request,
+    @Param("userId") userId: string,
+    @Body(new ZodBodyPipe(sendReferrerAccessLinkRequestSchema)) body: SendReferrerAccessLinkRequest
+  ) {
+    return this.admin.sendAccessLink(this.getAccessToken(request), userId, body);
   }
 
   @Get(API_ROUTES.adminReferrals.stages)
@@ -191,6 +205,11 @@ export class ReferralAdminController {
   @Get(API_ROUTES.adminReferrals.get())
   get(@Req() request: Request, @Param("id") id: string) {
     return this.admin.get(this.getAccessToken(request), id);
+  }
+
+  @Delete(API_ROUTES.adminReferrals.delete())
+  deleteReferral(@Req() request: Request, @Param("id") id: string) {
+    return this.admin.deleteReferral(this.getAccessToken(request), id);
   }
 
   @Patch(API_ROUTES.adminReferrals.moveStage())

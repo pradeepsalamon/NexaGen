@@ -29,7 +29,10 @@ fees. Plan feature: `referralProgram` (Growth and up).
    (DEMO_SCHEDULED → booked, DEMO_ATTENDED → attended, CONVERTED/ACTIVE_STUDENT
    → onboarded, LOST → not joined), `DemoInviteService.bookLead` (booked) and a
    guest joining the demo (`LiveClassDemoService`, attended).
-4. **Admins move anything** from the pipeline tab (forward or back, with a note).
+4. **Admins move anything** from the pipeline tab (forward or back, with a note),
+   see every referrer's referrals (Referrers → "View referrals" filters the
+   pipeline), and can delete a referral (spam, duplicate) unless it earned
+   rewards that are not cancelled.
 
 Rules that must not break:
 
@@ -89,8 +92,16 @@ personal discounts) reference users with `onDelete: Restrict` and are in
 
 ## The SALES role
 
-`UserRole.SALES` exists only for referrals. Admins create sales accounts from
-Users. **`authenticateUser` refuses SALES (403) unless the caller passes
+`UserRole.SALES` exists only for referrals. **Only admins create sales
+accounts** (public sign-up makes students, the coach form makes coaches): from
+Users, or Referrals → Referrers → "New sales account", which creates the
+account with a throwaway password and sends its sign-in link straight away.
+"Send sign-in link" (Referrers row, SALES only) emails and/or WhatsApps a
+one-use set-password link (`ReferralAccessService`: an ordinary
+`PasswordResetToken`, 24 h instead of 30 min, `/reset-password`), using the
+`ACCOUNT_ACCESS_EMAIL` / `ACCOUNT_ACCESS_WHATSAPP` system messages; the admin
+never sees the password. A phone number given for WhatsApp is saved on the
+account. **`authenticateUser` refuses SALES (403) unless the caller passes
 `{ allowSales: true }`**, which only these do: the referral board, `/auth/*` and
 MFA, `GET /subscription`, the user's own typography/board-appearance
 preferences, and the privacy export. A new service that should serve SALES must
