@@ -30,12 +30,12 @@ export function LiveClassFab({
   return (
     <Link
       aria-label={`${variant === "coach" ? "Return to" : "Join"} live class: ${liveClass.topic}`}
-      className="fixed bottom-5 right-5 z-50 flex max-w-[calc(100vw-2.5rem)] items-center gap-3 rounded-full bg-app-danger py-2 pl-2 pr-5 text-white shadow-card transition hover:scale-[1.02] hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus motion-reduce:hover:scale-100 sm:bottom-6 sm:right-6"
+      className="fixed bottom-5 right-5 z-50 flex max-w-[calc(100vw-2.5rem)] items-center gap-3 rounded-full bg-app-danger py-2 pl-2 pr-5 text-on-danger shadow-card transition hover:scale-[1.02] hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus motion-reduce:hover:scale-100 sm:bottom-6 sm:right-6"
       href={`/live-class/${liveClass.classId}`}
       onClick={askNotificationPermission}
     >
-      <span className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-white/20">
-        <span className="absolute inset-0 animate-ping rounded-full bg-white/30 motion-reduce:animate-none" />
+      <span className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-on-danger/20">
+        <span className="absolute inset-0 animate-ping rounded-full bg-on-danger/30 motion-reduce:animate-none" />
         <Video aria-hidden="true" className="relative size-5" strokeWidth={2.5} />
       </span>
       <span className="min-w-0">

@@ -158,7 +158,7 @@ function pointsValue(entry: LivePuzzleLeaderboardEntry, rankByPoints: boolean) {
 const MEDAL_TONE: Record<number, string> = {
   1: "text-accent-ink",
   2: "text-app-muted",
-  3: "text-warm-ink"
+  3: "text-primary-ink"
 };
 
 /** Medal for the podium, plain number below it. */
@@ -178,7 +178,7 @@ function RankMark({ rank }: { rank: number }) {
 const PODIUM_ROW: Record<number, string> = {
   1: "bg-accent/[0.10]",
   2: "bg-app-muted/[0.10]",
-  3: "bg-warm/[0.08]"
+  3: "bg-primary/[0.08]"
 };
 
 /** Podium rows tinted gold/silver/bronze; the viewer's own row gets a primary bar on the left. */

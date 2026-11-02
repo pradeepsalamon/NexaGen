@@ -100,18 +100,18 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       )}
 
       {/* Bottom-left name pill with mic status */}
-      <div className="absolute bottom-2 left-2 z-10 flex w-fit max-w-[calc(100%-3.25rem)] items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-card backdrop-blur-md">
+      <div className="absolute bottom-2 left-2 z-10 flex w-fit max-w-[calc(100%-3.25rem)] items-center gap-2 rounded-full border border-on-scrim/10 bg-scrim/60 px-2 py-1.5 pr-3 shadow-card backdrop-blur-md">
         <span
           className={cn(
             "flex size-5 shrink-0 items-center justify-center rounded-full",
-            isMuted ? "bg-app-danger/20 text-app-danger" : "bg-white/10 text-white/70",
+            isMuted ? "bg-app-danger/20 text-app-danger" : "bg-on-scrim/10 text-on-scrim/70",
           )}
           aria-label={isMuted ? "Microphone muted" : "Microphone on"}
         >
           {isMuted ? <MicOff className="size-3" /> : <Mic className="size-3" />}
         </span>
 
-        <span className="flex min-w-0 items-center gap-1.5 truncate text-xs font-semibold text-white/90">
+        <span className="flex min-w-0 items-center gap-1.5 truncate text-xs font-semibold text-on-scrim/90">
           <span className="truncate">
             {isLocal && !isScreenShare
               ? "You"
@@ -120,13 +120,13 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
                 : name}
           </span>
           {role && role.toUpperCase() === "COACH" && !isScreenShare && (
-            <span className="hidden shrink-0 font-normal text-white/70 sm:inline">(Coach)</span>
+            <span className="hidden shrink-0 font-normal text-on-scrim/70 sm:inline">(Coach)</span>
           )}
         </span>
       </div>
 
       {/* Bottom-right connection quality */}
-      <div className="absolute bottom-2 right-2 z-10 flex items-center justify-center rounded-full border border-white/10 bg-black/60 p-1.5 px-2 shadow-card backdrop-blur-md">
+      <div className="absolute bottom-2 right-2 z-10 flex items-center justify-center rounded-full border border-on-scrim/10 bg-scrim/60 p-1.5 px-2 shadow-card backdrop-blur-md">
         <NetworkQualityIndicator participant={participant} />
       </div>
 
@@ -134,7 +134,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-2.5">
         <div className="flex gap-2 items-center">
           {handRaised && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-warning text-white shadow-card">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-card">
               <Hand className="h-3 w-3" />
             </span>
           )}
@@ -150,7 +150,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
         {onPin && (
           <button
             type="button"
-            className="pointer-events-auto ml-1.5 flex size-8 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/60 backdrop-blur-sm transition duration-150 hover:bg-black/70 hover:text-white [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-visible:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
+            className="pointer-events-auto ml-1.5 flex size-8 items-center justify-center rounded-full border border-on-scrim/10 bg-scrim/50 text-on-scrim/60 backdrop-blur-sm transition duration-150 hover:bg-scrim/70 hover:text-on-scrim [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-visible:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
             onClick={() => onPin(trackKey)}
             aria-label={
               isScreenShare

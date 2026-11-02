@@ -12,7 +12,7 @@ const buttonVariants = cva(
         "danger-soft":
           "border-transparent bg-app-danger-soft text-app-danger-ink hover:bg-app-danger/20",
         destructive:
-          "border-transparent bg-app-danger text-white hover:bg-app-danger-hover",
+          "border-transparent bg-app-danger text-on-danger hover:bg-app-danger-hover",
         ghost:
           "border-transparent bg-transparent text-primary-ink hover:bg-primary-soft disabled:border-transparent disabled:bg-transparent",
         neutral:

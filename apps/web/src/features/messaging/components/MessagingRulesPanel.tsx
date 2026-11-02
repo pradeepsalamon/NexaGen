@@ -140,7 +140,7 @@ export function MessagingRulesPanel() {
   return (
     <div className="space-y-4">
       {!data.whatsappConfigured ? (
-        <Card className="border-app-warning/40 bg-app-warning/5 p-4 text-sm text-app-text">
+        <Card className="border-warning/40 bg-warning/5 p-4 text-sm text-app-text">
           WhatsApp is not configured on this server. Rules still control the in-app bell;
           WhatsApp sends are recorded as failed until{" "}
           <code className="text-xs">WHATSAPP_ACCESS_TOKEN</code> and{" "}
@@ -149,7 +149,7 @@ export function MessagingRulesPanel() {
       ) : null}
 
       {!data.emailConfigured && data.rules.some((rule) => rule.emailEnabled) ? (
-        <Card className="border-app-warning/40 bg-app-warning/5 p-4 text-sm text-app-text">
+        <Card className="border-warning/40 bg-warning/5 p-4 text-sm text-app-text">
           Email is not configured on this server, so rule emails are recorded as failed until the{" "}
           <code className="text-xs">SMTP_*</code> variables are set.
         </Card>

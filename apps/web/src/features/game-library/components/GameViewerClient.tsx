@@ -302,7 +302,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="bg-app-danger text-white hover:bg-app-danger/85"
+                className="bg-app-danger text-on-danger hover:bg-app-danger/85"
                 aria-label="Delete game"
                 onClick={() => setConfirmDelete(true)}
               >

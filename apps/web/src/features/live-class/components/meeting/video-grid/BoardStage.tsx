@@ -130,7 +130,7 @@ function CoachVideoPopup({ constraintsRef }: { constraintsRef: RefObject<HTMLDiv
         </div>
       )}
       <div className="absolute inset-x-1 bottom-1 flex items-center justify-between gap-1">
-        <span className="truncate rounded-control bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white/90">
+        <span className="truncate rounded-control bg-scrim/60 px-1.5 py-0.5 text-[10px] font-medium text-on-scrim/90">
           {name}
         </span>
         <button
@@ -138,7 +138,7 @@ function CoachVideoPopup({ constraintsRef }: { constraintsRef: RefObject<HTMLDiv
           aria-label="Hide video"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => setMinimized(true)}
-          className="flex size-6 shrink-0 items-center justify-center rounded-full bg-black/60 text-white"
+          className="flex size-6 shrink-0 items-center justify-center rounded-full bg-scrim/60 text-on-scrim"
         >
           <Minus className="size-3.5" strokeWidth={2.5} />
         </button>

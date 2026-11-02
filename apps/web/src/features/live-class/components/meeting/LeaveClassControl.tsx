@@ -85,8 +85,8 @@ export function LeaveClassControl({
                 onClick={handleEndClass}
               >
                 <span className="flex flex-col">
-                  <span className="font-semibold text-white">End class for everyone</span>
-                  <span className="text-sm font-normal text-white/80">
+                  <span className="font-semibold text-on-danger">End class for everyone</span>
+                  <span className="text-sm font-normal text-on-danger/80">
                     Finalizes attendance immediately.
                   </span>
                 </span>

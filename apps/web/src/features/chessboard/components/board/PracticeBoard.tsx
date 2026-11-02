@@ -283,7 +283,7 @@ export function PracticeBoard({
         data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
       />
       {promotion && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center rounded-app bg-black/60 backdrop-blur-sm">
+        <div className="absolute inset-0 z-20 flex items-center justify-center rounded-app bg-scrim/60 backdrop-blur-sm">
           <div className="rounded-panel border border-app-border bg-app-surface p-4 shadow-card">
             <p className="mb-3 text-center text-sm font-semibold text-app-text">Promote to</p>
             <div className="flex gap-2">

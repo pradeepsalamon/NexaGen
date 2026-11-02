@@ -72,7 +72,7 @@ function NameLine({ game, color, compact }: { game: LiveMatchGame; color: MatchC
           className={cn(
             "shrink-0 rounded-full border border-app-border",
             compact ? "size-2.5" : "size-3",
-            color === "white" ? "bg-white" : "bg-neutral-900"
+            color === "white" ? "bg-side-white" : "bg-side-black"
           )}
           aria-hidden="true"
         />

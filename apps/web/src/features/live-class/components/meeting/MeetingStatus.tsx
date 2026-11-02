@@ -200,8 +200,8 @@ export function NetworkQualityIndicator({ participant, className }: NetworkQuali
     quality === ConnectionQuality.Poor
       ? "bg-warning"
       : quality === ConnectionQuality.Good
-        ? "bg-white/70"
-        : "bg-white";
+        ? "bg-on-scrim/70"
+        : "bg-on-scrim";
 
   const qualityLabel = isUnknown ? "Calculating…" : quality;
 
@@ -217,7 +217,7 @@ export function NetworkQualityIndicator({ participant, className }: NetworkQuali
             key={level}
             className={cn(
               "w-[3px] rounded-full transition-colors",
-              level <= bars ? color : "bg-white/10",
+              level <= bars ? color : "bg-on-scrim/10",
               level === 1 ? "h-1.5" : level === 2 ? "h-2.5" : "h-3.5",
             )}
           />

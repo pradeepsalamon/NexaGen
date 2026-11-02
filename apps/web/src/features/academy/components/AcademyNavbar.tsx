@@ -72,15 +72,15 @@ function ThemeSwitch({
       type="button"
       role="switch"
       aria-checked={isDark}
-      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      aria-label="Switch to dark theme"
       onClick={onToggle}
       className={`
         relative inline-flex shrink-0 cursor-pointer items-center rounded-full border p-[3px]
-        bg-[#EEF2F8] border-[#D9E0EC] shadow-[inset_0_1px_3px_rgba(7,27,65,0.08)]
-        hover:border-[#C58927]/60
-        dark:bg-[#0B1A38] dark:border-white/12 dark:shadow-none dark:hover:border-[#E2B355]/50
+        bg-app-soft border-app-border shadow-[inset_0_1px_3px_rgb(var(--rgb-brand-800)/0.08)]
+        hover:border-accent/60
+
         transition-colors duration-300
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D49B35]/70
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70
         ${sm ? "h-8" : "h-9"}
       `}
     >
@@ -89,8 +89,8 @@ function ThemeSwitch({
         aria-hidden="true"
         className={`
           pointer-events-none absolute left-[3px] top-[3px] rounded-full
-          bg-[#071B41] shadow-[0_2px_6px_rgba(7,27,65,0.35)]
-          dark:bg-[#E2B355] dark:shadow-[0_2px_8px_rgba(226,179,85,0.35)]
+          bg-toggle-knob shadow-card
+
           transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none
           ${sm ? "size-6 dark:translate-x-6" : "size-7 dark:translate-x-7"}
         `}
@@ -99,7 +99,7 @@ function ThemeSwitch({
         className={`relative z-10 flex items-center justify-center ${sm ? "size-6" : "size-7"}`}
       >
         <Sun
-          className={`transition-colors duration-300 text-white dark:text-[#8E98A8] ${sm ? "size-3.5" : "size-4"}`}
+          className={`transition-colors duration-300 text-toggle-knob-sun ${sm ? "size-3.5" : "size-4"}`}
           strokeWidth={2.2}
         />
       </span>
@@ -107,7 +107,7 @@ function ThemeSwitch({
         className={`relative z-10 flex items-center justify-center ${sm ? "size-6" : "size-7"}`}
       >
         <Moon
-          className={`transition-colors duration-300 text-[#6B7280] dark:text-[#071B41] ${sm ? "size-3.5" : "size-4"}`}
+          className={`transition-colors duration-300 text-toggle-knob-moon ${sm ? "size-3.5" : "size-4"}`}
           strokeWidth={2.2}
         />
       </span>
@@ -142,7 +142,7 @@ function UserAvatar({
   return (
     <span
       aria-hidden="true"
-      className={`${base} bg-[#DCDFE4] text-[#071B41] dark:bg-[#E2B355]/15 dark:text-[#E2B355] ${className}`}
+      className={`${base} bg-app-soft text-app-text ${className}`}
     >
       {getInitials(user.name)}
     </span>
@@ -182,7 +182,7 @@ function UserMenu({
 
   const firstName = user.name.trim().split(/\s+/)[0] || user.name;
   const itemClass =
-    "flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm font-semibold text-[#071B41] dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors";
+    "flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm font-semibold text-app-text hover:bg-app-text/5 transition-colors";
 
   return (
     <div ref={ref} className="relative">
@@ -194,18 +194,18 @@ function UserMenu({
         aria-label={`Account menu for ${user.name}`}
         className="
           inline-flex h-10 items-center gap-2.5 rounded-full border py-1 pl-1 pr-3 cursor-pointer
-          bg-white border-[#DDE3EE] hover:border-[#C58927]/60
-          dark:bg-[#08152E] dark:border-white/12 dark:hover:border-[#E2B355]/50
+          bg-app-surface border-app-border hover:border-accent/60
+
           transition-colors duration-200
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D49B35]/70
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70
         "
       >
         <UserAvatar user={user} className="size-8 text-xs" />
-        <span className="max-w-[96px] truncate text-sm font-bold text-[#071B41] dark:text-white">
+        <span className="max-w-[96px] truncate text-sm font-bold text-app-text">
           {firstName}
         </span>
         <ChevronDown
-          className={`size-4 shrink-0 text-[#555C68] dark:text-[#C1C4CC] transition-transform duration-200 ${open ? "rotate-180" : ""
+          className={`size-4 shrink-0 text-app-muted transition-transform duration-200 ${open ? "rotate-180" : ""
             }`}
           strokeWidth={2.2}
         />
@@ -215,8 +215,8 @@ function UserMenu({
         role="menu"
         className={`
           absolute right-0 top-full mt-2 w-60 origin-top-right rounded-2xl border p-1.5
-          bg-white border-[#E5E9F0] shadow-[0_16px_40px_-10px_rgba(7,27,65,0.22)]
-          dark:bg-[#0B1A38] dark:border-white/10 dark:shadow-[0_16px_40px_-10px_rgba(0,0,0,0.7)]
+          bg-app-surface border-app-border shadow-[0_16px_40px_-10px_rgb(var(--rgb-brand-800)/0.22)]
+
           transition-[opacity,transform,visibility] duration-150 ease-out motion-reduce:transition-none
           ${open
             ? "visible opacity-100 scale-100"
@@ -227,11 +227,11 @@ function UserMenu({
         <div className="flex items-center gap-3 px-3 py-2.5">
           <UserAvatar user={user} className="size-9 text-xs" />
           <div className="min-w-0">
-            <div className="truncate text-sm font-bold text-[#071B41] dark:text-white">
+            <div className="truncate text-sm font-bold text-app-text">
               {user.name}
             </div>
             {user.email && (
-              <div className="truncate text-xs text-[#555C68] dark:text-[#C1C4CC]">
+              <div className="truncate text-xs text-app-muted">
                 {user.email}
               </div>
             )}
@@ -239,7 +239,7 @@ function UserMenu({
         </div>
 
         {(dashboardHref || onLogout) && (
-          <div className="mt-1 border-t border-[#E5E9F0] pt-1 dark:border-white/10">
+          <div className="mt-1 border-t border-app-border pt-1">
             {dashboardHref && (
               <Link
                 href={dashboardHref}
@@ -247,7 +247,7 @@ function UserMenu({
                 onClick={() => setOpen(false)}
                 className={itemClass}
               >
-                <LayoutDashboard className="size-4 text-[#C58927] dark:text-[#E2B355]" />
+                <LayoutDashboard className="size-4 text-accent-ink" />
                 Dashboard
               </Link>
             )}
@@ -257,7 +257,7 @@ function UserMenu({
               onClick={() => setOpen(false)}
               className={itemClass}
             >
-              <User className="size-4 text-[#C58927] dark:text-[#E2B355]" />
+              <User className="size-4 text-accent-ink" />
               Profile
             </Link>
             {onLogout && (
@@ -270,7 +270,7 @@ function UserMenu({
                 }}
                 className={itemClass}
               >
-                <LogOut className="size-4 text-[#C58927] dark:text-[#E2B355]" />
+                <LogOut className="size-4 text-accent-ink" />
                 Log out
               </button>
             )}
@@ -377,8 +377,8 @@ export function AcademyNavbar({
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300 border-b ${scrolled
-        ? "bg-white/95 dark:bg-[#030D24]/95 backdrop-blur-md border-[#E5E9F0] dark:border-white/10 shadow-xs"
-        : "bg-white/90 dark:bg-[#030D24]/90 backdrop-blur-sm border-[#E5E9F0]/70 dark:border-white/10"
+        ? "bg-app-surface/95 backdrop-blur-md border-app-border shadow-xs"
+        : "bg-app-surface/90 backdrop-blur-sm border-app-border/70"
         }`}
     >
       {/* Vertical padding lives here (not on <nav>) so the mobile drawer sits flush under the bar */}
@@ -425,14 +425,14 @@ export function AcademyNavbar({
                   onClick={() => setActiveTab(item.label)}
                   aria-current={isActive ? "location" : undefined}
                   className={`relative py-1.5 text-sm font-semibold whitespace-nowrap transition-colors duration-200 ${isActive
-                    ? "text-[#071B41] dark:text-white font-bold"
-                    : "text-[#3B4454] dark:text-[#C1C4CC] hover:text-[#071B41] dark:hover:text-white"
+                    ? "text-app-text font-bold"
+                    : "text-app-muted hover:text-app-text"
                     }`}
                 >
                   {item.label}
                   <span
                     aria-hidden="true"
-                    className={`absolute bottom-0 left-0 right-0 h-[2.5px] origin-left rounded-full bg-[#D49B35] dark:bg-[#E2B355] transition-transform duration-300 ${isActive ? "scale-x-100" : "scale-x-0"
+                    className={`absolute bottom-0 left-0 right-0 h-[2.5px] origin-left rounded-full bg-accent transition-transform duration-300 ${isActive ? "scale-x-100" : "scale-x-0"
                       }`}
                   />
                 </a>
@@ -455,7 +455,7 @@ export function AcademyNavbar({
                 {/* Log In Button */}
                 <Link
                   href="/login"
-                  className="px-3 py-1.5 text-xs xl:text-sm font-semibold whitespace-nowrap text-[#071B41] dark:text-white hover:text-[#C58927] dark:hover:text-[#E2B355] hover:bg-black/5 dark:hover:bg-white/5 rounded-[10px] transition-colors"
+                  className="px-3 py-1.5 text-xs xl:text-sm font-semibold whitespace-nowrap text-app-text hover:text-accent-ink hover:bg-app-text/5 rounded-[10px] transition-colors"
                 >
                   Log In
                 </Link>
@@ -463,7 +463,7 @@ export function AcademyNavbar({
                 {/* Register Button */}
                 <Link
                   href="/register"
-                  className="px-3 py-1.5 text-xs xl:text-sm font-semibold whitespace-nowrap border border-[#071B41]/20 dark:border-white/20 text-[#071B41] dark:text-white hover:border-[#C58927] dark:hover:border-[#E2B355] hover:text-[#C58927] dark:hover:text-[#E2B355] rounded-[10px] transition-colors"
+                  className="px-3 py-1.5 text-xs xl:text-sm font-semibold whitespace-nowrap border border-app-text/20 text-app-text hover:border-accent hover:text-accent-ink rounded-[10px] transition-colors"
                 >
                   Register
                 </Link>
@@ -476,10 +476,10 @@ export function AcademyNavbar({
               className="
                 inline-flex items-center justify-center gap-1.5 whitespace-nowrap
                 min-h-[38px] px-3.5 xl:px-4 py-1.5 rounded-[10px]
-                bg-gradient-to-r from-[#E5B85B] via-[#DDA843] to-[#CE942E]
-                hover:from-[#ECC36B] hover:to-[#D89E35]
-                text-[#071B41] text-xs xl:text-sm font-bold
-                shadow-[0_4px_14px_rgba(212,155,53,0.3)]
+                bg-gradient-to-r from-accent via-accent to-accent-hover
+                hover:from-accent hover:to-accent-hover
+                text-on-accent text-xs xl:text-sm font-bold
+                shadow-[0_4px_14px_rgb(var(--rgb-accent)/0.3)]
                 transition-all duration-200 hover:-translate-y-0.5
               "
             >
@@ -495,7 +495,7 @@ export function AcademyNavbar({
             <button
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="size-9 rounded-[10px] text-[#071B41] dark:text-white flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D49B35]/70"
+              className="size-9 rounded-[10px] text-app-text flex items-center justify-center hover:bg-app-text/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
               aria-controls="academy-mobile-menu"
               aria-expanded={mobileOpen}
               aria-label="Toggle navigation menu"
@@ -512,8 +512,8 @@ export function AcademyNavbar({
       */}
       <div
         id="academy-mobile-menu"
-        className={`lg:hidden grid bg-white dark:bg-[#0B1A38] transition-[grid-template-rows,opacity] duration-300 ease-in-out ${mobileOpen
-          ? "grid-rows-[1fr] opacity-100 border-t border-[#E5E9F0] dark:border-white/10"
+        className={`lg:hidden grid bg-app-surface transition-[grid-template-rows,opacity] duration-300 ease-in-out ${mobileOpen
+          ? "grid-rows-[1fr] opacity-100 border-t border-app-border"
           : "grid-rows-[0fr] opacity-0"
           }`}
       >
@@ -531,26 +531,26 @@ export function AcademyNavbar({
                   setMobileOpen(false);
                 }}
                 className={`block px-3 py-2 text-sm font-semibold rounded-[10px] transition-colors ${activeTab === item.label
-                  ? "text-[#C58B2B] dark:text-[#E2B355] bg-[#FDF6E7] dark:bg-white/5 font-bold"
-                  : "text-[#071B41] dark:text-white hover:bg-black/5 dark:hover:bg-white/5"
+                  ? "text-accent-ink bg-accent-soft font-bold"
+                  : "text-app-text hover:bg-app-text/5"
                   }`}
               >
                 {item.label}
               </a>
             ))}
 
-            <div className="pt-3 border-t border-[#E5E9F0] dark:border-white/10 space-y-2">
+            <div className="pt-3 border-t border-app-border space-y-2">
               {effectiveUser ? (
                 <>
                   {/* Mobile profile card */}
-                  <div className="flex items-center gap-3 rounded-[12px] border border-[#DDE3EE] dark:border-white/12 bg-white dark:bg-[#08152E] px-3 py-2.5">
+                  <div className="flex items-center gap-3 rounded-[12px] border border-app-border bg-app-surface px-3 py-2.5">
                     <UserAvatar user={effectiveUser} className="size-10 text-sm" />
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-bold text-[#071B41] dark:text-white">
+                      <div className="truncate text-sm font-bold text-app-text">
                         {effectiveUser.name}
                       </div>
                       {effectiveUser.email && (
-                        <div className="truncate text-xs text-[#555C68] dark:text-[#C1C4CC]">
+                        <div className="truncate text-xs text-app-muted">
                           {effectiveUser.email}
                         </div>
                       )}
@@ -562,18 +562,18 @@ export function AcademyNavbar({
                       <Link
                         href={effectiveDashboardHref}
                         onClick={() => setMobileOpen(false)}
-                        className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold border border-[#E5E9F0] dark:border-white/15 text-[#071B41] dark:text-white rounded-[10px] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                        className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold border border-app-border text-app-text rounded-[10px] hover:bg-app-text/5 transition-colors"
                       >
-                        <LayoutDashboard className="size-4 text-[#C58927] dark:text-[#E2B355]" />
+                        <LayoutDashboard className="size-4 text-accent-ink" />
                         Dashboard
                       </Link>
                     )}
                     <Link
                       href="/profile"
                       onClick={() => setMobileOpen(false)}
-                      className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold border border-[#E5E9F0] dark:border-white/15 text-[#071B41] dark:text-white rounded-[10px] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold border border-app-border text-app-text rounded-[10px] hover:bg-app-text/5 transition-colors"
                     >
-                      <User className="size-4 text-[#C58927] dark:text-[#E2B355]" />
+                      <User className="size-4 text-accent-ink" />
                       Profile
                     </Link>
                   </div>
@@ -585,7 +585,7 @@ export function AcademyNavbar({
                         setMobileOpen(false);
                         handleLogout();
                       }}
-                      className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold border border-[#C58927] dark:border-[#E2B355] text-[#C58927] dark:text-[#E2B355] rounded-[10px] hover:bg-[#C58927] hover:text-white dark:hover:bg-[#E2B355] dark:hover:text-[#030D24] transition-colors"
+                      className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold border border-accent text-accent-ink rounded-[10px] hover:bg-accent hover:text-on-accent transition-colors"
                     >
                       <LogOut className="size-4" />
                       Log out
@@ -597,14 +597,14 @@ export function AcademyNavbar({
                   <Link
                     href="/login"
                     onClick={() => setMobileOpen(false)}
-                    className="w-full text-center py-2 px-3 text-sm font-semibold border border-[#E5E9F0] dark:border-white/15 text-[#071B41] dark:text-white rounded-[10px] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                    className="w-full text-center py-2 px-3 text-sm font-semibold border border-app-border text-app-text rounded-[10px] hover:bg-app-text/5 transition-colors"
                   >
                     Log In
                   </Link>
                   <Link
                     href="/register"
                     onClick={() => setMobileOpen(false)}
-                    className="w-full text-center py-2 px-3 text-sm font-semibold border border-[#C58927] dark:border-[#E2B355] text-[#C58927] dark:text-[#E2B355] rounded-[10px] hover:bg-[#C58927] hover:text-white dark:hover:bg-[#E2B355] dark:hover:text-[#030D24] transition-colors"
+                    className="w-full text-center py-2 px-3 text-sm font-semibold border border-accent text-accent-ink rounded-[10px] hover:bg-accent hover:text-on-accent transition-colors"
                   >
                     Register
                   </Link>
@@ -617,8 +617,8 @@ export function AcademyNavbar({
                 className="
                   w-full inline-flex items-center justify-center gap-2
                   min-h-[42px] px-4 py-2 rounded-[10px]
-                  bg-gradient-to-r from-[#E5B85B] via-[#DDA843] to-[#CE942E]
-                  text-[#071B41] font-bold text-sm shadow-sm
+                  bg-gradient-to-r from-accent via-accent to-accent-hover
+                  text-on-accent font-bold text-sm shadow-sm
                 "
               >
                 <span>Book Free Class</span>

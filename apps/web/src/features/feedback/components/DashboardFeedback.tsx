@@ -82,7 +82,7 @@ export function DashboardFeedback() {
           <FeedbackItemCard item={cardItem} key={itemKey(cardItem)} />
           {cardItems.length > 1 ? (
             <p
-              className="px-1 text-xs font-medium text-nx-muted"
+              className="px-1 text-xs font-medium text-app-subtle"
             >
               {cardItems.length - 1} more feedback request
               {cardItems.length > 2 ? "s" : ""} after this one
@@ -99,7 +99,7 @@ export function DashboardFeedback() {
       >
         {popupItem ? (
           <DialogContent
-            className="max-h-[90dvh] overflow-y-auto sm:max-w-lg rounded-2xl border p-6 bg-nx-card border-nx-line text-nx-ink"
+            className="max-h-[90dvh] overflow-y-auto sm:max-w-lg rounded-2xl border p-6 bg-app-surface border-app-border text-app-text"
             onOpenAutoFocus={(event) => event.preventDefault()}
           >
             <DialogDescription className="sr-only">

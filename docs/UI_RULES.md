@@ -1,14 +1,12 @@
 # UI Rules — building a consistent Nexa Chess interface
 
 These rules keep every screen looking and behaving like one product. They apply
-to everything under `apps/web/src` except the academy marketing site
-(`features/academy`, rendered by `app/page.tsx`), which has its own brand, and the
-recording template (`app/recorder`).
+to everything under `apps/web/src` except the recording template (`app/recorder`).
+The academy marketing site (`features/academy`) follows the colour rules; its
+layout and type still have their own look until M10.
 
 **NexaChess Design System v2** is the colour, type and spacing specification
-(`docs/ui-redesign/`). The older `nx-*` colours (student dashboard, app shell, auth
-pages) now resolve to v2 values and are removed at the end of the redesign, so use
-the tokens below in new code. Never branch on `useTheme()` to pick a
+(`docs/ui-redesign/`). Never branch on `useTheme()` to pick a
 colour — the variables switch with `data-theme` before first paint; JS only knows
 the theme after hydration, so dark mode would paint light first.
 
@@ -31,26 +29,43 @@ and are mapped in `tailwind.config.ts`.
 | Body / secondary text | `text-app-text`, `text-app-muted` | `text-gray-*`, `text-black` |
 | Borders / dividers | `border-app-border`, `divide-app-border` | `border-gray-*`, `border-white/20` |
 | Brand fills (buttons, chips, active states) | `bg-primary`, `bg-accent`, `bg-brand-800`, `bg-app-danger` | `bg-blue-600`, `bg-yellow-400` |
-| Text / icons on a fill | `text-on-primary`, `text-on-accent`, `text-on-brand` | `text-white` on `bg-primary` — it is dark text in dark mode |
+| Text / icons on a fill | `text-on-primary`, `text-on-accent`, `text-on-brand`, `text-on-danger`, `text-on-success`, `text-on-warning`, `text-on-info` | `text-white` on a fill: several fills turn pale in dark, so their text turns dark |
 | **Coloured text or icons on a surface** | the **`-ink`** token: `text-primary-ink`, `text-accent-ink`, `text-success-ink`, `text-app-danger-ink` | `text-primary` or `text-accent` on a surface; gold text on white is 1.7:1 |
 | Status | `success`, `warning`, `info` (+ `-ink` for text, `-soft` for backgrounds) | `green-500`, `amber-100`, `orange-800` |
 | Tints | the `-soft` tokens, or alpha on a token: `bg-primary/10`, `border-success/40` | a separate pale palette colour |
 | Input borders, unchecked controls | `border-app-line-strong` | `border-app-border`, which is too faint at 3:1 |
+| Over video, the board or a dimmed page | `bg-scrim/60`, `text-on-scrim`, `border-on-scrim/10`, `text-on-scrim-danger` (fixed in both themes) | `bg-black/60 text-white` |
+| Must stay white (QR code, switch thumb) | `bg-paper` | `bg-white` |
+| Chess sides and draws (swatches, result bars) | `bg-side-white`, `bg-side-black`, `bg-side-draw` | `bg-white`, `bg-neutral-900` |
+| Charts | `useChartColors()`; extra hues are `--color-chart-1` to `-4` | hex in a chart |
 
 - **Brand hues mean one thing each:** primary (royal blue) = actions, links,
   selected state. Brand navy = navigation and identity only, never a button.
   Accent (gold) = restrained reward and highlight, never a status.
   Success, warning, info = status. Danger = destructive + LIVE only.
 - **Every token has its own dark value.** Coloured text comes from the `-ink`
-  tokens. `warm` is an alias of primary until it is removed: don't use it.
+  tokens.
 - **Type:** Inter. Body 16/24 (`text-base`), small 14/20 (`text-sm`), captions and
   badges 12/16 (`text-xs`). Chess notation uses `font-mono` (JetBrains Mono).
 - **No `dark:` colour overrides in feature code.** Tokens already switch with
   the theme. A hand-written `dark:border-white/10` drifts from the palette and,
   inside a shared component, silently overrides every caller's colour (this is
   exactly how outline buttons ended up with white rings in dark mode).
-- Allowed exceptions: text/chips floating over **video or the chessboard**
-  (`bg-black/60 text-white`), where the backdrop is not a theme surface.
+- **ESLint enforces this** (`apps/web/eslint.config.mjs`): hex, literal `rgb()`,
+  palette classes and `dark:` colours fail lint. `dark:hidden` / `dark:block` for
+  swapping artwork are fine. `-ink` tokens take no `/opacity`, and a colour name that
+  isn't in `tailwind.config.ts` emits nothing, silently.
+- **Only these may hold literal colour values**, because they can't read CSS
+  variables or aren't theme colours:
+  | File | Why |
+  |---|---|
+  | `styles/globals.css` | Where the tokens are defined |
+  | `features/chess-appearance/**` | Board and piece themes people choose, plus SVG piece parsing |
+  | `features/chessboard/lib/drawBrushes.ts` | Board arrow palette, stored by name and synced to students |
+  | `app/layout.tsx` | `themeColor` metadata is a literal; keep it equal to `--rgb-background` |
+  | `lib/ogImage.tsx` | Satori can't read CSS variables; keep it equal to the v2 values |
+  | `lib/document-reader/**` | White paper behind a rendered PDF page for OCR |
+  | `app/recorder/**` | Recording template, not changed by the redesign |
 
 ## 2. Shape and depth
 
@@ -150,8 +165,7 @@ disagree.
 
 ## 7. Before you open a PR
 
-1. No new hex / palette colours / `dark:` colour overrides —
-   `grep -nE "(gray|slate|zinc|blue|yellow)-[0-9]{2,3}|dark:(bg|text|border)-" <files>`.
+1. No new hex / palette colours / `dark:` colour overrides: `npm run lint -w apps/web`.
 2. No raw `<table>`, `<select>`, native date/time inputs, or hand-rolled badges.
 3. Coloured text uses `-ink`.
 4. Radii/shadows are tokens.

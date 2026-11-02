@@ -63,17 +63,17 @@ const socialLinks = socialIcons.flatMap(({ host, ...icon }) => {
 });
 
 const linkClassName =
-  "text-[13px] sm:text-sm text-[#555C68] dark:text-[#C1C4CC] hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors flex items-center gap-2 group";
+  "text-[13px] sm:text-sm text-app-muted hover:text-accent-ink transition-colors flex items-center gap-2 group";
 
 const headingClassName =
-  "text-[12px] font-bold uppercase tracking-[0.12em] text-[#C88E2B] dark:text-[#E2B355]";
+  "text-[12px] font-bold uppercase tracking-[0.12em] text-accent-ink";
 
 // Defined at module level (not inside AcademyFooter) so React doesn't
 // remount these lists every time an accordion opens or closes.
 function FooterLinks({ links }: { links: LinkItem[] }) {
   const content = (label: string) => (
     <>
-      <ChevronRight className="size-3.5 text-[#C88E2B] dark:text-[#E2B355] opacity-70 group-hover:translate-x-0.5 transition-transform" />
+      <ChevronRight className="size-3.5 text-accent-ink opacity-70 group-hover:translate-x-0.5 transition-transform" />
       {label}
     </>
   );
@@ -128,7 +128,7 @@ function FooterColumn({
       >
         <span className={headingClassName}>{title}</span>
         <ChevronDown
-          className={`size-4 text-[#C88E2B] dark:text-[#E2B355] transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+          className={`size-4 text-accent-ink transition-transform duration-200 ${isOpen ? "rotate-180" : ""
             }`}
         />
       </button>
@@ -167,7 +167,7 @@ export function AcademyFooter() {
   };
 
   return (
-    <footer className="relative bg-[#FFFFFF] dark:bg-[#030D24] border-t border-[#E5E9F0] dark:border-white/10 select-none">
+    <footer className="relative bg-app-surface border-t border-app-border select-none">
       <div className="relative max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
 
         {/* ================= MAIN FOOTER CONTENT ================= */}
@@ -192,23 +192,23 @@ export function AcademyFooter() {
               />
             </div>
 
-            <p className="text-[13px] sm:text-sm text-[#555C68] dark:text-[#C1C4CC] leading-relaxed max-w-sm mb-6">
+            <p className="text-[13px] sm:text-sm text-app-muted leading-relaxed max-w-sm mb-6">
               A premium chess coaching and learning platform for students, parents, and competitive chess players.<br />
               Building international champions since 2018.
             </p>
 
             {/* select-text so visitors can copy the phone number / email */}
-            <div className="flex flex-col gap-3 text-[13px] sm:text-sm text-[#555C68] dark:text-[#C1C4CC] mb-8 select-text">
-              <a href={`tel:+${ACADEMY_PHONE.replace(/\D/g, "")}`} className="flex items-center gap-3 hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
-                <Phone className="size-4 shrink-0 text-[#C88E2B] dark:text-[#E2B355]" />
+            <div className="flex flex-col gap-3 text-[13px] sm:text-sm text-app-muted mb-8 select-text">
+              <a href={`tel:+${ACADEMY_PHONE.replace(/\D/g, "")}`} className="flex items-center gap-3 hover:text-accent-ink transition-colors">
+                <Phone className="size-4 shrink-0 text-accent-ink" />
                 {ACADEMY_PHONE.replace("-", " ")}
               </a>
-              <a href={`mailto:${ACADEMY_EMAIL}`} className="flex items-center gap-3 hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
-                <Mail className="size-4 shrink-0 text-[#C88E2B] dark:text-[#E2B355]" />
+              <a href={`mailto:${ACADEMY_EMAIL}`} className="flex items-center gap-3 hover:text-accent-ink transition-colors">
+                <Mail className="size-4 shrink-0 text-accent-ink" />
                 {ACADEMY_EMAIL}
               </a>
               <span className="flex items-center gap-3">
-                <Globe className="size-4 shrink-0 text-[#C88E2B] dark:text-[#E2B355]" />
+                <Globe className="size-4 shrink-0 text-accent-ink" />
                 Online Worldwide Classes
               </span>
             </div>
@@ -220,7 +220,7 @@ export function AcademyFooter() {
                 <a
                   key={social.label}
                   href={social.href}
-                  className="size-9 rounded-full bg-[#F8FAFC] dark:bg-[#1E293B] border border-[#E5E9F0] dark:border-white/5 flex items-center justify-center text-[#475569] dark:text-[#94A3B8] hover:text-[#C88E2B] hover:border-[#C88E2B] dark:hover:text-[#E2B355] dark:hover:border-[#E2B355] transition-all duration-200"
+                  className="size-9 rounded-full bg-app-background border border-app-border flex items-center justify-center text-app-muted hover:text-accent-ink hover:border-accent transition-all duration-200"
                   aria-label={social.label}
                   rel="noopener noreferrer"
                   target="_blank"
@@ -240,7 +240,7 @@ export function AcademyFooter() {
               links={quickLinks}
               isOpen={openSection === "quick"}
               onToggle={() => toggleSection("quick")}
-              className="border-b sm:border-b-0 border-[#E5E9F0] dark:border-white/10"
+              className="border-b sm:border-b-0 border-app-border"
             />
             <FooterColumn
               id="programs"
@@ -248,7 +248,7 @@ export function AcademyFooter() {
               links={programLinks}
               isOpen={openSection === "programs"}
               onToggle={() => toggleSection("programs")}
-              className="border-b sm:border-b-0 border-[#E5E9F0] dark:border-white/10"
+              className="border-b sm:border-b-0 border-app-border"
             />
             <FooterColumn
               id="support"
@@ -261,17 +261,17 @@ export function AcademyFooter() {
         </div>
 
         {/* ================= FOOTER BOTTOM BAR ================= */}
-        <div className="mt-12 pt-6 border-t border-[#E5E9F0] dark:border-white/10 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
-          <p className="text-[12px] sm:text-[13px] text-[#555C68] dark:text-[#9BA4B5]">
+        <div className="mt-12 pt-6 border-t border-app-border flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+          <p className="text-[12px] sm:text-[13px] text-app-muted">
             © {new Date().getFullYear()} NEXA Chess Academy. All Rights Reserved.
           </p>
 
-          <div className="flex items-center gap-4 sm:gap-6 text-[12px] sm:text-[13px] text-[#555C68] dark:text-[#9BA4B5]">
-            <Link href="/privacy" className="hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
+          <div className="flex items-center gap-4 sm:gap-6 text-[12px] sm:text-[13px] text-app-muted">
+            <Link href="/privacy" className="hover:text-accent-ink transition-colors">
               Privacy Policy
             </Link>
-            <span className="text-[#CBD5E1] dark:text-white/20" aria-hidden="true">|</span>
-            <Link href="/terms" className="hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
+            <span className="text-app-subtle" aria-hidden="true">|</span>
+            <Link href="/terms" className="hover:text-accent-ink transition-colors">
               Terms of Service
             </Link>
           </div>

@@ -38,12 +38,8 @@ const config: Config = {
         panel: "var(--radius-panel)"
       },
       boxShadow: {
-        "nx-card": "var(--nx-shadow-card)",
-        "nx-drawer": "var(--nx-shadow-drawer)",
-        "nx-float": "var(--nx-shadow-float)",
-        "nx-focus": "var(--nx-shadow-focus)",
-        "nx-panel": "var(--nx-shadow-panel)",
         card: "var(--shadow-card)",
+        focus: "var(--shadow-focus)",
         lift: "var(--shadow-lift)",
         soft: "var(--shadow-soft)"
       },
@@ -60,6 +56,10 @@ const config: Config = {
           900: "rgb(var(--rgb-brand-900) / <alpha-value>)"
         },
         "on-accent": "rgb(var(--rgb-on-accent) / <alpha-value>)",
+        "on-danger": "rgb(var(--rgb-on-danger) / <alpha-value>)",
+        "on-info": "rgb(var(--rgb-on-info) / <alpha-value>)",
+        "on-success": "rgb(var(--rgb-on-success) / <alpha-value>)",
+        "on-warning": "rgb(var(--rgb-on-warning) / <alpha-value>)",
         "on-brand": {
           DEFAULT: "rgb(var(--rgb-on-brand) / <alpha-value>)",
           muted: "rgb(var(--rgb-on-brand-muted) / <alpha-value>)"
@@ -67,6 +67,7 @@ const config: Config = {
         app: {
           background: "rgb(var(--rgb-background) / <alpha-value>)",
           border: "rgb(var(--rgb-border) / <alpha-value>)",
+          emphasis: "rgb(var(--rgb-emphasis) / <alpha-value>)",
           drawer: {
             DEFAULT: "rgb(var(--rgb-nav-drawer) / <alpha-value>)",
             border: "rgb(var(--rgb-nav-drawer-border) / <alpha-value>)"
@@ -97,10 +98,6 @@ const config: Config = {
           ink: "var(--color-primary-ink)",
           soft: "rgb(var(--rgb-primary-soft) / <alpha-value>)"
         },
-        warm: {
-          DEFAULT: "rgb(var(--rgb-warm) / <alpha-value>)",
-          ink: "var(--color-warm-ink)"
-        },
         success: {
           DEFAULT: "rgb(var(--rgb-success) / <alpha-value>)",
           ink: "var(--color-success-ink)",
@@ -116,129 +113,34 @@ const config: Config = {
           ink: "var(--color-info-ink)",
           soft: "rgb(var(--rgb-info-soft) / <alpha-value>)"
         },
-        // The redesign's navy/gold palette: theme-switched roles are CSS
-        // variables (globals.css), fixed brand shades are plain hex so alpha
-        // modifiers (bg-nx-gold-400/15) work.
-        nx: {
-          "amber": "#B45309",
-          "auth-card": "var(--nx-auth-card)",
-          "auth-note": "var(--nx-auth-note)",
-          "backdrop": "var(--nx-backdrop)",
-          "bar": "var(--nx-bar)",
-          "body": "var(--nx-body)",
-          "body-strong": "var(--nx-body-strong)",
-          "card": "var(--nx-card)",
-          "chart-1": "var(--nx-chart-1)",
-          "chart-2": "var(--nx-chart-2)",
-          "chart-3": "var(--nx-chart-3)",
-          "chart-4": "var(--nx-chart-4)",
-          "danger-ink": "var(--nx-danger-ink)",
-          "danger-line": "var(--nx-danger-line)",
-          "danger-soft": "var(--nx-danger-soft)",
-          "drawer-bar": "var(--nx-drawer-bar)",
-          "emerald": "#15803D",
-          "emphasis": "var(--nx-emphasis)",
-          "faint": "var(--nx-faint)",
-          "field": "var(--nx-field)",
-          "field-line": "var(--nx-field-line)",
-          "glass": "var(--nx-glass)",
-          "gold-200-alt": "#F0CD8E",
-          "gold-300": "#E9BE72",
-          "gold-350": "#E9BE72",
-          "gold-400": "#E9BE72",
-          "gold-450": "#DDAA52",
-          "gold-50": "#FBF1DC",
-          "gold-500": "#DDAA52",
-          "gold-550-alt": "#DDAA52",
-          "gold-600": "#7A5311",
-          "gold-700": "#7A5311",
-          "gold-active": "var(--nx-gold-active)",
-          "gold-bright-ink": "var(--nx-gold-bright-ink)",
-          "gold-glass": "var(--nx-gold-glass)",
-          "gold-ink": "var(--nx-gold-ink)",
-          "gold-line": "var(--nx-gold-line)",
-          "gold-line-medium": "var(--nx-gold-line-medium)",
-          "gold-line-strong": "var(--nx-gold-line-strong)",
-          "gold-pale-ink": "var(--nx-gold-pale-ink)",
-          "gold-soft": "var(--nx-gold-soft)",
-          "gold-tint": "var(--nx-gold-tint)",
-          "hover": "var(--nx-hover)",
-          "hover-faint": "var(--nx-hover-faint)",
-          "hover-strong": "var(--nx-hover-strong)",
-          "icon": "var(--nx-icon)",
-          "icon-faint": "var(--nx-icon-faint)",
-          "info-ink": "var(--nx-info-ink)",
-          "ink": "var(--nx-ink)",
-          "ink-inverse": "var(--nx-ink-inverse)",
-          "ink-soft": "var(--nx-ink-soft)",
-          "line": "var(--nx-line)",
-          "line-bold": "var(--nx-line-bold)",
-          "line-focus": "var(--nx-line-focus)",
-          "line-glass": "var(--nx-line-glass)",
-          "line-hover": "var(--nx-line-hover)",
-          "line-strong": "var(--nx-line-strong)",
-          "line-strong-hover": "var(--nx-line-strong-hover)",
-          "live": "#DC2626",
-          "live-deep": "#B91C1C",
-          "live-strong": "#DC2626",
-          "midnight": "#1B2D52",
-          "mist": "#CBD5E1",
-          "muted": "var(--nx-muted)",
-          "muted-strong": "var(--nx-muted-strong)",
-          "nav-ink": "var(--nx-nav-ink)",
-          "navy": "#0F1E3A",
-          "navy-deep": "#07142A",
-          "night": "#0B1220",
-          "night-card": "#111A2E",
-          "page": "var(--nx-page)",
-          "raised": "var(--nx-raised)",
-          "raised-hover": "var(--nx-raised-hover)",
-          "rose-ink": "var(--nx-rose-ink)",
-          "rose-soft": "var(--nx-rose-soft)",
-          "slate": "#475569",
-          "slate-light": "#64748B",
-          "snow-blue": "#F1F5F9",
-          "stat-coral": "var(--nx-stat-coral)",
-          "stat-coral-ink": "var(--nx-stat-coral-ink)",
-          "stat-coral-line": "var(--nx-stat-coral-line)",
-          "stat-gold": "var(--nx-stat-gold)",
-          "stat-gold-line": "var(--nx-stat-gold-line)",
-          "stat-navy": "var(--nx-stat-navy)",
-          "stat-navy-ink": "var(--nx-stat-navy-ink)",
-          "stat-navy-line": "var(--nx-stat-navy-line)",
-          "success-ink": "var(--nx-success-ink)",
-          "success-soft": "var(--nx-success-soft)",
-          "tile": "var(--nx-tile)",
-          "tile-faint": "var(--nx-tile-faint)",
-          "tile-glass": "var(--nx-tile-glass)",
-          "toggle-moon": "var(--nx-toggle-moon)",
-          "toggle-moon-hover": "var(--nx-toggle-moon-hover)",
-          "toggle-moon-ink": "var(--nx-toggle-moon-ink)",
-          "toggle-sun": "var(--nx-toggle-sun)",
-          "toggle-sun-hover": "var(--nx-toggle-sun-hover)",
-          "toggle-sun-ink": "var(--nx-toggle-sun-ink)",
-          "warm-ink": "var(--nx-warm-ink)",
-          "warm-pale-ink": "var(--nx-warm-pale-ink)",
-          "warm-soft": "var(--nx-warm-soft)",
-          "warning-ink": "var(--nx-warning-ink)",
-          "warning-soft": "var(--nx-warning-soft)"
+        scrim: "rgb(var(--rgb-scrim) / <alpha-value>)",
+        "on-scrim": {
+          DEFAULT: "rgb(var(--rgb-on-scrim) / <alpha-value>)",
+          danger: "rgb(var(--rgb-on-scrim-danger) / <alpha-value>)"
         },
-        // Brand palette aligned with NEXA Chess visual guidelines
-        navy: {
-          DEFAULT: "#0F1E3A",
-          dark: "#07142A",
-          card: "#111A2E",
-          light: "#1B2D52"
+        paper: "rgb(var(--rgb-paper) / <alpha-value>)",
+        side: {
+          black: "rgb(var(--rgb-side-black) / <alpha-value>)",
+          draw: "rgb(var(--rgb-side-draw) / <alpha-value>)",
+          white: "rgb(var(--rgb-side-white) / <alpha-value>)"
         },
-        gold: {
-          DEFAULT: "#E9BE72",
-          bright: "#E9BE72",
-          light: "#F0CD8E",
-          dark: "#7A5311"
-        },
-        "text-primary": "var(--text-primary)",
-        "text-secondary": "var(--text-secondary)",
-        "text-muted": "var(--text-secondary)"
+        toggle: {
+          knob: {
+            DEFAULT: "var(--color-toggle-knob)",
+            moon: "var(--color-toggle-knob-moon)",
+            sun: "var(--color-toggle-knob-sun)"
+          },
+          moon: {
+            DEFAULT: "var(--color-toggle-moon)",
+            hover: "var(--color-toggle-moon-hover)",
+            ink: "var(--color-toggle-moon-ink)"
+          },
+          sun: {
+            DEFAULT: "var(--color-toggle-sun)",
+            hover: "var(--color-toggle-sun-hover)",
+            ink: "var(--color-toggle-sun-ink)"
+          }
+        }
       },
       fontFamily: {
         display: ["var(--font-display)"],

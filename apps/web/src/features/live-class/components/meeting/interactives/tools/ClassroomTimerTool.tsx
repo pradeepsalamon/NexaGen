@@ -116,7 +116,7 @@ export function ClassroomTimerTool({ isManager, timer }: ToolContext) {
               <SimpleTooltip label="Remove phase">
                 <button
                   aria-label={`Remove phase ${i + 1}`}
-                  className="flex size-8 items-center justify-center rounded-full bg-app-danger text-white transition-colors hover:bg-app-danger/85 disabled:opacity-40"
+                  className="flex size-8 items-center justify-center rounded-full bg-app-danger text-on-danger transition-colors hover:bg-app-danger/85 disabled:opacity-40"
                   disabled={phases.length === 1}
                   onClick={() => set(phases.filter((x) => x.id !== p.id))}
                   type="button"

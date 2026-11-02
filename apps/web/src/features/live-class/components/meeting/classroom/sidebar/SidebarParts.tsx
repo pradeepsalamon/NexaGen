@@ -105,7 +105,7 @@ export function SidebarTabs<T extends string>({
               <span className={cn("tabular-nums", active ? "text-on-primary/80" : "text-app-muted")}>({tab.count})</span>
             ) : null}
             {tab.badge ? (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-app-danger px-1 text-[9px] font-bold text-white ring-2 ring-app-surface">
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-app-danger px-1 text-[9px] font-bold text-on-danger ring-2 ring-app-surface">
                 {tab.badge > 99 ? "99+" : tab.badge}
               </span>
             ) : null}

@@ -43,10 +43,10 @@ export function BulkActionsBar({
         return (
           <button
             className={cn(
-              "inline-flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap rounded-control px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+              "inline-flex min-h-[var(--control-h)] items-center gap-1.5 whitespace-nowrap rounded-control px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-primary",
               action.tone === "danger"
-                ? "bg-app-danger text-white hover:bg-app-danger-hover"
-                : "bg-white/15 hover:bg-white/25"
+                ? "bg-app-danger text-on-danger hover:bg-app-danger-hover"
+                : "bg-on-primary/15 hover:bg-on-primary/25"
             )}
             disabled={action.disabled}
             key={action.label}
@@ -61,7 +61,7 @@ export function BulkActionsBar({
       <SimpleTooltip label="Clear selection">
         <button
           aria-label="Clear selection"
-          className="inline-flex size-[var(--control-h)] items-center justify-center rounded-control text-on-primary/80 transition-colors hover:bg-white/15 hover:text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="inline-flex size-[var(--control-h)] items-center justify-center rounded-control text-on-primary/80 transition-colors hover:bg-on-primary/15 hover:text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-primary"
           onClick={onClear}
           type="button"
         >

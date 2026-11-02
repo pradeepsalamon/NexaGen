@@ -87,7 +87,7 @@ function Calendar({
           defaultClassNames.day
         ),
         today: cn("text-app-text", defaultClassNames.today),
-        selected: cn("text-white", defaultClassNames.selected),
+        selected: cn("text-on-primary", defaultClassNames.selected),
         outside: cn(
           "text-app-muted/50 opacity-80 aria-selected:text-app-muted/50",
           defaultClassNames.outside
@@ -97,9 +97,9 @@ function Calendar({
           defaultClassNames.disabled
         ),
         hidden: cn("invisible", defaultClassNames.hidden),
-        range_start: cn("text-white", defaultClassNames.range_start),
+        range_start: cn("text-on-primary", defaultClassNames.range_start),
         range_middle: cn("text-app-text", defaultClassNames.range_middle),
-        range_end: cn("text-white", defaultClassNames.range_end),
+        range_end: cn("text-on-primary", defaultClassNames.range_end),
         ...classNames
       }}
       components={{

@@ -52,7 +52,7 @@ export function FocusOverlay({
         </div>
 
         {/* Video container */}
-        <div className="min-h-0 flex-1 overflow-hidden rounded-app border border-app-border bg-black shadow-soft">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-app border border-app-border bg-scrim shadow-soft">
           <ParticipantTile
             trackRef={trackRef}
             className={cn(

@@ -110,9 +110,9 @@ export function MasterbasePanel() {
         <p className="text-xs text-app-muted mt-1">{total.toLocaleString()} games in the masters database</p>
 
         <div className="flex h-3 rounded-full overflow-hidden mt-2 bg-app-border">
-          <div className="bg-white border-r border-app-border" style={{ width: `${pct(data.white)}%` }} title={`White ${pct(data.white)}%`} />
-          <div className="bg-gray-400" style={{ width: `${pct(data.draws)}%` }} title={`Draws ${pct(data.draws)}%`} />
-          <div className="bg-gray-900" style={{ width: `${pct(data.black)}%` }} title={`Black ${pct(data.black)}%`} />
+          <div className="bg-side-white border-r border-app-border" style={{ width: `${pct(data.white)}%` }} title={`White ${pct(data.white)}%`} />
+          <div className="bg-side-draw" style={{ width: `${pct(data.draws)}%` }} title={`Draws ${pct(data.draws)}%`} />
+          <div className="bg-side-black" style={{ width: `${pct(data.black)}%` }} title={`Black ${pct(data.black)}%`} />
         </div>
         <div className="flex justify-between text-[11px] text-app-muted mt-1">
           <span>White {pct(data.white)}%</span>

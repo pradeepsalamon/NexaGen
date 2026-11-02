@@ -11,7 +11,6 @@ import {
   ArrowRight,
   type LucideIcon
 } from "lucide-react";
-import { useTheme } from "@/providers/ThemeProvider";
 
 const BG_LIGHT = "/academy_advantage/01_cinematic_chess_light.webp";
 const BG_DARK = "/academy_advantage/02_cinematic_chess_shadow.webp";
@@ -76,14 +75,11 @@ const features: AdvantageItem[] = [
 ];
 
 export function WhyChooseUsSection() {
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   return (
     <section
       id="why-choose-us"
-      className={`relative py-16 sm:py-24 overflow-hidden select-none transition-colors duration-300 ${isDark ? "bg-[#030D24] text-white" : "bg-[#F8FAFC] text-[#071B41]"
-        }`}
+      className="relative py-16 sm:py-24 overflow-hidden select-none transition-colors duration-300 bg-app-background text-app-text"
     >
       {/* ================= FULL-BLEED BACKGROUND ARTWORK ================= */}
       <div
@@ -96,7 +92,7 @@ export function WhyChooseUsSection() {
           alt="Why Nexa Chess Academy Light Background"
           fill
           sizes="100vw"
-          className={`object-cover object-center dark:hidden`}
+          className="object-cover object-center dark:hidden"
         />
 
         {/* Dark Mode Background (02_cinematic_chess_shadow.jpg) */}
@@ -105,21 +101,15 @@ export function WhyChooseUsSection() {
           alt="Why Nexa Chess Academy Dark Background"
           fill
           sizes="100vw"
-          className={`object-cover object-center hidden dark:block`}
+          className="object-cover object-center hidden dark:block"
         />
 
         {/* Subtle Top & Bottom Section Edge Blends */}
         <div
-          className={`absolute inset-x-0 top-0 h-16 ${isDark
-              ? "bg-gradient-to-b from-[#030D24] to-transparent"
-              : "bg-gradient-to-b from-white/85 to-transparent"
-            }`}
+          className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-app-surface/85 to-transparent"
         />
         <div
-          className={`absolute inset-x-0 bottom-0 h-16 ${isDark
-              ? "bg-gradient-to-t from-[#030D24] to-transparent"
-              : "bg-gradient-to-t from-white/85 to-transparent"
-            }`}
+          className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-app-surface/85 to-transparent"
         />
       </div>
 
@@ -130,26 +120,22 @@ export function WhyChooseUsSection() {
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-14">
           {/* Pill Eyebrow: [• ACADEMY ADVANTAGES] */}
           <div
-            className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] mb-4 shadow-2xs backdrop-blur-md ${isDark
-                ? "bg-[#081736]/85 border-white/15 text-white"
-                : "bg-white/90 border-[#E2E8F0] text-[#071B41]"
-              }`}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] mb-4 shadow-2xs backdrop-blur-md bg-app-surface/90 border-app-border text-app-text"
           >
-            <span className="size-2 rounded-full bg-[#D49B35]" />
+            <span className="size-2 rounded-full bg-accent" />
             <span>ACADEMY ADVANTAGES</span>
           </div>
 
           {/* Two-Tone Serif Heading */}
           <h2 className="font-[family-name:var(--font-playfair)] font-bold text-3xl sm:text-4xl lg:text-[46px] leading-[1.14] tracking-[-0.02em] mb-3.5">
-            <span className={isDark ? "text-white" : "text-[#071B41]"}>
+            <span className="text-app-text">
               Why{" "}
             </span>
-            <span className="text-[#C58927] dark:text-[#E2B355]">
+            <span className="text-accent-ink">
               Nexa Chess{" "}
             </span>
             <span
-              className={`block sm:inline ${isDark ? "text-white" : "text-[#071B41]"
-                }`}
+              className="block sm:inline text-app-text"
             >
               Academy?
             </span>
@@ -157,8 +143,7 @@ export function WhyChooseUsSection() {
 
           {/* Subtitle */}
           <p
-            className={`text-xs sm:text-base lg:text-[16px] leading-relaxed max-w-[500px] mx-auto ${isDark ? "text-[#C8CDD6]" : "text-[#3B4454]"
-              }`}
+            className="text-xs sm:text-base lg:text-[16px] leading-relaxed max-w-[500px] mx-auto text-app-muted"
           >
             Discover why thousands of students and parents choose our structured
             coaching methodology.
@@ -172,28 +157,16 @@ export function WhyChooseUsSection() {
             const isFeatured = Boolean(item.featured);
 
             const cardSurfaceClass = isFeatured
-              ? isDark
-                ? "bg-[#091834]/90 border-[#E2B355] ring-1 ring-[#E2B355]/40 shadow-[0_16px_45px_-10px_rgba(226,179,85,0.22)]"
-                : "bg-[#FFFDF7]/95 border-[#E2B355] ring-1 ring-[#E2B355]/35 shadow-[0_16px_40px_-10px_rgba(212,155,53,0.2)]"
-              : isDark
-                ? "bg-[#06132D]/88 border-white/12 hover:border-[#E2B355]/50 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.65)]"
-                : "bg-white/95 border-[#E5E9F0] hover:border-[#D49B35]/60 shadow-[0_12px_34px_-10px_rgba(7,27,65,0.08)]";
+              ? "bg-accent-soft/95 border-accent ring-1 ring-accent/35 shadow-[0_16px_40px_-10px_rgb(var(--rgb-accent)/0.2)]"
+              : "bg-app-surface/95 border-app-border hover:border-accent/60 shadow-[0_12px_34px_-10px_rgb(var(--rgb-brand-800)/0.08)]";
 
             const numberBadgeClass = isFeatured
-              ? isDark
-                ? "bg-[#E2B355]/15 text-[#E2B355] border-[#E2B355]/30"
-                : "bg-[#FDF3DC] text-[#C58927] border-[#F2DCB1]"
-              : isDark
-                ? "bg-white/5 text-[#E2B355] border-white/10"
-                : "bg-[#F1F5F9] text-[#64748B] border-[#E2E8F0]";
+              ? "bg-accent-soft text-accent-ink border-accent/45"
+              : "bg-app-soft text-app-subtle border-app-border";
 
             const iconBadgeClass = isFeatured
-              ? isDark
-                ? "bg-[#E2B355]/15 text-[#E2B355] border-[#E2B355]/30"
-                : "bg-[#FDF3DC] text-[#071B41] border-[#F2DCB1]"
-              : isDark
-                ? "bg-[#0E2044] text-[#E2B355] border-white/10"
-                : "bg-[#F8FAFC] text-[#071B41] border-[#E2E8F0]";
+              ? "bg-accent-soft text-app-text border-accent/45"
+              : "bg-app-background text-app-text border-app-border";
 
             return (
               <div
@@ -218,15 +191,13 @@ export function WhyChooseUsSection() {
                 {/* Right (Mobile) / Bottom Centered (Desktop): Title, Description & Learn More */}
                 <div className="flex flex-col flex-1 lg:items-center min-w-0">
                   <h3
-                    className={`font-[family-name:var(--font-playfair)] font-bold text-lg sm:text-xl leading-snug mb-1.5 sm:mb-2 ${isDark ? "text-white" : "text-[#071B41]"
-                      }`}
+                    className="font-[family-name:var(--font-playfair)] font-bold text-lg sm:text-xl leading-snug mb-1.5 sm:mb-2 text-app-text"
                   >
                     {item.title}
                   </h3>
 
                   <p
-                    className={`text-xs sm:text-[13.5px] leading-relaxed mb-4 lg:mb-5 flex-1 ${isDark ? "text-[#C1C4CC]" : "text-[#4A5568]"
-                      }`}
+                    className="text-xs sm:text-[13.5px] leading-relaxed mb-4 lg:mb-5 flex-1 text-app-muted"
                   >
                     {item.description}
                   </p>
@@ -235,12 +206,8 @@ export function WhyChooseUsSection() {
                   <a
                     href="#demo"
                     className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-bold transition-colors mt-auto ${isFeatured
-                        ? isDark
-                          ? "text-[#E2B355] hover:text-[#f0c975]"
-                          : "text-[#C58927] hover:text-[#a8721b]"
-                        : isDark
-                          ? "text-white hover:text-[#E2B355]"
-                          : "text-[#071B41] hover:text-[#C58927]"
+                        ? "text-accent-ink hover:text-accent-ink"
+                        : "text-app-text hover:text-accent-ink"
                       }`}
                   >
                     <span>Learn More</span>

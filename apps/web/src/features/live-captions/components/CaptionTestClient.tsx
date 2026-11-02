@@ -211,18 +211,18 @@ export function CaptionTestClient() {
           title="Caption preview"
         >
           {/* Stands in for a video tile, so it stays dark in both themes. */}
-          <div className="relative flex aspect-video items-end overflow-hidden rounded-control bg-black">
-            <Captions aria-hidden="true" className="absolute left-1/2 top-1/2 size-10 -translate-x-1/2 -translate-y-1/2 text-white/20" />
+          <div className="relative flex aspect-video items-end overflow-hidden rounded-control bg-scrim">
+            <Captions aria-hidden="true" className="absolute left-1/2 top-1/2 size-10 -translate-x-1/2 -translate-y-1/2 text-on-scrim/20" />
             <div aria-live="polite" className="relative w-full p-3 sm:p-4">
               {lastLines.length > 0 || interim ? (
-                <div className="mx-auto max-w-3xl space-y-1 rounded-control bg-black/60 px-3 py-2 text-center text-base leading-snug text-white sm:text-lg">
+                <div className="mx-auto max-w-3xl space-y-1 rounded-control bg-scrim/60 px-3 py-2 text-center text-base leading-snug text-on-scrim sm:text-lg">
                   {lastLines.map((segment) => (
                     <p key={segment.id}>{segment.text}</p>
                   ))}
-                  {interim ? <p className="text-white/60">{interim}</p> : null}
+                  {interim ? <p className="text-on-scrim/60">{interim}</p> : null}
                 </div>
               ) : (
-                <p className="text-center text-sm text-white/60">
+                <p className="text-center text-sm text-on-scrim/60">
                   {running ? "Speak now…" : "Captions appear here once you start listening."}
                 </p>
               )}

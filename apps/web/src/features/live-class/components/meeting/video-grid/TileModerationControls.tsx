@@ -196,11 +196,11 @@ function TileButton({
           onClick();
         }}
         className={cn(
-          "pointer-events-auto flex touch-manipulation items-center justify-center rounded-full border border-white/10 shadow-card backdrop-blur-sm transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60",
+          "pointer-events-auto flex touch-manipulation items-center justify-center rounded-full border border-on-scrim/10 shadow-card backdrop-blur-sm transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60",
           size === "sm" ? "size-6" : "size-8",
-          tone === "on" && "bg-black/55 text-white hover:bg-app-danger",
-          tone === "off" && "bg-app-danger/90 text-white hover:bg-app-danger",
-          tone === "danger" && "bg-app-danger/90 text-white hover:bg-app-danger"
+          tone === "on" && "bg-scrim/55 text-on-scrim hover:bg-app-danger",
+          tone === "off" && "bg-app-danger/90 text-on-danger hover:bg-app-danger",
+          tone === "danger" && "bg-app-danger/90 text-on-danger hover:bg-app-danger"
         )}
       >
         {children}

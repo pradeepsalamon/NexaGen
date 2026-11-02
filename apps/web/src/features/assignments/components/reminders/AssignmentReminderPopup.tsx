@@ -58,19 +58,19 @@ export function AssignmentReminderPopup() {
   return (
     <Dialog onOpenChange={setOpen} open={open}>
       <DialogContent
-        className="max-h-[90dvh] overflow-y-auto sm:max-w-md rounded-2xl border p-6 bg-nx-card border-nx-line text-nx-ink"
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-md rounded-2xl border p-6 bg-app-surface border-app-border text-app-text"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5 text-base sm:text-lg font-bold">
             <span
-              className="flex size-9 shrink-0 items-center justify-center rounded-xl border bg-nx-danger-soft border-nx-danger-line text-nx-danger-ink"
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl border bg-app-danger-soft border-app-danger/30 text-app-danger-ink"
             >
               <AlertTriangle aria-hidden className="size-4.5" strokeWidth={2.2} />
             </span>
             <span>Don&apos;t forget your homework</span>
           </DialogTitle>
           <DialogDescription
-            className="text-xs sm:text-sm mt-1 text-nx-muted"
+            className="text-xs sm:text-sm mt-1 text-app-subtle"
           >
             You have {describeReminderCounts(data.counts)}.
           </DialogDescription>

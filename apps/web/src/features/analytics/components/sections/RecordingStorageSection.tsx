@@ -19,7 +19,7 @@ import { METRIC_TOOLTIPS } from "../../lib/metricTooltips";
 
 const STATE_STYLES: Record<string, string> = {
   normal: "text-success",
-  warning: "text-warm",
+  warning: "text-warning-ink",
   critical: "text-app-danger",
   unknown: "text-app-muted"
 };
@@ -86,7 +86,7 @@ export function RecordingStorageSection({
                     s.state === "critical"
                       ? "bg-app-danger"
                       : s.state === "warning"
-                        ? "bg-warm"
+                        ? "bg-warning"
                         : "bg-success"
                   )}
                   style={{ width: `${Math.min(100, s.usagePercent ?? 0)}%` }}

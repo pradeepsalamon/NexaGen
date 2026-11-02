@@ -19,17 +19,17 @@ export default function RegisterPage() {
       {/* Compact Header */}
       <div className="mb-2.5">
         <h2
-          className="font-display text-xl sm:text-2xl font-bold leading-tight text-nx-ink"
+          className="font-display text-xl sm:text-2xl font-bold leading-tight text-app-text"
         >
           Create your account
         </h2>
         <p
-          className="text-xs mt-0.5 text-nx-body"
+          className="text-xs mt-0.5 text-app-muted"
         >
           Already learning with us?{" "}
           <Link
             href="/login"
-            className="font-bold underline-offset-2 hover:underline text-nx-ink hover:text-nx-gold-ink"
+            className="font-bold underline-offset-2 hover:underline text-app-text hover:text-accent-ink"
           >
             Log in
           </Link>

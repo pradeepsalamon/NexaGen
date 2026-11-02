@@ -98,7 +98,7 @@ export function MatchStartDialog() {
 
   return (
     <Dialog open={startOpen} onOpenChange={setStartOpen}>
-      <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto" overlayClassName="bg-black/60 backdrop-blur-none">
+      <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto" overlayClassName="bg-scrim/60 backdrop-blur-none">
         <DialogHeader>
           <DialogTitle>Student matches</DialogTitle>
         </DialogHeader>

@@ -259,7 +259,7 @@ export function BulkEditPuzzlesDialog({
                         className={cn(
                           "rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors",
                           picked
-                            ? "border-app-danger bg-app-danger text-white"
+                            ? "border-app-danger bg-app-danger text-on-danger"
                             : "border-app-border text-app-text hover:bg-app-soft"
                         )}
                       >

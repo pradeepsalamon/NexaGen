@@ -89,7 +89,7 @@ function StudentMovePoll({ classId }: { classId: string }) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         {/* No backdrop blur: blurring over live <video> flashes black on mobile GPUs. */}
-        <DialogContent className="max-h-[94dvh] max-w-lg overflow-y-auto" overlayClassName="bg-black/60 backdrop-blur-none">
+        <DialogContent className="max-h-[94dvh] max-w-lg overflow-y-auto" overlayClassName="bg-scrim/60 backdrop-blur-none">
           <DialogHeader>
             <DialogTitle>{poll.prompt || "What would you play?"}</DialogTitle>
           </DialogHeader>

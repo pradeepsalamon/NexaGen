@@ -37,9 +37,9 @@ function Counter({ target, suffix, isInView }: { target: number; suffix: string;
   }, [isInView, target]);
 
   return (
-    <span className="text-[26px] sm:text-4xl lg:text-[44px] font-bold text-[var(--text-primary)] font-[family-name:var(--font-playfair)] tabular-nums leading-none tracking-tight">
+    <span className="text-[26px] sm:text-4xl lg:text-[44px] font-bold text-app-text font-[family-name:var(--font-playfair)] tabular-nums leading-none tracking-tight">
       {count >= 1000 ? `${Math.floor(count / 1000)},${String(count % 1000).padStart(3, "0")}` : count}
-      <span className="text-[#EAB308] ml-0.5">{suffix}</span>
+      <span className="text-accent-ink ml-0.5">{suffix}</span>
     </span>
   );
 }
@@ -49,11 +49,11 @@ export function StatsSection() {
   const isInView = useIsVisible(ref);
 
   return (
-    <section className="relative py-12 sm:py-16 lg:py-24 bg-[var(--surface-secondary)] border-y border-[var(--border)]">
+    <section className="relative py-12 sm:py-16 lg:py-24 bg-app-soft border-y border-app-border">
       <div className="relative max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8" ref={ref}>
 
         {/* Main Container Card */}
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[20px] sm:rounded-[24px] overflow-hidden shadow-sm">
+        <div className="bg-app-surface border border-app-border rounded-[20px] sm:rounded-[24px] overflow-hidden shadow-sm">
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
             {stats.map((stat, index) => (
@@ -62,20 +62,20 @@ export function StatsSection() {
                 className={`
                   relative flex flex-row md:flex-col items-center md:justify-center 
                   p-5 sm:p-8 lg:p-10
-                  ${index !== stats.length - 1 ? 'border-b md:border-b-0 md:border-r border-[var(--border)]' : ''}
+                  ${index !== stats.length - 1 ? 'border-b md:border-b-0 md:border-r border-app-border' : ''}
                 `}
               >
                 {/* Mobile-only layout (Horizontal) */}
                 <div className="flex items-center w-full md:hidden">
-                  <div className="size-12 shrink-0 rounded-[12px] bg-[#FEF9C3] dark:bg-[#1E293B] text-[#CA8A04] dark:text-[#EAB308] flex items-center justify-center">
+                  <div className="size-12 shrink-0 rounded-[12px] bg-accent-soft text-accent-ink flex items-center justify-center">
                     <stat.Icon className="size-6" strokeWidth={1.8} />
                   </div>
 
-                  <div className="w-px h-10 bg-[var(--border)] mx-4"></div>
+                  <div className="w-px h-10 bg-app-border mx-4"></div>
 
                   <div className="flex flex-col">
                     <Counter target={stat.value} suffix={stat.suffix} isInView={isInView} />
-                    <div className="text-[10px] sm:text-[11px] font-bold text-[var(--text-accent)] uppercase tracking-[0.08em] mt-1.5">
+                    <div className="text-[10px] sm:text-[11px] font-bold text-app-muted uppercase tracking-[0.08em] mt-1.5">
                       {stat.label}
                     </div>
                   </div>
@@ -83,13 +83,13 @@ export function StatsSection() {
 
                 {/* Desktop-only layout (Vertical) */}
                 <div className="hidden md:flex flex-col items-center text-center w-full">
-                  <div className="size-14 rounded-[14px] bg-[#FEF9C3] dark:bg-[#1E293B] text-[#CA8A04] dark:text-[#EAB308] flex items-center justify-center mb-6">
+                  <div className="size-14 rounded-[14px] bg-accent-soft text-accent-ink flex items-center justify-center mb-6">
                     <stat.Icon className="size-7" strokeWidth={1.8} />
                   </div>
 
                   <div className="flex flex-col items-center">
                     <Counter target={stat.value} suffix={stat.suffix} isInView={isInView} />
-                    <div className="text-[11px] lg:text-[12px] font-bold text-[var(--text-accent)] uppercase tracking-[0.1em] mt-3">
+                    <div className="text-[11px] lg:text-[12px] font-bold text-app-muted uppercase tracking-[0.1em] mt-3">
                       {stat.label}
                     </div>
                   </div>

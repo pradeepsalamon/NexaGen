@@ -123,7 +123,7 @@ export function HeroSection() {
     <section
       id="home"
       className="
-        relative overflow-hidden bg-[#FFFFFF] dark:bg-[#030D24] select-none
+        relative overflow-hidden bg-app-surface select-none
         pt-16 sm:pt-20 lg:pt-[72px] pb-5 sm:pb-7 lg:pb-6
         lg:h-[100dvh] lg:min-h-[600px] lg:max-h-[820px]
         flex flex-col justify-between
@@ -163,7 +163,7 @@ export function HeroSection() {
 
         {/* Subtle bottom edge blend */}
         <div
-          className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white/80 dark:from-[#030D24]/80 to-transparent"
+          className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-app-surface/80 to-transparent"
           aria-hidden="true"
         />
       </div>
@@ -177,24 +177,24 @@ export function HeroSection() {
             {/* Eyebrow: Gold Line + LEARN • COMPETE • GROW */}
             <div className="inline-flex items-center gap-3 mb-2.5 sm:mb-3.5">
               <span
-                className="w-7 sm:w-8 h-[2px] rounded-full bg-[#C88E2B] dark:bg-[#E2B355]"
+                className="w-7 sm:w-8 h-[2px] rounded-full bg-accent"
                 aria-hidden="true"
               />
-              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.28em] text-[#071B41] dark:text-white/90">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.28em] text-app-text">
                 LEARN &bull; COMPETE &bull; GROW
               </span>
             </div>
 
             {/* Heading */}
-            <h1 className="font-[family-name:var(--font-playfair)] font-bold text-[2.15rem] sm:text-5xl lg:text-[3.1rem] xl:text-[3.4rem] leading-[1.08] tracking-[-0.02em] text-[#071B41] dark:text-white mb-3 sm:mb-4">
+            <h1 className="font-[family-name:var(--font-playfair)] font-bold text-[2.15rem] sm:text-5xl lg:text-[3.1rem] xl:text-[3.4rem] leading-[1.08] tracking-[-0.02em] text-app-text mb-3 sm:mb-4">
               NEXA Chess With
-              <span className="block text-[#C58927] dark:text-[#DF9F38] mt-0.5">
+              <span className="block text-accent-ink mt-0.5">
                 Expert Coaching
               </span>
             </h1>
 
             {/* Subtitle */}
-            <p className="text-[13px] sm:text-[15px] lg:text-base text-[#2F3847] dark:text-[#C8CDD6] max-w-[235px] xs:max-w-[265px] sm:max-w-[480px] mb-5 sm:mb-6 leading-[1.55] font-normal">
+            <p className="text-[13px] sm:text-[15px] lg:text-base text-app-muted max-w-[235px] xs:max-w-[265px] sm:max-w-[480px] mb-5 sm:mb-6 leading-[1.55] font-normal">
               Join thousands of students and develop your chess skills with expert
               coaching, structured programs, live classes, and a global community.
             </p>
@@ -208,15 +208,15 @@ export function HeroSection() {
                   inline-flex items-center justify-center gap-2.5
                   min-h-[42px] sm:min-h-[46px] px-4 sm:px-6 py-2 sm:py-2.5
                   rounded-[10px]
-                  bg-gradient-to-r from-[#E6B960] via-[#DCA642] to-[#CC922C]
-                  hover:from-[#EDC36E] hover:to-[#D89B32]
-                  text-[#071B41] font-bold text-xs sm:text-sm
-                  shadow-[0_6px_18px_rgba(204,146,44,0.32)]
-                  hover:shadow-[0_8px_22px_rgba(204,146,44,0.45)]
+                  bg-gradient-to-r from-accent via-accent to-accent-hover
+                  hover:from-accent hover:to-accent-hover
+                  text-on-accent font-bold text-xs sm:text-sm
+                  shadow-[0_6px_18px_rgb(var(--rgb-accent)/0.32)]
+                  hover:shadow-[0_8px_22px_rgb(var(--rgb-accent)/0.45)]
                   transition-all duration-200 hover:-translate-y-0.5
                 "
               >
-                <Calendar className="size-4 stroke-[2.2] shrink-0 text-[#071B41]" />
+                <Calendar className="size-4 stroke-[2.2] shrink-0 text-on-accent" />
                 <span>Book a Free Class</span>
                 <ArrowRight className="size-3.5 stroke-[2.4] shrink-0" />
               </a>
@@ -228,10 +228,10 @@ export function HeroSection() {
                   group inline-flex items-center justify-center gap-2.5
                   min-h-[42px] sm:min-h-[46px] px-4 sm:px-6 py-2 sm:py-2.5
                   rounded-[10px]
-                  border border-[#071B41]/25 dark:border-white/20
-                  bg-white/80 dark:bg-[#08152E]/80 backdrop-blur-md
-                  hover:border-[#C58927] dark:hover:border-[#E2B355]
-                  text-[#071B41] dark:text-white font-bold text-xs sm:text-sm
+                  border border-app-text/25
+                  bg-app-surface/80 backdrop-blur-md
+                  hover:border-accent
+                  text-app-text font-bold text-xs sm:text-sm
                   transition-all duration-200 hover:-translate-y-0.5
                 "
               >
@@ -249,7 +249,7 @@ export function HeroSection() {
           >
             <div className="relative mt-2 mr-1 xl:mr-2 -rotate-[14deg] select-none text-right">
               <div
-                className="text-[#D99B38] dark:text-[#E2B355] text-xl xl:text-[25px] leading-[1.08] tracking-wide drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]"
+                className="text-accent-ink text-xl xl:text-[25px] leading-[1.08] tracking-wide drop-shadow-[0_2px_10px_rgb(var(--rgb-scrim)/0.45)]"
                 style={{
                   fontFamily:
                     "'Brush Script MT', 'Segoe Script', 'Snell Roundhand', var(--font-playfair), cursive",
@@ -264,7 +264,7 @@ export function HeroSection() {
               <svg
                 viewBox="0 0 120 22"
                 fill="none"
-                className="w-20 xl:w-24 h-4 ml-auto -mt-0.5 text-[#D99B38] dark:text-[#E2B355]"
+                className="w-20 xl:w-24 h-4 ml-auto -mt-0.5 text-accent-ink"
               >
                 <path
                   d="M6 16C36 8 78 5 114 3M24 19C52 13 82 11 106 9"
@@ -282,10 +282,10 @@ export function HeroSection() {
           <div
             className="
               rounded-2xl
-              bg-white/95 dark:bg-[#051026]/90
+              bg-app-surface/95
               backdrop-blur-md
-              border border-[#E5E9F0] dark:border-white/10
-              shadow-[0_10px_30px_-6px_rgba(7,27,65,0.12)] dark:shadow-[0_16px_36px_-6px_rgba(0,0,0,0.65)]
+              border border-app-border
+              shadow-[0_10px_30px_-6px_rgb(var(--rgb-brand-800)/0.12)]
               px-3.5 py-3 sm:px-6 sm:py-3.5 lg:px-7 lg:py-3.5
             "
           >
@@ -295,11 +295,11 @@ export function HeroSection() {
 
                 const dividerClasses =
                   idx === 0
-                    ? "pb-3 lg:pb-0 pr-3 lg:pr-5 border-b lg:border-b-0 border-r border-[#E5E9F0] dark:border-white/10"
+                    ? "pb-3 lg:pb-0 pr-3 lg:pr-5 border-b lg:border-b-0 border-r border-app-border"
                     : idx === 1
-                      ? "pb-3 lg:pb-0 pl-3 lg:px-5 border-b lg:border-b-0 lg:border-r border-[#E5E9F0] dark:border-white/10"
+                      ? "pb-3 lg:pb-0 pl-3 lg:px-5 border-b lg:border-b-0 lg:border-r border-app-border"
                       : idx === 2
-                        ? "pt-3 lg:pt-0 pr-3 lg:px-5 border-r border-[#E5E9F0] dark:border-white/10"
+                        ? "pt-3 lg:pt-0 pr-3 lg:px-5 border-r border-app-border"
                         : "pt-3 lg:pt-0 pl-3 lg:pl-5";
 
                 return (
@@ -312,9 +312,9 @@ export function HeroSection() {
                       className="
                         size-9 sm:size-11 rounded-full shrink-0
                         flex items-center justify-center
-                        bg-[#FDF6E7] dark:bg-[#E2B355]/12
-                        border border-[#F2DCB1] dark:border-[#E2B355]/30
-                        text-[#C58927] dark:text-[#E2B355]
+                        bg-accent-soft
+                        border border-accent/45
+                        text-accent-ink
                       "
                     >
                       <Icon className="size-4 sm:size-5" strokeWidth={1.9} />
@@ -322,10 +322,10 @@ export function HeroSection() {
 
                     {/* Stat Value & Label */}
                     <div className="min-w-0 text-left">
-                      <div className="font-[family-name:var(--font-playfair)] font-bold text-lg sm:text-xl lg:text-2xl leading-tight text-[#071B41] dark:text-white">
+                      <div className="font-[family-name:var(--font-playfair)] font-bold text-lg sm:text-xl lg:text-2xl leading-tight text-app-text">
                         <CountUp value={stat.value} delay={idx * 120} />
                       </div>
-                      <div className="text-[11px] sm:text-xs font-medium text-[#555C68] dark:text-[#C1C4CC] truncate">
+                      <div className="text-[11px] sm:text-xs font-medium text-app-muted truncate">
                         {stat.label}
                       </div>
                     </div>

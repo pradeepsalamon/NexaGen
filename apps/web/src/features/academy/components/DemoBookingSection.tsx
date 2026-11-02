@@ -18,7 +18,6 @@ import {
   CircleCheckBig
 } from "lucide-react";
 import { createLeadRequestSchema, type LeadExperienceLevel } from "@nexa-chess/types";
-import { useTheme } from "@/providers/ThemeProvider";
 import { useCreateLeadMutation } from "../hooks/useLeadPublicApi";
 
 const demoBenefits = [
@@ -61,8 +60,6 @@ const programOptions = [
 ];
 
 export function DemoBookingSection() {
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -141,12 +138,9 @@ export function DemoBookingSection() {
   const selectedProgram =
     programOptions.find((o) => o.value === formData.program) ?? programOptions[0];
 
-  const labelClass = `block text-[11px] font-bold uppercase tracking-[0.08em] mb-1.5 ${isDark ? "text-[#C1C4CC]" : "text-[#3B4454]"
-    }`;
+  const labelClass = `block text-[11px] font-bold uppercase tracking-[0.08em] mb-1.5 text-app-muted`;
 
-  const inputSurfaceClass = isDark
-    ? "bg-[#091732] border-white/12 text-white placeholder:text-[#7E899B] focus:border-[#E2B355]"
-    : "bg-[#F9FAFC] border-[#E2E8F0] text-[#071B41] placeholder:text-[#8E98A8] focus:border-[#C58927]";
+  const inputSurfaceClass = "bg-app-background border-app-border text-app-text placeholder:text-app-subtle focus:border-accent";
 
   // text-base (16px) on phones: smaller input text makes iPhones zoom the page on focus
   const inputBaseClass = `w-full h-11 rounded-xl text-base sm:text-sm border outline-none transition-colors ${inputSurfaceClass}`;
@@ -154,8 +148,7 @@ export function DemoBookingSection() {
   return (
     <section
       id="demo"
-      className={`relative scroll-mt-14 py-16 sm:py-24 transition-colors duration-300 ${isDark ? "bg-[#030D24] text-white" : "bg-[#FAFBFD] text-[#071B41]"
-        }`}
+      className="relative scroll-mt-14 py-16 sm:py-24 transition-colors duration-300 bg-app-background text-app-text"
     >
       <div className="relative max-w-[1180px] mx-auto px-4 sm:px-6 lg:px-8">
         {/*
@@ -167,23 +160,19 @@ export function DemoBookingSection() {
           <div className="lg:col-span-6 lg:col-start-1 lg:row-start-1 lg:self-end text-center lg:text-left">
             {/* Eyebrow Pill */}
             <div
-              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] mb-4 ${isDark
-                ? "bg-[#0B1A38] border-white/12 text-white"
-                : "bg-white border-[#E2E8F0] text-[#071B41] shadow-2xs"
-                }`}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] mb-4 bg-app-surface border-app-border text-app-text shadow-2xs"
             >
-              <span className="size-2 rounded-full bg-[#D49B35] dark:bg-[#E2B355]" />
+              <span className="size-2 rounded-full bg-accent" />
               <span>FREE EVALUATION</span>
             </div>
 
             {/* Main Heading */}
             <h2
-              className={`text-[2rem] sm:text-4xl lg:text-[46px] font-bold font-[family-name:var(--font-playfair)] leading-[1.12] tracking-[-0.02em] mb-4 ${isDark ? "text-white" : "text-[#071B41]"
-                }`}
+              className="text-[2rem] sm:text-4xl lg:text-[46px] font-bold font-[family-name:var(--font-playfair)] leading-[1.12] tracking-[-0.02em] mb-4 text-app-text"
             >
               Book Your
               <br />
-              <span className="text-[#D49B35] dark:text-[#E2B355]">
+              <span className="text-accent-ink">
                 Free Demo
               </span>{" "}
               Class
@@ -191,8 +180,7 @@ export function DemoBookingSection() {
 
             {/* Subtitle */}
             <p
-              className={`text-sm sm:text-base leading-relaxed max-w-[480px] mx-auto lg:mx-0 lg:mb-8 ${isDark ? "text-[#C1C4CC]" : "text-[#4A5568]"
-                }`}
+              className="text-sm sm:text-base leading-relaxed max-w-[480px] mx-auto lg:mx-0 lg:mb-8 text-app-muted"
             >
               Experience our live coaching methodology with zero commitment. Meet
               our coaches, evaluate your chess skills, and get a tailored
@@ -203,20 +191,15 @@ export function DemoBookingSection() {
           {/* ================= FORM CARD ================= */}
           <div className="lg:col-span-6 lg:col-start-7 lg:row-start-1 lg:row-span-2 flex justify-center lg:justify-end">
             <div
-              className={`relative w-full max-w-[500px] rounded-[22px] border p-5 sm:p-8 transition-all duration-300 ${isDark
-                ? "bg-[#071531] border-white/12 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.7)]"
-                : "bg-white border-[#E8ECF2] shadow-[0_20px_50px_-15px_rgba(7,27,65,0.10)]"
-                }`}
+              className="relative w-full max-w-[500px] rounded-[22px] border p-5 sm:p-8 transition-all duration-300 bg-app-surface border-app-border shadow-[0_20px_50px_-15px_rgb(var(--rgb-brand-800)/0.10)]"
             >
               <h3
-                className={`text-xl sm:text-2xl font-bold font-[family-name:var(--font-playfair)] mb-1 ${isDark ? "text-white" : "text-[#071B41]"
-                  }`}
+                className="text-xl sm:text-2xl font-bold font-[family-name:var(--font-playfair)] mb-1 text-app-text"
               >
                 Register for Free Demo
               </h3>
               <p
-                className={`text-xs sm:text-[13px] mb-5 sm:mb-6 ${isDark ? "text-[#A9B2C3]" : "text-[#555C68]"
-                  }`}
+                className="text-xs sm:text-[13px] mb-5 sm:mb-6 text-app-muted"
               >
                 Fill in your details and our team will schedule your personalized
                 class.
@@ -230,7 +213,7 @@ export function DemoBookingSection() {
                   </label>
                   <div className="relative">
                     <UserRound
-                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#64748B]"
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-app-subtle"
                       strokeWidth={2}
                     />
                     <input
@@ -262,7 +245,7 @@ export function DemoBookingSection() {
                     </label>
                     <div className="relative">
                       <UserRound
-                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#64748B]"
+                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-app-subtle"
                         strokeWidth={2}
                       />
                       <input
@@ -303,7 +286,7 @@ export function DemoBookingSection() {
                         placeholder="10"
                       />
                       <CalendarDays
-                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-4 text-[#64748B]"
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-4 text-app-subtle"
                         strokeWidth={2}
                       />
                     </div>
@@ -321,7 +304,7 @@ export function DemoBookingSection() {
                   </label>
                   <div className="relative">
                     <Mail
-                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#64748B]"
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-app-subtle"
                       strokeWidth={2}
                     />
                     <input
@@ -347,7 +330,7 @@ export function DemoBookingSection() {
                   </label>
                   <div className="relative">
                     <Phone
-                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#64748B]"
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-app-subtle"
                       strokeWidth={2}
                     />
                     <input
@@ -379,7 +362,7 @@ export function DemoBookingSection() {
                   </label>
                   <div className="relative">
                     <GraduationCap
-                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#C58927] dark:text-[#E2B355]"
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-accent-ink"
                       strokeWidth={2.2}
                     />
                     <select
@@ -397,13 +380,12 @@ export function DemoBookingSection() {
                       ))}
                     </select>
                     <ChevronDown
-                      className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 size-4 text-[#64748B]"
+                      className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 size-4 text-app-subtle"
                       strokeWidth={2.2}
                     />
                   </div>
                   <p
-                    className={`mt-1.5 text-[11px] sm:text-xs ${isDark ? "text-[#A9B2C3]" : "text-[#555C68]"
-                      }`}
+                    className="mt-1.5 text-[11px] sm:text-xs text-app-muted"
                   >
                     {selectedProgram.hint}
                   </p>
@@ -412,7 +394,7 @@ export function DemoBookingSection() {
                 {error && (
                   <div
                     role="alert"
-                    className="p-3 rounded-xl text-xs font-semibold bg-red-500/10 border border-red-500/30 text-red-500"
+                    className="p-3 rounded-xl text-xs font-semibold bg-app-danger/10 border border-app-danger/30 text-app-danger-ink"
                   >
                     {error}
                   </div>
@@ -425,11 +407,11 @@ export function DemoBookingSection() {
                   className="
                     w-full h-12 mt-1 rounded-xl
                     inline-flex items-center justify-center gap-2
-                    bg-gradient-to-r from-[#E6B960] via-[#DDA843] to-[#CE942E]
-                    hover:from-[#EDC36E] hover:to-[#D89B32]
-                    text-[#071B41] text-sm font-bold
-                    shadow-[0_6px_20px_rgba(206,148,46,0.32)]
-                    hover:shadow-[0_8px_24px_rgba(206,148,46,0.45)]
+                    bg-gradient-to-r from-accent via-accent to-accent-hover
+                    hover:from-accent hover:to-accent-hover
+                    text-on-accent text-sm font-bold
+                    shadow-[0_6px_20px_rgb(var(--rgb-accent)/0.32)]
+                    hover:shadow-[0_8px_24px_rgb(var(--rgb-accent)/0.45)]
                     transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0
                     disabled:opacity-65 disabled:cursor-not-allowed cursor-pointer
                   "
@@ -444,24 +426,22 @@ export function DemoBookingSection() {
 
                 {/* Card Bottom Trust Strip: stacked on small phones so nothing wraps awkwardly */}
                 <div
-                  className={`pt-2 flex flex-col items-center gap-1.5 min-[400px]:flex-row min-[400px]:justify-center min-[400px]:gap-4 text-[11px] font-medium ${isDark ? "text-[#A9B2C3]" : "text-[#555C68]"
-                    }`}
+                  className="pt-2 flex flex-col items-center gap-1.5 min-[400px]:flex-row min-[400px]:justify-center min-[400px]:gap-4 text-[11px] font-medium text-app-muted"
                 >
                   <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                     <ShieldCheck
-                      className="size-3.5 text-[#D49B35] dark:text-[#E2B355]"
+                      className="size-3.5 text-accent-ink"
                       strokeWidth={2.2}
                     />
                     No payment required
                   </span>
                   <span
-                    className={`hidden min-[400px]:block h-3 w-[1px] ${isDark ? "bg-white/15" : "bg-[#DCE3EE]"
-                      }`}
+                    className="hidden min-[400px]:block h-3 w-[1px] bg-app-border"
                     aria-hidden="true"
                   />
                   <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                     <Clock
-                      className="size-3.5 text-[#D49B35] dark:text-[#E2B355]"
+                      className="size-3.5 text-accent-ink"
                       strokeWidth={2.2}
                     />
                     45-minute live session
@@ -472,25 +452,22 @@ export function DemoBookingSection() {
               {/* Success Overlay */}
               <div
                 aria-hidden={!submitted}
-                className={`absolute inset-0 flex items-center justify-center rounded-[22px] transition-all duration-300 ${isDark ? "bg-[#071531]" : "bg-white"
-                  } ${submitted
+                className={`absolute inset-0 flex items-center justify-center rounded-[22px] transition-all duration-300 bg-app-surface ${submitted
                     ? "opacity-100 pointer-events-auto"
                     : "opacity-0 pointer-events-none"
                   }`}
               >
                 <div className="text-center p-6">
-                  <div className="size-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 flex items-center justify-center mx-auto mb-4">
+                  <div className="size-14 rounded-full bg-success/10 border border-success/30 text-success-ink flex items-center justify-center mx-auto mb-4">
                     <CircleCheckBig className="size-7" />
                   </div>
                   <h4
-                    className={`text-xl font-bold mb-1 ${isDark ? "text-white" : "text-[#071B41]"
-                      }`}
+                    className="text-xl font-bold mb-1 text-app-text"
                   >
                     Demo Booked Successfully!
                   </h4>
                   <p
-                    className={`text-sm ${isDark ? "text-[#C1C4CC]" : "text-[#555C68]"
-                      }`}
+                    className="text-sm text-app-muted"
                   >
                     Our team will reach out via WhatsApp to confirm your
                     preferred session time.
@@ -504,8 +481,7 @@ export function DemoBookingSection() {
           <div className="lg:col-span-6 lg:col-start-1 lg:row-start-2 lg:self-start">
             {/* Only shown when the benefits sit below the form (phones / tablets) */}
             <h3
-              className={`lg:hidden text-center text-xl font-bold font-[family-name:var(--font-playfair)] mb-5 ${isDark ? "text-white" : "text-[#071B41]"
-                }`}
+              className="lg:hidden text-center text-xl font-bold font-[family-name:var(--font-playfair)] mb-5 text-app-text"
             >
               What you&apos;ll get
             </h3>
@@ -515,23 +491,18 @@ export function DemoBookingSection() {
               {demoBenefits.map(({ title, description, Icon }) => (
                 <div key={title} className="flex items-start gap-3.5 sm:gap-4">
                   <div
-                    className={`size-10 sm:size-11 rounded-full shrink-0 flex items-center justify-center border mt-0.5 ${isDark
-                      ? "bg-[#112244] border-[#E2B355]/25 text-[#E2B355]"
-                      : "bg-[#FDF4E1] border-[#F5E1B8] text-[#C58927]"
-                      }`}
+                    className="size-10 sm:size-11 rounded-full shrink-0 flex items-center justify-center border mt-0.5 bg-accent-soft border-accent/45 text-accent-ink"
                   >
                     <Icon className="size-4 sm:size-5" strokeWidth={2} />
                   </div>
                   <div className="min-w-0">
                     <h3
-                      className={`text-sm sm:text-[15px] font-bold leading-snug ${isDark ? "text-white" : "text-[#071B41]"
-                        }`}
+                      className="text-sm sm:text-[15px] font-bold leading-snug text-app-text"
                     >
                       {title}
                     </h3>
                     <p
-                      className={`text-[13px] leading-relaxed mt-0.5 ${isDark ? "text-[#A9B2C3]" : "text-[#555C68]"
-                        }`}
+                      className="text-[13px] leading-relaxed mt-0.5 text-app-muted"
                     >
                       {description}
                     </p>
@@ -542,26 +513,22 @@ export function DemoBookingSection() {
 
             {/* Desktop Left Bottom Trust Strip */}
             <div
-              className={`hidden lg:flex mt-8 pt-6 border-t items-center gap-5 text-xs font-medium ${isDark
-                ? "border-white/10 text-[#C1C4CC]"
-                : "border-[#E5E9F0] text-[#555C68]"
-                }`}
+              className="hidden lg:flex mt-8 pt-6 border-t items-center gap-5 text-xs font-medium border-app-border text-app-muted"
             >
               <span className="inline-flex items-center gap-2">
                 <ShieldCheck
-                  className="size-4 text-[#D49B35] dark:text-[#E2B355]"
+                  className="size-4 text-accent-ink"
                   strokeWidth={2.2}
                 />
                 No payment required
               </span>
               <span
-                className={`h-3.5 w-[1px] ${isDark ? "bg-white/15" : "bg-[#DCE3EE]"
-                  }`}
+                className="h-3.5 w-[1px] bg-app-border"
                 aria-hidden="true"
               />
               <span className="inline-flex items-center gap-2">
                 <Clock
-                  className="size-4 text-[#D49B35] dark:text-[#E2B355]"
+                  className="size-4 text-accent-ink"
                   strokeWidth={2.2}
                 />
                 45-minute live session

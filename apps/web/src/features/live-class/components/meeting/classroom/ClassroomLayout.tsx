@@ -66,7 +66,7 @@ export function StageSwitch({
             {o.icon}
             {!compact || active ? o.label : null}
             {o.badge ? (
-              <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-app-danger px-1 text-[8px] font-bold text-white ring-2 ring-app-surface">
+              <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-app-danger px-1 text-[8px] font-bold text-on-danger ring-2 ring-app-surface">
                 {o.badge > 9 ? "9+" : o.badge}
               </span>
             ) : null}

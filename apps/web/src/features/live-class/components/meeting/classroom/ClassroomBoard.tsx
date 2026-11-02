@@ -265,8 +265,8 @@ type MenuItem = {
  */
 const MENU_TONES = {
   // Lichess-style: blue shares to the class, green only loads the board.
-  info: { idle: "border-info/50 bg-info/10 text-info-ink hover:bg-info hover:text-white", open: "bg-info text-white" },
-  success: { idle: "border-success/50 bg-success/10 text-success-ink hover:bg-success hover:text-white", open: "bg-success text-white" }
+  info: { idle: "border-info/50 bg-info/10 text-info-ink hover:bg-info hover:text-on-info", open: "bg-info text-on-info" },
+  success: { idle: "border-success/50 bg-success/10 text-success-ink hover:bg-success hover:text-on-success", open: "bg-success text-on-success" }
 } as const;
 
 function HoverMenuButton({

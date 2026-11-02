@@ -392,7 +392,7 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
                 <SimpleTooltip label="Delete permanently">
                   <Button
                     aria-label="Delete permanently"
-                    className="bg-app-danger text-white hover:bg-app-danger/85"
+                    className="bg-app-danger text-on-danger hover:bg-app-danger/85"
                     onClick={() => setDeleteOpen(true)}
                     size="icon"
                     variant="ghost"

@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
-import { useTheme } from "@/providers/ThemeProvider";
 import { ACADEMY_PROGRAMS } from "../content";
 
 const SECTION_BG_LIGHT = "/programs/01_chess_reverie_light.webp";
@@ -54,22 +53,8 @@ const programs: ProgramItem[] = programPresentation.map((program) => ({
   features: ACADEMY_PROGRAMS.find((p) => p.level === program.level)?.topics ?? []
 }));
 
-function ChessCornerIcon({
-  type,
-  featured,
-  isDark
-}: {
-  type: PieceType;
-  featured: boolean;
-  isDark: boolean;
-}) {
-  const colorClass = featured
-    ? isDark
-      ? "text-[#E2B355]"
-      : "text-[#071B41]"
-    : isDark
-      ? "text-[#E2B355]"
-      : "text-[#071B41]";
+function ChessCornerIcon({ type }: { type: PieceType }) {
+  const colorClass = "text-app-text";
 
   if (type === "pawn") {
     return (
@@ -115,14 +100,11 @@ function ChessCornerIcon({
 }
 
 export function ProgramsSection() {
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   return (
     <section
       id="programs"
-      className={`relative py-16 sm:py-24 overflow-hidden select-none transition-colors duration-300 ${isDark ? "bg-[#030D24] text-white" : "bg-[#F8FAFC] text-[#071B41]"
-        }`}
+      className="relative py-16 sm:py-24 overflow-hidden select-none transition-colors duration-300 bg-app-background text-app-text"
     >
       {/* ================= SECTION BACKGROUND ARTWORK ================= */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
@@ -132,7 +114,7 @@ export function ProgramsSection() {
           alt="Nexa Chess Programs Light Background"
           fill
           sizes="100vw"
-          className={`object-cover object-top dark:hidden`}
+          className="object-cover object-top dark:hidden"
         />
 
         {/* Dark Mode Background (02_chess_reverie_dark.png) */}
@@ -141,15 +123,12 @@ export function ProgramsSection() {
           alt="Nexa Chess Programs Dark Background"
           fill
           sizes="100vw"
-          className={`object-cover object-top hidden dark:block`}
+          className="object-cover object-top hidden dark:block"
         />
 
         {/* Soft Top & Bottom Vignettes so the section blends cleanly */}
         <div
-          className={`absolute inset-0 ${isDark
-            ? "bg-gradient-to-b from-[#030D24]/35 via-transparent to-[#030D24]/90"
-            : "bg-gradient-to-b from-white/40 via-transparent to-[#F8FAFC]/95"
-            }`}
+          className="absolute inset-0 bg-gradient-to-b from-app-surface/40 via-transparent to-app-background/95"
           aria-hidden="true"
         />
       </div>
@@ -160,27 +139,23 @@ export function ProgramsSection() {
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-14">
           {/* Pill Eyebrow: [• OUR PROGRAMS] */}
           <div
-            className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] mb-4 shadow-2xs backdrop-blur-md ${isDark
-              ? "bg-[#081736]/85 border-white/15 text-white"
-              : "bg-white/90 border-[#E2E8F0] text-[#071B41]"
-              }`}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] mb-4 shadow-2xs backdrop-blur-md bg-app-surface/90 border-app-border text-app-text"
           >
-            <span className="size-2 rounded-full bg-[#D49B35]" />
+            <span className="size-2 rounded-full bg-accent" />
             <span>OUR PROGRAMS</span>
           </div>
 
           {/* Two-Tone Serif Heading */}
           <h2 className="font-[family-name:var(--font-playfair)] font-bold text-3xl sm:text-4xl lg:text-[46px] leading-[1.12] tracking-[-0.02em] mb-3.5">
-            <span className={isDark ? "text-white" : "text-[#071B41]"}>
+            <span className="text-app-text">
               Choose Your{" "}
             </span>
-            <span className="text-[#C58927] dark:text-[#E2B355]">Path</span>
+            <span className="text-accent-ink">Path</span>
           </h2>
 
           {/* Subtitle */}
           <p
-            className={`text-sm sm:text-base lg:text-[17px] leading-relaxed ${isDark ? "text-[#C8CDD6]" : "text-[#3B4454]"
-              }`}
+            className="text-sm sm:text-base lg:text-[17px] leading-relaxed text-app-muted"
           >
             Structured learning paths designed for every stage of your chess
             journey.
@@ -193,20 +168,12 @@ export function ProgramsSection() {
             const isFeatured = program.featured;
 
             const cardSurfaceClass = isFeatured
-              ? isDark
-                ? "bg-[#071633]/92 border-[#E2B355] ring-1 ring-[#E2B355]/45 shadow-[0_16px_48px_-10px_rgba(226,179,85,0.22)]"
-                : "bg-white/95 border-[#D49B35] ring-1 ring-[#D49B35]/40 shadow-[0_18px_45px_-12px_rgba(212,155,53,0.25)]"
-              : isDark
-                ? "bg-[#06132D]/90 border-white/12 hover:border-[#E2B355]/50 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.65)]"
-                : "bg-white/95 border-[#E5E9F0] hover:border-[#D49B35]/60 shadow-[0_14px_36px_-10px_rgba(7,27,65,0.08)]";
+              ? "bg-app-surface/95 border-accent ring-1 ring-accent/40 shadow-[0_18px_45px_-12px_rgb(var(--rgb-accent)/0.25)]"
+              : "bg-app-surface/95 border-app-border hover:border-accent/60 shadow-[0_14px_36px_-10px_rgb(var(--rgb-brand-800)/0.08)]";
 
             const tagBadgeClass = isFeatured
-              ? isDark
-                ? "bg-[#E2B355]/15 text-[#E2B355] border-[#E2B355]/35"
-                : "bg-[#FDF3DC] text-[#071B41] border-[#F2DCB1]"
-              : isDark
-                ? "bg-[#0D2147] text-white/90 border-white/12"
-                : "bg-[#EEF2F7] text-[#071B41] border-[#DCE3EE]";
+              ? "bg-accent-soft text-app-text border-accent/45"
+              : "bg-app-soft text-app-text border-app-border";
 
             return (
               <div
@@ -222,7 +189,7 @@ export function ProgramsSection() {
                     >
                       {isFeatured && (
                         <Sparkles
-                          className="size-3.5 text-[#D49B35] dark:text-[#E2B355]"
+                          className="size-3.5 text-accent-ink"
                           strokeWidth={2.2}
                         />
                       )}
@@ -230,26 +197,20 @@ export function ProgramsSection() {
                     </span>
 
                     <div className="relative z-20 transition-transform duration-200 group-hover:scale-110">
-                      <ChessCornerIcon
-                        type={program.pieceType}
-                        featured={isFeatured}
-                        isDark={isDark}
-                      />
+                      <ChessCornerIcon type={program.pieceType} />
                     </div>
                   </div>
 
                   {/* Level Title */}
                   <h3
-                    className={`relative z-20 font-[family-name:var(--font-playfair)] font-bold text-2xl sm:text-[26px] leading-tight mb-1.5 ${isDark ? "text-white" : "text-[#071B41]"
-                      }`}
+                    className="relative z-20 font-[family-name:var(--font-playfair)] font-bold text-2xl sm:text-[26px] leading-tight mb-1.5 text-app-text"
                   >
                     {program.level}
                   </h3>
 
                   {/* Subtitle */}
                   <p
-                    className={`relative z-20 text-xs sm:text-[13.5px] mb-5 ${isDark ? "text-[#C1C4CC]" : "text-[#4A5568]"
-                      }`}
+                    className="relative z-20 text-xs sm:text-[13.5px] mb-5 text-app-muted"
                   >
                     {program.subtitle}
                   </p>
@@ -261,11 +222,10 @@ export function ProgramsSection() {
                       {program.features.map((feature) => (
                         <li
                           key={feature}
-                          className={`flex items-center gap-2.5 text-xs sm:text-[13.5px] font-medium leading-snug ${isDark ? "text-[#E2E8F0]" : "text-[#2D3748]"
-                            }`}
+                          className="flex items-center gap-2.5 text-xs sm:text-[13.5px] font-medium leading-snug text-app-muted"
                         >
                           {/* Solid Gold Circle with Checkmark */}
-                          <span className="size-4 rounded-full bg-gradient-to-b from-[#E5B85B] to-[#C88E2B] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                          <span className="size-4 rounded-full bg-gradient-to-b from-accent to-accent-hover text-on-accent flex items-center justify-center shrink-0 shadow-2xs">
                             <Check className="size-2.5 stroke-[3.2]" />
                           </span>
                           <span>{feature}</span>
@@ -301,10 +261,8 @@ export function ProgramsSection() {
                   <a
                     href="#demo"
                     className={`relative z-20 w-full h-11 rounded-xl font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 ${isFeatured
-                      ? "bg-gradient-to-r from-[#E6B960] via-[#DCA642] to-[#CC922C] hover:from-[#EDC36E] hover:to-[#D89B32] text-[#071B41] shadow-[0_6px_20px_rgba(212,155,53,0.35)]"
-                      : isDark
-                        ? "bg-[#06132D]/90 hover:bg-[#0B1F47] text-white border border-white/20 hover:border-[#E2B355]/60"
-                        : "bg-white hover:bg-[#F8FAFC] text-[#071B41] border border-[#DCE3EE] hover:border-[#C58927]"
+                      ? "bg-gradient-to-r from-accent via-accent to-accent-hover hover:from-accent hover:to-accent-hover text-on-accent shadow-[0_6px_20px_rgb(var(--rgb-accent)/0.35)]"
+                      : "bg-app-surface hover:bg-app-background text-app-text border border-app-border hover:border-accent"
                       }`}
                   >
                     <span>Start Learning</span>

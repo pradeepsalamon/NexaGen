@@ -102,12 +102,12 @@ export function AuthSplitShell({
 
     return (
         <div
-            className="relative min-h-[100dvh] w-full overflow-x-hidden flex flex-col select-none transition-colors duration-300 bg-nx-backdrop text-nx-ink"
+            className="relative min-h-[100dvh] w-full overflow-x-hidden flex flex-col select-none transition-colors duration-300 bg-app-background text-app-text"
         >
             {/* ================= FULL-BLEED BACKGROUND ARTWORK ================= */}
             <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
                 <div
-                    className="absolute inset-0 bg-nx-backdrop"
+                    className="absolute inset-0 bg-app-background"
                 />
 
                 {/* Light Mode Image */}
@@ -122,7 +122,7 @@ export function AuthSplitShell({
                         sizes="100vw"
                         className="object-cover object-[12%_bottom] lg:object-[left_bottom]"
                     />
-                    <div className="absolute inset-x-0 top-0 h-[44%] bg-gradient-to-b from-nx-snow-blue via-nx-snow-blue/65 to-transparent" />
+                    <div className="absolute inset-x-0 top-0 h-[44%] bg-gradient-to-b from-app-soft via-app-soft/65 to-transparent" />
                 </div>
 
                 {/* Dark Mode Image */}
@@ -139,7 +139,7 @@ export function AuthSplitShell({
                         sizes="100vw"
                         className="object-cover object-[12%_bottom] lg:object-[left_bottom]"
                     />
-                    <div className="absolute inset-x-0 top-0 h-[44%] bg-gradient-to-b from-nx-navy-deep via-nx-navy-deep/65 to-transparent" />
+                    <div className="absolute inset-x-0 top-0 h-[44%] bg-gradient-to-b from-brand-900 via-brand-900/65 to-transparent" />
                 </div>
             </div>
 
@@ -172,15 +172,15 @@ export function AuthSplitShell({
                     onClick={toggleMode}
                     type="button"
                     aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-                    className="inline-flex items-center gap-1 p-1 rounded-full backdrop-blur-md border shadow-xs transition-all duration-200 cursor-pointer bg-nx-glass border-nx-field-line"
+                    className="inline-flex items-center gap-1 p-1 rounded-full backdrop-blur-md border shadow-xs transition-all duration-200 cursor-pointer bg-app-surface/90 border-app-line-strong"
                 >
                     <span
-                        className="size-6 rounded-full flex items-center justify-center transition-all bg-nx-toggle-sun text-nx-toggle-sun-ink hover:text-nx-toggle-sun-hover"
+                        className="size-6 rounded-full flex items-center justify-center transition-all bg-toggle-sun text-toggle-sun-ink hover:text-toggle-sun-hover"
                     >
                         <Sun className="size-3.5" strokeWidth={2.2} />
                     </span>
                     <span
-                        className="size-6 rounded-full flex items-center justify-center transition-all bg-nx-toggle-moon text-nx-toggle-moon-ink hover:text-nx-toggle-moon-hover"
+                        className="size-6 rounded-full flex items-center justify-center transition-all bg-toggle-moon text-toggle-moon-ink hover:text-toggle-moon-hover"
                     >
                         <Moon className="size-3.5" strokeWidth={2.2} />
                     </span>
@@ -202,11 +202,11 @@ export function AuthSplitShell({
                         <div className="max-w-[390px]">
                             {/* Academy Pill Badge */}
                             <div
-                                className="inline-flex items-center gap-2 px-3 py-1 rounded-full backdrop-blur-md border shadow-2xs mb-2.5 bg-nx-glass border-nx-field-line"
+                                className="inline-flex items-center gap-2 px-3 py-1 rounded-full backdrop-blur-md border shadow-2xs mb-2.5 bg-app-surface/90 border-app-line-strong"
                             >
-                                <Crown className="size-3.5 text-nx-gold-500" strokeWidth={2.3} />
+                                <Crown className="size-3.5 text-accent-ink" strokeWidth={2.3} />
                                 <span
-                                    className="text-[11px] font-semibold text-nx-ink-soft"
+                                    className="text-[11px] font-semibold text-app-text"
                                 >
                                     Live chess coaching academy
                                 </span>
@@ -214,14 +214,14 @@ export function AuthSplitShell({
 
                             {/* Serif Display Heading */}
                             <h1
-                                className="font-display font-bold text-3xl xl:text-[38px] leading-[1.1] tracking-[-0.02em] mb-2.5 text-nx-ink"
+                                className="font-display font-bold text-3xl xl:text-[38px] leading-[1.1] tracking-[-0.02em] mb-2.5 text-app-text"
                             >
                                 {heroContent.title}
                             </h1>
 
                             {/* Subtitle */}
                             <p
-                                className="text-xs xl:text-[13px] leading-relaxed mb-4 max-w-[350px] text-nx-body-strong"
+                                className="text-xs xl:text-[13px] leading-relaxed mb-4 max-w-[350px] text-app-muted"
                             >
                                 {heroContent.subtitle}
                             </p>
@@ -229,22 +229,22 @@ export function AuthSplitShell({
                             {/* Login / Forgot-Password Highlight Card */}
                             {(variant === "login" || variant === "forgot-password") && (
                                 <div
-                                    className="max-w-[300px] rounded-2xl p-3.5 backdrop-blur-md border flex items-start gap-3 bg-nx-auth-note border-nx-line-glass shadow-nx-float"
+                                    className="max-w-[300px] rounded-2xl p-3.5 backdrop-blur-md border flex items-start gap-3 bg-transparent border-app-border shadow-lift"
                                 >
                                     <div
-                                        className="size-9 rounded-xl shrink-0 flex items-center justify-center border bg-nx-gold-tint border-nx-gold-line-medium text-nx-gold-ink"
+                                        className="size-9 rounded-xl shrink-0 flex items-center justify-center border bg-accent-soft border-accent/45 text-accent-ink"
                                     >
                                         <TrendingUp className="size-4" strokeWidth={2.2} />
                                     </div>
                                     <div>
                                         <div
-                                            className="text-xs font-bold text-nx-ink"
+                                            className="text-xs font-bold text-app-text"
                                         >
                                             <span className="dark:hidden">Progress you can see</span>
                                             <span className="hidden dark:inline">Practice between classes</span>
                                         </div>
                                         <p
-                                            className="text-[11px] leading-snug mt-0.5 text-nx-body"
+                                            className="text-[11px] leading-snug mt-0.5 text-app-muted"
                                         >
                                             <span className="dark:hidden">Track your improvement with personalized guidance.</span>
                                             <span className="hidden dark:inline">Solve puzzles, play games and sharpen your skills.</span>
@@ -261,12 +261,12 @@ export function AuthSplitShell({
                                     {featureBullets.map(({ Icon, label }) => (
                                         <div key={label} className="flex items-center gap-3">
                                             <div
-                                                className="size-9 rounded-xl shrink-0 flex items-center justify-center border shadow-xs bg-nx-gold-glass border-nx-gold-line-strong text-nx-gold-ink"
+                                                className="size-9 rounded-xl shrink-0 flex items-center justify-center border shadow-xs bg-accent-soft border-accent/45 text-accent-ink"
                                             >
                                                 <Icon className="size-4" strokeWidth={2.2} />
                                             </div>
                                             <span
-                                                className="text-xs font-bold leading-snug whitespace-pre-line text-nx-ink"
+                                                className="text-xs font-bold leading-snug whitespace-pre-line text-app-text"
                                             >
                                                 {label}
                                             </span>
@@ -279,7 +279,7 @@ export function AuthSplitShell({
                     {/* RIGHT FORM CARD COLUMN */}
                     <div className="lg:col-span-7 flex justify-center lg:justify-end items-center">
                         <div
-                            className={`w-full ${cardMaxWidthClass} rounded-[22px] backdrop-blur-xl border px-5 py-4 sm:px-7 sm:py-5 transition-all duration-300 bg-nx-auth-card border-nx-line shadow-nx-panel`}
+                            className={`w-full ${cardMaxWidthClass} rounded-[22px] backdrop-blur-xl border px-5 py-4 sm:px-7 sm:py-5 transition-all duration-300 bg-app-surface border-app-border shadow-soft`}
                         >
                             {children}
                         </div>

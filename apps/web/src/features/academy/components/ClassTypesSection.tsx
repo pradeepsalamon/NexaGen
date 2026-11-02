@@ -9,7 +9,6 @@ import {
   Check,
   type LucideIcon
 } from "lucide-react";
-import { useTheme } from "@/providers/ThemeProvider";
 import { ACADEMY_CLASS_FORMATS } from "../content";
 
 // Section background artwork (already in public/academy/)
@@ -64,14 +63,11 @@ const learningOptions: LearningOption[] = [
 ];
 
 export function ClassTypesSection() {
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   return (
     <section
       id="class-types"
-      className={`relative py-16 sm:py-24 overflow-hidden select-none transition-colors duration-300 ${isDark ? "bg-[#030D24] text-white" : "bg-[#F8FAFC] text-[#071B41]"
-        }`}
+      className="relative py-16 sm:py-24 overflow-hidden select-none transition-colors duration-300 bg-app-background text-app-text"
     >
       {/* ================= SECTION BACKGROUND ARTWORK ================= */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
@@ -81,7 +77,7 @@ export function ClassTypesSection() {
           alt=""
           fill
           sizes="100vw"
-          className={`object-cover object-top dark:hidden`}
+          className="object-cover object-top dark:hidden"
         />
 
         {/* Dark Mode Twin Knights Background */}
@@ -90,15 +86,12 @@ export function ClassTypesSection() {
           alt=""
           fill
           sizes="100vw"
-          className={`object-cover object-top hidden dark:block`}
+          className="object-cover object-top hidden dark:block"
         />
 
         {/* Smooth Top & Bottom Section Blend */}
         <div
-          className={`absolute inset-0 ${isDark
-              ? "bg-gradient-to-b from-[#030D24]/35 via-transparent to-[#030D24]/95"
-              : "bg-gradient-to-b from-white/40 via-transparent to-[#F8FAFC]/95"
-            }`}
+          className="absolute inset-0 bg-gradient-to-b from-app-surface/40 via-transparent to-app-background/95"
           aria-hidden="true"
         />
       </div>
@@ -109,29 +102,25 @@ export function ClassTypesSection() {
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-14">
           {/* Pill Eyebrow: [• LEARNING FORMATS] */}
           <div
-            className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] mb-4 shadow-2xs backdrop-blur-md ${isDark
-                ? "bg-[#081736]/85 border-white/15 text-white"
-                : "bg-white/90 border-[#E2E8F0] text-[#071B41]"
-              }`}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] mb-4 shadow-2xs backdrop-blur-md bg-app-surface/90 border-app-border text-app-text"
           >
-            <span className="size-2 rounded-full bg-[#D49B35]" />
+            <span className="size-2 rounded-full bg-accent" />
             <span>LEARNING FORMATS</span>
           </div>
 
           {/* Two-Tone Serif Heading */}
           <h2 className="font-[family-name:var(--font-playfair)] font-bold text-3xl sm:text-4xl lg:text-[46px] leading-[1.12] tracking-[-0.02em] mb-3.5">
-            <span className={isDark ? "text-white" : "text-[#071B41]"}>
+            <span className="text-app-text">
               Flexible Learning{" "}
             </span>
-            <span className="block sm:inline text-[#C58927] dark:text-[#E2B355]">
+            <span className="block sm:inline text-accent-ink">
               Options
             </span>
           </h2>
 
           {/* Subtitle */}
           <p
-            className={`text-sm sm:text-base lg:text-[17px] leading-relaxed ${isDark ? "text-[#C8CDD6]" : "text-[#3B4454]"
-              }`}
+            className="text-sm sm:text-base lg:text-[17px] leading-relaxed text-app-muted"
           >
             Choose a format tailored to your schedule, learning pace, and
             competitive goals.
@@ -145,16 +134,10 @@ export function ClassTypesSection() {
             const Icon = opt.Icon;
 
             const cardSurfaceClass = isHighlighted
-              ? isDark
-                ? "bg-[#071633]/92 border-[#E2B355] ring-1 ring-[#E2B355]/45 shadow-[0_16px_48px_-10px_rgba(226,179,85,0.22)]"
-                : "bg-white/95 border-[#D49B35] ring-1 ring-[#D49B35]/40 shadow-[0_18px_45px_-12px_rgba(212,155,53,0.25)]"
-              : isDark
-                ? "bg-[#06132D]/90 border-white/12 hover:border-[#E2B355]/50 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.65)]"
-                : "bg-white/95 border-[#E5E9F0] hover:border-[#D49B35]/60 shadow-[0_14px_36px_-10px_rgba(7,27,65,0.08)]";
+              ? "bg-app-surface/95 border-accent ring-1 ring-accent/40 shadow-[0_18px_45px_-12px_rgb(var(--rgb-accent)/0.25)]"
+              : "bg-app-surface/95 border-app-border hover:border-accent/60 shadow-[0_14px_36px_-10px_rgb(var(--rgb-brand-800)/0.08)]";
 
-            const iconBoxClass = isDark
-              ? "bg-[#11244A]/90 border-[#E2B355]/30 text-[#E2B355]"
-              : "bg-[#FDF4E2] border-[#F3DFB6] text-[#B87D20]";
+            const iconBoxClass = "bg-accent-soft border-accent/45 text-accent-ink";
 
             return (
               <div
@@ -181,16 +164,13 @@ export function ClassTypesSection() {
                     alt=""
                     fill
                     sizes="(max-width: 768px) 180px, 220px"
-                    className={`object-cover object-[58%_center] scale-110 transition-transform duration-500 group-hover:scale-115 ${isDark ? "brightness-90 contrast-110" : "brightness-100"
-                      }`}
+                    className="object-cover object-[58%_center] scale-110 transition-transform duration-500 group-hover:scale-115 brightness-100"
                   />
                   {/* Extra Dark Mode Tint so bright JPEG skies blend seamlessly into dark navy cards */}
-                  {isDark && (
-                    <div
-                      className="absolute inset-0 bg-gradient-to-r from-[#06132D] via-[#06132D]/35 to-transparent mix-blend-multiply"
-                      aria-hidden="true"
-                    />
-                  )}
+                  <div
+                    className="absolute inset-0 hidden bg-gradient-to-r from-app-surface via-app-surface/35 to-transparent mix-blend-multiply dark:block"
+                    aria-hidden="true"
+                  />
                 </div>
 
                 {/* FOREGROUND CARD BODY */}
@@ -205,15 +185,13 @@ export function ClassTypesSection() {
 
                     <div>
                       <h3
-                        className={`font-[family-name:var(--font-playfair)] font-bold text-xl sm:text-2xl leading-tight mb-1 sm:mb-1.5 ${isDark ? "text-white" : "text-[#071B41]"
-                          }`}
+                        className="font-[family-name:var(--font-playfair)] font-bold text-xl sm:text-2xl leading-tight mb-1 sm:mb-1.5 text-app-text"
                       >
                         {opt.title}
                       </h3>
 
                       <p
-                        className={`text-xs sm:text-[13.5px] leading-snug ${isDark ? "text-[#C1C4CC]" : "text-[#4A5568]"
-                          }`}
+                        className="text-xs sm:text-[13.5px] leading-snug text-app-muted"
                       >
                         {opt.subtitle}
                       </p>
@@ -225,11 +203,10 @@ export function ClassTypesSection() {
                     {opt.features.map((feature) => (
                       <li
                         key={feature}
-                        className={`flex items-start gap-2.5 text-xs sm:text-[13px] font-medium leading-snug ${isDark ? "text-[#E2E8F0]" : "text-[#2D3748]"
-                          }`}
+                        className="flex items-start gap-2.5 text-xs sm:text-[13px] font-medium leading-snug text-app-muted"
                       >
                         {/* Solid Gold Circle with White Checkmark */}
-                        <span className="mt-0.5 size-4 rounded-full bg-gradient-to-b from-[#E5B85B] to-[#C88E2B] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <span className="mt-0.5 size-4 rounded-full bg-gradient-to-b from-accent to-accent-hover text-on-accent flex items-center justify-center shrink-0 shadow-2xs">
                           <Check className="size-2.5 stroke-[3.2]" />
                         </span>
                         <span>{feature}</span>
@@ -242,10 +219,8 @@ export function ClassTypesSection() {
                     aria-label={`${opt.title}: book a free demo class`}
                     href="#demo"
                     className={`w-full h-10 sm:h-11 rounded-xl font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 ${isHighlighted
-                        ? "bg-gradient-to-r from-[#E6B960] via-[#DCA642] to-[#CC922C] hover:from-[#EDC36E] hover:to-[#D89B32] text-[#071B41] shadow-[0_6px_20px_rgba(212,155,53,0.35)]"
-                        : isDark
-                          ? "bg-[#06132D]/90 hover:bg-[#0B1F47] text-white border border-white/20 hover:border-[#E2B355]/60"
-                          : "bg-white hover:bg-[#F8FAFC] text-[#071B41] border border-[#DCE3EE] hover:border-[#C58927]"
+                        ? "bg-gradient-to-r from-accent via-accent to-accent-hover hover:from-accent hover:to-accent-hover text-on-accent shadow-[0_6px_20px_rgb(var(--rgb-accent)/0.35)]"
+                        : "bg-app-surface hover:bg-app-background text-app-text border border-app-border hover:border-accent"
                       }`}
                   >
                     <span>Learn More</span>

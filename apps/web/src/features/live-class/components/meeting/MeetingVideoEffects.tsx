@@ -87,13 +87,13 @@ function SelfPreview({ busy }: { busy: boolean }) {
   }
 
   return (
-    <div className="relative aspect-video overflow-hidden rounded-control bg-black">
+    <div className="relative aspect-video overflow-hidden rounded-control bg-scrim">
       <VideoTrack
         trackRef={{ participant: localParticipant, publication: cameraTrack, source: Track.Source.Camera }}
         className="h-full w-full -scale-x-100 object-cover"
       />
       {busy && (
-        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 text-xs font-semibold text-white">
+        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-scrim/40 text-xs font-semibold text-on-scrim">
           <Loader2 className="size-4 animate-spin" />
           Loading effects…
         </div>
@@ -162,11 +162,11 @@ export function MeetingVideoEffects() {
               style={{ backgroundImage: "url(/video-backgrounds/studio-thumb.jpg)" }}
             >
               <span
-                className="absolute inset-0 bg-white/20"
+                className="absolute inset-0 bg-on-scrim/20"
                 style={{ backdropFilter: `blur(${level.radius / 4}px)` }}
                 aria-hidden="true"
               />
-              <span className="relative rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              <span className="relative rounded-full bg-scrim/50 px-1.5 py-0.5 text-[10px] font-semibold text-on-scrim">
                 {level.label}
               </span>
             </Tile>

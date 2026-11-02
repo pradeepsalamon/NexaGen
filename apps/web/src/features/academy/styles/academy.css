@@ -1,63 +1,44 @@
 /* Scoped styling for the academy landing view */
 
 .academy-page {
-  /* Mapping legacy helper tokens to root theme variables */
-  --ink: var(--text-primary);
-  --ink-mid: var(--text-primary);
-  --ink-soft: var(--text-accent);
-  --ink-deep: var(--text-primary);
-  --accent-dark: var(--accent);
-  --line: var(--border);
-  --line-strong: var(--border);
-  --color-gold: var(--accent);
-  --color-gold-dark: var(--accent);
-  --color-text-primary: var(--text-primary);
-  --color-text-accent: var(--text-accent);
-  --color-text-muted: var(--text-accent);
-
-  --shadow-xs: 0 1px 2px rgba(7, 27, 65, 0.05);
-  --shadow-sm: 0 2px 8px -2px rgba(7, 27, 65, 0.08), 0 1px 2px rgba(7, 27, 65, 0.04);
-  --shadow-md: 0 8px 24px -8px rgba(7, 27, 65, 0.12), 0 2px 8px -4px rgba(7, 27, 65, 0.06);
-  --shadow-lg: 0 24px 48px -20px rgba(7, 27, 65, 0.18), 0 8px 20px -12px rgba(7, 27, 65, 0.1);
-
   --radius-sm: 0.625rem;
   --radius-md: 0.875rem;
   --radius-lg: 1.25rem;
-  background-color: var(--background);
-  color: var(--color-text-primary);
+  background-color: var(--color-background);
+  color: var(--color-text);
   overflow-x: hidden;
   scroll-behavior: smooth;
 }
 
 .academy-page ::selection {
-  background: var(--accent-light);
-  color: #030D24;
+  background: rgb(var(--rgb-accent-soft));
+  color: rgb(var(--rgb-on-accent));
 }
 
 .academy-page :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 /* Clean surface utility */
 .academy-page .glass {
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
 .academy-page .glass-strong {
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
 /* Solid text colors without gradients */
 .academy-page .gold-text {
-  color: var(--accent);
+  color: var(--color-accent-ink);
 }
 
 .academy-page .gold-text-bright {
-  color: var(--accent);
+  color: var(--color-accent-ink);
 }
 
 /* Clean text effect */
@@ -67,7 +48,7 @@
 
 /* Chess pattern */
 .academy-page .chess-pattern {
-  background-color: var(--background);
+  background-color: var(--color-background);
 }
 
 /* Floating animations */
@@ -106,8 +87,8 @@
 }
 .academy-page .card-lift:hover {
   transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--accent);
+  box-shadow: var(--shadow-lift);
+  border-color: var(--color-accent);
 }
 
 /* Button styles - solid colors without gradients, 10px radius */
@@ -116,26 +97,26 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background-color: var(--accent);
-  color: #030D24;
+  background-color: var(--color-accent);
+  color: rgb(var(--rgb-on-accent));
   font-weight: 700;
   min-height: 44px;
   padding: 0.65rem 1.75rem;
   border-radius: 10px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--color-accent);
   transition: background-color 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(187, 139, 55, 0.25);
+  box-shadow: 0 4px 12px rgb(var(--rgb-accent) / 0.25);
   cursor: pointer;
   text-decoration: none;
 }
 
 .academy-page .btn-gold:hover {
-  background-color: var(--accent-bright);
-  border-color: var(--accent-bright);
-  color: #030D24;
-  box-shadow: 0 6px 18px rgba(187, 139, 55, 0.35);
+  background-color: rgb(var(--rgb-accent-hover));
+  border-color: rgb(var(--rgb-accent-hover));
+  color: rgb(var(--rgb-on-accent));
+  box-shadow: 0 6px 18px rgb(var(--rgb-accent) / 0.35);
   transform: translateY(-2px);
 }
 
@@ -144,22 +125,22 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border: 1px solid var(--border);
-  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
   font-weight: 600;
   min-height: 44px;
   padding: 0.65rem 1.75rem;
   border-radius: 10px;
   transition: background-color 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
-  background-color: var(--surface);
+  background-color: var(--color-surface);
   cursor: pointer;
   text-decoration: none;
 }
 
 .academy-page .btn-outline-gold:hover {
-  background-color: var(--surface-hover);
-  border-color: var(--accent);
-  color: var(--accent);
+  background-color: var(--color-surface-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-ink);
   transform: translateY(-2px);
 }
 
@@ -168,21 +149,21 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background-color: var(--primary);
-  color: #ffffff;
+  background-color: rgb(var(--rgb-brand-800));
+  color: rgb(var(--rgb-on-brand));
   font-weight: 700;
   min-height: 44px;
   padding: 0.65rem 1.75rem;
   border-radius: 10px;
-  border: 1px solid var(--primary);
+  border: 1px solid rgb(var(--rgb-brand-800));
   transition: background-color 0.2s ease-out, border-color 0.2s ease-out, transform 0.2s ease-out;
   cursor: pointer;
   text-decoration: none;
 }
 
 .academy-page .btn-dark:hover {
-  background-color: var(--primary-dark);
-  border-color: var(--accent);
+  background-color: rgb(var(--rgb-brand-900));
+  border-color: var(--color-accent);
   transform: translateY(-2px);
 }
 
@@ -192,7 +173,7 @@
   justify-content: center;
   gap: 0.5rem;
   background-color: transparent;
-  color: var(--color-text-primary);
+  color: var(--color-text);
   font-weight: 600;
   min-height: 44px;
   padding: 0.65rem 1.25rem;
@@ -204,14 +185,14 @@
 }
 
 .academy-page .btn-ghost:hover {
-  background-color: var(--surface-hover);
-  color: var(--accent);
+  background-color: var(--color-surface-soft);
+  color: var(--color-accent-ink);
 }
 
 /* Hairline rule */
 .academy-page .hairline {
   height: 1px;
-  background: var(--border);
+  background: var(--color-border);
 }
 
 /* Section eyebrow pill */
@@ -225,16 +206,16 @@
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--text-primary);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
 .academy-page .eyebrow-dot {
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--color-accent);
 }
 
 /* Section heading rhythm */
@@ -249,11 +230,11 @@
   line-height: 1.15;
   letter-spacing: -0.02em;
   font-weight: 800;
-  color: var(--text-primary);
+  color: var(--color-text);
 }
 
 .academy-page .section-sub {
-  color: var(--color-text-accent);
+  color: var(--color-text-muted);
   font-size: 1.0625rem;
   line-height: 1.7;
 }
@@ -261,17 +242,17 @@
 /* Elevated surface card */
 .academy-page .u-card {
   position: relative;
-  background-color: var(--surface);
-  border: 1px solid var(--border);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
   transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s ease;
 }
 
 .academy-page .u-card:hover {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-md);
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-lift);
 }
 
 /* Icon tile */
@@ -283,9 +264,9 @@
   height: 3rem;
   flex-shrink: 0;
   border-radius: var(--radius-md);
-  color: var(--text-primary);
-  background-color: var(--surface-hover);
-  border: 1px solid var(--border);
+  color: var(--color-text);
+  background-color: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
   transition: transform 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
 }
 
@@ -297,20 +278,20 @@
 
 .academy-page .group:hover .icon-tile {
   transform: translateY(-2px) scale(1.05);
-  background-color: var(--surface-hover);
-  border-color: var(--accent);
-  color: var(--accent);
+  background-color: var(--color-surface-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-ink);
 }
 
 .academy-page .icon-tile-accent {
-  color: var(--accent);
-  background-color: var(--surface-hover);
-  border-color: var(--accent);
+  color: var(--color-accent-ink);
+  background-color: var(--color-surface-soft);
+  border-color: var(--color-accent);
 }
 
 .academy-page .group:hover .icon-tile-accent {
-  background-color: var(--accent);
-  color: var(--primary-dark);
+  background-color: var(--color-accent);
+  color: rgb(var(--rgb-brand-900));
 }
 
 /* Small check bullet */
@@ -322,14 +303,14 @@
   height: 1.25rem;
   flex-shrink: 0;
   border-radius: 999px;
-  color: var(--accent);
-  background-color: var(--surface-hover);
-  border: 1px solid var(--border);
+  color: var(--color-accent-ink);
+  background-color: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
 }
 
 /* Ambient background */
 .academy-page .mesh-soft {
-  background-color: var(--background);
+  background-color: var(--color-background);
 }
 
 /* Form field */
@@ -337,25 +318,25 @@
   width: 100%;
   padding: 0.8125rem 1rem;
   border-radius: var(--radius-md);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
   font-size: 0.875rem;
   outline: none;
   transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
 }
 
 .academy-page .field::placeholder {
-  color: var(--color-text-accent);
+  color: var(--color-text-muted);
 }
 
 .academy-page .field:hover {
-  border-color: var(--accent);
+  border-color: var(--color-accent);
 }
 
 .academy-page .field:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(187, 139, 55, 0.2);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgb(var(--rgb-accent) / 0.2);
 }
 
 .academy-page .field-label {
@@ -364,7 +345,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-text-accent);
+  color: var(--color-text-muted);
   margin-bottom: 0.4rem;
 }
 
@@ -378,13 +359,13 @@
   font-size: 0.875rem;
   font-weight: 600;
   border-radius: 0.5rem;
-  color: var(--color-text-accent);
+  color: var(--color-text-muted);
   transition: color 0.25s ease, background-color 0.25s ease, transform 0.25s ease;
 }
 
 .academy-page .nav-link:hover {
-  color: var(--text-primary);
-  background-color: var(--surface-hover);
+  color: var(--color-text);
+  background-color: var(--color-surface-soft);
   transform: translateY(-1px);
 }
 
@@ -392,7 +373,7 @@
 .academy-page .stat-rule {
   width: 1px;
   align-self: stretch;
-  background-color: var(--border);
+  background-color: var(--color-border);
 }
 
 /* Defer painting/layout of offscreen sections until they are scrolled near */

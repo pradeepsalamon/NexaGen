@@ -73,7 +73,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Award,
     id: "wall-of-moments",
     label: "Wall of Moments",
-    tone: "bg-warm/15 text-warm-ink",
+    tone: "bg-primary/15 text-primary-ink",
   },
   {
     Component: TeamGeneratorTool,
@@ -113,7 +113,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: BookOpen,
     id: "chess-legends",
     label: "Chess Legends",
-    tone: "bg-warm/15 text-warm-ink",
+    tone: "bg-primary/15 text-primary-ink",
   },
   {
     Component: OpeningOfTheDayTool,
@@ -145,7 +145,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Timer,
     id: "classroom-timer",
     label: "Classroom Timer",
-    tone: "bg-warm/15 text-warm-ink",
+    tone: "bg-primary/15 text-primary-ink",
   },
   {
     Component: PuzzleStormTool,

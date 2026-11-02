@@ -46,20 +46,20 @@ export function ForgotPasswordForm() {
           className="
             size-14 rounded-full mb-4
             flex items-center justify-center
-            bg-nx-gold-tint
-            border border-nx-gold-line-medium
-            text-nx-gold-ink
+            bg-accent-soft
+            border border-accent/45
+            text-accent-ink
             shadow-xs
           "
         >
           <Lock className="size-6" strokeWidth={2.2} />
         </div>
 
-        <h2 className="font-display text-2xl sm:text-[28px] font-bold text-nx-ink leading-tight">
+        <h2 className="font-display text-2xl sm:text-[28px] font-bold text-app-text leading-tight">
           Forgot Password?
         </h2>
 
-        <p className="text-xs sm:text-sm text-nx-body mt-2 max-w-[330px] leading-relaxed">
+        <p className="text-xs sm:text-sm text-app-muted mt-2 max-w-[330px] leading-relaxed">
           Enter the email address associated with your Nexa Chess account and
           we&apos;ll send you a reset link.
         </p>
@@ -70,7 +70,7 @@ export function ForgotPasswordForm() {
         <div>
           <label
             htmlFor="forgot-email"
-            className="block text-xs font-bold text-nx-ink mb-1.5"
+            className="block text-xs font-bold text-app-text mb-1.5"
           >
             Email address
           </label>
@@ -96,11 +96,11 @@ export function ForgotPasswordForm() {
         </Button>
 
         {/* Bottom Back to Login Link */}
-        <p className="text-center text-xs text-nx-body pt-2">
+        <p className="text-center text-xs text-app-muted pt-2">
           Remembered your password?{" "}
           <Link
             href="/login"
-            className="font-bold text-nx-gold-ink hover:underline"
+            className="font-bold text-accent-ink hover:underline"
           >
             Back to login
           </Link>

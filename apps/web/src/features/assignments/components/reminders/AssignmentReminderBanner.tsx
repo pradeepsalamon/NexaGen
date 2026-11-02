@@ -26,8 +26,8 @@ export function AssignmentReminderBanner() {
       aria-label="Assignment reminders"
       className={cn(
         "rounded-2xl border border-l-4 p-4 sm:p-5 transition-colors duration-200",
-        "bg-nx-card border-nx-line text-nx-ink shadow-nx-card",
-        urgent ? "border-l-nx-live" : "border-l-nx-gold-500"
+        "bg-app-surface border-app-border text-app-text shadow-card",
+        urgent ? "border-l-app-danger" : "border-l-accent-hover"
       )}
     >
       <div className="flex flex-col gap-3.5 sm:flex-row sm:items-center sm:justify-between">
@@ -36,7 +36,7 @@ export function AssignmentReminderBanner() {
             className={cn(
               "flex size-10 shrink-0 items-center justify-center rounded-xl border",
               urgent
-                ? "bg-nx-danger-soft border-nx-danger-line text-nx-danger-ink"
+                ? "bg-app-danger-soft border-app-danger/30 text-app-danger-ink"
                 : "bg-warning-soft border-warning/30 text-warning-ink"
             )}
           >
@@ -52,7 +52,7 @@ export function AssignmentReminderBanner() {
             <p
               className={cn(
                 "mt-0.5 text-xs sm:text-[13px]",
-                "text-nx-muted"
+                "text-app-subtle"
               )}
             >
               You have {describeReminderCounts(data.counts)}.
@@ -78,7 +78,7 @@ export function AssignmentReminderBanner() {
         <p
           className={cn(
             "mt-2 px-2 text-xs font-medium",
-            "text-nx-muted"
+            "text-app-subtle"
           )}
         >
           +{data.items.length - SHOWN} more on the assignments page

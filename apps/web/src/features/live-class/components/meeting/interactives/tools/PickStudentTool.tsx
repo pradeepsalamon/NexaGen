@@ -27,7 +27,7 @@ const SEGMENT_FILLS = [
   "var(--color-primary)",
   "var(--color-success)",
   "var(--color-accent)",
-  "var(--color-warm)",
+  "var(--color-info)",
 ];
 const EMPTY: PickStudentState = { history: [], noRepeat: true };
 
@@ -168,7 +168,7 @@ export function PickStudentTool({ classId, isManager }: ToolContext) {
                 return (
                   <text
                     dominantBaseline="middle"
-                    fill="white"
+                    fill="rgb(var(--rgb-on-primary))"
                     fontSize={wheel.length > 16 ? 6 : wheel.length > 8 ? 8 : 10}
                     fontWeight="700"
                     key={s.id}

@@ -69,7 +69,7 @@ export function UpiQrPanel({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           alt="UPI QR code for this payment"
-          className="mx-auto aspect-square w-full max-w-[240px] rounded-app border border-app-border bg-white p-3"
+          className="mx-auto aspect-square w-full max-w-[240px] rounded-app border border-app-border bg-paper p-3"
           src={handoff.qrImageUrl}
         />
       ) : (

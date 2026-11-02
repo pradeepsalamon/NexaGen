@@ -118,7 +118,7 @@ export function CoachRegisterForm() {
       <div className="grid gap-3 text-center py-4">
         <CheckCircle2
           aria-hidden="true"
-          className="mx-auto size-11 text-nx-emerald"
+          className="mx-auto size-11 text-success-ink"
           strokeWidth={2.3}
         />
         <div className="grid gap-1">
@@ -141,7 +141,7 @@ export function CoachRegisterForm() {
   }
 
 
-  const labelBaseClass = `block text-[11px] font-bold mb-1 text-nx-ink`;
+  const labelBaseClass = `block text-[11px] font-bold mb-1 text-app-text`;
 
   return (
     <form className="space-y-2.5" onSubmit={handleSubmit}>
@@ -149,7 +149,7 @@ export function CoachRegisterForm() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label htmlFor="coach-name" className={labelBaseClass}>
-            Full Name <span className="text-nx-gold-600">*</span>
+            Full Name <span className="text-accent-ink">*</span>
           </label>
           <Input
             autoComplete="name"
@@ -166,7 +166,7 @@ export function CoachRegisterForm() {
 
         <div>
           <label htmlFor="email" className={labelBaseClass}>
-            Email Address <span className="text-nx-gold-600">*</span>
+            Email Address <span className="text-accent-ink">*</span>
           </label>
           <Input
             autoComplete="email"
@@ -187,7 +187,7 @@ export function CoachRegisterForm() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label htmlFor="contact-number" className={labelBaseClass}>
-            WhatsApp / Phone Number <span className="text-nx-gold-600">*</span>
+            WhatsApp / Phone Number <span className="text-accent-ink">*</span>
           </label>
           <Input
             autoComplete="tel"
@@ -309,7 +309,7 @@ export function CoachRegisterForm() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label htmlFor="coach-password" className={labelBaseClass}>
-            Password <span className="text-nx-gold-600">*</span>
+            Password <span className="text-accent-ink">*</span>
           </label>
           <PasswordInput
             autoComplete="new-password"
@@ -325,7 +325,7 @@ export function CoachRegisterForm() {
 
         <div>
           <label htmlFor="coach-confirm-password" className={labelBaseClass}>
-            Confirm Password <span className="text-nx-gold-600">*</span>
+            Confirm Password <span className="text-accent-ink">*</span>
           </label>
           <PasswordInput
             autoComplete="new-password"
@@ -359,10 +359,10 @@ export function CoachRegisterForm() {
 
       {/* Approval Note */}
       <p
-        className="flex items-center justify-center gap-1.5 text-center text-[11px] pt-0.5 text-nx-body"
+        className="flex items-center justify-center gap-1.5 text-center text-[11px] pt-0.5 text-app-muted"
       >
         <ShieldCheck
-          className="size-3.5 shrink-0 text-nx-emerald"
+          className="size-3.5 shrink-0 text-success-ink"
           strokeWidth={2.4}
         />
         <span>

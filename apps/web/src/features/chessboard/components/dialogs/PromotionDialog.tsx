@@ -29,7 +29,7 @@ export function PromotionDialog() {
   };
 
   return (
-    <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm">
+    <div className="absolute inset-0 bg-scrim/60 z-50 flex items-center justify-center backdrop-blur-sm">
       <div className="bg-app-background border border-app-border p-6 rounded-control shadow-soft animate-in zoom-in-95 duration-200">
         <h3 className="text-lg font-semibold mb-4 text-center">Promote to</h3>
         <div className="flex gap-4 mb-6">

@@ -154,7 +154,7 @@ export function SimulStudentBoard({ stageSwitch }: { stageSwitch?: ReactNode } =
   return (
     <Dialog open={studentOpen} onOpenChange={setStudentOpen}>
       {/* No backdrop blur: blurring over live <video> flashes black on mobile GPUs. */}
-      <DialogContent className="max-h-[94dvh] max-w-lg overflow-y-auto" overlayClassName="bg-black/60 backdrop-blur-none">
+      <DialogContent className="max-h-[94dvh] max-w-lg overflow-y-auto" overlayClassName="bg-scrim/60 backdrop-blur-none">
         <DialogHeader>
           <DialogTitle>Simul vs your coach</DialogTitle>
         </DialogHeader>

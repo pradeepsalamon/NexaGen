@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useBoardStore } from "../../context/BoardProvider";
+import { ARROW_BRUSH_COLORS } from "../../lib/drawBrushes";
 import { useShallow } from "zustand/react/shallow";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
@@ -18,10 +19,10 @@ export function DrawingToolbar() {
   if (user?.role !== "COACH" && !isStaffRole(user?.role)) return null;
 
   const colors = [
-    { id: 'green', hex: '#15781B', label: 'Green' },
-    { id: 'red', hex: '#882020', label: 'Red (hold Ctrl)' },
-    { id: 'blue', hex: '#003088', label: 'Blue (hold Alt)' },
-    { id: 'yellow', hex: '#e68f00', label: 'Yellow (hold Shift)' }
+    { id: 'green', hex: ARROW_BRUSH_COLORS.green, label: 'Green' },
+    { id: 'red', hex: ARROW_BRUSH_COLORS.red, label: 'Red (hold Ctrl)' },
+    { id: 'blue', hex: ARROW_BRUSH_COLORS.blue, label: 'Blue (hold Alt)' },
+    { id: 'yellow', hex: ARROW_BRUSH_COLORS.yellow, label: 'Yellow (hold Shift)' }
   ];
 
   const handleClear = () => {

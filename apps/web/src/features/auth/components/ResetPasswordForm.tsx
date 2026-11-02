@@ -67,7 +67,7 @@ export function ResetPasswordForm() {
       <form className="grid gap-4" onSubmit={handleSubmit}>
 
         {!token ? (
-          <p className="rounded-control border border-[color-mix(in_srgb,var(--color-warm)_48%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-warm)_18%,var(--color-surface))] px-3.5 py-3 text-sm text-app-text">
+          <p className="rounded-control border border-[color-mix(in_srgb,var(--color-primary)_48%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-primary)_18%,var(--color-surface))] px-3.5 py-3 text-sm text-app-text">
             Reset token is missing from the link.
           </p>
         ) : null}

@@ -6,7 +6,6 @@ export interface ChartColors {
   primary: string;
   secondary: string;
   accent: string;
-  warm: string;
   danger: string;
   muted: string;
   border: string;
@@ -17,54 +16,31 @@ export interface ChartColors {
 }
 
 function read(): ChartColors {
-  const fallback: ChartColors = {
-    primary: "#2f5fd0",
-    secondary: "#e9be72",
-    accent: "#15803d",
-    warm: "#2f5fd0",
-    danger: "#dc2626",
-    muted: "#475569",
-    border: "#e2e8f0",
-    surface: "#ffffff",
-    text: "#111827",
-    categorical: []
+  // Before the browser can resolve them, charts paint straight from the CSS variables.
+  const styles = typeof window === "undefined" ? null : getComputedStyle(document.documentElement);
+  const v = (name: string) => styles?.getPropertyValue(name).trim() || `var(${name})`;
+  const colors = {
+    primary: v("--color-primary"),
+    secondary: v("--color-accent"),
+    accent: v("--color-success"),
+    danger: v("--color-danger"),
+    muted: v("--color-text-muted"),
+    border: v("--color-border"),
+    surface: v("--color-surface"),
+    text: v("--color-text")
   };
-  if (typeof window === "undefined") {
-    fallback.categorical = [
-      fallback.primary,
-      fallback.secondary,
-      fallback.accent,
-      fallback.warm,
-      "#7c5cd6",
-      "#12b5a5"
-    ];
-    return fallback;
-  }
-  const s = getComputedStyle(document.documentElement);
-  const v = (name: string, fb: string) => s.getPropertyValue(name).trim() || fb;
-  const colors: ChartColors = {
-    primary: v("--color-primary", fallback.primary),
-    secondary: v("--color-accent", fallback.secondary),
-    accent: v("--color-success", fallback.accent),
-    warm: v("--color-warm", fallback.warm),
-    danger: v("--color-danger", fallback.danger),
-    muted: v("--color-text-muted", fallback.muted),
-    border: v("--color-border", fallback.border),
-    surface: v("--color-surface", fallback.surface),
-    text: v("--color-text", fallback.text),
-    categorical: []
+  return {
+    ...colors,
+    categorical: [
+      colors.primary,
+      colors.secondary,
+      colors.accent,
+      v("--color-chart-1"),
+      v("--color-chart-2"),
+      v("--color-chart-3"),
+      v("--color-chart-4")
+    ]
   };
-  colors.categorical = [
-    colors.primary,
-    colors.secondary,
-    colors.accent,
-    colors.warm,
-    "#7c5cd6",
-    "#12b5a5",
-    "#f2749b",
-    "#8a94a6"
-  ];
-  return colors;
 }
 
 /** Resolves the theme's CSS-variable palette to concrete colors for recharts,

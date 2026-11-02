@@ -86,7 +86,17 @@ See [M0_REPORT.md](M0_REPORT.md) for detail and recommendations.
 | **N2** | `Lead.email` is a schema and API change that reaches `main` through this branch | Merge to `main` |
 | **N3** | The owner's 16/24 body text differs from v2's 14/20 default UI text. The owner's decision is applied, so v2's type tokens need remapping | M1 |
 | **N4** | Header colour: v2 specifies a navy app header, the Patterns board shows white. **Owner decided navy, 2026-11-02** | Nothing |
-| **N5** | Logo and brand files: only raster logos exist in the repo, and v2's asset groups are empty. Owner will supply SVG logos | **M3 does not start until they arrive** |
+| **N5** | Logo and brand files: only raster logos exist in the repo, and v2's asset groups are empty. **Owner skipped SVG logos, 2026-11-02: the app keeps the existing PNGs.** Traced drafts were rejected as not faithful enough | Nothing. A proper vector redraw can replace the PNGs later |
+
+### Colour tokens before M3 (2026-11-02)
+
+The owner asked that every component and page use colour tokens before M3. Hex, literal `rgb()`, palette classes, `dark:` colours and the `nx-*` and `warm` aliases were removed, and ESLint now rejects them. The files allowed to hold literal values are listed in `docs/UI_RULES.md` §1. The marketing site moved from its own palette to v2 tokens, so its colours changed.
+
+### Skipped by the owner
+
+| Date | Item | Effect |
+|---|---|---|
+| 2026-11-02 | M2 real-class test | Automated coach and student run only, 27 of 27 with fake cameras. Real devices, private chat, poll, queue step, simul, match, interactives, recording and playback, feedback prompt and demo guest join were not tested |
 
 ---
 
@@ -186,11 +196,11 @@ Every part ends with a real class. **Do not start 9c until the v2 live-class pat
 
 ### M10. Marketing and legal (M)
 
-`/`, `/academy` per D1, `/privacy`, `/terms`, `/help*`. Replace 710 hex values and 120 `dark:` overrides in `features/academy`. Blocked from public release by D12.
+`/`, `/academy` per D1, `/privacy`, `/terms`, `/help*`. Colours are already on v2 tokens (done before M3), so this is layout, type and shape. Blocked from public release by D12.
 
 ### M11. Hardening (M)
 
-Delete `nx-*`, unused `navy`, `gold` and alias tokens, `.nx-cta`. Remove or adopt unused components. Sweep for `text-[Npx]` (231 today). Full `shots` matrix, both themes, all devices. Accessibility pass. Real-device tests including iOS Safari. Update all docs.
+Remove or adopt unused components (`nx-*`, `warm`, `navy`, `gold` were deleted before M3). Sweep for `text-[Npx]` (231 today). Full `shots` matrix, both themes, all devices. Accessibility pass. Real-device tests including iOS Safari. Update all docs.
 
 ### Sequence
 
@@ -214,12 +224,11 @@ M4, M5, M8, M9 and M10 can run in parallel after M3. M6 and M7 should follow M5 
 | Any token value | Semantic `accent` rename | Otherwise success turns gold |
 | M1 | N3 | D1 and D4–D7 are decided. Type tokens need the N3 remap |
 | M2 Button | D10 (decided) | Sets size |
-| M3 | N4, N5. D2 is decided | Header colour and logo files |
+| M3 | N4 and D2 are decided, N5 is skipped | Header colour; logos stay PNG |
 | M4 Register | D4 (decided) | The Registration canvas predates v2 and changes functionality |
 | M9a | D11 (default holds) | Board colour source |
 | M9c–f | v2 live-class patterns | Not specified yet |
 | M10 | D12 | Content |
-| M11 token removal | All screen milestones | Nothing may still use `nx-*` |
 
 ---
 

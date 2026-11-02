@@ -60,7 +60,7 @@ const isWebLink = (href: string) => href.startsWith("http");
 
 export function ContactSection() {
   return (
-    <section id="contact" className="relative py-20 sm:py-28 bg-[var(--background)]">
+    <section id="contact" className="relative py-20 sm:py-28 bg-app-background">
       <div className="absolute top-0 left-0 right-0 hairline" />
 
       <div className="relative max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -69,10 +69,10 @@ export function ContactSection() {
             <span className="eyebrow-dot" />
             Get Started
           </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-[family-name:var(--font-playfair)] tracking-[-0.02em] text-[var(--text-primary)] mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-[family-name:var(--font-playfair)] tracking-[-0.02em] text-app-text mb-4">
             Ready to Start?
           </h2>
-          <p className="text-base sm:text-lg text-[var(--text-accent)] leading-relaxed">
+          <p className="text-base sm:text-lg text-app-muted leading-relaxed">
             Take the first step toward becoming a stronger chess player.
           </p>
         </div>
@@ -86,26 +86,26 @@ export function ContactSection() {
             return (
               <div
                 key={opt.title}
-                className={`flex flex-col justify-between p-6 sm:p-8 rounded-2xl bg-[var(--surface)] border card-lift shadow-xs transition-all duration-200 ${isLast ? "sm:max-lg:col-span-2" : ""
+                className={`flex flex-col justify-between p-6 sm:p-8 rounded-2xl bg-app-surface border card-lift shadow-xs transition-all duration-200 ${isLast ? "sm:max-lg:col-span-2" : ""
                   } ${opt.primary
-                    ? "border-[var(--accent)] ring-1 ring-[var(--accent)]/30"
-                    : "border-[var(--border)] hover:border-[var(--accent)]"
+                    ? "border-accent ring-1 ring-accent/30"
+                    : "border-app-border hover:border-accent"
                   }`}
               >
                 <div>
                   <div
                     className={`size-12 rounded-[10px] flex items-center justify-center mb-5 ${opt.primary
-                      ? "bg-[var(--accent)] text-[#030D24]"
-                      : "bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)]"
+                      ? "bg-accent text-on-accent"
+                      : "bg-app-soft border border-app-border text-app-text"
                       }`}
                   >
                     <opt.Icon className="size-6" strokeWidth={1.8} />
                   </div>
 
-                  <h3 className="text-xl font-bold font-[family-name:var(--font-playfair)] text-[var(--text-primary)] mb-2">
+                  <h3 className="text-xl font-bold font-[family-name:var(--font-playfair)] text-app-text mb-2">
                     {opt.title}
                   </h3>
-                  <p className="text-sm text-[var(--text-accent)] mb-6 leading-relaxed">
+                  <p className="text-sm text-app-muted mb-6 leading-relaxed">
                     {opt.subtitle}
                   </p>
                 </div>
@@ -116,7 +116,7 @@ export function ContactSection() {
                     ? { target: "_blank", rel: "noopener noreferrer" }
                     : {})}
                   className={`group/cta w-full flex items-center justify-center ${opt.primary ? "btn-gold" : "btn-outline-gold"
-                    } font-bold text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50`}
+                    } font-bold text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50`}
                 >
                   {opt.cta}
                   <ArrowRight className="size-4 ml-1 transition-transform duration-200 group-hover/cta:translate-x-0.5" />
@@ -127,7 +127,7 @@ export function ContactSection() {
         </div>
 
         {/* Supporting Direct Contact Row */}
-        <div className="pt-10 border-t border-[var(--border)]">
+        <div className="pt-10 border-t border-app-border">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {directContacts.map((contact, idx) => {
               const external = isWebLink(contact.href);
@@ -140,19 +140,19 @@ export function ContactSection() {
                   {...(external
                     ? { target: "_blank", rel: "noopener noreferrer" }
                     : {})}
-                  className={`flex items-center gap-3.5 p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent)] focus-visible:outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40 transition-colors duration-200 group ${isLast ? "sm:max-lg:col-span-2" : ""
+                  className={`flex items-center gap-3.5 p-4 rounded-xl bg-app-surface border border-app-border hover:border-accent focus-visible:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40 transition-colors duration-200 group ${isLast ? "sm:max-lg:col-span-2" : ""
                     }`}
                 >
-                  <div className="size-10 rounded-[10px] bg-[var(--surface-hover)] border border-[var(--border)] flex items-center justify-center text-[var(--text-primary)] group-hover:text-[var(--accent)] group-hover:border-[var(--accent)] shrink-0 transition-colors">
+                  <div className="size-10 rounded-[10px] bg-app-soft border border-app-border flex items-center justify-center text-app-text group-hover:text-accent-ink group-hover:border-accent shrink-0 transition-colors">
                     <contact.Icon className="size-5" strokeWidth={1.8} />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-accent)]">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-app-muted">
                       {contact.label}
                     </div>
                     <div
                       title={contact.value}
-                      className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] truncate"
+                      className="text-xs sm:text-sm font-semibold text-app-text truncate"
                     >
                       {contact.value}
                     </div>

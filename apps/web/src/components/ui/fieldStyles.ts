@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 export function fieldClasses({ hasError = false, within = false }: { hasError?: boolean; within?: boolean } = {}) {
   return cn(
     "rounded-control border bg-app-surface text-sm text-app-text transition-[border-color,box-shadow] placeholder:text-app-subtle disabled:cursor-not-allowed disabled:bg-app-soft disabled:text-app-subtle",
-    within ? "focus-within:shadow-nx-focus" : "focus:shadow-nx-focus focus:outline-none",
+    within ? "focus-within:shadow-focus" : "focus:shadow-focus focus:outline-none",
     hasError ? "border-app-danger" : "border-app-line-strong",
     hasError
       ? within

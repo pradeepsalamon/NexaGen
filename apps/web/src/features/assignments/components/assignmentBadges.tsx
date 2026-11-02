@@ -18,7 +18,7 @@ export const ACTIVITY_LABEL: Record<AssignmentActivityType, string> = {
 
 const ACTIVITY_STYLE: Record<AssignmentActivityType, string> = {
   REPLAY: "border-primary/40 bg-primary/10 text-primary-ink",
-  SOLVE_LINE: "border-warm/40 bg-warm/10 text-warm-ink",
+  SOLVE_LINE: "border-primary/40 bg-primary/10 text-primary-ink",
   PLAY_VS_ENGINE: "border-success/40 bg-success/10 text-success-ink",
   FREE_ANALYSIS: "border-app-border bg-app-soft text-app-text",
   PUZZLE_SET: "border-info/40 bg-info/10 text-info-ink"

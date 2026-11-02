@@ -21,4 +21,4 @@ Not run: LiveKit e2e specs and the real-class script, because Docker and LiveKit
 | N2 | `Lead.email` (schema, API, migration `20261029060503_lead_email`) reaches `main` through this branch | Keep: additive and already on `dev` |
 | N3 | Owner's body 16/24 differs from v2's 14/20 | Applied in M1 |
 | N4 | Header colour: v2 says navy, the Patterns board shows white | Decided by the owner: navy |
-| N5 | Only raster logos exist | Owner will supply SVG logos. M3 does not start until they arrive |
+| N5 | Only raster logos exist | Skipped by the owner, 2026-11-02: the app keeps the PNGs and M3 is unblocked |

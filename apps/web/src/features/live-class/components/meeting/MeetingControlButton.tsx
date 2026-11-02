@@ -29,7 +29,7 @@ const variantStyles: Record<ControlVariant, string> = {
   active:
     "bg-primary text-on-primary hover:bg-primary/90 shadow-card",
   danger:
-    "bg-app-danger text-white hover:opacity-90 border border-app-danger shadow-card",
+    "bg-app-danger text-on-danger hover:opacity-90 border border-app-danger shadow-card",
 };
 
 export const MeetingControlButton = forwardRef<
@@ -70,7 +70,7 @@ export const MeetingControlButton = forwardRef<
       <TooltipContent side="top" className="flex items-center gap-1.5">
         <span>{label}</span>
         {shortcut && (
-          <kbd className="rounded border border-white/20 px-1 text-[10px] font-mono font-semibold">
+          <kbd className="rounded border border-app-surface/20 px-1 text-[10px] font-mono font-semibold">
             {shortcut}
           </kbd>
         )}

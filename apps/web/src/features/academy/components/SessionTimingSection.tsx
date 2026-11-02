@@ -11,7 +11,6 @@ import {
   ArrowRight,
   type LucideIcon
 } from "lucide-react";
-import { useTheme } from "@/providers/ThemeProvider";
 
 const PORTAL_BG_LIGHT = "/session/01_golden_chess_portal_light.webp";
 const PORTAL_BG_DARK = "/session/02_golden_chess_portal_dark.webp";
@@ -109,8 +108,6 @@ const TARGET_ANGLE = (TARGET_MINUTES / 60) * 360;
 const TICK_ANGLES = [30, 60, 120, 150, 210, 240, 300, 330];
 
 export function SessionTimingSection() {
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   const dialRef = useRef<HTMLDivElement>(null);
   const [hasAnimated, setHasAnimated] = useState(false);
@@ -170,8 +167,7 @@ export function SessionTimingSection() {
   return (
     <section
       id="session-blueprint"
-      className={`relative py-16 sm:py-24 overflow-hidden select-none transition-colors duration-300 ${isDark ? "bg-[#030D24] text-white" : "bg-[#F8FAFC] text-[#071B41]"
-        }`}
+      className="relative py-16 sm:py-24 overflow-hidden select-none transition-colors duration-300 bg-app-background text-app-text"
     >
       {/* ================= DESKTOP LEFT-SIDE PORTAL ARTWORK LAYER ================= */}
       <div
@@ -183,7 +179,7 @@ export function SessionTimingSection() {
           alt="Nexa Chess 55 Minute Session Portal Light"
           fill
           sizes="65vw"
-          className={`object-cover object-[46%_bottom] dark:hidden`}
+          className="object-cover object-[46%_bottom] dark:hidden"
         />
 
         <Image
@@ -191,28 +187,19 @@ export function SessionTimingSection() {
           alt="Nexa Chess 55 Minute Session Portal Dark"
           fill
           sizes="65vw"
-          className={`object-cover object-[46%_bottom] hidden dark:block`}
+          className="object-cover object-[46%_bottom] hidden dark:block"
         />
 
         <div
-          className={`absolute inset-x-0 top-0 h-36 ${isDark
-              ? "bg-gradient-to-b from-[#030D24] via-[#030D24]/75 to-transparent"
-              : "bg-gradient-to-b from-[#F8FAFC] via-[#F8FAFC]/75 to-transparent"
-            }`}
+          className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-app-background via-app-background/75 to-transparent"
         />
 
         <div
-          className={`absolute inset-y-0 right-0 w-48 ${isDark
-              ? "bg-gradient-to-l from-[#030D24] via-[#030D24]/85 to-transparent"
-              : "bg-gradient-to-l from-[#F8FAFC] via-[#F8FAFC]/85 to-transparent"
-            }`}
+          className="absolute inset-y-0 right-0 w-48 bg-gradient-to-l from-app-background via-app-background/85 to-transparent"
         />
 
         <div
-          className={`absolute inset-x-0 bottom-0 h-12 ${isDark
-              ? "bg-gradient-to-t from-[#030D24] to-transparent"
-              : "bg-gradient-to-t from-[#F8FAFC] to-transparent"
-            }`}
+          className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-app-background to-transparent"
         />
       </div>
 
@@ -221,35 +208,30 @@ export function SessionTimingSection() {
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-12">
           <div
-            className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] mb-4 shadow-2xs backdrop-blur-md ${isDark
-                ? "bg-[#081736]/85 border-white/15 text-white"
-                : "bg-white/90 border-[#E2E8F0] text-[#071B41]"
-              }`}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] mb-4 shadow-2xs backdrop-blur-md bg-app-surface/90 border-app-border text-app-text"
           >
-            <span className="size-2 rounded-full bg-[#D49B35]" />
+            <span className="size-2 rounded-full bg-accent" />
             <span>SESSION BLUEPRINT</span>
           </div>
 
           <h2 className="font-[family-name:var(--font-playfair)] font-bold text-3xl sm:text-4xl lg:text-[46px] leading-[1.14] tracking-[-0.02em] mb-3">
-            <span className={isDark ? "text-white" : "text-[#071B41]"}>
+            <span className="text-app-text">
               Every Session:{" "}
             </span>
             <span className="block sm:inline">
               <span
-                className={`text-[#C58927] dark:text-[#E2B355] ${isDark ? "sm:text-white" : "sm:text-[#071B41]"
-                  }`}
+                className="text-accent-ink sm:text-app-text"
               >
                 45–55{" "}
               </span>
-              <span className="text-[#C58927] dark:text-[#E2B355]">
+              <span className="text-accent-ink">
                 Minutes
               </span>
             </span>
           </h2>
 
           <p
-            className={`text-sm sm:text-base lg:text-[17px] leading-relaxed ${isDark ? "text-[#C8CDD6]" : "text-[#3B4454]"
-              }`}
+            className="text-sm sm:text-base lg:text-[17px] leading-relaxed text-app-muted"
           >
             Interactive, hands-on, and focused on real game results.
           </p>
@@ -269,26 +251,20 @@ export function SessionTimingSection() {
                 alt=""
                 fill
                 sizes="100vw"
-                className={`object-cover object-center dark:hidden`}
+                className="object-cover object-center dark:hidden"
               />
               <Image
                 src={PORTAL_BG_DARK}
                 alt=""
                 fill
                 sizes="100vw"
-                className={`object-cover object-center hidden dark:block`}
+                className="object-cover object-center hidden dark:block"
               />
               <div
-                className={`absolute inset-x-0 top-0 h-14 ${isDark
-                    ? "bg-gradient-to-b from-[#030D24] to-transparent"
-                    : "bg-gradient-to-b from-[#F8FAFC] to-transparent"
-                  }`}
+                className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-app-background to-transparent"
               />
               <div
-                className={`absolute inset-x-0 bottom-0 h-16 ${isDark
-                    ? "bg-gradient-to-t from-[#030D24] via-[#030D24]/80 to-transparent"
-                    : "bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC]/80 to-transparent"
-                  }`}
+                className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-app-background via-app-background/80 to-transparent"
               />
             </div>
 
@@ -299,15 +275,11 @@ export function SessionTimingSection() {
             >
               {/* Outer Brushed Clock Bezel */}
               <div
-                className={`relative size-64 sm:size-72 lg:size-[300px] rounded-full flex items-center justify-center transition-all duration-300 backdrop-blur-md ${isDark
-                    ? "bg-gradient-to-br from-[#102246]/95 via-[#091631]/95 to-[#050E22]/95 border-[2px] border-[#38507E]/60 shadow-[0_24px_60px_rgba(0,0,0,0.75),inset_0_2px_16px_rgba(255,255,255,0.06)]"
-                    : "bg-gradient-to-br from-[#E9EEF5]/95 via-[#DDE5F0]/95 to-[#CFD9E6]/95 border-[2px] border-[#BCC8D8] shadow-[0_20px_50px_rgba(15,35,75,0.14),inset_0_2px_12px_rgba(255,255,255,0.85)]"
-                  }`}
+                className="relative size-64 sm:size-72 lg:size-[300px] rounded-full flex items-center justify-center transition-all duration-300 backdrop-blur-md bg-gradient-to-br from-app-soft/95 via-app-border/95 to-app-line-strong/95 border-[2px] border-app-line-strong shadow-[0_20px_50px_rgb(var(--rgb-brand-800)/0.14),inset_0_2px_12px_rgb(var(--rgb-paper)/0.85)]"
               >
                 {/* Subtle Inner Bezel Hairline Ring */}
                 <div
-                  className={`pointer-events-none absolute inset-[6px] rounded-full border ${isDark ? "border-white/10" : "border-[#B4C2D4]/70"
-                    }`}
+                  className="pointer-events-none absolute inset-[6px] rounded-full border border-app-line-strong/70"
                   aria-hidden="true"
                 />
 
@@ -320,16 +292,14 @@ export function SessionTimingSection() {
                     aria-hidden="true"
                   >
                     <span
-                      className={`block mx-auto mt-[14px] sm:mt-[16px] w-[2px] h-3 sm:h-3.5 rounded-full ${isDark ? "bg-[#7E92B8]/60" : "bg-[#7F91A8]/80"
-                        }`}
+                      className="block mx-auto mt-[14px] sm:mt-[16px] w-[2px] h-3 sm:h-3.5 rounded-full bg-app-subtle/80"
                     />
                   </div>
                 ))}
 
                 {/* 12 o'clock: King Icon */}
                 <div
-                  className={`pointer-events-none absolute top-3 sm:top-3.5 left-1/2 -translate-x-1/2 ${isDark ? "text-[#9FB2D6]" : "text-[#4D6480]"
-                    }`}
+                  className="pointer-events-none absolute top-3 sm:top-3.5 left-1/2 -translate-x-1/2 text-app-muted"
                   aria-hidden="true"
                 >
                   <KingDialIcon className="size-5 sm:size-6" />
@@ -337,8 +307,7 @@ export function SessionTimingSection() {
 
                 {/* 3 o'clock: Queen Icon */}
                 <div
-                  className={`pointer-events-none absolute right-3 sm:right-3.5 top-1/2 -translate-y-1/2 ${isDark ? "text-[#9FB2D6]" : "text-[#4D6480]"
-                    }`}
+                  className="pointer-events-none absolute right-3 sm:right-3.5 top-1/2 -translate-y-1/2 text-app-muted"
                   aria-hidden="true"
                 >
                   <QueenDialIcon className="size-5 sm:size-6" />
@@ -346,8 +315,7 @@ export function SessionTimingSection() {
 
                 {/* 6 o'clock: Rook Icon */}
                 <div
-                  className={`pointer-events-none absolute bottom-3 sm:bottom-3.5 left-1/2 -translate-x-1/2 ${isDark ? "text-[#9FB2D6]" : "text-[#4D6480]"
-                    }`}
+                  className="pointer-events-none absolute bottom-3 sm:bottom-3.5 left-1/2 -translate-x-1/2 text-app-muted"
                   aria-hidden="true"
                 >
                   <RookDialIcon className="size-5 sm:size-6" />
@@ -355,8 +323,7 @@ export function SessionTimingSection() {
 
                 {/* 9 o'clock: Knight Icon */}
                 <div
-                  className={`pointer-events-none absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 ${isDark ? "text-[#9FB2D6]" : "text-[#4D6480]"
-                    }`}
+                  className="pointer-events-none absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-app-muted"
                   aria-hidden="true"
                 >
                   <KnightDialIcon className="size-5 sm:size-6" />
@@ -370,29 +337,21 @@ export function SessionTimingSection() {
                 >
                   {/* Needle Arm extending from behind the inner white circle into the outer track */}
                   <div
-                    className={`mx-auto mt-[30px] sm:mt-[34px] w-[3.5px] sm:w-[4px] h-[38px] sm:h-[44px] rounded-full ${isDark
-                        ? "bg-[#E2B355] shadow-[0_0_12px_rgba(226,179,85,0.65)]"
-                        : "bg-[#6E829B] shadow-[0_1px_4px_rgba(7,27,65,0.25)]"
-                      }`}
+                    className="mx-auto mt-[30px] sm:mt-[34px] w-[3.5px] sm:w-[4px] h-[38px] sm:h-[44px] rounded-full bg-app-subtle shadow-[0_1px_4px_rgb(var(--rgb-brand-800)/0.25)]"
                   />
                 </div>
 
                 {/* ================= RAISED INNER DIAL CIRCLE ================= */}
                 <div
-                  className={`relative z-20 size-[60%] rounded-full flex flex-col items-center justify-center text-center px-4 transition-colors duration-300 ${isDark
-                      ? "bg-gradient-to-b from-[#0D2149] to-[#071430] border border-white/15 shadow-[0_14px_34px_rgba(0,0,0,0.75)]"
-                      : "bg-[#FFFFFF] border border-white shadow-[0_12px_28px_rgba(25,48,88,0.16)]"
-                    }`}
+                  className="relative z-20 size-[60%] rounded-full flex flex-col items-center justify-center text-center px-4 transition-colors duration-300 bg-app-surface border border-app-surface shadow-[0_12px_28px_rgb(var(--rgb-brand-800)/0.16)]"
                 >
                   <span
-                    className={`font-[family-name:var(--font-playfair)] font-bold text-5xl sm:text-6xl lg:text-[64px] leading-none tracking-tight tabular-nums ${isDark ? "text-[#E2B355]" : "text-[#2B6295]"
-                      }`}
+                    className="font-[family-name:var(--font-playfair)] font-bold text-5xl sm:text-6xl lg:text-[64px] leading-none tracking-tight tabular-nums text-primary-ink"
                   >
                     {minutes}
                   </span>
                   <span
-                    className={`mt-2 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.26em] ${isDark ? "text-[#C1C4CC]" : "text-[#435870]"
-                      }`}
+                    className="mt-2 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.26em] text-app-muted"
                   >
                     MINUTES
                   </span>
@@ -405,13 +364,10 @@ export function SessionTimingSection() {
               {featureChips.map(({ label, Icon }) => (
                 <span
                   key={label}
-                  className={`inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-bold border backdrop-blur-md transition-transform duration-200 hover:-translate-y-0.5 ${isDark
-                      ? "bg-[#06142E]/90 border-white/15 text-white shadow-[0_6px_18px_rgba(0,0,0,0.5)]"
-                      : "bg-white/95 border-[#E2E8F0] text-[#071B41] shadow-[0_6px_18px_rgba(7,27,65,0.08)]"
-                    }`}
+                  className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-bold border backdrop-blur-md transition-transform duration-200 hover:-translate-y-0.5 bg-app-surface/95 border-app-border text-app-text shadow-[0_6px_18px_rgb(var(--rgb-brand-800)/0.08)]"
                 >
                   <Icon
-                    className="size-3.5 text-[#C58927] dark:text-[#E2B355] shrink-0"
+                    className="size-3.5 text-accent-ink shrink-0"
                     strokeWidth={2.2}
                   />
                   <span>{label}</span>
@@ -427,32 +383,24 @@ export function SessionTimingSection() {
               return (
                 <div
                   key={elem.title}
-                  className={`group relative flex items-center justify-between gap-3.5 sm:gap-5 p-4 sm:p-5 rounded-[20px] border backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 ${isDark
-                      ? "bg-[#06132D]/90 border-white/12 hover:border-[#E2B355]/50 shadow-[0_14px_34px_-10px_rgba(0,0,0,0.65)]"
-                      : "bg-white/95 border-[#E5E9F0] hover:border-[#D49B35]/60 shadow-[0_10px_28px_-8px_rgba(7,27,65,0.07)]"
-                    }`}
+                  className="group relative flex items-center justify-between gap-3.5 sm:gap-5 p-4 sm:p-5 rounded-[20px] border backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 bg-app-surface/95 border-app-border hover:border-accent/60 shadow-[0_10px_28px_-8px_rgb(var(--rgb-brand-800)/0.07)]"
                 >
                   {/* Left Icon Box + Center Text */}
                   <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 min-w-0">
                     <div
-                      className={`size-11 sm:size-12 rounded-2xl border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${isDark
-                          ? "bg-[#0E2044] border-[#E2B355]/30 text-[#E2B355]"
-                          : "bg-[#FDF4E1] border-[#F3DFB6] text-[#C58927]"
-                        }`}
+                      className="size-11 sm:size-12 rounded-2xl border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 bg-accent-soft border-accent/45 text-accent-ink"
                     >
                       <Icon className="size-5 sm:size-[22px]" strokeWidth={2} />
                     </div>
 
                     <div className="min-w-0">
                       <h3
-                        className={`font-[family-name:var(--font-playfair)] font-bold text-base sm:text-[19px] leading-snug mb-1 ${isDark ? "text-white" : "text-[#071B41]"
-                          }`}
+                        className="font-[family-name:var(--font-playfair)] font-bold text-base sm:text-[19px] leading-snug mb-1 text-app-text"
                       >
                         {elem.title}
                       </h3>
                       <p
-                        className={`text-xs sm:text-[13.5px] leading-relaxed ${isDark ? "text-[#C1C4CC]" : "text-[#4A5568]"
-                          }`}
+                        className="text-xs sm:text-[13.5px] leading-relaxed text-app-muted"
                       >
                         {elem.description}
                       </p>
@@ -461,10 +409,7 @@ export function SessionTimingSection() {
 
                   {/* Right Circular Arrow Button */}
                   <div
-                    className={`size-8 sm:size-9 rounded-full border flex items-center justify-center shrink-0 transition-all duration-200 group-hover:translate-x-0.5 ${isDark
-                        ? "bg-[#0B1D3F] border-white/15 text-white/80 group-hover:border-[#E2B355] group-hover:text-[#E2B355]"
-                        : "bg-[#F8FAFC] border-[#E2E8F0] text-[#071B41] group-hover:border-[#C58927] group-hover:text-[#C58927]"
-                      }`}
+                    className="size-8 sm:size-9 rounded-full border flex items-center justify-center shrink-0 transition-all duration-200 group-hover:translate-x-0.5 bg-app-background border-app-border text-app-text group-hover:border-accent group-hover:text-accent-ink"
                   >
                     <ArrowRight className="size-3.5 sm:size-4 stroke-[2.2]" />
                   </div>

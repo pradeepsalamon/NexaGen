@@ -10,7 +10,6 @@ import {
   Check,
   type LucideIcon
 } from "lucide-react";
-import { useTheme } from "@/providers/ThemeProvider";
 
 const COLOSSEUM_BG_LIGHT = "/sunday/01_day_chess_colosseum.webp";
 const COLOSSEUM_BG_DARK = "/sunday/02_night_chess_colosseum.webp";
@@ -44,14 +43,11 @@ const mobileHighlights = [
 ];
 
 export function SundayTrainingSection() {
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   return (
     <section
       id="sunday-training"
-      className={`relative flex flex-col lg:flex-row lg:items-center lg:min-h-[560px] lg:py-20 overflow-hidden select-none transition-colors duration-300 ${isDark ? "bg-[#030D24] text-white" : "bg-[#FFFFFF] text-[#071B41]"
-        }`}
+      className="relative flex flex-col lg:flex-row lg:items-center lg:min-h-[560px] lg:py-20 overflow-hidden select-none transition-colors duration-300 bg-app-surface text-app-text"
     >
       {/* ================= DESKTOP COLOSSEUM ARTWORK (FULL KING VISIBLE) ================= */}
       <div
@@ -65,7 +61,7 @@ export function SundayTrainingSection() {
             alt="Nexa Chess Sunday Tournament Colosseum Light"
             fill
             sizes="75vw"
-            className={`object-cover object-[right_center] dark:hidden`}
+            className="object-cover object-[right_center] dark:hidden"
           />
 
           {/* Dark Mode Colosseum */}
@@ -74,30 +70,21 @@ export function SundayTrainingSection() {
             alt="Nexa Chess Sunday Tournament Colosseum Dark"
             fill
             sizes="75vw"
-            className={`object-cover object-[right_center] hidden dark:block`}
+            className="object-cover object-[right_center] hidden dark:block"
           />
 
           {/* Smooth Left-to-Right Fade */}
           <div
-            className={`absolute inset-y-0 left-0 w-[52%] ${isDark
-                ? "bg-gradient-to-r from-[#030D24] via-[#030D24]/90 to-transparent"
-                : "bg-gradient-to-r from-white via-white/92 to-transparent"
-              }`}
+            className="absolute inset-y-0 left-0 w-[52%] bg-gradient-to-r from-app-surface via-app-surface/[0.92] to-transparent"
           />
         </div>
 
         {/* Subtle Top & Bottom Feathering */}
         <div
-          className={`absolute inset-x-0 top-0 h-10 ${isDark
-              ? "bg-gradient-to-b from-[#030D24] to-transparent"
-              : "bg-gradient-to-b from-white to-transparent"
-            }`}
+          className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-app-surface to-transparent"
         />
         <div
-          className={`absolute inset-x-0 bottom-0 h-10 ${isDark
-              ? "bg-gradient-to-t from-[#030D24] to-transparent"
-              : "bg-gradient-to-t from-white to-transparent"
-            }`}
+          className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-app-surface to-transparent"
         />
       </div>
 
@@ -112,32 +99,26 @@ export function SundayTrainingSection() {
           alt="Sunday Tournament King Light"
           fill
           sizes="100vw"
-          className={`object-cover object-[90%_top] sm:object-[86%_center] scale-110 dark:hidden`}
+          className="object-cover object-[90%_top] sm:object-[86%_center] scale-110 dark:hidden"
         />
         <Image
           src={COLOSSEUM_BG_DARK}
           alt="Sunday Tournament King Dark"
           fill
           sizes="100vw"
-          className={`object-cover object-[90%_top] sm:object-[86%_center] scale-110 hidden dark:block`}
+          className="object-cover object-[90%_top] sm:object-[86%_center] scale-110 hidden dark:block"
         />
 
         {/* Soft bottom gradient blending into the overlapping mobile card */}
         <div
-          className={`absolute inset-x-0 bottom-0 h-14 ${isDark
-              ? "bg-gradient-to-t from-[#041028] via-[#041028]/60 to-transparent"
-              : "bg-gradient-to-t from-white via-white/60 to-transparent"
-            }`}
+          className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-app-surface via-app-surface/60 to-transparent"
         />
       </div>
 
       {/* ================= FOREGROUND CONTAINER ================= */}
       <div className="relative z-10 w-full max-w-[1280px] mx-auto px-0 sm:px-6 lg:px-8 -mt-7 lg:mt-0">
         <div
-          className={`rounded-t-[28px] lg:rounded-none px-5 pt-6 pb-10 sm:px-8 lg:p-0 shadow-[0_-12px_32px_rgba(0,0,0,0.08)] lg:shadow-none ${isDark
-              ? "bg-[#041028] lg:bg-transparent border-t border-white/10 lg:border-none"
-              : "bg-white lg:bg-transparent border-t border-[#E5E9F0] lg:border-none"
-            }`}
+          className="rounded-t-[28px] lg:rounded-none px-5 pt-6 pb-10 sm:px-8 lg:p-0 shadow-[0_-12px_32px_rgb(var(--rgb-scrim)/0.08)] lg:shadow-none bg-app-surface lg:bg-transparent border-t border-app-border lg:border-none"
         >
           {/* 12-Column Grid on Desktop / Stacked Single Column on Mobile */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-6 items-center">
@@ -145,29 +126,25 @@ export function SundayTrainingSection() {
             <div className="lg:col-span-6 text-center lg:text-left">
               {/* Pill Eyebrow: [• WEEKEND SPECIAL] */}
               <div
-                className={`inline-flex items-center gap-2 px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-full border text-[10px] sm:text-xs font-bold uppercase tracking-[0.16em] mb-3.5 shadow-2xs ${isDark
-                    ? "bg-[#081736]/90 border-white/15 text-white"
-                    : "bg-[#FDF8EE] border-[#F2DCB1] text-[#071B41]"
-                  }`}
+                className="inline-flex items-center gap-2 px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-full border text-[10px] sm:text-xs font-bold uppercase tracking-[0.16em] mb-3.5 shadow-2xs bg-accent-soft border-accent/45 text-app-text"
               >
-                <span className="size-1.5 sm:size-2 rounded-full bg-[#D49B35]" />
+                <span className="size-1.5 sm:size-2 rounded-full bg-accent" />
                 <span>WEEKEND SPECIAL</span>
               </div>
 
               {/* Two-Tone Serif Heading */}
               <h2 className="font-[family-name:var(--font-playfair)] font-bold text-[1.75rem] sm:text-4xl lg:text-[46px] xl:text-[50px] leading-[1.12] tracking-[-0.02em] mb-3 sm:mb-4">
-                <span className={isDark ? "text-white" : "text-[#071B41]"}>
+                <span className="text-app-text">
                   Sunday Tournament
                 </span>
-                <span className="block text-[#D49B35] dark:text-[#E2B355] mt-0.5">
+                <span className="block text-accent-ink mt-0.5">
                   Training
                 </span>
               </h2>
 
               {/* Description */}
               <p
-                className={`text-xs sm:text-[15px] leading-[1.6] max-w-[330px] sm:max-w-[490px] mx-auto lg:mx-0 mb-5 sm:mb-6 ${isDark ? "text-[#C8CDD6]" : "text-[#4A5568]"
-                  }`}
+                className="text-xs sm:text-[15px] leading-[1.6] max-w-[330px] sm:max-w-[490px] mx-auto lg:mx-0 mb-5 sm:mb-6 text-app-muted"
               >
                 Students practice tournament skills, analyze games and prepare
                 for competitive play in live supervised arena battles and
@@ -179,10 +156,9 @@ export function SundayTrainingSection() {
                 {mobileHighlights.map((item) => (
                   <div
                     key={item}
-                    className={`flex items-center gap-2.5 text-xs font-medium ${isDark ? "text-[#E2E8F0]" : "text-[#1E293B]"
-                      }`}
+                    className="flex items-center gap-2.5 text-xs font-medium text-app-text"
                   >
-                    <span className="size-4 rounded-full bg-gradient-to-b from-[#E5B85B] to-[#C88E2B] text-[#071B41] flex items-center justify-center shrink-0 shadow-2xs">
+                    <span className="size-4 rounded-full bg-gradient-to-b from-accent to-accent-hover text-on-accent flex items-center justify-center shrink-0 shadow-2xs">
                       <Check className="size-2.5 stroke-[3.2]" />
                     </span>
                     <span>{item}</span>
@@ -195,10 +171,9 @@ export function SundayTrainingSection() {
                 {desktopHighlights.map((item) => (
                   <div
                     key={item}
-                    className={`flex items-center gap-2.5 text-[13.5px] font-semibold whitespace-nowrap ${isDark ? "text-[#E2E8F0]" : "text-[#1E293B]"
-                      }`}
+                    className="flex items-center gap-2.5 text-[13.5px] font-semibold whitespace-nowrap text-app-text"
                   >
-                    <span className="size-4 rounded-full bg-gradient-to-b from-[#E5B85B] to-[#C88E2B] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <span className="size-4 rounded-full bg-gradient-to-b from-accent to-accent-hover text-on-accent flex items-center justify-center shrink-0 shadow-2xs">
                       <Check className="size-2.5 stroke-[3.2]" />
                     </span>
                     <span>{item}</span>
@@ -213,11 +188,11 @@ export function SundayTrainingSection() {
                   className="
                     inline-flex items-center justify-center gap-2.5
                     min-h-[48px] px-7 py-3 rounded-xl
-                    bg-gradient-to-r from-[#E6B960] via-[#DCA642] to-[#CC922C]
-                    hover:from-[#EDC36E] hover:to-[#D89B32]
-                    text-[#071B41] font-bold text-sm
-                    shadow-[0_8px_24px_rgba(212,155,53,0.35)]
-                    hover:shadow-[0_10px_28px_rgba(212,155,53,0.48)]
+                    bg-gradient-to-r from-accent via-accent to-accent-hover
+                    hover:from-accent hover:to-accent-hover
+                    text-on-accent font-bold text-sm
+                    shadow-[0_8px_24px_rgb(var(--rgb-accent)/0.35)]
+                    hover:shadow-[0_10px_28px_rgb(var(--rgb-accent)/0.48)]
                     transition-all duration-200 hover:-translate-y-0.5
                   "
                 >
@@ -231,10 +206,7 @@ export function SundayTrainingSection() {
             <div className="lg:col-span-4 w-full">
               {/* Outer Tray on Mobile Light Mode to match the mockup */}
               <div
-                className={`max-w-[390px] mx-auto lg:mx-0 rounded-[20px] p-2.5 sm:p-0 ${isDark
-                    ? "bg-transparent"
-                    : "bg-[#F6F8FC] sm:bg-transparent border border-[#ECF0F6] sm:border-none"
-                  }`}
+                className="max-w-[390px] mx-auto lg:mx-0 rounded-[20px] p-2.5 sm:p-0 bg-app-background sm:bg-transparent border border-app-border sm:border-none"
               >
                 <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
                   {tournamentStats.map((stat) => {
@@ -242,33 +214,25 @@ export function SundayTrainingSection() {
                     return (
                       <div
                         key={stat.label}
-                        className={`group rounded-[16px] sm:rounded-[20px] px-3 py-4 sm:px-5 sm:py-6 text-center border transition-all duration-300 lg:hover:-translate-y-1 ${isDark
-                            ? "bg-[#08152E]/90 backdrop-blur-md border-[#E2B355]/30 hover:border-[#E2B355]/70 shadow-[0_12px_32px_-10px_rgba(0,0,0,0.7)]"
-                            : "bg-white lg:bg-[#FFFCF7]/95 border-[#EAEFF5] lg:border-[#F3E3C3] hover:border-[#D49B35] shadow-[0_4px_14px_rgba(7,27,65,0.04)] lg:shadow-[0_12px_32px_-8px_rgba(180,130,50,0.12)]"
-                          }`}
+                        className="group rounded-[16px] sm:rounded-[20px] px-3 py-4 sm:px-5 sm:py-6 text-center border transition-all duration-300 lg:hover:-translate-y-1 bg-app-surface lg:bg-accent-soft/95 border-app-border lg:border-accent/45 hover:border-accent shadow-[0_4px_14px_rgb(var(--rgb-brand-800)/0.04)] lg:shadow-[0_12px_32px_-8px_rgb(var(--rgb-accent)/0.12)]"
                       >
                         {/* Circular Soft Gold Icon Badge */}
                         <div
-                          className={`size-9 sm:size-11 rounded-full mx-auto mb-2 sm:mb-3 flex items-center justify-center border transition-transform duration-200 group-hover:scale-105 ${isDark
-                              ? "bg-[#132347] border-[#E2B355]/30 text-[#E2B355]"
-                              : "bg-[#FDF3DC] border-[#F3DFB6] text-[#C58927]"
-                            }`}
+                          className="size-9 sm:size-11 rounded-full mx-auto mb-2 sm:mb-3 flex items-center justify-center border transition-transform duration-200 group-hover:scale-105 bg-accent-soft border-accent/45 text-accent-ink"
                         >
                           <Icon className="size-4 sm:size-5" strokeWidth={2} />
                         </div>
 
                         {/* Stat Number */}
                         <div
-                          className={`font-[family-name:var(--font-playfair)] font-bold text-xl sm:text-[28px] leading-tight mb-0.5 sm:mb-1 ${isDark ? "text-white" : "text-[#071B41]"
-                            }`}
+                          className="font-[family-name:var(--font-playfair)] font-bold text-xl sm:text-[28px] leading-tight mb-0.5 sm:mb-1 text-app-text"
                         >
                           {stat.value}
                         </div>
 
                         {/* Stat Label */}
                         <div
-                          className={`text-[11px] sm:text-xs font-medium sm:font-semibold ${isDark ? "text-[#C8CDD6]" : "text-[#555C68]"
-                            }`}
+                          className="text-[11px] sm:text-xs font-medium sm:font-semibold text-app-muted"
                         >
                           {stat.label}
                         </div>
@@ -285,10 +249,10 @@ export function SundayTrainingSection() {
                   className="
                     w-full inline-flex items-center justify-center gap-2
                     min-h-[46px] px-6 py-3 rounded-xl
-                    bg-gradient-to-r from-[#E6B960] via-[#DCA642] to-[#CC922C]
+                    bg-gradient-to-r from-accent via-accent to-accent-hover
                     active:scale-[0.99]
-                    text-[#071B41] font-bold text-xs sm:text-sm
-                    shadow-[0_8px_24px_rgba(212,155,53,0.35)]
+                    text-on-accent font-bold text-xs sm:text-sm
+                    shadow-[0_8px_24px_rgb(var(--rgb-accent)/0.35)]
                     transition-transform
                   "
                 >

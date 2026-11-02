@@ -115,7 +115,7 @@ function TrackStateControl({
         type="button"
         onClick={onModerate}
         aria-label={moderateLabel}
-        className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-danger hover:text-white"
+        className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-danger hover:text-on-danger"
       >
         {activeIcon}
       </button>
@@ -292,7 +292,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
                 // `title` rather than SimpleTooltip: already an `asChild` Radix trigger.
                 title={`Remove ${name} from class`}
                 aria-label={`Remove ${name} from class`}
-                className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-danger hover:text-white"
+                className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-danger hover:text-on-danger"
               >
                 <UserMinus className="size-3.5" strokeWidth={2.5} />
               </button>
@@ -312,7 +312,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
                     setKickOpen(false);
                   }
                 }}
-                className="mt-2.5 w-full rounded-control bg-app-danger px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-2.5 w-full rounded-control bg-app-danger px-3 py-1.5 text-xs font-semibold text-on-danger transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isKicking ? "Removing…" : "Remove from class"}
               </button>
@@ -346,7 +346,7 @@ const WaitingRoomListItem = memo(function WaitingRoomListItem({
           <button
             type="button"
             aria-label={`Admit ${entry.studentName}`}
-            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-success-ink transition-colors hover:bg-success hover:text-white"
+            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-success-ink transition-colors hover:bg-success hover:text-on-success"
             onClick={() => onResolve(entry.studentId, "ADMIT", entry.studentName)}
           >
             <UserCheck className="size-4" strokeWidth={2.5} />
@@ -356,7 +356,7 @@ const WaitingRoomListItem = memo(function WaitingRoomListItem({
           <button
             type="button"
             aria-label={`Deny ${entry.studentName}`}
-            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-white"
+            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-on-danger"
             onClick={() => onResolve(entry.studentId, "DENY", entry.studentName)}
           >
             <UserX className="size-4" strokeWidth={2.5} />
@@ -392,7 +392,7 @@ const ScreenShareRequestListItem = memo(function ScreenShareRequestListItem({
             <button
               type="button"
               aria-label={`Revoke ${entry.studentName}'s screen-share access`}
-              className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-white"
+              className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-on-danger"
               onClick={() => onResolve(entry.studentId, "REVOKE", entry.studentName)}
             >
               <MonitorX className="size-4" strokeWidth={2.5} />
@@ -404,7 +404,7 @@ const ScreenShareRequestListItem = memo(function ScreenShareRequestListItem({
               <button
                 type="button"
                 aria-label={`Approve ${entry.studentName}'s screen-share request`}
-                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-success-ink transition-colors hover:bg-success hover:text-white"
+                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-success-ink transition-colors hover:bg-success hover:text-on-success"
                 onClick={() => onResolve(entry.studentId, "APPROVE", entry.studentName)}
               >
                 <UserCheck className="size-4" strokeWidth={2.5} />
@@ -414,7 +414,7 @@ const ScreenShareRequestListItem = memo(function ScreenShareRequestListItem({
               <button
                 type="button"
                 aria-label={`Deny ${entry.studentName}'s screen-share request`}
-                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-white"
+                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-on-danger"
                 onClick={() => onResolve(entry.studentId, "DENY", entry.studentName)}
               >
                 <UserX className="size-4" strokeWidth={2.5} />

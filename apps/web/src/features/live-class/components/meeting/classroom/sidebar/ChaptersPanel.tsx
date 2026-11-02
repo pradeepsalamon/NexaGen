@@ -447,7 +447,7 @@ function ChapterRow({
           onClick={onLoad}
           disabled={busy}
           aria-label={`Load ${chapter.title}`}
-          className="flex h-6 shrink-0 items-center gap-1 rounded-full border border-success/50 bg-success/10 px-2 text-[11px] font-semibold text-success-ink transition-colors hover:bg-success hover:text-white disabled:opacity-50"
+          className="flex h-6 shrink-0 items-center gap-1 rounded-full border border-success/50 bg-success/10 px-2 text-[11px] font-semibold text-success-ink transition-colors hover:bg-success hover:text-on-success disabled:opacity-50"
         >
           <ArrowDownToLine className="size-3" strokeWidth={2.5} />
           Load
@@ -458,7 +458,7 @@ function ChapterRow({
           type="button"
           onClick={onAsk}
           aria-label={`Ask the class about ${chapter.title}`}
-          className="flex h-6 shrink-0 items-center gap-1 rounded-full border border-info/50 bg-info/10 px-2 text-[11px] font-semibold text-info-ink transition-colors hover:bg-info hover:text-white"
+          className="flex h-6 shrink-0 items-center gap-1 rounded-full border border-info/50 bg-info/10 px-2 text-[11px] font-semibold text-info-ink transition-colors hover:bg-info hover:text-on-info"
         >
           <MessageCircleQuestion className="size-3" strokeWidth={2.5} />
           Ask

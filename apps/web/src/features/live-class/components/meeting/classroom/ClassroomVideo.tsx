@@ -181,7 +181,7 @@ export function ClassroomVideo({
             )}
             {spotlightHand && !isScreen ? (
               <span
-                className="absolute left-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-warning text-white shadow-card"
+                className="absolute left-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-warning text-on-warning shadow-card"
                 aria-label="Hand raised"
               >
                 <Hand className="size-3.5" strokeWidth={2.5} />
@@ -192,7 +192,7 @@ export function ClassroomVideo({
                 <TileModerationControls participant={spotlight.participant} name={name} screenShare={isScreen} size="sm" />
               </div>
             ) : null}
-            <span className="absolute bottom-1.5 left-1.5 max-w-[80%] truncate rounded-control bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white/90">
+            <span className="absolute bottom-1.5 left-1.5 max-w-[80%] truncate rounded-control bg-scrim/60 px-1.5 py-0.5 text-[11px] font-medium text-on-scrim/90">
               {isScreen ? `${name} · screen` : name}
             </span>
           </div>

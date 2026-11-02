@@ -7,8 +7,12 @@ import { ImageResponse } from "next/og";
 export const OG_SIZE = { height: 630, width: 1200 };
 export const OG_CONTENT_TYPE = "image/png";
 
-const INK = "#0f1f2f";
-const GOLD = "#d4a843";
+// Satori can't read CSS variables, so these copy the v2 values in globals.css.
+const INK = "#0F1E3A";
+const GOLD = "#E9BE72";
+const MUTED = "#475569";
+const PAPER = "#FFFFFF";
+const SOFT = "#FBF1DC";
 
 export async function renderOgImage({ title, subtitle }: { title: string; subtitle: string }) {
   const logo = await readFile(join(process.cwd(), "public/academy/nexa_logo_light1.png"));
@@ -17,7 +21,7 @@ export async function renderOgImage({ title, subtitle }: { title: string; subtit
     (
       <div
         style={{
-          background: "linear-gradient(135deg, #f8f5ec 0%, #ffffff 55%, #f3ead2 100%)",
+          background: `linear-gradient(135deg, ${SOFT} 0%, ${PAPER} 55%, ${SOFT} 100%)`,
           display: "flex",
           flexDirection: "column",
           height: "100%",
@@ -30,7 +34,7 @@ export async function renderOgImage({ title, subtitle }: { title: string; subtit
         <img alt="" height={152} src={logoSrc} width={400} />
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ color: INK, fontSize: 68, fontWeight: 800, letterSpacing: -1.5, lineHeight: 1.05 }}>{title}</div>
-          <div style={{ color: "#3a5068", fontSize: 32, lineHeight: 1.35, marginTop: 20 }}>{subtitle}</div>
+          <div style={{ color: MUTED, fontSize: 32, lineHeight: 1.35, marginTop: 20 }}>{subtitle}</div>
         </div>
         <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between" }}>
           <div style={{ background: GOLD, borderRadius: 999, color: INK, display: "flex", fontSize: 28, fontWeight: 700, padding: "12px 28px" }}>

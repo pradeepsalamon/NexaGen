@@ -71,7 +71,7 @@ export function ImageUploadField({
               type="button"
               aria-label={`Remove ${label.toLowerCase()}`}
               onClick={() => onChange(null)}
-              className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-app-danger text-white"
+              className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-app-danger text-on-danger"
             >
               <X className="size-3" strokeWidth={3} />
             </button>

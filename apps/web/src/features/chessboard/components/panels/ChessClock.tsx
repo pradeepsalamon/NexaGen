@@ -48,7 +48,7 @@ const TimeChip = memo(function TimeChip({
         <span
           className={cn(
             "size-2 rounded-full",
-            color === "white" ? "bg-white ring-1 ring-app-border" : "bg-neutral-800",
+            color === "white" ? "bg-side-white ring-1 ring-app-border" : "bg-side-black",
           )}
         />
         {color}

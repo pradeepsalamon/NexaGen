@@ -118,7 +118,7 @@ const PullRow = memo(function PullRow({
             type="button"
             aria-label={`Cancel pull for ${student.name}`}
             disabled={busy}
-            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-muted transition-colors hover:bg-app-danger hover:text-white disabled:opacity-50"
+            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-muted transition-colors hover:bg-app-danger hover:text-on-danger disabled:opacity-50"
             onClick={() => onCancel(student)}
           >
             <X className="size-4" strokeWidth={2.5} />

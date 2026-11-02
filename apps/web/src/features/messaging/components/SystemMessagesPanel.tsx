@@ -72,7 +72,7 @@ export function SystemMessagesPanel() {
       </p>
 
       {!data.emailConfigured ? (
-        <Card className="border-app-warning/40 bg-app-warning/5 p-4 text-sm text-app-text">
+        <Card className="border-warning/40 bg-warning/5 p-4 text-sm text-app-text">
           Email is not configured on this server, so these emails can&apos;t be sent until the{" "}
           <code className="text-xs">SMTP_*</code> variables are set.
         </Card>

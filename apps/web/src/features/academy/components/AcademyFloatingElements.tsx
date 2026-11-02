@@ -33,7 +33,7 @@ export function AcademyFloatingElements() {
         href="https://api.whatsapp.com/send?phone=919344967940&text=Hi! I'm interested in chess classes"
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-4 md:bottom-6 right-4 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all duration-300 hover:scale-110 active:scale-95 animate-[academy-float_6s_ease-in-out_infinite]"
+        className="fixed bottom-4 md:bottom-6 right-4 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 rounded-full bg-success flex items-center justify-center text-on-success text-2xl shadow-lg shadow-success/30 hover:shadow-success/50 transition-all duration-300 hover:scale-110 active:scale-95 animate-[academy-float_6s_ease-in-out_infinite]"
         aria-label="Chat on WhatsApp"
       >
         <Image
@@ -49,7 +49,7 @@ export function AcademyFloatingElements() {
       <SimpleTooltip label="Book a Free Demo" side="left">
         <a
           href="#demo"
-          className="fixed bottom-20 md:bottom-[6.5rem] right-4 md:right-6 z-50 size-12 md:size-14 rounded-full bg-[var(--accent)] text-[#030D24] shadow-md hover:bg-[var(--accent-bright)] flex flex-col items-center justify-center gap-0.5 transition-transform duration-200 hover:scale-105 active:scale-95"
+          className="fixed bottom-20 md:bottom-[6.5rem] right-4 md:right-6 z-50 size-12 md:size-14 rounded-full bg-accent text-on-accent shadow-md hover:bg-accent-hover flex flex-col items-center justify-center gap-0.5 transition-transform duration-200 hover:scale-105 active:scale-95"
           aria-label="Book a Free Demo"
         >
           <svg
@@ -74,7 +74,7 @@ export function AcademyFloatingElements() {
       {/* Back to top button */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className={`fixed bottom-6 left-6 z-50 size-11 rounded-full bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent)] flex items-center justify-center text-[var(--text-primary)] hover:text-[var(--accent)] shadow-sm transition-all duration-200 hover:scale-105 active:scale-95 ${
+        className={`fixed bottom-6 left-6 z-50 size-11 rounded-full bg-app-surface border border-app-border hover:border-accent flex items-center justify-center text-app-text hover:text-accent-ink shadow-sm transition-all duration-200 hover:scale-105 active:scale-95 ${
           showBackToTop ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8 pointer-events-none"
         }`}
         aria-hidden={!showBackToTop}

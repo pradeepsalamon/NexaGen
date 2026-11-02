@@ -88,7 +88,7 @@ export function CoachSuggestionsPanel() {
                         <SimpleTooltip label="Withdraw suggestion">
                           <Button
                             aria-label="Withdraw suggestion"
-                            className="bg-app-danger text-white hover:bg-app-danger/85"
+                            className="bg-app-danger text-on-danger hover:bg-app-danger/85"
                             onClick={() => void withdraw.run(s.version.id)}
                             size="icon"
                             variant="ghost"

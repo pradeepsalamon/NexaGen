@@ -84,7 +84,7 @@ const SidebarTabs = memo(function SidebarTabs({
           <span className="relative">
             {panel.icon}
             {panel.id === "chat" && unreadChatCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-app-danger px-1 text-[8px] font-bold text-white ring-2 ring-app-surface">
+              <span className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-app-danger px-1 text-[8px] font-bold text-on-danger ring-2 ring-app-surface">
                 {unreadChatCount > 99 ? "99+" : unreadChatCount}
               </span>
             )}
@@ -131,7 +131,7 @@ export function MeetingSidebar({ inlinePanels = false }: { inlinePanels?: boolea
             <button
               type="button"
               onClick={() => setActiveSidebar(null)}
-              className="flex size-9 shrink-0 items-center justify-center rounded-control bg-app-soft text-app-muted transition-colors hover:bg-app-danger hover:text-white"
+              className="flex size-9 shrink-0 items-center justify-center rounded-control bg-app-soft text-app-muted transition-colors hover:bg-app-danger hover:text-on-danger"
               aria-label="Close panel"
             >
               <X className="size-5" />

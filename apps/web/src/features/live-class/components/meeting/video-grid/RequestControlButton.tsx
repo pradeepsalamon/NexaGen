@@ -45,9 +45,9 @@ export function RequestControlButton({ surface = false }: { surface?: boolean })
         request: "border-warning/40 bg-warning/10 text-warning-ink hover:border-warning",
       }
     : {
-        resync: "border-primary/40 bg-black/80 text-white hover:border-primary",
-        control: "border-success/40 bg-black/80 text-success",
-        request: "border-warning/40 bg-black/80 text-warning hover:border-warning",
+        resync: "border-primary/40 bg-scrim/80 text-on-scrim hover:border-primary",
+        control: "border-success/40 bg-scrim/80 text-success",
+        request: "border-warning/40 bg-scrim/80 text-warning hover:border-warning",
       };
 
   return (

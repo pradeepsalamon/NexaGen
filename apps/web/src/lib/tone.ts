@@ -61,13 +61,13 @@ export const TONE: Record<Tone, ToneStyle> = {
     wash: "bg-warning/[0.09]"
   },
   warm: {
-    bar: "bg-warm",
-    chip: "bg-primary-soft text-warm-ink",
-    border: "border-warm/35",
-    ghost: "text-warm/30",
-    hover: "hover:bg-warm/10",
-    header: "bg-warm/[0.07]",
-    text: "text-warm-ink",
-    wash: "bg-warm/[0.09]"
+    bar: "bg-primary",
+    chip: "bg-primary-soft text-primary-ink",
+    border: "border-primary/35",
+    ghost: "text-primary/30",
+    hover: "hover:bg-primary/10",
+    header: "bg-primary/[0.07]",
+    text: "text-primary-ink",
+    wash: "bg-primary/[0.09]"
   }
 };

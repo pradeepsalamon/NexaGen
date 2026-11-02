@@ -236,7 +236,7 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
                   <SimpleTooltip label="Remove">
                     <button
                       aria-label={`Remove ${m.title} for ${m.studentName}`}
-                      className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-app-danger text-white transition-colors hover:bg-app-danger/85"
+                      className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-app-danger text-on-danger transition-colors hover:bg-app-danger/85"
                       onClick={() =>
                         save.mutate({
                           ...state,

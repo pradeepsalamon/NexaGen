@@ -75,7 +75,7 @@ export const ChatThreadBar = memo(function ChatThreadBar() {
           )}
           <span className="max-w-[9rem] truncate">{thread.label}</span>
           {thread.unreadCount > 0 && activeThread !== thread.id && (
-            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-app-danger px-1 text-[9px] font-bold text-white">
+            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-app-danger px-1 text-[9px] font-bold text-on-danger">
               {thread.unreadCount > 99 ? "99+" : thread.unreadCount}
             </span>
           )}

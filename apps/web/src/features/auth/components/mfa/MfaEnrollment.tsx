@@ -115,7 +115,7 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
       </p>
       {setup.data ? (
         <div className="flex flex-col items-center gap-3">
-          <div className="rounded-control bg-white p-3">
+          <div className="rounded-control bg-paper p-3">
             <QRCodeSVG aria-label="Authenticator setup QR code" size={168} value={setup.data.otpauthUrl} />
           </div>
           <div className="flex flex-col items-center gap-1.5 text-center text-xs text-app-muted">

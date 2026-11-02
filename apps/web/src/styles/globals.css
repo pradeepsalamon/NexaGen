@@ -2,39 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Legacy palette: only the marketing site (features/academy) still reads these, until M10. */
-:root,
-:root[data-theme="light"] {
-  --primary: #071B41;
-  --primary-dark: #030D24;
-  --accent: #BB8B37;
-  --accent-bright: #E2B355;
-  --accent-light: #F1D58F;
-  --background: #FFFFFF;
-  --surface: #FFFFFF;
-  --surface-secondary: #F7F8FA;
-  --surface-soft: #F1F4F8;
-  --surface-hover: #F1F4F8;
-  --text-primary: #071B41;
-  --text-secondary: #555C68;
-  --border: #DDE2EA;
-}
-
-:root[data-theme="dark"] {
-  --primary: #071B41;
-  --primary-dark: #030D24;
-  --accent: #E2B355;
-  --accent-bright: #E2B355;
-  --accent-light: #F1D58F;
-  --background: #030D24;
-  --surface: #0B1A38;
-  --surface-secondary: #071B41;
-  --surface-hover: #102347;
-  --text-primary: #FFFFFF;
-  --text-secondary: #C1C4CC;
-  --border: rgba(255, 255, 255, 0.10);
-}
-
 /* NexaChess Design System v2. Channels stay --rgb-* triplets so /opacity utilities compile.
    line-strong and ink-subtle are corrected from v2 to meet WCAG (docs/ui-redesign). */
 :root,
@@ -81,17 +48,43 @@
   --rgb-info: 3 105 161;
   --rgb-info-soft: 224 242 254;
   --color-info-ink: #0369A1;
+  --rgb-on-danger: 255 255 255;
+  --rgb-on-success: 255 255 255;
+  --rgb-on-warning: 255 255 255;
+  --rgb-on-info: 255 255 255;
 
-  /* v2 has no coral (D7): courses read as primary until M11 removes the token. */
-  --rgb-warm: var(--rgb-primary);
-  --color-warm-ink: var(--color-primary-ink);
+  /* Same in both themes: what sits on video, the board or a dimmed page isn't a theme surface. */
+  --rgb-scrim: 0 0 0;
+  --rgb-on-scrim: 255 255 255;
+  --rgb-on-scrim-danger: 248 113 113;
+  /* Always white: QR codes must stay scannable, a switch thumb reads on either track. */
+  --rgb-paper: 255 255 255;
+  /* Chess sides and draws, for swatches and result bars. */
+  --rgb-side-white: 255 255 255;
+  --rgb-side-black: 23 23 23;
+  --rgb-side-draw: 156 163 175;
+  /* Categorical chart hues after the brand ones. */
+  --rgb-chart-1: 124 92 214;
+  --rgb-chart-2: 18 181 165;
+  --rgb-chart-3: 242 116 155;
+  --rgb-chart-4: 138 148 166;
+
+  --rgb-emphasis: var(--rgb-brand-800);
+  --color-toggle-sun: rgb(var(--rgb-accent-soft));
+  --color-toggle-sun-ink: var(--color-accent-ink);
+  --color-toggle-sun-hover: var(--color-accent-ink);
+  --color-toggle-moon: transparent;
+  --color-toggle-moon-ink: rgb(var(--rgb-text-subtle));
+  --color-toggle-moon-hover: rgb(var(--rgb-text));
+  --color-toggle-knob: rgb(var(--rgb-brand-800));
+  --color-toggle-knob-sun: rgb(var(--rgb-on-brand));
+  --color-toggle-knob-moon: rgb(var(--rgb-text-subtle));
 
   --rgb-nav-drawer: var(--rgb-brand-900);
   --rgb-nav-drawer-border: var(--rgb-brand-700);
 
   --color-primary: rgb(var(--rgb-primary));
   --color-accent: rgb(var(--rgb-accent));
-  --color-warm: rgb(var(--rgb-warm));
   --color-background: rgb(var(--rgb-background));
   --color-surface: rgb(var(--rgb-surface));
   --color-surface-soft: rgb(var(--rgb-surface-soft));
@@ -103,10 +96,16 @@
   --color-warning: rgb(var(--rgb-warning));
   --color-info: rgb(var(--rgb-info));
   --color-focus: rgb(var(--rgb-primary));
+  --color-chart-1: rgb(var(--rgb-chart-1));
+  --color-chart-2: rgb(var(--rgb-chart-2));
+  --color-chart-3: rgb(var(--rgb-chart-3));
+  --color-chart-4: rgb(var(--rgb-chart-4));
 
   --shadow-card: 0 1px 2px #0F1E3A0F, 0 1px 3px #0F1E3A14;
   --shadow-lift: 0 4px 12px #0F1E3A14, 0 2px 4px #0F1E3A0F;
   --shadow-soft: 0 16px 40px -4px #0F1E3A29, 0 4px 12px #0F1E3A14;
+  /* Focus ring of every text field (components/ui/fieldStyles.ts). */
+  --shadow-focus: 0 0 0 3px rgb(var(--rgb-primary) / 0.25);
   --color-scroll-shade: rgb(var(--rgb-text) / 0.16);
   --radius-control: 0.5rem;
   --radius-app: 0.75rem;
@@ -141,6 +140,24 @@
   --rgb-on-brand: 241 245 249;
   --rgb-on-brand-muted: 143 160 188;
 
+  --rgb-emphasis: var(--rgb-text);
+  --color-toggle-sun: transparent;
+  --color-toggle-sun-ink: rgb(var(--rgb-text-subtle));
+  --color-toggle-sun-hover: rgb(var(--rgb-text));
+  --color-toggle-moon: rgb(var(--rgb-brand-800));
+  --color-toggle-moon-ink: var(--color-accent-ink);
+  --color-toggle-moon-hover: var(--color-accent-ink);
+  --color-toggle-knob: rgb(var(--rgb-accent));
+  --color-toggle-knob-sun: rgb(var(--rgb-text-subtle));
+  --color-toggle-knob-moon: rgb(var(--rgb-on-accent));
+
+  --shadow-card: 0 1px 3px #00000099;
+  --shadow-lift: 0 6px 16px #000000B3;
+  --shadow-soft: 0 16px 40px -4px #000000CC;
+  --color-scroll-shade: rgb(var(--rgb-scrim) / 0.55);
+}
+
+:root[data-theme="dark"] {
   --rgb-primary: 107 147 234;
   --rgb-primary-hover: 132 166 238;
   --rgb-primary-dark: 79 123 224;
@@ -163,117 +180,11 @@
   --rgb-info: 56 189 248;
   --rgb-info-soft: 11 42 61;
   --color-info-ink: #38BDF8;
-
-  --shadow-card: 0 1px 3px #00000099;
-  --shadow-lift: 0 6px 16px #000000B3;
-  --shadow-soft: 0 16px 40px -4px #000000CC;
-  --color-scroll-shade: rgb(0 0 0 / 0.55);
+  /* success, warning and info turn pale in dark, so their text turns dark. */
+  --rgb-on-success: 7 20 42;
+  --rgb-on-warning: 7 20 42;
+  --rgb-on-info: 7 20 42;
 }
-
-/* nx-* roles (student dashboard, app shell, auth) resolve to v2 until M11 removes them. */
-:root,
-:root[data-theme="light"],
-:root[data-theme="dark"] {
-  --nx-backdrop: rgb(var(--rgb-background));
-  --nx-body: rgb(var(--rgb-text-muted));
-  --nx-body-strong: rgb(var(--rgb-text-muted));
-  --nx-card: rgb(var(--rgb-surface));
-  --nx-danger-ink: var(--color-danger-ink);
-  --nx-danger-line: rgb(var(--rgb-danger) / 0.3);
-  --nx-danger-soft: rgb(var(--rgb-danger-soft));
-  --nx-faint: rgb(var(--rgb-text-subtle));
-  --nx-field: rgb(var(--rgb-surface));
-  --nx-field-line: rgb(var(--rgb-line-strong));
-  --nx-glass: rgb(var(--rgb-surface) / 0.9);
-  --nx-gold-active: rgb(var(--rgb-accent-soft));
-  --nx-gold-bright-ink: var(--color-accent-ink);
-  --nx-gold-glass: rgb(var(--rgb-accent-soft));
-  --nx-gold-ink: var(--color-accent-ink);
-  --nx-gold-line: rgb(var(--rgb-accent) / 0.45);
-  --nx-gold-line-medium: rgb(var(--rgb-accent) / 0.45);
-  --nx-gold-line-strong: rgb(var(--rgb-accent) / 0.45);
-  --nx-gold-pale-ink: rgb(var(--rgb-accent-soft));
-  --nx-gold-soft: rgb(var(--rgb-accent-soft));
-  --nx-gold-tint: rgb(var(--rgb-accent-soft));
-  --nx-hover: rgb(var(--rgb-surface-soft));
-  --nx-hover-faint: rgb(var(--rgb-surface-soft));
-  --nx-hover-strong: rgb(var(--rgb-surface-soft));
-  --nx-icon: rgb(var(--rgb-text-subtle));
-  --nx-icon-faint: rgb(var(--rgb-text-subtle));
-  --nx-info-ink: var(--color-info-ink);
-  --nx-ink: rgb(var(--rgb-text));
-  --nx-ink-inverse: rgb(var(--rgb-surface));
-  --nx-ink-soft: rgb(var(--rgb-text));
-  --nx-line: rgb(var(--rgb-border));
-  --nx-line-bold: rgb(var(--rgb-line-strong));
-  --nx-line-focus: rgb(var(--rgb-primary));
-  --nx-line-glass: rgb(var(--rgb-border));
-  --nx-line-strong: rgb(var(--rgb-line-strong));
-  --nx-muted: rgb(var(--rgb-text-subtle));
-  --nx-muted-strong: rgb(var(--rgb-text-muted));
-  --nx-nav-ink: rgb(var(--rgb-text-muted));
-  --nx-page: rgb(var(--rgb-background));
-  --nx-rose-ink: var(--color-danger-ink);
-  --nx-rose-soft: rgb(var(--rgb-danger-soft));
-  --nx-success-ink: var(--color-success-ink);
-  --nx-success-soft: rgb(var(--rgb-success-soft));
-  --nx-tile: rgb(var(--rgb-surface-soft));
-  --nx-tile-faint: rgb(var(--rgb-surface-soft));
-  --nx-tile-glass: rgb(var(--rgb-surface-soft));
-  --nx-warm-ink: var(--color-primary-ink);
-  --nx-warm-pale-ink: rgb(var(--rgb-primary-soft));
-  --nx-warm-soft: rgb(var(--rgb-primary-soft));
-  --nx-warning-ink: var(--color-warning-ink);
-  --nx-warning-soft: rgb(var(--rgb-warning-soft));
-  --nx-shadow-card: var(--shadow-card);
-  --nx-shadow-drawer: var(--shadow-soft);
-  --nx-shadow-float: var(--shadow-lift);
-  --nx-shadow-panel: var(--shadow-soft);
-  --nx-bar: rgb(var(--rgb-surface));
-  --nx-drawer-bar: rgb(var(--rgb-surface-soft));
-  --nx-line-hover: rgb(var(--rgb-line-strong));
-  --nx-raised: rgb(var(--rgb-surface));
-  --nx-raised-hover: rgb(var(--rgb-surface-soft));
-  --nx-line-strong-hover: rgb(var(--rgb-line-strong));
-  --nx-stat-navy: rgb(var(--rgb-brand-800));
-  --nx-stat-navy-ink: rgb(var(--rgb-accent));
-  --nx-stat-coral: rgb(var(--rgb-primary-soft));
-  --nx-stat-coral-ink: var(--color-primary-ink);
-  --nx-stat-gold: rgb(var(--rgb-accent-soft));
-  --nx-stat-navy-line: transparent;
-  --nx-stat-coral-line: transparent;
-  --nx-stat-gold-line: transparent;
-  --nx-chart-1: rgb(var(--rgb-accent) / 0.35);
-  --nx-chart-2: rgb(var(--rgb-accent) / 0.55);
-  --nx-chart-3: rgb(var(--rgb-accent) / 0.75);
-  --nx-chart-4: rgb(var(--rgb-accent));
-  --nx-auth-card: rgb(var(--rgb-surface));
-  --nx-auth-note: transparent;
-  /* Focus ring of every text field (components/ui/fieldStyles.ts). */
-  --nx-shadow-focus: 0 0 0 3px rgb(var(--rgb-primary) / 0.25);
-}
-
-:root,
-:root[data-theme="light"] {
-  --nx-emphasis: rgb(var(--rgb-brand-800));
-  --nx-toggle-sun: rgb(var(--rgb-accent-soft));
-  --nx-toggle-sun-ink: var(--color-accent-ink);
-  --nx-toggle-sun-hover: var(--color-accent-ink);
-  --nx-toggle-moon: transparent;
-  --nx-toggle-moon-ink: rgb(var(--rgb-text-subtle));
-  --nx-toggle-moon-hover: rgb(var(--rgb-text));
-}
-
-:root[data-theme="dark"] {
-  --nx-emphasis: rgb(var(--rgb-text));
-  --nx-toggle-sun: transparent;
-  --nx-toggle-sun-ink: rgb(var(--rgb-text-subtle));
-  --nx-toggle-sun-hover: rgb(var(--rgb-text));
-  --nx-toggle-moon: rgb(var(--rgb-brand-800));
-  --nx-toggle-moon-ink: var(--color-accent-ink);
-  --nx-toggle-moon-hover: var(--color-accent-ink);
-}
-
 
 @layer components {
 }
@@ -309,7 +220,7 @@
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: color-mix(in srgb, var(--color-primary) 80%, black);
+    background-color: rgb(var(--rgb-primary-hover));
   }
 
   html {
@@ -384,13 +295,13 @@
   }
 
   .custom-prejoin .lk-video-container {
-    @apply relative aspect-video w-full overflow-hidden rounded-control bg-black shadow-card;
+    @apply relative aspect-video w-full overflow-hidden rounded-control bg-scrim shadow-card;
     border: 1px solid color-mix(in srgb, var(--color-border) 78%, var(--color-primary));
   }
 
   .custom-prejoin .lk-video-container::before {
     content: "";
-    @apply pointer-events-none absolute inset-0 z-0 bg-black/20;
+    @apply pointer-events-none absolute inset-0 z-0 bg-scrim/20;
   }
 
   .custom-prejoin .lk-video-container > * {
@@ -493,7 +404,7 @@
     border-radius: 9999px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: color-mix(in srgb, var(--color-primary) 80%, black);
+    background-color: rgb(var(--rgb-primary-hover));
   }
 
   /* Hide scrollbar but keep functionality */

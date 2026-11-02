@@ -51,7 +51,7 @@ export function MovePollResults({ options, total, correctUci, myUci, onToggleCor
                     className={cn(
                       "flex size-7 shrink-0 items-center justify-center rounded-full border transition",
                       correct
-                        ? "border-transparent bg-success text-white hover:bg-success/85"
+                        ? "border-transparent bg-success text-on-success hover:bg-success/85"
                         : "border-app-border text-app-muted hover:border-success/60 hover:text-success-ink"
                     )}
                   >

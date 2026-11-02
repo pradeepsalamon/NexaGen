@@ -54,7 +54,7 @@ function MiniPlayerContent() {
 
   return (
     <div className="flex h-screen w-screen flex-col bg-app-background text-app-text">
-      <div className="relative flex-1 overflow-hidden bg-black">
+      <div className="relative flex-1 overflow-hidden bg-scrim">
         {hasVideo && spotlight ? (
           <VideoTrack
             trackRef={spotlight}
@@ -69,18 +69,18 @@ function MiniPlayerContent() {
           </div>
         )}
 
-        <div className="absolute bottom-1.5 left-1.5 flex max-w-[calc(100%-0.75rem)] items-center gap-1.5 rounded-full bg-black/65 px-2 py-1 backdrop-blur-md">
-          <span className="truncate text-[11px] font-semibold text-white/90">
+        <div className="absolute bottom-1.5 left-1.5 flex max-w-[calc(100%-0.75rem)] items-center gap-1.5 rounded-full bg-scrim/65 px-2 py-1 backdrop-blur-md">
+          <span className="truncate text-[11px] font-semibold text-on-scrim/90">
             {participant?.isLocal ? "You" : name}
           </span>
           {participant && !participant.isMicrophoneEnabled && (
-            <MicOff className="size-3 shrink-0 text-red-400" aria-label="Muted" />
+            <MicOff className="size-3 shrink-0 text-on-scrim-danger" aria-label="Muted" />
           )}
         </div>
 
         {handCount > 0 && (
           <div
-            className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-warning px-1.5 py-1 text-[11px] font-bold text-white shadow-card"
+            className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-warning px-1.5 py-1 text-[11px] font-bold text-on-warning shadow-card"
             title={`${handCount} hand${handCount > 1 ? "s" : ""} raised`}
           >
             <Hand className="size-3" />

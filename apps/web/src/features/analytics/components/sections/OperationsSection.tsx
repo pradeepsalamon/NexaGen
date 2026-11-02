@@ -28,7 +28,7 @@ const SEVERITY: Record<
   { icon: typeof Info; className: string }
 > = {
   info: { icon: Info, className: "text-primary-ink" },
-  warning: { icon: CircleAlert, className: "text-warm" },
+  warning: { icon: CircleAlert, className: "text-warning-ink" },
   critical: { icon: AlertTriangle, className: "text-app-danger" }
 };
 
@@ -77,8 +77,8 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
               <Stat label="Classes today" value={ops.data?.classesToday ?? 0} />
               <Stat label="Live now" value={ops.data?.classesLiveNow ?? 0} tone={ops.data?.classesLiveNow ? "text-app-danger" : undefined} />
               <Stat label="Completed today" value={ops.data?.classesCompletedToday ?? 0} />
-              <Stat label="Need attention" value={ops.data?.classesNeedingAttention ?? 0} tone={ops.data?.classesNeedingAttention ? "text-warm" : undefined} />
-              <Stat label="Recording failures" value={ops.data?.recordingFailures ?? 0} tone={ops.data?.recordingFailures ? "text-warm" : undefined} />
+              <Stat label="Need attention" value={ops.data?.classesNeedingAttention ?? 0} tone={ops.data?.classesNeedingAttention ? "text-warning-ink" : undefined} />
+              <Stat label="Recording failures" value={ops.data?.recordingFailures ?? 0} tone={ops.data?.recordingFailures ? "text-warning-ink" : undefined} />
               <Stat label="Missing recordings" value={ops.data?.missingRecordings ?? 0} />
               <Stat label="Unfinalized attendance" value={ops.data?.unfinalizedAttendance ?? 0} />
               <Stat label="Cancelled today" value={ops.data?.classesCancelledToday ?? 0} />

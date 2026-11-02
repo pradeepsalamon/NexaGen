@@ -96,10 +96,10 @@ export function LoginForm() {
     const enrolling = challenge.mfaRequired === "SETUP";
     return (
       <AuthSplitShell variant="login" cardMaxWidthClass="max-w-[440px]">
-        <h1 className="font-display text-2xl sm:text-3xl font-bold text-nx-ink mb-1.5">
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-app-text mb-1.5">
           {enrolling ? "Set up two-factor sign-in" : "Two-factor sign-in"}
         </h1>
-        <p className="text-xs sm:text-sm text-nx-body mb-5">
+        <p className="text-xs sm:text-sm text-app-muted mb-5">
           {enrolling
             ? "Your account needs a second step at sign-in. This takes a minute."
             : "One more step to confirm it's you."}
@@ -127,10 +127,10 @@ export function LoginForm() {
     <AuthSplitShell variant="login" cardMaxWidthClass="max-w-[440px]">
       {/* Card Header */}
       <div className="mb-6">
-        <h2 className="font-display text-2xl sm:text-[30px] font-bold text-nx-ink leading-tight">
+        <h2 className="font-display text-2xl sm:text-[30px] font-bold text-app-text leading-tight">
           Welcome Back
         </h2>
-        <p className="text-xs sm:text-sm text-nx-body mt-1.5 leading-relaxed">
+        <p className="text-xs sm:text-sm text-app-muted mt-1.5 leading-relaxed">
           Continue your chess journey with expert coaching and a global community.
         </p>
       </div>
@@ -141,7 +141,7 @@ export function LoginForm() {
         <div>
           <label
             htmlFor="email"
-            className="block text-xs font-bold text-nx-ink mb-1.5"
+            className="block text-xs font-bold text-app-text mb-1.5"
           >
             Email address
           </label>
@@ -159,7 +159,7 @@ export function LoginForm() {
             value={values.email}
           />
           {errors.email && (
-            <p className="mt-1 text-xs font-medium text-nx-live" id="email-error">{errors.email}</p>
+            <p className="mt-1 text-xs font-medium text-app-danger-ink" id="email-error">{errors.email}</p>
           )}
         </div>
 
@@ -167,7 +167,7 @@ export function LoginForm() {
         <div>
           <label
             htmlFor="password"
-            className="block text-xs font-bold text-nx-ink mb-1.5"
+            className="block text-xs font-bold text-app-text mb-1.5"
           >
             Password
           </label>
@@ -183,7 +183,7 @@ export function LoginForm() {
             value={values.password}
           />
           {errors.password && (
-            <p className="mt-1 text-xs font-medium text-nx-live" id="password-error">
+            <p className="mt-1 text-xs font-medium text-app-danger-ink" id="password-error">
               {errors.password}
             </p>
           )}
@@ -193,7 +193,7 @@ export function LoginForm() {
         <div className="flex items-center justify-between pt-0.5">
           <label
             htmlFor="remember-me"
-            className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-nx-body"
+            className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-app-muted"
           >
             <Checkbox
               checked={values.rememberMe}
@@ -205,7 +205,7 @@ export function LoginForm() {
 
           <Link
             href="/forgot-password"
-            className="text-xs font-bold text-nx-gold-ink hover:underline"
+            className="text-xs font-bold text-accent-ink hover:underline"
           >
             Forgot password?
           </Link>
@@ -217,11 +217,11 @@ export function LoginForm() {
         </Button>
 
         {/* Bottom Switch to Register */}
-        <p className="text-center text-xs text-nx-body pt-2">
+        <p className="text-center text-xs text-app-muted pt-2">
           Don&apos;t have an account?{" "}
           <Link
             href="/register"
-            className="font-bold text-nx-gold-ink hover:underline"
+            className="font-bold text-accent-ink hover:underline"
           >
             Create account
           </Link>

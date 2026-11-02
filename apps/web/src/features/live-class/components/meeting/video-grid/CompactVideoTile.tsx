@@ -93,7 +93,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
 
       {handRaised && !isScreenShare ? (
         <span
-          className="absolute left-1 top-1 z-10 flex size-5 items-center justify-center rounded-full bg-warning text-white shadow-card"
+          className="absolute left-1 top-1 z-10 flex size-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-card"
           aria-label="Hand raised"
         >
           <Hand className="size-3" strokeWidth={2.5} />
@@ -115,16 +115,16 @@ export const CompactVideoTile = memo(function CompactVideoTile({
       </div>
 
       {/* Name pill */}
-      <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1 rounded-control bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">
+      <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1 rounded-control bg-scrim/60 px-1.5 py-0.5 backdrop-blur-sm">
         {isMuted ? (
-          <MicOff className="size-2.5 text-red-400 shrink-0" aria-label="Microphone off" />
+          <MicOff className="size-2.5 text-on-scrim-danger shrink-0" aria-label="Microphone off" />
         ) : (
-          <Mic className="size-2.5 text-white/60 shrink-0" aria-label="Microphone on" />
+          <Mic className="size-2.5 text-on-scrim/60 shrink-0" aria-label="Microphone on" />
         )}
         {isGrid && cameraOff && !isScreenShare ? (
-          <VideoOff className="size-2.5 text-red-400 shrink-0" aria-label="Camera off" />
+          <VideoOff className="size-2.5 text-on-scrim-danger shrink-0" aria-label="Camera off" />
         ) : null}
-        <span className="truncate text-[10px] font-medium text-white/90">
+        <span className="truncate text-[10px] font-medium text-on-scrim/90">
           {participant.isLocal && !isScreenShare ? "You" : name}
         </span>
       </div>

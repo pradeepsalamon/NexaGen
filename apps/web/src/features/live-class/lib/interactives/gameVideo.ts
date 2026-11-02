@@ -230,7 +230,7 @@ function drawCard(
   ctx.globalAlpha = 0.72;
   ctx.fillRect(BOARD_X, BOARD_Y, BOARD, BOARD);
   ctx.globalAlpha = 1;
-  ctx.fillStyle = "white";
+  ctx.fillStyle = c.surface;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = bodyFont(800, 64);
