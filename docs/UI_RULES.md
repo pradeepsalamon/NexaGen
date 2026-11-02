@@ -115,6 +115,8 @@ disagree.
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
 | Page title + actions | `PageHeader` | Pass `breadcrumbs` on a detail page instead of a `BackButton`. |
 | Role page frame | `PageContent` | The one ground, padding and `max-w-7xl` content width. Role layouts use it; pages don't add their own. |
+| A class in a list | `ClassRow` inside `ClassRowList` | Status and Join come from `class-availability`. Pass `actions` to replace the buttons, `quietJoin` where another control is the page's primary action. Coach lists adopt it in M6. |
+| Month of classes | `ScheduleCalendar` with `groupByDay` (`lib/scheduleCalendar.ts`) | The caller lists the selected day's classes beside it. Coach and batch calendars adopt it in M6 and M7. |
 | Tooltips | `SimpleTooltip` | Never `title=` on an interactive element. |
 | Icons | `lucide-react` only, sized with classes (`className="size-4"`), `strokeWidth={2.25–2.5}` | No other icon library, no inline `<svg>` icons, no `size={16}` props (they don't follow the text-size setting). |
 

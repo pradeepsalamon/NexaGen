@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Download, PlayCircle } from "lucide-react";
 import { toast } from "sonner";
-import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
+import { ClassRow, ClassRowList } from "@/components/ui/ClassRow";
 import { Button } from "@/components/ui/Button";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
@@ -54,29 +54,11 @@ export function PastClasses({ classes }: PastClassesProps) {
     <>
       <div data-testid="past-classes">
         <SectionCard description="Rewatch a session any time." title="Past classes">
-          <ul className="divide-y divide-app-border">
+          <ClassRowList>
             {classes.map((c) => (
-              <li
-                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 first:pt-0 last:pb-0"
-                data-testid={`past-class-${c.id}`}
-                key={c.id}
-              >
-                <div className="min-w-0 flex-1 basis-48">
-                  <p className="truncate text-sm font-semibold text-app-text">
-                    {c.topic}
-                  </p>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-app-muted">
-                    <span>
-                      {c.coachName} · {formatFullDate(c.startsAt, timeZone)}
-                    </span>
-                    {c.status !== "COMPLETED" ? (
-                      <ClassStatusBadge endsAt={c.endsAt} status={c.status} />
-                    ) : null}
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-2">
-                  {c.hasRecording ? (
+              <ClassRow
+                actions={
+                  c.hasRecording ? (
                     <>
                       <Button
                         onClick={() =>
@@ -114,11 +96,17 @@ export function PastClasses({ classes }: PastClassesProps) {
                     </>
                   ) : (
                     <span className="text-xs text-app-muted">No recording</span>
-                  )}
-                </div>
-              </li>
+                  )
+                }
+                cls={{ ...c, title: c.topic, topic: null }}
+                key={c.id}
+                meta={`${c.coachName} · ${formatFullDate(c.startsAt, timeZone)}`}
+                showDate={false}
+                showStatus={c.status !== "COMPLETED"}
+                testId={`past-class-${c.id}`}
+              />
             ))}
-          </ul>
+          </ClassRowList>
         </SectionCard>
       </div>
 

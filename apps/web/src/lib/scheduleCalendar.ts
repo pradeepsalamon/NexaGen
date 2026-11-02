@@ -1,7 +1,7 @@
 /**
- * Calendar arithmetic for the coach schedule's week / month views.
+ * Calendar arithmetic for the class calendars' week / month views.
  *
- * Days are "YYYY-MM-DD" keys in the coach's own timezone. Stepping them goes
+ * Days are "YYYY-MM-DD" keys in the viewer's own timezone. Stepping them goes
  * through `Date.UTC`, which rolls month and year boundaries (and leap days)
  * over by itself and never sees a DST shift — a key is a date, not an instant.
  */
@@ -33,6 +33,18 @@ export function zonedDayKey(iso: string | number | Date, timeZone: string): stri
   } catch {
     return utcToKey(date);
   }
+}
+
+/** Files classes under the day they start on in `timeZone`, keeping their order. */
+export function groupByDay<T extends { startsAt: string }>(classes: T[], timeZone: string): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const cls of classes) {
+    const key = zonedDayKey(cls.startsAt, timeZone);
+    const list = map.get(key) ?? [];
+    list.push(cls);
+    map.set(key, list);
+  }
+  return map;
 }
 
 export function addDays(key: string, days: number): string {

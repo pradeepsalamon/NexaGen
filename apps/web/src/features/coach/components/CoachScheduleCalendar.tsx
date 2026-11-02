@@ -23,7 +23,7 @@ import {
   visibleDays,
   zonedDayKey,
   type CalendarView
-} from "../lib/scheduleCalendar";
+} from "@/lib/scheduleCalendar";
 import { ClassCard } from "./ClassCard";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
