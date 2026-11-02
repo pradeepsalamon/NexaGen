@@ -28,7 +28,8 @@ export class PrivacyService {
   ) {}
 
   async exportMyData(accessToken: string | undefined): Promise<PersonalDataExport> {
-    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    // SALES accounts hold personal data too (payout details), so they may export.
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
     const id = user.id;
     const p = this.prisma;
 
@@ -92,7 +93,12 @@ export class PrivacyService {
       helpFeedback,
       helpSuggestions,
       externalChessAccounts,
-      directEmails
+      directEmails,
+      referralCode,
+      referralsMade,
+      referralRewards,
+      referralCredits,
+      referralWithdrawals
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -191,7 +197,17 @@ export class PrivacyService {
       }),
       // The one-time verification code is a secret, and is cleared once used anyway.
       p.externalChessAccount.findMany({ omit: { verificationCode: true }, where: { userId: id } }),
-      p.directEmail.findMany({ omit: { error: true, senderId: true }, where: { recipientId: id } })
+      p.directEmail.findMany({ omit: { error: true, senderId: true }, where: { recipientId: id } }),
+      // Referral program. A referral's prospect name and visitor id are about
+      // someone else, so only the referral's own progress is exported.
+      p.referralCode.findMany({ where: { userId: id } }),
+      p.referral.findMany({
+        select: { convertedAt: true, createdAt: true, id: true, stage: { select: { name: true } }, stageChangedAt: true },
+        where: { referrerId: id }
+      }),
+      p.referralReward.findMany({ omit: { dedupeKey: true, reviewedById: true }, where: { referrerId: id } }),
+      p.referralCreditEntry.findMany({ omit: { createdById: true }, where: { userId: id } }),
+      p.referralWithdrawal.findMany({ omit: { reviewedById: true }, where: { userId: id } })
     ]);
 
     return {
@@ -233,6 +249,11 @@ export class PrivacyService {
         progress: records(progress),
         puzzleAttempts: records(puzzleAttempts),
         puzzleRatingChanges: records(puzzleRatingChanges),
+        referralCode: records(referralCode),
+        referralCredits: records(referralCredits),
+        referralRewards: records(referralRewards),
+        referralWithdrawals: records(referralWithdrawals),
+        referralsMade: records(referralsMade),
         sessions: records(sessions),
         studentProfile: records(studentProfile),
         subscriptions: records(subscriptions),

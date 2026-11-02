@@ -531,6 +531,7 @@ export class AuthService {
 
     // The shared check, so a revoked session's token is refused here too.
     const user = await authenticateUser(this.jwtService, this.prisma, accessToken, {
+      allowSales: true,
       include: { coachProfile: true, studentProfile: true }
     });
 
@@ -547,6 +548,7 @@ export class AuthService {
 
     const tokenPayload = await this.verifyAccessToken(accessToken);
     const user = await authenticateUser(this.jwtService, this.prisma, accessToken, {
+      allowSales: true,
       include: { coachProfile: true, studentProfile: true }
     });
 
@@ -812,7 +814,7 @@ export class AuthService {
   }
 
   async emailVerificationStatus(accessToken: string | undefined): Promise<EmailVerificationStatusResponse> {
-    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
     return {
       isEmailVerified: user.isEmailVerified,
       policy: await this.emailVerification.policy()
@@ -824,7 +826,7 @@ export class AuthService {
       throw new UnauthorizedException("Access token is missing.");
     }
 
-    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
     if (!user || user.isEmailVerified) {
       throw new BadRequestException("Invalid request or email is already verified.");
     }

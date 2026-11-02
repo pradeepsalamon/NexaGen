@@ -77,6 +77,7 @@ export * from "./chat";
 export * from "./knowledge";
 export * from "./assistant-tools";
 export * from "./assignment-reminders";
+export * from "./referrals";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -99,7 +100,7 @@ export interface PaginationMeta {
 }
 
 
-export type UserRole = "SUPER_ADMIN" | "ADMIN" | "COACH" | "STUDENT";
+export type UserRole = "SUPER_ADMIN" | "ADMIN" | "COACH" | "STUDENT" | "SALES";
 
 export type UserStatus = "ACTIVE" | "PENDING" | "ARCHIVED" | "DELETED";
 
@@ -190,7 +191,7 @@ export const batchStatusSchema = z.enum(["UPCOMING", "ACTIVE", "COMPLETED", "ARC
 
 export const userStatusSchema = z.enum(["ACTIVE", "PENDING", "ARCHIVED", "DELETED"]);
 
-export const userRoleSchema = z.enum(["SUPER_ADMIN", "ADMIN", "COACH", "STUDENT"]);
+export const userRoleSchema = z.enum(["SUPER_ADMIN", "ADMIN", "COACH", "STUDENT", "SALES"]);
 export const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters.")

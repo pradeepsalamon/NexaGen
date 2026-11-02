@@ -13,6 +13,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { MailService } from "../mail/mail.service";
 import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import { NOOP_REFERRAL_TRACKER } from "../referral/referral.testing";
 import { DemoInviteService } from "../demo-class/demo-invite.service";
 
 const ACCESS_TOKEN = "access-token";
@@ -99,6 +100,7 @@ describe("LeadService", () => {
       providers: [
         LeadService,
         DemoInviteService,
+        NOOP_REFERRAL_TRACKER,
         { provide: JwtService, useValue: jwtService },
         { provide: PrismaService, useValue: prisma },
         { provide: MailService, useValue: { sendNewLeadNotification } },

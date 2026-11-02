@@ -52,6 +52,7 @@ import { ProgressModule } from "./progress/progress.module";
 import { RevisionModule } from "./revision/revision.module";
 import { DemoClassModule } from "./demo-class/demo-class.module";
 import { LeadModule } from "./lead/lead.module";
+import { ReferralModule } from "./referral/referral.module";
 import { HealthModule } from "./health/health.module";
 import { RetentionModule } from "./retention/retention.module";
 import { GameAnalysisModule } from "./game-analysis/game-analysis.module";
@@ -122,6 +123,7 @@ import { FeatureGateGuard } from "./platform/feature-gate.guard";
     TypographyModule,
     DemoClassModule,
     LeadModule,
+    ReferralModule,
     FeedbackModule,
     ApprovalModule,
     PrivacyModule,

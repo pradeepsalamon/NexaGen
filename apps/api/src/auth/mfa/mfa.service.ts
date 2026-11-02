@@ -259,13 +259,13 @@ export class MfaService {
       }
       return { challenge, user };
     }
-    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
     this.assertNotStudent(user);
     return { challenge: null, user };
   }
 
   getAuthenticatedUser(accessToken: string | undefined) {
-    return authenticateUser(this.jwtService, this.prisma, accessToken);
+    return authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
   }
 
   assertNotStudent(user: User) {

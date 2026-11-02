@@ -26,6 +26,7 @@ import { AnalyticsEventModule } from "../analytics/analytics-event.module";
 import { WhatsAppModule } from "../whatsapp/whatsapp.module";
 import { MailModule } from "../mail/mail.module";
 import { GameLibraryModule } from "../game-library/game-library.module";
+import { ReferralModule } from "../referral/referral.module";
 
 @Module({
   imports: [
@@ -36,7 +37,8 @@ import { GameLibraryModule } from "../game-library/game-library.module";
     AnalyticsEventModule,
     WhatsAppModule,
     MailModule,
-    GameLibraryModule
+    GameLibraryModule,
+    ReferralModule
   ],
   controllers: [
     LiveClassController,

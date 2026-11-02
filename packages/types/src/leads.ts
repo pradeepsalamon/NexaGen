@@ -62,7 +62,12 @@ export const createLeadRequestSchema = z.object({
   /** Optional; an empty field is sent as "" and stored as no email. */
   email: z
     .union([z.literal(""), z.string().trim().toLowerCase().email("Enter a valid email address").max(254)])
-    .optional()
+    .optional(),
+  /**
+   * The referral code remembered from a `/r/<code>` visit. Fallback only: the
+   * API prefers its own attribution cookie, and an unknown code is ignored.
+   */
+  referralCode: z.string().trim().max(32).optional()
 });
 export type CreateLeadRequest = z.infer<typeof createLeadRequestSchema>;
 

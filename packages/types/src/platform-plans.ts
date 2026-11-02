@@ -35,6 +35,7 @@ export const PLAN_FEATURE_KEYS = [
   "interactiveClassroom",
   "leadsCrm",
   "messagingAutomation",
+  "referralProgram",
   "smartRevision",
   "studentPayments"
 ] as const;
@@ -135,6 +136,12 @@ export const PLAN_FEATURES: Record<PlanFeatureKey, PlanFeatureDefinition> = {
     description: "Automatic email and WhatsApp messages on academy events.",
     key: "messagingAutomation",
     label: "Messaging automation"
+  },
+  referralProgram: {
+    category: "Growth",
+    description: "Referral links for students, coaches and sales staff, a tracked pipeline, reward rules and a credits wallet.",
+    key: "referralProgram",
+    label: "Referral program"
   },
   smartRevision: {
     category: "Learning",
@@ -241,6 +248,7 @@ const GROWTH_FEATURES: PlanFeatureKey[] = [
   "demoClasses",
   "interactiveClassroom",
   "leadsCrm",
+  "referralProgram",
   "smartRevision",
   "studentPayments"
 ];

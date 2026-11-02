@@ -51,7 +51,7 @@ export class AssistantToolRegistry {
     const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
     const tool = this.tools.get(name);
     if (!tool) throw new NotFoundException(`Unknown tool "${name}".`);
-    if (!tool.roles.includes(user.role)) throw new ForbiddenException("This tool is not available to your role.");
+    if (!(tool.roles as readonly string[]).includes(user.role)) throw new ForbiddenException("This tool is not available to your role.");
     if (tool.kind !== "READ") throw new BadRequestException("Only READ tools can run in this version.");
     const parsed = parseOrBadRequest(tool.args, args, "args");
     try {

@@ -30,6 +30,7 @@ import {
 import { DemoInviteService } from "../demo-class/demo-invite.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { parseUserAgent, parseVisitAttribution } from "./lead-tracking.util";
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum } from "../common/query-params";
@@ -62,7 +63,8 @@ export class LeadService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
-    private readonly demoInvites: DemoInviteService
+    private readonly demoInvites: DemoInviteService,
+    private readonly referrals: ReferralTrackerService
   ) {}
 
   // ── Public ──
@@ -75,7 +77,7 @@ export class LeadService {
    */
   async createLead(
     body: CreateLeadRequest,
-    context: { sessionId: string | undefined }
+    context: { sessionId: string | undefined; referralId?: string }
   ): Promise<CreateLeadResponse> {
     const phone = body.phone.replace(/\D/g, "");
 
@@ -108,6 +110,17 @@ export class LeadService {
         }
       }
     });
+
+    // Referral attribution (cookie from a `/r/<code>` visit, else the code the
+    // page remembered). Never throws.
+    if (context.referralId || body.referralCode) {
+      await this.referrals.attachLead({
+        leadId: lead.id,
+        prospectName: lead.studentName,
+        referralCode: body.referralCode,
+        referralId: context.referralId
+      });
+    }
 
     // Fire-and-forget — a notification failure must never fail the public
     // form submission. MailService logs its own failures.
@@ -319,6 +332,7 @@ export class LeadService {
       }
     });
 
+    await this.referrals.onLeadStatus(id, body.status, user.id);
     return { lead: this.toLeadListItem(updated) };
   }
 

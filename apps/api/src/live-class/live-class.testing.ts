@@ -10,6 +10,7 @@ import { LiveClassSpectateService } from "./live-class-spectate.service";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { LiveClassService } from "./live-class.service";
 import { GameRecorderService } from "../game-library/game-recorder.service";
+import { NOOP_REFERRAL_TRACKER } from "../referral/referral.testing";
 import { UNLIMITED_ENTITLEMENTS } from "../platform/entitlement.testing";
 
 /** Every live-class service, real, for specs that stub only the external dependencies. */
@@ -27,4 +28,5 @@ export const LIVE_CLASS_SERVICES = [
   LiveClassWaitingRoomService,
   GameRecorderService,
   UNLIMITED_ENTITLEMENTS,
+  NOOP_REFERRAL_TRACKER,
 ];

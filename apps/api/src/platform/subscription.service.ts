@@ -25,7 +25,8 @@ export class SubscriptionService {
 
   /** Any signed-in user: which features to show. Limits are included for admin-facing copy. */
   async getCurrent(accessToken: string | undefined): Promise<CurrentEntitlementsResponse> {
-    await this.getAuthenticatedUser(accessToken);
+    // Every signed-in role, SALES included: the web app hides nav by plan.
+    await authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
     return this.entitlements.getCurrent();
   }
 

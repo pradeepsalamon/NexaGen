@@ -106,6 +106,7 @@ import { SubscriptionService } from "./subscription.service";
   ],
   exports: [
     BatchPricingService,
+    DiscountService,
     EntitlementService,
     InvoiceService,
     PaymentService,

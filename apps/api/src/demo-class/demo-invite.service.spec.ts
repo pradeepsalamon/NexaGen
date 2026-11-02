@@ -5,6 +5,7 @@ import { MailService } from "../mail/mail.service";
 import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import { NOOP_REFERRAL_TRACKER } from "../referral/referral.testing";
 import { DemoInviteService, demoInvitePath } from "./demo-invite.service";
 
 describe("DemoInviteService", () => {
@@ -46,6 +47,7 @@ describe("DemoInviteService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DemoInviteService,
+        NOOP_REFERRAL_TRACKER,
         { provide: PrismaService, useValue: prisma },
         { provide: MailService, useValue: { sendDemoClassInvitation } },
         { provide: SystemMessageRenderer, useValue: { render: jest.fn().mockResolvedValue({ body: "Invited" }) } },

@@ -19,6 +19,7 @@ import {
 import { MailService } from "../mail/mail.service";
 import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { formatDemoTime } from "../messaging/messaging.format";
+import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 
@@ -64,7 +65,8 @@ export class DemoInviteService {
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly messages: SystemMessageRenderer,
-    private readonly whatsapp: WhatsAppService
+    private readonly whatsapp: WhatsAppService,
+    private readonly referrals: ReferralTrackerService
   ) {}
 
   /** Same normalization the public join page uses — the dedupe/match key. */
@@ -185,6 +187,7 @@ export class DemoInviteService {
       }
     });
 
+    await this.referrals.onLeadEvent(lead.id, "DEMO_BOOKED", actorId);
     if (created && notify) void this.sendInvitation(demoClass, target, inviteToken);
     return created;
   }

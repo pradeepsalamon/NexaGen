@@ -34,7 +34,10 @@ export const RETENTION_RULES: readonly FixedRetentionRuleDef[] = [
   // Help-centre searches (free text typed by students, who are minors): only
   // the recent window feeds the unanswered inbox and topic trends.
   { column: "createdAt", days: 90, label: "Help-centre searches", table: "knowledge_search_logs" },
-  { column: "createdAt", days: 365, label: "Emails sent by staff", table: "direct_emails" }
+  { column: "createdAt", days: 365, label: "Emails sent by staff", table: "direct_emails" },
+  // One row per referral-link hit; the referral itself (and its stage history)
+  // stays, so only the raw visit counts age out.
+  { column: "createdAt", days: 365, label: "Referral link visits", table: "referral_visits" }
 ];
 
 /**

@@ -33,6 +33,7 @@ import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { formatDemoTime } from "../messaging/messaging.format";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { signDemoGuestToken } from "./demo-guest-token";
+import { ReferralTrackerService } from "../referral/referral-tracker.service";
 
 /** Public demo classes: guest registration, access modes and the guest join token. */
 @Injectable()
@@ -47,7 +48,8 @@ export class LiveClassDemoService {
     private readonly mail: MailService,
     private readonly messages: SystemMessageRenderer,
     private readonly waitingRoom: LiveClassWaitingRoomService,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    private readonly referrals: ReferralTrackerService
   ) {}
 
   /**
@@ -336,6 +338,7 @@ export class LiveClassDemoService {
       await this.prisma.leadActivity.create({
         data: { leadId, activityType: "DEMO_ATTENDED", title: `Joined demo class: ${topic}` }
       });
+      await this.referrals.onLeadEvent(leadId, "DEMO_ATTENDED");
     } catch (error) {
       this.logger.warn(`Could not mark lead ${leadId} as attended: ${(error as Error).message}`);
     }

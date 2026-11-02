@@ -1,4 +1,4 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { ForbiddenException, UnauthorizedException } from "@nestjs/common";
 import type { JwtService } from "@nestjs/jwt";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { setTag, setUser } from "@sentry/nestjs";
@@ -32,23 +32,31 @@ export async function verifyAccessToken(
   return payload;
 }
 
+/**
+ * Options for `authenticateUser`. `allowSales` lets a SALES account through:
+ * the role exists only for the referral board, so every other service refuses
+ * it here by default (docs/REFERRALS.md § "The SALES role").
+ */
+export type AuthenticateOptions = { allowSales?: boolean };
+
 /** Verifies the token and loads the user, who must still be ACTIVE. */
 export function authenticateUser(
   jwtService: JwtService,
   prisma: PrismaService,
-  accessToken: string | undefined
+  accessToken: string | undefined,
+  args?: AuthenticateOptions
 ): Promise<Prisma.UserGetPayload<object>>;
 export function authenticateUser<I extends Prisma.UserInclude>(
   jwtService: JwtService,
   prisma: PrismaService,
   accessToken: string | undefined,
-  args: { include: I }
+  args: { include: I } & AuthenticateOptions
 ): Promise<Prisma.UserGetPayload<{ include: I }>>;
 export async function authenticateUser(
   jwtService: JwtService,
   prisma: PrismaService,
   accessToken: string | undefined,
-  args?: { include: Prisma.UserInclude }
+  args?: { include?: Prisma.UserInclude } & AuthenticateOptions
 ) {
   const payload = await verifyAccessToken(jwtService, accessToken);
   const [user, session] = await Promise.all([
@@ -57,7 +65,7 @@ export async function authenticateUser(
       // The overloads above type the result; comparing the default-args include
       // with the soft-delete client's own include type exceeds tsc's depth limit
       // once User has enough relations (TS2321), so it is not compared here.
-      ...(args ? { include: args.include as never } : {})
+      ...(args?.include ? { include: args.include as never } : {})
     }),
     // An access token outlives nothing it was minted from: logout, a password
     // reset or refresh-token reuse revokes the session family, and that must
@@ -74,6 +82,9 @@ export async function authenticateUser(
   }
   if (payload.sessionId && (!session || session.revokedAt || session.userId !== user.id)) {
     throw new UnauthorizedException("Invalid session.");
+  }
+  if (user.role === UserRole.SALES && !args?.allowSales) {
+    throw new ForbiddenException("Sales accounts can only use the referral board.");
   }
   // Request-scoped; id and role only, never contact details.
   setUser({ id: user.id });

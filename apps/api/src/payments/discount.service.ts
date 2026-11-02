@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import {
   BadRequestException,
   ConflictException,
@@ -22,6 +23,13 @@ import {
   type PrismaTransactionClient
 } from "../prisma/prisma.service";
 import { isUniqueViolation } from "./payments.util";
+
+const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+
+function randomCodeSuffix(length: number): string {
+  const bytes = randomBytes(length);
+  return Array.from(bytes, (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join("");
+}
 
 /** A code either applies, with a computed amount, or it does not, with a reason. */
 export type DiscountResolution =
@@ -68,6 +76,11 @@ export class DiscountService {
     const discount = await this.prisma.discount.findUnique({ where: { code } });
     if (!discount) return this.reject("NOT_FOUND");
     if (!discount.isActive) return this.reject("INACTIVE");
+    // A personal code (referral credits) exists for one account only; to anyone
+    // else it does not exist at all.
+    if (discount.restrictedToUserId && discount.restrictedToUserId !== input.userId) {
+      return this.reject("NOT_FOUND");
+    }
 
     const now = new Date();
     if (discount.startsAt && discount.startsAt > now) {
@@ -181,11 +194,60 @@ export class DiscountService {
     }
   }
 
+  // ── Personal codes (referral credits → fees, docs/REFERRALS.md) ──
+
+  /**
+   * A single-use FIXED code only `userId` can apply. Referral credits pay fees
+   * through this, so the price still changes by a discount and nothing else.
+   * Runs inside the caller's transaction, beside the ledger debit.
+   */
+  async createPersonalCode(
+    tx: PrismaTransactionClient,
+    input: { userId: string; amountMinor: number; currency: string; name: string; createdById: string }
+  ): Promise<Discount> {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const code = `REF${randomCodeSuffix(8)}`;
+      try {
+        return await tx.discount.create({
+          data: {
+            code,
+            createdById: input.createdById,
+            currency: input.currency.toUpperCase(),
+            description: "Referral credits. One use, by this account only.",
+            maxPerUser: 1,
+            maxRedemptions: 1,
+            name: input.name,
+            restrictedToUserId: input.userId,
+            type: "FIXED",
+            value: input.amountMinor
+          }
+        });
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+      }
+    }
+    throw new ConflictException("Could not create a payment code. Try again.");
+  }
+
+  /**
+   * Switches off an unused personal code. False when it was already used or
+   * switched off (status-filtered claim, so a capture racing it wins).
+   */
+  async deactivateUnusedPersonalCode(tx: PrismaTransactionClient, id: string, userId: string): Promise<boolean> {
+    const { count } = await tx.discount.updateMany({
+      data: { isActive: false },
+      where: { id, isActive: true, redemptionCount: 0, restrictedToUserId: userId }
+    });
+    return count === 1;
+  }
+
   // ── Admin CRUD ──
 
   async list(): Promise<DiscountItem[]> {
+    // Personal referral-credit codes belong to the referral wallet, not here.
     const discounts = await this.prisma.discount.findMany({
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      where: { restrictedToUserId: null }
     });
 
     // Resolve scope names in two queries rather than N, so the table reads in
@@ -250,7 +312,7 @@ export class DiscountService {
 
   async update(id: string, dto: UpdateDiscountRequest): Promise<DiscountItem> {
     const existing = await this.prisma.discount.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Discount not found.");
+    if (!existing || existing.restrictedToUserId) throw new NotFoundException("Discount not found.");
 
     this.assertCoherent({
       type: dto.type ?? existing.type,
@@ -299,7 +361,7 @@ export class DiscountService {
       where: { id },
       include: { _count: { select: { redemptions: true, orders: true } } }
     });
-    if (!discount) throw new NotFoundException("Discount not found.");
+    if (!discount || discount.restrictedToUserId) throw new NotFoundException("Discount not found.");
 
     if (discount._count.redemptions > 0 || discount._count.orders > 0) {
       await this.prisma.discount.update({

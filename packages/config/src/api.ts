@@ -15,7 +15,7 @@ const MIN_AI_SECRET_LENGTH = 32;
 const AI_RUNTIME_HOSTS = new Set(["ai-runtime", "localhost", "127.0.0.1"]);
 
 // Mirrors the Prisma UserRole enum (this package has no Prisma dependency).
-const MFA_ROLE_NAMES = ["ADMIN", "COACH", "STUDENT", "SUPER_ADMIN"];
+const MFA_ROLE_NAMES = ["ADMIN", "COACH", "SALES", "STUDENT", "SUPER_ADMIN"];
 
 const apiEnvSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:3000"),

@@ -29,7 +29,7 @@ export const APPROVAL_CATEGORY_LABELS: Record<ApprovalCategory, string> = {
   FINANCE: "Payments & finance",
 };
 
-type ApprovalRole = "SUPER_ADMIN" | "ADMIN" | "COACH" | "STUDENT";
+type ApprovalRole = "SUPER_ADMIN" | "ADMIN" | "COACH" | "STUDENT" | "SALES";
 
 export interface ApprovalActionMeta {
   category: ApprovalCategory;

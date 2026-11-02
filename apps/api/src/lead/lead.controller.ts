@@ -22,6 +22,7 @@ import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { LeadService } from "./lead.service";
 import { TRACKING_COOKIE_NAMES, TRACKING_COOKIE_PATH, VISITOR_ID_MAX_AGE } from "./types/tracking-cookie.types";
 import { RequireFeature } from "../platform/require-feature.decorator";
+import { REFERRAL_COOKIE_NAME } from "../referral/referral.util";
 
 @Controller()
 export class LeadController {
@@ -49,6 +50,7 @@ export class LeadController {
     @Req() request: Request
   ) {
     return this.leadService.createLead(body, {
+      referralId: request.cookies?.[REFERRAL_COOKIE_NAME],
       sessionId: request.cookies?.[TRACKING_COOKIE_NAMES.sessionId]
     });
   }

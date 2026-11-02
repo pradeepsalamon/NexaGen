@@ -16,6 +16,9 @@ enum UserRole {
   ADMIN
   COACH
   STUDENT
+  /// Referral-only account: signs in to the referral board and nothing else
+  /// (enforced in `authenticateUser`, see docs/REFERRALS.md).
+  SALES
 }
 
 enum UserStatus {
@@ -306,7 +309,7 @@ model User {
   emailVerifications              EmailVerificationToken[]
   directEmailsReceived            DirectEmail[]                    @relation("DirectEmailRecipient")
   directEmailsSent                DirectEmail[]                    @relation("DirectEmailSender")
-  deletedRecords                 TrashAuditLog[]                  @relation("TrashAuditDeletedBy")
+  deletedRecords                  TrashAuditLog[]                  @relation("TrashAuditDeletedBy")
   deletedStudentProfiles          StudentProfile[]                 @relation("StudentProfileDeletedBy")
   deletedCoachProfiles            CoachProfile[]                   @relation("CoachProfileDeletedBy")
   deletedBatches                  Batch[]                          @relation("BatchDeletedBy")
@@ -454,6 +457,20 @@ model User {
   knowledgeVersionsReviewed KnowledgeArticleVersion[] @relation("KnowledgeVersionReviewer")
   knowledgeEvents           KnowledgeArticleEvent[]   @relation("KnowledgeEventActor")
   knowledgeFeedback         KnowledgeFeedback[]       @relation("KnowledgeFeedbackUser")
+
+  // ── Referral program (docs/REFERRALS.md) ──
+  referralCode               ReferralCode?         @relation("ReferralCodeOwner")
+  referralsMade              Referral[]            @relation("ReferralReferrer")
+  referralStageEvents        ReferralStageEvent[]  @relation("ReferralStageEventActor")
+  referralRewards            ReferralReward[]      @relation("ReferralRewardReferrer")
+  referralRewardsReviewed    ReferralReward[]      @relation("ReferralRewardReviewer")
+  referralRewardRulesCreated ReferralRewardRule[]  @relation("ReferralRewardRuleCreatedBy")
+  referralCreditEntries      ReferralCreditEntry[] @relation("ReferralCreditOwner")
+  referralCreditEntriesMade  ReferralCreditEntry[] @relation("ReferralCreditCreatedBy")
+  referralWithdrawals        ReferralWithdrawal[]  @relation("ReferralWithdrawalOwner")
+  referralWithdrawalsHandled ReferralWithdrawal[]  @relation("ReferralWithdrawalReviewer")
+  referralSettingsUpdates    ReferralSettings[]    @relation("ReferralSettingsUpdatedBy")
+  personalDiscounts          Discount[]            @relation("DiscountRestrictedTo")
 
   @@index([role])
   @@index([status])
@@ -1082,7 +1099,7 @@ model VisitorSession {
 /// (contacts, schedules an actual demo, converts to an enrolled student),
 /// not yet a signup for a specific scheduled class.
 model Lead {
-  id              String @id @default(cuid())
+  id              String  @id @default(cuid())
   studentName     String
   parentName      String
   studentAge      Int
@@ -1113,6 +1130,7 @@ model Lead {
   activities        LeadActivity[]
   notes             LeadNote[]
   demoRegistrations DemoClassRegistration[]
+  referral          Referral?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2218,7 +2236,7 @@ model PuzzleTopic {
 
   puzzles             Puzzle[]
   libraryActivities   LibraryActivity[]
-  homeworkAssignments Assignment[]   @relation("AssignmentSourceTopic")
+  homeworkAssignments Assignment[]      @relation("AssignmentSourceTopic")
   revisionItems       RevisionItem[]
 
   createdAt     DateTime  @default(now())
@@ -4076,6 +4094,12 @@ model Discount {
   redemptions DiscountRedemption[]
   orders      Order[]
 
+  /// A personal code (a referral-credit payment code): only this account may
+  /// apply it. Null = any account. Restrict: a financial record outlives no one.
+  restrictedToUserId    String?
+  restrictedToUser      User?                 @relation("DiscountRestrictedTo", fields: [restrictedToUserId], references: [id], onDelete: Restrict)
+  referralCreditEntries ReferralCreditEntry[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -4689,7 +4713,7 @@ model ApprovalRequest {
   requestedValue Json
   reason         String
   details        Json?
-  urgent         Boolean   @default(false)
+  urgent         Boolean  @default(false)
   dedupeKey      String
   expiresAt      DateTime
 
@@ -5558,9 +5582,9 @@ model LiveClassPlayoutGame {
   startFen      String
   fen           String
   /// Half-moves played; every write is claimed with `where ply = <seen>`.
-  ply           Int              @default(0)
-  movesJson     Json             @default("[]")
-  pgn           String           @default("")
+  ply           Int    @default(0)
+  movesJson     Json   @default("[]")
+  pgn           String @default("")
   engineSkill   Int
   engineMoveMs  Int
 
@@ -6136,7 +6160,7 @@ model RetentionPolicy {
 
   /// When an admin last set `days`. Not @updatedAt: the sweep's own writes
   /// below must not read as an admin change.
-  changedAt   DateTime?
+  changedAt DateTime?
 
   /// The last sweep that applied this policy, and how many rows it deleted.
   lastSweptAt      DateTime?
@@ -6145,4 +6169,315 @@ model RetentionPolicy {
   createdAt DateTime @default(now())
 
   @@map("retention_policies")
+}
+
+//
+// REFERRAL PROGRAM (docs/REFERRALS.md)
+//
+
+/// What moves a referral into a stage on its own. MANUAL stages are only
+/// entered by an admin; each other trigger names at most one stage.
+enum ReferralStageTrigger {
+  MANUAL
+  LINK_VISITED
+  DEMO_BOOKED
+  DEMO_ATTENDED
+  CONVERTED
+  LOST
+}
+
+enum ReferralRewardKind {
+  /// Once per referral that reaches the stage.
+  PER_REFERRAL
+  /// Once each time the referrer's count of referrals at the stage reaches a
+  /// multiple of `milestoneCount`.
+  MILESTONE
+}
+
+enum ReferralRewardStatus {
+  PENDING
+  CREDITED
+  CANCELLED
+}
+
+enum ReferralCreditEntryType {
+  REWARD
+  REWARD_REVERSAL
+  WITHDRAWAL
+  WITHDRAWAL_REVERSAL
+  PAYMENT_CODE
+  PAYMENT_CODE_REVERSAL
+  ADJUSTMENT
+}
+
+enum ReferralWithdrawalStatus {
+  REQUESTED
+  PAID
+  REJECTED
+  CANCELLED
+}
+
+/// Admin-editable pipeline. `position` orders the board; automatic moves only
+/// ever go forward by position and never out of a CONVERTED/LOST stage.
+model ReferralStage {
+  id          String               @id @default(cuid())
+  name        String
+  description String?
+  /// A Badge variant name (`ReferralStageTone` in @nexa-chess/types).
+  tone        String               @default("secondary")
+  position    Int
+  trigger     ReferralStageTrigger @default(MANUAL)
+
+  referrals   Referral[]
+  reaches     ReferralStageReach[]
+  eventsFrom  ReferralStageEvent[] @relation("ReferralStageEventFrom")
+  eventsTo    ReferralStageEvent[] @relation("ReferralStageEventTo")
+  rewardRules ReferralRewardRule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([position])
+  @@map("referral_stages")
+}
+
+/// One shareable code per referrer (`/r/<code>`).
+model ReferralCode {
+  id       String  @id @default(cuid())
+  /// Stored uppercase; matched uppercase.
+  code     String  @unique
+  userId   String  @unique
+  user     User    @relation("ReferralCodeOwner", fields: [userId], references: [id], onDelete: Cascade)
+  isActive Boolean @default(true)
+
+  referrals Referral[]
+  visits    ReferralVisit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("referral_codes")
+}
+
+/// Every hit on a referral link (log table; `RETENTION_RULES`). Unique visitors
+/// become `Referral` rows.
+model ReferralVisit {
+  id         String       @id @default(cuid())
+  codeId     String
+  code       ReferralCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  referralId String?
+  referral   Referral?    @relation(fields: [referralId], references: [id], onDelete: SetNull)
+  visitorId  String
+  landingUrl String?
+  referrer   String?
+  deviceType String?
+  createdAt  DateTime     @default(now())
+
+  @@index([codeId, createdAt])
+  @@index([referralId])
+  @@index([createdAt])
+  @@map("referral_visits")
+}
+
+/// A person a referrer brought in, from their first visit onwards.
+model Referral {
+  id         String        @id @default(cuid())
+  codeId     String
+  code       ReferralCode  @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  referrerId String
+  referrer   User          @relation("ReferralReferrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  /// The browser's visitor cookie. Null when the referral started from a typed
+  /// code rather than a visit.
+  visitorId  String?
+  leadId     String?       @unique
+  lead       Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  stageId    String
+  stage      ReferralStage @relation(fields: [stageId], references: [id], onDelete: Restrict)
+
+  /// Name captured from the lead (first name + initial is all a referrer sees).
+  prospectName String?
+
+  stageChangedAt DateTime  @default(now())
+  convertedAt    DateTime?
+
+  visits  ReferralVisit[]
+  reaches ReferralStageReach[]
+  events  ReferralStageEvent[]
+  rewards ReferralReward[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([codeId, visitorId])
+  @@index([referrerId, stageId])
+  @@index([stageId])
+  @@index([createdAt])
+  @@map("referrals")
+}
+
+/// Every stage a referral has reached (including the earlier stages a jump
+/// skipped). Rewards and milestone counts read this, never the current stage.
+model ReferralStageReach {
+  id         String        @id @default(cuid())
+  referralId String
+  referral   Referral      @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  stageId    String
+  stage      ReferralStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  reachedAt  DateTime      @default(now())
+
+  @@unique([referralId, stageId])
+  @@index([stageId])
+  @@map("referral_stage_reaches")
+}
+
+/// Append-only history of stage moves.
+model ReferralStageEvent {
+  id          String         @id @default(cuid())
+  referralId  String
+  referral    Referral       @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  fromStageId String?
+  fromStage   ReferralStage? @relation("ReferralStageEventFrom", fields: [fromStageId], references: [id], onDelete: SetNull)
+  toStageId   String?
+  toStage     ReferralStage? @relation("ReferralStageEventTo", fields: [toStageId], references: [id], onDelete: SetNull)
+  /// Null = automatic (visit, demo booking, attendance).
+  actorId     String?
+  actor       User?          @relation("ReferralStageEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  note        String?
+  createdAt   DateTime       @default(now())
+
+  @@index([referralId, createdAt])
+  @@map("referral_stage_events")
+}
+
+model ReferralRewardRule {
+  id             String             @id @default(cuid())
+  name           String
+  description    String?
+  stageId        String
+  stage          ReferralStage      @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  kind           ReferralRewardKind @default(PER_REFERRAL)
+  milestoneCount Int?
+  /// Integer minor units.
+  amountMinor    Int
+  currency       String             @default("INR")
+  /// Empty = every referrer role.
+  roles          UserRole[]
+  /// Off = each reward waits for an admin before it becomes credits.
+  autoApprove    Boolean            @default(false)
+  isActive       Boolean            @default(true)
+
+  createdById String?
+  createdBy   User?   @relation("ReferralRewardRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  rewards ReferralReward[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stageId])
+  @@map("referral_reward_rules")
+}
+
+/// A reward a referrer earned. Financial: never soft-deleted; user Restrict.
+model ReferralReward {
+  id           String               @id @default(cuid())
+  ruleId       String
+  rule         ReferralRewardRule   @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  referrerId   String
+  referrer     User                 @relation("ReferralRewardReferrer", fields: [referrerId], references: [id], onDelete: Restrict)
+  referralId   String?
+  referral     Referral?            @relation(fields: [referralId], references: [id], onDelete: SetNull)
+  /// `rule:<id>:ref:<id>` or `rule:<id>:user:<id>:n:<k>` — one reward per fact.
+  dedupeKey    String               @unique
+  amountMinor  Int
+  currency     String
+  status       ReferralRewardStatus @default(PENDING)
+  description  String
+  reviewedById String?
+  reviewedBy   User?                @relation("ReferralRewardReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  creditedAt   DateTime?
+
+  creditEntries ReferralCreditEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([referrerId, createdAt])
+  @@index([status])
+  @@map("referral_rewards")
+}
+
+/// Append-only credits ledger; a user's balance is the sum of `amountMinor`.
+model ReferralCreditEntry {
+  id           String                  @id @default(cuid())
+  userId       String
+  user         User                    @relation("ReferralCreditOwner", fields: [userId], references: [id], onDelete: Restrict)
+  type         ReferralCreditEntryType
+  /// Signed integer minor units: + earns, - spends.
+  amountMinor  Int
+  currency     String
+  rewardId     String?
+  reward       ReferralReward?         @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  withdrawalId String?
+  withdrawal   ReferralWithdrawal?     @relation(fields: [withdrawalId], references: [id], onDelete: Restrict)
+  discountId   String?
+  discount     Discount?               @relation(fields: [discountId], references: [id], onDelete: Restrict)
+  note         String?
+  createdById  String?
+  createdBy    User?                   @relation("ReferralCreditCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime                @default(now())
+
+  @@index([userId, createdAt])
+  @@index([rewardId])
+  @@index([withdrawalId])
+  @@index([discountId])
+  @@map("referral_credit_entries")
+}
+
+model ReferralWithdrawal {
+  id              String                   @id @default(cuid())
+  userId          String
+  user            User                     @relation("ReferralWithdrawalOwner", fields: [userId], references: [id], onDelete: Restrict)
+  amountMinor     Int
+  currency        String
+  /// Where to pay (UPI id / bank details) as the referrer typed it.
+  payoutDetails   String
+  status          ReferralWithdrawalStatus @default(REQUESTED)
+  adminNote       String?
+  payoutReference String?
+  reviewedById    String?
+  reviewedBy      User?                    @relation("ReferralWithdrawalReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt      DateTime?
+
+  creditEntries ReferralCreditEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("referral_withdrawals")
+}
+
+/// Singleton (`id = "default"`): program switches.
+model ReferralSettings {
+  id                 String     @id @default("default")
+  enabled            Boolean    @default(true)
+  /// Roles that get a referral link (SALES always does).
+  referrerRoles      UserRole[] @default([STUDENT, COACH, SALES])
+  /// Days a referral link's cookie keeps attributing a demo booking.
+  attributionDays    Int        @default(30)
+  currency           String     @default("INR")
+  withdrawalRoles    UserRole[] @default([COACH, SALES])
+  minWithdrawalMinor Int        @default(50000)
+  paymentUseRoles    UserRole[] @default([STUDENT])
+  /// Shown on the referrer's board.
+  programTerms       String?
+
+  updatedById String?
+  updatedBy   User?    @relation("ReferralSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedAt   DateTime @updatedAt
+
+  @@map("referral_settings")
 }

@@ -760,6 +760,39 @@ export const API_ROUTES = {
     occurrenceAction: (classId: string = ":classId") =>
       `/batch-schedules/occurrences/${classId}`
   },
+  referrals: {
+    /** Public: records a referral-link visit and sets the attribution cookie. */
+    visit: "/referrals/visit",
+    me: "/referrals/me",
+    myReferrals: "/referrals/me/referrals",
+    myRewards: "/referrals/me/rewards",
+    myCredits: "/referrals/me/credits",
+    myWithdrawals: "/referrals/me/withdrawals",
+    cancelWithdrawal: (id: string = ":id") => `/referrals/me/withdrawals/${id}/cancel`,
+    myPaymentCodes: "/referrals/me/payment-codes",
+    cancelPaymentCode: (id: string = ":id") => `/referrals/me/payment-codes/${id}/cancel`
+  },
+  adminReferrals: {
+    overview: "/admin/referrals/overview",
+    list: "/admin/referrals",
+    get: (id: string = ":id") => `/admin/referrals/${id}`,
+    moveStage: (id: string = ":id") => `/admin/referrals/${id}/stage`,
+    referrers: "/admin/referrals/referrers",
+    referrerCode: (userId: string = ":userId") => `/admin/referrals/referrers/${userId}/code`,
+    stages: "/admin/referrals/stages",
+    stage: (id: string = ":id") => `/admin/referrals/stages/${id}`,
+    reorderStages: "/admin/referrals/stages/reorder",
+    rewardRules: "/admin/referrals/reward-rules",
+    rewardRule: (id: string = ":id") => `/admin/referrals/reward-rules/${id}`,
+    rewards: "/admin/referrals/rewards",
+    approveReward: (id: string = ":id") => `/admin/referrals/rewards/${id}/approve`,
+    cancelReward: (id: string = ":id") => `/admin/referrals/rewards/${id}/cancel`,
+    withdrawals: "/admin/referrals/withdrawals",
+    payWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/pay`,
+    rejectWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/reject`,
+    adjustCredits: "/admin/referrals/credits/adjust",
+    settings: "/admin/referrals/settings"
+  },
   leads: {
     create: "/leads",
     tracking: "/leads/tracking"
