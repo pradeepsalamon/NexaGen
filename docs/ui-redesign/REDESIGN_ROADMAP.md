@@ -82,7 +82,7 @@ See [M0_REPORT.md](M0_REPORT.md) for detail and recommendations.
 
 | # | Item | Blocks |
 |---|---|---|
-| **N1** | The drawer's Chess Rating card is gone on `dev`, and students no longer see their rating on their dashboard | M3 or M5 |
+| **N1** | Resolved in M5: the drawer's Chess Rating card stays gone on `dev`; students see their rating as a dashboard tile when they have one | Done |
 | **N2** | `Lead.email` is a schema and API change that reaches `main` through this branch | Merge to `main` |
 | **N3** | The owner's 16/24 body text differs from v2's 14/20 default UI text. The owner's decision is applied, so v2's type tokens need remapping | M1 |
 | **N4** | Header colour: v2 specifies a navy app header, the Patterns board shows white. **Owner decided navy, 2026-11-02** | Nothing |
@@ -141,7 +141,7 @@ Everything marked P0 and P1 in [COMPONENT_INVENTORY.md](COMPONENT_INVENTORY.md) 
 
 `Header`, `NavDrawer` per D2, role sidebars, `UserNavMenu`, notifications popover, `ThemeToggle`, `PageHeader` with breadcrumbs, `FormPageShell`, one content width, `PageLoading`, `not-found`, `global-error`, `PlanUpgradeNotice`.
 
-**Built 2026-11-02, not signed off.** Breadcrumbs exist with one use; other pages adopt them in their own milestones. Still unchecked: signing in as each role, a joined live room, the drawer's drag gesture on a real touch screen.
+**Built 2026-11-02, not signed off.** Breadcrumbs exist with one use; other pages adopt them in their own milestones. N1 was resolved in M5. Still unchecked: signing in as each role, a joined live room, the drawer's drag gesture on a real touch screen.
 
 Fixes known issues: edge-hover dimming, the tab covering content on phones, gold-as-status in the drawer, unnamed drawer states.
 
@@ -158,6 +158,8 @@ Layout comes from the reference images' authentication pattern. The Registration
 ### M5. Student area (L)
 
 Dashboard first as the template, then schedule, live classes, batches, assignments, training, revision, progress, insights, courses, attendance. Billing waits for M8.
+
+**Dashboard built 2026-11-02**, checked on a mocked API only. The other student pages are not started.
 
 **Standardises:** `ClassRow`, `StatCard`, `ScheduleCalendar`, Practice board pattern, Progress template.
 **Fixes:** fake recording controls, truncated phone labels, competing primary actions.

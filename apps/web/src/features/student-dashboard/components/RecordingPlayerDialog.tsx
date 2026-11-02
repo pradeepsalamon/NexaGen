@@ -99,21 +99,21 @@ export function RecordingPlayerDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl w-[95vw] h-[85dvh] flex flex-col p-0 overflow-hidden rounded-2xl bg-nx-night border border-white/15 shadow-2xl">
-        <DialogHeader className="px-5 py-3.5 bg-nx-night-card/95 backdrop-blur-md z-10 border-b border-white/10 absolute top-0 w-full">
-          <DialogTitle className="flex items-center gap-2.5 text-sm sm:text-base font-bold text-white">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-nx-midnight border border-nx-gold-400/30 text-nx-gold-400">
+      <DialogContent className="max-w-4xl w-[95vw] h-[85dvh] flex flex-col p-0 overflow-hidden rounded-2xl bg-brand-900 border border-on-brand/15 shadow-2xl">
+        <DialogHeader className="px-5 py-3.5 bg-brand-800/95 backdrop-blur-md z-10 border-b border-on-brand/10 absolute top-0 w-full">
+          <DialogTitle className="flex items-center gap-2.5 text-sm sm:text-base font-bold text-on-brand">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-700 border border-accent/30 text-accent">
               <Video className="size-4" strokeWidth={2} />
             </span>
             <span className="truncate">{topic} Recording</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 flex items-center justify-center bg-black pt-[60px] pb-4 px-4 w-full h-full relative">
+        <div className="flex-1 flex items-center justify-center bg-scrim pt-[60px] pb-4 px-4 w-full h-full relative">
           {isLoading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/60 z-10">
-              <Loader2 className="size-8 animate-spin text-nx-gold-400 mb-3" />
-              <p className="text-xs sm:text-sm font-medium text-nx-mist">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-on-scrim bg-scrim/60 z-10">
+              <Loader2 className="size-8 animate-spin text-accent mb-3" />
+              <p className="text-xs sm:text-sm font-medium text-on-brand-muted">
                 Loading recording...
               </p>
             </div>
