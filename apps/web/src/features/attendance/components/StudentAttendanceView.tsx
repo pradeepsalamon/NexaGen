@@ -236,7 +236,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                   setSearchQuery("");
                 }}
               >
-                Reset Filters
+                Reset filters
               </Button>
             )}
           </div>

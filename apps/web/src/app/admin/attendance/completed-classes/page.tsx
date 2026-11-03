@@ -10,6 +10,7 @@ import {
   Eye,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { apiFetch } from "@/lib/api";
@@ -25,6 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default function AdminCompletedClassesPage() {
   const router = useRouter();
@@ -79,20 +81,17 @@ export default function AdminCompletedClassesPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-7xl p-4 sm:p-6">
-      <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-          Completed classes
-        </h1>
-        <p className="text-app-muted mt-1">
-          View all completed and cancelled live classes
-        </p>
-      </div>
+    <div className="animate-fade-in space-y-6 pb-10">
+      <PageHeader
+        breadcrumbs={[{ href: "/admin/attendance", label: "Attendance" }, { label: "Completed classes" }]}
+        description="Every completed and cancelled live class."
+        title="Completed classes"
+      />
 
       {/* Filters */}
       <Card className="border-app-border bg-app-surface shadow-card">
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-end justify-end gap-4">
+          <div className="grid grid-cols-2 items-end gap-4 sm:flex sm:flex-wrap sm:justify-end">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-app-muted">
                 From
@@ -104,7 +103,7 @@ export default function AdminCompletedClassesPage() {
                   setDateFrom(value);
                   setPage(1);
                 }}
-                className="w-44" placeholder="Any date"
+                className="w-full sm:w-44" placeholder="Any date"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -118,7 +117,7 @@ export default function AdminCompletedClassesPage() {
                   setDateTo(value);
                   setPage(1);
                 }}
-                className="w-44" placeholder="Any date"
+                className="w-full sm:w-44" placeholder="Any date"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -136,7 +135,7 @@ export default function AdminCompletedClassesPage() {
                   { label: "Completed", value: "completed" },
                   { label: "Cancelled", value: "cancelled" },
                 ]}
-                className="w-40"
+                className="w-full sm:w-40"
               />
             </div>
             <Button
@@ -149,7 +148,7 @@ export default function AdminCompletedClassesPage() {
                 setPage(1);
               }}
             >
-              Clear Filters
+              Clear filters
             </Button>
           </div>
         </CardContent>
@@ -160,15 +159,11 @@ export default function AdminCompletedClassesPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
         </div>
       ) : !data || filteredClasses.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-[40dvh] text-center">
-          <div className="p-4 bg-app-soft rounded-full mb-4">
-            <CalendarX className="h-10 w-10 text-app-muted" />
-          </div>
-          <h2 className="text-xl font-semibold mb-2">No Classes Found</h2>
-          <p className="text-app-muted max-w-md">
-            No completed or cancelled classes match the current filters.
-          </p>
-        </div>
+        <EmptyState
+          description="No completed or cancelled classes match the current filters."
+          icon={CalendarX}
+          title="No classes found"
+        />
       ) : (
         <>
           <Card className="border-app-border bg-app-surface shadow-card overflow-hidden">

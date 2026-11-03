@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, CalendarX, Users, Clock } from "lucide-react";
+import { CalendarCheck, CalendarX, Clock, Loader2, Users } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { StatTile } from "@/components/ui/StatTile";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api";
@@ -12,11 +14,11 @@ import {
 } from "@nexa-chess/types";
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
 import { CoachAttendanceDialog } from "@/features/attendance/components/CoachAttendanceDialog";
-import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default function AdminCoachTeachingPage() {
   const [data, setData] = useState<AdminCoachTeachingReport | null>(null);
@@ -81,22 +83,17 @@ export default function AdminCoachTeachingPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <Breadcrumbs items={[{ href: "/admin/attendance", label: "Attendance" }, { label: "Coach teaching report" }]} />
-
-      <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-          Coach teaching report
-        </h1>
-        <p className="text-app-muted mt-1">
-          Teaching statistics and completion rates for all coaches
-        </p>
-      </div>
+    <div className="animate-fade-in space-y-6 pb-10">
+      <PageHeader
+        breadcrumbs={[{ href: "/admin/attendance", label: "Attendance" }, { label: "Coach teaching report" }]}
+        description="Teaching statistics and completion rates for all coaches."
+        title="Coach teaching report"
+      />
 
       {/* Filters */}
       <Card className="border-app-border bg-app-surface shadow-card">
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-end justify-end gap-4">
+          <div className="grid grid-cols-2 items-end gap-4 sm:flex sm:flex-wrap sm:justify-end">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-app-muted">
                 From
@@ -105,7 +102,7 @@ export default function AdminCoachTeachingPage() {
                 
                 value={dateFrom}
                 onChange={(value) => setDateFrom(value)}
-                className="w-44" placeholder="Any date"
+                className="w-full sm:w-44" placeholder="Any date"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -116,14 +113,14 @@ export default function AdminCoachTeachingPage() {
                 
                 value={dateTo}
                 onChange={(value) => setDateTo(value)}
-                className="w-44" placeholder="Any date"
+                className="w-full sm:w-44" placeholder="Any date"
               />
             </div>
             <Button onClick={loadReport} disabled={isLoading}>
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              Generate Report
+              Generate report
             </Button>
           </div>
         </CardContent>
@@ -134,66 +131,17 @@ export default function AdminCoachTeachingPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
         </div>
       ) : coaches.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-[40dvh] text-center">
-          <div className="p-4 bg-app-soft rounded-full mb-4">
-            <CalendarX className="h-10 w-10 text-app-muted" />
-          </div>
-          <h2 className="text-xl font-semibold mb-2">No Coach Data</h2>
-          <p className="text-app-muted max-w-md">
-            No teaching data found for the selected date range.
-          </p>
-        </div>
+        <EmptyState
+          description="No teaching data found for the selected date range."
+          icon={CalendarX}
+          title="No coach data"
+        />
       ) : (
         <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <Card className="border-app-border bg-app-surface shadow-card">
-              <CardContent className="p-5 flex flex-col justify-center h-full">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="p-2 rounded-control bg-primary/10 border border-primary/20">
-                    <Users className="h-5 w-5 text-primary-ink" />
-                  </span>
-                </div>
-                <p className="text-3xl font-bold tracking-tight">
-                  {coaches.length}
-                </p>
-                <p className="text-sm font-medium text-app-muted mt-1">
-                  Total Coaches
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-app-border bg-app-surface shadow-card">
-              <CardContent className="p-5 flex flex-col justify-center h-full">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="p-2 rounded-control bg-success/10 border border-success/20">
-                    <CalendarX className="h-5 w-5 text-success-ink" />
-                  </span>
-                </div>
-                <p className="text-3xl font-bold tracking-tight">
-                  {totalClasses}
-                </p>
-                <p className="text-sm font-medium text-app-muted mt-1">
-                  Total Classes
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-app-border bg-app-surface shadow-card">
-              <CardContent className="p-5 flex flex-col justify-center h-full">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="p-2 rounded-control bg-accent/10 border border-accent/20">
-                    <Clock className="h-5 w-5 text-accent-ink" />
-                  </span>
-                </div>
-                <p className="text-3xl font-bold tracking-tight">
-                  {formatHours(totalActualHours)}
-                </p>
-                <p className="text-sm font-medium text-app-muted mt-1">
-                  Total Actual Hours
-                </p>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+            <StatTile icon={Users} label="Coaches" tone="primary" value={String(coaches.length)} />
+            <StatTile icon={CalendarCheck} label="Classes" tone="primary" value={String(totalClasses)} />
+            <StatTile icon={Clock} label="Actual hours" tone="accent" value={formatHours(totalActualHours)} />
           </div>
 
           {/* Table */}
@@ -207,10 +155,10 @@ export default function AdminCoachTeachingPage() {
                   <TableHeader className="text-xs bg-app-background border-b border-app-border text-app-muted">
                     <TableRow>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        <SortButton label="Coach Name" {...sortProps("name")} />
+                        <SortButton label="Coach" {...sortProps("name")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        <SortButton label="Total Classes" {...sortProps("total")} />
+                        <SortButton label="Classes" {...sortProps("total")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         <SortButton label="Completed" {...sortProps("completed")} />
@@ -219,13 +167,13 @@ export default function AdminCoachTeachingPage() {
                         <SortButton label="Cancelled" {...sortProps("cancelled")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        <SortButton label="Scheduled Hours" {...sortProps("scheduledHours")} />
+                        <SortButton label="Scheduled hours" {...sortProps("scheduledHours")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        <SortButton label="Actual Hours" {...sortProps("actualHours")} />
+                        <SortButton label="Actual hours" {...sortProps("actualHours")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        <SortButton label="Avg Duration" {...sortProps("avgDuration")} />
+                        <SortButton label="Avg duration" {...sortProps("avgDuration")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         <SortButton label="Completion %" {...sortProps("completion")} />

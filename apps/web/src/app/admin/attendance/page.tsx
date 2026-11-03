@@ -121,7 +121,7 @@ export default function AdminAttendanceDashboardPage() {
       />
 
       <section aria-labelledby="attendance-today" className="space-y-4">
-        <h2 className="text-lg font-extrabold text-app-text" id="attendance-today">Today</h2>
+        <h2 className="text-lg font-bold text-app-text" id="attendance-today">Today</h2>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
           {todayTiles.map((tile) => (
             <StatTile icon={tile.icon} key={tile.label} label={tile.label} tone={tile.tone} value={String(tile.value)} />
@@ -157,7 +157,7 @@ export default function AdminAttendanceDashboardPage() {
       </SectionCard>
 
       <section aria-labelledby="attendance-more" className="space-y-4">
-        <h2 className="text-lg font-extrabold text-app-text" id="attendance-more">More reports</h2>
+        <h2 className="text-lg font-bold text-app-text" id="attendance-more">More reports</h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {MORE_REPORTS.map(({ description, href, icon: Icon, title }) => (
             <Link

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Save, Settings } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { API_ROUTES, type AttendancePolicy, type UpdateAttendancePolicy } from "@nexa-chess/types";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default function AttendancePolicyPage() {
   const [, setPolicy] = useState<AttendancePolicy | null>(null);
@@ -55,10 +56,10 @@ export default function AttendancePolicyPage() {
       
       // Basic validation
       if (payload.presentThreshold! <= payload.lateThreshold!) {
-        throw new Error("Present threshold must be higher than Late threshold");
+        throw new Error("The present threshold must be higher than the late threshold");
       }
       if (payload.lateThreshold! <= payload.partialThreshold!) {
-        throw new Error("Late threshold must be higher than Partial threshold");
+        throw new Error("The late threshold must be higher than the partial threshold");
       }
       
       const result = await apiFetch<AttendancePolicy>(API_ROUTES.attendance.policy, {
@@ -84,20 +85,16 @@ export default function AttendancePolicyPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 p-6">
-      <div className="flex items-center gap-3 mb-8 border-b border-app-border pb-4">
-        <div className="p-2 bg-primary/10 rounded-control border border-primary/20">
-          <Settings className="w-6 h-6 text-primary-ink" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Attendance policy</h1>
-          <p className="text-app-muted text-sm mt-1">Configure global attendance thresholds and calculation rules</p>
-        </div>
-      </div>
+    <div className="animate-fade-in mx-auto max-w-4xl space-y-6 pb-10">
+      <PageHeader
+        breadcrumbs={[{ href: "/admin/attendance", label: "Attendance" }, { label: "Policy" }]}
+        description="Global attendance thresholds and calculation rules."
+        title="Attendance policy"
+      />
 
       <Card className="border-app-border bg-app-surface shadow-card">
         <CardHeader>
-          <CardTitle>Calculation Thresholds</CardTitle>
+          <CardTitle>Calculation thresholds</CardTitle>
           <CardDescription>
             These percentages determine the final status assigned to a student when a class ends.
             Calculated as: (Total time in class / Scheduled class duration) × 100
@@ -106,14 +103,15 @@ export default function AttendancePolicyPage() {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-success"></span>
-                Present Threshold (%)
+              <Label className="flex items-center gap-2" htmlFor="policy-present">
+                <span aria-hidden="true" className="size-2 rounded-full bg-success" />
+                Present threshold (%)
               </Label>
               <div className="relative">
                 <Input 
                   type="number" 
                   min="0" max="100" 
+                  id="policy-present"
                   value={presentThreshold}
                   onChange={(e) => setPresentThreshold(e.target.value)}
                   className="pr-8"
@@ -124,14 +122,15 @@ export default function AttendancePolicyPage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-accent"></span>
-                Late Threshold (%)
+              <Label className="flex items-center gap-2" htmlFor="policy-late">
+                <span aria-hidden="true" className="size-2 rounded-full bg-warning" />
+                Late threshold (%)
               </Label>
               <div className="relative">
                 <Input 
                   type="number" 
                   min="0" max="100" 
+                  id="policy-late"
                   value={lateThreshold}
                   onChange={(e) => setLateThreshold(e.target.value)}
                   className="pr-8"
@@ -142,14 +141,15 @@ export default function AttendancePolicyPage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-warning"></span>
-                Partial Threshold (%)
+              <Label className="flex items-center gap-2" htmlFor="policy-partial">
+                <span aria-hidden="true" className="size-2 rounded-full bg-warning/50" />
+                Partial threshold (%)
               </Label>
               <div className="relative">
                 <Input 
                   type="number" 
                   min="0" max="100" 
+                  id="policy-partial"
                   value={partialThreshold}
                   onChange={(e) => setPartialThreshold(e.target.value)}
                   className="pr-8"
@@ -162,7 +162,7 @@ export default function AttendancePolicyPage() {
           
           <div className="p-4 border border-warning/30 bg-warning/10 rounded-control mt-4">
             <p className="text-sm font-medium text-warning-ink">
-              Absent Rule: <span className="font-normal text-app-text">Students with attendance less than {partialThreshold}% will be marked as Absent.</span>
+              Absent rule: <span className="font-normal text-app-text">Students with attendance less than {partialThreshold}% will be marked as Absent.</span>
             </p>
           </div>
         </CardContent>
@@ -170,17 +170,18 @@ export default function AttendancePolicyPage() {
 
       <Card className="border-app-border bg-app-surface shadow-card">
         <CardHeader>
-          <CardTitle>Session Rules</CardTitle>
-          <CardDescription>Configure grace periods and minimums</CardDescription>
+          <CardTitle>Session rules</CardTitle>
+          <CardDescription>Grace periods and minimums.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label>Grace Period (Minutes)</Label>
+              <Label htmlFor="policy-grace">Grace period (minutes)</Label>
               <div className="relative">
                 <Input 
                   type="number" 
                   min="0"
+                  id="policy-grace"
                   value={gracePeriod}
                   onChange={(e) => setGracePeriod(e.target.value)}
                   className="pr-12"
@@ -191,11 +192,12 @@ export default function AttendancePolicyPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Minimum Required Duration (Minutes)</Label>
+              <Label htmlFor="policy-min">Minimum required duration (minutes)</Label>
               <div className="relative">
                 <Input 
                   type="number" 
                   min="0"
+                  id="policy-min"
                   value={minDuration}
                   onChange={(e) => setMinDuration(e.target.value)}
                   className="pr-12"
@@ -209,9 +211,9 @@ export default function AttendancePolicyPage() {
       </Card>
 
       <div className="flex justify-end pt-4">
-        <Button onClick={handleSave} disabled={isSaving} className="gap-2 min-w-[120px]">
-          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {isSaving ? "Saving..." : "Save Policy"}
+        <Button onClick={handleSave} disabled={isSaving} className="min-w-[120px]">
+          {isSaving ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : <Save aria-hidden="true" className="size-4" strokeWidth={2.5} />}
+          {isSaving ? "Saving…" : "Save policy"}
         </Button>
       </div>
     </div>

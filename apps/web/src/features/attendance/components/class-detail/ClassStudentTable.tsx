@@ -50,7 +50,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
     <Card className="border-app-border bg-app-surface shadow-card overflow-hidden">
       <CardHeader className="bg-app-soft/50 border-b border-app-border">
         <CardTitle className="text-lg flex justify-between items-center">
-          Student Attendance
+          Student attendance
           <span className="text-sm font-normal text-app-muted">
             Click a row for event details
           </span>
@@ -177,7 +177,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                       >
                         <div className="pl-4">
                           <p className="text-xs font-semibold text-app-muted mb-2">
-                            Event Timeline
+                            Event timeline
                           </p>
                           <EventTimeline
                             logs={student.logs}
