@@ -28,6 +28,7 @@ stay as written; the living doc for that area wins where they disagree.
 | Doc | What it covers |
 |---|---|
 | [LIVE_CLASS.md](LIVE_CLASS.md) | Everything inside the live-class room (LiveKit, board sync, moderation, puzzles, simul, …) |
+| [live-class/](live-class/LIVE_CLASS_COMPONENT_MAPPING.md) | Live-room UI redesign (2026-11-03): component map, architecture, design system, screens, reports |
 | [CLASSES.md](CLASSES.md) | Class scheduling, timing rules, batch types, demo classes |
 | [PUZZLES.md](PUZZLES.md) | Puzzle Library, puzzle-set homework, student progress |
 | [PUZZLE_ACTIVITIES.md](PUZZLE_ACTIVITIES.md) | MCQs and Playouts in the Puzzle Library and the live class |

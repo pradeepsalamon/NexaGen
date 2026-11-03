@@ -133,6 +133,21 @@ its precondition, the student training surface, now exists).
 - **`POST /upload/pgn` orphan note.** It has a web caller (`uploadPgn`), so the
   note was dropped.
 
+## Questions for the owner (unattended runs)
+
+- **2026-11-03, `feat/live-class-redesign` — the spec's seven open decisions.** The live-class spec lists seven choices that need your yes. All are presentation only and easy to reverse; I built the spec's *Proposed* option for each, so you can review them in the room:
+  1. Muted mic/camera: soft red (alternative: neutral grey with a slashed icon). `MeetingControlButton` variant `off`.
+  2. Controls: 44px rounded squares, labels in tooltips (alternative: keep round in the room).
+  3. Coach class-wide controls: one "Students" control with a menu (alternative: five buttons). `StudentControlsMenu`.
+  4. Tab overflow: four stage views and three panel tabs, rest under More (alternative: every tab, scrolling). `RoomTabs maxVisible`.
+  5. Coach leaving: one dialog with Leave class / End class for everyone (unchanged; it was already one dialog).
+  6. People rows: mic and camera visible, the rest in a ⋮ menu (alternative: every action on the row).
+  7. Smallest text: 12px everywhere (alternative: 11px for dense labels). Board coordinates are drawn by chessground and not touched.
+  Also: the drafts place the coach's Chapters/Leaderboard column at the far left; the build follows the code (beside the board, only when it fits).
+- **2026-11-03, `feat/live-class-redesign` — not built, no backend for it:** a coach lowering a student's hand (hand raise is sender-only by design: `HandRaiseBridge`), and "allow screen sharing" without a student's request (the approval flow needs a request row). Both stay as today; the People row menu does not offer them.
+- **2026-11-03, `feat/live-class-redesign` — `GET /live-class/:id` now also returns `batchName`** (name only, no roster) for the top bar. Additive; say if you'd rather the top bar show only the head count.
+- **2026-11-03, `feat/live-class-redesign` — pre-join stays a two-column card** (camera preview beside the details) rather than the spec's 448px single column, which would push the preview below the fold on laptops. Waiting and error screens are 448px.
+
 ## Open audit findings (2026-10-31)
 
 From a ponytail audit of the API's payments, auth, backup and cron paths. The web

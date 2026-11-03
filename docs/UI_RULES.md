@@ -73,10 +73,11 @@ and are mapped in `tailwind.config.ts`.
 
 | Element | Radius token |
 |---|---|
-| Buttons and icon buttons | `rounded-control` (the component already does this; a forced `rounded-full` is a bug outside the room, which converts in M9) |
+| Buttons and icon buttons | `rounded-control` (the component already does this; a forced `rounded-full` is a bug; the room converted in M9) |
 | Badges, avatars, on/off switches | `rounded-full` |
 | Text fields: `Input`, `PasswordInput`, `Select`, `Combobox`, `Textarea`, date/time pickers | `rounded-control`, from `fieldClasses()` in `components/ui/fieldStyles.ts` (the components already do this) |
 | Small tiles, chips, list rows, menu items, textareas-in-panels | `rounded-control` (8px) |
+| Live-room chips (stage switch, panel tabs, menu rows) | `rounded-chip` (6px); status chips are `rounded-full` |
 | Cards, panels, tables, dialogs | `rounded-app` (12px) |
 | Large feature panels | `rounded-panel` (16px) |
 
@@ -120,6 +121,7 @@ disagree.
 | Role page frame | `PageContent` | The one ground, padding and `max-w-7xl` content width. Role layouts use it; pages don't add their own. |
 | A class in a list | `ClassRow` inside `ClassRowList` | Status and Join come from `class-availability`. Pass `actions` to replace the buttons, `quietJoin` where another control is the page's primary action. Coach lists use `CoachClassRow` (`features/coach/components`): Start while the start window is open, View class, and a ⋮ menu for notes and requests. |
 | Month of classes | `ScheduleCalendar` with `groupByDay` (`lib/scheduleCalendar.ts`) | The caller lists the selected day's classes beside it. The coach schedule's Month tab uses it; batch calendars have not adopted it yet. |
+| Live-room controls | `features/live-class/components/room-ui/` (`StatusChip`, `RoomTabs`, `ControlBar`, `LeaveButton`, `RequestRow`) and `MeetingControlButton` | 44px control buttons, 28px chips, 36px tab tracks. Any tab row in the room is `RoomTabs` (it moves extra tabs into More). Spec map: [live-class/LIVE_CLASS_COMPONENT_MAPPING.md](live-class/LIVE_CLASS_COMPONENT_MAPPING.md). |
 | Tooltips | `SimpleTooltip` | Never `title=` on an interactive element. |
 | Icons | `lucide-react` only, sized with classes (`className="size-4"`), `strokeWidth={2.25–2.5}` | No other icon library, no inline `<svg>` icons, no `size={16}` props (they don't follow the text-size setting). |
 
