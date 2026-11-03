@@ -159,7 +159,7 @@ Layout comes from the reference images' authentication pattern. The Registration
 
 Dashboard first as the template, then schedule, live classes, batches, assignments, training, revision, progress, insights, courses, attendance. Billing waits for M8.
 
-**Dashboard built 2026-11-02**, checked on a mocked API only. **Schedule built 2026-11-02**, checked against a real API with the seeded student; dashboard rows now use `ClassRow`. The other student pages are not started.
+**Dashboard built 2026-11-02**, checked on a mocked API only. **Schedule built 2026-11-02**, checked against a real API with the seeded student; dashboard rows now use `ClassRow`. **Live classes built 2026-11-03**, checked against a real API with the seeded student: it reuses the dashboard's `NextClassCard`, `UpcomingClasses` and `PastClasses` (one blue Join, in the hero), so it no longer reads the legacy `upcomingClasses` field. The other student pages are not started.
 
 **Standardises:** `ClassRow`, `StatCard`, `ScheduleCalendar`, Practice board pattern, Progress template.
 **Fixes:** fake recording controls, truncated phone labels, competing primary actions.

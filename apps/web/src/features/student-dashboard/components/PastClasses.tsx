@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Download, PlayCircle } from "lucide-react";
+import { Download, History, PlayCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ClassRow, ClassRowList } from "@/components/ui/ClassRow";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
@@ -54,59 +55,63 @@ export function PastClasses({ classes }: PastClassesProps) {
     <>
       <div data-testid="past-classes">
         <SectionCard description="Rewatch a session any time." title="Past classes">
-          <ClassRowList>
-            {classes.map((c) => (
-              <ClassRow
-                actions={
-                  c.hasRecording ? (
-                    <>
-                      <Button
-                        onClick={() =>
-                          setRecordingPlayerConfig({
-                            isOpen: true,
-                            classId: c.id,
-                            topic: c.topic
-                          })
-                        }
-                        size="sm"
-                        variant="outline"
-                      >
-                        <PlayCircle
-                          aria-hidden="true"
-                          className="size-4"
-                          strokeWidth={2.5}
-                        />
-                        Watch
-                      </Button>
-                      <SimpleTooltip label="Download recording">
+          {classes.length === 0 ? (
+            <EmptyState icon={History} title="No past classes yet" variant="inline" />
+          ) : (
+            <ClassRowList>
+              {classes.map((c) => (
+                <ClassRow
+                  actions={
+                    c.hasRecording ? (
+                      <>
                         <Button
-                          aria-label={`Download recording for ${c.topic}`}
-                          className="size-8 p-0"
-                          onClick={() => handleDownload(c.id)}
-                          size="icon"
-                          variant="neutral"
+                          onClick={() =>
+                            setRecordingPlayerConfig({
+                              isOpen: true,
+                              classId: c.id,
+                              topic: c.topic
+                            })
+                          }
+                          size="sm"
+                          variant="outline"
                         >
-                          <Download
+                          <PlayCircle
                             aria-hidden="true"
                             className="size-4"
                             strokeWidth={2.5}
                           />
+                          Watch
                         </Button>
-                      </SimpleTooltip>
-                    </>
-                  ) : (
-                    <span className="text-xs text-app-muted">No recording</span>
-                  )
-                }
-                cls={{ ...c, title: c.topic, topic: null }}
-                key={c.id}
-                meta={`${c.coachName} · ${formatFullDate(c.startsAt, timeZone)}`}
-                showDate={false}
-                showStatus={c.status !== "COMPLETED"}
-                testId={`past-class-${c.id}`}
-              />
-            ))}
-          </ClassRowList>
+                        <SimpleTooltip label="Download recording">
+                          <Button
+                            aria-label={`Download recording for ${c.topic}`}
+                            className="size-8 p-0"
+                            onClick={() => handleDownload(c.id)}
+                            size="icon"
+                            variant="neutral"
+                          >
+                            <Download
+                              aria-hidden="true"
+                              className="size-4"
+                              strokeWidth={2.5}
+                            />
+                          </Button>
+                        </SimpleTooltip>
+                      </>
+                    ) : (
+                      <span className="text-xs text-app-muted">No recording</span>
+                    )
+                  }
+                  cls={{ ...c, title: c.topic, topic: null }}
+                  key={c.id}
+                  meta={`${c.coachName} · ${formatFullDate(c.startsAt, timeZone)}`}
+                  showDate={false}
+                  showStatus={c.status !== "COMPLETED"}
+                  testId={`past-class-${c.id}`}
+                />
+              ))}
+            </ClassRowList>
+          )}
         </SectionCard>
       </div>
 
