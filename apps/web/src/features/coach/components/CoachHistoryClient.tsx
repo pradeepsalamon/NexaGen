@@ -2,28 +2,30 @@
 
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { History, Eye, Info, Download, NotebookPen } from "lucide-react";
-import Link from "next/link";
+import { Download, Eye, History, Info, NotebookPen } from "lucide-react";
 import { toast } from "sonner";
 import type { CoachClass } from "@nexa-chess/types";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
 import { openInNewTab } from "@/lib/openInNewTab";
-import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { DataTable } from "@/components/ui/DataTable";
 import { DataTablePagination } from "@/components/ui/DataTablePagination";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { RowActions, type RowAction } from "@/components/ui/RowActions";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { useDataTable } from "../../../hooks/useDataTable";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useClassHistory } from "../hooks/useCoachApi";
 import { formatFullDate, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { ClassNotesDialog } from "./ClassNotesDialog";
+import { coachClassTitle } from "./CoachClassRow";
 import { CoachClassDetailsDialog } from "./CoachClassDetailsDialog";
 
 export function CoachHistoryClient() {
-  const { data, isLoading } = useClassHistory();
+  const { data, error, isLoading, refetch } = useClassHistory();
   const tz = useUserTimeZone();
   const [detailsClassId, setDetailsClassId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -50,7 +52,7 @@ export function CoachHistoryClient() {
         ),
         cell: ({ row }) => (
           <div className="flex flex-col">
-            <span className="font-medium">
+            <span className="font-medium text-app-text">
               {formatFullDate(row.original.startsAt, tz)}
             </span>
             <span className="text-xs text-app-muted">
@@ -73,18 +75,14 @@ export function CoachHistoryClient() {
       },
       {
         accessorKey: "title",
-        header: "Topic",
-        cell: ({ row }) => {
-          return (
-            <span className="line-clamp-1 max-w-[200px]">
-              {row.original.title || row.original.topic || "Regular Session"}
-            </span>
-          );
-        }
+        header: "Class",
+        meta: { label: "Class" },
+        cell: ({ row }) => <span className="line-clamp-2 max-w-64">{coachClassTitle(row.original)}</span>
       },
       {
         accessorKey: "status",
         header: "Status",
+        meta: { label: "Status" },
         // Completed, Cancelled, or Not held (scheduled but never started).
         cell: ({ row }) => (
           <ClassStatusBadge endsAt={row.original.endsAt} status={row.original.status} />
@@ -92,80 +90,37 @@ export function CoachHistoryClient() {
       },
       {
         id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-          <TooltipProvider>
-            <div className="flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button asChild variant="neutral" size="icon" className="size-8 text-warning-ink hover:bg-warning-soft">
-                    <Link href={`/classes/${row.original.id}`} aria-label={`View ${row.original.title || row.original.topic}`}>
-                      <Eye className="size-4" strokeWidth={2.5} aria-hidden="true" />
-                    </Link>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>View Class Page</TooltipContent>
-              </Tooltip>
-
-              {row.original.status === "COMPLETED" && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      aria-label="View completed details"
-                      className="size-8"
-                      onClick={() => {
-                        setDetailsClassId(row.original.id);
-                        setIsDetailsOpen(true);
-                      }}
-                      size="icon"
-                      type="button"
-                      variant="neutral"
-                    >
-                      <Info aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>View Details</TooltipContent>
-                </Tooltip>
-              )}
-
-              {row.original.status !== "CANCELLED" && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      aria-label="Edit class notes"
-                      className="size-8"
-                      onClick={() => setNotesClass(row.original)}
-                      size="icon"
-                      type="button"
-                      variant="neutral"
-                    >
-                      <NotebookPen aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Edit Notes</TooltipContent>
-                </Tooltip>
-              )}
-
-              {row.original.hasRecording && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      aria-label="Download Recording"
-                      className="size-8 text-success-ink hover:bg-success-soft"
-                      onClick={() => handleDownload(row.original.id)}
-                      size="icon"
-                      type="button"
-                      variant="neutral"
-                    >
-                      <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Download Recording</TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          </TooltipProvider>
-        )
+        header: () => <span className="sr-only">Actions</span>,
+        cell: ({ row }) => {
+          const cls = row.original;
+          const title = coachClassTitle(cls);
+          const actions: RowAction[] = [
+            { ariaLabel: `View ${title}`, href: `/classes/${cls.id}`, icon: Eye, label: "View class page" }
+          ];
+          if (cls.status === "COMPLETED") {
+            actions.push({
+              ariaLabel: "View completed details",
+              icon: Info,
+              label: "Class summary",
+              onSelect: () => {
+                setDetailsClassId(cls.id);
+                setIsDetailsOpen(true);
+              }
+            });
+          }
+          if (cls.status !== "CANCELLED") {
+            actions.push({ ariaLabel: "Edit class notes", icon: NotebookPen, label: "Edit notes", onSelect: () => setNotesClass(cls) });
+          }
+          if (cls.hasRecording) {
+            actions.push({
+              ariaLabel: "Download recording",
+              icon: Download,
+              label: "Download recording",
+              onSelect: () => void handleDownload(cls.id)
+            });
+          }
+          return <RowActions actions={actions} />;
+        }
       }
     ],
     [tz]
@@ -176,33 +131,37 @@ export function CoachHistoryClient() {
     columns
   });
 
-  return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Class history</h1>
-        <p className="text-app-muted mt-1">Review your past and cancelled classes.</p>
-      </div>
+  const classes = data?.classes ?? [];
 
-      <div className="rounded-app border border-app-border bg-app-surface shadow-card overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center text-app-muted">Loading history...</div>
-        ) : data?.classes?.length === 0 ? (
-          <div className="p-6 sm:p-12">
-            <EmptyState
-              icon={History}
-              title="No class history"
-              description="You haven't completed or cancelled any classes yet."
-            />
+  return (
+    <div className="animate-fade-in pb-10">
+      <PageHeader description="Your past and cancelled classes, with notes and recordings." title="Class history" />
+
+      {isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-12 rounded-app" />
+          <Skeleton className="h-12 rounded-app" />
+          <Skeleton className="h-12 rounded-app" />
+        </div>
+      ) : error ? (
+        <WidgetError
+          message="Couldn't load your class history. Check your connection and try again."
+          onRetry={() => refetch()}
+        />
+      ) : classes.length === 0 ? (
+        <EmptyState
+          description="Classes you've taught or that were cancelled will show up here."
+          icon={History}
+          title="No class history yet"
+        />
+      ) : (
+        <div className="overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card">
+          <DataTable columnsLength={columns.length} stackOnMobile table={table} />
+          <div className="border-t border-app-border p-4">
+            <DataTablePagination table={table} totalRows={classes.length} />
           </div>
-        ) : (
-          <>
-            <DataTable columnsLength={columns.length} stackOnMobile table={table as any} />
-            <div className="border-t border-app-border p-4 bg-app-soft">
-              <DataTablePagination table={table as any} totalRows={data?.classes.length || 0} />
-            </div>
-          </>
-        )}
-      </div>
+        </div>
+      )}
       <ClassNotesDialog
         classItem={notesClass}
         open={notesClass !== null}

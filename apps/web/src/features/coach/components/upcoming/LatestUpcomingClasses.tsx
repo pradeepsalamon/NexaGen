@@ -20,15 +20,18 @@ export function LatestUpcomingClasses() {
   const classes = data?.classes ?? [];
 
   return (
-    <section aria-labelledby="latest-upcoming-heading" className="space-y-4">
+    <section aria-labelledby="latest-upcoming-heading" className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-bold text-app-text" id="latest-upcoming-heading">
-          Upcoming classes
-        </h2>
-        <Button asChild variant="ghost">
-          <Link className="text-primary-ink" href="/coach/schedule">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-app-text" id="latest-upcoming-heading">
+            Upcoming classes
+          </h2>
+          <p className="mt-0.5 text-sm text-app-muted">Set each class&apos;s topic and type before it starts.</p>
+        </div>
+        <Button asChild size="sm" variant="ghost">
+          <Link href="/coach/schedule">
             View all
-            <ArrowRight className="ml-1 size-4" strokeWidth={2.5} aria-hidden="true" />
+            <ArrowRight aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
           </Link>
         </Button>
       </div>
@@ -36,9 +39,7 @@ export function LatestUpcomingClasses() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: SHOWN }).map((_, i) => (
-            <Card className="h-[26rem] p-4" key={i}>
-              <Skeleton className="h-full w-full" />
-            </Card>
+            <Skeleton className="h-96 rounded-app" key={i} />
           ))}
         </div>
       ) : error ? (

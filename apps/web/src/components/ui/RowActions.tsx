@@ -1,6 +1,7 @@
 "use client";
 
 import { MoreVertical, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import {
   DropdownMenu,
@@ -18,9 +19,12 @@ export type RowAction = {
   disabled?: boolean;
   icon: LucideIcon;
   label: string;
-  onSelect: () => void;
   tone?: "danger" | "default" | "warning";
-};
+} & (
+  | { href?: never; onSelect: () => void }
+  /** Navigates instead, so the action keeps a link's open-in-new-tab behaviour. */
+  | { href: string; onSelect?: never }
+);
 
 // Neutral icon buttons; only the icon carries the action's colour.
 const INLINE_TONE: Record<NonNullable<RowAction["tone"]>, string> = {
@@ -45,17 +49,30 @@ export function RowActions({ actions, inline }: { actions: RowAction[]; inline?:
         const Icon = action.icon;
         return (
           <SimpleTooltip key={action.label} label={action.label}>
-            <Button
-              aria-label={action.ariaLabel ?? action.label}
-              className={cn("size-8", INLINE_TONE[action.tone ?? "default"])}
-              disabled={action.disabled}
-              onClick={action.onSelect}
-              size="icon"
-              type="button"
-              variant="neutral"
-            >
-              <Icon aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            </Button>
+            {action.href && !action.disabled ? (
+              <Button
+                asChild
+                className={cn("size-8", INLINE_TONE[action.tone ?? "default"])}
+                size="icon"
+                variant="neutral"
+              >
+                <Link aria-label={action.ariaLabel ?? action.label} href={action.href}>
+                  <Icon aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                aria-label={action.ariaLabel ?? action.label}
+                className={cn("size-8", INLINE_TONE[action.tone ?? "default"])}
+                disabled={action.disabled}
+                onClick={action.onSelect}
+                size="icon"
+                type="button"
+                variant="neutral"
+              >
+                <Icon aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              </Button>
+            )}
           </SimpleTooltip>
         );
       })}
@@ -83,6 +100,7 @@ export function RowActions({ actions, inline }: { actions: RowAction[]; inline?:
                   {index === destructiveStart && index > 0 ? <DropdownMenuSeparator /> : null}
                   <DropdownMenuItem
                     aria-label={action.ariaLabel ?? action.label}
+                    asChild={Boolean(action.href)}
                     className={cn(
                       "flex cursor-pointer items-center gap-2.5 py-2 font-semibold",
                       action.tone === "danger" &&
@@ -91,8 +109,17 @@ export function RowActions({ actions, inline }: { actions: RowAction[]; inline?:
                     disabled={action.disabled}
                     onSelect={action.onSelect}
                   >
-                    <Icon aria-hidden="true" className="size-4" strokeWidth={2.25} />
-                    {action.label}
+                    {action.href ? (
+                      <Link href={action.href}>
+                        <Icon aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                        {action.label}
+                      </Link>
+                    ) : (
+                      <>
+                        <Icon aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                        {action.label}
+                      </>
+                    )}
                   </DropdownMenuItem>
                 </div>
               );

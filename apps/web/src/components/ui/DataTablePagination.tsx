@@ -18,10 +18,14 @@ export function DataTablePagination<TData>({
   table,
   totalRows
 }: DataTablePaginationProps<TData>) {
+  // A table without a selection column has nothing to count as selected.
+  const selectable = table.getAllLeafColumns().some((column) => column.id === "select");
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p className="text-sm font-semibold text-app-muted">
-        {table.getFilteredSelectedRowModel().rows.length} of {totalRows} selected
+        {selectable
+          ? `${table.getFilteredSelectedRowModel().rows.length} of ${totalRows} selected`
+          : `${totalRows} ${totalRows === 1 ? "row" : "rows"}`}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Select
