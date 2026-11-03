@@ -26,6 +26,7 @@ import { SortButton } from "@/components/ui/DataTableSortButton";
 import { useCourses, useDeleteCourse, useSetCourseArchived, useSetCoursePublished } from "../hooks/useCoursesApi";
 import { COURSE_STATUS_OPTIONS, courseStatusBadgeVariant } from "../lib/courseMeta";
 import { enumLabel } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const iconBtn =
   "size-8";
@@ -75,21 +76,19 @@ export function AdminCoursesClient() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Courses</h1>
-          <p className="mt-1 text-sm text-app-muted">
-            Curate ordered playlists of existing assignments and puzzles for students.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/courses/new">
-            <Plus className="mr-2 size-4" />
-            New course
-          </Link>
-        </Button>
-      </div>
+    <div className="animate-fade-in space-y-6 pb-10">
+      <PageHeader
+        actions={
+          <Button asChild>
+            <Link href="/admin/courses/new">
+              <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              New course
+            </Link>
+          </Button>
+        }
+        description="Curate ordered playlists of existing assignments and puzzles for students."
+        title="Courses"
+      />
 
       <Card className="grid gap-4 p-4">
         <div className="flex flex-wrap justify-end gap-2">

@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Archive,
   ArchiveRestore,
-  ArrowLeft,
   EyeOff,
   History,
   Loader2,
@@ -76,6 +75,7 @@ import { ContentEditor, EMPTY_CONTENT, contentPayload, type ContentDraft } from 
 import { KIND_LABEL } from "../HelpCenterClient";
 import { KnowledgeMarkdown } from "../KnowledgeMarkdown";
 import { AUDIENCE_LABEL, StatusBadge } from "./KnowledgeAdminClient";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 
 type SettingsDraft = {
   kind: KnowledgeArticleKind;
@@ -325,11 +325,8 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1.5">
-          <Link className="inline-flex items-center gap-1.5 text-sm font-semibold text-app-muted hover:text-app-text" href="/admin/knowledge">
-            <ArrowLeft aria-hidden className="size-4" />
-            Knowledge base
-          </Link>
-          <h1 className="text-2xl font-extrabold leading-tight">{article ? content.title || article.title : "New article"}</h1>
+          <Breadcrumbs items={[{ href: "/admin/knowledge", label: "Knowledge base" }, { label: article ? content.title || article.title : "New article" }]} />
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">{article ? content.title || article.title : "New article"}</h1>
           {article && (
             <div className="flex flex-wrap items-center gap-1.5 text-xs">
               <StatusBadge article={article} />

@@ -15,6 +15,7 @@ import { useCourse, useCreateCourse, useUpdateCourse } from "../hooks/useCourses
 import { courseStatusBadgeVariant } from "../lib/courseMeta";
 import { ModuleList } from "./ModuleList";
 import { enumLabel } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export function CourseCreateClient() {
   const router = useRouter();
@@ -98,16 +99,13 @@ export function CourseEditClient({ id }: { id: string }) {
   const dirty = title.trim() !== course.title || (description.trim() || null) !== course.description;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">{course.title}</h1>
-            <Badge variant={courseStatusBadgeVariant(course.status)}>{enumLabel(course.status)}</Badge>
-          </div>
-          <p className="mt-1 text-sm text-app-muted">{course.moduleCount} module(s)</p>
-        </div>
-      </div>
+    <div className="animate-fade-in space-y-6 pb-10">
+      <PageHeader
+        actions={<Badge variant={courseStatusBadgeVariant(course.status)}>{enumLabel(course.status)}</Badge>}
+        breadcrumbs={[{ href: "/admin/courses", label: "Courses" }, { label: course.title }]}
+        description={`${course.moduleCount} ${course.moduleCount === 1 ? "module" : "modules"}`}
+        title={course.title}
+      />
 
       <Card className="grid gap-4 p-4">
         <FormField id="course-title" label="Title">

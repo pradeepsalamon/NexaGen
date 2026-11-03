@@ -38,9 +38,9 @@ export function ModuleList({
   return (
     <Card className="grid gap-4 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-extrabold tracking-tight text-app-text">Modules</h2>
-        <Button size="sm" onClick={() => setAttachOpen(true)}>
-          <Plus className="mr-2 size-4" />
+        <h2 className="text-lg font-bold tracking-tight text-app-text">Modules</h2>
+        <Button size="sm" onClick={() => setAttachOpen(true)} variant="outline">
+          <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
           Add module
         </Button>
       </div>

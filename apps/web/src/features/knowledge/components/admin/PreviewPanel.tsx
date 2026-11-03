@@ -78,7 +78,7 @@ export function PreviewPanel() {
         <div className="space-y-4">
           {preview.data.forThisPage.length > 0 && (
             <section className="space-y-2">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-app-muted">Help for that page</h3>
+              <h3 className="text-sm font-semibold text-app-muted">Help for that page</h3>
               <div className="grid gap-3 md:grid-cols-2">
                 {preview.data.forThisPage.map((a) => (
                   <ArticleCard article={a} hrefBase="/help" key={a.id} />

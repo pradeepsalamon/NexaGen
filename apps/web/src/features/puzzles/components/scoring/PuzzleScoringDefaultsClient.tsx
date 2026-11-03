@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import {
   DEFAULT_PUZZLE_LEADERBOARD,
   DEFAULT_PUZZLE_SCORING,
@@ -24,6 +23,7 @@ import {
   PuzzleScoringFields,
   PuzzleScoringPreview
 } from "./PuzzleScoringFields";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 /**
  * Admin → Puzzle Library → Points & leaderboard. The platform default every
@@ -46,28 +46,23 @@ export function PuzzleScoringDefaultsClient() {
   const meta = settings.data?.settings;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Link
-          href="/admin/puzzles"
-          className="inline-flex items-center gap-1 text-sm font-medium text-app-muted hover:text-app-text"
-        >
-          <ArrowLeft className="size-4" strokeWidth={2.5} /> Puzzle Library
-        </Link>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
-          Puzzle points
-        </h1>
-        <p className="mt-1 text-sm text-app-muted">
-          Defaults for every puzzle shared in a live class. A puzzle can set its own points in the
-          puzzle form, and a coach can change any of these when sharing — or mid-puzzle.
-        </p>
-        {meta?.updatedAt ? (
-          <p className="mt-1 text-xs text-app-muted">
-            Last changed {formatDateTime(meta.updatedAt, tz)}
-            {meta.updatedByName ? ` by ${meta.updatedByName}` : ""}
-          </p>
-        ) : null}
-      </div>
+    <div className="animate-fade-in space-y-6 pb-10">
+      <PageHeader
+        breadcrumbs={[{ href: "/admin/puzzles", label: "Puzzle library" }, { label: "Puzzle points" }]}
+        description={
+          <>
+            Defaults for every puzzle shared in a live class. A puzzle can set its own points in the
+            puzzle form, and a coach can change any of these when sharing — or mid-puzzle.
+            {meta?.updatedAt ? (
+              <span className="mt-1 block text-xs">
+                Last changed {formatDateTime(meta.updatedAt, tz)}
+                {meta.updatedByName ? ` by ${meta.updatedByName}` : ""}
+              </span>
+            ) : null}
+          </>
+        }
+        title="Puzzle points"
+      />
 
       {settings.isError && !settings.data ? (
         <WidgetError message="Couldn't load the scoring defaults." onRetry={() => void settings.refetch()} />
