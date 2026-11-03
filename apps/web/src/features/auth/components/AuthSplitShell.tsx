@@ -4,288 +4,156 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-    Crown,
-    Sun,
-    Moon,
-    TrendingUp,
-    GraduationCap,
-    BarChart3,
-    Users,
-    ShieldCheck,
-    CalendarClock,
-    Sparkles
+  BarChart3,
+  CalendarClock,
+  Crown,
+  Globe,
+  GraduationCap,
+  type LucideIcon,
+  Puzzle,
+  Sparkles,
+  TrendingUp,
+  Users
 } from "lucide-react";
-import { useTheme } from "@/providers/ThemeProvider";
+import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { cn } from "@/lib/utils";
 
-const AUTH_BG_LIGHT = "/auth/auth_light.webp";
-const AUTH_BG_DARK = "/auth/auth_dark.webp";
+// Navy-toned artwork, so the one image suits the navy panel in both themes.
+const AUTH_ARTWORK = "/auth/auth_dark.webp";
 
 export type AuthShellVariant =
-    | "login"
-    | "student-register"
-    | "coach-register"
-    | "forgot-password";
+  | "login"
+  | "student-register"
+  | "coach-register"
+  | "forgot-password";
+
+type Point = { Icon: LucideIcon; title: string; description?: string };
+
+const SIGN_IN_COPY = {
+  points: [
+    {
+      Icon: TrendingUp,
+      title: "Progress you can see",
+      description: "Track your improvement with personalized guidance."
+    },
+    {
+      Icon: Puzzle,
+      title: "Practice between classes",
+      description: "Solve puzzles, play games and sharpen your skills."
+    }
+  ] satisfies Point[],
+  subtitle:
+    "Premium chess learning for focused students, ambitious juniors and supportive families.",
+  title: "Master the board with expert coaches."
+};
+
+const COPY: Record<AuthShellVariant, { points: Point[]; subtitle: string; title: string }> = {
+  "coach-register": {
+    points: [
+      { Icon: Globe, title: "Teach globally online" },
+      { Icon: CalendarClock, title: "Flexible schedule" },
+      { Icon: Sparkles, title: "Make an impact" }
+    ],
+    subtitle:
+      "Join as a coach and help shape the next generation of chess players worldwide.",
+    title: "Share your knowledge."
+  },
+  "forgot-password": SIGN_IN_COPY,
+  login: SIGN_IN_COPY,
+  "student-register": {
+    points: [
+      { Icon: GraduationCap, title: "Learn from expert coaches" },
+      { Icon: BarChart3, title: "Track your progress" },
+      { Icon: Users, title: "Join a global community" }
+    ],
+    subtitle:
+      "Start your journey with expert coaching, personalized learning and a global chess community.",
+    title: "Join Nexa Chess today."
+  }
+};
 
 interface AuthSplitShellProps {
-    variant: AuthShellVariant;
-    children: ReactNode;
-    cardMaxWidthClass?: string;
+  variant: AuthShellVariant;
+  children: ReactNode;
+  /** A wider card for the two-column registration form. */
+  wide?: boolean;
 }
 
-export function AuthSplitShell({
-    variant,
-    children,
-    cardMaxWidthClass = "max-w-[440px]"
-}: AuthSplitShellProps) {
-    const { mode, toggleMode, isHydrated } = useTheme();
-    const isDark = isHydrated && mode === "dark";
+/**
+ * Auth pattern: a solid navy brand panel (text never sits on the artwork) beside
+ * the form card. The card holds the page's only `h1`; the panel tagline is a `<p>`.
+ * Below `lg` the panel shrinks to a navy bar with the logo and theme toggle.
+ */
+export function AuthSplitShell({ variant, children, wide = false }: AuthSplitShellProps) {
+  const copy = COPY[variant];
 
-    const heroContent = {
-        login: {
-            title: (
-                <>
-                    Master the board
-                    <br />
-                    with expert coaches.
-                </>
-            ),
-            subtitle:
-                "Premium chess learning for focused students, ambitious juniors and supportive families."
-        },
-        "student-register": {
-            title: (
-                <>
-                    Join Nexa Chess
-                    <br />
-                    Today
-                </>
-            ),
-            subtitle:
-                "Start your journey with expert coaching, personalized learning and a global chess community."
-        },
-        "coach-register": {
-            title: (
-                <>
-                    Share Your
-                    <br />
-                    Knowledge
-                </>
-            ),
-            subtitle:
-                "Join as a coach and help shape the next generation of chess players worldwide."
-        },
-        "forgot-password": {
-            title: (
-                <>
-                    Master the board
-                    <br />
-                    with expert coaches.
-                </>
-            ),
-            subtitle:
-                "Premium chess learning for focused students, ambitious juniors and supportive families."
-        }
-    }[variant];
-
-    const featureBullets =
-        variant === "coach-register"
-            ? [
-                { Icon: ShieldCheck, label: "Teach Globally\nOnline" },
-                { Icon: CalendarClock, label: "Flexible Schedule" },
-                { Icon: Sparkles, label: "Make an Impact" }
-            ]
-            : [
-                { Icon: GraduationCap, label: "Learn from\nExpert Coaches" },
-                { Icon: BarChart3, label: "Track Your\nProgress" },
-                { Icon: Users, label: "Join a Global\nCommunity" }
-            ];
-
-    return (
-        <div
-            className="relative min-h-[100dvh] w-full overflow-x-hidden flex flex-col select-none transition-colors duration-300 bg-app-background text-app-text"
-        >
-            {/* ================= FULL-BLEED BACKGROUND ARTWORK ================= */}
-            <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-                <div
-                    className="absolute inset-0 bg-app-background"
-                />
-
-                {/* Light Mode Image */}
-                <div
-                    className="absolute inset-0 dark:hidden"
-                >
-                    <Image
-                        src={AUTH_BG_LIGHT}
-                        alt="Nexa Chess Golden Knight Light Background"
-                        fill
-                        priority
-                        sizes="100vw"
-                        className="object-cover object-[12%_bottom] lg:object-[left_bottom]"
-                    />
-                    <div className="absolute inset-x-0 top-0 h-[44%] bg-gradient-to-b from-app-soft via-app-soft/65 to-transparent" />
-                </div>
-
-                {/* Dark Mode Image */}
-                <div
-                    className="absolute inset-0 hidden dark:block"
-                >
-                    <Image
-                        src={AUTH_BG_DARK}
-                        alt="Nexa Chess Golden Knight Dark Background"
-                        fill
-                        // Lazy + display:none in light mode = never fetched there;
-                        // only the light variant is preloaded.
-                        fetchPriority="high"
-                        sizes="100vw"
-                        className="object-cover object-[12%_bottom] lg:object-[left_bottom]"
-                    />
-                    <div className="absolute inset-x-0 top-0 h-[44%] bg-gradient-to-b from-brand-900 via-brand-900/65 to-transparent" />
-                </div>
-            </div>
-
-            {/* ================= TOP HEADER (LOGO + THEME TOGGLE) ================= */}
-            <header className="relative z-20 w-full max-w-[1160px] mx-auto px-4 sm:px-6 pt-3 sm:pt-4 flex items-center justify-between shrink-0">
-                <Link
-                    href="/"
-                    className="inline-flex items-center gap-2 transition-transform duration-200 hover:-translate-y-0.5"
-                    aria-label="Back to Nexa Chess Home"
-                >
-                    <Image
-                        src="/academy/nexa_logo_light1.png"
-                        alt="NEXA Chess"
-                        width={160}
-                        height={44}
-                        priority
-                        className="h-8 sm:h-9 w-auto object-contain dark:hidden"
-                    />
-                    <Image
-                        src="/academy/nexa_logo_dark1.png"
-                        alt="NEXA Chess"
-                        width={160}
-                        height={44}
-                        className="hidden h-8 sm:h-9 w-auto object-contain dark:block"
-                    />
-                </Link>
-
-                {/* Segmented Sun / Moon Pill Toggle */}
-                <button
-                    onClick={toggleMode}
-                    type="button"
-                    aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-                    className="inline-flex items-center gap-1 p-1 rounded-full backdrop-blur-md border shadow-xs transition-all duration-200 cursor-pointer bg-app-surface/90 border-app-line-strong"
-                >
-                    <span
-                        className="size-6 rounded-full flex items-center justify-center transition-all bg-toggle-sun text-toggle-sun-ink hover:text-toggle-sun-hover"
-                    >
-                        <Sun className="size-3.5" strokeWidth={2.2} />
-                    </span>
-                    <span
-                        className="size-6 rounded-full flex items-center justify-center transition-all bg-toggle-moon text-toggle-moon-ink hover:text-toggle-moon-hover"
-                    >
-                        <Moon className="size-3.5" strokeWidth={2.2} />
-                    </span>
-                </button>
-            </header>
-
-            {/* Mobile Knight Spacer */}
-            <div
-                className="relative z-10 h-20 sm:h-24 lg:hidden pointer-events-none"
-                aria-hidden="true"
-            />
-
-            {/* ================= MAIN CONTENT GRID (TIGHTER & BALANCED) ================= */}
-            <main className="relative z-10 flex-1 w-full max-w-[1160px] mx-auto px-4 sm:px-6 pb-4 pt-1 flex items-center">
-                <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-4 items-center">
-                    {/* LEFT MARKETING COLUMN (Desktop Only) */}
-                    <div className="hidden lg:flex lg:col-span-5 flex-col self-start pt-2 pointer-events-none">
-                        {/* Upper-Left Text Block */}
-                        <div className="max-w-[390px]">
-                            {/* Academy Pill Badge */}
-                            <div
-                                className="inline-flex items-center gap-2 px-3 py-1 rounded-full backdrop-blur-md border shadow-2xs mb-2.5 bg-app-surface/90 border-app-line-strong"
-                            >
-                                <Crown className="size-3.5 text-accent-ink" strokeWidth={2.3} />
-                                <span
-                                    className="text-[11px] font-semibold text-app-text"
-                                >
-                                    Live chess coaching academy
-                                </span>
-                            </div>
-
-                            {/* Serif Display Heading */}
-                            <h1
-                                className="font-display font-bold text-3xl xl:text-[38px] leading-[1.1] tracking-[-0.02em] mb-2.5 text-app-text"
-                            >
-                                {heroContent.title}
-                            </h1>
-
-                            {/* Subtitle */}
-                            <p
-                                className="text-xs xl:text-[13px] leading-relaxed mb-4 max-w-[350px] text-app-muted"
-                            >
-                                {heroContent.subtitle}
-                            </p>
-
-                            {/* Login / Forgot-Password Highlight Card */}
-                            {(variant === "login" || variant === "forgot-password") && (
-                                <div
-                                    className="max-w-[300px] rounded-2xl p-3.5 backdrop-blur-md border flex items-start gap-3 bg-transparent border-app-border shadow-lift"
-                                >
-                                    <div
-                                        className="size-9 rounded-xl shrink-0 flex items-center justify-center border bg-accent-soft border-accent/45 text-accent-ink"
-                                    >
-                                        <TrendingUp className="size-4" strokeWidth={2.2} />
-                                    </div>
-                                    <div>
-                                        <div
-                                            className="text-xs font-bold text-app-text"
-                                        >
-                                            <span className="dark:hidden">Progress you can see</span>
-                                            <span className="hidden dark:inline">Practice between classes</span>
-                                        </div>
-                                        <p
-                                            className="text-[11px] leading-snug mt-0.5 text-app-muted"
-                                        >
-                                            <span className="dark:hidden">Track your improvement with personalized guidance.</span>
-                                            <span className="hidden dark:inline">Solve puzzles, play games and sharpen your skills.</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Registration Feature List (Positioned cleanly right beside the Knight) */}
-                        {(variant === "student-register" ||
-                            variant === "coach-register") && (
-                                <div className="ml-auto mr-2 xl:mr-4 mt-14 space-y-3.5">
-                                    {featureBullets.map(({ Icon, label }) => (
-                                        <div key={label} className="flex items-center gap-3">
-                                            <div
-                                                className="size-9 rounded-xl shrink-0 flex items-center justify-center border shadow-xs bg-accent-soft border-accent/45 text-accent-ink"
-                                            >
-                                                <Icon className="size-4" strokeWidth={2.2} />
-                                            </div>
-                                            <span
-                                                className="text-xs font-bold leading-snug whitespace-pre-line text-app-text"
-                                            >
-                                                {label}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                    </div>
-
-                    {/* RIGHT FORM CARD COLUMN */}
-                    <div className="lg:col-span-7 flex justify-center lg:justify-end items-center">
-                        <div
-                            className={`w-full ${cardMaxWidthClass} rounded-[22px] backdrop-blur-xl border px-5 py-4 sm:px-7 sm:py-5 transition-all duration-300 bg-app-surface border-app-border shadow-soft`}
-                        >
-                            {children}
-                        </div>
-                    </div>
-                </div>
-            </main>
+  return (
+    <div className="min-h-dvh bg-app-background text-app-text lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+      <aside className="surface-brand relative flex flex-col overflow-hidden border-b border-app-border bg-app-background text-app-text lg:sticky lg:top-0 lg:h-dvh lg:border-b-0">
+        <div className="relative z-10 flex h-16 shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:h-auto lg:px-10 lg:pt-8 xl:px-14">
+          <Link
+            aria-label="Nexa Chess home"
+            className="rounded-control transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+            href="/"
+          >
+            <Logo onDark size={36} />
+          </Link>
+          <ThemeToggle />
         </div>
-    );
+
+        <div className="relative z-10 hidden max-w-lg px-10 pt-10 lg:block xl:px-14">
+          <p className="inline-flex items-center gap-2 text-sm font-medium text-accent-ink">
+            <Crown aria-hidden="true" className="size-4" strokeWidth={2.25} />
+            Live chess coaching academy
+          </p>
+          <p className="mt-3 text-3xl font-extrabold leading-tight tracking-tight text-app-text xl:text-4xl">
+            {copy.title}
+          </p>
+          <p className="mt-3 text-base text-app-muted">{copy.subtitle}</p>
+          <ul className="mt-8 grid gap-4">
+            {copy.points.map(({ Icon, title, description }) => (
+              <li className="flex items-start gap-3" key={title}>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-app-soft text-accent-ink">
+                  <Icon aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                </span>
+                <span className="grid gap-0.5 pt-1.5">
+                  <span className="text-sm font-semibold text-app-text">{title}</span>
+                  {description ? (
+                    <span className="text-sm text-app-muted">{description}</span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Decorative: below the text, never behind it. Not fetched below lg (display:none + lazy). */}
+        <div
+          aria-hidden="true"
+          className="relative mt-auto hidden aspect-[16/9] w-full shrink-0 lg:block"
+        >
+          <Image
+            alt=""
+            className="object-cover object-left-bottom"
+            fill
+            sizes="(min-width: 1024px) 42vw, 1px"
+            src={AUTH_ARTWORK}
+          />
+          <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-brand-900 to-transparent" />
+        </div>
+      </aside>
+
+      <main className="flex justify-center px-4 py-6 sm:px-6 sm:py-10 lg:items-center lg:px-10 lg:py-12">
+        <div
+          className={cn(
+            "w-full rounded-panel border border-app-border bg-app-surface p-5 shadow-card sm:p-8",
+            wide ? "max-w-2xl" : "max-w-md"
+          )}
+        >
+          {children}
+        </div>
+      </main>
+    </div>
+  );
 }

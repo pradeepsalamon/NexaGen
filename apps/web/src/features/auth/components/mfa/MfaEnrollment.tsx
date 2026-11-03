@@ -83,7 +83,7 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
         </ul>
         <div className="flex flex-wrap justify-end gap-2">
           <Button onClick={() => copyRecoveryCodes(enabled.recoveryCodes)} variant="outline">
-            <Copy className="size-4" strokeWidth={2.5} />
+            <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
             Copy codes
           </Button>
           <Button onClick={() => onComplete(enabled)}>I&apos;ve saved them</Button>
@@ -126,13 +126,12 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
               </span>
             </p>
             <Button
-              className="h-7 text-xs"
               onClick={() => copySecret(setup.data.secret)}
               size="sm"
               type="button"
               variant="ghost"
             >
-              <Copy className="mr-1.5 size-3.5" strokeWidth={2.5} />
+              <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
               Copy key
             </Button>
           </div>
@@ -158,7 +157,7 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
       </FormField>
       <div className="flex flex-wrap justify-end gap-2">
         {onCancel && (
-          <Button onClick={onCancel} type="button" variant="ghost">
+          <Button onClick={onCancel} type="button" variant="neutral">
             Cancel
           </Button>
         )}

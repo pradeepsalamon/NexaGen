@@ -4,15 +4,8 @@ import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { type FormEvent, useState } from "react";
-import {
-  AtSign,
-  CheckCircle2,
-  Lock,
-  Phone,
-  UserRound,
-  ArrowRight,
-  ShieldCheck
-} from "lucide-react";
+import { AtSign, Lock, Phone, ShieldCheck, UserRound } from "lucide-react";
+import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Select } from "@/components/ui/Select";
@@ -25,6 +18,8 @@ import type {
   RegisterCoachRequest
 } from "@nexa-chess/types";
 import { AcquisitionSourceSelect } from "./AcquisitionSourceSelect";
+import { AuthStatus } from "./AuthStatus";
+import { RegistrationFieldset } from "./RegistrationFieldset";
 
 const titleOptions: { label: string; value: string }[] = [
   { label: "None", value: "NONE" },
@@ -115,45 +110,30 @@ export function CoachRegisterForm() {
 
   if (submittedEmail) {
     return (
-      <div className="grid gap-3 text-center py-4">
-        <CheckCircle2
-          aria-hidden="true"
-          className="mx-auto size-11 text-success-ink"
-          strokeWidth={2.3}
-        />
-        <div className="grid gap-1">
-          <h3 className="text-base font-bold">Application received</h3>
-          <p className="text-xs opacity-80">
-            We have your application for{" "}
-            <span className="font-semibold">{submittedEmail}</span>. An admin
-            reviews every coach account before it is activated — you will be
-            able to sign in once yours is approved.
-          </p>
-        </div>
-        <Link
-          href="/login"
-          className="mt-1 inline-flex h-10 items-center justify-center rounded-xl border border-current/20 px-4 text-xs font-bold"
-        >
-          Back to sign in
-        </Link>
-      </div>
+      <AuthStatus
+        actions={
+          <Button asChild variant="neutral">
+            <Link href="/login">Back to log in</Link>
+          </Button>
+        }
+        headingLevel="h2"
+        title="Application received"
+        tone="success"
+      >
+        We have your application for{" "}
+        <span className="font-semibold text-app-text">{submittedEmail}</span>. An admin
+        reviews every coach account before it is activated. You can sign in once yours is
+        approved.
+      </AuthStatus>
     );
   }
 
-
-  const labelBaseClass = `block text-[11px] font-bold mb-1 text-app-text`;
-
   return (
-    <form className="space-y-2.5" onSubmit={handleSubmit}>
-      {/* Row 1: Full Name & Email */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="coach-name" className={labelBaseClass}>
-            Full Name <span className="text-accent-ink">*</span>
-          </label>
+    <form className="grid gap-6" onSubmit={handleSubmit}>
+      <RegistrationFieldset legend="About you">
+        <FormField id="coach-name" label="Full name" required>
           <Input
             autoComplete="name"
-            density="compact"
             id="coach-name"
             leadingIcon={<UserRound />}
             onChange={(e) => updateField("coachName", e.target.value)}
@@ -162,58 +142,10 @@ export function CoachRegisterForm() {
             type="text"
             value={values.coachName}
           />
-        </div>
+        </FormField>
 
-        <div>
-          <label htmlFor="email" className={labelBaseClass}>
-            Email Address <span className="text-accent-ink">*</span>
-          </label>
-          <Input
-            autoComplete="email"
-            density="compact"
-            id="email"
-            inputMode="email"
-            leadingIcon={<AtSign />}
-            onChange={(e) => updateField("email", e.target.value)}
-            placeholder="coach@example.com"
-            required
-            type="email"
-            value={values.email}
-          />
-        </div>
-      </div>
-
-      {/* Row 2: WhatsApp/Phone (Numbers Only) & FIDE Title */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="contact-number" className={labelBaseClass}>
-            WhatsApp / Phone Number <span className="text-accent-ink">*</span>
-          </label>
-          <Input
-            autoComplete="tel"
-            density="compact"
-            id="contact-number"
-            inputMode="numeric"
-            leadingIcon={<Phone />}
-            maxLength={15}
-            onChange={(e) => {
-                const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 15);
-                updateField("contactNumber", digitsOnly);
-              }}
-            pattern="[0-9]*"
-            placeholder="9876543210"
-            required
-            type="tel"
-            value={values.contactNumber}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="title" className={labelBaseClass}>
-            FIDE Title
-          </label>
+        <FormField id="title" label="FIDE title">
           <Select
-            density="compact"
             id="title"
             onChange={(e) =>
               handleTitleChange(e.target.value as RegisterCoachRequest["title"])
@@ -221,61 +153,46 @@ export function CoachRegisterForm() {
             options={titleOptions}
             value={values.title ?? "NONE"}
           />
-        </div>
-      </div>
+        </FormField>
 
-      {/* Row 3: FIDE ID & FIDE Rating (ONLY shown when FIDE Title is NOT "NONE") */}
-      {hasFideTitle && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in">
-          <div>
-            <label htmlFor="fide-id" className={labelBaseClass}>
-              FIDE ID (Optional)
-            </label>
-            <Input
-              density="compact"
-              id="fide-id"
-              inputMode="numeric"
-              onChange={(e) => {
-                const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 12);
-                updateField("fideId", digitsOnly);
-              }}
-              pattern="[0-9]*"
-              placeholder="123456"
-              type="text"
-              value={values.fideId ?? ""}
-            />
-          </div>
+        {/* FIDE ID and rating only once a title is chosen. */}
+        {hasFideTitle && (
+          <>
+            <FormField id="fide-id" label="FIDE ID (optional)">
+              <Input
+                id="fide-id"
+                inputMode="numeric"
+                onChange={(e) => {
+                  const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 12);
+                  updateField("fideId", digitsOnly);
+                }}
+                pattern="[0-9]*"
+                placeholder="123456"
+                type="text"
+                value={values.fideId ?? ""}
+              />
+            </FormField>
 
-          <div>
-            <label htmlFor="fide-rating" className={labelBaseClass}>
-              FIDE Rating (Optional)
-            </label>
-            <Input
-              density="compact"
-              id="fide-rating"
-              inputMode="numeric"
-              onChange={(e) => {
-                const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 4);
-                const val = parseInt(digitsOnly, 10);
-                updateField("fideRating", Number.isNaN(val) ? undefined : val);
-              }}
-              pattern="[0-9]*"
-              placeholder="e.g. 2000"
-              type="text"
-              value={values.fideRating ?? ""}
-            />
-          </div>
-        </div>
-      )}
+            <FormField id="fide-rating" label="FIDE rating (optional)">
+              <Input
+                id="fide-rating"
+                inputMode="numeric"
+                onChange={(e) => {
+                  const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  const val = parseInt(digitsOnly, 10);
+                  updateField("fideRating", Number.isNaN(val) ? undefined : val);
+                }}
+                pattern="[0-9]*"
+                placeholder="e.g. 2000"
+                type="text"
+                value={values.fideRating ?? ""}
+              />
+            </FormField>
+          </>
+        )}
 
-      {/* Row 4: Years of Experience & How did you hear about us? */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="years-of-experience" className={labelBaseClass}>
-            Years of Experience
-          </label>
+        <FormField id="years-of-experience" label="Years of experience">
           <Input
-            density="compact"
             id="years-of-experience"
             inputMode="numeric"
             onChange={(e) => {
@@ -291,29 +208,54 @@ export function CoachRegisterForm() {
             type="text"
             value={values.yearsOfExperience ?? ""}
           />
-        </div>
+        </FormField>
 
-        <div className="[&_label]:!text-[11px] [&_label]:!font-bold [&_label]:!mb-1">
-          <AcquisitionSourceSelect
-            density="compact"
-            detail={acquisitionDetail}
-            onDetailChange={setAcquisitionDetail}
-            onValueChange={setAcquisitionSource}
+        <AcquisitionSourceSelect
+          detail={acquisitionDetail}
+          onDetailChange={setAcquisitionDetail}
+          onValueChange={setAcquisitionSource}
+          required
+          value={acquisitionSource}
+        />
+      </RegistrationFieldset>
+
+      <RegistrationFieldset legend="Contact and account">
+        <FormField id="email" label="Email address" required>
+          <Input
+            autoComplete="email"
+            id="email"
+            inputMode="email"
+            leadingIcon={<AtSign />}
+            onChange={(e) => updateField("email", e.target.value)}
+            placeholder="name@example.com"
             required
-            value={acquisitionSource}
+            type="email"
+            value={values.email}
           />
-        </div>
-      </div>
+        </FormField>
 
-      {/* Row 5: Password & Confirm Password */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="coach-password" className={labelBaseClass}>
-            Password <span className="text-accent-ink">*</span>
-          </label>
+        <FormField id="contact-number" label="WhatsApp or phone number" required>
+          <Input
+            autoComplete="tel"
+            id="contact-number"
+            inputMode="numeric"
+            leadingIcon={<Phone />}
+            maxLength={15}
+            onChange={(e) => {
+              const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 15);
+              updateField("contactNumber", digitsOnly);
+            }}
+            pattern="[0-9]*"
+            placeholder="9876543210"
+            required
+            type="tel"
+            value={values.contactNumber}
+          />
+        </FormField>
+
+        <FormField id="coach-password" label="Password" required>
           <PasswordInput
             autoComplete="new-password"
-            density="compact"
             id="coach-password"
             leadingIcon={<Lock />}
             onChange={(e) => updateField("password", e.target.value)}
@@ -321,54 +263,38 @@ export function CoachRegisterForm() {
             required
             value={values.password}
           />
-        </div>
+        </FormField>
 
-        <div>
-          <label htmlFor="coach-confirm-password" className={labelBaseClass}>
-            Confirm Password <span className="text-accent-ink">*</span>
-          </label>
+        <FormField id="coach-confirm-password" label="Confirm password" required>
           <PasswordInput
             autoComplete="new-password"
-            density="compact"
             id="coach-confirm-password"
             leadingIcon={<Lock />}
             name="confirmPassword"
             onChange={(e) => {
-                e.target.setCustomValidity("");
-                updateField("confirmPassword", e.target.value);
-              }}
+              e.target.setCustomValidity("");
+              updateField("confirmPassword", e.target.value);
+            }}
             placeholder="Confirm your password"
             required
             value={values.confirmPassword}
           />
-        </div>
-      </div>
+        </FormField>
+      </RegistrationFieldset>
 
-      {/* Submit Application Button */}
-      <Button
-        className="mt-1.5"
-        disabled={registerMutation.isPending}
-        fullWidth
-        type="submit"
-      >
-        <span>
-          {registerMutation.isPending ? "Submitting..." : "Submit application"}
-        </span>
-        <ArrowRight className="size-4 stroke-[2.4]" />
-      </Button>
-
-      {/* Approval Note */}
-      <p
-        className="flex items-center justify-center gap-1.5 text-center text-[11px] pt-0.5 text-app-muted"
-      >
-        <ShieldCheck
-          className="size-3.5 shrink-0 text-success-ink"
-          strokeWidth={2.4}
-        />
-        <span>
+      <div className="grid gap-3">
+        <Button fullWidth isLoading={registerMutation.isPending} size="lg" type="submit">
+          {registerMutation.isPending ? "Submitting…" : "Submit application"}
+        </Button>
+        <p className="flex items-start justify-center gap-2 text-center text-sm text-app-muted">
+          <ShieldCheck
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 text-success-ink"
+            strokeWidth={2.25}
+          />
           Our team reviews every application. You will be notified by email.
-        </span>
-      </p>
+        </p>
+      </div>
     </form>
   );
 }

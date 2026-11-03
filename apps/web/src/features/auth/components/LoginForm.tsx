@@ -10,8 +10,9 @@ import {
 } from "@nexa-chess/types";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
-import { Mail, Lock, ArrowRight } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/providers/ToastProvider";
@@ -23,6 +24,7 @@ import { login } from "../api/authApi";
 import { MfaCodeStep } from "./mfa/MfaCodeStep";
 import { MfaEnrollment } from "./mfa/MfaEnrollment";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
+import { AuthHeader } from "./AuthHeader";
 import { AuthSplitShell } from "./AuthSplitShell";
 
 const initialValues: LoginFormValues = {
@@ -95,15 +97,15 @@ export function LoginForm() {
   if (challenge) {
     const enrolling = challenge.mfaRequired === "SETUP";
     return (
-      <AuthSplitShell variant="login" cardMaxWidthClass="max-w-[440px]">
-        <h1 className="font-display text-2xl sm:text-3xl font-bold text-app-text mb-1.5">
-          {enrolling ? "Set up two-factor sign-in" : "Two-factor sign-in"}
-        </h1>
-        <p className="text-xs sm:text-sm text-app-muted mb-5">
-          {enrolling
-            ? "Your account needs a second step at sign-in. This takes a minute."
-            : "One more step to confirm it's you."}
-        </p>
+      <AuthSplitShell variant="login">
+        <AuthHeader
+          description={
+            enrolling
+              ? "Your account needs a second step at sign-in. This takes a minute."
+              : "One more step to confirm it's you."
+          }
+          title={enrolling ? "Set up two-factor sign-in" : "Two-factor sign-in"}
+        />
         {enrolling ? (
           <MfaEnrollment
             challengeToken={challenge.challengeToken}
@@ -124,105 +126,71 @@ export function LoginForm() {
   }
 
   return (
-    <AuthSplitShell variant="login" cardMaxWidthClass="max-w-[440px]">
-      {/* Card Header */}
-      <div className="mb-6">
-        <h2 className="font-display text-2xl sm:text-[30px] font-bold text-app-text leading-tight">
-          Welcome Back
-        </h2>
-        <p className="text-xs sm:text-sm text-app-muted mt-1.5 leading-relaxed">
-          Continue your chess journey with expert coaching and a global community.
-        </p>
-      </div>
+    <AuthSplitShell variant="login">
+      <AuthHeader
+        description="Continue your chess journey with expert coaching and a global community."
+        title="Welcome back"
+      />
 
-      {/* Form */}
-      <form className="space-y-4" noValidate onSubmit={handleSubmit}>
-        {/* Email Field */}
-        <div>
-          <label
-            htmlFor="email"
-            className="block text-xs font-bold text-app-text mb-1.5"
-          >
-            Email address
-          </label>
+      <form className="grid gap-4" noValidate onSubmit={handleSubmit}>
+        <FormField error={errors.email} id="email" label="Email address">
           <Input
             autoComplete="email"
             aria-describedby={errors.email ? "email-error" : undefined}
             id="email"
             hasError={Boolean(errors.email)}
             inputMode="email"
-            leadingIcon={<Mail strokeWidth={2} />}
+            leadingIcon={<Mail strokeWidth={2.25} />}
             onBlur={() => touchField("email")}
             onChange={(e) => updateField("email", e.target.value)}
-            placeholder="student@nexa.test"
+            placeholder="name@example.com"
             type="email"
             value={values.email}
           />
-          {errors.email && (
-            <p className="mt-1 text-xs font-medium text-app-danger-ink" id="email-error">{errors.email}</p>
-          )}
-        </div>
+        </FormField>
 
-        {/* Password Field */}
-        <div>
-          <label
-            htmlFor="password"
-            className="block text-xs font-bold text-app-text mb-1.5"
-          >
-            Password
-          </label>
+        <FormField error={errors.password} id="password" label="Password">
           <PasswordInput
             autoComplete="current-password"
             aria-describedby={errors.password ? "password-error" : undefined}
             id="password"
             hasError={Boolean(errors.password)}
-            leadingIcon={<Lock strokeWidth={2} />}
+            leadingIcon={<Lock strokeWidth={2.25} />}
             onBlur={() => touchField("password")}
             onChange={(e) => updateField("password", e.target.value)}
             placeholder="Enter your password"
             value={values.password}
           />
-          {errors.password && (
-            <p className="mt-1 text-xs font-medium text-app-danger-ink" id="password-error">
-              {errors.password}
-            </p>
-          )}
-        </div>
+        </FormField>
 
-        {/* Remember Me & Forgot Password */}
-        <div className="flex items-center justify-between pt-0.5">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <label
+            className="inline-flex min-h-[var(--control-h-sm)] cursor-pointer items-center gap-2 text-sm text-app-text"
             htmlFor="remember-me"
-            className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-app-muted"
           >
             <Checkbox
               checked={values.rememberMe}
               id="remember-me"
               onCheckedChange={(checked) => updateField("rememberMe", checked === true)}
             />
-            <span>Remember me</span>
+            Remember me
           </label>
 
           <Link
+            className="text-sm font-medium text-primary-ink hover:underline"
             href="/forgot-password"
-            className="text-xs font-bold text-accent-ink hover:underline"
           >
             Forgot password?
           </Link>
         </div>
 
-        <Button disabled={loginMutation.isPending} fullWidth size="lg" type="submit">
-          <span>{loginMutation.isPending ? "Logging in..." : "Log in"}</span>
-          <ArrowRight className="size-4 stroke-[2.4]" />
+        <Button fullWidth isLoading={loginMutation.isPending} size="lg" type="submit">
+          {loginMutation.isPending ? "Logging in…" : "Log in"}
         </Button>
 
-        {/* Bottom Switch to Register */}
-        <p className="text-center text-xs text-app-muted pt-2">
+        <p className="text-center text-sm text-app-muted">
           Don&apos;t have an account?{" "}
-          <Link
-            href="/register"
-            className="font-bold text-accent-ink hover:underline"
-          >
+          <Link className="font-medium text-primary-ink hover:underline" href="/register">
             Create account
           </Link>
         </p>

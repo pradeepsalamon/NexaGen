@@ -4,16 +4,20 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
-import { Lock, Mail, ArrowRight } from "lucide-react";
+import { Mail } from "lucide-react";
+import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/providers/ToastProvider";
 import { forgotPassword } from "../api/authApi";
+import { AuthHeader } from "./AuthHeader";
 import { AuthSplitShell } from "./AuthSplitShell";
+import { AuthStatus } from "./AuthStatus";
 
 export function ForgotPasswordForm() {
   const toast = useToast();
   const [email, setEmail] = useState("");
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
   const forgotPasswordMutation = useMutation({
     mutationFn: forgotPassword,
@@ -23,11 +27,12 @@ export function ForgotPasswordForm() {
         title: "Reset request failed"
       });
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
+      setSentTo(variables.email);
       toast.success({
         message: `If an account with this email exists, password reset instructions will be sent.${data?.resetToken ? ` Dev reset token: ${data.resetToken}` : ""
           }`,
-        title: "Reset Request Sent"
+        title: "Reset request sent"
       });
     }
   });
@@ -38,71 +43,61 @@ export function ForgotPasswordForm() {
     forgotPasswordMutation.mutate({ email });
   }
 
-  return (
-    <AuthSplitShell variant="forgot-password" cardMaxWidthClass="max-w-[430px]">
-      {/* Centered Gold Lock Icon Badge */}
-      <div className="flex flex-col items-center text-center mb-6">
-        <div
-          className="
-            size-14 rounded-full mb-4
-            flex items-center justify-center
-            bg-accent-soft
-            border border-accent/45
-            text-accent-ink
-            shadow-xs
-          "
+  if (sentTo) {
+    return (
+      <AuthSplitShell variant="forgot-password">
+        <AuthStatus
+          actions={
+            <>
+              <Button asChild>
+                <Link href="/login">Back to log in</Link>
+              </Button>
+              <Button onClick={() => setSentTo(null)} variant="neutral">
+                Use a different email
+              </Button>
+            </>
+          }
+          title="Check your email"
+          tone="info"
         >
-          <Lock className="size-6" strokeWidth={2.2} />
-        </div>
+          If an account exists for{" "}
+          <span className="font-semibold text-app-text">{sentTo}</span>, we&apos;ve sent a
+          link to reset its password.
+        </AuthStatus>
+      </AuthSplitShell>
+    );
+  }
 
-        <h2 className="font-display text-2xl sm:text-[28px] font-bold text-app-text leading-tight">
-          Forgot Password?
-        </h2>
+  return (
+    <AuthSplitShell variant="forgot-password">
+      <AuthHeader
+        description="Enter the email address of your Nexa Chess account and we'll send you a reset link."
+        title="Forgot your password?"
+      />
 
-        <p className="text-xs sm:text-sm text-app-muted mt-2 max-w-[330px] leading-relaxed">
-          Enter the email address associated with your Nexa Chess account and
-          we&apos;ll send you a reset link.
-        </p>
-      </div>
-
-      {/* Form */}
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <div>
-          <label
-            htmlFor="forgot-email"
-            className="block text-xs font-bold text-app-text mb-1.5"
-          >
-            Email address
-          </label>
+      <form className="grid gap-4" onSubmit={handleSubmit}>
+        <FormField id="forgot-email" label="Email address">
           <Input
             autoComplete="email"
             id="forgot-email"
             inputMode="email"
-            leadingIcon={<Mail strokeWidth={2} />}
+            leadingIcon={<Mail strokeWidth={2.25} />}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="student@example.com"
+            placeholder="name@example.com"
             required
             type="email"
             value={email}
           />
-        </div>
+        </FormField>
 
-        {/* Send Reset Link Button */}
-        <Button disabled={forgotPasswordMutation.isPending} fullWidth size="lg" type="submit">
-          <span>
-            {forgotPasswordMutation.isPending ? "Sending..." : "Send reset link"}
-          </span>
-          <ArrowRight className="size-4 stroke-[2.4]" />
+        <Button fullWidth isLoading={forgotPasswordMutation.isPending} size="lg" type="submit">
+          {forgotPasswordMutation.isPending ? "Sending…" : "Send reset link"}
         </Button>
 
-        {/* Bottom Back to Login Link */}
-        <p className="text-center text-xs text-app-muted pt-2">
+        <p className="text-center text-sm text-app-muted">
           Remembered your password?{" "}
-          <Link
-            href="/login"
-            className="font-bold text-accent-ink hover:underline"
-          >
-            Back to login
+          <Link className="font-medium text-primary-ink hover:underline" href="/login">
+            Back to log in
           </Link>
         </p>
       </form>

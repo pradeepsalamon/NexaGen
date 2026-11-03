@@ -4,16 +4,8 @@ import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { type FormEvent, useState } from "react";
-import {
-  AtSign,
-  CalendarDays,
-  CheckCircle2,
-  ArrowRight,
-  Lock,
-  Phone,
-  ShieldCheck,
-  UserRound
-} from "lucide-react";
+import { AtSign, CalendarDays, Lock, Phone, ShieldCheck, UserRound } from "lucide-react";
+import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/providers/ToastProvider";
@@ -22,6 +14,8 @@ import { getStoredAcquisition } from "@/lib/acquisition";
 import { register } from "../api/authApi";
 import type { RegisterFormValues } from "../types/auth";
 import { AcquisitionSourceSelect } from "./AcquisitionSourceSelect";
+import { AuthStatus } from "./AuthStatus";
+import { RegistrationFieldset } from "./RegistrationFieldset";
 
 const initialValues: RegisterFormValues = {
   confirmPassword: "",
@@ -95,45 +89,30 @@ export function RegisterForm() {
 
   if (submittedEmail) {
     return (
-      <div className="grid gap-3 text-center py-4">
-        <CheckCircle2
-          aria-hidden="true"
-          className="mx-auto size-11 text-success-ink"
-          strokeWidth={2.3}
-        />
-        <div className="grid gap-1">
-          <h3 className="text-base font-bold">Registration received</h3>
-          <p className="text-xs opacity-80">
-            We have your registration for{" "}
-            <span className="font-semibold">{submittedEmail}</span>. An admin
-            reviews every student account before it is activated — you will be
-            able to sign in once yours is approved.
-          </p>
-        </div>
-        <Link
-          href="/login"
-          className="mt-1 inline-flex h-10 items-center justify-center rounded-xl border border-current/20 px-4 text-xs font-bold"
-        >
-          Back to sign in
-        </Link>
-      </div>
+      <AuthStatus
+        actions={
+          <Button asChild variant="neutral">
+            <Link href="/login">Back to log in</Link>
+          </Button>
+        }
+        headingLevel="h2"
+        title="Registration received"
+        tone="success"
+      >
+        We have your registration for{" "}
+        <span className="font-semibold text-app-text">{submittedEmail}</span>. An admin
+        reviews every student account before it is activated. You can sign in once yours
+        is approved.
+      </AuthStatus>
     );
   }
 
-
-  const labelBaseClass = `block text-[11px] font-bold mb-1 text-app-text`;
-
   return (
-    <form className="space-y-2.5" onSubmit={handleSubmit}>
-      {/* Row 1: Student Name & Parent Name */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="student-name" className={labelBaseClass}>
-            Student Full Name <span className="text-accent-ink">*</span>
-          </label>
+    <form className="grid gap-6" onSubmit={handleSubmit}>
+      <RegistrationFieldset legend="Student">
+        <FormField id="student-name" label="Student's full name" required>
           <Input
             autoComplete="name"
-            density="compact"
             id="student-name"
             leadingIcon={<UserRound />}
             onChange={(e) => updateField("studentName", e.target.value)}
@@ -142,42 +121,18 @@ export function RegisterForm() {
             type="text"
             value={values.studentName}
           />
-        </div>
+        </FormField>
 
-        <div>
-          <label htmlFor="parent-name" className={labelBaseClass}>
-            Parent / Guardian Name <span className="text-accent-ink">*</span>
-          </label>
+        <FormField id="student-age" label="Student's age" required>
           <Input
-            autoComplete="name"
-            density="compact"
-            id="parent-name"
-            leadingIcon={<UserRound />}
-            onChange={(e) => updateField("parentName", e.target.value)}
-            placeholder="e.g. Rajesh Sharma"
-            required
-            type="text"
-            value={values.parentName}
-          />
-        </div>
-      </div>
-
-      {/* Row 2: Student Age & WhatsApp/Phone (Numbers Only) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="student-age" className={labelBaseClass}>
-            Student Age <span className="text-accent-ink">*</span>
-          </label>
-          <Input
-            density="compact"
             id="student-age"
             inputMode="numeric"
             leadingIcon={<CalendarDays />}
             onChange={(e) => {
-                e.currentTarget.setCustomValidity("");
-                const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 2);
-                updateField("studentAge", digitsOnly);
-              }}
+              e.currentTarget.setCustomValidity("");
+              const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 2);
+              updateField("studentAge", digitsOnly);
+            }}
             // The browser's own message for the pattern below, not a title= tooltip.
             onInvalid={(e) => e.currentTarget.setCustomValidity("Enter an age from 3 to 99.")}
             // 3–99 with no leading zero: the demo form's rule.
@@ -187,73 +142,69 @@ export function RegisterForm() {
             type="text"
             value={values.studentAge}
           />
-        </div>
+        </FormField>
+      </RegistrationFieldset>
 
-        <div>
-          <label htmlFor="contact-number" className={labelBaseClass}>
-            WhatsApp / Phone Number <span className="text-accent-ink">*</span>
-          </label>
+      <RegistrationFieldset legend="Parent or guardian contact">
+        <FormField id="parent-name" label="Parent or guardian name" required>
+          <Input
+            autoComplete="name"
+            id="parent-name"
+            leadingIcon={<UserRound />}
+            onChange={(e) => updateField("parentName", e.target.value)}
+            placeholder="e.g. Rajesh Sharma"
+            required
+            type="text"
+            value={values.parentName}
+          />
+        </FormField>
+
+        <FormField id="contact-number" label="WhatsApp or phone number" required>
           <Input
             autoComplete="tel"
-            density="compact"
             id="contact-number"
             inputMode="numeric"
             leadingIcon={<Phone />}
             maxLength={15}
             onChange={(e) => {
-                const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 15);
-                updateField("contactNumber", digitsOnly);
-              }}
+              const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 15);
+              updateField("contactNumber", digitsOnly);
+            }}
             pattern="[0-9]*"
             placeholder="9876543210"
             required
             type="tel"
             value={values.contactNumber}
           />
-        </div>
-      </div>
+        </FormField>
+      </RegistrationFieldset>
 
-      {/* Row 3: How did you hear about us? & Email Address */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="[&_label]:!text-[11px] [&_label]:!font-bold [&_label]:!mb-1">
-          <AcquisitionSourceSelect
-            density="compact"
-            detail={values.acquisitionDetail}
-            onDetailChange={(detail) => updateField("acquisitionDetail", detail)}
-            onValueChange={(value) => updateField("acquisitionSource", value)}
-            required
-            value={values.acquisitionSource}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="email" className={labelBaseClass}>
-            Email Address <span className="text-accent-ink">*</span>
-          </label>
+      <RegistrationFieldset legend="Account">
+        <FormField id="email" label="Email address" required>
           <Input
             autoComplete="email"
-            density="compact"
             id="email"
             inputMode="email"
             leadingIcon={<AtSign />}
             onChange={(e) => updateField("email", e.target.value)}
-            placeholder="student@example.com"
+            placeholder="name@example.com"
             required
             type="email"
             value={values.email}
           />
-        </div>
-      </div>
+        </FormField>
 
-      {/* Row 4: Password & Confirm Password */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="password" className={labelBaseClass}>
-            Password <span className="text-accent-ink">*</span>
-          </label>
+        <AcquisitionSourceSelect
+          detail={values.acquisitionDetail}
+          onDetailChange={(detail) => updateField("acquisitionDetail", detail)}
+          onValueChange={(value) => updateField("acquisitionSource", value)}
+          required
+          value={values.acquisitionSource}
+        />
+
+        <FormField id="password" label="Password" required>
           <PasswordInput
             autoComplete="new-password"
-            density="compact"
             id="password"
             leadingIcon={<Lock />}
             onChange={(e) => updateField("password", e.target.value)}
@@ -261,57 +212,38 @@ export function RegisterForm() {
             required
             value={values.password}
           />
-        </div>
+        </FormField>
 
-        <div>
-          <label htmlFor="confirm-password" className={labelBaseClass}>
-            Confirm Password <span className="text-accent-ink">*</span>
-          </label>
+        <FormField id="confirm-password" label="Confirm password" required>
           <PasswordInput
             autoComplete="new-password"
-            density="compact"
             id="confirm-password"
             leadingIcon={<Lock />}
             name="confirmPassword"
             onChange={(e) => {
-                e.target.setCustomValidity("");
-                updateField("confirmPassword", e.target.value);
-              }}
+              e.target.setCustomValidity("");
+              updateField("confirmPassword", e.target.value);
+            }}
             placeholder="Confirm your password"
             required
             value={values.confirmPassword}
           />
-        </div>
+        </FormField>
+      </RegistrationFieldset>
+
+      <div className="grid gap-3">
+        <Button fullWidth isLoading={registerMutation.isPending} size="lg" type="submit">
+          {registerMutation.isPending ? "Submitting…" : "Complete registration"}
+        </Button>
+        <p className="flex items-start justify-center gap-2 text-center text-sm text-app-muted">
+          <ShieldCheck
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 text-success-ink"
+            strokeWidth={2.25}
+          />
+          Our team reviews every registration. You can sign in once it is approved.
+        </p>
       </div>
-
-      {/* Submit Button */}
-      <Button
-        className="mt-1.5"
-        disabled={registerMutation.isPending}
-        fullWidth
-        type="submit"
-      >
-        <span>
-          {registerMutation.isPending
-            ? "Submitting..."
-            : "Complete registration"}
-        </span>
-        <ArrowRight className="size-4 stroke-[2.4]" />
-      </Button>
-
-      {/* Approval Note */}
-      <p
-        className="flex items-center justify-center gap-1.5 text-center text-[11px] pt-0.5 text-app-muted"
-      >
-        <ShieldCheck
-          className="size-3.5 shrink-0 text-success-ink"
-          strokeWidth={2.4}
-        />
-        <span>
-          Our team reviews every registration. You can sign in once it is
-          approved.
-        </span>
-      </p>
     </form>
   );
 }
