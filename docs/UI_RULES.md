@@ -98,7 +98,7 @@ disagree.
 | Table row actions | `RowActions` | `neutral` icon buttons, `size-8`, right-aligned. `tone` colours the icon only (`default` ink, `warning` amber, `danger` red), so a row isn't a strip of filled shapes. Everything inline by default; `inline={n}` groups the rest behind "⋮" only when asked. An action that opens a page takes `href` instead of `onSelect`, so it stays a real link. A hand-written action button is `variant="neutral"` + `className="size-8"` + the same tone classes. |
 | Data lists | `DataTable` (TanStack) or `Table` + `TableHeader/Body/Row/Head/Cell` | Never a raw `<table>`. The header is a sunken `surface-soft` row with 12px muted sentence-case text; don't colour or uppercase `TableHead` yourself. Text is left-aligned by default: right-align numbers you compare (`text-right`), and a `pin="end"` actions column is right-aligned already. A table wider than its card scrolls inside it, and `Table` shades the edge that hides columns. When a row has actions or more than ~4 columns, always pass `stackOnMobile` to `DataTable` and give every function-header column a `meta: { label }`: below `sm` each row becomes a card, so no action sits off-screen. Columns with ids `select` and `actions` go in the card's header and footer. A plain `Table` whose last column holds row actions passes `pin="end"` to that `TableHead`/`TableCell` so it stays on screen below `lg` (`DataTable` does this for an `actions` column automatically). |
 | Sortable column header | `DataTableSortButton` (TanStack `column`) / `SortButton` + `useTableSort` (plain `Table`) | Sorting is **opt-in**: lists load in the API's own order and nothing is sorted (no `initialKey` / `initialSorting`) until the user clicks a header. Each sortable header shows ↑ asc / ↓ desc / faint ↕ unsorted; a click cycles asc → desc → unsorted. Server-paginated lists sort on the server (`sort`/`order`; with none sent, `resolveOrderBy` uses the endpoint's fallback order) — client-sorting one page would misorder the rest. Document-order tables (invoice lines, move lists, ranked leaderboards, the topic folder tree) keep their natural order and have no sort arrows. |
-| Status labels | `Badge` (`default`, `secondary` (grey), `accent` (gold: reward only), `success`, `warning`, `info`, `destructive`, `live`, `outline`) | Never a hand-rolled `rounded-full px-2 text-xs` span. Text is sentence case: show an API enum through `enumLabel()` (`lib/utils.ts`), never raw `ACTIVE`, and never `uppercase`. |
+| Status labels | `Badge` (`default`, `secondary` (grey), `accent` (gold: reward only), `success`, `warning`, `info`, `destructive`, `live`, `outline`) | Never a hand-rolled `rounded-full px-2 text-xs` span. Text is sentence case: show an API enum through `enumLabel()` (`lib/utils.ts`), never raw `ACTIVE`, and never `uppercase`. A class status is `ClassStatusBadge`; pass `endsAt` so a scheduled class whose slot passed reads "Not held". |
 | On/off setting | `Switch` | "Lock …", "Enabled", "Send WhatsApp", preferences. |
 | Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". |
 | Text / number fields | `Input`, `Textarea`, `PasswordInput`, `Select`, `Combobox` | Never raw `<input>` / `<textarea>` / `<select>` (file, colour, range and radio inputs are the exceptions). They share one look (`fieldClasses()`: surface fill, `line-strong` border, blue border + ring on focus, red border on error); change it there, not per form. `leadingIcon` puts an icon inside; `density="compact"` (Input, PasswordInput, Select) is the dense field of multi-column forms such as registration. |
@@ -114,9 +114,10 @@ disagree.
 | Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. |
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
 | Page title + actions | `PageHeader` | Pass `breadcrumbs` on a detail page instead of a `BackButton`. |
+| Analytics page | `AnalyticsPageShell` (`features/analytics/components`) | `PageHeader` with the date range, Refresh and Export as its actions; `breadcrumbs` on a detail report. The admin dashboard uses it too. Never a second hand-built analytics header. |
 | Role page frame | `PageContent` | The one ground, padding and `max-w-7xl` content width. Role layouts use it; pages don't add their own. |
 | A class in a list | `ClassRow` inside `ClassRowList` | Status and Join come from `class-availability`. Pass `actions` to replace the buttons, `quietJoin` where another control is the page's primary action. Coach lists use `CoachClassRow` (`features/coach/components`): Start while the start window is open, View class, and a ⋮ menu for notes and requests. |
-| Month of classes | `ScheduleCalendar` with `groupByDay` (`lib/scheduleCalendar.ts`) | The caller lists the selected day's classes beside it. The coach schedule's Month tab uses it; batch calendars adopt it in M7. |
+| Month of classes | `ScheduleCalendar` with `groupByDay` (`lib/scheduleCalendar.ts`) | The caller lists the selected day's classes beside it. The coach schedule's Month tab uses it; batch calendars have not adopted it yet. |
 | Tooltips | `SimpleTooltip` | Never `title=` on an interactive element. |
 | Icons | `lucide-react` only, sized with classes (`className="size-4"`), `strokeWidth={2.25–2.5}` | No other icon library, no inline `<svg>` icons, no `size={16}` props (they don't follow the text-size setting). |
 
@@ -124,7 +125,9 @@ disagree.
 
 - **Controls go on the right.** Page-level tabs, CTAs, filters and search sit
   right-aligned: `PageHeader` actions, `justify-self-end` on a standalone
-  `TabsList`, `justify-end` on filter/search rows, `DataTableToolbar`.
+  `TabsList`, `justify-end` on filter/search rows, `DataTableToolbar`. Below
+  `sm` a filter row fills the width instead (`grid grid-cols-2 … sm:flex
+  sm:justify-end`, fields `w-full sm:w-44`), so half the card isn't empty.
   Content (titles, descriptions, tables) reads from the left.
 - **Page titles** are `<h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">`
   (`PageHeader` / `FormPageShell` render this for you). One `h1` per page — the
