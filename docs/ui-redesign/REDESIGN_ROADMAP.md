@@ -195,6 +195,8 @@ Dashboard, batches, schedule, assignments (decide whether `AssignmentFormDialog`
 
 Reskin only. A finance change in M1–M2 still reaches these pages, so include them in those milestones' checks.
 
+**Built 2026-11-03, not yet tested.** Most of these pages were already on v2 primitives from M1–M3, so this is a sweep rather than a rebuild. Every page has one `PageHeader` `h1`, also while loading or empty (`/plans`, `/student/billing`, the invoice and payroll detail pages). Invoice and payroll-period detail pages use breadcrumbs instead of back links: the invoice number is the title, its status badges sit under it, and Download PDF, the printable view and (for admins) Regenerate PDF, Resend email and Issue credit note are the header actions; "Emailed …" moved into the audit trail card. The payroll period header uses `PAYROLL_PERIOD_TYPE_LABELS` instead of the raw enum, its totals are `StatTile`s, and the expand control is a `Button`. Prices and net amounts are body text with `tabular-nums` instead of blue; the gold PDF-failed and refund notes, the checkout's subscription / already-owned notes, the pending-payment warning, the failed-renewal line and the invoice-settings placeholder note are `Alert`s. Entitlement status reads as words, and row-level Reverse, End rate, Remove band and Keep it are `neutral`. Pay buttons, status recovery, the UPI QR's white background and every money calculation are unchanged. **Still owed before release: a sandbox purchase per screen** (see §5 Payments) plus the shots matrix and dark mode.
+
 ### M9. Chess surfaces and Live Class (XL). Highest risk
 
 | Part | Scope |

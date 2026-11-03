@@ -15,6 +15,7 @@ import {
   type PaymentStatus,
   type PaymentStatusResponse
 } from "@nexa-chess/types";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
@@ -101,7 +102,7 @@ export function PaymentStatusCard({
             </div>
             <div>
               <dt className="text-xs text-app-muted">Order</dt>
-              <dd className="font-mono text-xs font-semibold text-app-text">
+              <dd className="text-xs font-semibold tabular-nums text-app-text">
                 {status.orderNumber}
               </dd>
             </div>
@@ -153,10 +154,10 @@ export function PaymentStatusCard({
           </div>
 
           {status.pending ? (
-            <p className="mt-4 rounded-app bg-app-surface/70 px-3 py-2 text-xs font-semibold text-app-text">
+            <Alert className="mt-4" variant="warning">
               Do not make another payment while we verify the current
               transaction.
-            </p>
+            </Alert>
           ) : null}
         </div>
       </div>

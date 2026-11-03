@@ -13,6 +13,7 @@ import {
   type PaymentStatus,
   type SubscriptionItem
 } from "@nexa-chess/types";
+import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -24,6 +25,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime, formatFullDate } from "@/lib/datetime";
+import { enumLabel } from "@/lib/utils";
 import {
   creditNotePdfUrl,
   invoicePdfUrl
@@ -54,23 +56,37 @@ export function BillingClient() {
   const timeZone = useUserTimeZone();
   const { data, isLoading } = useMyBilling();
 
-  if (isLoading) return <Skeleton className="h-96 w-full" />;
+  const header = (
+    <PageHeader
+      description="Your payments, invoices and active access."
+      title="Billing"
+    />
+  );
+
+  if (isLoading) {
+    return (
+      <div>
+        {header}
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
 
   if (!data) {
     return (
-      <EmptyState
-        description="We could not load your billing history."
-        title="Nothing to show"
-      />
+      <div>
+        {header}
+        <EmptyState
+          description="We could not load your billing history."
+          title="Nothing to show"
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        description="Your payments, invoices and active access."
-        title="Billing"
-      />
+      {header}
 
       <Tabs defaultValue="payments">
         <TabsList className="justify-self-end">
@@ -117,7 +133,7 @@ export function BillingClient() {
                     </p>
                   </div>
 
-                  <p className="text-sm font-bold text-app-text">
+                  <p className="text-sm font-bold tabular-nums text-app-text">
                     {formatMoney(payment.amount, payment.currency)}
                   </p>
 
@@ -290,7 +306,7 @@ export function BillingClient() {
                         entitlement.status === "ACTIVE" ? "success" : "secondary"
                       }
                     >
-                      {entitlement.status}
+                      {enumLabel(entitlement.status)}
                     </Badge>
                     {entitlement.batchName ? (
                       <span className="text-sm text-app-muted">
@@ -370,10 +386,10 @@ function SubscriptionRow({
       ) : null}
 
       {subscription.failedRenewals > 0 ? (
-        <p className="mt-2 text-sm text-app-danger-ink">
+        <Alert className="mt-2" variant="warning">
           {subscription.failedRenewals} renewal attempt(s) have failed. Update
           your payment method to keep your access.
-        </p>
+        </Alert>
       ) : null}
 
       {active && !subscription.cancelAtPeriodEnd ? (
@@ -398,7 +414,7 @@ function SubscriptionRow({
                 onClick={() => setConfirming(false)}
                 size="sm"
                 type="button"
-                variant="ghost"
+                variant="neutral"
               >
                 Keep it
               </Button>

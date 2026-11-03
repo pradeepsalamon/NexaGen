@@ -106,7 +106,7 @@ export function TierRatesEditor({
                   onClick={() => onChange(rows.filter((other) => other.key !== row.key))}
                   size="icon"
                   type="button"
-                  variant="ghost"
+                  variant="neutral"
                 >
                   <X className="size-4" strokeWidth={2.5} />
                 </Button>

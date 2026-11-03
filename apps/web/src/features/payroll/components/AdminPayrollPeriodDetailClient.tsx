@@ -1,10 +1,14 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
-import Link from "next/link";
-import { formatMoney } from "@nexa-chess/types";
+import { Banknote, CalendarCheck, ChevronDown, ChevronRight, Users, Wallet } from "lucide-react";
+import { formatMoney, PAYROLL_PERIOD_TYPE_LABELS } from "@nexa-chess/types";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Alert } from "@/components/ui/Alert";
+import type { Crumb } from "@/components/ui/Breadcrumbs";
 import { Button } from "@/components/ui/Button";
+import { KpiCardRow } from "@/components/ui/KpiCardRow";
+import { StatTile } from "@/components/ui/StatTile";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +42,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 
+const CRUMBS: Crumb[] = [{ href: "/admin/finance/coach-payroll", label: "Coach payroll" }];
+
 /** One payroll period: teaching summary, lifecycle actions, per-coach breakdown. */
+
 export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string }) {
   const timeZone = useUserTimeZone();
   const { data: periodData, isLoading } = useAdminPayrollPeriod(periodId);
@@ -108,32 +115,17 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
 
   return (
     <div className="space-y-4">
-      <Button asChild className="-ml-2" size="sm" variant="ghost">
-        <Link href="/admin/finance/coach-payroll">
-          <ArrowLeft className="mr-1.5 size-4" strokeWidth={2.5} />
-          Back to payroll
-        </Link>
-      </Button>
+      {!period ? (
+        <PageHeader breadcrumbs={[...CRUMBS, { label: "Period" }]} title="Payroll period" />
+      ) : null}
 
       {isLoading ? <Skeleton className="h-64 w-full" /> : null}
 
       {period ? (
         <>
-          <Card className="space-y-3 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-bold text-app-text">{period.periodType} payroll</h1>
-                  <PayrollPeriodStatusBadge status={period.status} />
-                </div>
-                <p className="text-sm text-app-muted">
-                  {formatFullDate(period.startDate, "UTC")} – {formatFullDate(period.endDate, "UTC")}
-                  {records.length > 0 ? ` · ${records.length} coach${records.length === 1 ? "" : "es"}` : ""}
-                </p>
-                {period.notes ? <p className="mt-1 text-xs text-app-muted">{period.notes}</p> : null}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
+          <PageHeader
+            actions={
+              <>
                 {period.status === "DRAFT" ? (
                   <Button
                     isLoading={calculate.isPending}
@@ -146,6 +138,16 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                 {period.status === "REVIEW" ? (
                   <>
                     <Button
+                      isLoading={cancel.isPending}
+                      onClick={() => {
+                        setCancelReason("");
+                        setCancelling(true);
+                      }}
+                      variant="neutral"
+                    >
+                      Cancel period
+                    </Button>
+                    <Button
                       isLoading={recalculate.isPending}
                       onClick={() => recalculate.mutate(periodId)}
                       variant="outline"
@@ -154,16 +156,6 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                     </Button>
                     <Button isLoading={approve.isPending} onClick={() => approve.mutate(periodId)}>
                       Approve
-                    </Button>
-                    <Button
-                      isLoading={cancel.isPending}
-                      onClick={() => {
-                        setCancelReason("");
-                        setCancelling(true);
-                      }}
-                      variant="outline"
-                    >
-                      Cancel period
                     </Button>
                   </>
                 ) : null}
@@ -187,40 +179,61 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                     Mark period paid
                   </Button>
                 ) : null}
-              </div>
-            </div>
+              </>
+            }
+            breadcrumbs={[...CRUMBS, { label: `${PAYROLL_PERIOD_TYPE_LABELS[period.periodType]} payroll` }]}
+            description={
+              <span className="flex flex-wrap items-center gap-2">
+                <PayrollPeriodStatusBadge status={period.status} />
+                <span>
+                  {formatFullDate(period.startDate, "UTC")} – {formatFullDate(period.endDate, "UTC")}
+                  {records.length > 0 ? ` · ${records.length} coach${records.length === 1 ? "" : "es"}` : ""}
+                </span>
+              </span>
+            }
+            title={`${PAYROLL_PERIOD_TYPE_LABELS[period.periodType]} payroll`}
+          />
 
-            {period.status === "DRAFT" && records.length === 0 ? (
-              <p className="text-xs text-app-muted">
-                Calculating covers every coach with a class or a compensation profile in
-                this date range. A class still scheduled/live inside the window blocks
-                calculation until it settles.
-              </p>
-            ) : null}
+          {period.notes ? <p className="text-sm text-app-muted">{period.notes}</p> : null}
 
-            {records.length > 0 ? (
-              <div className="flex flex-wrap gap-6 border-t border-app-border pt-3 text-sm">
-                <div>
-                  <p className="text-xs text-app-muted">Gross payroll</p>
-                  <p className="font-semibold tabular-nums text-app-text">
-                    {formatMoney(totals.gross, currency)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-app-muted">Net payable</p>
-                  <p className="font-semibold tabular-nums text-primary-ink">
-                    {formatMoney(totals.net, currency)}
-                  </p>
-                </div>
-                {period.calculatedAt ? (
-                  <div>
-                    <p className="text-xs text-app-muted">Last calculated</p>
-                    <p className="text-app-text">{formatFullDate(period.calculatedAt, timeZone)}</p>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </Card>
+          {period.status === "DRAFT" && records.length === 0 ? (
+            <Alert variant="info">
+              Calculating covers every coach with a class or a compensation profile in
+              this date range. A class still scheduled/live inside the window blocks
+              calculation until it settles.
+            </Alert>
+          ) : null}
+
+          {records.length > 0 ? (
+            <KpiCardRow>
+              <StatTile
+                icon={Banknote}
+                label="Gross payroll"
+                tone="primary"
+                value={formatMoney(totals.gross, currency)}
+              />
+              <StatTile
+                icon={Wallet}
+                label="Net payable"
+                tone="accent"
+                value={formatMoney(totals.net, currency)}
+              />
+              <StatTile
+                icon={Users}
+                label="Coaches"
+                tone="warm"
+                value={String(records.length)}
+              />
+              {period.calculatedAt ? (
+                <StatTile
+                  icon={CalendarCheck}
+                  label="Last calculated"
+                  tone="secondary"
+                  value={formatFullDate(period.calculatedAt, timeZone)}
+                />
+              ) : null}
+            </KpiCardRow>
+          ) : null}
 
           {records.length === 0 ? (
             <EmptyState
@@ -267,7 +280,7 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                           <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-text">
                             {formatMoney(record.grossEarningsMinor, currency)}
                           </TableCell>
-                          <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-primary-ink">
+                          <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-app-text">
                             {formatMoney(record.netPayableMinor, currency)}
                           </TableCell>
                           <TableCell className="text-left px-4 py-3">
@@ -275,23 +288,25 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                           </TableCell>
                           <TableCell className="px-4 py-3 text-right">
                             {/* The keyboard / screen-reader way in; the row click stays for the mouse. */}
-                            <button
+                            <Button
                               aria-controls={`payroll-record-${record.id}`}
                               aria-expanded={expanded === record.id}
                               aria-label={`${expanded === record.id ? "Hide" : "Show"} breakdown for ${record.coachName}`}
-                              className="ml-auto grid size-8 place-items-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                              className="ml-auto size-8"
                               onClick={(event) => {
                                 event.stopPropagation();
                                 setExpanded(expanded === record.id ? null : record.id);
                               }}
+                              size="icon"
                               type="button"
+                              variant="neutral"
                             >
                               {expanded === record.id ? (
                                 <ChevronDown aria-hidden="true" className="size-4" strokeWidth={2.5} />
                               ) : (
                                 <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.5} />
                               )}
-                            </button>
+                            </Button>
                           </TableCell>
                         </TableRow>
                         {expanded === record.id ? (
@@ -332,7 +347,7 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
             />
           </div>
           <DialogFooter>
-            <Button onClick={() => setCancelling(false)} type="button" variant="outline">
+            <Button onClick={() => setCancelling(false)} type="button" variant="neutral">
               Keep period
             </Button>
             <Button

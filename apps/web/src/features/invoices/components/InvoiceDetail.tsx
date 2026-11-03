@@ -8,6 +8,10 @@ import {
   type InvoiceItem
 } from "@nexa-chess/types";
 import { Download, FileText, Printer } from "lucide-react";
+import type { ReactNode } from "react";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Alert } from "@/components/ui/Alert";
+import type { Crumb } from "@/components/ui/Breadcrumbs";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
@@ -25,9 +29,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
  * screen is exactly what the PDF says.
  */
 export function InvoiceDetail({
+  actions,
+  breadcrumbs,
   invoice,
   pdfUrl
 }: {
+  /** Extra header actions (the admin's regenerate, resend and credit note). */
+  actions?: ReactNode;
+  breadcrumbs: Crumb[];
   invoice: InvoiceItem;
   /** Admins download through their own route; defaults to the owner route. */
   pdfUrl?: string;
@@ -38,35 +47,14 @@ export function InvoiceDetail({
 
   return (
     <div className="space-y-4">
-      <Card className="space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="font-mono text-lg font-bold text-app-text">
-              {invoice.number}
-            </p>
-            <p className="text-sm text-app-muted">
-              Order {invoice.orderNumber}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <InvoiceStatusBadge status={invoice.status} />
-            <InvoicePdfBadge status={invoice.pdfStatus} />
-
-            <SimpleTooltip label="Download this invoice as a PDF">
-              <Button asChild size="sm" variant="primary">
-                <a href={downloadUrl} rel="noopener noreferrer" target="_blank">
-                  <Download className="mr-1.5 size-4" strokeWidth={2.5} />
-                  Download PDF
-                </a>
-              </Button>
-            </SimpleTooltip>
-
+      <PageHeader
+        actions={
+          <>
+            {actions}
             <SimpleTooltip label="Open a printable version">
               <Button
                 aria-label="Open a printable version of this invoice"
                 asChild
-                className="size-8"
                 size="icon"
                 variant="neutral"
               >
@@ -79,17 +67,32 @@ export function InvoiceDetail({
                 </a>
               </Button>
             </SimpleTooltip>
-          </div>
-        </div>
+            <Button asChild variant="primary">
+              <a href={downloadUrl} rel="noopener noreferrer" target="_blank">
+                <Download className="size-4" strokeWidth={2.5} />
+                Download PDF
+              </a>
+            </Button>
+          </>
+        }
+        breadcrumbs={breadcrumbs}
+        description={
+          <span className="flex flex-wrap items-center gap-2">
+            <span>Order {invoice.orderNumber}</span>
+            <InvoiceStatusBadge status={invoice.status} />
+            <InvoicePdfBadge status={invoice.pdfStatus} />
+          </span>
+        }
+        title={invoice.number}
+      />
 
-        {invoice.pdfStatus === "FAILED" ? (
-          <p className="rounded-app bg-accent/20 px-3 py-2 text-sm text-app-text">
-            We could not build the PDF for this invoice yet — it will be retried
-            automatically. Your payment is unaffected and the figures below are
-            final.
-          </p>
-        ) : null}
-      </Card>
+      {invoice.pdfStatus === "FAILED" ? (
+        <Alert variant="warning">
+          We could not build the PDF for this invoice yet — it will be retried
+          automatically. Your payment is unaffected and the figures below are
+          final.
+        </Alert>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="space-y-2">
@@ -265,7 +268,7 @@ export function InvoiceDetail({
 
             <div className="flex items-baseline justify-between border-t-2 border-app-text pt-2">
               <dt className="text-sm font-bold text-app-text">Total</dt>
-              <dd className="text-lg font-bold tabular-nums text-primary-ink">
+              <dd className="text-lg font-bold tabular-nums text-app-text">
                 {money(invoice.total)}
               </dd>
             </div>
@@ -277,11 +280,11 @@ export function InvoiceDetail({
             </div>
 
             {invoice.amountRefunded > 0 ? (
-              <p className="mt-3 rounded-app bg-accent/20 px-3 py-2 text-xs text-app-text">
+              <Alert className="mt-3 text-xs" variant="info">
                 {money(invoice.amountRefunded)} of this invoice has been
                 refunded. A credit note has been issued; this invoice itself is
                 unchanged.
-              </p>
+              </Alert>
             ) : null}
           </dl>
         </div>
