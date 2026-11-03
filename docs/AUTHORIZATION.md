@@ -171,7 +171,7 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 |---|---|---|---|---|
 | Own profile, avatar | R U | R U | R U | Avatar delete: own profile upload only, and only if no other account uses that URL. |
 | Other users | — | R (students of own batches; any active student via pull-roster search) | R C U D (ADMIN can't touch ADMIN/SUPER_ADMIN; only SUPER_ADMIN creates or promotes admins; nobody changes their own role; last SUPER_ADMIN can't be deleted) | |
-| Batches | R (enrolled) | R (own batch) | R C U D | |
+| Batches | R (enrolled) | R (own batch) | R C U D | A student sees members' names but only their own email (`toBatchUser`; students are minors, 2026-11-03). |
 | Classes (`CoachClass`) | R (enrolled batch) | R, U notes/topic (own class), cancel own | R C U D | Coach scheduling changes are approval requests (`CLASS_EXTRA`, `CLASS_RESCHEDULE`, `CLASS_CANCEL*`, `CLASS_SUBSTITUTE_COACH`; admin approves in `/admin/requests`). |
 | Live class: join / token | enrolled, or pulled, or admitted from waiting room; not if removed | own class | any (visible), or hidden spectator seat | Demo guests via `DemoClassRegistration`. |
 | Live class: demo guest puzzle (`GET /live-class/:id/puzzle/guest`) | — (users use `GET …/puzzle`) | — | — | Demo guests only, by the `guestToken` from their join (header `x-nexa-demo-guest`): this class, registration not DENIED, class a LIVE demo. Returns the solution — a guest practises unscored. |

@@ -419,7 +419,8 @@ export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
 export type UpdateUserRequest = z.infer<typeof updateUserRequestSchema>;
 
 export type BatchUserSummary = {
-  email: string;
+  /** Null when a student views anyone but themselves: students are minors. */
+  email: string | null;
   firstName: string;
   id: string;
   lastName?: string | null;
