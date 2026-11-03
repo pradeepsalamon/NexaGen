@@ -262,11 +262,11 @@ function PendingRatingView(props: BoardProps) {
       <Card
         className={cn(
           "space-y-1 p-4",
-          solved ? "border-success/40 bg-success/10" : "border-app-danger/30 bg-app-danger/5"
+          solved ? "border-success/40 bg-success/10" : "border-warning/40 bg-warning/10"
         )}
       >
         <p className="text-sm text-app-muted">You finished this puzzle earlier but didn&apos;t rate it yet.</p>
-        <p className={cn("flex items-center gap-2 text-lg font-extrabold", solved ? "text-success-ink" : "text-app-danger-ink")}>
+        <p className={cn("flex items-center gap-2 text-lg font-extrabold", solved ? "text-success-ink" : "text-warning-ink")}>
           {solved ? <CheckCircle2 className="size-5" strokeWidth={2.5} /> : <XCircle className="size-5" strokeWidth={2.5} />}
           {REVISION_OUTCOME_LABELS[pending.outcome]}
         </p>
@@ -364,7 +364,7 @@ function SolveView(props: BoardProps) {
           ) : null}
 
           {wrong ? (
-            <Card className="flex items-center gap-2 border-app-danger/40 p-3 text-sm text-app-danger-ink">
+            <Card className="flex items-center gap-2 border-warning/40 bg-warning/10 p-3 text-sm text-warning-ink">
               <XCircle className="size-4 shrink-0" strokeWidth={2.5} />
               Not the move — try again.
             </Card>
@@ -374,13 +374,13 @@ function SolveView(props: BoardProps) {
             <Card
               className={cn(
                 "space-y-1 p-4",
-                result.solved ? "border-success/40 bg-success/10" : "border-app-danger/30 bg-app-danger/5"
+                result.solved ? "border-success/40 bg-success/10" : "border-warning/40 bg-warning/10"
               )}
             >
               <p
                 className={cn(
                   "flex items-center gap-2 text-lg font-extrabold",
-                  result.solved ? "text-success-ink" : "text-app-danger-ink"
+                  result.solved ? "text-success-ink" : "text-warning-ink"
                 )}
               >
                 {result.solved ? (

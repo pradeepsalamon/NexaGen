@@ -10,6 +10,7 @@ import {
   type PuzzleTrainingRecentResult,
   type PuzzleTrainingStatusResponse
 } from "@nexa-chess/types";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -84,20 +85,33 @@ export function StudentTrainingClient() {
     void qc.invalidateQueries({ queryKey: queryKeys.progress.mine });
   }, [qc]);
 
-  if (status.isLoading) return <Skeleton className="h-[32rem] w-full" />;
+  const header = (
+    <PageHeader
+      description="Puzzles picked for your rating: weak spots, new ideas and a second look at ones you missed. Each first try changes your puzzle rating."
+      title="Puzzle training"
+    />
+  );
+
+  if (status.isLoading) {
+    return (
+      <div className="animate-fade-in pb-10">
+        {header}
+        <Skeleton className="h-[32rem] w-full rounded-app" />
+      </div>
+    );
+  }
   if (status.isError || !data) {
-    return <WidgetError message="Could not load puzzle training." onRetry={() => void status.refetch()} />;
+    return (
+      <div className="animate-fade-in pb-10">
+        {header}
+        <WidgetError message="Couldn't load puzzle training." onRetry={() => void status.refetch()} />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Puzzle training</h1>
-        <p className="mt-1 max-w-2xl text-sm text-app-muted">
-          Puzzles picked for your rating: your weak spots, new ideas and a second look at ones you missed. Each
-          first try changes your puzzle rating.
-        </p>
-      </div>
+    <div className="animate-fade-in space-y-5 pb-10">
+      {header}
 
       {/* lg+: the stats move into the board card's side column (see TrainingBoard). */}
       <div className={data.enabled && pick ? "lg:hidden" : undefined}>
@@ -140,13 +154,13 @@ export function StudentTrainingClient() {
 function TrainingStats({ status, columns = 4 }: { status: PuzzleTrainingStatusResponse; columns?: 2 | 4 }) {
   return (
     <div className={cn("grid grid-cols-2 gap-3", columns === 4 && "lg:grid-cols-4")}>
-      <StatTile icon={Crown} label="Puzzle rating" tone="primary" value={String(status.rating)} />
-      <StatTile icon={Puzzle} label="Peak rating" tone="secondary" value={String(status.peakRating)} />
-      <StatTile icon={CalendarCheck} label="Puzzles today" tone="accent" value={String(status.trainedToday)} />
+      <StatTile icon={Crown} label="Puzzle rating" tone="reward" value={String(status.rating)} />
+      <StatTile icon={Puzzle} label="Peak rating" tone="primary" value={String(status.peakRating)} />
+      <StatTile icon={CalendarCheck} label="Puzzles today" tone="secondary" value={String(status.trainedToday)} />
       <StatTile
         icon={Flame}
         label="Day streak"
-        tone="warm"
+        tone="reward"
         value={`${status.currentStreak} ${status.currentStreak === 1 ? "day" : "days"}`}
       />
     </div>
@@ -312,7 +326,7 @@ function TrainingBoard({
   
             {phase === "solving" && serverHint ? (
               <Card className="p-3 text-sm text-app-text">
-                <Lightbulb className="mr-1 inline size-4 align-text-bottom text-primary" strokeWidth={2.5} />
+                <Lightbulb aria-hidden="true" className="mr-1 inline size-4 align-text-bottom text-app-muted" strokeWidth={2.5} />
                 {hintText(serverHint)}
               </Card>
             ) : null}
@@ -358,7 +372,7 @@ function TrainingBoard({
 function RecentResults({ recent }: { recent: PuzzleTrainingRecentResult[] }) {
   return (
     <section aria-label="Recent puzzles" className="space-y-2">
-      <h2 className="text-xs font-bold text-app-muted">Recent puzzles</h2>
+      <h2 className="text-sm font-semibold text-app-text">Recent puzzles</h2>
       <ol className="flex flex-wrap gap-2">
         {recent.map((r) => (
           <li
@@ -367,7 +381,7 @@ function RecentResults({ recent }: { recent: PuzzleTrainingRecentResult[] }) {
               "flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold tabular-nums",
               r.solved
                 ? "border-success/40 bg-success/10 text-success-ink"
-                : "border-app-danger/40 bg-app-danger/10 text-app-danger-ink"
+                : "border-warning/40 bg-warning/10 text-warning-ink"
             )}
           >
             {r.solved ? (

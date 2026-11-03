@@ -11,6 +11,7 @@ import {
   type RevisionReviewResponse,
   type RevisionSummary
 } from "@nexa-chess/types";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -144,9 +145,35 @@ export function StudentRevisionClient() {
     refresh();
   };
 
-  if (session.isLoading) return <Skeleton className="h-[32rem] w-full" />;
+  const header = (
+    <PageHeader
+      actions={
+        active ? (
+          <Button onClick={exit} size="sm" type="button" variant="outline">
+            End session
+          </Button>
+        ) : null
+      }
+      description="Puzzles you missed and topics your coach picked come back just before you'd forget them. Solve each one, then say how well you remembered it."
+      title="Smart revision"
+    />
+  );
+
+  if (session.isLoading) {
+    return (
+      <div className="animate-fade-in pb-10">
+        {header}
+        <Skeleton className="h-[32rem] w-full rounded-app" />
+      </div>
+    );
+  }
   if (session.isError || !data) {
-    return <WidgetError message="Couldn't load your revision." onRetry={() => void session.refetch()} />;
+    return (
+      <div className="animate-fade-in pb-10">
+        {header}
+        <WidgetError message="Couldn't load your revision." onRetry={() => void session.refetch()} />
+      </div>
+    );
   }
 
   const s = summary ?? data.summary;
@@ -156,26 +183,13 @@ export function StudentRevisionClient() {
   const position = done.length + (reviewed ? 0 : 1);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Smart revision</h1>
-          <p className="mt-1 max-w-2xl text-sm text-app-muted">
-            Puzzles you missed and topics your coach picked come back just before you&apos;d forget them. Solve
-            each one, then say how well you remembered it — the better you know it, the longer until it returns.
-          </p>
-        </div>
-        {active ? (
-          <Button onClick={exit} size="sm" type="button" variant="outline">
-            End session
-          </Button>
-        ) : null}
-      </div>
+    <div className="animate-fade-in space-y-5 pb-10">
+      {header}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile icon={CalendarCheck} label="Due today" tone="primary" value={String(s.dueToday)} />
-        <StatTile icon={AlarmClock} label="Overdue" tone="warm" value={String(s.overdue)} />
-        <StatTile icon={Sparkles} label="New to learn" tone="secondary" value={String(s.newAvailable)} />
+        <StatTile icon={CalendarCheck} label="Due today" tone="secondary" value={String(s.dueToday)} />
+        <StatTile icon={AlarmClock} label="Overdue" tone="secondary" value={String(s.overdue)} />
+        <StatTile icon={Sparkles} label="New to learn" tone="primary" value={String(s.newAvailable)} />
         <StatTile
           context={s.streakDays > 0 ? `${s.streakDays}-day streak` : undefined}
           icon={CheckCircle2}
@@ -216,8 +230,8 @@ export function StudentRevisionClient() {
             </p>
           </div>
           <Button onClick={begin} type="button">
-            <Brain aria-hidden="true" className="mr-1.5 size-4" strokeWidth={2.5} />
-            Start Revision
+            <Brain aria-hidden="true" className="size-4" strokeWidth={2.5} />
+            Start revision
           </Button>
         </Card>
       ) : (
@@ -225,7 +239,7 @@ export function StudentRevisionClient() {
       )}
 
       <section aria-label="Your revision" className="space-y-3">
-        <h2 className="text-lg font-extrabold text-app-text">Your revision</h2>
+        <h2 className="text-base font-semibold text-app-text">Your revision</h2>
         <RevisionReportPanel hideDue studentId={null} />
       </section>
     </div>

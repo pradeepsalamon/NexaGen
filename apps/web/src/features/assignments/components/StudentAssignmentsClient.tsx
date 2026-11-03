@@ -1,138 +1,163 @@
 "use client";
 
 import Link from "next/link";
-import type { StudentAssignmentItem, StudentPuzzleSetProgress } from "@nexa-chess/types";
-import { ArrowRight, Target } from "lucide-react";
+import type {
+  AssignmentActivityType,
+  StudentAssignmentItem,
+  StudentPuzzleSetProgress
+} from "@nexa-chess/types";
+import {
+  ArrowRight,
+  BookOpen,
+  Bot,
+  CircleCheck,
+  type LucideIcon,
+  Microscope,
+  Puzzle,
+  Target
+} from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
-import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { useMyAssignments } from "../hooks/useAssignmentsApi";
-import { ActivityBadge, DifficultyBadge, DueBadge, StatusBadge } from "./assignmentBadges";
+import { ACTIVITY_LABEL, DIFFICULTY_LABEL, DueBadge, StatusBadge } from "./assignmentBadges";
+
+const ACTIVITY_ICON: Record<AssignmentActivityType, LucideIcon> = {
+  FREE_ANALYSIS: Microscope,
+  PLAY_VS_ENGINE: Bot,
+  PUZZLE_SET: Puzzle,
+  REPLAY: BookOpen,
+  SOLVE_LINE: Target
+};
 
 export function StudentAssignmentsClient() {
-  const timeZone = useUserTimeZone();
-  const { data, isLoading } = useMyAssignments();
+  const { data, error, isLoading, refetch } = useMyAssignments();
 
   const assignments = data?.assignments ?? [];
+  // The API sends them soonest due first; finished work reads newest first.
   const pending = assignments.filter((a) => a.status !== "COMPLETED");
-  const done = assignments.filter((a) => a.status === "COMPLETED");
+  const done = assignments
+    .filter((a) => a.status === "COMPLETED")
+    .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
 
   return (
-    <div className="space-y-6 pb-10 animate-fade-in">
+    <div className="animate-fade-in pb-10">
       <PageHeader
+        description="Work from your coach, soonest due first."
         title="Assignments"
-        description="Work assigned by your coach. Replay each line, then mark it complete."
       />
 
       {isLoading ? (
-        <div className="grid gap-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-control" />
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton className="h-20 rounded-app" key={i} />
           ))}
         </div>
+      ) : error ? (
+        <WidgetError
+          message="Couldn't load your assignments. Check your connection and try again."
+          onRetry={() => refetch()}
+        />
       ) : assignments.length === 0 ? (
-        <Card>
-          <EmptyState variant="inline"
-            icon={Target}
-            title="No assignments yet"
-            description="When your coach assigns practice, it will show up here."
-          />
-        </Card>
+        <EmptyState
+          description="When your coach gives you work, it shows up here."
+          icon={Target}
+          title="No assignments yet"
+        />
       ) : (
-        <>
-          <Section title={`To do (${pending.length})`} items={pending} timeZone={timeZone} empty="You're all caught up." />
-          {done.length > 0 && (
-            <Section title={`Completed (${done.length})`} items={done} timeZone={timeZone} empty="" />
-          )}
-        </>
+        <div className="space-y-5">
+          <SectionCard title={`To do (${pending.length})`}>
+            {pending.length === 0 ? (
+              <EmptyState icon={CircleCheck} title="You're all caught up" variant="inline" />
+            ) : (
+              <AssignmentList items={pending} />
+            )}
+          </SectionCard>
+          {done.length > 0 ? (
+            <SectionCard title={`Completed (${done.length})`}>
+              <AssignmentList items={done} />
+            </SectionCard>
+          ) : null}
+        </div>
       )}
     </div>
   );
 }
 
-function Section({
-  title,
-  items,
-  timeZone,
-  empty
-}: {
-  title: string;
-  items: StudentAssignmentItem[];
-  timeZone: string;
-  empty: string;
-}) {
+function AssignmentList({ items }: { items: StudentAssignmentItem[] }) {
   return (
-    <Card className="border-app-border bg-app-surface">
-      <CardHeader className="border-b border-app-border/50 pb-3">
-        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        {items.length === 0 ? (
-          <p className="p-5 text-sm text-app-muted">{empty}</p>
-        ) : (
-          <div className="divide-y divide-app-border/50">
-            {items.map((a) => (
-              <div
-                key={a.id}
-                className="flex flex-col gap-3 p-5 transition-colors hover:bg-app-background/50 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-app-text">{a.title}</h4>
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    {a.activityType === "PUZZLE_SET" && <ActivityBadge activityType={a.activityType} />}
-                    <DifficultyBadge difficulty={a.difficulty} />
-                    <DueBadge
-                      completed={a.status === "COMPLETED"}
-                      dueDate={a.dueDate}
-                      formatted={formatFullDate(a.dueDate, timeZone)}
-                      timeZone={timeZone}
-                    />
-                    <StatusBadge status={a.status} />
-                    {a.coachName && <span className="text-app-muted">by {a.coachName}</span>}
-                  </div>
-                  {a.puzzleSet && <PuzzleSetProgressLine set={a.puzzleSet} />}
-                </div>
-                <Button
-                  asChild
-                  variant={a.status === "COMPLETED" ? "outline" : "primary"}
-                  size="sm"
-                  className="w-full font-bold sm:w-auto"
-                >
-                  <Link href={`/student/practice/${a.id}`}>
-                    {a.status === "PENDING" ? "Start" : a.status === "IN_PROGRESS" ? "Resume" : "Review"}
-                    <ArrowRight className="ml-1.5 size-3.5" />
-                  </Link>
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <ul className="divide-y divide-app-border">
+      {items.map((item) => (
+        <AssignmentRow item={item} key={item.id} />
+      ))}
+    </ul>
+  );
+}
+
+function AssignmentRow({ item }: { item: StudentAssignmentItem }) {
+  const timeZone = useUserTimeZone();
+  const Icon = ACTIVITY_ICON[item.activityType];
+  const completed = item.status === "COMPLETED";
+  const meta = [
+    ACTIVITY_LABEL[item.activityType],
+    DIFFICULTY_LABEL[item.difficulty],
+    item.coachName ? `Coach ${item.coachName}` : null,
+    completed && item.completedAt ? `Completed ${formatFullDate(item.completedAt, timeZone)}` : null,
+    completed && item.bestScorePercent !== null ? `Best ${item.bestScorePercent}%` : null
+  ];
+
+  return (
+    <li className="flex flex-wrap items-start gap-3 py-3 first:pt-0 last:pb-0" data-testid={`assignment-${item.id}`}>
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-control bg-app-soft text-app-muted">
+        <Icon aria-hidden="true" className="size-5" strokeWidth={2.25} />
+      </span>
+
+      <div className="min-w-0 flex-1 basis-48">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="min-w-0 break-words text-sm font-semibold text-app-text">{item.title}</span>
+          {completed ? null : (
+            <DueBadge dueDate={item.dueDate} formatted={formatFullDate(item.dueDate, timeZone)} timeZone={timeZone} />
+          )}
+          {item.status === "IN_PROGRESS" ? <StatusBadge status={item.status} /> : null}
+        </div>
+        <p className="mt-0.5 text-xs text-app-muted">{meta.filter(Boolean).join(" · ")}</p>
+        {item.puzzleSet ? <PuzzleSetProgressLine set={item.puzzleSet} /> : null}
+      </div>
+
+      <div className="flex w-full justify-end sm:w-auto">
+        <Button asChild size="sm" variant="outline">
+          <Link href={`/student/practice/${item.id}`}>
+            {item.status === "PENDING" ? "Start" : item.status === "IN_PROGRESS" ? "Resume" : "Review"}
+            <ArrowRight aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+          </Link>
+        </Button>
+      </div>
+    </li>
   );
 }
 
 /** "4 of 10 done · 3 solved · 27 / 100 pts" with a slim bar — the set's progress at a glance. */
 function PuzzleSetProgressLine({ set }: { set: StudentPuzzleSetProgress }) {
   const total = set.puzzles.length;
-  const { attemptedCount, solvedCount, points, maxPoints } = set.self;
+  const { attemptedCount, maxPoints, points, solvedCount } = set.self;
   return (
-    <div className="max-w-sm space-y-1">
+    <div className="mt-2 max-w-sm space-y-1">
       <p className="text-xs text-app-muted">
         {attemptedCount} of {total} done · {solvedCount} solved · {points} / {maxPoints} pts
         {set.self.rank !== null ? ` · #${set.self.rank}` : ""}
       </p>
       <div
+        aria-label="Puzzles finished"
+        aria-valuemax={total}
+        aria-valuemin={0}
+        aria-valuenow={attemptedCount}
         className="h-1.5 overflow-hidden rounded-full bg-app-soft"
         role="progressbar"
-        aria-label="Puzzles finished"
-        aria-valuemin={0}
-        aria-valuemax={total}
-        aria-valuenow={attemptedCount}
       >
         <div
           className="h-full bg-primary transition-[width]"

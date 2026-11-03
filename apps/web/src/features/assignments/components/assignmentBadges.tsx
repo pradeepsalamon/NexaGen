@@ -6,7 +6,8 @@ import {
   type AssignmentStatus
 } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
-import { cn } from "@/lib/utils";
+
+type BadgeVariant = "default" | "destructive" | "info" | "outline" | "secondary" | "success" | "warning";
 
 export const ACTIVITY_LABEL: Record<AssignmentActivityType, string> = {
   REPLAY: "Study PGN",
@@ -16,38 +17,32 @@ export const ACTIVITY_LABEL: Record<AssignmentActivityType, string> = {
   PUZZLE_SET: "Puzzle set"
 };
 
-const ACTIVITY_STYLE: Record<AssignmentActivityType, string> = {
-  REPLAY: "border-primary/40 bg-primary/10 text-primary-ink",
-  SOLVE_LINE: "border-primary/40 bg-primary/10 text-primary-ink",
-  PLAY_VS_ENGINE: "border-success/40 bg-success/10 text-success-ink",
-  FREE_ANALYSIS: "border-app-border bg-app-soft text-app-text",
-  PUZZLE_SET: "border-info/40 bg-info/10 text-info-ink"
+const ACTIVITY_VARIANT: Record<AssignmentActivityType, BadgeVariant> = {
+  REPLAY: "default",
+  SOLVE_LINE: "default",
+  PLAY_VS_ENGINE: "success",
+  FREE_ANALYSIS: "secondary",
+  PUZZLE_SET: "info"
 };
 
 export function ActivityBadge({ activityType }: { activityType: AssignmentActivityType }) {
   return (
-    <Badge variant="outline" className={ACTIVITY_STYLE[activityType]}>
+    <Badge variant={ACTIVITY_VARIANT[activityType]}>
       {ACTIVITY_LABEL[activityType]}
     </Badge>
   );
 }
 
-const DIFFICULTY_STYLE: Record<AssignmentDifficulty, string> = {
-  BEGINNER: "border-success/30 bg-success/10 text-success-ink",
-  INTERMEDIATE: "border-warning/30 bg-warning/10 text-warning-ink",
-  ADVANCED: "border-app-danger/30 bg-app-danger/10 text-app-danger-ink"
-};
-
-const DIFFICULTY_LABEL: Record<AssignmentDifficulty, string> = {
+export const DIFFICULTY_LABEL: Record<AssignmentDifficulty, string> = {
   BEGINNER: "Beginner",
   INTERMEDIATE: "Intermediate",
   ADVANCED: "Advanced"
 };
 
-const STATUS_STYLE: Record<AssignmentStatus, string> = {
-  PENDING: "border-app-border bg-app-background text-app-muted",
-  IN_PROGRESS: "border-warning/30 bg-warning/10 text-warning-ink",
-  COMPLETED: "border-success/30 bg-success/10 text-success-ink"
+const STATUS_VARIANT: Record<AssignmentStatus, BadgeVariant> = {
+  PENDING: "secondary",
+  IN_PROGRESS: "warning",
+  COMPLETED: "success"
 };
 
 const STATUS_LABEL: Record<AssignmentStatus, string> = {
@@ -56,9 +51,10 @@ const STATUS_LABEL: Record<AssignmentStatus, string> = {
   COMPLETED: "Completed"
 };
 
+/** Neutral on purpose: difficulty is not a status, and red "Advanced" read as an error. */
 export function DifficultyBadge({ difficulty }: { difficulty: AssignmentDifficulty }) {
   return (
-    <Badge variant="outline" className={DIFFICULTY_STYLE[difficulty]}>
+    <Badge variant="outline">
       {DIFFICULTY_LABEL[difficulty]}
     </Badge>
   );
@@ -66,18 +62,18 @@ export function DifficultyBadge({ difficulty }: { difficulty: AssignmentDifficul
 
 export function StatusBadge({ status }: { status: AssignmentStatus }) {
   return (
-    <Badge variant="outline" className={STATUS_STYLE[status]}>
+    <Badge variant={STATUS_VARIANT[status]}>
       {STATUS_LABEL[status]}
     </Badge>
   );
 }
 
-const DUE_STYLE: Record<AssignmentDueStatus, string> = {
-  COMPLETED: "border-app-border bg-app-background text-app-muted",
-  DUE_SOON: "border-info/40 bg-info/10 text-info-ink",
-  DUE_TODAY: "border-warning/40 bg-warning/10 text-warning-ink",
-  OVERDUE: "border-app-danger/30 bg-app-danger/10 text-app-danger-ink",
-  UPCOMING: "border-app-border bg-app-background text-app-muted"
+const DUE_VARIANT: Record<AssignmentDueStatus, BadgeVariant> = {
+  COMPLETED: "secondary",
+  DUE_SOON: "info",
+  DUE_TODAY: "warning",
+  OVERDUE: "destructive",
+  UPCOMING: "secondary"
 };
 
 const DUE_PREFIX: Record<AssignmentDueStatus, string> = {
@@ -102,9 +98,9 @@ export function DueBadge({
 }) {
   const status = resolveAssignmentDueStatus({ completed, dueDate }, new Date(), timeZone);
   return (
-    <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", DUE_STYLE[status])}>
+    <Badge variant={DUE_VARIANT[status]}>
       {DUE_PREFIX[status]}
       {formatted}
-    </span>
+    </Badge>
   );
 }

@@ -2,13 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Download, Play, Timer } from "lucide-react";
-import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { formatFullDate } from "@/lib/datetime";
+import type { AssignmentAttemptStatus } from "@nexa-chess/types";
+import { CheckCircle2, Download, Play, SearchX, Timer } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SectionCard } from "@/components/ui/SectionCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate } from "@/lib/datetime";
 import {
   useAttemptHistory,
   useMyAssignment,
@@ -21,6 +25,15 @@ import { StudentPuzzleSet } from "./puzzle-set/StudentPuzzleSet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
+
+const ATTEMPT_STATUS_LABEL: Record<AssignmentAttemptStatus, string> = {
+  ABANDONED: "Abandoned",
+  COMPLETED: "Completed",
+  FAILED: "Not solved",
+  IN_PROGRESS: "In progress"
+};
+
+const LIST_CRUMB = { href: "/student/practice", label: "Assignments" };
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -46,46 +59,42 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
 
   if (isError || !assignment) {
     return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={goBack}>
-          <ArrowLeft className="mr-1.5 size-4" />
-          Back to assignments
-        </Button>
-        <p className="text-sm text-app-danger-ink">This assignment could not be found.</p>
+      <div className="animate-fade-in pb-10">
+        <PageHeader breadcrumbs={[LIST_CRUMB, { label: "Not found" }]} title="Assignment not found" />
+        <EmptyState
+          action={{ label: "Back to assignments", onClick: goBack }}
+          description="It may have been removed, or the link is wrong."
+          icon={SearchX}
+          title="This assignment could not be found"
+        />
       </div>
     );
   }
 
   const header = (
-    <>
-      <Button variant="ghost" size="sm" onClick={goBack}>
-        <ArrowLeft className="mr-1.5 size-4" />
-        Back to assignments
-      </Button>
-      <div className="space-y-2">
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">{assignment.title}</h1>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <ActivityBadge activityType={assignment.activityType} />
-          <DifficultyBadge difficulty={assignment.difficulty} />
-          <DueBadge
-            completed={assignment.status === "COMPLETED"}
-            dueDate={assignment.dueDate}
-            formatted={formatFullDate(assignment.dueDate, timeZone)}
-            timeZone={timeZone}
-          />
-          <StatusBadge status={assignment.status} />
-          {assignment.coachName && <span className="text-app-muted">by {assignment.coachName}</span>}
-        </div>
-        {assignment.description && (
-          <p className="max-w-2xl text-sm text-app-muted">{assignment.description}</p>
-        )}
+    <PageHeader
+      breadcrumbs={[LIST_CRUMB, { label: assignment.title }]}
+      description={assignment.description ? <span className="block max-w-2xl">{assignment.description}</span> : undefined}
+      title={<span className="break-words">{assignment.title}</span>}
+    >
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <ActivityBadge activityType={assignment.activityType} />
+        <DifficultyBadge difficulty={assignment.difficulty} />
+        <DueBadge
+          completed={assignment.status === "COMPLETED"}
+          dueDate={assignment.dueDate}
+          formatted={formatFullDate(assignment.dueDate, timeZone)}
+          timeZone={timeZone}
+        />
+        <StatusBadge status={assignment.status} />
+        {assignment.coachName ? <span className="text-app-muted">Coach {assignment.coachName}</span> : null}
       </div>
-    </>
+    </PageHeader>
   );
 
   if (assignment.activityType === "REPLAY") {
     return (
-      <div className="space-y-5 pb-10 animate-fade-in">
+      <div className="animate-fade-in space-y-5 pb-10">
         {header}
         <ReplayActivity assignment={assignment} />
       </div>
@@ -94,7 +103,7 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
 
   if (assignment.activityType === "PUZZLE_SET") {
     return (
-      <div className="space-y-5 pb-10 animate-fade-in">
+      <div className="animate-fade-in space-y-5 pb-10">
         {header}
         <StudentPuzzleSet assignment={assignment} />
       </div>
@@ -102,7 +111,7 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
   }
 
   return (
-    <div className="space-y-5 pb-10 animate-fade-in">
+    <div className="animate-fade-in space-y-5 pb-10">
       {header}
       <EvaluatedShell assignmentId={id} assignment={assignment} onBack={goBack} />
     </div>
@@ -167,8 +176,8 @@ function ReplayActivity({
   return (
     <>
       <div className="flex justify-end">
-        <div className="flex items-center gap-2 rounded-control border border-app-border bg-app-background/50 px-4 py-2 font-mono text-xl font-bold tracking-tight text-app-text">
-          <Timer className="size-5" />
+        <div className="flex items-center gap-2 rounded-control border border-app-border bg-app-surface px-4 py-2 font-mono text-xl font-bold tracking-tight tabular-nums text-app-text">
+          <Timer aria-hidden="true" className="size-5 text-app-muted" strokeWidth={2.25} />
           <span className={timeLimit && displayTime <= 60 && !isDone ? "text-warning-ink motion-safe:animate-pulse" : ""}>
             {formatTime(displayTime)}
           </span>
@@ -202,7 +211,7 @@ function ReplayActivity({
               })
             }
           >
-            <CheckCircle2 className="mr-2 size-4" strokeWidth={2.5} />
+            <CheckCircle2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
             {isDone ? "Completed" : "Mark as complete"}
           </Button>
           {assignment.pgnUrl && (
@@ -212,7 +221,7 @@ function ReplayActivity({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-ink hover:underline"
             >
-              <Download className="size-4" strokeWidth={2.5} />
+              <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
               Download PGN
             </a>
           )}
@@ -276,25 +285,18 @@ function EvaluatedShell({
           />
           <Stat label="Attempts" value={String(assignment.attemptCount)} />
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {(canRetry || canPracticeAgain) && (
+        {canRetry || canPracticeAgain ? (
+          <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={() => setPracticing(true)}>
-              <Play className="mr-2 size-4" strokeWidth={2.5} />
+              <Play aria-hidden="true" className="size-4" strokeWidth={2.5} />
               {assignment.status === "COMPLETED" ? "Practice again" : "Continue"}
             </Button>
-          )}
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="mr-2 size-4" strokeWidth={2.5} />
-            Back to assignments
-          </Button>
-        </div>
+          </div>
+        ) : null}
       </Card>
 
       {attempts.length > 0 && (
-        <Card className="p-5">
-          <h3 className="mb-3 text-sm font-bold text-app-muted">
-            Attempt history
-          </h3>
+        <SectionCard title="Attempt history">
           <div className="overflow-x-auto">
             <Table className="w-full text-sm">
               <TableHeader>
@@ -326,7 +328,7 @@ function EvaluatedShell({
                               : "text-app-muted"
                         }
                       >
-                        {a.result ?? a.status}
+                        {a.result ?? ATTEMPT_STATUS_LABEL[a.status]}
                       </span>
                     </TableCell>
                     <TableCell className="text-left py-1.5">{formatTime(a.durationSeconds)}</TableCell>
@@ -335,7 +337,7 @@ function EvaluatedShell({
               </TableBody>
             </Table>
           </div>
-        </Card>
+        </SectionCard>
       )}
     </div>
   );
@@ -343,9 +345,9 @@ function EvaluatedShell({
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-app border border-app-border bg-app-background/50 p-3 text-center">
-      <p className="text-xs text-app-muted">{label}</p>
-      <p className="text-lg font-bold text-app-text">{value}</p>
+    <div className="rounded-app border border-app-border bg-app-soft p-3 text-center">
+      <p className="text-xs font-medium text-app-muted">{label}</p>
+      <p className="text-lg font-bold tabular-nums text-app-text">{value}</p>
     </div>
   );
 }
