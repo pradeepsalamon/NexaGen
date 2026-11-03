@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { Crown, Maximize2 } from "lucide-react";
+import { Crown, Grid2x2, Maximize2, Puzzle as PuzzleIcon } from "lucide-react";
+import { RoomTabs, type RoomTabItem } from "../room-ui/RoomTabs";
 import { EmptyMeetingState } from "./EmptyMeetingState";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
@@ -48,12 +49,14 @@ export function MeetingVideoGrid({
     isChessboardOpen,
     activePuzzle,
     puzzleSolverOpen,
+    setPuzzleSolverOpen,
   } = useLiveClassState(
     "pinnedParticipantSid",
     "setPinnedParticipantSid",
     "isChessboardOpen",
     "activePuzzle",
     "puzzleSolverOpen",
+    "setPuzzleSolverOpen",
   );
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
@@ -129,9 +132,37 @@ export function MeetingVideoGrid({
     </AnimatePresence>
   );
 
-  if (!isCoach && !compact && !hideBoard && activePuzzle && puzzleSolverOpen) {
+  // Phones (this grid is the whole stage): a 44px Board / Video switch, plus Puzzle while one runs.
+  const phoneGrid = !hideBoard && !presentBoard && !compact;
+  const puzzleOpen = !isCoach && !!activePuzzle && puzzleSolverOpen;
+  const phoneStage: "board" | "video" | "puzzle" = puzzleOpen ? "puzzle" : boardTileShown && boardStage ? "board" : "video";
+  const phoneOptions: RoomTabItem<"board" | "video" | "puzzle">[] = [
+    ...(boardTileShown ? [{ id: "board" as const, label: "Board", icon: <Crown aria-hidden="true" className="size-4" strokeWidth={2} /> }] : []),
+    { id: "video", label: "Video", icon: <Grid2x2 aria-hidden="true" className="size-4" strokeWidth={2} /> },
+    ...(activePuzzle && !isCoach
+      ? [{ id: "puzzle" as const, label: "Puzzle", icon: <PuzzleIcon aria-hidden="true" className="size-4" strokeWidth={2} />, dot: !puzzleOpen }]
+      : []),
+  ];
+  const phoneSwitch =
+    phoneGrid && phoneOptions.length > 1 ? (
+      <div className="shrink-0 px-2 pt-2 sm:px-4">
+        <RoomTabs
+          ariaLabel="Main view"
+          fill
+          items={phoneOptions}
+          value={phoneStage}
+          onChange={(next) => {
+            setPuzzleSolverOpen(next === "puzzle");
+            setBoardStage(next === "board");
+          }}
+        />
+      </div>
+    ) : null;
+
+  if (puzzleOpen && !compact && !hideBoard) {
     return (
       <>
+        {phoneSwitch}
         <PuzzleStage className="px-2 pt-2 pb-28 sm:px-4 sm:pt-3 sm:pb-24" />
         {participantFocus}
       </>
@@ -141,6 +172,7 @@ export function MeetingVideoGrid({
   if (boardTileShown && boardStage) {
     return (
       <>
+        {phoneSwitch}
         <BoardStage onShowGrid={() => setBoardStage(false)} />
         {participantFocus}
       </>
@@ -174,6 +206,7 @@ export function MeetingVideoGrid({
 
   return (
     <>
+      {phoneSwitch}
       {/* The measured element must not scroll — see useElementSize. The inner
           div is the scroller; min-h-full keeps the grid centred without
           clipping its top when the tiles do overflow. */}

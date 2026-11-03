@@ -69,6 +69,7 @@ export function RoomTabs<T extends string>({
   ariaLabel,
   maxVisible = 4,
   iconOnly = false,
+  fill = false,
   className,
 }: {
   items: RoomTabItem<T>[];
@@ -78,6 +79,8 @@ export function RoomTabs<T extends string>({
   maxVisible?: number;
   /** Unselected chips show only their icon (with a tooltip); the selected one keeps its label. */
   iconOnly?: boolean;
+  /** Phones: a 44px full-width track whose chips share the width (spec: phone stage switch). */
+  fill?: boolean;
   className?: string;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -106,7 +109,11 @@ export function RoomTabs<T extends string>({
       role="tablist"
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
-      className={cn("inline-flex h-9 max-w-full shrink-0 items-center gap-0.5 rounded-control bg-app-soft p-1", className)}
+      className={cn(
+        "inline-flex h-9 max-w-full shrink-0 items-center gap-0.5 rounded-control bg-app-soft p-1",
+        fill && "flex h-11 w-full",
+        className,
+      )}
     >
       {visible.map((item) => {
         const isSelected = item.id === value;
@@ -123,6 +130,7 @@ export function RoomTabs<T extends string>({
             onClick={() => onChange(item.id)}
             className={cn(
               CHIP,
+              fill && "h-9 flex-1 justify-center",
               isSelected
                 ? "bg-primary text-on-primary shadow-card"
                 : "text-app-muted hover:bg-app-surface hover:text-app-text",

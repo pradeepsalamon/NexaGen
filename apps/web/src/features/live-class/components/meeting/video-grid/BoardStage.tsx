@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
+
 import { useMemo, useRef, useState, type RefObject } from "react";
 import { motion } from "framer-motion";
 import {
@@ -45,14 +47,10 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
           <ChessClock layout="horizontal" />
           <RequestControlButton surface />
           {activePuzzle ? (
-            <button
-              type="button"
-              onClick={() => setPuzzleSolverOpen(true)}
-              className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary px-2.5 py-1 text-xs font-semibold text-on-primary shadow-card transition active:scale-95"
-            >
-              <PuzzleIcon className="size-3" strokeWidth={2.5} />
+            <Button size="sm" className="shrink-0" onClick={() => setPuzzleSolverOpen(true)}>
+              <PuzzleIcon aria-hidden="true" className="size-4" strokeWidth={2} />
               Solve puzzle
-            </button>
+            </Button>
           ) : null}
         </div>
         <FlipBoardButton className="size-8 shrink-0" />
