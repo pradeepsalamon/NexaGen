@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, ChevronDown, ChevronUp, Puzzle } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -11,20 +12,27 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { PgnBoardViewer } from "@/features/assignments/components/PgnBoardViewer";
 import { useCompleteModule, useMyCourse } from "../hooks/useCoursesApi";
 
+const COURSES_CRUMB = { href: "/student/courses", label: "My courses" };
+
 export function StudentCourseDetailClient({ id }: { id: string }) {
   const { data, isError, isLoading, refetch } = useMyCourse(id);
   const complete = useCompleteModule(id);
   const [openModuleId, setOpenModuleId] = useState<string | null>(null);
 
   if (isError && !data) {
-    return <WidgetError message="Couldn't load this course." onRetry={() => void refetch()} />;
+    return (
+      <div className="animate-fade-in pb-10">
+        <PageHeader breadcrumbs={[COURSES_CRUMB, { label: "Course" }]} title="Course" />
+        <WidgetError message="Couldn't load this course." onRetry={() => void refetch()} />
+      </div>
+    );
   }
 
   if (isLoading || !data) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-40 w-full rounded-app" />
       </div>
     );
   }
@@ -33,11 +41,13 @@ export function StudentCourseDetailClient({ id }: { id: string }) {
   const modules = [...course.modules].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">{course.title}</h1>
-        {course.description && <p className="mt-1 text-sm text-app-muted">{course.description}</p>}
-        <div className="mt-3 flex items-center gap-3">
+    <div className="animate-fade-in pb-10">
+      <PageHeader
+        breadcrumbs={[COURSES_CRUMB, { label: course.title }]}
+        description={course.description ?? undefined}
+        title={<span className="break-words">{course.title}</span>}
+      >
+        <div className="flex items-center gap-3">
           <div
             aria-label={`${course.progressPercent}% complete`}
             aria-valuemax={100}
@@ -51,22 +61,22 @@ export function StudentCourseDetailClient({ id }: { id: string }) {
               style={{ width: `${course.progressPercent}%` }}
             />
           </div>
-          <span className="text-xs font-extrabold text-app-text">
+          <span className="text-xs font-semibold tabular-nums text-app-text">
             {course.completedModuleCount} / {course.moduleCount} complete
           </span>
         </div>
-      </div>
+      </PageHeader>
 
       <div className="grid gap-3">
         {modules.map((m, index) => (
           <Card key={m.id} className="p-4">
             <div className="flex items-center gap-3">
               <span
-                className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
-                  m.completed ? "bg-primary text-on-primary" : "bg-app-soft text-app-muted"
+                className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                  m.completed ? "bg-success-soft text-success-ink" : "bg-app-soft text-app-muted"
                 }`}
               >
-                {m.completed ? <CheckCircle2 className="size-4" strokeWidth={2.5} /> : index + 1}
+                {m.completed ? <CheckCircle2 aria-label="Completed" className="size-4" strokeWidth={2.5} /> : index + 1}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-app-text">{m.title}</p>
@@ -74,7 +84,7 @@ export function StudentCourseDetailClient({ id }: { id: string }) {
               </div>
 
               {m.contentType === "PUZZLE" && m.puzzle ? (
-                <Button asChild size="sm">
+                <Button asChild size="sm" variant="outline">
                   <Link href={`/student/puzzles/${m.puzzle.id}`}>
                     <Puzzle aria-hidden="true" className="size-4" strokeWidth={2.5} />
                     Solve

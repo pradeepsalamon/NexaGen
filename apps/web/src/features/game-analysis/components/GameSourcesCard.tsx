@@ -300,12 +300,12 @@ function AccountRow({
           <SimpleTooltip label="Unlink account">
             <Button
               aria-label="Unlink account"
-              className="bg-app-danger text-on-danger hover:bg-app-danger/85"
+              className="size-8 p-0"
               onClick={() => setConfirmUnlink(true)}
               size="icon"
-              variant="ghost"
+              variant="neutral"
             >
-              <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              <Trash2 aria-hidden="true" className="size-4 text-app-danger-ink" strokeWidth={2.5} />
             </Button>
           </SimpleTooltip>
         </div>

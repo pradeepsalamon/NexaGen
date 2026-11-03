@@ -11,7 +11,9 @@ import {
   Clock,
   FilterX,
 } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { StatTile } from "@/components/ui/StatTile";
 import type {
   StudentAttendanceHistory,
   StudentAttendanceResponse,
@@ -126,88 +128,38 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       {!hideHeading && (
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-              Attendance
-            </h1>
-            <p className="text-app-muted mt-1 text-sm md:text-base">
-              Track your session history, engagement metrics, and class streaks.
-            </p>
-          </div>
-          <Button
-            variant="primary"
-            onClick={handleExportCSV}
-            className="shadow-card flex items-center gap-2"
-          >
-            <Download className="size-4" strokeWidth={2.5} />
-            <span>Download Attendance Report (CSV)</span>
-          </Button>
-        </div>
+        <PageHeader
+          actions={
+            <Button onClick={handleExportCSV} size="sm" variant="outline">
+              <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              Download CSV
+            </Button>
+          }
+          description="Your class history, time in class and attendance streak."
+          title="Attendance"
+        />
       )}
 
-      {/* KPI Grid (5 Cards matching Stitch layout) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {/* KPI 1: Overall Attendance */}
-        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition hover:shadow-lift">
-          <div className="relative w-16 h-16 flex items-center justify-center mb-2">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-              <path
-                className="text-app-soft stroke-current"
-                strokeWidth="3.5"
-                fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-              <path
-                className="text-success transition-[stroke-dashoffset] duration-700 ease-out stroke-current"
-                strokeDasharray={`${Math.min(100, Math.max(0, stats.percentage))}, 100`}
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-            </svg>
-            <span className="absolute text-lg font-bold text-app-text">{stats.percentage}%</span>
-          </div>
-          <span className="text-xs font-semibold text-app-muted">Overall</span>
-        </div>
-
-        {/* KPI 2: Classes Attended */}
-        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition hover:shadow-lift">
-          <div className="w-12 h-12 bg-success/10 text-success-ink rounded-full flex items-center justify-center mb-3">
-            <CheckCircle2 className="size-6" strokeWidth={2.5} />
-          </div>
-          <span className="text-2xl font-bold text-app-text">{stats.attended}/{stats.total}</span>
-          <span className="text-xs font-semibold text-app-muted mt-1">Attended</span>
-        </div>
-
-        {/* KPI 3: Total Learning Time */}
-        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition hover:shadow-lift">
-          <div className="w-12 h-12 bg-primary/10 text-primary-ink rounded-full flex items-center justify-center mb-3">
-            <Clock className="size-6" strokeWidth={2.5} />
-          </div>
-          <span className="text-2xl font-bold text-app-text">{stats.totalLearningHours} hrs</span>
-          <span className="text-xs font-semibold text-app-muted mt-1">Total Time</span>
-        </div>
-
-        {/* KPI 4: Current Streak */}
-        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition hover:shadow-lift">
-          <div className="w-12 h-12 bg-accent/10 text-accent-ink rounded-full flex items-center justify-center mb-3">
-            <Flame className="size-6" strokeWidth={2.5} />
-          </div>
-          <span className="text-2xl font-bold text-app-text">{stats.currentStreak} Classes</span>
-          <span className="text-xs font-semibold text-app-muted mt-1">Current Streak</span>
-        </div>
-
-        {/* KPI 5: This Month */}
-        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition hover:shadow-lift col-span-2 sm:col-span-1">
-          <div className="w-12 h-12 bg-primary/10 text-primary-ink rounded-full flex items-center justify-center mb-3">
-            <Calendar className="size-6" strokeWidth={2.5} />
-          </div>
-          <span className="text-2xl font-bold text-app-text">{stats.monthlyPercent}%</span>
-          <span className="text-xs font-semibold text-app-muted mt-1">This Month</span>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        {/* The API reports 100% when nothing has been held yet; show a dash instead. */}
+        <StatTile
+          icon={CheckCircle2}
+          label="Overall attendance"
+          progress={stats.total > 0 ? stats.percentage : undefined}
+          tone="accent"
+          value={stats.total > 0 ? `${stats.percentage}%` : "—"}
+        />
+        <StatTile icon={CheckCircle2} label="Classes attended" tone="accent" value={`${stats.attended}/${stats.total}`} />
+        <StatTile icon={Clock} label="Time in class" tone="primary" value={`${stats.totalLearningHours} hrs`} />
+        <StatTile
+          icon={Flame}
+          label="Current streak"
+          tone="reward"
+          value={`${stats.currentStreak} ${stats.currentStreak === 1 ? "class" : "classes"}`}
+        />
+        <div className="col-span-2 sm:col-span-1">
+          <StatTile icon={Calendar} label="This month" tone="primary" value={stats.total > 0 ? `${stats.monthlyPercent}%` : "—"} />
         </div>
       </div>
 
@@ -216,10 +168,10 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
         {/* Card Header with Status Filter Pills and Search */}
         <div className="p-5 border-b border-app-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-app-text">Class History</h2>
+            <h2 className="text-base font-semibold text-app-text">Class history</h2>
             {interactive && (
               <span className="text-xs font-normal text-app-muted hidden sm:inline">
-                (Click row or info icon for detailed logs)
+                Select a class for its join and leave log
               </span>
             )}
           </div>

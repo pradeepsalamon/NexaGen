@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarX } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { apiFetch } from "@/lib/api";
 import { API_ROUTES, type StudentAttendanceResponse, type StudentAttendanceHistory } from "@nexa-chess/types";
 import { AttendanceLogDialog } from "@/features/attendance/components/AttendanceLogDialog";
@@ -79,14 +80,12 @@ export default function StudentAttendancePage() {
 
   if (!data) {
     return (
-      <div className="flex flex-col items-center justify-center h-[50dvh] text-center">
-        <div className="p-4 bg-app-soft rounded-full mb-4">
-          <CalendarX className="h-10 w-10 text-app-muted" />
-        </div>
-        <h2 className="text-xl font-semibold mb-2">No Attendance Data</h2>
-        <p className="text-app-muted max-w-md">
-          There are no attendance records to display yet. Join a live class to start tracking your attendance.
-        </p>
+      <div className="mx-auto max-w-7xl pb-10">
+        <EmptyState
+          description="Join a live class and your attendance shows up here."
+          icon={CalendarX}
+          title="No attendance yet"
+        />
       </div>
     );
   }

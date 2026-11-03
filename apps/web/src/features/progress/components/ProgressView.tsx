@@ -27,14 +27,14 @@ export function ProgressView({ progress }: { progress: StudentProgressDto }) {
           context={`Peak ${progress.peakRating}`}
           icon={TrendingUp}
           label="Puzzle rating"
-          tone="primary"
+          tone="reward"
           value={String(progress.puzzleRating)}
         />
         <StatTile
           context={`Best ${progress.longestStreak}`}
           icon={Flame}
           label="Day streak"
-          tone="warm"
+          tone="reward"
           value={`${progress.currentStreak} ${progress.currentStreak === 1 ? "day" : "days"}`}
         />
         <StatTile
@@ -90,7 +90,7 @@ export function ProgressView({ progress }: { progress: StudentProgressDto }) {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Badge variant={p.solved ? "success" : "destructive"}>{p.solved ? "Solved" : "Missed"}</Badge>
+                  <Badge variant={p.solved ? "success" : "warning"}>{p.solved ? "Solved" : "Missed"}</Badge>
                   {p.ratingChange !== null ? (
                     <span
                       className={`w-12 text-right text-sm font-bold ${
@@ -100,9 +100,9 @@ export function ProgressView({ progress }: { progress: StudentProgressDto }) {
                       {p.ratingChange >= 0 ? `+${p.ratingChange}` : p.ratingChange}
                     </span>
                   ) : (
-                    <span className="rounded-full bg-app-soft px-2 py-0.5 text-[11px] font-semibold text-app-muted" title="Repeat attempt — rating unchanged">
+                    <Badge title="Repeat attempt, rating unchanged" variant="secondary">
                       Repeat
-                    </span>
+                    </Badge>
                   )}
                 </div>
               </li>

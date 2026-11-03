@@ -1,20 +1,15 @@
 "use client";
 
-import { TrendingUp } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { StudentProgressWorkspace } from "./StudentProgressWorkspace";
 
 export function StudentProgressClient() {
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight flex items-center gap-2 text-app-text">
-          <TrendingUp className="size-6 text-primary-ink" strokeWidth={2.5} />
-          Progress
-        </h1>
-        <p className="mt-1 text-app-muted">
-          Solve puzzles and finish assignments every day to grow your rating and your streak.
-        </p>
-      </div>
+    <div className="animate-fade-in pb-10">
+      <PageHeader
+        description="Your rating, streak, activity history and revision in one place."
+        title="Progress"
+      />
       <StudentProgressWorkspace studentId={null} />
     </div>
   );
