@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useBoardStore } from "../../context/BoardProvider";
 import { useShallow } from "zustand/react/shallow";
@@ -44,16 +45,16 @@ const TimeChip = memo(function TimeChip({
         low && active && "border-warning bg-warning/10 text-warning-ink",
       )}
     >
-      <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide">
+      <span className="flex items-center gap-1.5 text-xs font-medium">
         <span
           className={cn(
             "size-2 rounded-full",
             color === "white" ? "bg-side-white ring-1 ring-app-border" : "bg-side-black",
           )}
         />
-        {color}
+        {color === "white" ? "White" : "Black"}
       </span>
-      <span className={cn("font-mono text-sm font-semibold", low && "text-warning-ink")}>
+      <span className={cn("text-sm font-semibold tabular-nums", low && "text-warning-ink")}>
         {text}
       </span>
     </div>
@@ -85,20 +86,23 @@ const CoachClockControls = memo(function CoachClockControls() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
-          type="button"
+        {/* A Radix asChild trigger: the native title stands in for SimpleTooltip. */}
+        <Button
           aria-label="Clock settings"
+          className="size-8 text-app-muted"
+          size="icon"
           title="Clock settings"
-          className="flex size-8 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+          type="button"
+          variant="neutral"
         >
-          <Timer className="size-4" />
-        </button>
+          <Timer aria-hidden="true" className="size-4" strokeWidth={2.5} />
+        </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 space-y-3">
         <p className="text-xs font-semibold text-app-text">Chess clock</p>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <Label htmlFor="clock-minutes" className="text-[11px]">Minutes</Label>
+            <Label htmlFor="clock-minutes" className="text-xs">Minutes</Label>
             <Input
               id="clock-minutes"
               inputMode="numeric"
@@ -107,7 +111,7 @@ const CoachClockControls = memo(function CoachClockControls() {
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="clock-increment" className="text-[11px]">Increment (s)</Label>
+            <Label htmlFor="clock-increment" className="text-xs">Increment (s)</Label>
             <Input
               id="clock-increment"
               inputMode="numeric"
@@ -121,17 +125,19 @@ const CoachClockControls = memo(function CoachClockControls() {
         </Button>
         <div className="flex gap-2">
           {running ? (
-            <Button size="sm" variant="outline" className="flex-1" onClick={pauseClock}>
-              <Pause className="size-3.5" /> Pause
+            <Button size="sm" variant="neutral" className="flex-1" onClick={pauseClock}>
+              <Pause aria-hidden="true" className="size-3.5" strokeWidth={2.5} /> Pause
             </Button>
           ) : (
             <Button size="sm" variant="primary" className="flex-1" onClick={() => startClock()}>
-              <Play className="size-3.5" /> Start
+              <Play aria-hidden="true" className="size-3.5" strokeWidth={2.5} /> Start
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={resetClock} aria-label="Reset clock">
-            <RotateCcw className="size-3.5" />
-          </Button>
+          <SimpleTooltip label="Reset clock">
+            <Button size="sm" variant="neutral" onClick={resetClock} aria-label="Reset clock">
+              <RotateCcw aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+            </Button>
+          </SimpleTooltip>
         </div>
       </PopoverContent>
     </Popover>

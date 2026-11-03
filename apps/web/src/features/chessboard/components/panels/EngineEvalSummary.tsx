@@ -65,17 +65,17 @@ export function EngineEvalSummary({ className }: { className?: string }) {
         </span>
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-xs font-semibold text-app-text">{analysis?.engine ?? "Stockfish"}</p>
-          <p className="truncate text-[11px] text-app-muted" aria-live="polite">
+          <p className="truncate text-xs text-app-muted" aria-live="polite">
             {status}
           </p>
         </div>
-        {running && isAnalyzing ? <Loader2 className="size-3.5 shrink-0 animate-spin text-primary-ink" aria-label="Analysing" /> : null}
+        {running && isAnalyzing ? <Loader2 className="size-3.5 shrink-0 animate-spin text-app-muted" aria-label="Analysing" /> : null}
       </div>
 
       {setupOnly ? (
         <Notice>No engine for a set-up position ({positionIssues.join(", ")}).</Notice>
       ) : failed ? (
-        <Notice tone="danger">Engine unavailable: {error} Retrying…</Notice>
+        <Notice tone="warning">Engine unavailable: {error} Retrying…</Notice>
       ) : (
         lines.map((line, i) => (
           <PvLine key={i} fen={line.fen} evaluation={line.evaluation} pv={line.pv} stale={stale} />
@@ -91,9 +91,9 @@ function evaluationLabel(evaluation: Evaluation | null) {
   return `Evaluation ${formatEvaluation(evaluation)} pawns`;
 }
 
-function Notice({ children, tone }: { children: React.ReactNode; tone?: "danger" }) {
+function Notice({ children, tone }: { children: React.ReactNode; tone?: "warning" }) {
   return (
-    <p className={cn("border-t border-app-border/40 px-3 py-1.5 text-xs", tone === "danger" ? "text-app-danger-ink" : "text-app-muted")}>
+    <p className={cn("border-t border-app-border/40 px-3 py-1.5 text-xs", tone === "warning" ? "text-warning-ink" : "text-app-muted")}>
       {children}
     </p>
   );
@@ -140,7 +140,7 @@ function PvLine({ fen, evaluation, pv, stale }: { fen: string; evaluation: Evalu
             onClick={() => setExpanded((e) => !e)}
             aria-label={expanded ? "Collapse line" : "Show full line"}
             aria-expanded={expanded}
-            className="grid size-5 shrink-0 place-items-center rounded-full text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+            className="grid size-5 shrink-0 place-items-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
           >
             <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} strokeWidth={2.5} />
           </button>

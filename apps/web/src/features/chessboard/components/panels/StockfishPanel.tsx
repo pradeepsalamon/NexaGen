@@ -3,6 +3,7 @@ import { useBoardStore as usePersistedStore } from "../../context/BoardProvider"
 import { useEngineAnalysis } from "../../hooks/useEngineAnalysis";
 import type { StockfishAnalysisResult } from '../../api/stockfishApi';
 import { Loader2, Pause, Play } from 'lucide-react';
+import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 
 /** The engine scores for the side to move; the panel shows White's view. */
@@ -33,16 +34,18 @@ export function StockfishPanel() {
     return (
       <div className="flex flex-col h-full text-sm p-4 text-app-text">
         <div className="flex items-center justify-between mb-4 pb-2 border-b border-app-border">
-          <span className="text-xs text-app-muted font-semibold uppercase tracking-wider">Engine Analysis</span>
+          <span className="text-xs font-semibold text-app-muted">Engine analysis</span>
           <SimpleTooltip label="Resume analysis">
-            <button
-              type="button"
-              onClick={() => setIsEnabled(true)}
+            <Button
               aria-label="Resume analysis"
-              className="w-8 h-8 rounded-full border border-app-border bg-app-surface hover:bg-app-soft flex items-center justify-center shadow-card transition-colors"
+              className="size-8"
+              onClick={() => setIsEnabled(true)}
+              size="icon"
+              type="button"
+              variant="neutral"
             >
-              <Play className="size-3.5" />
-            </button>
+              <Play aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+            </Button>
           </SimpleTooltip>
         </div>
         <div className="flex flex-col items-center justify-center flex-1 text-app-muted p-4 text-center">
@@ -57,18 +60,20 @@ export function StockfishPanel() {
       <div className="flex flex-col h-full text-sm p-4">
         <div className="flex justify-end">
           <SimpleTooltip label="Pause analysis">
-            <button
-              type="button"
-              onClick={() => setIsEnabled(false)}
+            <Button
               aria-label="Pause analysis"
-              className="w-8 h-8 rounded-full border border-app-border bg-app-surface hover:bg-app-soft flex items-center justify-center shadow-card transition-colors"
+              className="size-8"
+              onClick={() => setIsEnabled(false)}
+              size="icon"
+              type="button"
+              variant="neutral"
             >
-              <Pause className="size-3.5" />
-            </button>
+              <Pause aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+            </Button>
           </SimpleTooltip>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center text-center text-app-danger-ink">
-          <span className="font-semibold mb-2">Analysis Error</span>
+          <span className="font-semibold mb-2">Analysis error</span>
           <p>{error}</p>
         </div>
       </div>
@@ -78,8 +83,8 @@ export function StockfishPanel() {
   if (!analysis) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-sm text-app-muted p-4 text-center">
-        <Loader2 className="animate-spin mb-4" size={24} />
-        <p>Waiting for analysis...</p>
+        <Loader2 aria-hidden="true" className="mb-4 size-6 animate-spin" />
+        <p>Waiting for analysis…</p>
       </div>
     );
   }
@@ -93,36 +98,38 @@ export function StockfishPanel() {
     <div className="flex flex-col h-full text-sm p-4 text-app-text">
       <div className="flex items-center justify-between mb-4 pb-2 border-b border-app-border">
         <div className="flex flex-col">
-          <span className="text-xs text-app-muted font-semibold uppercase tracking-wider">Evaluation</span>
-          <span className={`text-2xl font-bold ${analysis.mate !== null ? 'text-primary-ink' : 'text-app-text'}`}>
+          <span className="text-xs font-semibold text-app-muted">Evaluation</span>
+          <span className="font-mono text-2xl font-bold tabular-nums text-app-text">
             {scoreText}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {isAnalyzing && <Loader2 className="animate-spin text-primary-ink" size={20} />}
+          {isAnalyzing && <Loader2 aria-label="Analysing" className="size-5 animate-spin text-app-muted" />}
           <SimpleTooltip label="Pause analysis">
-            <button
-              type="button"
-              onClick={() => setIsEnabled(false)}
+            <Button
               aria-label="Pause analysis"
-              className="w-8 h-8 rounded-full border border-app-border bg-app-surface hover:bg-app-soft flex items-center justify-center shadow-card transition-colors"
+              className="size-8"
+              onClick={() => setIsEnabled(false)}
+              size="icon"
+              type="button"
+              variant="neutral"
             >
-              <Pause className="size-3.5" />
-            </button>
+              <Pause aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+            </Button>
           </SimpleTooltip>
         </div>
       </div>
 
       {analysis.bestMove && (
         <div className="mb-4">
-          <span className="text-xs text-app-muted font-semibold uppercase tracking-wider">Best Move</span>
+          <span className="text-xs font-semibold text-app-muted">Best move</span>
           <div className="mt-1 font-mono text-lg font-medium">{analysis.bestMove}</div>
         </div>
       )}
 
       {analysis.pv && analysis.pv.length > 0 && (
         <div>
-          <span className="text-xs text-app-muted font-semibold uppercase tracking-wider">Principal Variation (Depth {analysis.depth})</span>
+          <span className="text-xs font-semibold text-app-muted">Principal variation (depth {analysis.depth})</span>
           <div className="mt-2 text-xs text-app-muted leading-relaxed font-mono">
             {analysis.pv.join(' ')}
           </div>

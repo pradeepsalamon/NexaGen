@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Info, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import {
   BOARD_THEME_CATALOG,
   chessAppearanceSchema,
@@ -10,6 +10,7 @@ import {
   type ChessAppearance,
   type ChessAppearanceOverride,
 } from "@nexa-chess/types";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -116,13 +117,10 @@ export function AdminChessAppearanceClient() {
       ) : (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
-            <div className="flex items-start gap-2.5 rounded-app border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_6%,var(--color-surface))] p-3.5 text-sm text-app-text">
-              <Info className="mt-0.5 size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
-              <p>
-                This changes the default appearance for users who have not selected a personal board
-                preference. Users with their own preference are unaffected.
-              </p>
-            </div>
+            <Alert variant="info">
+              This changes the default appearance for users who have not selected a personal board
+              preference. Users with their own preference are unaffected.
+            </Alert>
 
             <Card className="space-y-1 p-5 sm:p-6">
               <div className="flex items-start justify-between gap-4">

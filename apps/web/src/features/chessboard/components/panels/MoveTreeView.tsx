@@ -332,12 +332,12 @@ function VariationBar({
     <div className="flex flex-wrap items-center gap-1.5 border-b border-app-border bg-app-soft/60 px-2 py-1.5 text-xs">
       {inVariation && (
         <>
-          <span className="inline-flex items-center gap-1 font-semibold text-primary-ink">
+          <span className="inline-flex items-center gap-1 font-semibold text-app-text">
             <GitBranch className="size-3.5" strokeWidth={2.5} aria-hidden />
             Variation
           </span>
-          <Button variant="ghost" size="sm" className="h-7 min-h-7 px-2 text-xs" onClick={onBackToMainline}>
-            <CornerUpLeft className="mr-1 size-3.5" aria-hidden />
+          <Button variant="neutral" size="sm" className="h-7 min-h-7 px-2 text-xs" onClick={onBackToMainline}>
+            <CornerUpLeft className="size-3.5" strokeWidth={2.5} aria-hidden />
             Back to mainline
           </Button>
         </>
@@ -348,16 +348,16 @@ function VariationBar({
         )}
         {editable && inVariation && onPromote && (
           <Button variant="outline" size="sm" className="h-7 min-h-7 px-2 text-xs" onClick={() => setConfirm("promote")}>
-            <ArrowUpToLine className="mr-1 size-3.5" aria-hidden />
+            <ArrowUpToLine className="size-3.5" strokeWidth={2.5} aria-hidden />
             Promote to mainline
           </Button>
         )}
         {editable && inVariation && onDelete && (
           <SimpleTooltip label="Delete variation">
             <Button
-              variant="ghost"
+              variant="neutral"
               size="icon"
-              className="size-7 min-h-7 rounded-full text-danger-ink"
+              className="size-7 min-h-7 text-app-danger-ink"
               aria-label="Delete variation"
               onClick={() => setConfirm("delete")}
             >
@@ -414,8 +414,8 @@ function CommentEditor({ comment, onSave }: { comment: string; onSave: (text: st
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 min-h-7 px-2 text-xs" aria-label="Comment on this move">
-          <MessageSquareText className="mr-1 size-3.5" aria-hidden />
+        <Button variant="neutral" size="sm" className="h-7 min-h-7 px-2 text-xs" aria-label="Comment on this move">
+          <MessageSquareText className="size-3.5" strokeWidth={2.5} aria-hidden />
           {comment ? "Edit comment" : "Comment"}
         </Button>
       </PopoverTrigger>
