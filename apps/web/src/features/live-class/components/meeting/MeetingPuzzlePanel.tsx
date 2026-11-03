@@ -86,7 +86,7 @@ function AdjustPopover({
           <button
             type="button"
             aria-label={label}
-            className="grid size-7 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-muted transition-colors hover:bg-primary hover:text-on-primary"
+            className="grid size-7 shrink-0 place-items-center rounded-control border border-app-border p-0 text-app-muted transition-colors hover:bg-primary hover:text-on-primary"
           >
             <PlusCircle className="size-3.5" strokeWidth={2.5} />
           </button>
@@ -155,45 +155,41 @@ function pointsValue(entry: LivePuzzleLeaderboardEntry, rankByPoints: boolean) {
   return rankByPoints ? String(entry.points) : `${entry.scorePercent}%`;
 }
 
-const MEDAL_TONE: Record<number, string> = {
-  1: "text-accent-ink",
-  2: "text-app-muted",
-  3: "text-primary-ink"
-};
-
-/** Medal for the podium, plain number below it. */
+/** Leaderboard rank (spec component 19): gold chip for the top three, a plain number below. */
 function RankMark({ rank }: { rank: number }) {
-  const tone = MEDAL_TONE[rank];
-  if (!tone) {
-    return <span className="inline-block w-6 text-center font-bold tabular-nums text-app-muted">{rank}</span>;
+  if (rank > 3) {
+    return <span className="inline-flex size-6 items-center justify-center text-sm font-semibold tabular-nums text-app-muted">{rank}</span>;
   }
   return (
-    <span className="relative inline-flex size-6 items-center justify-center" aria-label={`Rank ${rank}`}>
-      <Medal aria-hidden="true" className={cn("size-6", tone)} strokeWidth={2.25} />
-      <span className="absolute top-[3px] text-[9px] font-extrabold text-app-text">{rank}</span>
+    <span
+      className="inline-flex size-6 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold tabular-nums text-accent-ink"
+      aria-label={`Rank ${rank}`}
+    >
+      {rank}
     </span>
   );
 }
 
-const PODIUM_ROW: Record<number, string> = {
-  1: "bg-accent/[0.10]",
-  2: "bg-app-muted/[0.10]",
-  3: "bg-primary/[0.08]"
-};
-
-/** Podium rows tinted gold/silver/bronze; the viewer's own row gets a primary bar on the left. */
-function rowClass(rank: number, isSelf: boolean) {
-  return cn(PODIUM_ROW[rank], isSelf && "bg-primary/[0.12] font-semibold");
+/** Leaderboard rows are 48px; the viewer's own row is tinted blue and says "You". */
+function rowClass(_rank: number, isSelf: boolean) {
+  return cn("h-12", isSelf && "bg-primary-soft");
 }
 
-function selfCellClass(isSelf: boolean) {
-  return cn("px-3 py-2", isSelf && "border-l-[3px] border-l-primary");
+function selfCellClass(_isSelf: boolean) {
+  return "px-3 py-2";
 }
 
 function YouTag() {
+  return <Badge variant="default">You</Badge>;
+}
+
+/** Avatar + name cell content shared by the three leaderboards. */
+function LeaderName({ name, children }: { name: string; children?: React.ReactNode }) {
   return (
-    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-bold leading-4 text-on-primary">
-      You
+    <span className="flex min-w-0 items-center gap-2">
+      <ParticipantAvatar name={name} size="xs" className="hidden xs:flex" />
+      <span className="truncate font-medium text-app-text">{name}</span>
+      {children}
     </span>
   );
 }
@@ -339,8 +335,7 @@ function LeaderboardSection({
                   <RankMark rank={entry.rank} />
                 </TableCell>
                 <TableCell className="max-w-0 px-2 py-2">
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span className="truncate font-medium text-app-text">{entry.studentName}</span>
+                  <LeaderName name={entry.studentName}>
                     {entry.isSelf ? <YouTag /> : null}
                     {entry.solved ? (
                       <CheckCircle2
@@ -349,9 +344,9 @@ function LeaderboardSection({
                         strokeWidth={2.5}
                       />
                     ) : null}
-                  </span>
+                  </LeaderName>
                   {showStats ? (
-                    <span className="block truncate text-[11px] tabular-nums text-app-muted">
+                    <span className="block truncate text-xs tabular-nums text-app-muted">
                       {entryStats(entry, rankByPoints)}
                     </span>
                   ) : null}
@@ -417,12 +412,11 @@ function ClassLeaderboardSection({ classId, isCoach }: { classId: string; isCoac
                   <RankMark rank={entry.rank} />
                 </TableCell>
                 <TableCell className="max-w-0 px-2 py-2">
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span className="truncate font-medium text-app-text">{entry.studentName}</span>
+                  <LeaderName name={entry.studentName}>
                     {entry.isSelf ? <YouTag /> : null}
-                  </span>
+                  </LeaderName>
                   {entry.adjustment !== 0 ? (
-                    <span className="block truncate text-[11px] tabular-nums text-app-muted">
+                    <span className="block truncate text-xs tabular-nums text-app-muted">
                       {entry.puzzlePoints} puzzles · {entry.adjustment > 0 ? "+" : ""}
                       {entry.adjustment} coach
                     </span>
@@ -489,7 +483,7 @@ export function SidebarClassLeaderboard({ classId, isCoach }: { classId: string;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <p className="shrink-0 px-3 py-1.5 text-[11px] text-app-muted">
+      <p className="shrink-0 px-3 py-1.5 text-xs text-app-muted">
         {data.puzzleCount === 0
           ? "No puzzles shared yet — points appear as students solve."
           : `${data.puzzleCount} ${data.puzzleCount === 1 ? "puzzle" : "puzzles"} this class`}
@@ -498,10 +492,10 @@ export function SidebarClassLeaderboard({ classId, isCoach }: { classId: string;
         <Table>
           <TableHeader className="sticky top-0 z-[1] bg-app-soft">
             <TableRow>
-              <TableHead className="h-8 w-10 px-2 text-[11px]">Rank</TableHead>
-              <TableHead className="h-8 px-1 text-[11px]">Participant</TableHead>
-              <TableHead className="h-8 px-1 text-right text-[11px]">Score</TableHead>
-              <TableHead className="h-8 w-20 px-2 text-right text-[11px]">Progress</TableHead>
+              <TableHead className="h-8 w-10 px-2 text-xs">Rank</TableHead>
+              <TableHead className="h-8 px-1 text-xs">Participant</TableHead>
+              <TableHead className="h-8 px-1 text-right text-xs">Score</TableHead>
+              <TableHead className="h-8 w-20 px-2 text-right text-xs">Progress</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -515,7 +509,7 @@ export function SidebarClassLeaderboard({ classId, isCoach }: { classId: string;
                   <TableCell className="max-w-0 px-1 py-1.5">
                     <span className="flex min-w-0 items-center gap-1.5">
                       <ParticipantAvatar name={entry.studentName} size="xs" className="shrink-0" />
-                      <span className="truncate text-[13px] font-medium text-app-text">{entry.studentName}</span>
+                      <span className="truncate text-[0.8125rem] font-medium text-app-text">{entry.studentName}</span>
                       {entry.isSelf ? <YouTag /> : null}
                     </span>
                   </TableCell>
@@ -528,7 +522,7 @@ export function SidebarClassLeaderboard({ classId, isCoach }: { classId: string;
                             : `${entry.puzzlePoints} from puzzles`
                         }
                       >
-                        <span className="text-[13px] font-semibold tabular-nums text-app-text">{entry.points}</span>
+                        <span className="text-[0.8125rem] font-semibold tabular-nums text-app-text">{entry.points}</span>
                       </SimpleTooltip>
                       {isCoach ? (
                         <AdjustPopover
@@ -545,7 +539,7 @@ export function SidebarClassLeaderboard({ classId, isCoach }: { classId: string;
                       className="flex flex-col items-end gap-0.5"
                       aria-label={`${entry.solvedCount} of ${data.puzzleCount} puzzles solved`}
                     >
-                      <span className="text-[11px] tabular-nums text-app-muted">
+                      <span className="text-xs tabular-nums text-app-muted">
                         {entry.solvedCount}/{data.puzzleCount}
                       </span>
                       <span className="h-1 w-full overflow-hidden rounded-full bg-app-border/60" aria-hidden="true">

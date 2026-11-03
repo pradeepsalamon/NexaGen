@@ -37,7 +37,7 @@ export function RequestControlButton({ surface = false }: { surface?: boolean })
         : "You have control";
 
   const pill =
-    "flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold shadow-card backdrop-blur-md transition active:scale-95";
+    "flex items-center gap-1 rounded-control border px-2 py-1 text-xs font-semibold shadow-card backdrop-blur-md transition active:scale-95";
   const tone = surface
     ? {
         resync: "border-primary/40 bg-primary/10 text-primary-ink hover:border-primary",

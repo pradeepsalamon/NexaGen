@@ -199,7 +199,8 @@ export function TimerBadge({
   // Neutral while there is time; amber for the last five minutes and over time (red is for Live and destructive actions only).
   const late = mode === "down" && (isOvertime || remainingSeconds <= 300);
   const overBy = isOvertime ? formatted.replace(/^[-+]/, "") : null;
-  const text = mode === "up" ? formatted : isOvertime ? `Over by ${overBy}` : `${formatted} left`;
+  const text = mode === "up" ? formatted : isOvertime ? `Over by ${overBy}` : formatted;
+  const suffix = mode === "down" && !isOvertime ? " left" : "";
 
   const tooltipText =
     mode === "up"
@@ -222,7 +223,10 @@ export function TimerBadge({
         aria-label={mode === "up" ? `Elapsed time ${formatted}` : isOvertime ? `Class is over time by ${overBy}` : `${formatted} left in class`}
       >
         {late ? <TriangleAlert aria-hidden="true" className="size-3.5" strokeWidth={2} /> : <Timer aria-hidden="true" className="size-3.5" strokeWidth={2} />}
-        <span>{text}</span>
+        <span>
+          {text}
+          {suffix ? <span className="hidden sm:inline">{suffix}</span> : null}
+        </span>
       </button>
     </SimpleTooltip>
   );

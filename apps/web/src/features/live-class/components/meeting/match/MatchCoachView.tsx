@@ -282,7 +282,7 @@ export function MatchCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
             stageSwitch
           ) : (
             <SimpleTooltip label="Back to class (Esc)">
-              <Button size="icon" variant="ghost" className="rounded-full" aria-label="Back to class" onClick={() => setCoachOpen(false)}>
+              <Button size="icon" variant="neutral" aria-label="Back to class" onClick={() => setCoachOpen(false)}>
                 <X className="size-5" strokeWidth={2.5} />
               </Button>
             </SimpleTooltip>
@@ -331,7 +331,7 @@ export function MatchCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
                       <PuzzleBoardTile fen={game.fen} orientation="white" />
                     </button>
                     <NameLine game={game} color="white" compact />
-                    <span className={cn("truncate text-[0.7rem]", game.status === "FINISHED" ? "text-primary-ink" : "text-app-muted")}>
+                    <span className={cn("truncate text-xs", game.status === "FINISHED" ? "text-primary-ink" : "text-app-muted")}>
                       {tileStatus(game)}
                     </span>
                   </div>

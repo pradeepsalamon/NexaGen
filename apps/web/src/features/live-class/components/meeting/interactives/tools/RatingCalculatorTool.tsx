@@ -165,7 +165,7 @@ export function RatingCalculatorTool() {
                 <SimpleTooltip label="Remove game">
                   <button
                     aria-label={`Remove game ${i + 1}`}
-                    className="flex size-8 items-center justify-center rounded-full bg-app-danger text-on-danger transition-colors hover:bg-app-danger/85 disabled:opacity-40"
+                    className="flex size-8 items-center justify-center rounded-control bg-app-danger text-on-danger transition-colors hover:bg-app-danger/85 disabled:opacity-40"
                     disabled={saved.games.length === 1}
                     onClick={() =>
                       update({

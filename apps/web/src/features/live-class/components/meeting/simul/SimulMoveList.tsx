@@ -37,7 +37,7 @@ export function SimulMoveList({
     move ? (
       <span className={cn("font-medium text-app-text", showEngine && move.engine && "text-info-ink")}>
         {move.san}
-        {showEngine && move.engine ? <sup className="ml-0.5 text-[0.6rem]">E</sup> : null}
+        {showEngine && move.engine ? <sup className="ml-0.5 text-xs">E</sup> : null}
       </span>
     ) : (
       <span className="text-app-muted">…</span>

@@ -102,7 +102,7 @@ export function ClassSettingsPanel({
               label: p.isSystem ? `${p.name} (system)` : p.name,
             }))}
           />
-          <p className="text-[11px] text-app-muted">
+          <p className="text-xs text-app-muted">
             Applying a preset copies its values here. You can still adjust individual settings, and
             later changes to the preset won&apos;t affect this class.
           </p>

@@ -166,7 +166,7 @@ export function MeetingVideoEffects() {
                 style={{ backdropFilter: `blur(${level.radius / 4}px)` }}
                 aria-hidden="true"
               />
-              <span className="relative rounded-full bg-scrim/50 px-1.5 py-0.5 text-[10px] font-semibold text-on-scrim">
+              <span className="relative rounded-full bg-scrim/50 px-1.5 py-0.5 text-xs font-semibold text-on-scrim">
                 {level.label}
               </span>
             </Tile>
@@ -207,7 +207,7 @@ export function MeetingVideoEffects() {
             <ScanFace className="size-3.5 text-app-muted" />
             Auto-framing
           </p>
-          <p className="mt-0.5 text-[11px] leading-snug text-app-muted">
+          <p className="mt-0.5 text-xs leading-snug text-app-muted">
             Zooms in and follows your face so you stay centred, like Zoom and Center Stage.
           </p>
         </div>
@@ -219,11 +219,11 @@ export function MeetingVideoEffects() {
       </div>
 
       {status === "error" && (
-        <p role="alert" className="text-[11px] text-app-danger-ink">
+        <p role="alert" className="text-xs text-app-danger-ink">
           Effects couldn&apos;t start on this device. Your camera works normally without them.
         </p>
       )}
-      <p className="text-[11px] leading-snug text-app-muted">
+      <p className="text-xs leading-snug text-app-muted">
         Everyone in the class sees the effect. Saved on this device. Effects use extra battery on
         phones and older laptops.
       </p>

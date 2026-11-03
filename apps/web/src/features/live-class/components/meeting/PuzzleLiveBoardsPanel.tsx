@@ -1,6 +1,7 @@
 "use client";
 
 import type { LivePuzzleBoardEntry, LivePuzzleBoardStatus } from "@nexa-chess/types";
+import { ParticipantAvatar } from "./ParticipantAvatar";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
@@ -49,7 +50,8 @@ export function PuzzleLiveBoardsGrid({ classId, enabled = true }: { classId: str
   }
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,180px),1fr))] gap-4">
+    // Live board tile (spec component 21): two to a row, about a quarter of the stage each; three on very wide stages.
+    <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 2xl:grid-cols-3">
       {data.boards.map((board: LivePuzzleBoardEntry) => {
         const fen = board.fen ?? data.puzzleFen;
         const lastMistake = board.mistakes[board.mistakes.length - 1];
@@ -59,7 +61,7 @@ export function PuzzleLiveBoardsGrid({ classId, enabled = true }: { classId: str
         <div
           key={board.studentId}
           className={cn(
-            "flex flex-col gap-1.5 rounded-app border bg-app-surface p-2",
+            "flex flex-col gap-2 rounded-app border bg-app-surface p-2",
             board.mistakes.length > 0 && board.status === "IN_PROGRESS"
               ? "border-app-danger/50"
               : "border-app-border"
@@ -67,26 +69,29 @@ export function PuzzleLiveBoardsGrid({ classId, enabled = true }: { classId: str
         >
           <PuzzleBoardTile fen={fen} orientation={data.orientation} wrongMove={wrongMove} />
           <div className="flex items-center justify-between gap-1.5">
-            <span className="truncate text-xs font-semibold text-app-text">{board.studentName}</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <ParticipantAvatar name={board.studentName} size="xs" />
+              <span className="truncate text-sm font-medium text-app-text">{board.studentName}</span>
+            </span>
             <Badge variant={STATUS_VARIANT[board.status]} className="shrink-0">
               {STATUS_LABEL[board.status]}
             </Badge>
           </div>
           {board.moveCount > 0 ? (
-            <p className="truncate text-[11px] text-app-muted">
+            <p className="truncate text-xs text-app-muted">
               {board.moveCount} move{board.moveCount === 1 ? "" : "s"}
               {board.lastMoveSan ? ` · last: ${board.lastMoveSan}` : ""}
             </p>
           ) : null}
           {board.mistakes.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-1 text-[11px]">
+            <div className="flex flex-wrap items-center gap-1 text-xs">
               <span className="font-semibold text-app-danger-ink">
                 {board.mistakes.length} wrong:
               </span>
               {board.mistakes.map((m, i) => (
                 <span
                   key={`${m.at}-${i}`}
-                  className="rounded-full bg-app-danger/10 px-1.5 font-medium tabular-nums text-app-danger-ink"
+                  className="rounded-chip bg-app-danger-soft px-1.5 font-mono font-medium tabular-nums text-app-danger-ink"
                 >
                   {moveNumber(m.fenBefore)}
                   {m.san}

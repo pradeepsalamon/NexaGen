@@ -85,7 +85,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
             className={
               isGrid
                 ? "size-[clamp(1.75rem,32cqmin,5rem)] text-[clamp(0.5625rem,11cqmin,1.5rem)]"
-                : "size-7 text-[9px]"
+                : "size-7 text-xs"
             }
           />
         </div>
@@ -124,7 +124,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
         {isGrid && cameraOff && !isScreenShare ? (
           <VideoOff className="size-2.5 text-on-scrim-danger shrink-0" aria-label="Camera off" />
         ) : null}
-        <span className="truncate text-[10px] font-medium text-on-scrim/90">
+        <span className="truncate text-xs font-medium text-on-scrim/90">
           {participant.isLocal && !isScreenShare ? "You" : name}
         </span>
       </div>

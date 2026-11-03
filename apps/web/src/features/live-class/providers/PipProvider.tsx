@@ -55,8 +55,9 @@ interface PipContextValue {
 
 const PipContext = createContext<PipContextValue | undefined>(undefined);
 
+// The first size is the spec's 320 × 180 mini player (controls ride on the video).
 const SIZES = [
-  { width: 360, height: 232 },
+  { width: 320, height: 180 },
   { width: 480, height: 300 },
   { width: 640, height: 392 },
 ] as const;

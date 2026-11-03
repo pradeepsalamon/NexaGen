@@ -179,29 +179,29 @@ export function LiveClassSettingsForm({
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-app-text">{field.label}</span>
                         {lockedAbove ? (
-                          <Badge variant="outline" className="gap-1 py-0.5 text-[10px] font-semibold">
+                          <Badge variant="outline" className="gap-1 py-0.5 text-xs font-semibold">
                             <Lock className="size-3" strokeWidth={2.5} />
                             {lockedAbove === "ACADEMY" ? "Locked by academy" : "Locked by batch"}
                           </Badge>
                         ) : lockedHere ? (
-                          <Badge variant="default" className="gap-1 py-0.5 text-[10px]">
+                          <Badge variant="default" className="gap-1 py-0.5 text-xs">
                             <Lock className="size-3" strokeWidth={2.5} />
                             {scope === "system" ? "Locked for all classes" : "Locked for this batch"}
                           </Badge>
                         ) : null}
                         {lockedAbove && excepted ? (
-                          <Badge variant="default" className="py-0.5 text-[10px]">
+                          <Badge variant="default" className="py-0.5 text-xs">
                             Admin allowed this for this class
                           </Badge>
                         ) : null}
                         {scope !== "system" &&
                           !lockedAbove &&
                           (overridden ? (
-                            <Badge variant="default" className="py-0.5 text-[10px]">
+                            <Badge variant="default" className="py-0.5 text-xs">
                               {scope === "batch" ? "Batch default" : "Custom for this class"}
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="py-0.5 text-[10px] font-semibold">
+                            <Badge variant="outline" className="py-0.5 text-xs font-semibold">
                               {inheritedIsBatch ? "Inherited from batch" : "System default"}
                             </Badge>
                           ))}

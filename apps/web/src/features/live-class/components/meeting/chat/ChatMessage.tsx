@@ -83,7 +83,7 @@ export const ChatMessage = memo(function ChatMessage({
             <ParticipantAvatar
               name={msg.senderName}
               size="sm"
-              className="size-8 text-[10px] shadow-card ring-1 ring-app-border"
+              className="size-8 text-xs"
             />
           )}
         </div>
@@ -97,7 +97,7 @@ export const ChatMessage = memo(function ChatMessage({
               {msg.senderName}
             </span>
             {msg.senderRole && msg.senderRole.toUpperCase() === "COACH" && (
-              <span className="text-[10px] font-normal text-app-muted">
+              <span className="text-xs font-normal text-app-muted">
                 (Coach)
               </span>
             )}
@@ -113,7 +113,7 @@ export const ChatMessage = memo(function ChatMessage({
           {/* Message Bubble */}
           <div
             className={cn(
-              "px-3.5 py-2.5 text-sm leading-relaxed [word-break:break-word] shadow-card transition duration-200",
+              "px-3 py-2 text-sm leading-5 [word-break:break-word]",
               msg.isOwn
                 ? "bg-primary text-on-primary rounded-app rounded-tr-sm"
                 : "bg-app-surface border border-app-border text-app-text rounded-app rounded-tl-sm",
@@ -128,7 +128,7 @@ export const ChatMessage = memo(function ChatMessage({
                   key={lineIndex}
                   className={cn(
                     isQuote &&
-                      "my-1 border-l-2 border-current pl-2.5 opacity-75 text-[13px] italic bg-app-soft py-1 rounded-r-control",
+                      "my-1 rounded-r-control border-l-2 border-current py-1 pl-2.5 text-[0.8125rem] italic opacity-75",
                   )}
                 >
                   <LinkedText onColour={msg.isOwn} text={textContent} />
@@ -146,7 +146,7 @@ export const ChatMessage = memo(function ChatMessage({
           >
             <SimpleTooltip label="Reply">
               <button
-                className="rounded-control p-1.5 text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+                className="flex size-8 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus"
                 type="button"
                 onClick={handleReply}
                 aria-label="Reply to message"
@@ -156,7 +156,7 @@ export const ChatMessage = memo(function ChatMessage({
             </SimpleTooltip>
             <SimpleTooltip label="Copy">
               <button
-                className="rounded-control p-1.5 text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+                className="flex size-8 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus"
                 type="button"
                 onClick={handleCopy}
                 aria-label="Copy message"
@@ -170,7 +170,7 @@ export const ChatMessage = memo(function ChatMessage({
         {/* Timestamp */}
         <div
           className={cn(
-            "mt-1 flex items-center gap-1.5 text-[10px] font-medium text-app-muted/60",
+            "mt-1 flex items-center gap-1.5 text-xs text-app-muted",
             msg.isOwn ? "pr-1" : "pl-1",
           )}
         >

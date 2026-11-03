@@ -48,7 +48,7 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
             <button
               type="button"
               onClick={() => setPuzzleSolverOpen(true)}
-              className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary px-2.5 py-1 text-[11px] font-semibold text-on-primary shadow-card transition active:scale-95"
+              className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary px-2.5 py-1 text-xs font-semibold text-on-primary shadow-card transition active:scale-95"
             >
               <PuzzleIcon className="size-3" strokeWidth={2.5} />
               Solve puzzle
@@ -61,7 +61,7 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
             type="button"
             aria-label="Back to video grid"
             onClick={onShowGrid}
-            className="flex size-8 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text shadow-card transition hover:bg-app-surface"
+            className="flex size-8 shrink-0 items-center justify-center rounded-control border border-app-border bg-app-surface/80 text-app-text shadow-card transition hover:bg-app-surface"
           >
             <LayoutGrid className="size-3.5" strokeWidth={2.5} />
           </button>

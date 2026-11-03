@@ -46,7 +46,7 @@ export function InteractivesLauncher() {
         <button
           aria-label={`Classroom timer: ${timer.phase.label}, ${formatClockMs(timer.remainingMs)} left. Open the timer`}
           className={cn(
-            "absolute -top-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 whitespace-nowrap rounded-full border border-app-border bg-app-surface px-1.5 text-[0.6875rem] font-bold leading-5 tabular-nums shadow-card transition-colors hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
+            "absolute -top-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 whitespace-nowrap rounded-full border border-app-border bg-app-surface px-1.5 text-xs font-bold leading-5 tabular-nums shadow-card transition-colors hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
             timer.state?.status === "RUNNING" && timer.remainingMs <= 60_000 ? "text-app-danger-ink" : "text-app-text"
           )}
           onClick={() => choose("classroom-timer")}
@@ -167,7 +167,7 @@ export function InteractivesGrid({
               {/* Always-visible name — covers hover, keyboard focus and touch alike. */}
               <span
                 aria-hidden="true"
-                className="line-clamp-2 text-[0.6875rem] font-semibold leading-tight text-app-text"
+                className="line-clamp-2 text-xs font-semibold leading-tight text-app-text"
               >
                 {t.label}
               </span>

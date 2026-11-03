@@ -33,7 +33,7 @@ export function StudentInteractivesControl() {
     <span
       aria-label={`Classroom timer: ${timer.phase?.label}, ${formatClockMs(timer.remainingMs)} left`}
       className={cn(
-        "flex items-center gap-0.5 whitespace-nowrap rounded-full border border-app-border bg-app-surface px-1.5 text-[0.6875rem] font-bold leading-5 tabular-nums shadow-card",
+        "flex items-center gap-0.5 whitespace-nowrap rounded-full border border-app-border bg-app-surface px-1.5 text-xs font-bold leading-5 tabular-nums shadow-card",
         tool && "absolute -top-2.5 left-1/2 z-10 -translate-x-1/2",
         timer.state?.status === "RUNNING" && timer.remainingMs <= 60_000
           ? "text-app-danger-ink"

@@ -120,16 +120,17 @@ const BoardTile = memo(function BoardTile({
         focused
           ? "border-primary bg-primary/5"
           : game.turn === "COACH"
-            ? "border-warning/60 hover:bg-app-soft"
+            ? "border-primary/50 hover:bg-app-soft"
             : "border-app-border hover:bg-app-soft"
       )}
     >
       <PuzzleBoardTile fen={game.fen} orientation={game.coachColor} lastMove={game.moves[game.moves.length - 1]?.uci} />
-      <span className="truncate text-xs font-semibold text-app-text">{game.studentName}</span>
+      <span className="truncate text-sm font-medium text-app-text">{game.studentName}</span>
+      {/* Simul card (spec component 24): "Your move" in blue, the rest as plain status. */}
       <span
         className={cn(
           "truncate text-xs",
-          game.turn === "COACH" ? "font-semibold text-warning-ink" : "text-app-muted"
+          game.turn === "COACH" && game.status !== "FINISHED" ? "font-semibold text-primary-ink" : "text-app-muted"
         )}
       >
         {game.status === "FINISHED" ? (
@@ -383,7 +384,7 @@ export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
             stageSwitch
           ) : (
             <SimpleTooltip label="Back to class (Esc)">
-              <Button size="icon" variant="ghost" className="rounded-full" aria-label="Back to class" onClick={() => setCoachOpen(false)}>
+              <Button size="icon" variant="neutral" aria-label="Back to class" onClick={() => setCoachOpen(false)}>
                 <X className="size-5" strokeWidth={2.5} />
               </Button>
             </SimpleTooltip>
@@ -408,7 +409,7 @@ export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
                   ) : enginePending.has(focused.id) ? (
                     <Badge variant="info">Engine thinking…</Badge>
                   ) : focused.turn === "COACH" ? (
-                    <Badge variant="warning">Your move</Badge>
+                    <Badge variant="default">Your move</Badge>
                   ) : (
                     <Badge variant="outline">Their move</Badge>
                   )}

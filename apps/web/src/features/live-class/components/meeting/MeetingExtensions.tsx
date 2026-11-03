@@ -45,7 +45,7 @@ function ExtensionPlaceholder({ icon, title, description, className }: Placehold
       <p className="text-sm text-app-muted leading-relaxed max-w-[240px]">
         {description}
       </p>
-      <span className="mt-4 inline-flex items-center rounded-full bg-app-soft px-3 py-1 text-[10px] font-bold text-app-muted">
+      <span className="mt-4 inline-flex items-center rounded-full bg-app-soft px-3 py-1 text-xs font-bold text-app-muted">
         Coming soon
       </span>
     </div>

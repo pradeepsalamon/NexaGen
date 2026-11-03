@@ -97,7 +97,7 @@ export function OpeningOfTheDayTool({ isManager }: ToolContext) {
     <SimpleTooltip label={label}>
       <button
         aria-label={label}
-        className="flex size-10 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-text transition-colors hover:bg-app-soft disabled:opacity-40"
+        className="flex size-10 items-center justify-center rounded-control border border-app-border bg-app-surface text-app-text transition-colors hover:bg-app-soft disabled:opacity-40"
         disabled={disabled}
         onClick={onClick}
         type="button"

@@ -107,7 +107,7 @@ export function LiveClassSettingsSection({
           <SlidersHorizontal className="size-5 shrink-0 text-primary-ink" strokeWidth={2.5} />
           <span className="text-lg font-bold text-app-text">Class settings</span>
           {prefilled && (
-            <Badge variant="outline" className="gap-1 py-0.5 text-[10px] font-semibold">
+            <Badge variant="outline" className="gap-1 py-0.5 text-xs font-semibold">
               <History className="size-3" strokeWidth={2.5} />
               Your last settings — not saved yet
             </Badge>

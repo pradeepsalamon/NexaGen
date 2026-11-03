@@ -71,7 +71,7 @@ function AuditRow({ entry }: { entry: LiveClassSettingsAuditEntry }) {
   return (
     <li className="flex flex-col gap-2 border-b border-app-border py-3 last:border-0">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Badge variant="outline" className="py-0.5 text-[10px]">
+        <Badge variant="outline" className="py-0.5 text-xs">
           {SCOPE_LABEL[entry.scope] ?? entry.scope}
         </Badge>
         <span className="font-semibold text-app-text">

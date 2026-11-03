@@ -56,7 +56,7 @@ export function PuzzleTimerBadge({
       )}
     >
       <Timer className="size-3.5" strokeWidth={2.5} aria-hidden />
-      <span className="text-[13px]">{formatClock(secondsLeft)}</span>
+      <span className="text-[0.8125rem]">{formatClock(secondsLeft)}</span>
       {compact ? null : <span className="hidden font-medium sm:inline">{label}</span>}
     </span>
   );

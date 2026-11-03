@@ -44,7 +44,8 @@ export function EngineEvalSummary({ className }: { className?: string }) {
 
   return (
     <section className={cn("border-b border-app-border/60", className)} aria-label="Engine analysis">
-      <div className="flex items-center gap-2.5 px-3 py-2">
+      {/* Engine summary (live-class spec component 14): one 52px row. */}
+      <div className="flex min-h-[3.25rem] items-center gap-2.5 px-3 py-2">
         <SimpleTooltip label={paused ? "Resume analysis" : "Pause analysis"}>
           <Switch
             checked={running}
@@ -56,7 +57,7 @@ export function EngineEvalSummary({ className }: { className?: string }) {
         </SimpleTooltip>
         <span
           className={cn(
-            "min-w-[3.25rem] font-mono text-xl font-bold tabular-nums leading-none text-app-text transition-opacity",
+            "min-w-[3.25rem] font-mono text-xl font-semibold tabular-nums leading-7 text-app-text transition-opacity",
             stale && "opacity-60",
           )}
           aria-label={evaluationLabel(evaluation)}

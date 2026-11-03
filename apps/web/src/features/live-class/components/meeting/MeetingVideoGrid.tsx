@@ -216,7 +216,7 @@ export function MeetingVideoGrid({
                     <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center gap-1.5">
                       <div className="flex shrink-0 items-center gap-1.5 rounded-chip bg-scrim/80 px-2 py-1">
                         <Crown className="size-3 text-accent" />
-                        <span className="text-[11px] font-semibold text-on-scrim/90">Shared Board</span>
+                        <span className="text-xs font-semibold text-on-scrim/90">Shared Board</span>
                       </div>
                       <RequestControlButton />
                     </div>
@@ -226,7 +226,7 @@ export function MeetingVideoGrid({
                       <FlipBoardButton className="pointer-events-auto" />
                       <button
                         type="button"
-                        className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text backdrop-blur-sm transition duration-150 hover:bg-app-surface hover:scale-105 shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+                        className="pointer-events-auto flex size-7 items-center justify-center rounded-control border border-app-border bg-app-surface/80 text-app-text backdrop-blur-sm transition duration-150 hover:bg-app-surface hover:scale-105 shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                         onClick={() => setBoardStage(true)}
                         aria-label="View board full screen"
                       >

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Loader2, MicOff, Users, VideoOff, type LucideIcon } from "lucide-react";
+import { ChevronDown, Loader2, MicOff, UserCog, VideoOff, type LucideIcon } from "lucide-react";
 import type { LiveClassSettingsOverride } from "@nexa-chess/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { Switch } from "@/components/ui/Switch";
@@ -145,7 +145,7 @@ export function StudentControlsMenu({ classId }: { classId: string }) {
               "w-auto gap-1.5 px-2.5 text-sm font-medium",
             )}
           >
-            <Users aria-hidden="true" className="size-5" strokeWidth={1.75} />
+            <UserCog aria-hidden="true" className="size-5" strokeWidth={1.75} />
             <span className="hidden lg:inline">Students</span>
             <ChevronDown aria-hidden="true" className="hidden size-4 lg:block" strokeWidth={2} />
             {anyLock ? (

@@ -134,7 +134,7 @@ export function MoveTreeView({
           ))}
         </span>
         {evaluation ? (
-          <span className={cn("shrink-0 text-[11px] tabular-nums", active ? "text-on-primary" : "text-app-muted")}>{evaluation}</span>
+          <span className={cn("shrink-0 text-xs tabular-nums", active ? "text-on-primary" : "text-app-muted")}>{evaluation}</span>
         ) : null}
       </button>
     );
@@ -177,7 +177,7 @@ export function MoveTreeView({
   const closePair = (black: ReactNode | null) => {
     if (!pair) return;
     blocks.push(
-      <div key={`pair-${pair.key}`} className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)] text-sm">
+      <div key={`pair-${pair.key}`} className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)] text-[0.8125rem] leading-5">
         <span className="bg-app-soft/60 py-1 pr-1.5 text-right font-mono text-xs leading-5 text-app-muted">{pair.number}</span>
         {pair.white ?? <Gap />}
         {black ?? (pair.white ? <span /> : <Gap />)}

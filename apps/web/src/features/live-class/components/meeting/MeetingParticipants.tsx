@@ -664,7 +664,7 @@ export function MeetingParticipants({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search participants…"
-              className="w-full bg-transparent text-[13px] font-medium text-app-text outline-none placeholder:text-app-muted"
+              className="w-full bg-transparent text-[0.8125rem] font-medium text-app-text outline-none placeholder:text-app-muted"
             />
           </div>
         </div>

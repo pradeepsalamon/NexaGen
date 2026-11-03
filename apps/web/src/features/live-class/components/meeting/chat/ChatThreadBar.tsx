@@ -2,7 +2,8 @@
 
 import { memo, useMemo } from "react";
 import { Lock, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/Button";
+import { RoomTabs } from "../../room-ui/RoomTabs";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassChat } from "../../../providers/ChatProvider";
 import { isHumanParticipant } from "../../../lib/participants";
@@ -47,50 +48,30 @@ export const ChatThreadBar = memo(function ChatThreadBar() {
   if (threads.length <= 1 && !showCoachShortcut) return null;
 
   return (
-    <div
-      className="custom-scrollbar-hide flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-app-border/40 px-3 py-2"
-      role="tablist"
-      aria-label="Chat threads"
-    >
-      {threads.map((thread) => (
-        <button
-          key={thread.id}
-          type="button"
-          role="tab"
-          aria-selected={activeThread === thread.id}
-          onClick={() => setActiveThread(thread.id)}
-          className={cn(
-            "flex min-h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors",
-            activeThread === thread.id
-              ? thread.isPrivate
-                ? "bg-accent/20 text-app-text ring-1 ring-accent/50"
-                : "bg-primary/10 text-primary-ink ring-1 ring-primary/30"
-              : "text-app-muted hover:bg-app-soft hover:text-app-text",
-          )}
-        >
-          {thread.isPrivate ? (
-            <Lock className="size-3.5 shrink-0" />
+    <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-3 py-2">
+      {/* Room + one tab per private thread; three show, the rest under More. */}
+      <RoomTabs
+        ariaLabel="Chat threads"
+        items={threads.map((thread) => ({
+          id: thread.id,
+          label: thread.label,
+          icon: thread.isPrivate ? (
+            <Lock aria-hidden="true" className="size-3.5 shrink-0" strokeWidth={2} />
           ) : (
-            <Users className="size-3.5 shrink-0" />
-          )}
-          <span className="max-w-[9rem] truncate">{thread.label}</span>
-          {thread.unreadCount > 0 && activeThread !== thread.id && (
-            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-app-danger px-1 text-[9px] font-bold text-on-danger">
-              {thread.unreadCount > 99 ? "99+" : thread.unreadCount}
-            </span>
-          )}
-        </button>
-      ))}
+            <Users aria-hidden="true" className="size-3.5 shrink-0" strokeWidth={2} />
+          ),
+          badge: activeThread === thread.id ? 0 : thread.unreadCount,
+        }))}
+        value={activeThread}
+        onChange={setActiveThread}
+        maxVisible={3}
+      />
 
       {showCoachShortcut && (
-        <button
-          type="button"
-          onClick={() => openPrivateThread(coachUserId)}
-          className="flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-dashed border-app-border px-3 text-xs font-semibold text-app-muted transition-colors hover:border-accent/50 hover:text-app-text"
-        >
-          <Lock className="size-3.5 shrink-0" />
+        <Button size="sm" variant="neutral" onClick={() => openPrivateThread(coachUserId)}>
+          <Lock aria-hidden="true" className="size-3.5" strokeWidth={2} />
           Message coach
-        </button>
+        </Button>
       )}
     </div>
   );

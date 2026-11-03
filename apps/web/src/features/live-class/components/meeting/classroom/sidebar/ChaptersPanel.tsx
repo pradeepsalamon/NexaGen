@@ -419,7 +419,7 @@ function ChapterRow({
     >
       <span
         className={cn(
-          "w-5 shrink-0 text-right text-[11px] font-bold tabular-nums",
+          "w-5 shrink-0 text-right text-xs font-bold tabular-nums",
           selected ? "text-primary-ink" : "text-app-muted"
         )}
       >
@@ -434,7 +434,7 @@ function ChapterRow({
           onDoubleClick={onStartRename}
           disabled={busy}
           className={cn(
-            "min-w-0 flex-1 truncate text-left text-[13px] font-medium",
+            "min-w-0 flex-1 truncate text-left text-[0.8125rem] font-medium",
             selected ? "text-primary-ink" : "text-app-text"
           )}
         >
@@ -447,7 +447,7 @@ function ChapterRow({
           onClick={onLoad}
           disabled={busy}
           aria-label={`Load ${chapter.title}`}
-          className="flex h-6 shrink-0 items-center gap-1 rounded-full border border-success/50 bg-success/10 px-2 text-[11px] font-semibold text-success-ink transition-colors hover:bg-success hover:text-on-success disabled:opacity-50"
+          className="flex h-6 shrink-0 items-center gap-1 rounded-control border border-success/50 bg-success/10 px-2 text-xs font-semibold text-success-ink transition-colors hover:bg-success hover:text-on-success disabled:opacity-50"
         >
           <ArrowDownToLine className="size-3" strokeWidth={2.5} />
           Load
@@ -458,7 +458,7 @@ function ChapterRow({
           type="button"
           onClick={onAsk}
           aria-label={`Ask the class about ${chapter.title}`}
-          className="flex h-6 shrink-0 items-center gap-1 rounded-full border border-info/50 bg-info/10 px-2 text-[11px] font-semibold text-info-ink transition-colors hover:bg-info hover:text-on-info"
+          className="flex h-6 shrink-0 items-center gap-1 rounded-control border border-info/50 bg-info/10 px-2 text-xs font-semibold text-info-ink transition-colors hover:bg-info hover:text-on-info"
         >
           <MessageCircleQuestion className="size-3" strokeWidth={2.5} />
           Ask
@@ -469,7 +469,7 @@ function ChapterRow({
           <button
             type="button"
             aria-label={`More actions for ${chapter.title}`}
-            className="flex size-6 shrink-0 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-surface hover:text-app-text"
+            className="flex size-6 shrink-0 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-surface hover:text-app-text"
           >
             <MoreVertical className="size-3.5" strokeWidth={2.5} />
           </button>
@@ -520,7 +520,7 @@ function RenameInput({ initial, onDone }: { initial: string; onDone: (title: str
         if (e.key === "Enter") finish(value.trim() || null);
         else if (e.key === "Escape") finish(null);
       }}
-      className="min-w-0 flex-1 rounded-control border border-primary/50 bg-app-surface px-1.5 py-0.5 text-[13px] font-medium text-app-text outline-none"
+      className="min-w-0 flex-1 rounded-control border border-primary/50 bg-app-surface px-1.5 py-0.5 text-[0.8125rem] font-medium text-app-text outline-none"
     />
   );
 }

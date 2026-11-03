@@ -66,14 +66,12 @@ export const ChatComposer = memo(function ChatComposer({
   );
 
   return (
-    <div className="shrink-0 border-t border-app-border/40 bg-app-surface/90 backdrop-blur-xl p-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
+    <div className="shrink-0 border-t border-app-border bg-app-surface p-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
       <form
         onSubmit={handleSubmit}
         className={cn(
-          "flex items-end gap-2 rounded-full border bg-app-background px-3 py-1.5 transition duration-200 shadow-card",
-          draft.trim() || isSending
-            ? "border-primary/40 ring-2 ring-primary/5 shadow-primary/5"
-            : "border-app-border/60 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/5 hover:border-app-border",
+          "flex items-end gap-1.5 rounded-control border bg-app-surface py-1 pl-3 pr-1 transition-colors",
+          "border-app-line-strong focus-within:border-primary focus-within:shadow-focus",
         )}
       >
         <textarea
@@ -84,7 +82,8 @@ export const ChatComposer = memo(function ChatComposer({
           onChange={(e) => onDraftChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="max-h-[120px] min-h-[20px] w-full resize-none bg-transparent px-1 py-1 text-[13px] leading-relaxed text-app-text outline-none placeholder:text-app-muted/70 custom-scrollbar font-medium disabled:cursor-not-allowed"
+          aria-label="Message"
+          className="custom-scrollbar max-h-[7.5rem] min-h-9 w-full resize-none bg-transparent py-2 text-sm leading-5 text-app-text outline-none placeholder:text-app-muted disabled:cursor-not-allowed"
           rows={1}
         />
 
@@ -93,10 +92,10 @@ export const ChatComposer = memo(function ChatComposer({
             <button
               type="button"
               aria-label="Add emoji"
-              className="shrink-0 p-1 text-app-muted hover:text-primary-ink transition-colors rounded-control hover:bg-primary/10 group relative"
+              className="flex size-9 shrink-0 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus"
               title="Add emoji"
             >
-              <Smile className="size-5 transition-transform group-hover:scale-110" />
+              <Smile aria-hidden="true" className="size-5" strokeWidth={1.75} />
             </button>
           </PopoverTrigger>
           <PopoverContent side="top" align="end" className="p-0 border-none shadow-lift w-auto">
@@ -114,14 +113,15 @@ export const ChatComposer = memo(function ChatComposer({
         <button
           type="submit"
           disabled={disabled || !draft.trim() || isSending}
+          aria-label="Send message"
           className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-full transition duration-300",
+            "flex size-9 shrink-0 items-center justify-center rounded-control transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus",
             draft.trim()
-              ? "bg-primary text-on-primary shadow-lift shadow-primary/30 hover:bg-primary/90 hover:scale-105 active:scale-95"
-              : "bg-app-border/40 text-app-muted/50 cursor-not-allowed",
+              ? "bg-primary text-on-primary hover:bg-primary-hover"
+              : "cursor-not-allowed bg-app-soft text-app-subtle",
           )}
         >
-          <Send className="size-3.5 ml-0.5" />
+          <Send aria-hidden="true" className="size-4" strokeWidth={2} />
         </button>
       </form>
     </div>

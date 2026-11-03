@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
-import { LayoutGrid, X } from "lucide-react";
+import { Crown, LayoutGrid, X } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Switch } from "@/components/ui/Switch";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
@@ -84,32 +86,46 @@ function StageTitle({ tool }: { tool: InteractiveTool }) {
 
   return (
     <span className="flex min-w-0 items-center gap-2">
-      <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-full", tool.tone)}>
-        <Icon aria-hidden="true" className="size-4" strokeWidth={2.25} />
+      <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-control", tool.tone)}>
+        <Icon aria-hidden="true" className="size-4" strokeWidth={2} />
       </span>
       <span className="min-w-0">
         <span className="block truncate outline-none" ref={headingRef} tabIndex={-1}>
           {isManager ? tool.label : `Your coach is showing: ${tool.label}`}
         </span>
-        {isManager ? (
-          <span className="block truncate text-xs font-normal text-app-muted">
-            {sharing ? "Your class sees this live" : tool.blurb}
-          </span>
-        ) : null}
+        {isManager ? <span className="block truncate text-xs font-normal text-app-muted">{tool.blurb}</span> : null}
       </span>
+      {isManager ? (
+        // Presented or private, in words (spec component 25).
+        <Badge variant={sharing ? "info" : "secondary"} className="shrink-0">
+          {sharing ? "Students see this" : "Only you"}
+        </Badge>
+      ) : null}
     </span>
   );
 }
 
 const ROUND_ICON_BUTTON =
-  "flex size-8 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-text shadow-card transition-colors hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus";
+  "flex size-8 shrink-0 items-center justify-center rounded-control border border-app-line-strong/60 bg-app-surface text-app-text transition-colors hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus";
 
-/** Coach: "Show to class" and Close, beside the stage switch. */
+/** Back to the board: hides the tool (it stays open, and presented, behind its tab). Escape does the same. */
+function BackToBoard() {
+  const { setStageOpen } = useInteractives();
+  return (
+    <Button size="sm" variant="neutral" onClick={() => setStageOpen(false)}>
+      <Crown aria-hidden="true" className="size-4" strokeWidth={2} />
+      Back to board
+    </Button>
+  );
+}
+
+/** Interactive frame header (spec component 25), coach side: "Show to class", Back to board and Close. */
 function ManagerActions({ tool }: { tool: InteractiveTool }) {
   const { closeTool, setSharing, sharing } = useInteractives();
   return (
     <>
       <Switch checked={sharing} className="shrink-0" label="Show to class" onCheckedChange={setSharing} />
+      <BackToBoard />
       <SimpleTooltip label={`Close ${tool.label}`}>
         <button aria-label={`Close ${tool.label}`} className={ROUND_ICON_BUTTON} onClick={closeTool} type="button">
           <X aria-hidden="true" className="size-4" strokeWidth={2.5} />
@@ -124,7 +140,7 @@ function ToolCard({ tool }: { tool: InteractiveTool }) {
   return (
     <div
       className={cn(
-        "rounded-app border border-app-border bg-app-surface p-4 shadow-card sm:p-6",
+        "rounded-app border border-app-border bg-app-surface p-4 sm:p-6",
         tool.wide && "mx-auto max-w-4xl",
       )}
     >
@@ -161,7 +177,7 @@ export function InteractiveStage({ stageSwitch }: { stageSwitch: ReactNode }) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={onKeyDown}>
       <InlineStage
-        actions={isManager ? <ManagerActions tool={tool} /> : null}
+        actions={isManager ? <ManagerActions tool={tool} /> : <BackToBoard />}
         fullWidth={tool.wide}
         stageSwitch={stageSwitch}
         title={<StageTitle tool={tool} />}

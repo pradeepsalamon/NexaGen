@@ -50,14 +50,14 @@ function MicLevelMeter() {
   const volume = useTrackVolume(isMicrophoneEnabled ? track : undefined);
 
   if (!isMicrophoneEnabled || !track) {
-    return <p className="text-[11px] text-app-muted">Unmute to check your input level.</p>;
+    return <p className="text-xs text-app-muted">Unmute to check your input level.</p>;
   }
 
   const bars = 12;
   const lit = Math.min(bars, Math.round(Math.min(1, volume * 4) * bars));
   return (
     <div className="flex items-center gap-2" aria-label="Microphone input level">
-      <span className="text-[11px] text-app-muted">Level</span>
+      <span className="text-xs text-app-muted">Level</span>
       <div className="flex h-2 flex-1 gap-0.5" aria-hidden="true">
         {Array.from({ length: bars }, (_, i) => (
           <span
@@ -197,7 +197,7 @@ function DeviceSelector({
       )}
 
       {options.length > 0 && needsPermission && !issue && (
-        <p className="text-[11px] text-app-muted">
+        <p className="text-xs text-app-muted">
           Device names are hidden until you allow access —{" "}
           <button type="button" className="font-semibold text-primary-ink underline-offset-2 hover:underline" onClick={() => void scan()}>
             allow &amp; scan
@@ -250,7 +250,7 @@ export function MeetingDeviceSettings() {
       <DeviceSelector kind="audiooutput" icon={<Volume2 className="size-3.5" />} scanSignal={scanSignal} />
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-app-border pt-3">
-        <p className="min-w-0 flex-1 text-[11px] leading-snug text-app-muted">
+        <p className="min-w-0 flex-1 text-xs leading-snug text-app-muted">
           Plugged something in? Scan to list every camera, microphone and speaker. Your choices are
           saved on this device.
         </p>

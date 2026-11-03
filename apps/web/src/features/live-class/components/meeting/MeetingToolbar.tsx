@@ -25,6 +25,7 @@ import {
   Sparkles,
   Shapes,
   ChessKnight,
+  UserCog,
 } from "lucide-react";
 import {
   useTrackToggle,
@@ -463,7 +464,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       priority: 1,
       width: width >= 1024 ? 128 : CONTROL,
       node: <StudentControlsMenu classId={roomId} />,
-      more: { icon: <Users />, label: "Student controls", onClick: () => setDialog("students") },
+      more: { icon: <UserCog />, label: "Student controls", onClick: () => setDialog("students") },
     });
   }
 

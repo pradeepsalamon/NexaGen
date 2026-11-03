@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
+  Check,
   ArrowDown,
   ArrowUp,
   ChevronRight,
@@ -211,7 +212,7 @@ function NewQueueButton({ onCreate, busy }: { onCreate: (title: string) => void;
   return (
     <>
       <SimpleTooltip label="New queue">
-        <Button size="icon" variant="outline" className="rounded-full" aria-label="New queue" onClick={() => setOpen(true)}>
+        <Button size="icon" variant="outline" aria-label="New queue" onClick={() => setOpen(true)}>
           <Plus className="size-4" strokeWidth={2.5} />
         </Button>
       </SimpleTooltip>
@@ -299,7 +300,7 @@ function QueueView({
           <Badge variant={status.variant}>{status.label}</Badge>
           {!renaming ? (
             <SimpleTooltip label="Rename">
-              <Button size="icon" variant="ghost" className="size-8 rounded-full" aria-label="Rename queue" onClick={() => setRenaming(true)}>
+              <Button size="icon" variant="ghost" className="size-8" aria-label="Rename queue" onClick={() => setRenaming(true)}>
                 <Pencil className="size-3.5" strokeWidth={2.5} />
               </Button>
             </SimpleTooltip>
@@ -309,7 +310,7 @@ function QueueView({
               <Button
                 size="icon"
                 variant="ghost"
-                className="size-8 rounded-full text-app-danger-ink hover:bg-app-danger/10"
+                className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                 aria-label="Delete queue"
                 onClick={() => void actions.removeQueue(queue)}
               >
@@ -606,7 +607,7 @@ function IconAction({
         aria-label={label}
         disabled={disabled}
         onClick={onClick}
-        className={cn("size-8 shrink-0 rounded-full", danger && "text-app-danger-ink hover:bg-app-danger/10")}
+        className={cn("size-8 shrink-0", danger && "text-app-danger-ink hover:bg-app-danger/10")}
       >
         {children}
       </Button>
@@ -749,26 +750,51 @@ function Runner({
       <ol className="space-y-1" aria-label="Activities">
         {queue.items.map((item, i) => {
           const isCurrent = item.id === queue.currentItemId;
+          const currentIndex = queue.items.findIndex((x) => x.id === queue.currentItemId);
+          const isNext = !isCurrent && !item.completedAt && i === currentIndex + 1;
+          const done = !!item.completedAt && !isCurrent;
           return (
+            // Queue step (spec component 23): a 48px row — number or tick, title, kind, state badge.
             <li
               key={item.id}
               aria-current={isCurrent ? "step" : undefined}
               className={cn(
-                "flex items-center gap-2 rounded-control px-2 py-1 text-sm",
-                isCurrent ? "bg-primary/10 font-semibold text-primary-ink" : item.completedAt ? "text-app-muted" : "text-app-text"
+                "flex min-h-12 items-center gap-2.5 rounded-control px-2 py-1.5 text-sm",
+                isCurrent ? "bg-primary-soft" : "hover:bg-app-soft"
               )}
             >
-              <span className="w-5 shrink-0 text-right text-xs tabular-nums">{i + 1}</span>
-              <ActivityKindIcon kind={item.kind} className="size-3.5" />
-              <span className={cn("min-w-0 flex-1 truncate", item.completedAt && !isCurrent && "line-through decoration-app-muted/50")}>
-                {item.title}
+              <span
+                className={cn(
+                  "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
+                  isCurrent ? "bg-primary text-on-primary" : done ? "bg-success-soft text-success-ink" : "bg-app-soft text-app-muted"
+                )}
+              >
+                {done ? <Check aria-label="Done" className="size-3.5" strokeWidth={2.5} /> : i + 1}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className={cn("block truncate font-medium", isCurrent ? "text-primary-ink" : done ? "text-app-muted" : "text-app-text")}>
+                  {item.title}
+                </span>
+                <span className="flex items-center gap-1 text-xs text-app-muted">
+                  <ActivityKindIcon kind={item.kind} className="size-3.5" />
+                  {activityKindLabel(item.kind)}
+                </span>
               </span>
               {item.activationError ? (
                 <SimpleTooltip label={`Couldn't start: ${item.activationError}`}>
-                  <span tabIndex={0} aria-label={`Couldn't start: ${item.activationError}`}>
-                    <AlertTriangle className="size-3.5 text-warning-ink" />
+                  <span tabIndex={0} className="shrink-0">
+                    <Badge variant="warning">
+                      <AlertTriangle aria-hidden="true" className="size-3" strokeWidth={2} />
+                      Could not start
+                    </Badge>
                   </span>
                 </SimpleTooltip>
+              ) : isCurrent ? (
+                <Badge variant="default" className="shrink-0">Now</Badge>
+              ) : done ? (
+                <Badge variant="success" className="shrink-0">Done</Badge>
+              ) : isNext ? (
+                <Badge variant="secondary" className="shrink-0">Next</Badge>
               ) : null}
             </li>
           );

@@ -194,7 +194,7 @@ export function ReactionProvider({ children }: { children: ReactNode }) {
                 >
                   <span className="text-4xl drop-shadow-md sm:text-5xl">{f.emoji}</span>
                   {f.name ? (
-                    <span className="mt-0.5 max-w-[8rem] truncate rounded-full bg-scrim/60 px-2 py-0.5 text-[10px] font-semibold text-on-scrim">
+                    <span className="mt-0.5 max-w-[8rem] truncate rounded-full bg-scrim/60 px-2 py-0.5 text-xs font-semibold text-on-scrim">
                       {f.name}
                     </span>
                   ) : null}

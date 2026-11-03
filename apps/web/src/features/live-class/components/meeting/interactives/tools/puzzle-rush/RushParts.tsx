@@ -73,7 +73,7 @@ export function ComboBar({ mode, combo }: { mode: PuzzleRushMode; combo: number 
         {levels.slice(1).map(([threshold, bonus], i) => (
           <span
             className={cn(
-              "flex-1 rounded-control px-1 py-0.5 text-center text-[0.6875rem] font-bold tabular-nums",
+              "flex-1 rounded-control px-1 py-0.5 text-center text-xs font-bold tabular-nums",
               level > i ? "bg-primary text-on-primary" : "bg-app-soft text-app-muted",
             )}
             key={threshold}
@@ -188,7 +188,7 @@ export function RushStandings({
   return (
     <div className="overflow-hidden rounded-control border border-app-border">
       <table className="w-full text-sm">
-        <thead className="bg-app-soft text-left text-[0.6875rem] font-bold text-app-muted">
+        <thead className="bg-app-soft text-left text-xs font-bold text-app-muted">
           <tr>
             <th className="px-2 py-1.5" scope="col">#</th>
             <th className="px-2 py-1.5" scope="col">Player</th>
@@ -206,11 +206,11 @@ export function RushStandings({
               <td className="px-2 py-1.5 font-bold tabular-nums">{s.rank}</td>
               <td className="max-w-[9rem] truncate px-2 py-1.5">
                 {s.name}
-                {s.isCoach ? <span className="ml-1 text-[0.6875rem] text-app-muted">· coach</span> : null}
+                {s.isCoach ? <span className="ml-1 text-xs text-app-muted">· coach</span> : null}
                 {s.finishedAt ? (
-                  <span className="ml-1 text-[0.6875rem] text-app-muted">· done</span>
+                  <span className="ml-1 text-xs text-app-muted">· done</span>
                 ) : s.startedAt ? (
-                  <span className="ml-1 text-[0.6875rem] text-primary-ink">· playing</span>
+                  <span className="ml-1 text-xs text-primary-ink">· playing</span>
                 ) : null}
               </td>
               <td className="px-2 py-1.5 text-right font-extrabold tabular-nums">{s.score}</td>
@@ -260,7 +260,7 @@ export function RushSummary({
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {stats.map(([label, value]) => (
           <div className="rounded-control border border-app-border px-3 py-2" key={label}>
-            <dt className="text-[0.6875rem] font-bold text-app-muted">{label}</dt>
+            <dt className="text-xs font-bold text-app-muted">{label}</dt>
             <dd className="text-base font-extrabold tabular-nums text-app-text">{value}</dd>
           </div>
         ))}

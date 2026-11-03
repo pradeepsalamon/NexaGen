@@ -98,7 +98,7 @@ export function PuzzleGridTile({
 
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 py-0.5">
           <div className="min-w-0 space-y-1">
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary-ink">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary-ink">
               <PuzzleIcon className="size-3" strokeWidth={2.5} />
               Class puzzle
             </span>
@@ -113,13 +113,13 @@ export function PuzzleGridTile({
 
           <div className="min-w-0 space-y-1">
             {isCoach ? (
-              <p className="text-[11px] leading-snug text-app-muted">
+              <p className="text-xs leading-snug text-app-muted">
                 <span className="font-semibold text-app-text">{solvedCount}</span> solved ·{" "}
                 {finishedCount - solvedCount > 0 ? `${finishedCount - solvedCount} missed · ` : ""}
                 {solvingCount} solving · {notStartedCount} not started
               </p>
             ) : self?.solved || (self && self.attemptsUsed > 0) ? (
-              <p className="flex items-center gap-1 text-[11px] text-app-muted">
+              <p className="flex items-center gap-1 text-xs text-app-muted">
                 {self.solved ? (
                   <CheckCircle2 className="size-3 text-success-ink" strokeWidth={2.5} />
                 ) : null}

@@ -84,7 +84,7 @@ const SidebarTabs = memo(function SidebarTabs({
           <span className="relative">
             {panel.icon}
             {panel.id === "chat" && unreadChatCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-app-danger px-1 text-[8px] font-bold text-on-danger ring-2 ring-app-surface">
+              <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold leading-none tabular-nums text-on-primary ring-2 ring-app-surface">
                 {unreadChatCount > 99 ? "99+" : unreadChatCount}
               </span>
             )}

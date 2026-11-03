@@ -98,7 +98,7 @@ export function ClassroomVideo({
       <div className="flex h-10 shrink-0 items-center justify-between px-3">
         <span className="flex items-center gap-1.5 text-xs font-bold text-app-muted">
           Video
-          <span className="rounded-full bg-app-soft px-1.5 py-0.5 text-[10px] tabular-nums">{tracks.length}</span>
+          <span className="rounded-full bg-app-soft px-1.5 py-0.5 text-xs tabular-nums">{tracks.length}</span>
         </span>
         <div className="flex items-center gap-1">
           <div role="group" aria-label="Video layout" className="flex items-center rounded-full bg-app-soft p-0.5">
@@ -131,7 +131,7 @@ export function ClassroomVideo({
                 type="button"
                 aria-label="Show everyone on the main stage"
                 onClick={onOpenGallery}
-                className="flex size-7 items-center justify-center rounded-full text-app-muted transition hover:bg-app-soft hover:text-app-text"
+                className="flex size-7 items-center justify-center rounded-control text-app-muted transition hover:bg-app-soft hover:text-app-text"
               >
                 <Maximize2 className="size-3.5" strokeWidth={2.5} />
               </button>
@@ -143,7 +143,7 @@ export function ClassroomVideo({
               aria-label={collapsed ? "Show video" : "Hide video"}
               aria-expanded={!collapsed}
               onClick={() => onCollapsedChange(!collapsed)}
-              className="flex size-7 items-center justify-center rounded-full text-app-muted transition hover:bg-app-soft hover:text-app-text"
+              className="flex size-7 items-center justify-center rounded-control text-app-muted transition hover:bg-app-soft hover:text-app-text"
             >
               {collapsed ? <ChevronDown className="size-4" strokeWidth={2.5} /> : <ChevronUp className="size-4" strokeWidth={2.5} />}
             </button>

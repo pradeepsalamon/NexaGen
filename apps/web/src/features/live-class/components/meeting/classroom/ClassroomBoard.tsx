@@ -347,7 +347,7 @@ function HoverMenuButton({
               <span className="block text-xs text-app-muted">{item.hint}</span>
             </span>
             {item.shortcut ? (
-              <kbd className="mt-0.5 shrink-0 rounded border border-app-border px-1.5 font-mono text-[11px] font-semibold text-app-muted">
+              <kbd className="mt-0.5 shrink-0 rounded border border-app-border px-1.5 font-mono text-xs font-semibold text-app-muted">
                 {item.shortcut}
               </kbd>
             ) : null}
