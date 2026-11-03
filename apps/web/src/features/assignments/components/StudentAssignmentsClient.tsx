@@ -1,21 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type {
-  AssignmentActivityType,
-  StudentAssignmentItem,
-  StudentPuzzleSetProgress
-} from "@nexa-chess/types";
-import {
-  ArrowRight,
-  BookOpen,
-  Bot,
-  CircleCheck,
-  type LucideIcon,
-  Microscope,
-  Puzzle,
-  Target
-} from "lucide-react";
+import type { StudentAssignmentItem, StudentPuzzleSetProgress } from "@nexa-chess/types";
+import { ArrowRight, CircleCheck, Target } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -25,15 +12,7 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { useMyAssignments } from "../hooks/useAssignmentsApi";
-import { ACTIVITY_LABEL, DIFFICULTY_LABEL, DueBadge, StatusBadge } from "./assignmentBadges";
-
-const ACTIVITY_ICON: Record<AssignmentActivityType, LucideIcon> = {
-  FREE_ANALYSIS: Microscope,
-  PLAY_VS_ENGINE: Bot,
-  PUZZLE_SET: Puzzle,
-  REPLAY: BookOpen,
-  SOLVE_LINE: Target
-};
+import { ACTIVITY_ICON, ACTIVITY_LABEL, DIFFICULTY_LABEL, DueBadge, StatusBadge } from "./assignmentBadges";
 
 export function StudentAssignmentsClient() {
   const { data, error, isLoading, refetch } = useMyAssignments();

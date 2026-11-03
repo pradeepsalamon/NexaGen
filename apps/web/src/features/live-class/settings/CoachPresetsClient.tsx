@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, SlidersHorizontal } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
@@ -19,36 +21,38 @@ export function CoachPresetsClient() {
   const shared = presets.filter((p) => p.isSystem || p.scope === "ORG");
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Class presets</h1>
-          <p className="mt-1 text-sm text-app-muted">
-            Save reusable class settings once, then apply them in a click when you start a class.
-          </p>
-        </div>
-        <Button type="button" onClick={() => setCreating(true)}>
-          <Plus className="mr-1.5 size-4" strokeWidth={2.5} />
-          New preset
-        </Button>
-      </div>
+    <div className="animate-fade-in pb-10">
+      <PageHeader
+        actions={
+          <Button onClick={() => setCreating(true)} type="button">
+            <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+            New preset
+          </Button>
+        }
+        description="Save reusable class settings once, then apply them in a click when you start a class."
+        title="Class presets"
+      />
 
       {isLoading ? (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 rounded-app" />
+          <Skeleton className="h-40 rounded-app" />
         </div>
       ) : isError ? (
-        <WidgetError message="Couldn't load presets." onRetry={() => refetch()} />
+        <WidgetError message="Couldn't load your presets. Check your connection and try again." onRetry={() => refetch()} />
       ) : (
         <div className="space-y-6">
           <section className="space-y-3">
-            <h2 className="text-sm font-bold text-app-muted">My presets</h2>
+            <h2 className="text-base font-semibold text-app-text">My presets</h2>
             {mine.length === 0 ? (
-              <EmptyState
-                title="No presets yet"
-                description="Create a preset to reuse the same class setup without configuring it every time."
-              />
+              <Card>
+                <EmptyState
+                  description="Create a preset to reuse the same class setup without configuring it every time."
+                  icon={SlidersHorizontal}
+                  title="No presets yet"
+                  variant="inline"
+                />
+              </Card>
             ) : (
               <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
                 {mine.map((p) => (
@@ -60,9 +64,7 @@ export function CoachPresetsClient() {
 
           {shared.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-sm font-bold text-app-muted">
-                Shared presets
-              </h2>
+              <h2 className="text-base font-semibold text-app-text">Shared presets</h2>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
                 {shared.map((p) => (
                   <PresetCard key={p.id} preset={p} />

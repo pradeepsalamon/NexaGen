@@ -4,10 +4,8 @@ import { useState } from "react";
 import { Copy, Pencil, Star, Trash2 } from "lucide-react";
 import { resolveLiveClassSettings, type LiveClassPreset } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { SimpleTooltip } from "@/components/ui/Tooltip";
-import { cn } from "@/lib/utils";
+import { RowActions, type RowAction } from "@/components/ui/RowActions";
 import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { summaryRows } from "./fields";
@@ -35,6 +33,37 @@ export function PresetCard({ preset }: { preset: LiveClassPreset }) {
     invalidates: [queryKeys.liveClassPresets.all]
   });
 
+  const actions: RowAction[] = [];
+  if (preset.canManage && !preset.isSystem && !preset.isDefault) {
+    actions.push({
+      ariaLabel: "Set as default",
+      disabled: setDefault.isPending,
+      icon: Star,
+      label: "Set as default",
+      onSelect: () => setDefault.mutate(preset.id)
+    });
+  }
+  actions.push({
+    ariaLabel: "Duplicate preset",
+    disabled: isDuplicating,
+    icon: Copy,
+    label: "Duplicate",
+    onSelect: () => runDuplicate(preset.id)
+  });
+  if (preset.canManage) {
+    actions.push({ ariaLabel: "Edit preset", icon: Pencil, label: "Edit", onSelect: () => setEditing(true) });
+  }
+  if (preset.canManage && !preset.isSystem) {
+    actions.push({
+      ariaLabel: "Delete preset",
+      disabled: isDeleting,
+      icon: Trash2,
+      label: "Delete",
+      onSelect: () => runDelete(preset.id),
+      tone: "danger"
+    });
+  }
+
   const resolved = resolveLiveClassSettings({ system: {}, class: preset.settings });
   const rows = summaryRows(resolved).slice(0, 4);
 
@@ -43,18 +72,18 @@ export function PresetCard({ preset }: { preset: LiveClassPreset }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate font-bold text-app-text">{preset.name}</h3>
+            <h3 className="min-w-0 break-words font-semibold text-app-text">{preset.name}</h3>
             {preset.isDefault && (
-              <Badge variant="success" className="py-0.5 text-[10px]">
+              <Badge variant="success">
                 Default
               </Badge>
             )}
             {preset.isSystem ? (
-              <Badge variant="outline" className="py-0.5 text-[10px]">
+              <Badge variant="outline">
                 System
               </Badge>
             ) : preset.scope === "ORG" ? (
-              <Badge variant="outline" className="py-0.5 text-[10px]">
+              <Badge variant="outline">
                 Organisation
               </Badge>
             ) : null}
@@ -64,68 +93,8 @@ export function PresetCard({ preset }: { preset: LiveClassPreset }) {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          {preset.canManage && !preset.isSystem && (
-            <SimpleTooltip label={preset.isDefault ? "Default preset" : "Set as default"}>
-              <Button
-                aria-label={preset.isDefault ? "Default preset" : "Set as default"}
-                variant="neutral"
-                size="icon"
-                className={cn(
-                  "size-8 rounded-full p-0 transition-colors",
-                  preset.isDefault && "border-success text-success-ink"
-                )}
-                disabled={setDefault.isPending || preset.isDefault}
-                onClick={() => setDefault.mutate(preset.id)}
-              >
-                <Star
-                  aria-hidden="true"
-                  className="size-4"
-                  strokeWidth={2.5}
-                  fill={preset.isDefault ? "currentColor" : "none"}
-                />
-              </Button>
-            </SimpleTooltip>
-          )}
-          <SimpleTooltip label="Duplicate">
-            <Button
-              aria-label="Duplicate preset"
-              variant="ghost"
-              size="icon"
-              className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-primary-hover hover:bg-primary-hover hover:text-on-primary"
-              disabled={isDuplicating}
-              onClick={() => runDuplicate(preset.id)}
-            >
-              <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            </Button>
-          </SimpleTooltip>
-          {preset.canManage && (
-            <SimpleTooltip label="Edit">
-              <Button
-                aria-label="Edit preset"
-                variant="ghost"
-                size="icon"
-                className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-primary-hover hover:bg-primary-hover hover:text-on-primary"
-                onClick={() => setEditing(true)}
-              >
-                <Pencil aria-hidden="true" className="size-4" strokeWidth={2.5} />
-              </Button>
-            </SimpleTooltip>
-          )}
-          {preset.canManage && !preset.isSystem && (
-            <SimpleTooltip label="Delete">
-              <Button
-                aria-label="Delete preset"
-                variant="ghost"
-                size="icon"
-                className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-on-danger shadow-none transition-colors hover:border-app-danger-hover hover:bg-app-danger-hover hover:text-on-danger"
-                disabled={isDeleting}
-                onClick={() => runDelete(preset.id)}
-              >
-                <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
-              </Button>
-            </SimpleTooltip>
-          )}
+        <div className="shrink-0">
+          <RowActions actions={actions} />
         </div>
       </div>
 

@@ -113,6 +113,7 @@ export const queryKeys = {
     classLogs: (classId: string, studentId: string) =>
       ["attendance", "class-logs", classId, studentId] as const,
     liveReliability: ["attendance", "live-reliability"] as const,
+    myTeaching: ["attendance", "my-teaching"] as const,
     reliabilityMetrics: (days: number) => ["attendance", "reliability-metrics", days] as const,
   },
   assignments: {

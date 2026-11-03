@@ -1,11 +1,10 @@
 "use client";
 
 import { Inbox, Undo2 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { RowActions } from "@/components/ui/RowActions";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { cancelApprovalRequest } from "../api/approvalsApi";
@@ -27,53 +26,38 @@ export function CoachRequestsClient() {
   const requests = data?.requests ?? [];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">My requests</h1>
-        <p className="mt-1 text-app-muted">
-          Things you asked an admin for, such as an extra class, a reschedule, cancelling a class within 24
-          hours or bringing in a student from outside your batches.
-        </p>
-      </div>
+    <div className="animate-fade-in pb-10">
+      <PageHeader
+        description="Things you asked an admin for, such as an extra class, a reschedule, cancelling a class within 24 hours or bringing in a student from outside your batches."
+        title="My requests"
+      />
 
       {isLoading ? (
         <div className="space-y-3">
-          <Skeleton className="h-24 w-full rounded-app" />
-          <Skeleton className="h-24 w-full rounded-app" />
+          <Skeleton className="h-24 rounded-app" />
+          <Skeleton className="h-24 rounded-app" />
         </div>
       ) : isError && !data ? (
-        <WidgetError message="Couldn't load your requests." onRetry={() => void refetch()} />
+        <WidgetError message="Couldn't load your requests. Check your connection and try again." onRetry={() => void refetch()} />
       ) : requests.length === 0 ? (
-        <Card>
-          <EmptyState
-            variant="inline"
-            icon={Inbox}
-            title="No requests yet"
-            description="When something needs an admin's approval, you'll be offered a request instead."
-          />
-        </Card>
+        <EmptyState
+          description="When something needs an admin's approval, you'll be offered a request instead."
+          icon={Inbox}
+          title="No requests yet"
+        />
       ) : (
-        <div className="space-y-3">
+        <ul className="divide-y divide-app-border rounded-app border border-app-border bg-app-surface shadow-card">
           {requests.map((r) => (
-            <Card key={r.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
+            <li className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between" key={r.id}>
               <ApprovalRequestSummary request={r} showRequester={false} />
               {r.status === "PENDING" ? (
-                <SimpleTooltip label="Withdraw request">
-                  <Button
-                    aria-label="Withdraw request"
-                    className="shrink-0"
-                    onClick={() => withdraw(r.id)}
-                    size="icon"
-                    type="button"
-                    variant="neutral"
-                  >
-                    <Undo2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                  </Button>
-                </SimpleTooltip>
+                <RowActions
+                  actions={[{ ariaLabel: "Withdraw request", icon: Undo2, label: "Withdraw request", onSelect: () => withdraw(r.id) }]}
+                />
               ) : null}
-            </Card>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

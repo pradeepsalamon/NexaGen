@@ -5,6 +5,7 @@ import {
   type AssignmentDueStatus,
   type AssignmentStatus
 } from "@nexa-chess/types";
+import { BookOpen, Bot, Microscope, Puzzle, Target, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 
 type BadgeVariant = "default" | "destructive" | "info" | "outline" | "secondary" | "success" | "warning";
@@ -15,6 +16,15 @@ export const ACTIVITY_LABEL: Record<AssignmentActivityType, string> = {
   PLAY_VS_ENGINE: "Play vs engine",
   FREE_ANALYSIS: "Free analysis",
   PUZZLE_SET: "Puzzle set"
+};
+
+/** One neutral glyph per activity, for list rows. */
+export const ACTIVITY_ICON: Record<AssignmentActivityType, LucideIcon> = {
+  FREE_ANALYSIS: Microscope,
+  PLAY_VS_ENGINE: Bot,
+  PUZZLE_SET: Puzzle,
+  REPLAY: BookOpen,
+  SOLVE_LINE: Target
 };
 
 const ACTIVITY_VARIANT: Record<AssignmentActivityType, BadgeVariant> = {
@@ -68,7 +78,7 @@ export function StatusBadge({ status }: { status: AssignmentStatus }) {
   );
 }
 
-const DUE_VARIANT: Record<AssignmentDueStatus, BadgeVariant> = {
+export const DUE_VARIANT: Record<AssignmentDueStatus, BadgeVariant> = {
   COMPLETED: "secondary",
   DUE_SOON: "info",
   DUE_TODAY: "warning",

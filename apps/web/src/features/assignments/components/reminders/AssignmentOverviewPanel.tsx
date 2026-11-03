@@ -5,29 +5,23 @@ import {
   ASSIGNMENT_DUE_STATUS_LABELS,
   ASSIGNMENT_OVERVIEW_AHEAD_DAYS,
   ASSIGNMENT_OVERVIEW_PAST_DAYS,
-  type AssignmentDueStatus,
   type AssignmentOverviewQuery,
   type AssignmentOverviewRow
 } from "@nexa-chess/types";
-import { AlarmClock, AlertTriangle, CalendarClock, ChevronDown, ClipboardCheck } from "lucide-react";
+import { AlarmClock, AlertTriangle, CalendarClock, ChevronDown, ClipboardCheck, UserX } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { StatTile } from "@/components/ui/StatTile";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 import { useAssignmentOverview } from "../../hooks/useAssignmentsApi";
+import { DUE_VARIANT } from "../assignmentBadges";
 
-const STATUS_TONE: Record<AssignmentDueStatus, string> = {
-  COMPLETED: "border-success/40 bg-success/10 text-success-ink",
-  DUE_SOON: "border-info/40 bg-info/10 text-info-ink",
-  DUE_TODAY: "border-warning/40 bg-warning/10 text-warning-ink",
-  OVERDUE: "border-app-danger/30 bg-app-danger/10 text-app-danger-ink",
-  UPCOMING: "border-app-border bg-app-background text-app-muted"
-};
+const count = (value: number | undefined) => (value === undefined ? "—" : String(value));
 
 const STATUS_FILTERS: { label: string; value: "" | NonNullable<AssignmentOverviewQuery["dueStatus"]> }[] = [
   { label: "Every status", value: "" },
@@ -54,23 +48,19 @@ export function AssignmentOverviewPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat
-          icon={AlertTriangle}
-          label="Overdue assignments"
-          tone="danger"
-          value={data?.totals.overdueDeployments}
-        />
-        <Stat icon={AlertTriangle} label="Students behind" tone="danger" value={data?.totals.overdueStudents} />
-        <Stat icon={AlarmClock} label="Unfinished, due today" tone="warning" value={data?.totals.dueToday} />
-        <Stat icon={CalendarClock} label="Unfinished, due soon" tone="secondary" value={data?.totals.dueSoon} />
+      {/* Amber for attention: red stays for destructive actions and LIVE. */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatTile icon={AlertTriangle} label="Overdue assignments" tone="secondary" value={count(data?.totals.overdueDeployments)} />
+        <StatTile icon={UserX} label="Students behind" tone="secondary" value={count(data?.totals.overdueStudents)} />
+        <StatTile icon={AlarmClock} label="Unfinished, due today" tone="primary" value={count(data?.totals.dueToday)} />
+        <StatTile icon={CalendarClock} label="Unfinished, due soon" tone="primary" value={count(data?.totals.dueSoon)} />
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-app-muted">
           Due dates from {ASSIGNMENT_OVERVIEW_PAST_DAYS} days ago to {ASSIGNMENT_OVERVIEW_AHEAD_DAYS} days ahead.
         </p>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Select
             aria-label="Filter by batch"
             onChange={(e) => setBatchId(e.target.value)}
@@ -89,21 +79,19 @@ export function AssignmentOverviewPanel() {
       {isError ? (
         <WidgetError message="The due-date overview could not be loaded." onRetry={() => void refetch()} />
       ) : isLoading ? (
-        <div className="grid gap-3">
+        <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton className="h-20 w-full" key={i} />
+            <Skeleton className="h-16 rounded-app" key={i} />
           ))}
         </div>
       ) : !data || data.rows.length === 0 ? (
-        <Card className="p-6 sm:p-10">
-          <EmptyState
-            description={batchId || dueStatus ? "Nothing matches these filters." : "No assignment is due around now."}
-            icon={ClipboardCheck}
-            title="All clear"
-          />
-        </Card>
+        <EmptyState
+          description={batchId || dueStatus ? "Nothing matches these filters." : "No assignment is due around now."}
+          icon={ClipboardCheck}
+          title="All clear"
+        />
       ) : (
-        <ul className="grid gap-3">
+        <ul className="divide-y divide-app-border overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card">
           {data.rows.map((row) => (
             <OverviewRow key={row.deploymentId} row={row} timeZone={timeZone} />
           ))}
@@ -120,21 +108,21 @@ function OverviewRow({ row, timeZone }: { row: AssignmentOverviewRow; timeZone: 
 
   return (
     <li>
-      <Card className="p-0">
         <button
           aria-expanded={expandable ? open : undefined}
-          className={cn("flex w-full flex-col gap-2 p-4 text-left sm:flex-row sm:items-center sm:gap-4", !expandable && "cursor-default")}
+          className={cn(
+            "flex w-full flex-col gap-2 p-4 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-app-focus sm:flex-row sm:items-center sm:gap-4",
+            expandable ? "hover:bg-app-soft" : "cursor-default"
+          )}
           disabled={!expandable}
           onClick={() => setOpen((v) => !v)}
           type="button"
         >
           <span className="min-w-0 flex-1 space-y-1">
-            <span className="block truncate font-semibold text-app-text">{row.title}</span>
+            <span className="block break-words text-sm font-semibold text-app-text">{row.title}</span>
             <span className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-medium text-app-muted">{row.batchName}</span>
-              <span className={cn("rounded-full border px-2 py-0.5 font-semibold", STATUS_TONE[row.dueStatus])}>
-                {ASSIGNMENT_DUE_STATUS_LABELS[row.dueStatus]}
-              </span>
+              <Badge variant={DUE_VARIANT[row.dueStatus]}>{ASSIGNMENT_DUE_STATUS_LABELS[row.dueStatus]}</Badge>
               <span className="text-app-muted">due {formatDateTime(row.dueDate, timeZone)}</span>
             </span>
           </span>
@@ -177,39 +165,6 @@ function OverviewRow({ row, timeZone }: { row: AssignmentOverviewRow; timeZone: 
             </ul>
           </div>
         )}
-      </Card>
     </li>
-  );
-}
-
-const STAT_TONE = {
-  danger: "bg-app-danger/10 text-app-danger-ink",
-  secondary: "bg-info/10 text-info-ink",
-  warning: "bg-warning/10 text-warning-ink"
-} as const;
-
-function Stat({
-  icon: Icon,
-  label,
-  tone,
-  value
-}: {
-  icon: typeof AlertTriangle;
-  label: string;
-  tone: keyof typeof STAT_TONE;
-  value: number | undefined;
-}) {
-  return (
-    <Card className="flex items-center gap-3 p-3">
-      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", STAT_TONE[tone])}>
-        <Icon aria-hidden className="size-4" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-xl font-extrabold leading-none text-app-text">
-          {value === undefined ? <span className="inline-block h-5 w-8 animate-pulse rounded bg-app-soft" /> : value}
-        </span>
-        <span className="block truncate text-xs text-app-muted">{label}</span>
-      </span>
-    </Card>
   );
 }

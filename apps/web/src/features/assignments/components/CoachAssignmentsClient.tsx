@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import type { AssignmentDeployment, AssignmentLibraryItem } from "@nexa-chess/types";
-import { Eye, Pencil, Plus, Send, Trash2, Users } from "lucide-react";
+import { BookOpen, Eye, Pencil, Plus, Send, Trash2, Users } from "lucide-react";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { RowActions, type RowAction } from "@/components/ui/RowActions";
+import { SectionCard } from "@/components/ui/SectionCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { queryKeys } from "@/lib/queryKeys";
@@ -19,12 +22,18 @@ import { AssignmentFormDialog } from "./AssignmentFormDialog";
 import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
 import { AssignmentSubmissionsDialog } from "./AssignmentSubmissionsDialog";
 import { DeployAssignmentDialog } from "./DeployAssignmentDialog";
-import { ActivityBadge, DifficultyBadge, DueBadge } from "./assignmentBadges";
+import { ACTIVITY_ICON, ACTIVITY_LABEL, DIFFICULTY_LABEL, DueBadge } from "./assignmentBadges";
 import { AssignmentOverviewPanel } from "./reminders/AssignmentOverviewPanel";
-import { Badge } from "@/components/ui/Badge";
 
-const iconBtn =
-  "size-8";
+function RowSkeletons() {
+  return (
+    <div className="space-y-3">
+      <Skeleton className="h-16 rounded-app" />
+      <Skeleton className="h-16 rounded-app" />
+      <Skeleton className="h-16 rounded-app" />
+    </div>
+  );
+}
 
 export function CoachAssignmentsClient() {
   const timeZone = useUserTimeZone();
@@ -75,22 +84,20 @@ export function CoachAssignmentsClient() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Assignments</h1>
-          <p className="mt-1 text-app-muted">
-            Build PGN assignments and send them to your batches with a due date.
-          </p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 size-4" />
-          New assignment
-        </Button>
-      </div>
+    <div className="animate-fade-in pb-10">
+      <PageHeader
+        actions={
+          <Button onClick={openCreate}>
+            <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+            New assignment
+          </Button>
+        }
+        description="Build PGN assignments and send them to your batches with a due date."
+        title="Assignments"
+      />
 
       <Tabs defaultValue="library">
-        <TabsList className="justify-self-end">
+        <TabsList aria-label="Assignments view">
           <TabsTrigger value="library">Library ({library.length})</TabsTrigger>
           <TabsTrigger value="assigned">Assigned ({deployments.length})</TabsTrigger>
           <TabsTrigger value="due">Due dates</TabsTrigger>
@@ -102,158 +109,147 @@ export function CoachAssignmentsClient() {
 
         <TabsContent value="library">
           {libraryLoading ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i} className="h-40 p-4">
-                  <Skeleton className="h-full w-full" />
-                </Card>
-              ))}
-            </div>
+            <RowSkeletons />
           ) : library.length === 0 ? (
-            <Card>
-              <EmptyState variant="inline"
-                icon={Plus}
-                title="No assignments yet"
-                description="Create your first PGN assignment, or wait for an admin to add shared ones."
-                action={{ label: "New assignment", onClick: openCreate }}
-              />
-            </Card>
+            <EmptyState
+              action={{ label: "New assignment", onClick: openCreate }}
+              description="Create your first PGN assignment, or wait for an admin to add shared ones."
+              icon={BookOpen}
+              title="No assignments yet"
+            />
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {library.map((item) => (
-                <Card key={item.id} className="flex flex-col gap-3 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPreviewing(item)}
-                      className="text-left font-semibold text-app-text hover:text-primary-ink"
-                    >
-                      {item.title}
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {item.activityType === "PUZZLE_SET" && (
-                      <ActivityBadge activityType={item.activityType} />
-                    )}
-                    <DifficultyBadge difficulty={item.difficulty} />
-                    {item.isLibrary && (
-                      <Badge variant="outline">
-                        Shared{item.createdByName ? ` · ${item.createdByName}` : ""}
-                      </Badge>
-                    )}
-                    <span className="text-xs text-app-muted">
-                      {item.puzzles
-                        ? `${item.puzzles.length} ${item.puzzles.length === 1 ? "puzzle" : "puzzles"} · `
-                        : ""}
-                      {item.deploymentCount} deployment{item.deploymentCount === 1 ? "" : "s"}
-                    </span>
-                  </div>
-
-                  <div className="mt-auto flex items-center gap-2 pt-1">
-                    <Button size="sm" onClick={() => setDeploying(item)} disabled={batches.length === 0}>
-                      <Send className="mr-1.5 size-3.5" strokeWidth={2.5} />
-                      Assign
-                    </Button>
-                    <Button
-                      aria-label="Preview"
-                      variant="neutral"
-                      size="icon"
-                      className={iconBtn}
-                      onClick={() => setPreviewing(item)}
-                    >
-                      <Eye className="size-4" strokeWidth={2.5} />
-                    </Button>
-                    {item.canManage && (
-                      <>
+            <SectionCard description="Yours and the academy's shared ones." title="Library">
+              <ul className="divide-y divide-app-border">
+                {library.map((item) => {
+                  const Icon = ACTIVITY_ICON[item.activityType];
+                  const meta = [
+                    ACTIVITY_LABEL[item.activityType],
+                    DIFFICULTY_LABEL[item.difficulty],
+                    item.puzzles ? `${item.puzzles.length} ${item.puzzles.length === 1 ? "puzzle" : "puzzles"}` : null,
+                    `${item.deploymentCount} ${item.deploymentCount === 1 ? "deployment" : "deployments"}`
+                  ];
+                  const actions: RowAction[] = [
+                    { ariaLabel: "Preview", icon: Eye, label: "Preview", onSelect: () => setPreviewing(item) }
+                  ];
+                  if (item.canManage) {
+                    actions.push(
+                      { ariaLabel: "Edit assignment", icon: Pencil, label: "Edit", onSelect: () => openEdit(item) },
+                      {
+                        ariaLabel: "Delete assignment",
+                        icon: Trash2,
+                        label: "Delete",
+                        onSelect: () => runDelete(item),
+                        tone: "danger"
+                      }
+                    );
+                  }
+                  return (
+                    <li className="flex flex-wrap items-start gap-3 py-3 first:pt-0 last:pb-0" key={item.id}>
+                      <span className="flex size-11 shrink-0 items-center justify-center rounded-control bg-app-soft text-app-muted">
+                        <Icon aria-hidden="true" className="size-5" strokeWidth={2.25} />
+                      </span>
+                      <div className="min-w-0 flex-1 basis-48">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <button
+                            className="min-w-0 break-words rounded-control text-left text-sm font-semibold text-app-text hover:text-primary-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                            onClick={() => setPreviewing(item)}
+                            type="button"
+                          >
+                            {item.title}
+                          </button>
+                          {item.isLibrary ? (
+                            <Badge variant="outline">
+                              Shared{item.createdByName ? ` · ${item.createdByName}` : ""}
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <p className="mt-0.5 text-xs text-app-muted">{meta.filter(Boolean).join(" · ")}</p>
+                      </div>
+                      <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
                         <Button
-                          aria-label="Edit assignment"
-                          variant="neutral"
-                          size="icon"
-                          className={iconBtn}
-                          onClick={() => openEdit(item)}
+                          disabled={batches.length === 0}
+                          onClick={() => setDeploying(item)}
+                          size="sm"
+                          variant="outline"
                         >
-                          <Pencil className="size-4" strokeWidth={2.5} />
+                          <Send aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+                          Assign
                         </Button>
-                        <Button
-                          aria-label="Delete assignment"
-                          variant="neutral"
-                          size="icon"
-                          className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
-                          onClick={() => runDelete(item)}
-                        >
-                          <Trash2 className="size-4" strokeWidth={2.5} />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
+                        <RowActions actions={actions} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </SectionCard>
           )}
         </TabsContent>
 
         <TabsContent value="assigned">
           {deploymentsLoading ? (
-            <div className="grid gap-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-20 w-full" />
-              ))}
-            </div>
+            <RowSkeletons />
           ) : deployments.length === 0 ? (
-            <Card>
-              <EmptyState variant="inline"
-                icon={Send}
-                title="Nothing assigned yet"
-                description="Pick an assignment from the Library tab and send it to a batch."
-              />
-            </Card>
+            <EmptyState
+              description="Pick an assignment from the Library tab and send it to a batch."
+              icon={Send}
+              title="Nothing assigned yet"
+            />
           ) : (
-            <div className="grid gap-3">
-              {deployments.map((d) => (
-                <Card key={d.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1.5">
-                    <p className="font-semibold text-app-text">{d.title}</p>
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className="font-medium text-app-muted">{d.batchName}</span>
-                      {d.puzzleCount !== null && (
-                        <span className="text-app-muted">
-                          {d.puzzleCount} {d.puzzleCount === 1 ? "puzzle" : "puzzles"}
-                        </span>
-                      )}
-                      <DueBadge
-                        completed={d.stats.total > 0 && d.stats.completed === d.stats.total}
-                        dueDate={d.dueDate}
-                        formatted={formatFullDate(d.dueDate, timeZone)}
-                        timeZone={timeZone}
-                      />
-                      <span className="text-app-muted">
-                        {d.stats.completed}/{d.stats.total} completed
+            <SectionCard description="Newest first, with how many students have finished." title="Assigned to batches">
+              <ul className="divide-y divide-app-border">
+                {deployments.map((d) => {
+                  const Icon = ACTIVITY_ICON[d.activityType];
+                  const allDone = d.stats.total > 0 && d.stats.completed === d.stats.total;
+                  const meta = [
+                    d.batchName,
+                    d.puzzleCount !== null ? `${d.puzzleCount} ${d.puzzleCount === 1 ? "puzzle" : "puzzles"}` : null,
+                    `${d.stats.completed} of ${d.stats.total} completed`
+                  ];
+                  const isSet = d.activityType === "PUZZLE_SET";
+                  return (
+                    <li className="flex flex-wrap items-start gap-3 py-3 first:pt-0 last:pb-0" key={d.id}>
+                      <span className="flex size-11 shrink-0 items-center justify-center rounded-control bg-app-soft text-app-muted">
+                        <Icon aria-hidden="true" className="size-5" strokeWidth={2.25} />
                       </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      aria-label={d.activityType === "PUZZLE_SET" ? "View results & leaderboard" : "View submissions"}
-                      variant="neutral"
-                      size="icon"
-                      className={iconBtn}
-                      onClick={() => setSubmissionsFor(d.id)}
-                    >
-                      <Users className="size-4" strokeWidth={2.5} />
-                    </Button>
-                    <Button
-                      aria-label="Withdraw assignment"
-                      variant="neutral"
-                      size="icon"
-                      className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
-                      onClick={() => runWithdraw(d)}
-                    >
-                      <Trash2 className="size-4" strokeWidth={2.5} />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                      <div className="min-w-0 flex-1 basis-48">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="min-w-0 break-words text-sm font-semibold text-app-text">{d.title}</span>
+                          <DueBadge
+                            completed={allDone}
+                            dueDate={d.dueDate}
+                            formatted={formatFullDate(d.dueDate, timeZone)}
+                            timeZone={timeZone}
+                          />
+                        </div>
+                        <p className="mt-0.5 text-xs text-app-muted">{meta.filter(Boolean).join(" · ")}</p>
+                      </div>
+                      <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+                        <Button
+                          aria-label={isSet ? "View results & leaderboard" : "View submissions"}
+                          onClick={() => setSubmissionsFor(d.id)}
+                          size="sm"
+                          variant="outline"
+                        >
+                          <Users aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+                          {isSet ? "Results" : "Submissions"}
+                        </Button>
+                        <RowActions
+                          actions={[
+                            {
+                              ariaLabel: "Withdraw assignment",
+                              icon: Trash2,
+                              label: "Withdraw",
+                              onSelect: () => runWithdraw(d),
+                              tone: "danger"
+                            }
+                          ]}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </SectionCard>
           )}
         </TabsContent>
       </Tabs>

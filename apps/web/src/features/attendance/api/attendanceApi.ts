@@ -1,5 +1,6 @@
 import {
   API_ROUTES,
+  type CoachTeachingResponse,
   type CorrectAttendanceRequest,
   type CorrectAttendanceResponse,
   type LiveClassMonitoring,
@@ -31,4 +32,9 @@ export function getReliabilityMetrics(days = 30): Promise<ReliabilityMetrics> {
   return apiFetch<ReliabilityMetrics>(
     `${API_ROUTES.attendance.adminReliabilityMetrics}?days=${days}`
   );
+}
+
+/** The signed-in coach's own teaching stats and recent classes. */
+export function getMyTeaching(): Promise<CoachTeachingResponse> {
+  return apiFetch<CoachTeachingResponse>(API_ROUTES.attendance.coach);
 }
