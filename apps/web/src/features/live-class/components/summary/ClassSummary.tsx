@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, RotateCw } from "lucide-react";
+import { Ban, CalendarCheck, History, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Header } from "@/components/layout/Header";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { useClassSummary } from "../../hooks/useClassSummary";
 import { ClassSummaryCards } from "@/features/attendance/components/class-detail/ClassSummaryCards";
@@ -22,9 +24,13 @@ import { Badge } from "@/components/ui/Badge";
 import { enumLabel } from "@/lib/utils";
 
 function Shell({
+  badge,
+  description,
   topic,
   children,
 }: {
+  badge?: React.ReactNode;
+  description?: React.ReactNode;
   topic: string;
   children: React.ReactNode;
 }) {
@@ -34,18 +40,28 @@ function Shell({
       <Header
         compact
         centerSlot={
-          <h1 className="max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:max-w-none sm:text-base">
+          // A location label, like the app header's: the page's h1 is below.
+          <p className="max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:max-w-none sm:text-base">
             {topic}
-          </h1>
+          </p>
         }
       />
       <div className="flex-1 overflow-auto bg-app-background pt-16">
         <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
-          <div className="flex justify-end">
-            <Button asChild variant="outline">
-              <a href={getRoleDashboardHref(user?.role)}>Return to Dashboard</a>
-            </Button>
-          </div>
+          <PageHeader
+            actions={
+              <Button asChild variant="neutral">
+                <a href={getRoleDashboardHref(user?.role)}>Return to dashboard</a>
+              </Button>
+            }
+            description={description}
+            title={
+              <span className="flex flex-wrap items-center gap-3">
+                {topic}
+                {badge}
+              </span>
+            }
+          />
           {children}
         </div>
       </div>
@@ -64,58 +80,50 @@ export function ClassSummary({ classId }: { classId: string }) {
 
   if (isLoading || (!data && !isError)) {
     return (
-      <Shell topic="Live Class">
-        <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
-          <p className="text-app-muted">Loading class summary…</p>
-        </div>
+      <Shell topic="Live class">
+        <p className="flex items-center justify-center gap-2 py-24 text-sm font-medium text-app-muted">
+          <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+          Loading class summary…
+        </p>
       </Shell>
     );
   }
 
   if (isError || !data) {
     return (
-      <Shell topic="Live Class">
-        <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-          <span className="text-4xl">👋</span>
-          <h2 className="text-2xl font-bold tracking-tight">Class Ended</h2>
-          <p className="max-w-md text-app-muted">
-            This live class has concluded. Thank you for participating.
-          </p>
-        </div>
+      <Shell topic="Live class">
+        <EmptyState
+          description="This live class has concluded. Thank you for participating."
+          icon={CalendarCheck}
+          title="Class ended"
+        />
       </Shell>
     );
   }
 
   return (
-    <Shell topic={data.topic}>
-      <div>
-        <div className="mb-1 flex items-center gap-3">
-          <h2 className="text-2xl font-bold tracking-tight text-app-text">
-            {data.topic}
-          </h2>
-          <Badge variant="secondary">{enumLabel(data.status)}</Badge>
-        </div>
-        <p className="text-sm text-app-muted">
+    <Shell
+      badge={<Badge variant="secondary">{enumLabel(data.status)}</Badge>}
+      description={
+        <>
           {data.batchName} &middot; {data.coachName} &middot;{" "}
           {formatLongDate(data.scheduledStart, tz)}{" "}
           &middot; {formatTime(data.actualStart ?? data.scheduledStart, tz)}–
           {formatTime(data.actualEnd ?? data.scheduledEnd, tz)}
           {data.actualDuration > 0 &&
             ` (${formatDuration(data.actualDuration)})`}
-        </p>
-      </div>
+        </>
+      }
+      topic={data.topic}
+    >
 
       {data.status !== "CANCELLED" ? <ClassEndFeedback classId={classId} /> : null}
 
       {data.status === "CANCELLED" ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
-          <span className="text-4xl">🚫</span>
-          <p className="font-medium text-app-text">This class was cancelled.</p>
-        </div>
+        <EmptyState icon={Ban} title="This class was cancelled" />
       ) : !data.finalized ? (
         <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-          <Loader2 className="h-7 w-7 animate-spin text-primary-ink" />
+          <Loader2 aria-hidden="true" className="size-6 animate-spin text-app-muted" />
           <p className="font-medium text-app-text">Calculating attendance…</p>
           <p className="text-sm text-app-muted">
             This usually takes a few seconds. You can return to your dashboard
@@ -148,7 +156,7 @@ export function ClassSummary({ classId }: { classId: string }) {
           />
         </>
       ) : data.myAttendance ? (
-        <Card className="border-app-border bg-app-surface shadow-card">
+        <Card>
           <CardContent className="space-y-5 p-6">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-app-muted">
@@ -158,7 +166,7 @@ export function ClassSummary({ classId }: { classId: string }) {
             </div>
 
             <div>
-              <p className="mb-1 text-2xl font-bold tracking-tight">
+              <p className="mb-1 font-display text-2xl font-bold tracking-tight tabular-nums text-app-text">
                 {Math.round(data.myAttendance.attendancePercent)}%
               </p>
               <AttendancePercentBar
@@ -202,9 +210,9 @@ export function ClassSummary({ classId }: { classId: string }) {
               </div>
             </div>
 
-            <Button asChild variant="ghost" className="gap-1.5 px-0 text-primary-ink">
+            <Button asChild variant="outline">
               <a href="/student/attendance">
-                <RotateCw className="h-4 w-4" />
+                <History className="size-4" strokeWidth={2.5} />
                 View full attendance history
               </a>
             </Button>

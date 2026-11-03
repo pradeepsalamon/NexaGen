@@ -210,6 +210,8 @@ Reskin only. A finance change in M1–M2 still reaches these pages, so include t
 
 Every part ends with a real class. **Do not start 9c until the v2 live-class patterns are designed:** v2 specifies only a tile, controls and chat (COMPONENT_INVENTORY §7).
 
+**9b built 2026-11-03, not yet tested in a real class.** Waiting and error states: a round icon chip, page-title-size heading, amber instead of red for removed / access denied / not admitted / connection lost (red stays for destructive and LIVE), "Return to dashboard" is `neutral` beside a primary Try again or Request again, and spinners use `Button`'s `isLoading`. Pre-join: plain `Card`, the eyebrow is muted instead of blue, the role chip is a `Badge`, the class rules are an info `Alert` and a media problem a warning `Alert` with a `neutral` Scan devices again; its heading is an `h2` because the top bar holds the topic `h1`. Class summary: the header's topic is a `<p>` and the page title is a `PageHeader` with the status badge and Return to dashboard; emoji blocks became `EmptyState`s. The demo guest gate now uses `ClassroomStateShell` like the member screens, plain cards, an info `Alert` for invite-only, standard field sizes with sentence-case placeholders, the passcode icon through `leadingIcon`, and the Phone / Email switch looks like `Tabs`. Polling, guest tokens and `useRoomClassId` are untouched.
+
 ### M10. Marketing and legal (M)
 
 `/`, `/academy` per D1, `/privacy`, `/terms`, `/help*`. Colours are already on v2 tokens (done before M3), so this is layout, type and shape. Blocked from public release by D12.
