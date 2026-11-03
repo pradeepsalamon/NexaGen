@@ -116,6 +116,12 @@ identity), the AI roadmap phases after 2 / 3a
 Phase 6 training modules ([PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) §G.3;
 its precondition, the student training surface, now exists).
 
+- **Unused asset: `apps/web/public/auth/auth_light.webp`** (2026-11-03). Since the
+  M4 auth redesign the auth panel is navy in both themes and shows only
+  `auth_dark.webp`, so nothing references the light artwork. Kept on purpose:
+  assets and images are only deleted with the owner's yes (keep it, delete it,
+  or bring back a light panel that uses it).
+
 ### Closed by this pass (were listed as open, already fixed in code)
 
 - **LiveKit token TTL.** It was listed as 6h (AUTHORIZATION.md). It has been
