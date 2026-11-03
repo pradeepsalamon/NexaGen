@@ -52,6 +52,8 @@ export interface LiveClassState {
 
   /** Class topic / room name from token response */
   topic: string | null;
+  /** The class's batch, for the top bar (null for demo classes and before it loads). */
+  batchName: string | null;
 
   /** Time the class officially started */
   startedAt: string | null;
@@ -181,6 +183,7 @@ function withoutKey<T>(record: Record<string, T>, key: string): Record<string, T
 
 function createLiveClassStore(init: {
   topic: string | null;
+  batchName: string | null;
   startedAt: string | null;
   endsAt: string | null;
   settings: LiveClassSettings | null;
@@ -338,12 +341,14 @@ function createLiveClassStore(init: {
 export function LiveClassProvider({
   children,
   topic,
+  batchName,
   startedAt,
   endsAt,
   settings: initialSettings = null,
 }: {
   children: ReactNode;
   topic?: string | null;
+  batchName?: string | null;
   startedAt?: string | null;
   endsAt?: string | null;
   settings?: LiveClassSettings | null;
@@ -351,6 +356,7 @@ export function LiveClassProvider({
   const [store] = useState(() =>
     createLiveClassStore({
       topic: topic ?? null,
+      batchName: batchName ?? null,
       startedAt: startedAt ?? null,
       endsAt: endsAt ?? null,
       settings: initialSettings,
@@ -358,8 +364,8 @@ export function LiveClassProvider({
   );
 
   useEffect(() => {
-    store.setState({ topic: topic ?? null, startedAt: startedAt ?? null, endsAt: endsAt ?? null });
-  }, [store, topic, startedAt, endsAt]);
+    store.setState({ topic: topic ?? null, batchName: batchName ?? null, startedAt: startedAt ?? null, endsAt: endsAt ?? null });
+  }, [store, topic, batchName, startedAt, endsAt]);
 
   // Adopt a fresh snapshot from the token response (e.g. after a reconnect /
   // token refresh) without clobbering a newer mid-class update.

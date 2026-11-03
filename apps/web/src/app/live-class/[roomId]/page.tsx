@@ -55,7 +55,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
   // PreJoin flag, AUDIT H16) — relocated, not rewritten, so a mid-class refresh
   // still skips PreJoin instead of forcing a full re-join.
   const { clientId, hasJoined, markJoined } = useClassroomSession();
-  const { token, topic, settings, error, errorCode, isLoading, classStatus, startedAt, endsAt, retry } =
+  const { token, topic, batchName, settings, error, errorCode, isLoading, classStatus, startedAt, endsAt, retry } =
     useLiveClass(roomId, hasJoined, clientId);
 
   const user = useAuthStore((state) => state.user);
@@ -109,7 +109,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
 
   if (isLoading) {
     return (
-      <ClassroomStateShell topic={topic}>
+      <ClassroomStateShell topic={topic} subtitle={batchName}>
         <LoadingMeeting message="Preparing your Live Class…" />
       </ClassroomStateShell>
     );
@@ -120,7 +120,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
 
     if (errorStr.includes("not been started") || classStatus === "SCHEDULED") {
       return (
-        <ClassroomStateShell topic={topic}>
+        <ClassroomStateShell topic={topic} subtitle={batchName}>
           <ClassNotStarted roomId={roomId} onRetry={() => window.location.reload()} />
         </ClassroomStateShell>
       );
@@ -128,7 +128,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
 
     if (errorCode === "COACH_NOT_JOINED") {
       return (
-        <ClassroomStateShell topic={topic}>
+        <ClassroomStateShell topic={topic} subtitle={batchName}>
           <WaitingForCoach onRetry={retry} />
         </ClassroomStateShell>
       );
@@ -136,7 +136,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
 
     if (errorCode === "WAITING_FOR_ADMIT") {
       return (
-        <ClassroomStateShell topic={topic}>
+        <ClassroomStateShell topic={topic} subtitle={batchName}>
           <WaitingForAdmit onRetry={retry} />
         </ClassroomStateShell>
       );
@@ -144,7 +144,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
 
     if (errorCode === "REMOVED_FROM_CLASS") {
       return (
-        <ClassroomStateShell topic={topic}>
+        <ClassroomStateShell topic={topic} subtitle={batchName}>
           <RemovedFromClass />
         </ClassroomStateShell>
       );
@@ -152,7 +152,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
 
     if (errorCode === "JOIN_DENIED") {
       return (
-        <ClassroomStateShell topic={topic}>
+        <ClassroomStateShell topic={topic} subtitle={batchName}>
           <JoinDenied roomId={roomId} onRequested={() => retry()} />
         </ClassroomStateShell>
       );
@@ -160,7 +160,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
 
     if (errorStr.includes("not authorized") || errorStr.includes("permission")) {
       return (
-        <ClassroomStateShell topic={topic}>
+        <ClassroomStateShell topic={topic} subtitle={batchName}>
           <PermissionDenied />
         </ClassroomStateShell>
       );
@@ -171,7 +171,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
     }
 
     return (
-      <ClassroomStateShell topic={topic}>
+      <ClassroomStateShell topic={topic} subtitle={batchName}>
         <ConnectionLost classId={roomId} detail={error} onRetry={() => window.location.reload()} />
       </ClassroomStateShell>
     );
@@ -179,7 +179,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
 
   if (!hasJoined) {
     return (
-      <ClassroomStateShell topic={topic}>
+      <ClassroomStateShell topic={topic} subtitle={batchName}>
         <PreJoinCard
           topic={topic}
           startedAt={startedAt}
@@ -194,14 +194,14 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
 
   if (!token) {
     return (
-      <ClassroomStateShell topic={topic}>
+      <ClassroomStateShell topic={topic} subtitle={batchName}>
         <LoadingMeeting message="Connecting…" />
       </ClassroomStateShell>
     );
   }
 
   return (
-    <LiveClassProvider topic={topic} startedAt={startedAt} endsAt={endsAt} settings={settings}>
+    <LiveClassProvider topic={topic} batchName={batchName} startedAt={startedAt} endsAt={endsAt} settings={settings}>
       <MeetingRoom token={token} classId={roomId} />
     </LiveClassProvider>
   );

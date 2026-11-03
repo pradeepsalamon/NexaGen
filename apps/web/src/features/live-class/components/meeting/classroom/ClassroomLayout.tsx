@@ -1,8 +1,10 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Crown, Grid2x2, LayoutGrid, ListChecks, Puzzle, Shapes, SquareUser, Swords, Undo2, Users, Video } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { RoomTabs } from "../../room-ui/RoomTabs";
+import { StageHeader, StagePresentationProvider } from "./StageHeader";
 import { cn } from "@/lib/utils";
 import {
   stageForPresentation,
@@ -36,7 +38,7 @@ const ACTIVITY_STAGES: ActivityStage[] = ["puzzle", "boards", "simul", "match", 
 
 type StageOption = { id: ClassroomStage; label: string; icon: ReactNode; badge?: number };
 
-/** The main-stage tabs: board, video and every running activity. With more than two, inactive tabs show only their icon. */
+/** The main-stage switch: board, gallery and every running activity. Four show; the rest go under More. */
 export function StageSwitch({
   stage,
   options,
@@ -46,42 +48,7 @@ export function StageSwitch({
   options: StageOption[];
   onChange: (stage: ClassroomStage) => void;
 }) {
-  const compact = options.length > 2;
-  return (
-    <div className="flex shrink-0 rounded-full border border-app-border bg-app-surface p-0.5 shadow-card" role="tablist" aria-label="Main view">
-      {options.map((o) => {
-        const active = stage === o.id;
-        const button = (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-label={o.label}
-            onClick={() => onChange(o.id)}
-            className={cn(
-              "relative flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors",
-              active ? "bg-primary text-on-primary" : "text-app-muted hover:text-app-text"
-            )}
-          >
-            {o.icon}
-            {!compact || active ? o.label : null}
-            {o.badge ? (
-              <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-app-danger px-1 text-[8px] font-bold text-on-danger ring-2 ring-app-surface">
-                {o.badge > 9 ? "9+" : o.badge}
-              </span>
-            ) : null}
-          </button>
-        );
-        return compact && !active ? (
-          <SimpleTooltip key={o.id} label={o.label}>
-            {button}
-          </SimpleTooltip>
-        ) : (
-          <Fragment key={o.id}>{button}</Fragment>
-        );
-      })}
-    </div>
-  );
+  return <RoomTabs ariaLabel="Main view" items={options} value={stage} onChange={onChange} maxVisible={4} />;
 }
 
 /**
@@ -100,36 +67,40 @@ function PresentationControls({
   const actions = [
     {
       id: "board" as const,
-      label: "Pull back to main board",
-      icon: <Undo2 className="size-3.5" strokeWidth={2.5} />
+      label: "Class on board",
+      hint: "Pull everyone back to the main board",
+      icon: <Undo2 aria-hidden="true" className="size-4" strokeWidth={2} />
     },
     {
       id: "pushed" as const,
-      label: "Push to video",
-      icon: <Video className="size-3.5" strokeWidth={2.5} />
+      label: "Board in gallery",
+      hint: "Push to video: the board joins the gallery as a tile",
+      icon: <Video aria-hidden="true" className="size-4" strokeWidth={2} />
     }
   ];
   return (
     <div
-      className="flex shrink-0 rounded-full border border-app-border bg-app-surface p-0.5 shadow-card"
+      className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-control bg-app-soft p-1"
       role="group"
-      aria-label="Present to the class"
+      aria-label="What the class sees"
     >
       {actions.map((a) => {
         const active = presentation === a.id;
         return (
-          <SimpleTooltip key={a.id} label={a.label}>
+          <SimpleTooltip key={a.id} label={a.hint}>
             <button
               type="button"
-              aria-label={a.label}
               aria-pressed={active}
               onClick={() => onPresent(a.id)}
               className={cn(
-                "grid size-7 place-items-center rounded-full transition-colors",
-                active ? "bg-primary text-on-primary" : "text-app-muted hover:text-app-text"
+                "inline-flex h-7 items-center gap-1.5 rounded-chip px-2.5 text-[0.8125rem] font-medium transition-colors",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-app-focus",
+                active ? "bg-primary text-on-primary shadow-card" : "text-app-muted hover:bg-app-surface hover:text-app-text"
               )}
             >
               {a.icon}
+              <span className="hidden xl:inline">{a.label}</span>
+              <span className="sr-only xl:hidden">{a.label}</span>
             </button>
           </SimpleTooltip>
         );
@@ -163,7 +134,7 @@ function PresentationControls({
  * Must render inside `<BoardProvider>` + `<LiveBoardSyncBridge>`, `<ChatProvider>`,
  * `<SimulProvider>` and `<MatchProvider>`.
  */
-export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
+export function ClassroomLayout({ isCoach, toolbar }: { isCoach: boolean; toolbar?: ReactNode }) {
   const [sideColumnFits, setSideColumnFits] = useState(false);
   const {
     activePuzzle,
@@ -300,27 +271,27 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
 
   const options = useMemo(() => {
     const all: (StageOption & { show: boolean })[] = [
-      { id: "board", label: "Board", icon: <Crown className="size-3.5" strokeWidth={2.5} />, show: true },
-      { id: "video", label: "Gallery", icon: <Grid2x2 className="size-3.5" strokeWidth={2.5} />, show: true },
+      { id: "board", label: "Board", icon: <Crown aria-hidden="true" className="size-4" strokeWidth={2} />, show: true },
+      { id: "video", label: "Gallery", icon: <Grid2x2 aria-hidden="true" className="size-4" strokeWidth={2} />, show: true },
       {
         id: "puzzle",
         label: isCoach ? "Activity" : "Puzzle",
-        icon: <Puzzle className="size-3.5" strokeWidth={2.5} />,
+        icon: <Puzzle aria-hidden="true" className="size-4" strokeWidth={2} />,
         show: available.puzzle
       },
-      { id: "boards", label: "Live boards", icon: <LayoutGrid className="size-3.5" strokeWidth={2.5} />, show: available.boards },
-      { id: "simul", label: "Simul", icon: <Users className="size-3.5" strokeWidth={2.5} />, show: available.simul, badge: simulBadge },
-      { id: "match", label: "Matches", icon: <Swords className="size-3.5" strokeWidth={2.5} />, show: available.match, badge: matchBadge },
+      { id: "boards", label: "Live boards", icon: <LayoutGrid aria-hidden="true" className="size-4" strokeWidth={2} />, show: available.boards },
+      { id: "simul", label: "Simul", icon: <Users aria-hidden="true" className="size-4" strokeWidth={2} />, show: available.simul, badge: simulBadge },
+      { id: "match", label: "Matches", icon: <Swords aria-hidden="true" className="size-4" strokeWidth={2} />, show: available.match, badge: matchBadge },
       {
         id: "interactive",
         label: stageTool?.label ?? "Interactive",
-        icon: <Shapes className="size-3.5" strokeWidth={2.5} />,
+        icon: <Shapes aria-hidden="true" className="size-4" strokeWidth={2} />,
         show: available.interactive
       },
       {
         id: "activity",
         label: activityRun.run?.kind === "PLAYOUT" ? (isCoach ? "Student boards" : "Playout") : isCoach ? "MCQ results" : "Question",
-        icon: <ListChecks className="size-3.5" strokeWidth={2.5} />,
+        icon: <ListChecks aria-hidden="true" className="size-4" strokeWidth={2} />,
         show: available.activity
       }
     ];
@@ -339,17 +310,16 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
     matchBadge
   ]);
 
-  const stageSwitch = (
-    <div className="flex shrink-0 items-center gap-1.5">
-      {isCoach ? <PresentationControls presentation={classroomPresentation} onPresent={present} /> : null}
-      <StageSwitch stage={stage} options={options} onChange={changeStage} />
-    </div>
-  );
+  const stageSwitch = <StageSwitch stage={stage} options={options} onChange={changeStage} />;
+  const presentation = isCoach ? <PresentationControls presentation={classroomPresentation} onPresent={present} /> : null;
   // Stacked, a student playing or answering gets the whole height.
   const solving = stage === "puzzle" || (stage === "activity" && !isCoach);
 
   return (
+    <StagePresentationProvider value={presentation}>
     <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden room:flex-row">
+      {/* The stage column: the control bar floats over its bottom, never over the panel. */}
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" data-classroom-stage>
       {stage === "puzzle" ? (
         <PuzzleStage stageSwitch={stageSwitch} className="px-3 pb-24 pt-3 room:px-6" />
       ) : stage === "boards" ? (
@@ -386,15 +356,17 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
         <ActivityRunStage stageSwitch={stageSwitch} />
       ) : stage === "video" ? (
         <section className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-3 pt-3 room:px-6">
-            {/* Gallery ⇄ speaker: the speaker view is the panel's spotlight
-                beside the board, so "back" is the board stage. */}
-            <Button size="sm" variant="ghost" onClick={() => changeStage("board")}>
-              <SquareUser className="mr-1.5 size-4" strokeWidth={2.5} />
-              Speaker view
-            </Button>
-            {stageSwitch}
-          </div>
+          <StageHeader
+            nav={stageSwitch}
+            className="px-3 pt-3 room:px-6"
+            actions={
+              // Gallery ⇄ speaker: the speaker view is the panel's spotlight beside the board, so "back" is the board stage.
+              <Button size="sm" variant="neutral" onClick={() => changeStage("board")}>
+                <SquareUser aria-hidden="true" className="size-4" strokeWidth={2} />
+                Speaker view
+              </Button>
+            }
+          />
           {/* Pushed: the board's content joins the participants as tiles. */}
           <MeetingVideoGrid hideBoard={classroomPresentation !== "pushed"} presentBoard />
         </section>
@@ -406,6 +378,8 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
           onSideColumnChange={setSideColumnFits}
         />
       )}
+      {toolbar}
+      </div>
       <PanelResizer />
       {/* Stacked, the panel sits under the stage; give a solving student the whole height. */}
       <div className={solving ? "hidden room:contents" : "contents"}>
@@ -417,6 +391,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
         />
       </div>
     </div>
+    </StagePresentationProvider>
   );
 }
 

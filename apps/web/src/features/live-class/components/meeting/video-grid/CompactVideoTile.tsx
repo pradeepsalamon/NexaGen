@@ -115,7 +115,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
       </div>
 
       {/* Name pill */}
-      <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1 rounded-control bg-scrim/60 px-1.5 py-0.5 backdrop-blur-sm">
+      <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1 rounded-chip bg-scrim/80 px-1.5 py-0.5">
         {isMuted ? (
           <MicOff className="size-2.5 text-on-scrim-danger shrink-0" aria-label="Microphone off" />
         ) : (

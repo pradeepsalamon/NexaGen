@@ -39,6 +39,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
   const hasVideo = isTrackReference(trackRef) && !trackRef.publication.isMuted;
   const trackKey = useMemo(() => getTrackKey(trackRef), [trackRef]);
   const role = useMemo(() => getRole(participant), [participant]);
+  const isCoachTile = !!role && role.toUpperCase() === "COACH";
   // Raised hands ride a data channel, not participant attributes — see
   // `lib/handRaise.ts`. Optional: the recorder template renders tiles outside
   // the provider stack.
@@ -54,8 +55,9 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       className={cn(
-        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-app border bg-app-surface shadow-card transition-[box-shadow,border-color] duration-200",
-        isSpeaking ? "border-success" : "border-app-border hover:border-app-border/80",
+        // Video tile (spec component 10): 16:9, 12px radius; speaking = green ring.
+        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-app border bg-brand-900 transition-[border-color] duration-200",
+        isSpeaking ? "border-success" : "border-app-border",
       )}
       style={{ containerType: "size", ...style }}
     >
@@ -79,7 +81,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
           )}
         />
       ) : (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-app-soft p-2 sm:gap-3 [@container(max-height:14rem)]:pb-11">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-brand-900 p-2 sm:gap-3 [@container(max-height:14rem)]:pb-11">
           {/* Tiles are sized in px by the grid, so the placeholder scales off
               the tile itself (cqmin — the smaller of its width/height) rather
               than off viewport breakpoints, and keeps growing on a large,
@@ -87,46 +89,34 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
           <ParticipantAvatar
             name={name}
             size="lg"
-            className="size-[clamp(2.5rem,26cqmin,11rem)] text-[clamp(0.75rem,9cqmin,2.5rem)] [@container(max-height:8rem)]:hidden"
+            className="size-[clamp(2.5rem,26cqmin,11rem)] bg-brand-700 text-[clamp(0.75rem,9cqmin,2.5rem)] [@container(max-height:8rem)]:hidden"
           />
           {/* Short tiles: the name pill already shows the name, and this would collide with it. */}
-          <div className="flex max-w-full items-center justify-center gap-1.5 text-center [@container(max-height:14rem)]:hidden">
-            <p className="truncate text-[clamp(0.75rem,3cqmin,1.125rem)] font-medium text-app-text/80">{name}</p>
-            {role && role.toUpperCase() === "COACH" && (
-              <span className="shrink-0 text-app-muted text-[clamp(0.7rem,2.6cqmin,1rem)] font-normal">(Coach)</span>
-            )}
-          </div>
+          <p className="max-w-full truncate text-center text-[clamp(0.75rem,3cqmin,1.125rem)] font-medium text-on-scrim/80 [@container(max-height:14rem)]:hidden">
+            Camera off
+          </p>
         </div>
       )}
 
-      {/* Bottom-left name pill with mic status */}
-      <div className="absolute bottom-2 left-2 z-10 flex w-fit max-w-[calc(100%-3.25rem)] items-center gap-2 rounded-full border border-on-scrim/10 bg-scrim/60 px-2 py-1.5 pr-3 shadow-card backdrop-blur-md">
+      {/* Name on the scrim (fixed navy in both themes), mic state, gold Coach tag. */}
+      <div className="absolute bottom-2 left-2 z-10 flex w-fit max-w-[calc(100%-3.25rem)] items-center gap-1.5 rounded-chip bg-scrim/80 py-1 pl-1.5 pr-2">
         <span
-          className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded-full",
-            isMuted ? "bg-app-danger/20 text-app-danger" : "bg-on-scrim/10 text-on-scrim/70",
-          )}
+          className={cn("flex size-4 shrink-0 items-center justify-center", isMuted ? "text-on-scrim-danger" : "text-on-scrim")}
+          role="img"
           aria-label={isMuted ? "Microphone muted" : "Microphone on"}
         >
-          {isMuted ? <MicOff className="size-3" /> : <Mic className="size-3" />}
+          {isMuted ? <MicOff className="size-3.5" strokeWidth={2} /> : <Mic className="size-3.5" strokeWidth={2} />}
         </span>
-
-        <span className="flex min-w-0 items-center gap-1.5 truncate text-xs font-semibold text-on-scrim/90">
-          <span className="truncate">
-            {isLocal && !isScreenShare
-              ? "You"
-              : isScreenShare
-                ? `${name}'s screen`
-                : name}
-          </span>
-          {role && role.toUpperCase() === "COACH" && !isScreenShare && (
-            <span className="hidden shrink-0 font-normal text-on-scrim/70 sm:inline">(Coach)</span>
-          )}
+        <span className="truncate text-xs font-semibold text-on-scrim">
+          {isLocal && !isScreenShare ? "You" : isScreenShare ? `${name}'s screen` : name}
         </span>
+        {isCoachTile && !isScreenShare ? (
+          <span className="shrink-0 rounded-full bg-accent px-1.5 text-xs font-semibold leading-5 text-on-accent">Coach</span>
+        ) : null}
       </div>
 
       {/* Bottom-right connection quality */}
-      <div className="absolute bottom-2 right-2 z-10 flex items-center justify-center rounded-full border border-on-scrim/10 bg-scrim/60 p-1.5 px-2 shadow-card backdrop-blur-md">
+      <div className="absolute bottom-2 right-2 z-10 flex h-6 items-center justify-center rounded-chip bg-scrim/80 px-1.5">
         <NetworkQualityIndicator participant={participant} />
       </div>
 
@@ -134,8 +124,9 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-2.5">
         <div className="flex gap-2 items-center">
           {handRaised && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-card">
-              <Hand className="h-3 w-3" />
+            <span className="flex h-6 items-center gap-1 rounded-chip bg-warning px-1.5 text-xs font-semibold text-on-warning">
+              <Hand aria-hidden="true" className="size-3.5" strokeWidth={2} />
+              <span className="[@container(max-width:12rem)]:sr-only">Hand raised</span>
             </span>
           )}
         </div>
@@ -150,7 +141,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
         {onPin && (
           <button
             type="button"
-            className="pointer-events-auto ml-1.5 flex size-8 items-center justify-center rounded-full border border-on-scrim/10 bg-scrim/50 text-on-scrim/60 backdrop-blur-sm transition duration-150 hover:bg-scrim/70 hover:text-on-scrim [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-visible:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
+            className="pointer-events-auto ml-1.5 flex size-8 items-center justify-center rounded-control bg-scrim/80 text-on-scrim transition-colors duration-150 hover:bg-scrim focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-visible:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
             onClick={() => onPin(trackKey)}
             aria-label={
               isScreenShare

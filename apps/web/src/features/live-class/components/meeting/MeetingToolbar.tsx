@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   Mic,
@@ -10,7 +10,6 @@ import {
   MonitorUp,
   Users,
   Settings,
-  LogOut,
   MessageSquareText,
   Hand,
   Maximize,
@@ -24,6 +23,8 @@ import {
   Swords,
   Trophy,
   Sparkles,
+  Shapes,
+  ChessKnight,
 } from "lucide-react";
 import {
   useTrackToggle,
@@ -33,11 +34,20 @@ import { MeetingControlButton } from "./MeetingControlButton";
 import { MoreControlsMenu, type MoreControlItem } from "./MoreControlsMenu";
 import { ReactionPicker } from "./ReactionPicker";
 import { SetupPositionControl } from "./SetupPositionControl";
+import { StudentControlsList, StudentControlsMenu } from "./CoachRoomControls";
+import { ControlBar, ControlBarDivider } from "../room-ui/ControlBar";
+import { LeaveButton } from "../room-ui/LeaveButton";
+import { DropdownMenuItem } from "@/components/ui/DropdownMenu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
+import { REACTION_EMOJIS } from "../../lib/reactions";
+import { useReactions } from "../../providers/ReactionProvider";
+import { COACH_BOARD_SHORTCUT_KEY, useCoachBoardActions } from "../../lib/coachBoardShortcuts";
 import { ignoreDeviceError } from "../../lib/mediaDevices";
 import { useOptionalPip } from "../../providers/PipProvider";
 import { LeaveClassControl } from "./LeaveClassControl";
-import { InteractivesLauncher } from "./interactives/InteractivesLauncher";
-import { StudentInteractivesControl } from "./interactives/PresentedInteractive";
+import { InteractivesGrid, InteractivesLauncher } from "./interactives/InteractivesLauncher";
+import { StudentInteractivesControl, usePresentedTool } from "./interactives/PresentedInteractive";
+import { useOptionalInteractives } from "./interactives/InteractivesProvider";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { useOptionalMatch } from "../../providers/MatchProvider";
 import { useOptionalSimul } from "../../providers/SimulProvider";
@@ -51,6 +61,7 @@ import { startRecording, stopRecording, requestScreenShare, endScreenShare } fro
 import { toast } from "sonner";
 import { useRoster } from "@/features/live-class/hooks/useRoster";
 import { useMemberClassId } from "../../providers/LiveRoomContext";
+import { useIsBoardViewport } from "../../hooks/useIsBoardViewport";
 
 export const MeetingToolbar = memo(function MeetingToolbar() {
   const roomId = useMemberClassId();
@@ -217,241 +228,466 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   };
 
   const participantCount = participants.filter(isHumanParticipant).length;
+  const reactions = useReactions();
+  const canReact = !!reactions?.canReact;
+  const openSetup = useCoachBoardActions((s) => s.openSetup);
+  const interactives = useOptionalInteractives();
+  const presentedTool = usePresentedTool();
+  const wide = useIsBoardViewport();
+  const [dialog, setDialog] = useState<null | "students" | "interactives">(null);
+  const { ref: wrapperRef, width } = useElementWidth<HTMLDivElement>();
 
-  const moreItems: MoreControlItem[] = [
-    {
-      icon: <Users className="size-5" />,
-      label: `Participants (${participantCount})`,
+  // ── The optional controls, in display order. `priority` decides which stay
+  // on the bar when it runs out of width (1 = kept longest); the rest go
+  // under More with the same action. ──────────────────────────────────────
+  const slots: Slot[] = [];
+
+  if (wide) {
+    // Screen share is unreliable in mobile browsers: laptop and tablet only.
+    slots.push({
+      key: "share",
+      group: "media",
+      priority: isCoach ? 4 : 6,
+      node: screenShareUnlocked ? (
+        <MeetingControlButton
+          icon={<MonitorUp className="size-5" strokeWidth={1.75} />}
+          label={screen.enabled ? "Stop sharing" : "Share screen"}
+          variant={screen.enabled ? "active" : "default"}
+          {...extractProps(screen.buttonProps)}
+          disabled={screen.buttonProps.disabled}
+        />
+      ) : (
+        <MeetingControlButton
+          icon={<MonitorUp className="size-5" strokeWidth={1.75} />}
+          label={
+            screenShareStatus === "PENDING" ? "Request sent — waiting for approval" : "Request to share screen"
+          }
+          loading={isRequestingScreenShare}
+          disabled={screenShareStatus === "PENDING"}
+          onClick={handleRequestScreenShare}
+        />
+      ),
+      more: {
+        icon: <MonitorUp />,
+        label: screenShareUnlocked
+          ? screen.enabled
+            ? "Stop sharing"
+            : "Share screen"
+          : screenShareStatus === "PENDING"
+            ? "Share request sent"
+            : "Request to share screen",
+        onClick: () => {
+          if (screenShareUnlocked) (screen.buttonProps.onClick as (() => void) | undefined)?.();
+          else void handleRequestScreenShare();
+        },
+        active: screen.enabled,
+        disabled: !screenShareUnlocked && screenShareStatus === "PENDING",
+      },
+    });
+  }
+
+  if (isCoach && openSetup) {
+    slots.push({
+      key: "setup",
+      group: "media",
+      priority: 5,
+      node: <SetupPositionControl />,
+      more: { icon: <ChessKnight />, label: `Setup position (${COACH_BOARD_SHORTCUT_KEY.setup})`, onClick: openSetup },
+    });
+  }
+
+  slots.push({
+    key: "chat",
+    group: "comm",
+    priority: isCoach ? 2 : 1,
+    node: (
+      <MeetingControlButton
+        icon={<MessageSquareText className="size-5" strokeWidth={1.75} />}
+        label={activeSidebar === "chat" ? "Close chat" : "Chat"}
+        badge={unreadCount}
+        variant={activeSidebar === "chat" ? "active" : "default"}
+        onClick={() => toggleSidebar("chat")}
+      />
+    ),
+    more: {
+      icon: <MessageSquareText />,
+      label: "Chat",
+      badge: unreadCount,
+      onClick: () => toggleSidebar("chat"),
+      active: activeSidebar === "chat",
+    },
+  });
+
+  slots.push({
+    key: "people",
+    group: "comm",
+    priority: isCoach ? 6 : 7,
+    node: (
+      <MeetingControlButton
+        icon={<Users className="size-5" strokeWidth={1.75} />}
+        label={`People (${participantCount} in class)`}
+        variant={activeSidebar === "participants" ? "active" : "default"}
+        onClick={() => toggleSidebar("participants")}
+      />
+    ),
+    more: {
+      icon: <Users />,
+      label: `People (${participantCount})`,
       onClick: () => toggleSidebar("participants"),
       active: activeSidebar === "participants",
-      mobileOnly: true,
     },
+  });
+
+  if (!isCoach) {
+    slots.push({
+      key: "hand",
+      group: "comm",
+      priority: 2,
+      node: (
+        <MeetingControlButton
+          icon={<Hand className="size-5" strokeWidth={1.75} />}
+          label={handRaised ? "Lower hand" : "Raise hand"}
+          variant={handRaised ? "active" : "default"}
+          aria-pressed={handRaised}
+          onClick={toggleHandRaised}
+        />
+      ),
+      more: { icon: <Hand />, label: handRaised ? "Lower hand" : "Raise hand", onClick: toggleHandRaised, active: handRaised },
+    });
+  }
+
+  if (canReact) {
+    slots.push({
+      key: "reactions",
+      group: "comm",
+      priority: isCoach ? 7 : 3,
+      node: (
+        <ReactionPicker>
+          <MeetingControlButton icon={<SmilePlus className="size-5" strokeWidth={1.75} />} label="Reactions" />
+        </ReactionPicker>
+      ),
+      // Overflowed, the emoji tray heads the More menu instead.
+      more: null,
+    });
+  }
+
+  const puzzleBadge = activePuzzle && activeSidebar !== "puzzle" ? 1 : 0;
+  slots.push({
+    key: "puzzles",
+    group: "activity",
+    priority: isCoach ? 8 : activePuzzle ? 1.5 : 4,
+    node: (
+      <MeetingControlButton
+        icon={<PuzzleIcon className="size-5" strokeWidth={1.75} />}
+        label={activeSidebar === "puzzle" ? "Close puzzles" : activePuzzle ? "Puzzle (live)" : "Puzzles"}
+        badge={puzzleBadge}
+        variant={activeSidebar === "puzzle" ? "active" : "default"}
+        onClick={() => toggleSidebar("puzzle")}
+      />
+    ),
+    more: {
+      icon: <PuzzleIcon />,
+      label: "Puzzles",
+      badge: puzzleBadge,
+      onClick: () => toggleSidebar("puzzle"),
+      active: activeSidebar === "puzzle",
+    },
+  });
+
+  if (showSimul) {
+    slots.push({
+      key: "simul",
+      group: "activity",
+      priority: isCoach ? 9 : simulBadge ? 1.6 : 5,
+      node: (
+        <MeetingControlButton
+          icon={<Swords className="size-5" strokeWidth={1.75} />}
+          label={simulLabel}
+          badge={simulBadge}
+          variant={simulActive && !isCoach ? "active" : "default"}
+          onClick={openSimul}
+        />
+      ),
+      more: { icon: <Swords />, label: simulLabel, badge: simulBadge, onClick: openSimul },
+    });
+  }
+
+  if (showMatch) {
+    slots.push({
+      key: "match",
+      group: "activity",
+      priority: isCoach ? 10 : matchBadge ? 1.7 : 5.5,
+      node: (
+        <MeetingControlButton
+          icon={<Trophy className="size-5" strokeWidth={1.75} />}
+          label={matchLabel}
+          badge={matchBadge}
+          variant={matchActive && !isCoach ? "active" : "default"}
+          onClick={openMatch}
+        />
+      ),
+      more: { icon: <Trophy />, label: matchLabel, badge: matchBadge, onClick: openMatch },
+    });
+  }
+
+  if (isCoach) {
+    slots.push({
+      key: "interactives",
+      group: "activity",
+      priority: 3,
+      node: <InteractivesLauncher />,
+      more: { icon: <Shapes />, label: "Interactives", onClick: () => setDialog("interactives") },
+    });
+  } else if (presentedTool || interactives?.presenting) {
+    // Students never open Interactives — they see what the coach presents.
+    slots.push({
+      key: "presented",
+      group: "activity",
+      priority: 2.5,
+      node: <StudentInteractivesControl />,
+      more: presentedTool
+        ? {
+            icon: <Shapes />,
+            label: interactives?.stageOpen ? `Hide ${presentedTool.label}` : `Show ${presentedTool.label}`,
+            onClick: () => interactives?.setStageOpen(!interactives.stageOpen),
+            active: interactives?.stageOpen,
+          }
+        : null,
+    });
+  }
+
+  if (isCoach && roomId) {
+    slots.push({
+      key: "students",
+      group: "coach",
+      priority: 1,
+      width: width >= 1024 ? 128 : CONTROL,
+      node: <StudentControlsMenu classId={roomId} />,
+      more: { icon: <Users />, label: "Student controls", onClick: () => setDialog("students") },
+    });
+  }
+
+  const shown = fitSlots(slots, width, wide);
+  const inBar = slots.filter((slot) => shown.has(slot.key));
+  const overflow = slots.filter((slot) => !shown.has(slot.key));
+  const overflowItems = overflow.flatMap((slot) => (slot.more ? [slot.more] : []));
+  const reactionsOverflowed = canReact && overflow.some((slot) => slot.key === "reactions");
+
+  const moreItems: MoreControlItem[] = [
+    ...overflowItems,
     {
-      icon: <Settings className="size-5" />,
+      icon: <Settings />,
       label: "Settings",
       onClick: () => toggleSidebar("settings"),
       active: activeSidebar === "settings",
     },
     {
-      icon: <Sparkles className="size-5" />,
-      label: "Background & framing",
+      icon: <Sparkles />,
+      label: "Background and framing",
       onClick: () => {
         if (activeSidebar !== "settings") toggleSidebar("settings");
       },
     },
     {
-      icon: isFullscreen ? <Minimize className="size-5" /> : <Maximize className="size-5" />,
+      icon: isFullscreen ? <Minimize /> : <Maximize />,
       label: isFullscreen ? "Exit fullscreen" : "Fullscreen",
       onClick: toggleFullscreen,
     },
   ];
 
+  // Students get a one-tap control instead.
+  if (isCoach) {
+    moreItems.splice(overflowItems.length, 0, {
+      icon: <Hand />,
+      label: handRaised ? "Lower hand" : "Raise hand",
+      onClick: toggleHandRaised,
+      active: handRaised,
+    });
+    moreItems.splice(overflowItems.length + 1, 0, {
+      icon: <Circle className={cn(isRecording && "fill-app-danger text-app-danger")} />,
+      label: isTogglingRecording ? "Updating recording…" : isRecording ? "Stop recording" : "Record class",
+      onClick: handleToggleRecording,
+      disabled: isTogglingRecording,
+      active: isRecording,
+    });
+  }
+
   // Hidden where no Picture-in-Picture mechanism exists at all (Firefox),
   // rather than offering a control that silently does nothing.
   if (pip?.supported) {
     moreItems.push({
-      icon: <PictureInPicture2 className={cn("size-5", pip.active && "text-primary-ink")} />,
+      icon: <PictureInPicture2 />,
       label: pip.active ? "Close mini player" : "Mini player",
       onClick: pip.toggle,
       active: pip.active,
     });
     moreItems.push({
-      icon: pip.pinned ? <PinOff className="size-5" /> : <Pin className="size-5" />,
-      label: pip.pinned ? "Close mini player in class" : "Keep mini player open in class",
+      icon: pip.pinned ? <PinOff /> : <Pin />,
+      label: pip.pinned ? "Close mini player in class" : "Keep mini player open",
       onClick: pip.togglePinned,
       active: pip.pinned,
     });
   }
 
-  // Students get a one-tap toolbar button instead.
-  if (isCoach) {
-    moreItems.splice(1, 0, {
-      icon: <Hand className={cn("size-5", handRaised && "text-warning-ink")} />,
-      label: handRaised ? "Lower hand" : "Raise hand",
-      onClick: toggleHandRaised,
-      active: handRaised,
-    });
-  }
-
-  if (showSimul && isCoach) {
-    moreItems.push({
-      icon: <Swords className="size-5" />,
-      label: simulLabel,
-      onClick: openSimul,
-      mobileOnly: true,
-    });
-  }
-
-  if (showMatch && isCoach) {
-    moreItems.push({
-      icon: <Trophy className="size-5" />,
-      label: matchLabel,
-      onClick: openMatch,
-      mobileOnly: true,
-    });
-  }
-
-  if (isCoach) {
-    moreItems.splice(2, 0, {
-      icon: (
-        <Circle className={cn("size-5", isRecording && "fill-app-danger text-app-danger")} />
-      ),
-      label: isTogglingRecording
-        ? "Updating recording…"
-        : isRecording
-          ? "Stop recording"
-          : "Record class",
-      onClick: handleToggleRecording,
-      disabled: isTogglingRecording,
-    });
+  const groups: Group[] = ["media", "comm", "activity", "coach"];
+  const rendered: ReactNode[] = [];
+  for (const group of groups) {
+    const members = inBar.filter((slot) => slot.group === group);
+    const leading =
+      group === "media"
+        ? [
+            <MeetingControlButton
+              key="mic"
+              icon={mic.enabled ? <Mic className="size-5" strokeWidth={1.75} /> : <MicOff className="size-5" strokeWidth={1.75} />}
+              label={micLocked ? "Microphone turned off by the coach" : mic.enabled ? "Mute" : "Unmute"}
+              shortcut="M"
+              variant={mic.enabled ? "default" : "off"}
+              {...extractProps(mic.buttonProps)}
+              locked={micLocked}
+              disabled={mic.buttonProps.disabled}
+            />,
+            <MeetingControlButton
+              key="camera"
+              icon={camera.enabled ? <Video className="size-5" strokeWidth={1.75} /> : <VideoOff className="size-5" strokeWidth={1.75} />}
+              label={cameraLocked ? "Camera turned off by the coach" : camera.enabled ? "Stop video" : "Start video"}
+              shortcut="V"
+              variant={camera.enabled ? "default" : "off"}
+              {...extractProps(camera.buttonProps)}
+              locked={cameraLocked}
+              disabled={camera.buttonProps.disabled}
+            />,
+          ]
+        : [];
+    if (leading.length === 0 && members.length === 0) continue;
+    if (rendered.length > 0) rendered.push(<ControlBarDivider key={`divider-${group}`} />);
+    rendered.push(...leading, ...members.map((slot) => <SlotNode key={slot.key}>{slot.node}</SlotNode>));
   }
 
   return (
-    <motion.div
-      initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1], delay: 0.15 }}
-      className={cn(
-        "pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-1.5 pb-[env(safe-area-inset-bottom)] sm:bottom-6 sm:px-4",
-        Z.toolbar,
-        // On a phone the sidebar is a full-screen panel with its own controls.
-        activeSidebar && "hidden sm:flex",
-      )}
-      role="toolbar"
-      aria-label="Meeting controls"
-    >
-      <div className="pointer-events-auto flex max-w-full items-center gap-0.5 rounded-app border border-app-border bg-app-surface/90 px-1.5 py-1.5 shadow-card backdrop-blur-xl sm:gap-1.5 sm:px-3 sm:py-2.5">
-        <MeetingControlButton
-          icon={mic.enabled ? <Mic className="size-5" /> : <MicOff className="size-5" />}
-          label={micLocked ? "Microphone disabled by the coach" : mic.enabled ? "Mute" : "Unmute"}
-          shortcut="M"
-          variant={mic.enabled ? "default" : "danger"}
-          {...extractProps(mic.buttonProps)}
-          disabled={micLocked || mic.buttonProps.disabled}
-        />
-
-        <MeetingControlButton
-          icon={camera.enabled ? <Video className="size-5" /> : <VideoOff className="size-5" />}
-          label={
-            cameraLocked ? "Camera disabled by the coach" : camera.enabled ? "Stop video" : "Start video"
-          }
-          shortcut="V"
-          variant={camera.enabled ? "default" : "danger"}
-          {...extractProps(camera.buttonProps)}
-          disabled={cameraLocked || camera.buttonProps.disabled}
-        />
-
-        {/* Coach's classroom board only; renders nothing elsewhere. */}
-        {isCoach ? <SetupPositionControl /> : null}
-
-        {/* Screen share — unreliable on mobile browsers, desktop only */}
-        <div className="hidden sm:block">
-          {screenShareUnlocked ? (
-            <MeetingControlButton
-              icon={<MonitorUp className="size-5" />}
-              label={screen.enabled ? "Stop sharing" : "Share screen"}
-              variant={screen.enabled ? "active" : "default"}
-              {...extractProps(screen.buttonProps)}
-              disabled={screen.buttonProps.disabled}
-            />
-          ) : (
-            <MeetingControlButton
-              icon={<MonitorUp className="size-5" />}
-              label={
-                screenShareStatus === "PENDING"
-                  ? "Request sent — waiting for approval"
-                  : "Request to share screen"
-              }
-              variant="default"
-              loading={isRequestingScreenShare}
-              disabled={screenShareStatus === "PENDING"}
-              onClick={handleRequestScreenShare}
-            />
-          )}
-        </div>
-
-        <span className="mx-0.5 hidden h-7 w-px bg-app-border sm:block" aria-hidden="true" />
-
-        <MeetingControlButton
-          icon={<MessageSquareText className="size-5" />}
-          label={activeSidebar === "chat" ? "Close chat" : "Open chat"}
-          badge={unreadCount}
-          variant={activeSidebar === "chat" ? "active" : "default"}
-          onClick={() => toggleSidebar("chat")}
-        />
-
-        <div className="hidden sm:block">
-          <MeetingControlButton
-            icon={<Users className="size-5" />}
-            label="Participants"
-            badge={participantCount}
-            variant={activeSidebar === "participants" ? "active" : "default"}
-            onClick={() => toggleSidebar("participants")}
+    <>
+      <motion.div
+        ref={wrapperRef}
+        initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1], delay: 0.1 }}
+        className={cn(
+          "pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-2 pb-[env(safe-area-inset-bottom)]",
+          Z.toolbar,
+          // On a phone the sidebar is a full-screen sheet with its own controls.
+          activeSidebar && "hidden sm:flex",
+        )}
+        role="toolbar"
+        aria-label="Class controls"
+      >
+        <ControlBar>
+          {rendered}
+          <ControlBarDivider />
+          <MoreControlsMenu
+            items={moreItems}
+            header={
+              reactionsOverflowed && reactions ? (
+                <div className="grid grid-cols-4 gap-1 p-1" role="group" aria-label="Reactions">
+                  {REACTION_EMOJIS.map((emoji) => (
+                    <DropdownMenuItem
+                      key={emoji}
+                      aria-label={`React ${emoji}`}
+                      className="flex h-10 justify-center rounded-chip p-0 text-xl"
+                      onSelect={() => reactions.sendReaction(emoji)}
+                    >
+                      {emoji}
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              ) : undefined
+            }
           />
-        </div>
+          <LeaveClassControl>{(open) => <LeaveButton onClick={open} />}</LeaveClassControl>
+        </ControlBar>
+      </motion.div>
 
-        <MeetingControlButton
-          icon={<PuzzleIcon className={cn("size-5", activePuzzle && activeSidebar !== "puzzle" && "text-primary-ink")} />}
-          label={activeSidebar === "puzzle" ? "Close puzzles" : "Puzzles"}
-          badge={activePuzzle && activeSidebar !== "puzzle" ? 1 : 0}
-          variant={activeSidebar === "puzzle" ? "active" : "default"}
-          onClick={() => toggleSidebar("puzzle")}
-        />
-
-        {showSimul ? (
-          <div className={cn(isCoach && "hidden sm:block")}>
-            <MeetingControlButton
-              icon={<Swords className={cn("size-5", simulActive && "text-primary-ink")} />}
-              label={simulLabel}
-              badge={simulBadge}
-              onClick={openSimul}
+      {isCoach && roomId ? (
+        <Dialog open={dialog === "students"} onOpenChange={(open) => setDialog(open ? "students" : null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Students</DialogTitle>
+            </DialogHeader>
+            <StudentControlsList classId={roomId} />
+          </DialogContent>
+        </Dialog>
+      ) : null}
+      {isCoach && interactives ? (
+        <Dialog open={dialog === "interactives"} onOpenChange={(open) => setDialog(open ? "interactives" : null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Interactives</DialogTitle>
+            </DialogHeader>
+            <InteractivesGrid
+              onChoose={(id) => {
+                setDialog(null);
+                interactives.openTool(id);
+              }}
             />
-          </div>
-        ) : null}
-
-        {showMatch ? (
-          <div className={cn(isCoach && "hidden sm:block")}>
-            <MeetingControlButton
-              icon={<Trophy className={cn("size-5", matchActive && "text-primary-ink")} />}
-              label={matchLabel}
-              badge={matchBadge}
-              onClick={openMatch}
-            />
-          </div>
-        ) : null}
-
-        {!isCoach ? (
-          <MeetingControlButton
-            icon={<Hand className={cn("size-5", handRaised && "text-warning-ink")} />}
-            label={handRaised ? "Lower hand" : "Raise hand"}
-            variant={handRaised ? "active" : "default"}
-            aria-pressed={handRaised}
-            onClick={toggleHandRaised}
-          />
-        ) : null}
-
-        <ReactionPicker>
-          <MeetingControlButton icon={<SmilePlus className="size-5" />} label="Reactions" />
-        </ReactionPicker>
-
-        <MoreControlsMenu items={moreItems} />
-
-        <span className="mx-0.5 hidden h-7 w-px bg-app-border sm:block" aria-hidden="true" />
-
-        {/* Students never open Interactives — they see what the coach presents. */}
-        {isCoach ? <InteractivesLauncher /> : <StudentInteractivesControl />}
-
-        <LeaveClassControl>
-          {(open) => (
-            <MeetingControlButton
-              icon={<LogOut className="size-5" />}
-              label="Leave class"
-              variant="danger"
-              onClick={open}
-            />
-          )}
-        </LeaveClassControl>
-      </div>
-    </motion.div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+    </>
   );
 });
+
+type Group = "media" | "comm" | "activity" | "coach";
+
+interface Slot {
+  key: string;
+  group: Group;
+  /** Lower = kept on the bar longer. */
+  priority: number;
+  node: ReactNode;
+  /** The same action as a More row; null when it has none (the reaction tray is handled separately). */
+  more: MoreControlItem | null;
+  /** Width on the bar in px, when it isn't a 44px control. */
+  width?: number;
+}
+
+/** 44px controls; 4px apart on phones, 8px from tablet up. */
+const CONTROL = 44;
+
+/** Which optional controls fit beside mic, camera, More and Leave (phones: at most seven controls in all). */
+function fitSlots(slots: Slot[], width: number, wide: boolean): Set<string> {
+  const gap = wide ? 8 : 4;
+  const leave = wide ? 104 : CONTROL;
+  // Wrapper gutters (2 × 8), bar padding + border (2 × 8 + 2), three group rules on tablets and up.
+  const chrome = 16 + 18 + (wide ? 3 * (1 + 4 + gap) : 0);
+  let budget = width - chrome - (3 * CONTROL + leave) - 3 * gap;
+  const maxOptional = wide ? Infinity : 3;
+  const shown = new Set<string>();
+  // Before the first measurement nothing optional is shown, so the bar never overflows on first paint.
+  if (width <= 0) return shown;
+  for (const slot of [...slots].sort((a, b) => a.priority - b.priority)) {
+    if (shown.size >= maxOptional) break;
+    const cost = (slot.width ?? CONTROL) + gap;
+    if (cost > budget) continue;
+    budget -= cost;
+    shown.add(slot.key);
+  }
+  return shown;
+}
+
+/** A control that renders nothing (e.g. no reactions) must not leave a gap; `contents` keeps the bar's spacing. */
+function SlotNode({ children }: { children: ReactNode }) {
+  return <div className="contents">{children}</div>;
+}
+
+function useElementWidth<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setWidth(el.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return { ref, width };
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent, type MutableRefObject } from "react";
 import { Pause, Shapes, Timer } from "lucide-react";
 import {
   Popover,
@@ -33,31 +33,6 @@ export function InteractivesLauncher() {
   const choose = (id: InteractiveToolId) => {
     setOpen(false);
     openTool(id);
-  };
-
-  // Arrow keys move through the four-column grid.
-  const onGridKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const index = itemRefs.current.findIndex(
-      (el) => el === document.activeElement,
-    );
-    if (index < 0) return;
-    const step =
-      e.key === "ArrowRight"
-        ? 1
-        : e.key === "ArrowLeft"
-          ? -1
-          : e.key === "ArrowDown"
-            ? COLUMNS
-            : e.key === "ArrowUp"
-              ? -COLUMNS
-              : 0;
-    let next = index + step;
-    if (e.key === "Home") next = 0;
-    if (e.key === "End") next = INTERACTIVE_TOOLS.length - 1;
-    if (next === index || next < 0 || next >= INTERACTIVE_TOOLS.length) return;
-    e.preventDefault();
-    e.stopPropagation();
-    itemRefs.current[next]?.focus();
   };
 
   const timerVisible =
@@ -106,52 +81,99 @@ export function InteractivesLauncher() {
           <p className="mb-2 px-1 text-xs font-bold text-app-muted">
             Interactives
           </p>
-          <div
-            className="grid grid-cols-4 gap-x-1 gap-y-2"
-            onKeyDown={onGridKeyDown}
-            role="group"
-          >
-            {INTERACTIVE_TOOLS.map((t, i) => {
-              const Icon = t.icon;
-              return (
-                  <button
-                    aria-label={t.label}
-                    key={t.id}
-                    className="group flex flex-col items-center gap-1 rounded-control p-1 text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-app-focus"
-                    onClick={() => choose(t.id)}
-                    ref={(el) => {
-                      itemRefs.current[i] = el;
-                    }}
-                    tabIndex={i === 0 ? 0 : -1}
-                    type="button"
-                  >
-                    <span
-                      className={cn(
-                        "flex size-11 items-center justify-center rounded-full transition-transform group-hover:scale-105 group-active:scale-95 motion-reduce:transition-none",
-                        t.tone,
-                        t.id === openToolId && "ring-2 ring-primary",
-                      )}
-                    >
-                      <Icon
-                        aria-hidden="true"
-                        className="size-5"
-                        strokeWidth={2.25}
-                      />
-                    </span>
-                    {/* Always-visible name — covers hover, keyboard focus and touch alike. */}
-                    <span
-                      aria-hidden="true"
-                      className="line-clamp-2 text-[0.6875rem] font-semibold leading-tight text-app-text"
-                    >
-                      {t.label}
-                    </span>
-                  </button>
-              );
-            })}
-          </div>
+          <InteractivesGrid itemRefs={itemRefs} onChoose={choose} />
         </PopoverContent>
       </Popover>
 
+    </div>
+  );
+}
+
+/**
+ * The fourteen Interactives as a four-column grid of named tiles. Used by the
+ * launcher popover and, when the control bar has no room for the launcher,
+ * the dialog opened from More.
+ */
+export function InteractivesGrid({
+  onChoose,
+  itemRefs: externalRefs,
+}: {
+  onChoose: (id: InteractiveToolId) => void;
+  itemRefs?: MutableRefObject<(HTMLButtonElement | null)[]>;
+}) {
+  const { openToolId } = useInteractives();
+  const ownRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const itemRefs = externalRefs ?? ownRefs;
+  const choose = onChoose;
+
+  // Arrow keys move through the four-column grid.
+  const onGridKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const index = itemRefs.current.findIndex(
+      (el) => el === document.activeElement,
+    );
+    if (index < 0) return;
+    const step =
+      e.key === "ArrowRight"
+        ? 1
+        : e.key === "ArrowLeft"
+          ? -1
+          : e.key === "ArrowDown"
+            ? COLUMNS
+            : e.key === "ArrowUp"
+              ? -COLUMNS
+              : 0;
+    let next = index + step;
+    if (e.key === "Home") next = 0;
+    if (e.key === "End") next = INTERACTIVE_TOOLS.length - 1;
+    if (next === index || next < 0 || next >= INTERACTIVE_TOOLS.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    itemRefs.current[next]?.focus();
+  };
+
+  return (
+    <div
+      className="grid grid-cols-4 gap-x-1 gap-y-2"
+      onKeyDown={onGridKeyDown}
+      role="group"
+    >
+      {INTERACTIVE_TOOLS.map((t, i) => {
+        const Icon = t.icon;
+        return (
+            <button
+              aria-label={t.label}
+              key={t.id}
+              className="group flex flex-col items-center gap-1 rounded-control p-1 text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-app-focus"
+              onClick={() => choose(t.id)}
+              ref={(el) => {
+                itemRefs.current[i] = el;
+              }}
+              tabIndex={i === 0 ? 0 : -1}
+              type="button"
+            >
+              <span
+                className={cn(
+                  "flex size-11 items-center justify-center rounded-full transition-transform group-hover:scale-105 group-active:scale-95 motion-reduce:transition-none",
+                  t.tone,
+                  t.id === openToolId && "ring-2 ring-primary",
+                )}
+              >
+                <Icon
+                  aria-hidden="true"
+                  className="size-5"
+                  strokeWidth={2.25}
+                />
+              </span>
+              {/* Always-visible name — covers hover, keyboard focus and touch alike. */}
+              <span
+                aria-hidden="true"
+                className="line-clamp-2 text-[0.6875rem] font-semibold leading-tight text-app-text"
+              >
+                {t.label}
+              </span>
+            </button>
+        );
+      })}
     </div>
   );
 }

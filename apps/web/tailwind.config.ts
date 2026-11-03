@@ -34,6 +34,7 @@ const config: Config = {
       },
       borderRadius: {
         app: "var(--radius-app)",
+        chip: "var(--radius-chip)",
         control: "var(--radius-control)",
         panel: "var(--radius-panel)"
       },

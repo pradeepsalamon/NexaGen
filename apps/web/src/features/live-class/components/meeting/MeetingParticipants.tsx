@@ -2,7 +2,8 @@
 
 import { useCallback, useState, useMemo, memo, useRef } from "react";
 import {
-  Lock,
+  MessageSquareLock,
+  MoreVertical,
   Search,
   Mic,
   MicOff,
@@ -12,9 +13,7 @@ import {
   MonitorX,
   Hand,
   Crown,
-  UserCheck,
   UserMinus,
-  UserX,
   X,
 } from "lucide-react";
 import { useConnectionQualityIndicator, useParticipants } from "@livekit/components-react";
@@ -22,12 +21,24 @@ import { ConnectionQuality } from "livekit-client";
 import type { ModeratableSource, ScreenShareRequestEntry, WaitingRoomEntry } from "@nexa-chess/types";
 import { MODERATED_SOURCE_LABEL, compareNatural } from "@nexa-chess/types";
 import { ParticipantAvatar } from "./ParticipantAvatar";
+import { Button } from "@/components/ui/Button";
+import { RequestRow, RowSectionHeader } from "../room-ui/RequestRow";
 import { PullStudentsSection } from "./PullStudentsSection";
-import { CoachRoomControls } from "./CoachRoomControls";
+import { StudentControlsList } from "./CoachRoomControls";
 import { SCROLL_RAIL_GUTTER, ScrollToTopRail, useScrollPosition } from "./ScrollToTopRail";
 import { PanelHeader } from "./PanelHeader";
-import { BoardControlSideToggle, boardControlSideLabel } from "./BoardControlSideToggle";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { Badge } from "@/components/ui/Badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/DropdownMenu";
+import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import type { BoardControlSide } from "@/features/chessboard/types/sync";
 import { cn } from "@/lib/utils";
@@ -69,28 +80,34 @@ function isCoachParticipant(participant: LkParticipant) {
   return role === "coach" || role === "teacher";
 }
 
-function ConnectionDot({ participant }: { participant: LkParticipant }) {
+/** Presence dot on the avatar: green good, amber weak, grey still measuring. Paired with words in its tooltip and label. */
+function PresenceDot({ participant }: { participant: LkParticipant }) {
   const { quality } = useConnectionQualityIndicator({ participant });
-  const color =
-    quality === ConnectionQuality.Poor || quality === ConnectionQuality.Lost
-      ? "bg-warning"
-      : quality === ConnectionQuality.Unknown
-        ? "bg-app-border"
-        : "bg-success";
+  const weak = quality === ConnectionQuality.Poor || quality === ConnectionQuality.Lost;
+  const label = quality === ConnectionQuality.Unknown ? "Connection: measuring" : weak ? "Weak connection" : "Good connection";
   return (
-    <SimpleTooltip label={`Connection: ${quality === ConnectionQuality.Unknown ? "calculating…" : quality}`}>
-      <span className={cn("size-2 shrink-0 rounded-full", color)} aria-hidden="true" />
-    </SimpleTooltip>
+    <span
+      role="img"
+      aria-label={label}
+      className={cn(
+        "absolute -bottom-0.5 -right-0.5 size-3 rounded-full ring-2 ring-app-surface",
+        weak ? "bg-warning" : quality === ConnectionQuality.Unknown ? "bg-app-line-strong" : "bg-success",
+      )}
+    />
   );
 }
 
+/** Whether a row shows "Weak connection" as a badge too (status is never colour alone). */
+function useWeakConnection(participant: LkParticipant) {
+  const { quality } = useConnectionQualityIndicator({ participant });
+  return quality === ConnectionQuality.Poor || quality === ConnectionQuality.Lost;
+}
+
 /**
- * A track control in a participant row.
- *
- * For everyone it is a status icon. For a coach looking at a student whose
- * track is live it is also a button that switches that track off at the SFU —
- * mute only, since re-opening someone's microphone for them is a privacy hole
- * (`moderateParticipant` on the API side refuses to do it either).
+ * A track state in a participant row: a status icon for everyone. For a coach
+ * looking at a student whose track is live it is also a 32px button that
+ * switches that track off at the SFU — off only, since re-opening someone's
+ * microphone for them is a privacy hole (`moderateParticipant` refuses it too).
  */
 function TrackStateControl({
   activeIcon,
@@ -106,7 +123,7 @@ function TrackStateControl({
   onModerate?: () => void;
 }) {
   if (!isActive || !onModerate) {
-    return <>{isActive ? activeIcon : idleIcon}</>;
+    return <span className="flex size-8 items-center justify-center">{isActive ? activeIcon : idleIcon}</span>;
   }
 
   return (
@@ -115,7 +132,7 @@ function TrackStateControl({
         type="button"
         onClick={onModerate}
         aria-label={moderateLabel}
-        className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-danger hover:text-on-danger"
+        className="flex size-8 items-center justify-center rounded-control text-app-text transition-colors hover:bg-app-danger-soft hover:text-app-danger-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus"
       >
         {activeIcon}
       </button>
@@ -141,6 +158,19 @@ interface ParticipantItemProps {
   onSetBoardControlSide?: (identity: string, side: BoardControlSide | null) => void;
 }
 
+const BOARD_SIDES: { value: BoardControlSide | "none"; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "white", label: "White" },
+  { value: "black", label: "Black" },
+  { value: "both", label: "Both" },
+];
+
+/**
+ * People row (spec component 16): 48–64px. Avatar with a presence dot, name,
+ * role and state badges, mic and camera (the two visible actions for a
+ * coach), then a ⋮ menu: message privately, board control (None, White,
+ * Black, Both), stop screen share, and Remove from class last, red and confirmed.
+ */
 const ParticipantListItem = memo(function ParticipantListItem({
   participant,
   isCoachRow,
@@ -157,6 +187,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
 }: ParticipantItemProps) {
   const [kickOpen, setKickOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
+  const weak = useWeakConnection(participant);
   const isMuted = !participant.isMicrophoneEnabled;
   const isCameraEnabled = participant.isCameraEnabled;
   const isScreenSharing = participant.isScreenShareEnabled;
@@ -165,161 +196,144 @@ const ParticipantListItem = memo(function ParticipantListItem({
   // Identity is `<userId>` or `<userId>_<clientId>`; cuids carry no underscore.
   const participantUserId = participant.identity.split("_")[0];
   const canAct = !!canModerate && !participant.isLocal;
+  const hasMenu = canAct && (!!onMessagePrivately || (showBoardControl && !!onSetBoardControlSide) || !!onKick || isScreenSharing);
 
   return (
     <div
-      className="flex min-h-11 items-center justify-between gap-3 rounded-control px-3 py-2 transition-colors hover:bg-app-soft"
+      className="flex min-h-12 items-center justify-between gap-2 rounded-control px-2 py-2 transition-colors hover:bg-app-soft"
       role="listitem"
     >
       <div className="flex min-w-0 items-center gap-2.5">
-        <ConnectionDot participant={participant} />
-        <ParticipantAvatar
-          name={name}
-          size="sm"
-          className={cn(
-            "size-8 shrink-0 text-[10px] transition-shadow",
-            speaking && "ring-2 ring-primary ring-offset-1 ring-offset-app-surface",
-          )}
-        />
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-sm font-medium text-app-text">{name}</span>
-          {participant.isLocal && (
-            <span className="shrink-0 text-xs font-normal text-app-muted">(You)</span>
-          )}
-          {speaking && <span className="sr-only">(speaking)</span>}
-          {isCoachRow && (
-            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary-ink">
-              Coach
-            </span>
-          )}
+        <span className="relative shrink-0">
+          <ParticipantAvatar
+            name={name}
+            size="sm"
+            className={cn("transition-shadow", speaking && "ring-2 ring-success ring-offset-2 ring-offset-app-surface")}
+          />
+          <PresenceDot participant={participant} />
+        </span>
+        <span className="flex min-w-0 flex-col">
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="truncate text-sm font-medium text-app-text">{name}</span>
+            {participant.isLocal && <span className="shrink-0 text-xs text-app-muted">(you)</span>}
+            {speaking && <span className="sr-only">(speaking)</span>}
+          </span>
+          {/* Role and state badges; each says its state in words. */}
+          <span className="flex min-w-0 flex-wrap items-center gap-1 empty:hidden">
+            {isCoachRow ? <Badge variant="accent">Coach</Badge> : null}
+            {handRaised ? (
+              <Badge variant="warning">
+                <Hand aria-hidden="true" className="size-3" strokeWidth={2} />
+                Hand up
+              </Badge>
+            ) : null}
+            {boardControlSide ? (
+              <Badge variant="info">
+                <Crown aria-hidden="true" className="size-3" strokeWidth={2} />
+                {boardControlSide === "both" ? "Moves both" : `Moves ${boardControlSide}`}
+              </Badge>
+            ) : null}
+            {isScreenSharing ? (
+              <Badge variant="default">
+                <MonitorUp aria-hidden="true" className="size-3" strokeWidth={2} />
+                Sharing
+              </Badge>
+            ) : null}
+            {weak ? <Badge variant="warning">Weak connection</Badge> : null}
+          </span>
         </span>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1.5 text-app-muted">
-        {handRaised && <Hand className="size-4 text-warning-ink" aria-label="Hand raised" />}
-
-        {canAct && onMessagePrivately && (
-          <SimpleTooltip label={`Message ${name} privately`}>
-            <button
-              type="button"
-              onClick={() => onMessagePrivately(participantUserId, name)}
-              aria-label={`Message ${name} privately`}
-              className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-primary hover:text-on-primary"
-            >
-              <Lock className="size-3.5" />
-            </button>
-          </SimpleTooltip>
-        )}
-
-        <TrackStateControl
-          isActive={isScreenSharing}
-          activeIcon={<MonitorUp className="size-4 text-primary-ink" aria-label="Sharing screen" />}
-          idleIcon={null}
-          moderateLabel={`Stop ${name}'s screen share`}
-          onModerate={
-            canAct && onModerate
-              ? () => onModerate(participant.identity, "screen_share", name)
-              : undefined
-          }
-        />
-
-        <TrackStateControl
-          isActive={isCameraEnabled}
-          activeIcon={<Video className="size-4" aria-label="Camera on" />}
-          idleIcon={<VideoOff className="size-4 opacity-40" aria-label="Camera off" />}
-          moderateLabel={`Turn off ${name}'s camera`}
-          onModerate={
-            canAct && onModerate
-              ? () => onModerate(participant.identity, "camera", name)
-              : undefined
-          }
-        />
-
+      <div className="flex shrink-0 items-center text-app-muted">
         <TrackStateControl
           isActive={!isMuted}
-          activeIcon={<Mic className="size-4" aria-label="Microphone on" />}
-          idleIcon={<MicOff className="size-4 text-app-danger/80" aria-label="Muted" />}
+          activeIcon={<Mic className="size-4" strokeWidth={1.75} aria-label="Microphone on" />}
+          idleIcon={<MicOff className="size-4 text-app-danger-ink" strokeWidth={1.75} aria-label="Muted" />}
           moderateLabel={`Turn off ${name}'s microphone`}
-          onModerate={
-            canAct && onModerate
-              ? () => onModerate(participant.identity, "microphone", name)
-              : undefined
-          }
+          onModerate={canAct && onModerate ? () => onModerate(participant.identity, "microphone", name) : undefined}
         />
-        {showBoardControl && onSetBoardControlSide && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                // `title` rather than SimpleTooltip: this is already an
-                // `asChild` Radix trigger, and double-wrapping breaks it.
-                title={`Board control: ${boardControlSideLabel(boardControlSide)}`}
-                className={cn(
-                  "flex h-6 items-center gap-0.5 rounded-control px-1 transition-colors",
-                  boardControlSide
-                    ? "bg-success/15 text-success-ink ring-1 ring-success/30 hover:bg-success/25"
-                    : "text-app-muted/50 hover:bg-app-soft hover:text-app-muted",
-                )}
-                aria-label={`Board control for ${name}: ${boardControlSideLabel(boardControlSide)}`}
-              >
-                <Crown className="size-3.5" />
-                {(boardControlSide === "white" || boardControlSide === "black") && (
-                  <span className="text-[10px] font-bold leading-none">
-                    {boardControlSide === "white" ? "W" : "B"}
-                  </span>
-                )}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-auto p-3">
-              <p className="mb-2 text-xs font-semibold text-app-text">Board control</p>
-              <p className="mb-2 max-w-[15rem] text-[11px] leading-snug text-app-muted">
-                Which pieces {name} may move on the shared board.
-              </p>
-              <BoardControlSideToggle
-                studentName={name}
-                value={boardControlSide}
-                onChange={(side) => onSetBoardControlSide(participant.identity, side)}
-              />
-            </PopoverContent>
-          </Popover>
-        )}
+        <TrackStateControl
+          isActive={isCameraEnabled}
+          activeIcon={<Video className="size-4" strokeWidth={1.75} aria-label="Camera on" />}
+          idleIcon={<VideoOff className="size-4 text-app-subtle" strokeWidth={1.75} aria-label="Camera off" />}
+          moderateLabel={`Turn off ${name}'s camera`}
+          onModerate={canAct && onModerate ? () => onModerate(participant.identity, "camera", name) : undefined}
+        />
 
-        {canAct && onKick && (
-          <Popover open={kickOpen} onOpenChange={setKickOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                // `title` rather than SimpleTooltip: already an `asChild` Radix trigger.
-                title={`Remove ${name} from class`}
-                aria-label={`Remove ${name} from class`}
-                className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-danger hover:text-on-danger"
-              >
-                <UserMinus className="size-3.5" strokeWidth={2.5} />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 p-3">
-              <p className="text-xs font-semibold text-app-text">Remove {name}?</p>
-              <p className="mt-1 text-[11px] leading-snug text-app-muted">
-                They are disconnected and can&apos;t rejoin this class unless you pull them back in
-                from &ldquo;Not in class&rdquo;.
-              </p>
-              <button
-                type="button"
-                disabled={isKicking}
-                onClick={async () => {
-                  const success = await onKick(participant.identity, name);
-                  if (success !== false) {
-                    setKickOpen(false);
-                  }
-                }}
-                className="mt-2.5 w-full rounded-control bg-app-danger px-3 py-1.5 text-xs font-semibold text-on-danger transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isKicking ? "Removing…" : "Remove from class"}
-              </button>
-            </PopoverContent>
-          </Popover>
-        )}
+        {hasMenu ? (
+          <DropdownMenu>
+            <SimpleTooltip label={`Actions for ${name}`}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Actions for ${name}`}
+                  className="flex size-8 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus"
+                >
+                  <MoreVertical className="size-4" strokeWidth={2} />
+                </button>
+              </DropdownMenuTrigger>
+            </SimpleTooltip>
+            <DropdownMenuContent align="end" className="w-56">
+              {onMessagePrivately ? (
+                <DropdownMenuItem className="gap-2" onSelect={() => onMessagePrivately(participantUserId, name)}>
+                  <MessageSquareLock aria-hidden="true" className="size-4" strokeWidth={1.75} />
+                  Message privately
+                </DropdownMenuItem>
+              ) : null}
+              {isScreenSharing && onModerate ? (
+                <DropdownMenuItem className="gap-2" onSelect={() => onModerate(participant.identity, "screen_share", name)}>
+                  <MonitorX aria-hidden="true" className="size-4" strokeWidth={1.75} />
+                  Stop screen share
+                </DropdownMenuItem>
+              ) : null}
+              {showBoardControl && onSetBoardControlSide ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs font-semibold text-app-muted">Board control</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={boardControlSide ?? "none"}
+                    onValueChange={(value) =>
+                      onSetBoardControlSide(participant.identity, value === "none" ? null : (value as BoardControlSide))
+                    }
+                  >
+                    {BOARD_SIDES.map((side) => (
+                      <DropdownMenuRadioItem key={side.value} value={side.value} className="rounded-chip">
+                        {side.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </>
+              ) : null}
+              {onKick ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="gap-2 text-app-danger-ink focus:text-app-danger-ink" onSelect={() => setKickOpen(true)}>
+                    <UserMinus aria-hidden="true" className="size-4" strokeWidth={1.75} />
+                    Remove from class
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
+
+      {onKick ? (
+        <ConfirmationModal
+          isOpen={kickOpen}
+          title={`Remove ${name} from class?`}
+          confirmLabel={isKicking ? "Removing…" : "Remove from class"}
+          isConfirming={isKicking}
+          icon={UserMinus}
+          onCancel={() => setKickOpen(false)}
+          onConfirm={async () => {
+            const success = await onKick(participant.identity, name);
+            if (success !== false) setKickOpen(false);
+          }}
+        >
+          They are disconnected and can&apos;t rejoin this class unless you pull them back in from &ldquo;Not in class&rdquo;.
+        </ConfirmationModal>
+      ) : null}
     </div>
   );
 });
@@ -329,41 +343,17 @@ const WaitingRoomListItem = memo(function WaitingRoomListItem({
   onResolve,
 }: {
   entry: WaitingRoomEntry;
-  onResolve: (studentId: string, action: "ADMIT" | "DENY", name: string) => void;
+  onResolve: (studentId: string, action: "ADMIT" | "DENY", name: string) => Promise<void>;
 }) {
   return (
-    <div
-      className="flex min-h-11 items-center justify-between gap-3 rounded-control px-3 py-2 transition-colors hover:bg-app-soft"
-      role="listitem"
-    >
-      <div className="flex min-w-0 items-center gap-2.5">
-        <ParticipantAvatar name={entry.studentName} size="sm" className="size-8 shrink-0 text-[10px]" />
-        <span className="truncate text-sm font-medium text-app-text">{entry.studentName}</span>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-1.5">
-        <SimpleTooltip label={`Admit ${entry.studentName}`}>
-          <button
-            type="button"
-            aria-label={`Admit ${entry.studentName}`}
-            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-success-ink transition-colors hover:bg-success hover:text-on-success"
-            onClick={() => onResolve(entry.studentId, "ADMIT", entry.studentName)}
-          >
-            <UserCheck className="size-4" strokeWidth={2.5} />
-          </button>
-        </SimpleTooltip>
-        <SimpleTooltip label={`Deny ${entry.studentName}`}>
-          <button
-            type="button"
-            aria-label={`Deny ${entry.studentName}`}
-            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-on-danger"
-            onClick={() => onResolve(entry.studentId, "DENY", entry.studentName)}
-          >
-            <UserX className="size-4" strokeWidth={2.5} />
-          </button>
-        </SimpleTooltip>
-      </div>
-    </div>
+    <RequestRow
+      name={entry.studentName}
+      note="Waiting to join"
+      actions={[
+        { label: "Deny", spokenLabel: `Deny ${entry.studentName}`, tone: "deny", onClick: () => onResolve(entry.studentId, "DENY", entry.studentName) },
+        { label: "Admit", spokenLabel: `Admit ${entry.studentName}`, tone: "allow", onClick: () => onResolve(entry.studentId, "ADMIT", entry.studentName) },
+      ]}
+    />
   );
 });
 
@@ -372,60 +362,60 @@ const ScreenShareRequestListItem = memo(function ScreenShareRequestListItem({
   onResolve,
 }: {
   entry: ScreenShareRequestEntry;
-  onResolve: (studentId: string, action: "APPROVE" | "DENY" | "REVOKE", name: string) => void;
+  onResolve: (studentId: string, action: "APPROVE" | "DENY" | "REVOKE", name: string) => Promise<void>;
 }) {
   const isApproved = entry.status === "APPROVED";
   return (
-    <div
-      className="flex min-h-11 items-center justify-between gap-3 rounded-control px-3 py-2 transition-colors hover:bg-app-soft"
-      role="listitem"
-    >
-      <div className="flex min-w-0 items-center gap-2.5">
-        <ParticipantAvatar name={entry.studentName} size="sm" className="size-8 shrink-0 text-[10px]" />
-        <span className="truncate text-sm font-medium text-app-text">{entry.studentName}</span>
-        {isApproved && <span className="shrink-0 text-[10px] font-semibold text-success-ink">Sharing allowed</span>}
-      </div>
-
-      <div className="flex shrink-0 items-center gap-1.5">
-        {isApproved ? (
-          <SimpleTooltip label={`Revoke ${entry.studentName}'s screen-share access`}>
-            <button
-              type="button"
-              aria-label={`Revoke ${entry.studentName}'s screen-share access`}
-              className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-on-danger"
-              onClick={() => onResolve(entry.studentId, "REVOKE", entry.studentName)}
-            >
-              <MonitorX className="size-4" strokeWidth={2.5} />
-            </button>
-          </SimpleTooltip>
-        ) : (
-          <>
-            <SimpleTooltip label={`Approve ${entry.studentName}'s screen-share request`}>
-              <button
-                type="button"
-                aria-label={`Approve ${entry.studentName}'s screen-share request`}
-                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-success-ink transition-colors hover:bg-success hover:text-on-success"
-                onClick={() => onResolve(entry.studentId, "APPROVE", entry.studentName)}
-              >
-                <UserCheck className="size-4" strokeWidth={2.5} />
-              </button>
-            </SimpleTooltip>
-            <SimpleTooltip label={`Deny ${entry.studentName}'s screen-share request`}>
-              <button
-                type="button"
-                aria-label={`Deny ${entry.studentName}'s screen-share request`}
-                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-on-danger"
-                onClick={() => onResolve(entry.studentId, "DENY", entry.studentName)}
-              >
-                <UserX className="size-4" strokeWidth={2.5} />
-              </button>
-            </SimpleTooltip>
-          </>
-        )}
-      </div>
-    </div>
+    <RequestRow
+      name={entry.studentName}
+      note={isApproved ? "Sharing allowed" : "Asking to share their screen"}
+      actions={
+        isApproved
+          ? [
+              {
+                label: "Revoke",
+                spokenLabel: `Revoke ${entry.studentName}'s screen-share access`,
+                tone: "deny",
+                onClick: () => onResolve(entry.studentId, "REVOKE", entry.studentName),
+              },
+            ]
+          : [
+              { label: "Deny", spokenLabel: `Deny ${entry.studentName}'s screen-share request`, tone: "deny", onClick: () => onResolve(entry.studentId, "DENY", entry.studentName) },
+              { label: "Allow", spokenLabel: `Allow ${entry.studentName} to share their screen`, tone: "allow", onClick: () => onResolve(entry.studentId, "APPROVE", entry.studentName) },
+            ]
+      }
+    />
   );
 });
+
+/** "Admit all": admits each waiting person in turn through the same per-person route. */
+function AdmitAllButton({
+  entries,
+  onResolve,
+}: {
+  entries: WaitingRoomEntry[];
+  onResolve: (studentId: string, action: "ADMIT" | "DENY", name: string) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  if (entries.length < 2) return null;
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      isLoading={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          for (const entry of entries) await onResolve(entry.studentId, "ADMIT", entry.studentName);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      Admit all
+    </Button>
+  );
+}
 
 export function MeetingParticipants({
   showRoomControls = true,
@@ -661,7 +651,9 @@ export function MeetingParticipants({
         }
       />
 
-      {isCoach && roomId && showRoomControls ? <CoachRoomControls classId={roomId} /> : null}
+      {isCoach && roomId && showRoomControls ? (
+        <StudentControlsList classId={roomId} className="shrink-0 border-b border-app-border px-3 py-2" />
+      ) : null}
 
       {showSearch && (
         <div className="shrink-0 border-b border-app-border/40 px-3 py-2">
@@ -689,7 +681,7 @@ export function MeetingParticipants({
         >
           {grouped.sharing.length > 0 && (
             <div className="mb-2">
-              <h3 className="px-3 pb-1 text-xs font-semibold text-primary-ink">
+              <h3 className="px-2 pb-1 text-xs font-semibold text-app-muted">
                 Sharing screen ({grouped.sharing.length})
               </h3>
               <div className="flex flex-col gap-0.5">
@@ -700,9 +692,9 @@ export function MeetingParticipants({
 
           {isCoach && waitingList.length > 0 && (
             <div className="mb-2">
-              <h3 className="px-3 pb-1 text-xs font-semibold text-warning-ink">
+              <RowSectionHeader action={<AdmitAllButton entries={waitingList} onResolve={handleResolveWaiting} />}>
                 Waiting to join ({waitingList.length})
-              </h3>
+              </RowSectionHeader>
               <div className="flex flex-col gap-0.5">
                 {waitingList.map((entry) => (
                   <WaitingRoomListItem key={entry.studentId} entry={entry} onResolve={handleResolveWaiting} />
@@ -713,9 +705,7 @@ export function MeetingParticipants({
 
           {isCoach && screenShareList.length > 0 && (
             <div className="mb-2">
-              <h3 className="px-3 pb-1 text-xs font-semibold text-warning-ink">
-                Screen-share requests ({screenShareList.length})
-              </h3>
+              <RowSectionHeader>Asking to share ({screenShareList.length})</RowSectionHeader>
               <div className="flex flex-col gap-0.5">
                 {screenShareList.map((entry) => (
                   <ScreenShareRequestListItem key={entry.studentId} entry={entry} onResolve={handleResolveScreenShare} />
@@ -726,7 +716,7 @@ export function MeetingParticipants({
 
           {grouped.coaches.length > 0 && (
             <div className="mb-2">
-              <h3 className="px-3 pb-1 text-xs font-semibold text-primary-ink">
+              <h3 className="px-2 pb-1 text-xs font-semibold text-app-muted">
                 Coaches ({grouped.coaches.length})
               </h3>
               <div className="flex flex-col gap-0.5">
@@ -737,7 +727,7 @@ export function MeetingParticipants({
 
           <div>
             {(grouped.coaches.length > 0 || grouped.sharing.length > 0) && (
-              <h3 className="px-3 pb-1 text-xs font-semibold text-app-muted">
+              <h3 className="px-2 pb-1 text-xs font-semibold text-app-muted">
                 Students ({grouped.students.length})
               </h3>
             )}

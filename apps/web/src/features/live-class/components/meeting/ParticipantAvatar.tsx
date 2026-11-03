@@ -11,7 +11,7 @@ interface ParticipantAvatarProps {
 }
 
 const sizeMap = {
-  xs: "size-6 text-[10px]",
+  xs: "size-6 text-xs",
   sm: "size-8 text-xs",
   md: "size-16 text-xl",
   lg: "size-24 text-3xl",
@@ -38,7 +38,7 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
         src={imageUrl}
         alt={name}
         className={cn(
-          "rounded-full object-cover shadow-lift border border-app-border",
+          "shrink-0 rounded-full border border-app-border object-cover",
           sizeMap[size],
           className
         )}
@@ -49,7 +49,8 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded-full border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] font-extrabold text-primary-ink shadow-card",
+        // Navy with initials, the same in both themes (spec: avatar / video-tile fallback).
+        "flex shrink-0 select-none items-center justify-center rounded-full bg-brand-800 font-semibold text-on-brand",
         sizeMap[size],
         className
       )}

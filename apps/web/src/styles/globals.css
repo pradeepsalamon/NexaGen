@@ -107,6 +107,8 @@
   /* Focus ring of every text field (components/ui/fieldStyles.ts). */
   --shadow-focus: 0 0 0 3px rgb(var(--rgb-primary) / 0.25);
   --color-scroll-shade: rgb(var(--rgb-text) / 0.16);
+  /* Chips inside a sunken track and menu items in the live room (6px). */
+  --radius-chip: 0.375rem;
   --radius-control: 0.5rem;
   --radius-app: 0.75rem;
   --radius-panel: 1rem;

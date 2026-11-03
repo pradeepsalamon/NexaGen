@@ -192,7 +192,7 @@ export function ClassroomVideo({
                 <TileModerationControls participant={spotlight.participant} name={name} screenShare={isScreen} size="sm" />
               </div>
             ) : null}
-            <span className="absolute bottom-1.5 left-1.5 max-w-[80%] truncate rounded-control bg-scrim/60 px-1.5 py-0.5 text-[11px] font-medium text-on-scrim/90">
+            <span className="absolute bottom-1.5 left-1.5 max-w-[80%] truncate rounded-chip bg-scrim/80 px-1.5 py-0.5 text-xs font-medium text-on-scrim">
               {isScreen ? `${name} · screen` : name}
             </span>
           </div>

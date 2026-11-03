@@ -732,7 +732,8 @@ export class LiveClassService {
       this.logger.warn(`Failed to resolve pre-class settings for ${classId}`, error as Error);
     }
 
-    return { ...classWithoutBatch, preClassSettings };
+    // Only the batch's name (the room's top bar), never its roster.
+    return { ...classWithoutBatch, batchName: scheduledClass.batch?.name ?? null, preClassSettings };
   }
 
   async getParticipants(accessToken: string | undefined, classId: string) {

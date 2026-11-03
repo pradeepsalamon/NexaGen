@@ -6,7 +6,6 @@ import { MeetingTopBar } from "./MeetingTopBar";
 import { MeetingVideoGrid } from "./MeetingVideoGrid";
 import { MeetingToolbar } from "./MeetingToolbar";
 import { MeetingSidebar } from "./MeetingSidebar";
-import { ConnectionBanner } from "./MeetingStatus";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useClassroomPresentation } from "../../hooks/useClassroomPresentation";
 import { useCoachBoardOpen } from "../../hooks/useCoachBoardOpen";
@@ -17,7 +16,7 @@ import { MiniPlayer } from "./MiniPlayer";
 import { VideoPipSurface } from "./VideoPipSurface";
 import { PipProvider } from "../../providers/PipProvider";
 import { useIsBoardViewport } from "../../hooks/useIsBoardViewport";
-import { ClassroomLayout, CLASSROOM_PANEL_OFFSET } from "./classroom/ClassroomLayout";
+import { ClassroomLayout } from "./classroom/ClassroomLayout";
 import { InteractivesProvider } from "./interactives/InteractivesProvider";
 import { InteractivePhoneStage, useInteractiveStageShown } from "./interactives/InteractiveStage";
 
@@ -34,10 +33,10 @@ function MeetingLayoutEffects({ autoShare }: { autoShare: boolean }) {
  * Interactive is open — that tool in its place. The grid stays mounted, only
  * hidden, so going back keeps its board / spotlight state.
  */
-function PhoneStage() {
+function PhoneStage({ toolbar }: { toolbar: React.ReactNode }) {
   const toolShown = useInteractiveStageShown();
   return (
-    <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden" data-classroom-stage>
       <div
         className={cn(
           "custom-scrollbar relative flex min-h-0 flex-1 flex-col overflow-y-auto",
@@ -47,6 +46,7 @@ function PhoneStage() {
         <MeetingVideoGrid />
       </div>
       {toolShown ? <InteractivePhoneStage /> : null}
+      {toolbar}
     </div>
   );
 }
@@ -70,30 +70,25 @@ export function MeetingLayout() {
     <PipProvider>
       <InteractivesProvider>
         <MeetingLayoutEffects autoShare={wide} />
-        <div className="flex h-[100dvh] flex-col overflow-hidden bg-app-background pt-16 text-app-text">
+        <div className="flex h-[100dvh] flex-col overflow-hidden bg-app-background pt-12 text-app-text md:pt-14">
           <MeetingTopBar />
-          <ConnectionBanner />
 
           <main className="relative flex flex-1 overflow-hidden">
             <BoardProvider>
               <LiveBoardSyncBridge>
                 <BoardControlToasts />
-                {classroom ? <ClassroomLayout isCoach={isCoach} /> : <PhoneStage />}
+                {/* The control bar floats over the stage (never over the panel), so the stage hosts it. */}
+                {classroom ? (
+                  <ClassroomLayout isCoach={isCoach} toolbar={<MeetingToolbar />} />
+                ) : (
+                  <PhoneStage toolbar={<MeetingToolbar />} />
+                )}
               </LiveBoardSyncBridge>
             </BoardProvider>
 
             <MeetingSidebar inlinePanels={classroom} />
           </main>
 
-          {/* In the classroom layout the toolbar centres on the board, clear of the side panel. */}
-          <div
-            className={cn(
-              "pointer-events-none absolute inset-x-0 bottom-0 top-0",
-              classroom && CLASSROOM_PANEL_OFFSET,
-            )}
-          >
-            <MeetingToolbar />
-          </div>
         </div>
       </InteractivesProvider>
 

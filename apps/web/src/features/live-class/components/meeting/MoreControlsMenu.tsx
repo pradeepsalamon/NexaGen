@@ -2,8 +2,15 @@
 
 import { useState, type ReactNode } from "react";
 import { MoreHorizontal } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/DropdownMenu";
 import { cn } from "@/lib/utils";
+import { ControlBadge, CONTROL_BUTTON_BASE, CONTROL_BUTTON_VARIANTS } from "./MeetingControlButton";
 
 export interface MoreControlItem {
   icon: ReactNode;
@@ -11,55 +18,64 @@ export interface MoreControlItem {
   onClick: () => void;
   active?: boolean;
   disabled?: boolean;
-  /** Only listed below `sm`, where the toolbar has no room for its own button. */
-  mobileOnly?: boolean;
+  /** A count shown at the row's end (unread chat, students to move). */
+  badge?: number;
+  /** Destructive rows (none today) go last and red. */
+  tone?: "danger";
 }
 
 /**
- * Overflow menu for the meeting toolbar — holds the secondary controls that
- * don't need to be one tap away (settings, fullscreen, raise hand, and on
- * small screens the media controls that don't fit a single row). The heavy
- * LiveKit hooks stay in `MeetingToolbar`; this only renders rows.
+ * More menu (spec component 8): 200px, items with counts. Holds the secondary
+ * controls (settings, fullscreen, mini player, recording) and whichever bar
+ * controls don't fit the width. Radix menu: arrow keys, typeahead, Escape.
+ * `header` renders above the rows (the reaction tray when Reactions overflowed).
  */
-export function MoreControlsMenu({ items }: { items: MoreControlItem[] }) {
+export function MoreControlsMenu({ items, header }: { items: MoreControlItem[]; header?: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const badge = items.reduce((sum, item) => sum + (item.badge ?? 0), 0);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
         <button
           type="button"
-          aria-label="More controls"
-          className={cn(
-            "relative flex size-11 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-muted transition duration-150 ease-out hover:bg-app-soft hover:text-app-text active:scale-95 motion-reduce:active:scale-100 sm:size-12",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-            open && "bg-primary text-on-primary",
-          )}
+          aria-label={badge > 0 ? `More controls (${badge})` : "More controls"}
+          className={cn(CONTROL_BUTTON_BASE, CONTROL_BUTTON_VARIANTS[open ? "active" : "default"])}
         >
-          <MoreHorizontal className="size-5" />
+          <MoreHorizontal aria-hidden="true" className="size-5" strokeWidth={1.75} />
+          <ControlBadge count={badge} />
         </button>
-      </PopoverTrigger>
-      <PopoverContent side="top" align="end" sideOffset={12} className="w-56 p-1.5">
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="end" sideOffset={12} className="w-[12.5rem] p-1">
+        {header ? (
+          <>
+            {header}
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
         {items.map((item) => (
-          <button
+          <DropdownMenuItem
             key={item.label}
-            type="button"
             disabled={item.disabled}
+            onSelect={() => item.onClick()}
             className={cn(
-              "flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-sm font-semibold text-app-text transition-colors hover:bg-app-soft disabled:opacity-60",
-              item.active && "bg-primary/10 text-primary-ink",
-              item.mobileOnly && "sm:hidden",
+              "min-h-10 gap-2.5 rounded-chip px-2.5 text-sm font-medium",
+              item.active && "bg-primary-soft text-primary-ink",
+              item.tone === "danger" && "text-app-danger-ink",
             )}
-            onClick={() => {
-              item.onClick();
-              setOpen(false);
-            }}
           >
-            <span className="shrink-0">{item.icon}</span>
-            {item.label}
-          </button>
+            <span aria-hidden="true" className="flex size-4 shrink-0 items-center justify-center [&>svg]:size-4">
+              {item.icon}
+            </span>
+            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+            {item.badge && item.badge > 0 ? (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold tabular-nums text-on-primary">
+                {item.badge > 99 ? "99+" : item.badge}
+              </span>
+            ) : null}
+          </DropdownMenuItem>
         ))}
-      </PopoverContent>
-    </Popover>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

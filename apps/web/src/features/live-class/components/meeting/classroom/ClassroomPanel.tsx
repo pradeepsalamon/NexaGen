@@ -18,11 +18,10 @@ import { MoveHistory } from "@/features/chessboard/components/panels/MoveHistory
 import { PgnPanel } from "@/features/chessboard/components/panels/PgnPanel";
 import { StockfishPanel } from "@/features/chessboard/components/panels/StockfishPanel";
 import { useEngineEvalCache } from "@/features/chessboard/hooks/useEngineAnalysis";
-import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { RoomTabs } from "../../room-ui/RoomTabs";
 import { cn } from "@/lib/utils";
 import { useLiveClassChat } from "../../../providers/ChatProvider";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
-import { CoachRoomControls } from "../CoachRoomControls";
 import { MeetingChat } from "../MeetingChat";
 import { MeetingParticipants } from "../MeetingParticipants";
 import { MeetingPuzzlePanel } from "../MeetingPuzzlePanel";
@@ -48,41 +47,43 @@ const TABS: {
   icon: ReactNode;
   coachOnly?: boolean;
 }[] = [
-  { id: "puzzles", label: "Leaderboard", icon: <Trophy className="size-4" /> },
-  { id: "moves", label: "Moves", icon: <ListOrdered className="size-4" /> },
-  { id: "chat", label: "Chat", icon: <MessageSquareText className="size-4" /> },
-  { id: "people", label: "People", icon: <Users className="size-4" /> },
+  { id: "puzzles", label: "Leaderboard", icon: <Trophy aria-hidden="true" className="size-4" strokeWidth={1.75} /> },
+  { id: "moves", label: "Moves", icon: <ListOrdered aria-hidden="true" className="size-4" strokeWidth={1.75} /> },
+  { id: "chat", label: "Chat", icon: <MessageSquareText aria-hidden="true" className="size-4" strokeWidth={1.75} /> },
+  { id: "people", label: "People", icon: <Users aria-hidden="true" className="size-4" strokeWidth={1.75} /> },
   {
     id: "response",
     label: "Response",
-    icon: <MessageCircleQuestion className="size-4" />,
+    icon: <MessageCircleQuestion aria-hidden="true" className="size-4" strokeWidth={1.75} />,
     coachOnly: true,
   },
   {
     id: "queue",
     label: "Queue",
-    icon: <ListChecks className="size-4" />,
+    icon: <ListChecks aria-hidden="true" className="size-4" strokeWidth={1.75} />,
     coachOnly: true,
   },
   {
     id: "engine",
     label: "Engine",
-    icon: <Cpu className="size-4" />,
+    icon: <Cpu aria-hidden="true" className="size-4" strokeWidth={1.75} />,
     coachOnly: true,
   },
   {
     id: "pgn",
     label: "PGN",
-    icon: <FileText className="size-4" />,
+    icon: <FileText aria-hidden="true" className="size-4" strokeWidth={1.75} />,
     coachOnly: true,
   },
   {
     id: "games",
     label: "Games",
-    icon: <BookOpen className="size-4" />,
+    icon: <BookOpen aria-hidden="true" className="size-4" strokeWidth={1.75} />,
     coachOnly: true,
   },
 ];
+
+const COACH_TAB_ORDER: TabId[] = ["moves", "chat", "people", "puzzles", "response", "queue", "engine", "pgn", "games"];
 
 /** Sidebar requests from the toolbar, toasts and People panel land on a classroom tab instead. */
 const SIDEBAR_TO_TAB = {
@@ -139,12 +140,15 @@ export function ClassroomPanel({
     return () => setClassroomChatOpen(false);
   }, [activeTab, sideColumn, setClassroomChatOpen]);
 
-  const tabs = TABS.filter((t) => (isCoach || !t.coachOnly) && !inSideColumn(t.id));
+  // The coach's first three are the teaching tabs; a student opens on the leaderboard.
+  const tabs = TABS.filter((t) => (isCoach || !t.coachOnly) && !inSideColumn(t.id)).sort(
+    (a, b) => (isCoach ? COACH_TAB_ORDER.indexOf(a.id) - COACH_TAB_ORDER.indexOf(b.id) : 0),
+  );
 
   return (
-    // Stacked (tall tablet) the panel sits under the stage, video beside the tabs. Below xl the floating toolbar overlays its bottom.
+    // Panel (spec component 9): 300–760px, raised surface, hairline on the stage side. Stacked (tall tablet) it sits under the stage, video beside the tabs.
     <aside
-      className="flex h-[42%] min-h-0 w-full shrink-0 border-t border-app-border/70 bg-app-surface/40 pb-24 room:h-auto room:w-[var(--classroom-panel-w,380px)] room:flex-col room:border-l room:border-t-0 xl:pb-0 xl:w-[var(--classroom-panel-w,420px)] room:max-w-[calc(100vw-420px)]"
+      className="flex h-[42%] min-h-0 w-full shrink-0 border-t border-app-border bg-app-surface room:h-auto room:w-[var(--classroom-panel-w,380px)] room:flex-col room:border-l room:border-t-0 xl:w-[var(--classroom-panel-w,420px)] room:max-w-[calc(100vw-420px)]"
       aria-label="Class panel"
       data-classroom-panel
     >
@@ -171,39 +175,21 @@ export function ClassroomPanel({
       ) : null}
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {/* Gallery → class-wide controls → tabs (People and the rest). */}
-        {isCoach && roomId ? <CoachRoomControls classId={roomId} /> : null}
-        <div className="custom-scrollbar-hide shrink-0 overflow-x-auto border-b border-app-border/60 px-1.5">
-          <div className="flex items-center gap-0.5 py-1.5" role="tablist">
-            {/* Only the active tab carries its label, so every tab fits without scrolling. */}
-            {tabs.map((t) => (
-              <SimpleTooltip key={t.id} label={t.label}>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-label={t.label}
-                  aria-selected={activeTab === t.id}
-                  onClick={() => setTab(t.id)}
-                  className={cn(
-                    "flex min-h-9 shrink-0 items-center gap-1.5 rounded-control px-2.5 text-xs font-semibold transition-colors",
-                    activeTab === t.id
-                      ? "bg-primary/10 text-primary-ink"
-                      : "text-app-muted hover:bg-app-soft hover:text-app-text",
-                  )}
-                >
-                  <span className="relative">
-                    {t.icon}
-                    {t.id === "chat" && unreadCount > 0 ? (
-                      <span className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-app-danger px-1 text-[8px] font-bold text-on-danger ring-2 ring-app-surface">
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                      </span>
-                    ) : null}
-                  </span>
-                  {activeTab === t.id ? t.label : null}
-                </button>
-              </SimpleTooltip>
-            ))}
-          </div>
+        <div className="flex shrink-0 items-center border-b border-app-border px-2 py-2">
+          {/* Three tabs show; the rest go under More. Unselected tabs show their icon, so they fit a 300px panel. */}
+          <RoomTabs
+            ariaLabel="Class panel"
+            items={tabs.map((t) => ({
+              id: t.id,
+              label: t.label,
+              icon: t.icon,
+              badge: t.id === "chat" ? unreadCount : undefined,
+            }))}
+            value={activeTab}
+            onChange={setTab}
+            maxVisible={3}
+            iconOnly
+          />
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden" role="tabpanel">
@@ -219,7 +205,7 @@ export function ClassroomPanel({
             </div>
           ) : null}
           {activeTab === "chat" ? <MeetingChat /> : null}
-          {activeTab === "people" ? <MeetingParticipants showRoomControls={!(isCoach && roomId)} /> : null}
+          {activeTab === "people" ? <MeetingParticipants showRoomControls={false} /> : null}
           {activeTab === "puzzles" ? <MeetingPuzzlePanel /> : null}
           {activeTab === "response" ? (
             <div className="h-full overflow-y-auto">

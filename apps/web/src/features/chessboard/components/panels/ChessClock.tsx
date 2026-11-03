@@ -36,16 +36,19 @@ const TimeChip = memo(function TimeChip({
   active: boolean;
 }) {
   return (
+    // Chess clock chip (live-class spec component 13): 32px; running = blue, low time = amber.
     <div
+      role="timer"
+      aria-label={`${color === "white" ? "White" : "Black"}: ${text}${active ? ", running" : ""}${low ? ", low time" : ""}`}
       className={cn(
-        "flex items-center justify-between gap-3 rounded-control border px-3 py-1.5 tabular-nums transition-colors",
+        "flex h-8 items-center justify-between gap-3 rounded-control border px-2.5 tabular-nums transition-colors",
         active
-          ? "border-primary bg-primary/10 text-app-text"
-          : "border-app-border bg-app-surface/70 text-app-muted",
-        low && active && "border-warning bg-warning/10 text-warning-ink",
+          ? "border-primary bg-primary-soft text-primary-ink"
+          : "border-app-border bg-app-surface text-app-muted",
+        low && "border-warning bg-warning-soft text-warning-ink",
       )}
     >
-      <span className="flex items-center gap-1.5 text-xs font-medium">
+      <span aria-hidden="true" className="flex items-center gap-1.5 text-xs font-medium">
         <span
           className={cn(
             "size-2 rounded-full",
@@ -54,7 +57,7 @@ const TimeChip = memo(function TimeChip({
         />
         {color === "white" ? "White" : "Black"}
       </span>
-      <span className={cn("text-sm font-semibold tabular-nums", low && "text-warning-ink")}>
+      <span aria-hidden="true" className="text-sm font-semibold tabular-nums">
         {text}
       </span>
     </div>
