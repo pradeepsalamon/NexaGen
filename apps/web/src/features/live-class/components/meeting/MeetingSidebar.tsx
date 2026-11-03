@@ -73,11 +73,12 @@ const SidebarTabs = memo(function SidebarTabs({
           type="button"
           role="tab"
           aria-selected={active === panel.id}
+          aria-label={panel.label}
           onClick={() => onTabChange(panel.id)}
           className={cn(
-            "flex min-h-11 items-center gap-1.5 rounded-control px-3 text-xs font-semibold transition-colors sm:min-h-9",
+            "relative flex min-h-11 items-center gap-1.5 rounded-control px-3 text-[0.8125rem] font-medium transition-colors sm:min-h-9",
             active === panel.id
-              ? "bg-primary/10 text-primary-ink"
+              ? "bg-primary text-on-primary"
               : "text-app-muted hover:bg-app-soft hover:text-app-text",
           )}
         >
@@ -131,10 +132,10 @@ export function MeetingSidebar({ inlinePanels = false }: { inlinePanels?: boolea
             <button
               type="button"
               onClick={() => setActiveSidebar(null)}
-              className="flex size-9 shrink-0 items-center justify-center rounded-control bg-app-soft text-app-muted transition-colors hover:bg-app-danger hover:text-on-danger"
+              className="flex size-11 shrink-0 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus sm:size-9"
               aria-label="Close panel"
             >
-              <X className="size-5" />
+              <X aria-hidden="true" className="size-5" strokeWidth={2} />
             </button>
           </div>
 

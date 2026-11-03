@@ -191,8 +191,9 @@ export function InRoomPuzzleSolver({
         <div className="flex min-h-0 flex-1 gap-3">
           <WrongMovesList moves={wrongMoves} flash={wrong} penalty={scoring.wrongMovePenalty} variant="column" />
           <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
-            <div className="touch-none shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
+            <div className="touch-none rounded-app shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
               <PracticeBoard
+                className="max-w-none"
                 resetKey={`${moves.length}-${resetNonce}`}
                 fen={currentFen}
                 orientation={session.orientation}

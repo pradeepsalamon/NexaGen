@@ -11,7 +11,7 @@ export function InlineStage({
   actions,
   children
 }: {
-  title: ReactNode;
+  title?: ReactNode;
   /** Header controls between the title and the stage switch. */
   actions?: ReactNode;
   stageSwitch: ReactNode;

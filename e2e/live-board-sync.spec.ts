@@ -64,7 +64,7 @@ async function joinMeeting(context: BrowserContext, classId: string): Promise<Pa
   const page = await context.newPage();
   await page.goto(`/live-class/${classId}`);
   await page.getByRole("button", { name: /join room/i }).click({ timeout: 30_000 });
-  await expect(page.getByRole("toolbar", { name: /meeting controls/i })).toBeVisible({
+  await expect(page.getByRole("toolbar", { name: /class controls/i })).toBeVisible({
     timeout: 30_000,
   });
   return page;

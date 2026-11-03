@@ -180,14 +180,14 @@ function selfCellClass(_isSelf: boolean) {
 }
 
 function YouTag() {
-  return <Badge variant="default">You</Badge>;
+  return <Badge variant="default" className="shrink-0">You</Badge>;
 }
 
 /** Avatar + name cell content shared by the three leaderboards. */
 function LeaderName({ name, children }: { name: string; children?: React.ReactNode }) {
   return (
     <span className="flex min-w-0 items-center gap-2">
-      <ParticipantAvatar name={name} size="xs" className="hidden xs:flex" />
+      <ParticipantAvatar name={name} size="xs" className="hidden shrink-0 xs:flex" />
       <span className="truncate font-medium text-app-text">{name}</span>
       {children}
     </span>
@@ -322,10 +322,10 @@ function LeaderboardSection({
         <Table>
           <TableHeader className="bg-app-soft">
             <TableRow>
-              <TableHead className="h-10 w-20 px-3 text-xs">Position</TableHead>
-              <TableHead className="h-10 px-2 text-xs">Name</TableHead>
-              <TableHead className="h-10 px-2 text-right text-xs">{pointsLabel}</TableHead>
-              <TableHead className="h-10 px-3 text-right text-xs">Attempts</TableHead>
+              <TableHead className="h-10 w-16 whitespace-nowrap px-3 text-xs">Position</TableHead>
+              <TableHead className="h-10 w-full px-2 text-xs">Name</TableHead>
+              <TableHead className="h-10 whitespace-nowrap px-2 text-right text-xs">{pointsLabel}</TableHead>
+              <TableHead className="h-10 whitespace-nowrap px-3 text-right text-xs">Attempts</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -399,10 +399,10 @@ function ClassLeaderboardSection({ classId, isCoach }: { classId: string; isCoac
         <Table>
           <TableHeader className="bg-app-soft">
             <TableRow>
-              <TableHead className="h-10 w-20 px-3 text-xs">Position</TableHead>
-              <TableHead className="h-10 px-2 text-xs">Name</TableHead>
-              <TableHead className="h-10 px-2 text-right text-xs">Points</TableHead>
-              <TableHead className="h-10 px-3 text-right text-xs">Solved</TableHead>
+              <TableHead className="h-10 w-16 whitespace-nowrap px-3 text-xs">Position</TableHead>
+              <TableHead className="h-10 w-full px-2 text-xs">Name</TableHead>
+              <TableHead className="h-10 whitespace-nowrap px-2 text-right text-xs">Points</TableHead>
+              <TableHead className="h-10 whitespace-nowrap px-3 text-right text-xs">Solved</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -493,7 +493,7 @@ export function SidebarClassLeaderboard({ classId, isCoach }: { classId: string;
           <TableHeader className="sticky top-0 z-[1] bg-app-soft">
             <TableRow>
               <TableHead className="h-8 w-10 px-2 text-xs">Rank</TableHead>
-              <TableHead className="h-8 px-1 text-xs">Participant</TableHead>
+              <TableHead className="h-8 w-full px-1 text-xs">Participant</TableHead>
               <TableHead className="h-8 px-1 text-right text-xs">Score</TableHead>
               <TableHead className="h-8 w-20 px-2 text-right text-xs">Progress</TableHead>
             </TableRow>

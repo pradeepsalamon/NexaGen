@@ -57,7 +57,7 @@ async function makeLiveClass(request: APIRequestContext, coach: Cookie[], admin:
 
 async function enterRoom(page: Page) {
   const join = page.getByRole("button", { name: /join room/i });
-  const toolbar = page.getByRole("toolbar", { name: /meeting controls/i });
+  const toolbar = page.getByRole("toolbar", { name: /class controls/i });
   await expect(join.or(toolbar)).toBeVisible({ timeout: 45_000 });
   if (await join.isVisible()) await join.click();
   await expect(toolbar).toBeVisible({ timeout: 30_000 });

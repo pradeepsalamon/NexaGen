@@ -72,7 +72,7 @@ export function StudentControlsList({ classId, className }: { classId: string; c
 
   return (
     <div className={cn("flex flex-col gap-1", className)} role="group" aria-label="Class-wide student controls">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1.5">
         <ActionButton
           icon={MicOff}
           label="Mute all"
@@ -185,7 +185,7 @@ function ActionButton({
         disabled={disabled}
         onClick={onClick}
         className={cn(
-          "flex h-11 min-w-0 items-center justify-center gap-2 rounded-control border border-app-line-strong/60 bg-app-surface px-2 text-sm font-medium text-app-text transition-colors hover:bg-app-soft",
+          "flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-control border border-app-line-strong/60 bg-app-surface px-1.5 text-[0.8125rem] font-medium text-app-text transition-colors hover:bg-app-soft",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:cursor-not-allowed disabled:opacity-50",
         )}
       >

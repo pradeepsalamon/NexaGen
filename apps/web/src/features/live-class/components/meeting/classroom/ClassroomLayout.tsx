@@ -99,8 +99,8 @@ function PresentationControls({
               )}
             >
               {a.icon}
-              <span className="hidden xl:inline">{a.label}</span>
-              <span className="sr-only xl:hidden">{a.label}</span>
+              <span className="hidden 2xl:inline">{a.label}</span>
+              <span className="sr-only 2xl:hidden">{a.label}</span>
             </button>
           </SimpleTooltip>
         );
@@ -324,7 +324,7 @@ export function ClassroomLayout({ isCoach, toolbar }: { isCoach: boolean; toolba
         <PuzzleStage stageSwitch={stageSwitch} className="px-3 pb-24 pt-3 room:px-6" />
       ) : stage === "boards" ? (
         <InlineStage
-          title={activePuzzle ? `Live boards · ${activePuzzle.title}` : "Live boards"}
+          title={activePuzzle?.title}
           stageSwitch={stageSwitch}
           fullWidth
           actions={
