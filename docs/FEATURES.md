@@ -380,8 +380,10 @@ true the pages show a draft banner and are `noindex`.
 
 ## SEO & AI search (GEO)
 
-The public home page `/` is the academy marketing site (`/academy` 301s to it); everything signed-in
-is disallowed in `robots.ts`.
+The public home page `/` is the academy marketing site; everything signed-in
+is disallowed in `robots.ts`. `/academy` is its Design System v2 rebuild (`features/academy/v2`), kept
+beside it for review: same content and form, `noindex` with a canonical of `/`, and no JSON-LD, so
+search engines only ever see `/`.
 
 - **One source of facts**: `apps/web/src/features/academy/content.ts` — name and
   alternate names, contacts, programs (also rendered by `ProgramsSection`), class

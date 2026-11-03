@@ -2,8 +2,9 @@
 
 These rules keep every screen looking and behaving like one product. They apply
 to everything under `apps/web/src` except the recording template (`app/recorder`).
-The academy marketing site (`features/academy`) follows the colour rules; its
-layout and type still have their own look until M10.
+The academy marketing site (`features/academy`, served at `/`) follows the colour rules;
+its layout and type keep their own look. Its Design System v2 rebuild is `features/academy/v2`
+at `/academy`, which follows every rule here and reads the same `content.ts`.
 
 **NexaChess Design System v2** is the colour, type and spacing specification
 (`docs/ui-redesign/`). Never branch on `useTheme()` to pick a

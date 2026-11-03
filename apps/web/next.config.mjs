@@ -122,14 +122,7 @@ const nextConfig = (phase) => ({
     qualities: [75]
   },
   async redirects() {
-    return [
-      ...canonicalHostRedirects(),
-      {
-        source: "/academy",
-        destination: "/",
-        permanent: true
-      }
-    ];
+    return [...canonicalHostRedirects()];
   },
   output: "standalone",
   poweredByHeader: false,

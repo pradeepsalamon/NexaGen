@@ -1,0 +1,24 @@
+/* Design System v2 academy page (`/academy`). Everything else is Tailwind tokens. */
+
+.academy-v2 {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  overflow-x: clip;
+}
+
+/* Smooth in-page jumps, the navbar's 4rem kept clear (sections carry scroll-mt-16). */
+html:has(.academy-v2) {
+  scroll-behavior: smooth;
+}
+
+/* Defer painting/layout of offscreen sections until they are scrolled near. */
+.academy-v2 .cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 700px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.academy-v2) {
+    scroll-behavior: auto;
+  }
+}
