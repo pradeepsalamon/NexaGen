@@ -15,6 +15,7 @@ import {
 import {
   Archive,
   ArchiveRestore,
+  ChevronDown,
   ClipboardCheck,
   Copy,
   Eye,
@@ -22,21 +23,32 @@ import {
   ListChecks,
   Pencil,
   Plus,
+  Puzzle,
   ScanSearch,
+  Search,
   Send,
   Swords,
   Trash2,
   Trophy,
   Undo2
 } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { BulkActionsBar } from "@/components/ui/BulkActionsBar";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Button } from "@/components/ui/Button";
 import { SortButton, type SortDirection } from "@/components/ui/DataTableSortButton";
 import { Card } from "@/components/ui/Card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/DropdownMenu";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
+import { RowActions, type RowAction } from "@/components/ui/RowActions";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
@@ -85,9 +97,6 @@ import { CatalogBrowser } from "./catalog/CatalogBrowser";
 import { PuzzleImportDialog } from "./PuzzleImportDialog";
 import { TopicManager } from "./TopicManager";
 import { enumLabel } from "@/lib/utils";
-
-const iconBtn =
-  "size-8";
 
 type ScopeConfig = { scope?: PuzzleListQuery["scope"]; visibility?: PuzzleVisibility };
 
@@ -176,59 +185,71 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
   const [assigningFolder, setAssigningFolder] = useState<PuzzleTopicDto | null>(null);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Puzzle library</h1>
-          <p className="mt-1 text-sm text-app-muted">
-            {role === "admin"
-              ? "Chess puzzles, MCQs and Playouts in one library, ready to share in any class."
-              : "Browse puzzles, MCQs and Playouts to use in class, and manage your own puzzles."}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {role === "admin" ? (
-            <Button asChild variant="outline">
-              <Link href={`${basePath}/scoring`}>
-                <Trophy className="mr-2 size-4" strokeWidth={2.5} />
-                Points &amp; leaderboard
+    <div className="animate-fade-in space-y-5 pb-10">
+      <PageHeader
+        actions={
+          <>
+            {role === "admin" ? (
+              <Button asChild variant="neutral">
+                <Link href={`${basePath}/scoring`}>
+                  <Trophy aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                  Points &amp; leaderboard
+                </Link>
+              </Button>
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <FileUp aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                  {role === "admin" ? "Import or create" : "Import"}
+                  <ChevronDown aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-52">
+                <DropdownMenuItem className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold" onSelect={() => setImportOpen(true)}>
+                  <FileUp aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                  Import PGN
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold">
+                  <Link href={`${basePath}/import-pdf`}>
+                    <ScanSearch aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                    Import from PDF
+                  </Link>
+                </DropdownMenuItem>
+                {role === "admin" ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold">
+                      <Link href={`${basePath}/activities/new?kind=MCQ`}>
+                        <ListChecks aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                        New MCQ
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold">
+                      <Link href={`${basePath}/activities/new?kind=PLAYOUT`}>
+                        <Swords aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                        New Playout
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button asChild>
+              <Link href={`${basePath}/new`}>
+                <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                New puzzle
               </Link>
             </Button>
-          ) : null}
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <FileUp className="mr-2 size-4" strokeWidth={2.5} />
-            Import PGN
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={`${basePath}/import-pdf`}>
-              <ScanSearch className="mr-2 size-4" strokeWidth={2.5} />
-              Import from PDF
-            </Link>
-          </Button>
-          {role === "admin" ? (
-            <>
-              <Button asChild variant="outline">
-                <Link href={`${basePath}/activities/new?kind=MCQ`}>
-                  <ListChecks className="mr-2 size-4" strokeWidth={2.5} />
-                  New MCQ
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href={`${basePath}/activities/new?kind=PLAYOUT`}>
-                  <Swords className="mr-2 size-4" strokeWidth={2.5} />
-                  New Playout
-                </Link>
-              </Button>
-            </>
-          ) : null}
-          <Button asChild>
-            <Link href={`${basePath}/new`}>
-              <Plus className="mr-2 size-4" />
-              New puzzle
-            </Link>
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+        description={
+          role === "admin"
+            ? "Chess puzzles, MCQs and Playouts in one library, ready to share in any class."
+            : "Browse puzzles, MCQs and Playouts to use in class, and manage your own puzzles."
+        }
+        title="Puzzle library"
+      />
 
       {role === "admin" && stats.data && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 lg:grid-cols-10">
@@ -248,7 +269,7 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
               <p className="text-xs font-semibold text-app-muted">
                 {label}
               </p>
-              <p className="mt-1 text-xl font-extrabold text-app-text">{value}</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-app-text">{value}</p>
             </Card>
           ))}
         </div>
@@ -484,6 +505,43 @@ function PuzzleTable({
     invalidates
   });
 
+  const puzzleActions = (p: PuzzleSummary): RowAction[] => {
+    const actions: RowAction[] = [];
+    if (!assignBlocker(p, role)) {
+      actions.push({
+        ariaLabel: `Assign ${p.title}`,
+        icon: ClipboardCheck,
+        label: role === "coach" ? "Assign" : "Create assignment",
+        onSelect: () => selection.assign([p])
+      });
+    }
+    actions.push({ ariaLabel: "Preview puzzle", href: `${basePath}/${p.id}`, icon: Eye, label: "Preview" });
+    if (p.canManage) {
+      actions.push({ ariaLabel: "Edit puzzle", href: `${basePath}/${p.id}/edit`, icon: Pencil, label: "Edit" });
+    }
+    actions.push({ ariaLabel: "Duplicate puzzle", icon: Copy, label: "Duplicate", onSelect: () => runDuplicate(p) });
+    if (p.canManage) {
+      const published = p.status === "PUBLISHED";
+      const archived = p.status === "ARCHIVED";
+      actions.push(
+        {
+          ariaLabel: published ? "Unpublish puzzle" : "Publish puzzle",
+          icon: published ? Undo2 : Send,
+          label: published ? "Unpublish" : "Publish",
+          onSelect: () => runPublish({ id: p.id, next: !published })
+        },
+        {
+          ariaLabel: archived ? "Restore puzzle" : "Archive puzzle",
+          icon: archived ? ArchiveRestore : Archive,
+          label: archived ? "Restore" : "Archive",
+          onSelect: () => runArchive({ id: p.id, next: !archived })
+        },
+        { ariaLabel: "Delete puzzle", icon: Trash2, label: "Delete", onSelect: () => runDelete(p), tone: "danger" }
+      );
+    }
+    return actions;
+  };
+
   const puzzles = data?.puzzles ?? [];
   const pagination = data?.pagination;
   const pageAssignable = puzzles.filter((p) => !assignBlocker(p, role));
@@ -510,15 +568,18 @@ function PuzzleTable({
   return (
     <Card className="grid gap-4 p-4">
       <div className="flex flex-wrap justify-end gap-2">
-        <Input
-          value={searchInput}
-          onChange={(e) => {
-            setSearchInput(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Search puzzles…"
-          className="w-full sm:w-56"
-        />
+        <div className="w-full sm:w-56">
+          <Input
+            aria-label="Search puzzles"
+            leadingIcon={<Search aria-hidden="true" className="size-4" strokeWidth={2.25} />}
+            onChange={(e) => {
+              setSearchInput(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search puzzles"
+            value={searchInput}
+          />
+        </div>
         <Select
           aria-label="Filter by folder"
           value={topicId}
@@ -573,13 +634,14 @@ function PuzzleTable({
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+            <Skeleton key={i} className="h-12 rounded-app" />
           ))}
         </div>
       ) : puzzles.length === 0 ? (
         <EmptyState
-          icon={Plus}
+          icon={Puzzle}
           title={hasFilters ? "No puzzles match your filters" : "No puzzles yet"}
+          variant="inline"
           description={
             hasFilters
               ? "Try a different search or clear the filters."
@@ -636,8 +698,8 @@ function PuzzleTable({
                       );
                     })()}
                   </TableCell>
-                  <TableCell className="font-medium text-app-text">
-                    <Link href={`${basePath}/${p.id}`} className="hover:text-primary-ink">
+                  <TableCell className="min-w-44 font-medium text-app-text">
+                    <Link href={`${basePath}/${p.id}`} className="rounded-control hover:text-primary-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus">
                       {p.title}
                     </Link>
                   </TableCell>
@@ -653,7 +715,7 @@ function PuzzleTable({
                   <TableCell>
                     <span className="inline-flex items-center gap-1.5">
                       {p.visibility === "GLOBAL" ? (
-                        <Badge variant="default">Admin Library</Badge>
+                        <Badge variant="default">Admin library</Badge>
                       ) : (
                         <span className="text-app-muted">{p.createdByName}</span>
                       )}
@@ -663,115 +725,7 @@ function PuzzleTable({
                     <Badge variant={statusBadgeVariant(p.status)}>{enumLabel(p.status)}</Badge>
                   </TableCell>
                   <TableCell pin="end">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {assignBlocker(p, role) ? null : (
-                        <SimpleTooltip label={role === "coach" ? "Assign" : "Create assignment"}>
-                          <Button
-                            aria-label={`Assign ${p.title}`}
-                            variant="neutral"
-                            size="icon"
-                            className="size-8"
-                            onClick={() => selection.assign([p])}
-                          >
-                            <ClipboardCheck className="size-4" strokeWidth={2.5} />
-                          </Button>
-                        </SimpleTooltip>
-                      )}
-                      <SimpleTooltip label="Preview">
-                        <Button
-                          asChild
-                          aria-label="Preview puzzle"
-                          variant="neutral"
-                          size="icon"
-                          className={iconBtn}
-                        >
-                          <Link href={`${basePath}/${p.id}`}>
-                            <Eye className="size-4" strokeWidth={2.5} />
-                          </Link>
-                        </Button>
-                      </SimpleTooltip>
-                      <SimpleTooltip label="Duplicate">
-                        <Button
-                          aria-label="Duplicate puzzle"
-                          variant="neutral"
-                          size="icon"
-                          className={iconBtn}
-                          onClick={() => runDuplicate(p)}
-                        >
-                          <Copy className="size-4" strokeWidth={2.5} />
-                        </Button>
-                      </SimpleTooltip>
-                      {p.canManage && (
-                        <>
-                          <SimpleTooltip label="Edit">
-                            <Button
-                              asChild
-                              aria-label="Edit puzzle"
-                              variant="neutral"
-                              size="icon"
-                              className={iconBtn}
-                            >
-                              <Link href={`${basePath}/${p.id}/edit`}>
-                                <Pencil className="size-4" strokeWidth={2.5} />
-                              </Link>
-                            </Button>
-                          </SimpleTooltip>
-                          <SimpleTooltip
-                            label={p.status === "PUBLISHED" ? "Unpublish" : "Publish"}
-                          >
-                            <Button
-                              aria-label={
-                                p.status === "PUBLISHED" ? "Unpublish puzzle" : "Publish puzzle"
-                              }
-                              variant="neutral"
-                              size="icon"
-                              className="size-8 text-warning-ink hover:bg-warning-soft"
-                              onClick={() =>
-                                runPublish({ id: p.id, next: p.status !== "PUBLISHED" })
-                              }
-                            >
-                              {p.status === "PUBLISHED" ? (
-                                <Undo2 className="size-4" strokeWidth={2.5} />
-                              ) : (
-                                <Send className="size-4" strokeWidth={2.5} />
-                              )}
-                            </Button>
-                          </SimpleTooltip>
-                          <SimpleTooltip
-                            label={p.status === "ARCHIVED" ? "Restore" : "Archive"}
-                          >
-                            <Button
-                              aria-label={
-                                p.status === "ARCHIVED" ? "Restore puzzle" : "Archive puzzle"
-                              }
-                              variant="neutral"
-                              size="icon"
-                              className="size-8 text-warning-ink hover:bg-warning-soft"
-                              onClick={() =>
-                                runArchive({ id: p.id, next: p.status !== "ARCHIVED" })
-                              }
-                            >
-                              {p.status === "ARCHIVED" ? (
-                                <ArchiveRestore className="size-4" strokeWidth={2.5} />
-                              ) : (
-                                <Archive className="size-4" strokeWidth={2.5} />
-                              )}
-                            </Button>
-                          </SimpleTooltip>
-                          <SimpleTooltip label="Delete">
-                            <Button
-                              aria-label="Delete puzzle"
-                              variant="neutral"
-                              size="icon"
-                              className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
-                              onClick={() => runDelete(p)}
-                            >
-                              <Trash2 className="size-4" strokeWidth={2.5} />
-                            </Button>
-                          </SimpleTooltip>
-                        </>
-                      )}
-                    </div>
+                    <RowActions actions={puzzleActions(p)} inline={3} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -781,22 +735,20 @@ function PuzzleTable({
       )}
 
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-app-muted">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-app-border pt-4 text-sm text-app-muted">
           <span>
             Page {pagination.page} of {pagination.totalPages} · {pagination.total} puzzles
           </span>
           <div className="flex gap-2">
             <Button
-              variant="outline"
-              size="sm"
+              variant="neutral"
               disabled={pagination.page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               Previous
             </Button>
             <Button
-              variant="outline"
-              size="sm"
+              variant="neutral"
               disabled={pagination.page >= pagination.totalPages}
               onClick={() => setPage((p) => p + 1)}
             >

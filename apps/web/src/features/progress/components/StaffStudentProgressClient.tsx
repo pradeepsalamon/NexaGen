@@ -1,8 +1,6 @@
 "use client";
 
-import { ChevronLeft } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useProgressFor } from "../hooks/useProgress";
 import { StudentProgressWorkspace } from "./StudentProgressWorkspace";
 
@@ -25,23 +23,12 @@ export function StaffStudentProgressClient({
   const name = data?.progress.studentName;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-3">
-        <Button asChild className="w-fit" size="sm" variant="outline">
-          <Link href={backHref}>
-            <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            {backLabel}
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-            {name ? `${name}'s progress` : "Student progress"}
-          </h1>
-          <p className="mt-1 text-app-muted">
-            Rating, results over time, areas to work on, and every recorded puzzle, class question and assignment.
-          </p>
-        </div>
-      </div>
+    <div className="animate-fade-in pb-10">
+      <PageHeader
+        breadcrumbs={[{ href: backHref, label: backLabel }, { label: name ?? "Student" }]}
+        description="Rating, results over time, areas to work on, and every recorded puzzle, class question and assignment."
+        title={name ? `${name}'s progress` : "Student progress"}
+      />
       <StudentProgressWorkspace studentId={studentId} />
     </div>
   );
