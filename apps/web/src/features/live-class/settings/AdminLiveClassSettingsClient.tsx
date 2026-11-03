@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, SlidersHorizontal } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   DEFAULT_LIVE_CLASS_SETTINGS,
   liveClassSettingsSchema,
@@ -18,6 +18,7 @@ import { LiveClassSettingsForm } from "./LiveClassSettingsForm";
 import { PresetCard } from "./PresetCard";
 import { PresetFormModal } from "./PresetFormModal";
 import { useLiveClassPolicy, useLiveClassPresets, useUpdateLiveClassPolicy } from "./hooks";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 function SystemPolicySection() {
   const { data, isLoading, isError, refetch } = useLiveClassPolicy();
@@ -139,18 +140,11 @@ function OrgPresetsSection() {
 
 export function AdminLiveClassSettingsClient() {
   return (
-    <div className="animate-fade-in space-y-6">
-      <div className="flex items-center gap-2.5">
-        <SlidersHorizontal className="size-6 text-primary-ink" strokeWidth={2.5} />
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-            Live class settings
-          </h1>
-          <p className="mt-1 text-sm text-app-muted">
-            Platform-wide defaults and shared presets for live classes.
-          </p>
-        </div>
-      </div>
+    <div className="animate-fade-in space-y-6 pb-10">
+      <PageHeader
+        description="Platform-wide defaults and shared presets for live classes."
+        title="Live class settings"
+      />
 
       <SystemPolicySection />
       <OrgPresetsSection />

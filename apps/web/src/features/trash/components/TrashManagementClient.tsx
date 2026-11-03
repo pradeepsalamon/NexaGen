@@ -247,7 +247,7 @@ export function TrashManagementClient() {
         meta: { label: "Deleted At" },
         header: ({ column }) => (
           <DataTableSortButton
-            label="Deleted At"
+            label="Deleted at"
             column={column}
           />
         ),
@@ -259,7 +259,7 @@ export function TrashManagementClient() {
         meta: { label: "Deleted By" },
         header: ({ column }) => (
           <DataTableSortButton
-            label="Deleted By"
+            label="Deleted by"
             column={column}
           />
         ),
@@ -367,7 +367,7 @@ export function TrashManagementClient() {
                 variant="primary"
               >
                 <RotateCcw aria-hidden="true" className="size-4" />
-                Restore Selected
+                Restore selected
               </Button>
 
               <Button
@@ -381,7 +381,7 @@ export function TrashManagementClient() {
                 variant="destructive"
               >
                 <Trash2 aria-hidden="true" className="size-4" />
-                Delete Selected
+                Delete selected
               </Button>
 
               <Button
@@ -391,7 +391,7 @@ export function TrashManagementClient() {
                 type="button"
                 variant="destructive"
               >
-                Empty Trash
+                Empty trash
               </Button>
             </>
           } 
@@ -401,8 +401,8 @@ export function TrashManagementClient() {
           isOpen={confirmModal.isOpen}
           onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
           onConfirm={confirmAction}
-          title={confirmModal.action === "empty" ? "Empty Trash?" : "Delete permanently?"}
-          confirmLabel={confirmModal.action === "empty" ? "Empty Trash" : "Delete Permanently"}
+          title={confirmModal.action === "empty" ? "Empty trash?" : "Delete permanently?"}
+          confirmLabel={confirmModal.action === "empty" ? "Empty trash" : "Delete permanently"}
           isConfirming={bulkDeleteMutation.isPending || emptyMutation.isPending}
         >
           {confirmModal.action === "empty" 

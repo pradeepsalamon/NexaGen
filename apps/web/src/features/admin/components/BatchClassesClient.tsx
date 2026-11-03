@@ -34,6 +34,7 @@ import { useServerTable } from "@/hooks/useServerTable";
 import { useAdminBatchClassesQuery } from "../hooks/useAdminBatchClasses";
 import { BatchClassDetailsDialog } from "./BatchClassDetailsDialog";
 import { LiveClassMonitorDialog } from "@/features/attendance/components/LiveClassMonitor";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const statusOptions = [
   { label: "Scheduled", value: "SCHEDULED" },
@@ -76,7 +77,7 @@ export function BatchClassesClient() {
         meta: { label: "Class Title" },
         header: ({ column }) => (
           <DataTableSortButton
-            label="Class Title"
+            label="Class title"
             column={column}
           />
         ),
@@ -154,7 +155,7 @@ export function BatchClassesClient() {
             column={column}
           />
         ),
-        cell: ({ row }) => <ClassStatusBadge status={row.getValue("status") as string} />
+        cell: ({ row }) => <ClassStatusBadge endsAt={row.original.endsAt} status={row.getValue("status") as string} />
       },
       {
         id: "actions",
@@ -179,7 +180,7 @@ export function BatchClassesClient() {
                         <Radio aria-hidden="true" className="size-4" strokeWidth={2.5} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Monitor Live</TooltipContent>
+                    <TooltipContent>Monitor live</TooltipContent>
                   </Tooltip>
                 )}
                 {row.original.status === "COMPLETED" && (
@@ -199,14 +200,14 @@ export function BatchClassesClient() {
                         <Info aria-hidden="true" className="size-4" strokeWidth={2.5} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>View Details</TooltipContent>
+                    <TooltipContent>View details</TooltipContent>
                   </Tooltip>
                 )}
                 {row.original.hasRecording && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        aria-label="Download Recording"
+                        aria-label="Download recording"
                         className="size-8 text-success-ink hover:bg-success-soft"
                         onClick={() => handleDownload(row.original.id)}
                         size="icon"
@@ -216,7 +217,7 @@ export function BatchClassesClient() {
                         <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Download Recording</TooltipContent>
+                    <TooltipContent>Download recording</TooltipContent>
                   </Tooltip>
                 )}
               </div>
@@ -240,18 +241,9 @@ export function BatchClassesClient() {
   });
 
   return (
-    <div>
-      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-5">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-extrabold text-primary-ink">
-              Classes Management
-            </p>
-            <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
-              Batch classes
-            </h1>
-          </div>
-        </header>
+    <div className="animate-fade-in pb-10">
+      <PageHeader description="Every class in every batch." title="Batch classes" />
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
 
         <Card className="grid gap-4 p-4">
           <DataTableToolbar
@@ -260,7 +252,7 @@ export function BatchClassesClient() {
               <Select
                 className="w-40"
                 onChange={(event) => serverTable.setStatus(event.target.value)}
-                options={[{ label: "All Statuses", value: "ALL" }, ...statusOptions]}
+                options={[{ label: "All status", value: "ALL" }, ...statusOptions]}
                 value={serverTable.status}
               />
             }

@@ -29,6 +29,7 @@ import {
   useUpdateChessAppearanceAdminMutation,
 } from "../hooks/useChessAppearanceApi";
 import { Switch } from "@/components/ui/Switch";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const PREVIEW_FEN = "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
 
@@ -98,14 +99,11 @@ export function AdminChessAppearanceClient() {
   const enabledSoundThemes = SOUND_THEME_CATALOG.filter((s) => !disabledSoundThemeIds.includes(s.id));
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-app-text">Chess appearance</h1>
-        <p className="mt-1 text-sm text-app-muted">
-          The platform-wide default board and piece set. Manage which built-in themes are available
-          to everyone.
-        </p>
-      </div>
+    <div className="animate-fade-in space-y-5 pb-10">
+      <PageHeader
+        description="The platform-wide default board and piece set. Manage which built-in themes are available to everyone."
+        title="Chess appearance"
+      />
 
       {isLoading ? (
         <Card className="p-5 sm:p-6">

@@ -23,6 +23,7 @@ import { formatRelativeDay } from "@/lib/datetime";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { completeDeletionRequest, rejectDeletionRequest } from "../api/privacyApi";
 import { PRIVACY_INVALIDATES, useDeletionRequests } from "../hooks/usePrivacyApi";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 type Decision = { request: AccountDeletionRequestItem; complete: boolean };
 
@@ -58,14 +59,11 @@ export function AdminPrivacyClient() {
   const noteRequired = deciding ? !deciding.complete : false;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Privacy requests</h1>
-        <p className="mt-1 text-app-muted">
-          Account deletion requests. Completing one soft-deletes the account (restorable from Trash for
-          30 days); invoices and payroll are always kept.
-        </p>
-      </div>
+    <div className="animate-fade-in space-y-6 pb-10">
+      <PageHeader
+        description="Account deletion requests. Completing one soft-deletes the account (restorable from Trash for 30 days); invoices and payroll are always kept."
+        title="Privacy requests"
+      />
 
       {isLoading ? (
         <div className="space-y-3">

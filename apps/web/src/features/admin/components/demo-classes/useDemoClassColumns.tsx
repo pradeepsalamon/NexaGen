@@ -83,7 +83,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
         meta: { label: "Assigned Coach" },
         header: ({ column }) => (
           <DataTableSortButton
-            label="Assigned Coach"
+            label="Assigned coach"
             column={column}
           />
         ),

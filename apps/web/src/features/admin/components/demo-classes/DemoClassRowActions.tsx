@@ -73,7 +73,7 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
                 <RotateCcw aria-hidden="true" className="size-4" strokeWidth={2.5} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Restore Demo Class</TooltipContent>
+            <TooltipContent>Restore demo class</TooltipContent>
           </Tooltip>
         )}
 

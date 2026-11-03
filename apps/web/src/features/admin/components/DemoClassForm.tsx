@@ -166,7 +166,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
           <FormSelect
             name="coachId"
             id="coachId"
-            label="Assign Coach"
+            label="Assign coach"
             options={coachOptions}
             disabled={isLoadingUsers}
             placeholder="Select a coach..."
@@ -179,7 +179,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <BaseFormField
               id="startsAt"
-              label="Start Time"
+              label="Start time"
               error={form.formState.errors.startsAt?.message}
             >
               <DatePicker

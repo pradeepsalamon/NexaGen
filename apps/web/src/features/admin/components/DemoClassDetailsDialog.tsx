@@ -117,7 +117,7 @@ export function DemoClassDetailsDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle>Demo Class Details</DialogTitle>
+          <DialogTitle>Demo class details</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
