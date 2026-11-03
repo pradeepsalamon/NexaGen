@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { formatDayMonth } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { useUserAnalyticsQuery } from "../../hooks/useAnalyticsApi";
+import { formatNumber } from "../../lib/format";
 
 const GRANULARITIES: AnalyticsGranularity[] = ["day", "week", "month"];
 
@@ -131,7 +132,7 @@ export function UserGrowthSection({
                 >
                   <span className="text-app-muted">{s.label}</span>
                   <span className="font-semibold text-app-text">
-                    {s.count.toLocaleString()}{" "}
+                    {formatNumber(s.count)}{" "}
                     <span className="text-app-muted">({s.percent}%)</span>
                   </span>
                 </li>

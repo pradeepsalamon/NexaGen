@@ -14,6 +14,7 @@ import {
   formatDuration
 } from "@/features/analytics/lib/format";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { enumLabel } from "@/lib/utils";
 
 /** Recording lifecycle states, mapped to the badge that reads best for each. */
 const STATUS_VARIANTS: Record<string, "success" | "destructive" | "secondary"> = {
@@ -40,7 +41,7 @@ export function RecordingsAnalyticsPageClient() {
           <AnalyticsFilters onChange={update} query={query} />
           <RecordingStorageSection query={query} />
           <div>
-            <h2 className="mb-2 text-base font-extrabold text-app-text">
+            <h2 className="mb-2 text-base font-bold text-app-text">
               Recording log
             </h2>
             <AnalyticsDrillTable<AnalyticsRecordingRow>
@@ -92,7 +93,7 @@ export function RecordingsAnalyticsPageClient() {
                       className="text-[10px]"
                       variant={STATUS_VARIANTS[r.status] ?? "secondary"}
                     >
-                      {r.status}
+                      {enumLabel(r.status)}
                     </Badge>
                   )
                 }

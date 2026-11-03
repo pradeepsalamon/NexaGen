@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { WidgetError } from "@/components/ui/WidgetError";
-import { cn } from "@/lib/utils";
+import { cn, enumLabel } from "@/lib/utils";
 import { formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import {
@@ -145,7 +145,7 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
                             {c.status === "LIVE" ? (
                               <Radio className="size-3 text-app-danger" />
                             ) : null}
-                            {c.status}
+                            {enumLabel(c.status)}
                           </span>
                         </TableCell>
                       </TableRow>

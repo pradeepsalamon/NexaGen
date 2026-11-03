@@ -11,6 +11,7 @@ import { useAcquisitionQuery } from "../../hooks/useAnalyticsApi";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { formatNumber } from "../../lib/format";
 
 export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
   const searchParams = useSearchParams();
@@ -67,10 +68,10 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
         <div>
           <div className="mb-3 flex gap-3 text-sm">
             <span className="rounded-control bg-app-soft px-3 py-1.5 font-semibold text-app-text">
-              Known: {totalKnown.toLocaleString()}
+              Known: {formatNumber(totalKnown)}
             </span>
             <span className="rounded-control bg-app-soft px-3 py-1.5 font-semibold text-app-muted">
-              Unknown: {totalUnknown.toLocaleString()}
+              Unknown: {formatNumber(totalUnknown)}
             </span>
           </div>
           <div className="overflow-x-auto">
@@ -96,7 +97,7 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
                       </Link>
                     </TableCell>
                     <TableCell className="py-2 text-right font-semibold text-app-text">
-                      {s.users.toLocaleString()}
+                      {formatNumber(s.users)}
                     </TableCell>
                     <TableCell className="py-2 text-right text-app-muted">{s.percent}%</TableCell>
                     <TableCell className="py-2 text-right">

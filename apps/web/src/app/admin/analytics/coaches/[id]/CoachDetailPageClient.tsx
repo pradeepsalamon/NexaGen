@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { AreaChartCard } from "@/components/charts/Charts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
 import { KpiCard } from "@/components/ui/KpiCard";
@@ -20,10 +19,14 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { enumLabel } from "@/lib/utils";
 
 export function CoachDetailPageClient({ coachId }: { coachId: string }) {
   return (
-    <AnalyticsPageShell title="Coach analytics">
+    <AnalyticsPageShell
+      breadcrumbs={[{ label: "Dashboard", href: "/admin" }, { label: "Coaches", href: "/admin/analytics/coaches" }, { label: "Coach" }]}
+      title="Coach analytics"
+    >
       {(query) => <Body coachId={coachId} query={query} />}
     </AnalyticsPageShell>
   );
@@ -51,15 +54,9 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
 
   return (
     <div className="space-y-5">
-      <Link
-        className="inline-flex items-center gap-1 text-sm font-semibold text-primary-ink hover:underline"
-        href="/admin/analytics/coaches"
-      >
-        <ArrowLeft className="size-4" /> All coaches
-      </Link>
 
       <div>
-        <h2 className="text-lg font-extrabold text-app-text">
+        <h2 className="text-lg font-bold text-app-text">
           {isLoading ? "Loading…" : c?.name}
         </h2>
         {c ? <p className="text-sm text-app-muted">{c.email}</p> : null}
@@ -128,7 +125,7 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
                   <TableCell className="text-left py-2 text-app-muted">{formatFullDate(cls.date, tz)}</TableCell>
                   <TableCell className="py-2 text-right">{cls.durationMinutes} min</TableCell>
                   <TableCell className="py-2 text-right">{formatPercent(cls.attendancePercent)}</TableCell>
-                  <TableCell className="text-left py-2">{cls.status}</TableCell>
+                  <TableCell className="text-left py-2">{enumLabel(cls.status)}</TableCell>
                 </TableRow>
               ))}
               {!isLoading && (data?.recentClasses.length ?? 0) === 0 ? (

@@ -23,7 +23,7 @@ export function ClassesAnalyticsPageClient() {
           <AnalyticsFilters onChange={update} query={query} />
           <ClassAnalyticsSection query={query} />
           <div>
-            <h2 className="mb-2 text-base font-extrabold text-app-text">Class log</h2>
+            <h2 className="mb-2 text-base font-bold text-app-text">Class log</h2>
             <AnalyticsDrillTable<AnalyticsClassRow>
               columns={[
                 { key: "date", header: "When", sortable: true, align: "right", render: (r) => formatDateTime(r.date, tz) },

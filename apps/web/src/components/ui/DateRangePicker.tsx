@@ -99,7 +99,7 @@ export function DateRangePicker({
       <Popover onOpenChange={handleOpenChange} open={open}>
         <PopoverTrigger asChild>
           <Button
-            className="min-w-[12rem] justify-between gap-2"
+            className="justify-between gap-2 sm:min-w-[12rem]"
             size="sm"
             variant="outline"
           >

@@ -40,17 +40,17 @@ export function AnalyticsFilters({
   onChange: (patch: Partial<AnalyticsRangeQuery>) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
       <Select
         aria-label="Role filter"
-        className="w-auto min-w-[8rem]"
+        className="w-full sm:w-auto sm:min-w-[8rem]"
         onChange={(e) => onChange({ role: e.target.value || undefined })}
         options={ROLE_OPTIONS}
         value={query.role ?? ""}
       />
       <Select
         aria-label="Class type filter"
-        className="w-auto min-w-[8rem]"
+        className="w-full sm:w-auto sm:min-w-[8rem]"
         onChange={(e) =>
           onChange({
             classType: (e.target.value ||
@@ -62,7 +62,7 @@ export function AnalyticsFilters({
       />
       <Select
         aria-label="Acquisition source filter"
-        className="w-auto min-w-[8rem]"
+        className="w-full sm:w-auto sm:min-w-[8rem]"
         onChange={(e) =>
           onChange({ acquisitionSource: e.target.value || undefined })
         }

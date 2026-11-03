@@ -19,7 +19,7 @@ export function CoachesAnalyticsPageClient() {
         <div className="space-y-5">
           <CoachAnalyticsSection query={query} showTable={false} />
           <div>
-            <h2 className="mb-2 text-base font-extrabold text-app-text">Leaderboard</h2>
+            <h2 className="mb-2 text-base font-bold text-app-text">Leaderboard</h2>
             <AnalyticsDrillTable<CoachLeaderboardRow>
               columns={[
                 {

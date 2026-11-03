@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { LineChartCard } from "@/components/charts/Charts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
 import { KpiCard } from "@/components/ui/KpiCard";
@@ -15,6 +13,7 @@ import {
   relativeTime
 } from "@/features/analytics/lib/format";
 import { formatDayMonth } from "@/lib/datetime";
+import { enumLabel } from "@/lib/utils";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
@@ -22,7 +21,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 export function BatchDetailPageClient({ batchId }: { batchId: string }) {
   return (
-    <AnalyticsPageShell title="Batch analytics">
+    <AnalyticsPageShell
+      breadcrumbs={[{ label: "Dashboard", href: "/admin" }, { label: "Batches", href: "/admin/analytics/batches" }, { label: "Batch" }]}
+      title="Batch analytics"
+    >
       {(query) => <Body batchId={batchId} query={query} />}
     </AnalyticsPageShell>
   );
@@ -54,19 +56,13 @@ function Body({
 
   return (
     <div className="space-y-5">
-      <Link
-        className="inline-flex items-center gap-1 text-sm font-semibold text-primary-ink hover:underline"
-        href="/admin/analytics/batches"
-      >
-        <ArrowLeft className="size-4" /> All batches
-      </Link>
       <div>
-        <h2 className="text-lg font-extrabold text-app-text">
+        <h2 className="text-lg font-bold text-app-text">
           {isLoading ? "Loading…" : b?.name}
         </h2>
         {b ? (
           <p className="text-sm text-app-muted">
-            {b.status} · {b.coachNames.join(", ") || "no coach"}
+            {enumLabel(b.status)} · {b.coachNames.join(", ") || "no coach"}
           </p>
         ) : null}
       </div>
