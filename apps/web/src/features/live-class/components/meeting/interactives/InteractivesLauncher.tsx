@@ -1,79 +1,39 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { Pause, Shapes, Timer } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/Popover";
-import { Switch } from "@/components/ui/Switch";
 import { cn } from "@/lib/utils";
 import { formatClockMs } from "../../../hooks/useClassroomTimer";
 import { MeetingControlButton } from "../MeetingControlButton";
-import { InteractivePanel } from "./InteractivePanel";
 import { useInteractives, useInteractivesTimer } from "./InteractivesProvider";
 import { INTERACTIVE_TOOLS, findInteractiveTool, type InteractiveToolId } from "./registry";
-import { PresentedViewProvider } from "./shared";
 
 const COLUMNS = 4;
 
 /**
- * The coach's toolbar button → popover of the fourteen classroom Interactives →
- * the chosen tool in a floating panel. While "Show to class" is on (the
- * default) the open tool is presented: every student sees it live on their
- * main stage. Closing the panel stops showing it. Students have no launcher.
+ * The coach's toolbar button → popover of the fourteen classroom Interactives.
+ * The chosen tool opens on the coach's stage in the board's place (the
+ * `interactive` tab — never a floating panel), with "Show to class" (on by
+ * default) presenting it on every student's stage. Students have no launcher.
  */
 export function InteractivesLauncher() {
-  const { classId, isManager, present, presenting, publishView } = useInteractives();
+  const { openTool, openToolId, stageOpen } = useInteractives();
   const timer = useInteractivesTimer();
 
   const [open, setOpen] = useState(false);
-  const [toolId, setToolId] = useState<InteractiveToolId | null>(null);
-  const [sharing, setSharing] = useState(true);
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const tool = findInteractiveTool(toolId);
-
-  // After a refresh, reopen whatever the class is still being shown.
-  const restored = useRef(false);
-  useEffect(() => {
-    if (restored.current || !presenting) return;
-    restored.current = true;
-    if (presenting.toolId) setToolId((current) => current ?? presenting.toolId);
-  }, [presenting]);
+  const tool = findInteractiveTool(openToolId);
 
   const choose = (id: InteractiveToolId) => {
-    setToolId(id);
     setOpen(false);
-    if (sharing) present(id);
+    openTool(id);
   };
-
-  const close = () => {
-    setToolId(null);
-    present(null);
-    triggerRef.current?.focus();
-  };
-
-  const toggleSharing = (next: boolean) => {
-    setSharing(next);
-    present(next ? toolId : null);
-  };
-
-  const publish = useCallback(
-    (view: unknown) => {
-      if (toolId) publishView(toolId, view);
-    },
-    [publishView, toolId],
-  );
-  const presentedView = useMemo(
-    () =>
-      toolId && sharing
-        ? { mode: "present" as const, publish, toolId, view: null }
-        : null,
-    [publish, sharing, toolId],
-  );
 
   // Arrow keys move through the four-column grid.
   const onGridKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -106,8 +66,8 @@ export function InteractivesLauncher() {
 
   return (
     <div className="relative">
-      {/* The running classroom timer rides on the launcher's top edge, for everyone, while its panel is closed. */}
-      {timerVisible && toolId !== "classroom-timer" && timer.phase ? (
+      {/* The running classroom timer rides on the launcher's top edge unless the timer is on the stage. */}
+      {timerVisible && !(openToolId === "classroom-timer" && stageOpen) && timer.phase ? (
         <button
           aria-label={`Classroom timer: ${timer.phase.label}, ${formatClockMs(timer.remainingMs)} left. Open the timer`}
           className={cn(
@@ -130,7 +90,6 @@ export function InteractivesLauncher() {
             aria-haspopup="dialog"
             icon={<Shapes className="size-5" />}
             label="Interactives"
-            ref={triggerRef}
             variant={open || tool ? "active" : "default"}
           />
         </PopoverTrigger>
@@ -170,7 +129,7 @@ export function InteractivesLauncher() {
                       className={cn(
                         "flex size-11 items-center justify-center rounded-full transition-transform group-hover:scale-105 group-active:scale-95 motion-reduce:transition-none",
                         t.tone,
-                        t.id === toolId && "ring-2 ring-primary",
+                        t.id === openToolId && "ring-2 ring-primary",
                       )}
                     >
                       <Icon
@@ -193,29 +152,6 @@ export function InteractivesLauncher() {
         </PopoverContent>
       </Popover>
 
-      {tool ? (
-        <InteractivePanel
-          headerAction={
-            <Switch
-              checked={sharing}
-              className="shrink-0"
-              label="Show to class"
-              onCheckedChange={toggleSharing}
-            />
-          }
-          onClose={close}
-          subtitle={sharing ? "Your class sees this live" : tool.blurb}
-          tool={tool}
-        >
-          <PresentedViewProvider value={presentedView}>
-            <tool.Component
-              classId={classId}
-              isManager={isManager}
-              timer={timer}
-            />
-          </PresentedViewProvider>
-        </InteractivePanel>
-      ) : null}
     </div>
   );
 }

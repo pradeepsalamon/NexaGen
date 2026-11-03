@@ -19,7 +19,7 @@ import { PipProvider } from "../../providers/PipProvider";
 import { useIsBoardViewport } from "../../hooks/useIsBoardViewport";
 import { ClassroomLayout, CLASSROOM_PANEL_OFFSET } from "./classroom/ClassroomLayout";
 import { InteractivesProvider } from "./interactives/InteractivesProvider";
-import { PresentedInteractiveOverlay } from "./interactives/PresentedInteractive";
+import { InteractivePhoneStage, useInteractiveStageShown } from "./interactives/InteractiveStage";
 
 /** Room-wide hooks, rendered as a leaf so their LiveKit / store updates don't re-render the layout. */
 function MeetingLayoutEffects({ autoShare }: { autoShare: boolean }) {
@@ -30,11 +30,35 @@ function MeetingLayoutEffects({ autoShare }: { autoShare: boolean }) {
 }
 
 /**
+ * Phones: the video grid (with the student's full-stage board), or — while an
+ * Interactive is open — that tool in its place. The grid stays mounted, only
+ * hidden, so going back keeps its board / spotlight state.
+ */
+function PhoneStage() {
+  const toolShown = useInteractiveStageShown();
+  return (
+    <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div
+        className={cn(
+          "custom-scrollbar relative flex min-h-0 flex-1 flex-col overflow-y-auto",
+          toolShown && "hidden",
+        )}
+      >
+        <MeetingVideoGrid />
+      </div>
+      {toolShown ? <InteractivePhoneStage /> : null}
+    </div>
+  );
+}
+
+/**
  * Main meeting layout orchestrator.
  *
  * md and up is a single page — `ClassroomLayout`: board (or video grid) on
  * the left, video + one tab bar on the right, the coach's board always shared.
  * Phones keep the video grid, with the student's full-stage `BoardStage`.
+ * Interactives always open in the board's place (a stage tab on md+, the
+ * grid's place on phones), never as a floating panel.
  */
 export function MeetingLayout() {
   const wide = useIsBoardViewport();
@@ -54,15 +78,7 @@ export function MeetingLayout() {
             <BoardProvider>
               <LiveBoardSyncBridge>
                 <BoardControlToasts />
-                {classroom ? (
-                  <ClassroomLayout isCoach={isCoach} />
-                ) : (
-                  <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-                    <div className="custom-scrollbar relative flex min-h-0 flex-1 flex-col overflow-y-auto">
-                      <MeetingVideoGrid />
-                    </div>
-                  </div>
-                )}
+                {classroom ? <ClassroomLayout isCoach={isCoach} /> : <PhoneStage />}
               </LiveBoardSyncBridge>
             </BoardProvider>
 
@@ -79,9 +95,6 @@ export function MeetingLayout() {
             <MeetingToolbar />
           </div>
         </div>
-
-        {/* Phones: what the coach presents opens centred over the class (md+ shows it as a stage tab). */}
-        {!classroom && !isCoach ? <PresentedInteractiveOverlay /> : null}
       </InteractivesProvider>
 
       {/* Whichever mini player this browser supports; each no-ops otherwise. */}

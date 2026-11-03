@@ -25,7 +25,7 @@ import { SimulStudentBoard } from "../simul/SimulStudentBoard";
 import { ClassroomBoard } from "./ClassroomBoard";
 import { ClassroomPanel } from "./ClassroomPanel";
 import { useInteractives } from "../interactives/InteractivesProvider";
-import { PresentedInteractiveStage, usePresentedTool } from "../interactives/PresentedInteractive";
+import { InteractiveStage, useStageTool } from "../interactives/InteractiveStage";
 import { InlineStage } from "./InlineStage";
 
 /** Activity stages exist only while their activity does; board and video always. */
@@ -156,9 +156,9 @@ function PresentationControls({
  *
  * Each activity tab mirrors the open flag its phone dialog uses
  * (`puzzleSolverOpen`, `puzzleBoardsOpen`, simul / match `coachOpen` or
- * `studentOpen`, the Interactives' `studentOpen`), so whatever "opens" an
+ * `studentOpen`, the Interactives' `stageOpen`), so whatever "opens" an
  * activity — a new assignment, a toast's action, a panel button, the coach
- * presenting a tool — switches to its tab instead of a pop-up.
+ * opening or presenting a tool — switches to its tab instead of a pop-up.
  *
  * Must render inside `<BoardProvider>` + `<LiveBoardSyncBridge>`, `<ChatProvider>`,
  * `<SimulProvider>` and `<MatchProvider>`.
@@ -192,7 +192,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
   const simul = useSimul();
   const match = useMatch();
   const interactives = useInteractives();
-  const presentedTool = usePresentedTool();
+  const stageTool = useStageTool();
   const activityRun = useActivityRun();
 
   const available: Record<ActivityStage, boolean> = {
@@ -201,8 +201,8 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
     boards: isCoach && !!activePuzzle,
     simul: simul.isManager ? !!simul.simul : !!simul.myGame,
     match: !!match.round,
-    // Students only: the tool the coach is presenting, in the board's place.
-    interactive: !!presentedTool,
+    // An Interactive, in the board's place: the coach's open tool, or the one the coach presents.
+    interactive: !!stageTool,
     // An MCQ / Playout: while it runs, and afterwards for whoever still has its results open.
     activity: !!activityRun.run && (activityRun.run.status === "ACTIVE" || activityRun.open)
   };
@@ -211,7 +211,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
     boards: puzzleBoardsOpen,
     simul: simul.isManager ? simul.coachOpen : simul.studentOpen,
     match: match.isManager ? match.coachOpen : match.studentOpen,
-    interactive: interactives.studentOpen,
+    interactive: interactives.stageOpen,
     activity: activityRun.open
   };
   const setters: Record<ActivityStage, (open: boolean) => void> = {
@@ -219,7 +219,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
     boards: setPuzzleBoardsOpen,
     simul: simul.isManager ? simul.setCoachOpen : simul.setStudentOpen,
     match: match.isManager ? match.setCoachOpen : match.setStudentOpen,
-    interactive: interactives.setStudentOpen,
+    interactive: interactives.setStageOpen,
     activity: activityRun.setOpen
   };
   // Starts closed, so a flag already open at mount (a resize from the phone layout) counts as opening.
@@ -313,7 +313,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
       { id: "match", label: "Matches", icon: <Swords className="size-3.5" strokeWidth={2.5} />, show: available.match, badge: matchBadge },
       {
         id: "interactive",
-        label: presentedTool?.label ?? "Interactive",
+        label: stageTool?.label ?? "Interactive",
         icon: <Shapes className="size-3.5" strokeWidth={2.5} />,
         show: available.interactive
       },
@@ -334,7 +334,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
     available.interactive,
     available.activity,
     activityRun.run?.kind,
-    presentedTool?.label,
+    stageTool?.label,
     simulBadge,
     matchBadge
   ]);
@@ -381,7 +381,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
           <MatchStudentView stageSwitch={stageSwitch} />
         )
       ) : stage === "interactive" ? (
-        <PresentedInteractiveStage stageSwitch={stageSwitch} />
+        <InteractiveStage stageSwitch={stageSwitch} />
       ) : stage === "activity" ? (
         <ActivityRunStage stageSwitch={stageSwitch} />
       ) : stage === "video" ? (
