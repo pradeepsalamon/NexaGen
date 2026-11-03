@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, Languages, Lightbulb, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ExternalLink, Languages, Lightbulb, ThumbsDown, ThumbsUp } from "lucide-react";
 import { KNOWLEDGE_SOURCE_LABELS, type KnowledgeHelpArticle } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -14,7 +15,6 @@ import { usePlanFeature } from "@/features/subscription/hooks/useSubscription";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { canAccessPath } from "@/lib/routeAccess";
-import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useHelpArticle, useHelpFeedback } from "../hooks/useKnowledgeApi";
 import { classifyHref } from "../lib/markdown";
@@ -51,17 +51,14 @@ export function ArticleView({ article, readOnly = false }: { article: KnowledgeH
   return (
     <article className="mx-auto max-w-3xl space-y-6">
       {!readOnly && (
-        <Link className="inline-flex items-center gap-1.5 text-sm font-semibold text-app-muted hover:text-app-text" href="/help">
-          <ArrowLeft aria-hidden className="size-4" />
-          Help centre
-        </Link>
+        <Breadcrumbs items={[{ href: "/help", label: "Help centre" }, { label: article.title }]} />
       )}
       <header className="space-y-3">
         <div className="flex flex-wrap gap-1.5">
           <Badge variant="outline">{KIND_LABEL[article.kind]}</Badge>
           {article.categoryName && <Badge variant="secondary">{article.categoryName}</Badge>}
         </div>
-        <h1 className="text-2xl font-extrabold leading-tight">{article.title}</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">{article.title}</h1>
         {article.summary && <p className="text-app-muted">{article.summary}</p>}
         {article.translations.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -94,20 +91,23 @@ export function ArticleView({ article, readOnly = false }: { article: KnowledgeH
         </p>
         {!readOnly && (
           <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <span className="font-semibold">Was this helpful?</span>
+            <span className="font-semibold text-app-text">Was this helpful?</span>
             <div className="flex flex-wrap items-center gap-2">
               {([true, false] as const).map((helpful) => (
                 <Button
                   aria-pressed={article.myFeedback === helpful}
-                  className={cn(article.myFeedback === helpful && "border-primary bg-primary/10")}
                   disabled={feedback.isPending}
                   key={String(helpful)}
                   // undo: intentionally excluded — voting again overwrites the vote.
                   onClick={() => feedback.mutate({ helpful, id: article.id })}
                   size="sm"
-                  variant="outline"
+                  variant={article.myFeedback === helpful ? "primary" : "neutral"}
                 >
-                  {helpful ? <ThumbsUp aria-hidden className="mr-1.5 size-4" /> : <ThumbsDown aria-hidden className="mr-1.5 size-4" />}
+                  {helpful ? (
+                    <ThumbsUp aria-hidden className="size-4" strokeWidth={2.25} />
+                  ) : (
+                    <ThumbsDown aria-hidden className="size-4" strokeWidth={2.25} />
+                  )}
                   {helpful ? "Yes" : "No"}
                 </Button>
               ))}
@@ -118,7 +118,7 @@ export function ArticleView({ article, readOnly = false }: { article: KnowledgeH
               )}
               {role === "COACH" && (
                 <Button onClick={() => setSuggestOpen(true)} size="sm" variant="ghost">
-                  <Lightbulb aria-hidden className="mr-1.5 size-4" />
+                  <Lightbulb aria-hidden className="size-4" strokeWidth={2.25} />
                   Suggest an edit
                 </Button>
               )}
@@ -127,7 +127,7 @@ export function ArticleView({ article, readOnly = false }: { article: KnowledgeH
         )}
         {article.related.length > 0 && (
           <section className="space-y-3">
-            <h2 className="text-base font-bold">Related</h2>
+            <h2 className="text-base font-semibold text-app-text">Related</h2>
             <div className="grid gap-3 md:grid-cols-2">
               {article.related.map((r) => (
                 <ArticleCard article={r} key={r.id} />
@@ -177,7 +177,7 @@ function ResourceLink({ article, role }: { article: KnowledgeHelpArticle; role: 
   return (
     <Button asChild>
       <Link href={href}>
-        <ExternalLink aria-hidden className="mr-2 size-4" strokeWidth={2.5} />
+        <ExternalLink aria-hidden className="size-4" strokeWidth={2.5} />
         Open
       </Link>
     </Button>

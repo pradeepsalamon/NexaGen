@@ -28,7 +28,6 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePlanFeature } from "@/features/subscription/hooks/useSubscription";
-import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useHelp } from "../hooks/useKnowledgeApi";
 import { CoachSuggestionsPanel, CoachTrendsPanel } from "./CoachHelpPanels";
@@ -75,7 +74,7 @@ export function HelpCenterClient() {
           isStaffRole(role) ? (
             <Button asChild variant="outline">
               <Link href="/admin/knowledge">
-                <Settings2 aria-hidden className="mr-2 size-4" strokeWidth={2.5} />
+                <Settings2 aria-hidden className="size-4" strokeWidth={2.5} />
                 Manage knowledge base
               </Link>
             </Button>
@@ -88,15 +87,15 @@ export function HelpCenterClient() {
         <Tabs onValueChange={setTab} value={tab}>
           <TabsList>
             <TabsTrigger value="help">
-              <LifeBuoy aria-hidden className="size-4" />
+              <LifeBuoy aria-hidden className="size-4" strokeWidth={2.25} />
               Help articles
             </TabsTrigger>
             <TabsTrigger value="suggest">
-              <Lightbulb aria-hidden className="size-4" />
+              <Lightbulb aria-hidden className="size-4" strokeWidth={2.25} />
               My suggestions
             </TabsTrigger>
             <TabsTrigger value="trends">
-              <TrendingUp aria-hidden className="size-4" />
+              <TrendingUp aria-hidden className="size-4" strokeWidth={2.25} />
               What students ask
             </TabsTrigger>
           </TabsList>
@@ -150,17 +149,15 @@ function HelpBrowser() {
 
   return (
     <div className="space-y-6">
-      <div className="relative">
-        <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-app-muted" />
-        <Input
-          aria-label="Search help"
-          className="pl-11"
-          maxLength={200}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search help — e.g. how do I join a class?"
-          value={q}
-        />
-      </div>
+      <Input
+        aria-label="Search help"
+        leadingIcon={<Search strokeWidth={2.25} />}
+        maxLength={200}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search help, e.g. how do I join a class?"
+        type="search"
+        value={q}
+      />
 
       {data && !searchQ && data.categories.length > 0 && (
         <div aria-label="Categories" className="flex flex-wrap gap-2" role="group">
@@ -178,7 +175,7 @@ function HelpBrowser() {
 
       {data && data.forThisPage.length > 0 && !searchQ && (
         <section aria-labelledby="help-this-page" className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-app-muted" id="help-this-page">
+          <h2 className="text-sm font-semibold text-app-muted" id="help-this-page">
             Help for the page you were on
           </h2>
           <div className="grid gap-3 md:grid-cols-2">
@@ -206,10 +203,12 @@ function HelpBrowser() {
             <AskCoachHint href={askCoachHref} show={role === "STUDENT" && planHasChat} />
           </section>
         ) : (
-          <Card className="space-y-4 p-6 text-center">
-            <MessageCircleQuestion aria-hidden className="mx-auto size-10 text-app-muted" />
+          <Card className="flex flex-col items-center gap-4 p-6 text-center">
+            <span className="flex size-9 items-center justify-center rounded-full bg-app-soft">
+              <MessageCircleQuestion aria-hidden className="size-4 text-app-muted" strokeWidth={2.25} />
+            </span>
             <div>
-              <p className="font-bold">No article answers that yet.</p>
+              <p className="text-sm font-semibold text-app-text">No article answers that yet.</p>
               <p className="mt-1 text-sm text-app-muted">
                 Your question has been passed to the academy team so they can write one.
               </p>
@@ -231,7 +230,7 @@ function HelpBrowser() {
         <div className="space-y-6">
           {grouped.map((group) => (
             <section className="space-y-3" key={group.name}>
-              <h2 className="text-base font-bold">{group.name}</h2>
+              <h2 className="text-base font-semibold text-app-text">{group.name}</h2>
               <div className="grid gap-3 md:grid-cols-2">
                 {group.items.map((a) => (
                   <ArticleCard article={a} key={a.id} />
@@ -247,17 +246,9 @@ function HelpBrowser() {
 
 function CategoryChip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
-    <button
-      aria-pressed={active}
-      className={cn(
-        "min-h-9 rounded-control border px-4 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
-        active ? "border-primary bg-primary text-on-primary" : "border-app-line-strong bg-app-surface text-app-text hover:bg-app-soft",
-      )}
-      onClick={onClick}
-      type="button"
-    >
+    <Button aria-pressed={active} onClick={onClick} size="sm" variant={active ? "primary" : "neutral"}>
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -277,15 +268,15 @@ export function ArticleCard({ article, hrefBase = "/help" }: { article: Knowledg
   const Icon = KIND_ICON[article.kind];
   return (
     <Link
-      className="group block rounded-panel border border-app-border bg-app-surface p-4 shadow-card transition hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+      className="group block rounded-app border border-app-border bg-app-surface p-4 font-normal shadow-card transition-colors hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
       href={`${hrefBase}/${article.slug}`}
     >
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary-ink">
+        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-ink">
           <Icon aria-hidden className="size-4" strokeWidth={2.5} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-app-text group-hover:text-primary-ink">{article.title}</p>
+          <p className="font-semibold text-app-text group-hover:text-primary-ink">{article.title}</p>
           {(article.snippet || article.summary) && (
             <p className="mt-1 line-clamp-2 text-sm text-app-muted">{article.snippet ?? article.summary}</p>
           )}
