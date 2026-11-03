@@ -149,7 +149,7 @@ export function MysteryBoxTool({ classId, isManager }: ToolContext) {
   return (
     <div className="space-y-4">
       <div className="rounded-app border border-app-border bg-app-soft p-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-app-muted">
+        <p className="text-xs font-bold text-app-muted">
           Class goal
         </p>
         <p className="mt-0.5 font-bold text-app-text">{state.goal}</p>
@@ -184,7 +184,7 @@ export function MysteryBoxTool({ classId, isManager }: ToolContext) {
             <div className="mx-auto flex size-24 items-center justify-center rounded-app bg-success/15 text-5xl">
               {reward.emoji}
             </div>
-            <p className="mt-3 text-xs font-bold uppercase tracking-wide text-success-ink">
+            <p className="mt-3 text-xs font-bold text-success-ink">
               Mystery box unlocked!
             </p>
             <p className="text-xl font-extrabold text-app-text">

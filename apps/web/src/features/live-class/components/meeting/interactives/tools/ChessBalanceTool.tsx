@@ -158,7 +158,7 @@ export function ChessBalanceTool() {
         </div>
         <div className="grid grid-cols-3 items-center text-center">
           <p>
-            <span className="block text-xs font-bold uppercase text-app-muted">
+            <span className="block text-xs font-bold text-app-muted">
               White
             </span>
             <span className="text-2xl font-extrabold text-app-text">
@@ -169,7 +169,7 @@ export function ChessBalanceTool() {
             <Scale aria-hidden="true" className="size-6" strokeWidth={2.25} />
           </p>
           <p>
-            <span className="block text-xs font-bold uppercase text-app-muted">
+            <span className="block text-xs font-bold text-app-muted">
               Black
             </span>
             <span className="text-2xl font-extrabold text-app-text">

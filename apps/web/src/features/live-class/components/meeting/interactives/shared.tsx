@@ -255,7 +255,7 @@ export function SectionTitle({
   return (
     <h3
       className={cn(
-        "text-xs font-bold uppercase tracking-wide text-app-muted",
+        "text-xs font-bold text-app-muted",
         className,
       )}
     >

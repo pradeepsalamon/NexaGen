@@ -29,7 +29,7 @@ function PanelSection({
 
   const heading = (
     <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
-      <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-app-muted">
+      <span className="flex items-center gap-2 text-[11px] font-bold text-app-muted">
         <span className="text-app-muted">{icon}</span>
         {title}
       </span>

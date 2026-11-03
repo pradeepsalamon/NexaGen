@@ -192,7 +192,7 @@ function selfCellClass(isSelf: boolean) {
 
 function YouTag() {
   return (
-    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-bold uppercase leading-4 text-on-primary">
+    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-bold leading-4 text-on-primary">
       You
     </span>
   );
@@ -729,7 +729,7 @@ export function MeetingPuzzlePanel() {
 
       {!guest && (activePuzzle || lastResults) && boardView === "puzzle" ? (
         <div>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-app-muted">
+          <p className="mb-1.5 text-xs font-semibold text-app-muted">
             {activePuzzle ? "Leaderboard" : `Last puzzle — ${lastResults?.title ?? ""}`}
           </p>
           {note ? <p className="mb-1.5 text-xs text-app-muted">{note}</p> : null}

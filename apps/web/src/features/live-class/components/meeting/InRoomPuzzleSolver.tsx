@@ -68,7 +68,7 @@ function WrongMovesList({
   return (
     <aside className="hidden w-44 shrink-0 flex-col gap-2 lg:flex" aria-label="Wrong moves">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">Attempts</p>
+        <p className="text-xs font-semibold text-app-muted">Attempts</p>
         <p className="text-xs text-app-muted">{summary}</p>
       </div>
       <ol className="custom-scrollbar flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">{moves.map(chip)}</ol>

@@ -362,7 +362,7 @@ function ActiveRun({
           <FeedbackPop feedback={run.feedback} />
         </div>
         <div className="flex items-center justify-between rounded-app bg-primary/10 px-3 py-2">
-          <span className="text-xs font-bold uppercase tracking-wide text-app-muted">
+          <span className="text-xs font-bold text-app-muted">
             {storm ? "Solved" : "Score"}
           </span>
           <span className="text-3xl font-extrabold tabular-nums text-primary-ink">{rushScore(run)}</span>

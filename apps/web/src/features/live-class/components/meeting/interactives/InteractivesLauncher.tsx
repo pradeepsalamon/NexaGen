@@ -103,7 +103,7 @@ export function InteractivesLauncher() {
           side="top"
           sideOffset={12}
         >
-          <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wide text-app-muted">
+          <p className="mb-2 px-1 text-xs font-bold text-app-muted">
             Interactives
           </p>
           <div

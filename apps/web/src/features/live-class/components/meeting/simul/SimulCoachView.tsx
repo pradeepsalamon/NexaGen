@@ -559,7 +559,7 @@ export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
         </main>
 
         <aside className="flex shrink-0 gap-2 overflow-x-auto border-t border-app-border bg-app-surface p-2 lg:w-80 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:border-l lg:border-t-0 lg:p-3">
-          <p className="hidden text-xs font-semibold uppercase tracking-wide text-app-muted lg:block">
+          <p className="hidden text-xs font-semibold text-app-muted lg:block">
             Boards ({games.length})
           </p>
           <div className="flex gap-2 lg:grid lg:grid-cols-2">

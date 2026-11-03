@@ -53,7 +53,7 @@ export function ComboBar({ mode, combo }: { mode: PuzzleRushMode; combo: number 
   return (
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xs font-bold uppercase tracking-wide text-app-muted">Combo</span>
+        <span className="text-xs font-bold text-app-muted">Combo</span>
         <span className="text-lg font-extrabold tabular-nums text-app-text">{combo}</span>
       </div>
       <div
@@ -188,7 +188,7 @@ export function RushStandings({
   return (
     <div className="overflow-hidden rounded-control border border-app-border">
       <table className="w-full text-sm">
-        <thead className="bg-app-soft text-left text-[0.6875rem] font-bold uppercase tracking-wide text-app-muted">
+        <thead className="bg-app-soft text-left text-[0.6875rem] font-bold text-app-muted">
           <tr>
             <th className="px-2 py-1.5" scope="col">#</th>
             <th className="px-2 py-1.5" scope="col">Player</th>
@@ -260,7 +260,7 @@ export function RushSummary({
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {stats.map(([label, value]) => (
           <div className="rounded-control border border-app-border px-3 py-2" key={label}>
-            <dt className="text-[0.6875rem] font-bold uppercase tracking-wide text-app-muted">{label}</dt>
+            <dt className="text-[0.6875rem] font-bold text-app-muted">{label}</dt>
             <dd className="text-base font-extrabold tabular-nums text-app-text">{value}</dd>
           </div>
         ))}

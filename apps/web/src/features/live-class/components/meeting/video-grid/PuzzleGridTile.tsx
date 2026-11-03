@@ -98,7 +98,7 @@ export function PuzzleGridTile({
 
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 py-0.5">
           <div className="min-w-0 space-y-1">
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-ink">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary-ink">
               <PuzzleIcon className="size-3" strokeWidth={2.5} />
               Class puzzle
             </span>

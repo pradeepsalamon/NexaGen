@@ -184,7 +184,7 @@ export function ClassroomTimerTool({ isManager, timer }: ToolContext) {
   return (
     <div className="space-y-4">
       <div className="rounded-app border border-app-border bg-app-soft p-5 text-center">
-        <p className="text-xs font-bold uppercase tracking-wide text-app-muted">
+        <p className="text-xs font-bold text-app-muted">
           {state.status === "DONE"
             ? "All phases done"
             : `Phase ${state.index + 1} of ${state.phases.length}${state.status === "PAUSED" ? " · paused" : state.status === "IDLE" ? " · ready" : ""}`}

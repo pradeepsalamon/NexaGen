@@ -95,7 +95,7 @@ export function PickStudentTool({ classId, isManager }: ToolContext) {
         <CoachRunsThis />
         {last ? (
           <div className="rounded-app border border-app-border bg-app-soft p-5 text-center">
-            <p className="text-xs font-bold uppercase tracking-wide text-app-muted">
+            <p className="text-xs font-bold text-app-muted">
               Picked
             </p>
             <p className="mt-1 text-2xl font-extrabold text-primary-ink">
@@ -190,7 +190,7 @@ export function PickStudentTool({ classId, isManager }: ToolContext) {
           <div aria-live="polite" className="min-h-[4.5rem] text-center">
             {result ? (
               <div className="animate-in fade-in zoom-in-95">
-                <p className="text-xs font-bold uppercase tracking-wide text-app-muted">
+                <p className="text-xs font-bold text-app-muted">
                   It&apos;s your turn
                 </p>
                 <p className="text-2xl font-extrabold text-primary-ink">

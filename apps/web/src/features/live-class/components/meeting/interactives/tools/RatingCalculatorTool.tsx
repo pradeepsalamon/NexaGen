@@ -214,7 +214,7 @@ export function RatingCalculatorTool() {
         {allValid ? (
           <div className="grid grid-cols-3 items-center text-center">
             <p>
-              <span className="block text-xs font-bold uppercase text-app-muted">
+              <span className="block text-xs font-bold text-app-muted">
                 Before
               </span>
               <span className="text-2xl font-extrabold text-app-text">
@@ -230,7 +230,7 @@ export function RatingCalculatorTool() {
               {fmt(total)}
             </p>
             <p>
-              <span className="block text-xs font-bold uppercase text-app-muted">
+              <span className="block text-xs font-bold text-app-muted">
                 After
               </span>
               <span className="text-2xl font-extrabold text-primary-ink">

@@ -91,7 +91,7 @@ export function MeetingChat() {
           <div className="flex flex-col pb-4">
             <div className="flex items-center justify-center my-4 opacity-70">
               <div className="h-px flex-1 bg-app-border/50" />
-              <span className="px-3 text-[10px] font-bold text-app-muted uppercase tracking-wider">
+              <span className="px-3 text-[10px] font-bold text-app-muted">
                 Today
               </span>
               <div className="h-px flex-1 bg-app-border/50" />

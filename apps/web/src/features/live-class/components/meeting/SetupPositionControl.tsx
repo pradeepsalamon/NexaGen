@@ -36,7 +36,7 @@ export function SetupPositionControl() {
           </button>
         </PopoverTrigger>
         <PopoverContent side="top" className="w-56 p-2">
-          <p className="px-1.5 pb-1.5 text-xs font-semibold uppercase tracking-wide text-app-muted">Board shortcuts</p>
+          <p className="px-1.5 pb-1.5 text-xs font-semibold text-app-muted">Board shortcuts</p>
           <dl className="space-y-0.5">
             {COACH_BOARD_SHORTCUTS.map(({ id, key, label }) => (
               <div key={id} className="flex items-center justify-between gap-3 rounded-control px-1.5 py-1">

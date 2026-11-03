@@ -377,7 +377,7 @@ export function MatchCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
               )}
               {round.challenges.length > 0 ? (
                 <div className="space-y-1 pt-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">Open challenges</p>
+                  <p className="text-xs font-semibold text-app-muted">Open challenges</p>
                   {round.challenges.map((c) => (
                     <p key={c.id} className="truncate text-xs text-app-muted">
                       {c.from.name} → {c.to.name}

@@ -89,7 +89,7 @@ export function ChessLegendsTool({ classId, isManager }: ToolContext) {
           ))}
         </div>
         <div className="rounded-control border border-success/40 bg-success/10 p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-success-ink">
+          <p className="text-xs font-bold text-success-ink">
             The lesson
           </p>
           <p className="mt-0.5 text-sm text-app-text">{story.lesson}</p>
