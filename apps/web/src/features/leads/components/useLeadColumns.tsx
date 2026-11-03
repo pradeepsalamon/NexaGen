@@ -30,7 +30,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
         ),
         cell: ({ row }) => (
           <div className="min-w-40">
-            <p className="font-extrabold text-app-text">{row.original.studentName}</p>
+            <p className="font-semibold text-app-text">{row.original.studentName}</p>
             <p className="mt-1 text-xs text-app-muted">
               Age {row.original.studentAge} · {row.original.experienceLevel}
             </p>

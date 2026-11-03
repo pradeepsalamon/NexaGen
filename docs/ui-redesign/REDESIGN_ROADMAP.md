@@ -181,6 +181,8 @@ Dashboard, batches, schedule, assignments (decide whether `AssignmentFormDialog`
 | 7d | Content: courses, assignments, puzzles, scoring, plus knowledge and activities |
 | 7e | Settings and system: messaging, feedback, appearance, typography, subscription, privacy, email, game sync, retention, backups, trash, demo classes, batch classes, live class settings |
 
+**7a built 2026-11-03**, checked against a real API as the seeded super admin. Users and batches keep their tables, now under `PageHeader` with the All / Create / Settings tabs as its actions, sentence-case labels, and a neutral View menu; batch dates format in UTC (date-only columns). The request inbox is one bordered list with labelled Reject and Approve buttons. The class scheduler is a linked list with dates formatted. Leads use `PageHeader` and tone-correct tiles. `/admin/approvals` was already on v2, and `/admin/class-requests` redirects to the inbox.
+
 ### M8. Finance (L). High risk
 
 `/plans`, `/checkout/[planId]`, `/student/billing`, invoice views, `/coach/payments`, `/coach/earnings`, `/admin/payments`, `/admin/finance/invoices*`, `/admin/finance/coach-payroll*`.

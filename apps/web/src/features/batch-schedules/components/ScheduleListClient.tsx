@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarPlus, CalendarRange } from "lucide-react";
+import { CalendarPlus, CalendarRange, ChevronRight } from "lucide-react";
 import type { BatchScheduleStatus } from "@nexa-chess/types";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { WidgetError } from "@/components/ui/WidgetError";
+import { formatFullDate } from "@/lib/datetime";
 import { useBatchSchedulesQuery } from "../hooks/useBatchScheduleApi";
 import { enumLabel } from "@/lib/utils";
 
@@ -18,78 +20,77 @@ const STATUS_VARIANT: Record<BatchScheduleStatus, "success" | "warning" | "secon
 };
 
 export function ScheduleListClient() {
-  const { data, isLoading } = useBatchSchedulesQuery();
+  const { data, error, isLoading, refetch } = useBatchSchedulesQuery();
   const schedules = data?.schedules ?? [];
 
   return (
-    <div>
-      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-5">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-extrabold text-primary-ink">Class Scheduler</p>
-            <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">Class scheduler</h1>
-          </div>
+    <div className="animate-fade-in pb-10">
+      <PageHeader
+        actions={
           <Button asChild>
             <Link href="/admin/schedule/new">
-              <CalendarPlus className="size-4" aria-hidden="true" />
+              <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2.5} />
               New schedule
             </Link>
           </Button>
-        </header>
+        }
+        description="Recurring weekly schedules that generate each batch's classes."
+        title="Class scheduler"
+      />
 
-        {isLoading ? (
-          <div className="grid gap-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-24 w-full" />
-            ))}
-          </div>
-        ) : schedules.length === 0 ? (
-          <Card className="p-10">
-            <EmptyState variant="inline"
-              icon={CalendarRange}
-              title="No schedules yet"
-              description="Create a recurring weekly schedule to auto-generate a batch's classes."
-            />
-          </Card>
-        ) : (
-          <div className="grid gap-3">
-            {schedules.map((s) => (
-              <Link key={s.id} href={`/admin/schedule/${s.id}`}>
-                <Card className="grid gap-2 p-4 transition hover:border-primary">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-extrabold text-app-text">
-                        {s.batchName} — {s.title}
-                      </p>
-                      <p className="text-xs text-app-muted">
-                        {s.startDate} → {s.endDate} · {s.timezone}
-                      </p>
-                    </div>
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton className="h-20 rounded-app" key={i} />
+          ))}
+        </div>
+      ) : error ? (
+        <WidgetError
+          message="Couldn't load the schedules. Check your connection and try again."
+          onRetry={() => refetch()}
+        />
+      ) : schedules.length === 0 ? (
+        <EmptyState
+          description="Create a recurring weekly schedule to auto-generate a batch's classes."
+          icon={CalendarRange}
+          title="No schedules yet"
+        />
+      ) : (
+        <ul className="divide-y divide-app-border overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card">
+          {schedules.map((s) => (
+            <li key={s.id}>
+              <Link
+                className="flex flex-wrap items-start gap-3 p-4 transition-colors hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-app-focus"
+                href={`/admin/schedule/${s.id}`}
+              >
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-control bg-app-soft text-app-muted">
+                  <CalendarRange aria-hidden="true" className="size-5" strokeWidth={2.25} />
+                </span>
+                <div className="min-w-0 flex-1 basis-56">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="min-w-0 break-words text-sm font-semibold text-app-text">
+                      {s.batchName} — {s.title}
+                    </span>
                     <Badge variant={STATUS_VARIANT[s.status]}>{enumLabel(s.status)}</Badge>
                   </div>
-                  <div className="flex flex-wrap gap-4 text-xs text-app-muted">
-                    <span>
-                      <strong className="text-app-text">{s.totalClasses}</strong> total
-                    </span>
-                    <span>
-                      <strong className="text-app-text">{s.upcomingClasses}</strong> upcoming
-                    </span>
-                    <span>
-                      <strong className="text-app-text">{s.completedClasses}</strong> completed
-                    </span>
-                    <span>
-                      <strong className="text-app-text">{s.cancelledClasses}</strong> cancelled
-                    </span>
-                    <span>
-                      {s.ruleCount} weekly slot{s.ruleCount === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                </Card>
+                  <p className="mt-0.5 text-xs text-app-muted">
+                    {/* Schedule dates are calendar days, so they format in UTC. */}
+                    {formatFullDate(s.startDate, "UTC")} – {formatFullDate(s.endDate, "UTC")} · {s.timezone} ·{" "}
+                    {s.ruleCount} weekly slot{s.ruleCount === 1 ? "" : "s"}
+                  </p>
+                  <p className="mt-1 text-xs text-app-muted">
+                    <span className="font-semibold tabular-nums text-app-text">{s.totalClasses}</span> total ·{" "}
+                    <span className="font-semibold tabular-nums text-app-text">{s.upcomingClasses}</span> upcoming ·{" "}
+                    <span className="font-semibold tabular-nums text-app-text">{s.completedClasses}</span> completed ·{" "}
+                    <span className="font-semibold tabular-nums text-app-text">{s.cancelledClasses}</span> cancelled
+                  </p>
+                </div>
+                <ChevronRight aria-hidden="true" className="mt-3 size-4 shrink-0 text-app-muted" strokeWidth={2.5} />
               </Link>
-            ))}
-          </div>
-        )}
-      </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -30,7 +30,7 @@ export function OtherRequestQueues() {
 
   return (
     <section aria-labelledby="other-queues-heading" className="space-y-3">
-      <h2 id="other-queues-heading" className="text-lg font-bold text-app-text">
+      <h2 id="other-queues-heading" className="text-base font-semibold text-app-text">
         Also waiting for review
       </h2>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
