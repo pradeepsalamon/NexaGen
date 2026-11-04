@@ -13,6 +13,7 @@ import { useAuthStore } from "@/stores/authStore";
 export function AdminSidebar() {
   const pathname = usePathname();
   const role = useAuthStore((state) => state.user?.role);
+  const isPlatformOperator = useAuthStore((state) => state.user?.isPlatformOperator === true);
   // Slow poll for the "Live Now" chip; the page itself shares this query and polls faster.
   const { data: live } = useLiveClassesMonitor({
     enabled: role === "ADMIN" || role === "SUPER_ADMIN",
@@ -23,7 +24,7 @@ export function AdminSidebar() {
   const planFeatures = useCurrentEntitlements().data?.features;
   const groups = useMemo(
     () =>
-      getAdminNavGroups(role, planFeatures).map((group) => ({
+      getAdminNavGroups(role, planFeatures, isPlatformOperator).map((group) => ({
         ...group,
         items: group.items.map((item) =>
           item.href === "/admin/live-classes" && liveCount > 0
@@ -33,7 +34,7 @@ export function AdminSidebar() {
               : item
         )
       })),
-    [role, liveCount, chatBadge, planFeatures]
+    [role, liveCount, chatBadge, planFeatures, isPlatformOperator]
   );
 
   // Only the most specific match is active, so a nested link and its parent

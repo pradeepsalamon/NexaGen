@@ -20,6 +20,8 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/admin/classes", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/data-retention", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/demo-classes", roles: ["SUPER_ADMIN"] },
+  // Platform console: Nexa's super admins only (the API refuses any other academy's).
+  { prefix: "/admin/platform", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/trash", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin", roles: STAFF_ROLES },
   { prefix: "/coach", roles: ["COACH"] },
@@ -57,6 +59,8 @@ const PUBLIC_PREFIXES = [
   "/register",
   "/reset-password",
   "/signup",
+  // A platform support visit's one-time link (§I): signs in on the academy's host.
+  "/support",
   "/terms",
   "/verify-email"
 ] as const;

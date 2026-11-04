@@ -35,6 +35,7 @@ export const PAGE_TITLES = {
   "/admin/class-requests": "Class requests",
   "/admin/requests": "Requests",
   "/admin/classes": "Batch classes",
+  "/admin/content-packs": "Content packs",
   "/admin/courses": "Courses",
   "/admin/courses/[id]": "Course",
   "/admin/courses/new": "New course",
@@ -57,6 +58,8 @@ export const PAGE_TITLES = {
   "/admin/live-classes/[classId]": "Live class",
   "/admin/messaging": "Messaging rules",
   "/admin/payments": "Payments",
+  "/admin/platform": "Platform console",
+  "/admin/platform/academies/[tenantId]": "Academy",
   "/admin/privacy": "Privacy requests",
   "/admin/puzzles": "Puzzle library",
   "/admin/puzzles/[id]": "Puzzle",
@@ -131,6 +134,7 @@ export const PAGE_TITLES = {
   "/student/revision": "Smart revision",
   "/student/schedule": "Schedule",
   "/student/training": "Puzzle training",
+  "/support/enter": "Support visit",
   "/terms": "Terms of service",
   "/verify-email": "Verify email"
 } as const;

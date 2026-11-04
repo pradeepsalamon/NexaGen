@@ -42,6 +42,8 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 // Mid-login MFA steps have no session to refresh; a 401 there means the challenge expired.
 function isPreSessionRequest(config: InternalAxiosRequestConfig) {
   if (config.url === API_ROUTES.auth.mfaVerify) return true;
+  // A support visit's one-time link: a 401 means a used or expired link, not an expired session.
+  if (config.url === API_ROUTES.auth.supportEnter) return true;
   const body = typeof config.data === "string" ? config.data : "";
   return body.includes('"challengeToken":"');
 }
