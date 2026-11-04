@@ -1,7 +1,7 @@
 # Multi-tenant white-label SaaS — plan
 
-Status: **approved 2026-11-04; Phase 2 in progress** on `feat/saas-phase2-foundation`
-(branched off `dev`). The identity decisions (§N-14, §N-15), the database layout
+Status: **approved 2026-11-04; Phase 2 built, Phase 3 in progress** on
+`feat/saas-phase2-foundation` (branched off `dev`). The identity decisions (§N-14, §N-15), the database layout
 (§N-17) and the start (§N-13) were answered on 2026-11-04. Phase 2 is merged into
 `dev` only after the UI redesign has reached `main`, so the two never ship in the
 same release.
@@ -860,9 +860,30 @@ Audit log: every `scope: "request"` hit came from the e2e helpers' direct API
 calls, which send no `Origin` (Playwright's request client, not a browser);
 `webhook` hits were LiveKit callbacks and `background` hits crons, both Phase 3.
 
-**Left for Phase 2:** the opt-in e2e specs on staging, then one production
-release read through the audit log. The merge into `dev` waits until the
-redesign is on `main` (§N-13).
+**Left for Phase 2:** one production release read through the audit log. The
+merge into `dev` waits until the redesign is on `main` (§N-13). The opt-in e2e
+specs (live board, puzzles, feedback, …) were dropped as a Phase 2 check by the
+owner on 2026-11-04: they exercise live-class setup, not tenancy; their e2e
+issues are in BACKLOG.md.
+
+### Phase 3 plan
+
+Approved by the owner on 2026-11-04 ("continue saas"), on the same branch.
+Re-counted that day: **117 raw-SQL calls in 44 files** (80/24 in 2026-10),
+22 cron/interval jobs in 19 files, 3 queue workers, 114 `@unique` + 54
+`@@unique`. Built in slices; each is safe to merge alone because
+`TENANT_SCOPE_MODE` stays `audit` until the last one.
+
+| # | Slice | Done when |
+|---|---|---|
+| 1 | Extension filters every read/update/delete/count/upsert by the context's academy; `asPlatform(reason, fn)` bypass; `TENANT_SCOPE_MODE`; `authenticateUser` looks the token's user up as platform, then a host/user/session mismatch is a 401 under `enforce` | Unit + integration suites green with filtering on |
+| 2 | Crons, queue workers and webhooks: sweep under `asPlatform`, process each row in `runInTenant(row.tenantId)`; queue payloads carry `tenantId` and the worker checks it | No `background`/`webhook` hits on staging |
+| 3 | D4 migration: `tenantId` NOT NULL (CHECK … NOT VALID, VALIDATE, then SET NOT NULL, so no long lock), `(tenantId, …)` indexes, composite uniques beside the global ones, composite FKs on core relations | Migration rehearsed on a copy of production data |
+| 4 | Raw SQL: explicit `"tenantId" = ${tenantId}` in all 117 calls; a spec fails an unreviewed `$queryRaw` file | Spec green |
+| 5 | Per-academy singletons (T\*), invoice/credit-note/payslip sequences, login by `(tenantId, email)` | Two academies can each have their own settings and number series |
+| 6 | Caches keyed by academy, Cloudinary/recording paths, LiveKit room names, host-only cookies (no forced Nexa logout), per-academy CSRF origins | §K threat-model rows covered |
+| 7 | Two-academy integration suites (every route, cross-academy ids), then `TENANT_SCOPE_MODE=enforce` on staging | A second seeded academy can't see or change any Nexa row |
+
 
 ---
 

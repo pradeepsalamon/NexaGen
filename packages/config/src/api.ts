@@ -40,6 +40,10 @@ const apiEnvSchema = z.object({
   NODE_ENV: z.string().default("development"),
   PASSWORD_RESET_RESPONSE_DELAY: durationSchema.default("5s"),
   PORT: z.coerce.number().int().positive().default(3001),
+  // Multi-tenancy data layer (docs/SAAS_MULTI_TENANCY.md §E): `audit` logs a
+  // query with no academy in context, `enforce` refuses it. Reads are filtered
+  // by the context's academy in both modes.
+  TENANT_SCOPE_MODE: z.enum(["audit", "enforce"]).default("audit"),
   TRASH_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   SMTP_FROM: z.string().optional(),
   SMTP_HOST: z.string().optional(),

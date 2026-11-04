@@ -58,6 +58,7 @@ describe("WhatsAppService", () => {
       STOCKFISH_MAX_DEPTH: 20,
       COOKIE_SAME_SITE: "lax",
       TRUST_PROXY_HOPS: 0,
+      TENANT_SCOPE_MODE: "audit" as const,
       RECORDING_STORAGE_DIR: "/recordings",
       RECORDING_STORAGE_LIMIT_GB: 130,
       RECORDING_MIN_RETENTION_DAYS: 14,

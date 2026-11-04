@@ -1,3 +1,5 @@
+import { UnauthorizedException } from "@nestjs/common";
+import { setTenantScopeModeForTesting } from "../prisma/tenant-scope.extension";
 import { bindAuthenticatedUser } from "./bind-authenticated-user";
 import { resetTenantAuditForTesting, tenantAuditCountsForTesting } from "./tenant-audit";
 import { getTenantContext, runWithTenantContext, type TenantContextStore } from "./tenant-context";
@@ -11,7 +13,22 @@ const store = (tenantId: string | null): TenantContextStore => ({
 const user = { id: "u1", role: "COACH", tenantId: "tenant_nexa" };
 
 describe("bindAuthenticatedUser", () => {
-  beforeEach(() => resetTenantAuditForTesting());
+  beforeEach(() => {
+    resetTenantAuditForTesting();
+    setTenantScopeModeForTesting("audit");
+  });
+  afterAll(() => setTenantScopeModeForTesting(null));
+
+  it("refuses a host/user or session/user mismatch with a 401 in enforce mode", () => {
+    setTenantScopeModeForTesting("enforce");
+    expect(() => runWithTenantContext(store("tenant_acme"), () => bindAuthenticatedUser(user, null))).toThrow(
+      UnauthorizedException
+    );
+    expect(() =>
+      runWithTenantContext(store("tenant_nexa"), () => bindAuthenticatedUser(user, { tenantId: "tenant_acme" }))
+    ).toThrow(UnauthorizedException);
+    expect(() => runWithTenantContext(store("tenant_nexa"), () => bindAuthenticatedUser(user, { tenantId: "tenant_nexa" }))).not.toThrow();
+  });
 
   it("fills an empty context from the user's academy and records the user", () => {
     runWithTenantContext(store(null), () => {

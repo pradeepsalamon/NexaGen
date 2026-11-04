@@ -15,7 +15,9 @@ export type TenantAuditKind =
   /** The signed-in user's academy differs from the one the host resolved to. */
   | "user_mismatch"
   /** The session row's academy differs from its user's. */
-  | "session_mismatch";
+  | "session_mismatch"
+  /** A query named another academy's `tenantId` than the one in context. */
+  | "cross_tenant";
 
 export type TenantAuditEvent = {
   /**

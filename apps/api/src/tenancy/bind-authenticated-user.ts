@@ -1,12 +1,14 @@
+import { UnauthorizedException } from "@nestjs/common";
 import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
+import { tenantScopeMode } from "../prisma/tenant-scope.extension";
 import { reportTenantGap } from "./tenant-audit";
 import { getTenantContext } from "./tenant-context";
 
 /**
  * Called by `authenticateUser` once the user and session are loaded
  * (docs/SAAS_MULTI_TENANCY.md §B step 4). Fills an empty context from the
- * user's academy and records who is acting. Audit mode: a mismatch between
- * host, user and session is logged, not refused; Phase 3 makes it a 401.
+ * user's academy and records who is acting. A mismatch between host, user and
+ * session is a 401 in `enforce` mode and logged in `audit` mode.
  */
 export function bindAuthenticatedUser(
   user: { id: string; role: string; tenantId: string | null },
@@ -21,6 +23,7 @@ export function bindAuthenticatedUser(
       context.tenantId = userTenantId;
       context.source = "user";
     } else if (context.tenantId !== userTenantId) {
+      if (tenantScopeMode() === "enforce") throw new UnauthorizedException("Invalid session.");
       reportTenantGap(
         {
           at,
@@ -35,6 +38,7 @@ export function bindAuthenticatedUser(
     context.role = user.role;
   }
   if (session && (session.tenantId ?? DEFAULT_TENANT_ID) !== userTenantId) {
+    if (tenantScopeMode() === "enforce") throw new UnauthorizedException("Invalid session.");
     reportTenantGap(
       { at, detail: { sessionTenantId: session.tenantId, userTenantId }, kind: "session_mismatch", scope },
       `session_mismatch|${session.tenantId}|${userTenantId}`

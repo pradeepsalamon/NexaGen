@@ -147,9 +147,9 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 `platform/` + `features/subscription/`, catalogue `@nexa-chess/types` `platform-plans.ts`. The API enforces every feature/limit: global `FeatureGateGuard` + `@RequireFeature("key")`, and `EntitlementService.assert*` inside the creating transaction; refusals are **402**. A new catalogued feature must be required by a route (a spec checks) and added to the Enterprise row by migration. Plan changes are `platform_staff` only. [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md)
 
-### 3.6m2 Multi-tenancy (Phase 2, audit mode)
+### 3.6m2 Multi-tenancy (Phases 2–3)
 
-`apps/api/src/tenancy/`. **Every model not in `PLATFORM_MODELS` gets `tenantId String? @default("tenant_nexa")`** (a spec checks); the request's academy is in `TenantContext` (resolver middleware + `authenticateUser`), background work uses `runInTenant`. Gaps are logged (`tenant-audit`), not refused, until Phase 3. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 2 as built"
+`apps/api/src/tenancy/`. **Every model not in `PLATFORM_MODELS` gets `tenantId`** (a spec checks); the request's academy is in `TenantContext` (resolver middleware + `authenticateUser`) and the Prisma extension filters every query by it. Background work: `await runInTenant(tenantId, label, fn)`; cross-academy work only inside `asPlatform(reason, fn)` — both await inside, never return an unawaited query. `TENANT_SCOPE_MODE` `audit` logs gaps (`tenant-audit`), `enforce` refuses them. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 2 as built", "Phase 3 plan"
 
 ### 3.6n AI runtime (mock only)
 
