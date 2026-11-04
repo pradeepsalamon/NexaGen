@@ -33,17 +33,43 @@ export function isAllowedRequestOrigin(
   return allowedOrigins.has(source);
 }
 
-export function createOriginCheckMiddleware(allowedOrigins: string[], exemptPaths: string[]) {
+/** The request's Origin (or Referer) as an origin, if it sent one. */
+export function requestSourceOrigin(request: {
+  headers: Record<string, string | string[] | undefined>;
+}): string | undefined {
+  const header = (name: string) => {
+    const value = request.headers[name];
+    return Array.isArray(value) ? value[0] : value;
+  };
+  return originOf(header("origin") ?? header("referer"));
+}
+
+/**
+ * `isAcademyOrigin` admits an origin outside the static list: an academy's own
+ * ACTIVE domain (docs/SAAS_MULTI_TENANCY.md §E, "Sessions and cookies").
+ */
+export function createOriginCheckMiddleware(
+  allowedOrigins: string[],
+  exemptPaths: string[],
+  isAcademyOrigin?: (origin: string) => Promise<boolean>
+) {
   const allowed = new Set(allowedOrigins.map((origin) => originOf(origin) ?? origin));
-  return (request: Request, response: Response, next: NextFunction) => {
-    if (exemptPaths.some((path) => request.path === path || request.path.startsWith(`${path}/`))) {
-      return next();
-    }
-    if (isAllowedRequestOrigin(request, allowed)) return next();
+  const refuse = (response: Response) =>
     response.status(403).json({
       error: "Forbidden",
       message: "Request origin is not allowed.",
       statusCode: 403
     });
+  return (request: Request, response: Response, next: NextFunction) => {
+    if (exemptPaths.some((path) => request.path === path || request.path.startsWith(`${path}/`))) {
+      return next();
+    }
+    if (isAllowedRequestOrigin(request, allowed)) return next();
+    const source = requestSourceOrigin(request);
+    if (!isAcademyOrigin || !source || source === "null") return refuse(response);
+    isAcademyOrigin(source).then(
+      (ok) => (ok ? next() : refuse(response)),
+      (error: unknown) => next(error)
+    );
   };
 }

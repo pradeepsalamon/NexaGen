@@ -962,6 +962,27 @@ audit/enforce rule as the extension.
   swaps the key to `(tenantId, year)`. The same goes for
   `StorageSnapshot.capturedDate`. Both are additive-only blockers, not code.
 
+**Slice 6 (built 2026-11-04).**
+- **Analytics cache:** `AnalyticsCache.wrap` prefixes every key with the
+  context's academy itself, so no caller can leave it out. The Stockfish FEN
+  cache stays global (no personal data). The other in-process maps are keyed by
+  global cuids (class, user, room).
+- **Origins:** the CSRF origin check and CORS also admit an academy's ACTIVE
+  `tenant_domains` host over https (`TenantResolverService.isAcademyOrigin`,
+  cached with the resolver). The static `CORS_ORIGIN` list still covers Nexa.
+- **Files:** `tenantStorageRoot()` (`tenancy/tenant-paths.ts`): Nexa keeps
+  `nexa_chess/…`, others get `tenants/<id>/…` for profile and activity images,
+  PGNs, invoice and credit-note PDFs, payslips and manual-payment attachments.
+  The profile/activity image URL checks compare against the current academy's
+  root, so one academy can't attach (or have deleted) another's file.
+- **LiveKit:** `liveRoomName()`: Nexa keeps `class_<id>`, others get
+  `t_<tenantId>_class_<id>`. Token issuance needs no extra check: the class is
+  read through the extension, so another academy's class is a 404.
+- *(builder's calls, in `docs/BACKLOG.md`)* Host-only cookies wait for Phase 5's
+  same-origin `/api` (the web middleware reads the cookie on the web host).
+  Recordings stay in one flat directory, named after the room. PGN uploads stay
+  public for now. The per-academy throttle bucket waits for Phase 4.
+
 - **Slice 3b (not built):** `(tenantId, …)` indexes on hot paths (worth it only
   with many academies: with one, `tenantId` filters nothing) and composite FKs
   `(tenantId, parentId) → parent(tenantId, id)` on core relations (they change

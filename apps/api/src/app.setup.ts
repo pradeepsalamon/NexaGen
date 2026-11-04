@@ -26,7 +26,11 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
     API_ROUTES.payments.webhookCashfree,
     API_ROUTES.payments.webhookStripe
   ];
-  app.use(createOriginCheckMiddleware(corsOrigins, webhookPaths));
+  // An academy's own ACTIVE domains are allowed too, for the CSRF check and
+  // for CORS (docs/SAAS_MULTI_TENANCY.md §E "Sessions and cookies").
+  const resolver = app.get(TenantResolverService);
+  const isAcademyOrigin = (origin: string) => resolver.isAcademyOrigin(origin);
+  app.use(createOriginCheckMiddleware(corsOrigins, webhookPaths, isAcademyOrigin));
 
   // LiveKit sends 'application/webhook+json'. Parse it as raw text so we can verify the signature.
   app.use(
@@ -58,7 +62,7 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
   });
   // After every body parser (see the middleware's comment): the academy for
   // the rest of the request (docs/SAAS_MULTI_TENANCY.md §B).
-  app.use(createTenantContextMiddleware(app.get(TenantResolverService), webhookPaths));
+  app.use(createTenantContextMiddleware(resolver, webhookPaths));
 
   app.use(cookieParser());
   app.useGlobalPipes(
@@ -67,8 +71,15 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
       whitelist: true
     })
   );
+  const staticOrigins = new Set(corsOrigins);
   app.enableCors({
     credentials: true,
-    origin: corsOrigins
+    origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
+      if (!origin || staticOrigins.has(origin)) return callback(null, true);
+      isAcademyOrigin(origin).then(
+        (allowed) => callback(null, allowed),
+        (error: Error) => callback(error)
+      );
+    }
   });
 }

@@ -79,6 +79,16 @@ describe("TenantResolverService", () => {
   });
 });
 
+describe("TenantResolverService.isAcademyOrigin", () => {
+  it("admits an academy's ACTIVE domain over https only", async () => {
+    const { resolver } = makeResolver();
+    await expect(resolver.isAcademyOrigin("https://acme.nexachess.in")).resolves.toBe(true);
+    await expect(resolver.isAcademyOrigin("http://acme.nexachess.in")).resolves.toBe(false);
+    await expect(resolver.isAcademyOrigin("https://evil.example")).resolves.toBe(false);
+    await expect(resolver.isAcademyOrigin("not a url")).resolves.toBe(false);
+  });
+});
+
 describe("routeLabel", () => {
   it("collapses ids so audit keys stay few", () => {
     expect(routeLabel("GET", "/batches/cm1234567890abcdefghijk/students/42")).toBe("GET /batches/:id/students/:id");

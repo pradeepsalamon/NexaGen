@@ -179,6 +179,12 @@ its precondition, the student training surface, now exists).
 - **2026-11-03, `feat/live-class-redesign` — `GET /live-class/:id` now also returns `batchName`** (name only, no roster) for the top bar. Additive; say if you'd rather the top bar show only the head count.
 - **2026-11-03, `feat/live-class-redesign` — pre-join stays a two-column card** (camera preview beside the details) rather than the spec's 448px single column, which would push the preview below the fold on laptops. Waiting and error screens are 448px.
 
+- **2026-11-04 (overnight run), `feat/saas-phase2-foundation`: builder's calls for SaaS Phase 3 slice 6**, logged as the owner asked; change any of them:
+  1. **Host-only cookies are deferred to Phase 5.** The web middleware reads the auth cookie on the web host while the API sets it from `api.nexachess.in`, so a host-only cookie would never reach the web routes. Host-only needs Phase 5's same-origin `/api`. Meanwhile the session binding (slice 1) already makes a Nexa token useless on another academy's host under `enforce`.
+  2. **Recordings stay in one flat directory**, academy-distinct through the room name (`t_<tenantId>_class_<id>-<time>.mp4`). The plan's `<RECORDING_STORAGE_DIR>/<tenantId>/` was not used because LiveKit egress creating sub-directories isn't verified on this box. Per-academy recording quotas wait for Phase 4 limits.
+  3. **PGN uploads stay public** in Cloudinary (the plan says move them to `authenticated`). They're now under the academy's folder; the access change is a separate step.
+  4. **No per-academy throttle bucket yet** (§E "Throttling"). With one academy it changes nothing; it's listed for Phase 4 with plan limits.
+
 ## Open audit findings (2026-10-31)
 
 From a ponytail audit of the API's payments, auth, backup and cron paths. The web

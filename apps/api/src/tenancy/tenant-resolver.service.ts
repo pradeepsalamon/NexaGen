@@ -43,9 +43,11 @@ export class TenantResolverService {
   private readonly logger = new Logger(TenantResolverService.name);
   private readonly cache = new Map<string, { expiresAt: number; tenantId: string | null }>();
   private readonly configHosts: ReadonlySet<string>;
+  private readonly allowsHttp: boolean;
 
   constructor(private readonly prisma: PrismaService) {
     const env = getApiEnv();
+    this.allowsHttp = getFrontendUrl(env).startsWith("http://");
     this.configHosts = new Set(
       [...getCorsOrigins(env), getFrontendUrl(env)]
         .map((origin) => hostnameFromUrl(origin))
@@ -67,6 +69,23 @@ export class TenantResolverService {
     if (tenantId) return { source: "host", tenantId };
     if (this.configHosts.has(host)) return { source: "config", tenantId: DEFAULT_TENANT_ID };
     return null;
+  }
+
+  /**
+   * An origin outside the static `CORS_ORIGIN` list that may still call the API
+   * with cookies: an academy's ACTIVE domain over https (http only while this
+   * deployment itself runs on http, i.e. local development).
+   */
+  async isAcademyOrigin(origin: string): Promise<boolean> {
+    let url: URL;
+    try {
+      url = new URL(origin);
+    } catch {
+      return false;
+    }
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && this.allowsHttp)) return false;
+    const host = normalizeHostname(url.hostname);
+    return host !== null && (await this.lookupDomain(host)) !== null;
   }
 
   /** Drops cached lookups, e.g. after a domain is added or removed. */
