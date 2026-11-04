@@ -65,7 +65,6 @@ stay as written; the living doc for that area wins where they disagree.
 | [RELIABILITY_DESIGN.md](RELIABILITY_DESIGN.md) | P0 classroom reliability audit and design |
 | [PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) | Lichess catalogue + adaptive training audit |
 | [PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md](PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md) | Lichess catalogue implementation spec |
-| [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) | Multi-tenant white-label assessment and Phase 1 design |
-| [superpowers/specs/2026-10-19-multi-tenant-saas-design.md](superpowers/specs/2026-10-19-multi-tenant-saas-design.md) | Multi-tenant SaaS design spec |
+| [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) | Multi-tenant white-label SaaS plan: assessment, owner decisions, roadmap |
 | [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) | WhatsApp support chatbot assessment and plan |
 | [PARENT_REPORTS.md](PARENT_REPORTS.md) | Parent reports — deferred, and why |
