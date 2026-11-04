@@ -41,7 +41,6 @@ export function Toaster({ ...props }: ToasterProps) {
           closeButton:
             "!bg-app-surface !border-app-border !text-app-text hover:!bg-app-soft",
           actionButton: "!bg-primary !text-on-primary hover:!bg-primary-hover !rounded-control border-none font-medium",
-          description: "opacity-90",
           toast:
             "top-16 rounded-app border p-4 shadow-lift",
           title: "font-semibold"

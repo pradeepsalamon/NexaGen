@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { apiFetch } from "@/lib/api";
 import { formatDate, formatDuration, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -93,11 +94,11 @@ export default function AdminCompletedClassesPage() {
         <CardContent className="p-4">
           <div className="grid grid-cols-2 items-end gap-4 sm:flex sm:flex-wrap sm:justify-end">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted">
+              <label className="text-xs font-medium text-app-muted" htmlFor="cc-from">
                 From
               </label>
               <DateStringPicker
-                
+                id="cc-from"
                 value={dateFrom}
                 onChange={(value) => {
                   setDateFrom(value);
@@ -107,11 +108,11 @@ export default function AdminCompletedClassesPage() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted">
+              <label className="text-xs font-medium text-app-muted" htmlFor="cc-to">
                 To
               </label>
               <DateStringPicker
-                
+                id="cc-to"
                 value={dateTo}
                 onChange={(value) => {
                   setDateTo(value);
@@ -121,10 +122,11 @@ export default function AdminCompletedClassesPage() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted">
+              <label className="text-xs font-medium text-app-muted" htmlFor="cc-status">
                 Status
               </label>
               <Select
+                id="cc-status"
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value);
@@ -286,25 +288,31 @@ export default function AdminCompletedClassesPage() {
                 of {data.pagination.total} classes
               </p>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
+                <SimpleTooltip label="Previous page">
+                  <Button
+                    aria-label="Previous page"
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage(page - 1)}
+                  >
+                    <ChevronLeft aria-hidden className="h-4 w-4" />
+                  </Button>
+                </SimpleTooltip>
                 <span className="text-sm font-medium text-app-text">
                   {page} / {data.pagination.totalPages}
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= data.pagination.totalPages}
-                  onClick={() => setPage(page + 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                <SimpleTooltip label="Next page">
+                  <Button
+                    aria-label="Next page"
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= data.pagination.totalPages}
+                    onClick={() => setPage(page + 1)}
+                  >
+                    <ChevronRight aria-hidden className="h-4 w-4" />
+                  </Button>
+                </SimpleTooltip>
               </div>
             </div>
           )}
