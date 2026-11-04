@@ -20,8 +20,10 @@ import {
   nextRetentionSweep,
   oldestRecordSql,
   retentionCutoff,
+  retentionParams,
   type RetentionRule
 } from "./retention.rules";
+import { sqlTenantId } from "../tenancy/tenant-sql";
 
 const CATEGORIES = retentionCategorySchema.options;
 
@@ -162,14 +164,16 @@ export class RetentionPolicyService {
   private async countEligible(category: RetentionCategory, cutoff: string): Promise<number> {
     const rows = await this.prisma.$queryRawUnsafe<{ count: bigint }[]>(
       countEligibleSql(RETENTION_CATEGORY_TARGETS[category]),
-      cutoff
+      cutoff,
+      ...retentionParams(RETENTION_CATEGORY_TARGETS[category], sqlTenantId())
     );
     return Number(rows[0]?.count ?? 0);
   }
 
   private async oldestRecord(category: RetentionCategory): Promise<string | null> {
     const rows = await this.prisma.$queryRawUnsafe<{ oldest: Date | null }[]>(
-      oldestRecordSql(RETENTION_CATEGORY_TARGETS[category])
+      oldestRecordSql(RETENTION_CATEGORY_TARGETS[category]),
+      ...retentionParams(RETENTION_CATEGORY_TARGETS[category], sqlTenantId())
     );
     return rows[0]?.oldest?.toISOString() ?? null;
   }

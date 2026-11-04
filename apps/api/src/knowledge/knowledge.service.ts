@@ -39,6 +39,7 @@ import {
   type KnowledgeActor,
   type KnowledgeReader,
 } from "./knowledge.shared";
+import { tenantFilter } from "../tenancy/tenant-sql";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** A coach may have this many suggestions waiting at once. */
@@ -468,7 +469,7 @@ export class KnowledgeService {
                setweight(to_tsvector('english', v."body" || ' ' || coalesce(v."pgn", '')), 'C') AS tsv
           FROM "knowledge_articles" a
           JOIN "knowledge_article_versions" v ON v."id" = a."publishedVersionId"
-         WHERE a."id" = ANY(${ids}::text[])
+         WHERE ${tenantFilter("a")} AND a."id" = ANY(${ids}::text[])
       )
       SELECT doc."id"
         FROM doc, websearch_to_tsquery('english', ${q}) query

@@ -26,6 +26,11 @@ export function isPlatformModel(model: string): model is PlatformModel {
   return Object.prototype.hasOwnProperty.call(PLATFORM_MODELS, model);
 }
 
+/** Table names (`@@map`) of the academy-owned models, for raw SQL built from a table name. */
+export const TENANT_TABLES: ReadonlySet<string> = new Set(
+  Prisma.dmmf.datamodel.models.filter((model) => !isPlatformModel(model.name)).map((model) => model.dbName ?? model.name)
+);
+
 /** Academy-owned models: every Prisma model not in `PLATFORM_MODELS`. */
 export const TENANT_MODELS: ReadonlySet<string> = new Set(
   Object.values(Prisma.ModelName).filter((model) => !isPlatformModel(model))

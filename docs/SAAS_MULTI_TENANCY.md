@@ -923,6 +923,23 @@ then checks the result against the host.
   one multi-statement query, which Postgres runs as one transaction, so the
   lock would be held to the end anyway. 2.6 s on the staging copy and the test
   DB; the timing that matters is the rehearsal on a copy of production.
+**Slice 4 (built 2026-11-04).** Every raw query is listed in
+`apps/api/src/tenancy/raw-sql-review.spec.ts` with its call count, kind and
+reason; a new or changed one fails until reviewed. `tenantFilter(alias)` /
+`sqlTenantId()` (`tenancy/tenant-sql.ts`) give the academy, with the same
+audit/enforce rule as the extension.
+- Filtered: all 46 analytics queries, knowledge search, the attendance
+  stale-log sweeps, retention (academy tables only, `retentionParams`), the
+  active-policy lock, and the puzzle library listing.
+- **The library listing was a real cross-academy leak:** it read puzzles and
+  activities with `visibility = 'GLOBAL'` (academy-wide) from every academy.
+- The game-analysis claim now returns `tenantId`; the job is read back and run
+  inside its own academy. Before, a `drain` nudged from a request read the
+  claimed row under that request's academy.
+- Not filtered, by review: row locks by id (about 30), activity history (every
+  subquery is one student's rows), the Lichess catalogue, job locks, health,
+  advisory locks.
+
 - **Slice 3b (not built):** `(tenantId, …)` indexes on hot paths (worth it only
   with many academies: with one, `tenantId` filters nothing) and composite FKs
   `(tenantId, parentId) → parent(tenantId, id)` on core relations (they change
