@@ -51,8 +51,9 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
     return (
       <label
         className={cn(
-          "inline-flex min-h-10 items-center gap-2.5 text-sm font-medium text-app-muted",
-          disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"
+          "inline-flex min-h-10 items-center gap-2.5 text-sm font-medium",
+          // Disabled: a lighter text colour, not opacity (which stacked on the switch's own and failed contrast).
+          disabled ? "cursor-not-allowed text-app-subtle" : "cursor-pointer text-app-muted"
         )}
         htmlFor={id}
       >

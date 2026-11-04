@@ -37,10 +37,12 @@
 
   --rgb-success: 21 128 61;
   --rgb-success-soft: 220 252 231;
-  --color-success-ink: #15803D;
+  /* Text one step darker than the fill: the fill colour as text was 4.5:1 on
+     its soft tint and under it on the 10% tints chips use. Now about 6:1. */
+  --color-success-ink: #166534;
   --rgb-warning: 180 83 9;
   --rgb-warning-soft: 254 243 199;
-  --color-warning-ink: #B45309;
+  --color-warning-ink: #92400E;
   --rgb-danger: 220 38 38;
   --rgb-danger-hover: 185 28 28;
   --rgb-danger-soft: 254 226 226;
