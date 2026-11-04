@@ -89,10 +89,7 @@ export function RecordingsAnalyticsPageClient() {
                   key: "status",
                   header: "Status",
                   render: (r) => (
-                    <Badge
-                      className="text-[10px]"
-                      variant={STATUS_VARIANTS[r.status] ?? "secondary"}
-                    >
+                    <Badge variant={STATUS_VARIANTS[r.status] ?? "secondary"}>
                       {enumLabel(r.status)}
                     </Badge>
                   )

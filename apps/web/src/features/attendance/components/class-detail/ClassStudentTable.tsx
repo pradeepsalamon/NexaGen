@@ -119,7 +119,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                       <div className="flex flex-wrap items-center gap-1.5">
                         <AttendanceStatusBadge status={student.status} />
                         {student.correctedAt ? (
-                          <Badge variant="outline" className="py-0.5 text-[10px] font-semibold">
+                          <Badge variant="outline" className="font-semibold">
                             Corrected
                           </Badge>
                         ) : null}

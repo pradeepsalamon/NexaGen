@@ -235,7 +235,7 @@ export function ScheduleBuilderClient() {
                         type="button"
                         onClick={() => setEndMode(mode)}
                         className={cn(
-                          "rounded-[6px] px-2 py-0.5 text-[11px] font-bold transition",
+                          "rounded-[6px] px-2 py-0.5 text-xs font-bold transition",
                           endMode === mode
                             ? "bg-primary text-on-primary"
                             : "text-app-muted hover:text-app-text"

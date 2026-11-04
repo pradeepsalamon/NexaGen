@@ -51,7 +51,7 @@ export function AssignmentReminderBanner() {
             </h2>
             <p
               className={cn(
-                "mt-0.5 text-xs sm:text-[13px]",
+                "mt-0.5 text-xs sm:text-[0.8125rem]",
                 "text-app-subtle"
               )}
             >

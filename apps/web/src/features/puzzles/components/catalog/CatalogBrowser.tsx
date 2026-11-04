@@ -461,12 +461,12 @@ export function CatalogBrowser({
               </div>
               <div className="flex min-h-6 flex-wrap gap-1">
                 {motifThemes(puzzle.themes).map((key) => (
-                  <Badge key={key} variant="secondary" className="text-[0.7rem]">
+                  <Badge key={key} variant="secondary">
                     {lichessThemeLabel(key)}
                   </Badge>
                 ))}
                 {puzzle.inLibrary?.adopted ? (
-                  <Badge variant="success" className="text-[0.7rem]">
+                  <Badge variant="success">
                     In {puzzle.inLibrary.topicName}
                   </Badge>
                 ) : null}

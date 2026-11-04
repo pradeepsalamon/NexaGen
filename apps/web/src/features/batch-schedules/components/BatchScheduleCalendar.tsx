@@ -103,7 +103,7 @@ export function BatchScheduleCalendar({
             >
               {day != null && (
                 <>
-                  <div className="text-[11px] font-bold text-app-muted">{day}</div>
+                  <div className="text-xs font-bold text-app-muted">{day}</div>
                   <div className="mt-0.5 grid gap-0.5">
                     {items.slice(0, 3).map((cls) => {
                       const shown = resolveClassDisplayStatus(cls);
@@ -112,7 +112,7 @@ export function BatchScheduleCalendar({
                         <button
                           type="button"
                           onClick={() => onSelectClass?.(cls)}
-                          className={`flex items-center gap-1 truncate rounded bg-app-surface px-1 py-0.5 text-left text-[10px] text-app-text hover:bg-app-soft ${
+                          className={`flex items-center gap-1 truncate rounded bg-app-surface px-1 py-0.5 text-left text-xs text-app-text hover:bg-app-soft ${
                             shown === "CANCELLED" ? "line-through decoration-app-danger/60" : ""
                           }`}
                         >
@@ -133,7 +133,7 @@ export function BatchScheduleCalendar({
                       );
                     })}
                     {items.length > 3 && (
-                      <span className="px-1 text-[10px] text-app-muted">+{items.length - 3} more</span>
+                      <span className="px-1 text-xs text-app-muted">+{items.length - 3} more</span>
                     )}
                   </div>
                 </>

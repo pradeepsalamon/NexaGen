@@ -65,7 +65,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
           <div className="min-w-52">
             <p className="font-extrabold text-app-text">{row.original.topic}</p>
             {row.original.schedule && (
-              <Badge variant="info" className="mt-1 gap-1 text-[10px]">
+              <Badge variant="info" className="mt-1 gap-1">
                 <Repeat aria-hidden="true" className="size-3" /> /demo/{row.original.schedule.slug}
               </Badge>
             )}

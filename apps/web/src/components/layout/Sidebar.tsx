@@ -353,7 +353,7 @@ function NavBadge({ badge }: { badge: NonNullable<NavItem["badge"]> }) {
   return (
     <span
       className={cn(
-        "inline-flex max-w-[6.5rem] shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-bold",
+        "inline-flex max-w-[6.5rem] shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-bold",
         BADGE_TONE[badge.tone],
         badge.pulse && "motion-safe:animate-pulse"
       )}

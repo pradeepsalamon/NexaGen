@@ -184,7 +184,7 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
             <>
               <h2 className="truncate text-sm font-bold text-app-text">{detail.title}</h2>
               <p className="flex items-center gap-2 text-xs text-app-muted">
-                <Badge className="px-1.5 py-0 text-[10px]" variant="secondary">
+                <Badge className="px-1.5 py-0" variant="secondary">
                   {CHAT_TYPE_LABELS[detail.type]}
                 </Badge>
                 {detail.type === "DIRECT"
@@ -244,7 +244,7 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
             <Fragment key={m.id}>
               {showDay && (
                 <div className="flex justify-center py-2">
-                  <span className="rounded-full bg-app-soft px-3 py-0.5 text-[11px] font-semibold text-app-muted">{day}</span>
+                  <span className="rounded-full bg-app-soft px-3 py-0.5 text-xs font-semibold text-app-muted">{day}</span>
                 </div>
               )}
               <Bubble
@@ -335,7 +335,7 @@ function Bubble({
 }) {
   return (
     <div className={cn("flex flex-col", mine ? "items-end" : "items-start", name && "pt-2")}>
-      {name && <span className="mb-0.5 px-1 text-[11px] font-semibold text-app-muted">{name}</span>}
+      {name && <span className="mb-0.5 px-1 text-xs font-semibold text-app-muted">{name}</span>}
       <div
         className={cn(
           "max-w-[85%] whitespace-pre-wrap break-words rounded-app px-3 py-2 text-sm sm:max-w-[70%]",
@@ -344,7 +344,7 @@ function Bubble({
       >
         <LinkedText onColour={mine} text={body} />
       </div>
-      <span className="mt-0.5 px-1 text-[10px] text-app-muted">{status ?? time}</span>
+      <span className="mt-0.5 px-1 text-xs text-app-muted">{status ?? time}</span>
     </div>
   );
 }

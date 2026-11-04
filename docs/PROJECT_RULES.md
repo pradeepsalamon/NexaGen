@@ -278,7 +278,7 @@ access log (`[HTTP] METHOD url status durationms - ip`), excluding `/stockfish` 
   `src/components/forms/`, `src/components/common/` — shared composites.
 - `src/lib/` — `api.ts` (axios wrapper), `queryKeys.ts`, `errors.ts`, `forms.ts`,
   `utils.ts` (`cn()`), `uploadApi.ts`.
-- `src/stores/` — Zustand (`authStore`, `uiStore`). `src/providers/` — React context
+- `src/stores/` — Zustand (`authStore`). `src/providers/` — React context
   providers. `src/middleware.ts` — route gating.
 
 ### 5.2 Data fetching
@@ -306,7 +306,7 @@ access log (`[HTTP] METHOD url status durationms - ip`), excluding `/stockfish` 
 
 react-hook-form + `zodResolver`, schema from `@nexa-chess/types` or
 `features/*/validation/`. Use `components/forms/` (`Form`, `FormInput`,
-`FormSelect`, `FormCheckbox`) and `components/ui/FormField`. `useTouchedFields`
+`FormSelect`) and `components/ui/FormField`. `useTouchedFields`
 helper for dirty-state UX.
 
 ### 5.5 UI / styling rules

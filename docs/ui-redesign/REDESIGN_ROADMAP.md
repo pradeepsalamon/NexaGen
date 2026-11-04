@@ -230,6 +230,8 @@ Every part ends with a real class. **Do not start 9c until the v2 live-class pat
 
 Remove or adopt unused components (`nx-*`, `warm`, `navy`, `gold` were deleted before M3). Sweep for `text-[Npx]` (231 today). Full `shots` matrix, both themes, all devices. Accessibility pass. Real-device tests including iOS Safari. Update all docs.
 
+**Started 2026-11-04.** Pixel text sizes: none left in the app (102 remain only in `features/academy/components`, the legacy `/` home the owner wants untouched); 10px/11px became 12px (`text-xs`, the room's minimum applied everywhere), 13px became `text-[0.8125rem]`, and `Badge`s lost their size overrides. Unused modules: `PageContainer`, `common/UserAvatar`, `forms/FormCheckbox`, `CapturedPieces`, `MeetingExtensions` (placeholders), `lib/rating`, `stores/uiStore` deleted; `ui/Separator` and `FeatureGate` kept as documented primitives. One `components/ui/Avatar` (`soft`, `brand`) replaces the hand-built initials circles in the nav menu and coach class cards; `ParticipantAvatar` wraps it.
+
 ### Sequence
 
 ```text

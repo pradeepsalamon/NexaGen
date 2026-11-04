@@ -63,7 +63,7 @@ export function NotificationBell({
         >
           <Bell aria-hidden="true" className="size-4" strokeWidth={2.5} />
           {unreadCount > 0 && (
-            <span className="absolute right-0.5 top-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-on-primary">
+            <span className="absolute right-0.5 top-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold leading-4 text-on-primary">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -119,7 +119,7 @@ export function NotificationBell({
                     pageLinksInNewTab={openLinksInNewTab}
                     source={item.body}
                   />
-                  <span className="text-[11px] text-app-muted/80">
+                  <span className="text-xs text-app-muted/80">
                     {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
                   </span>
                 </li>

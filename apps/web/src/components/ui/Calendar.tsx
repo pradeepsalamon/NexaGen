@@ -70,7 +70,7 @@ function Calendar({
         ),
         weekdays: cn("flex gap-1", defaultClassNames.weekdays),
         weekday: cn(
-          "flex size-[--cell-size] select-none items-center justify-center rounded-control text-[0.82rem] font-normal text-app-muted",
+          "flex size-[--cell-size] select-none items-center justify-center rounded-control text-[0.8125rem] font-normal text-app-muted",
           defaultClassNames.weekday
         ),
         week: cn("mt-1.5 flex gap-1", defaultClassNames.week),
@@ -79,7 +79,7 @@ function Calendar({
           defaultClassNames.week_number_header
         ),
         week_number: cn(
-          "flex size-[--cell-size] items-center justify-center text-[0.82rem] font-normal text-app-muted",
+          "flex size-[--cell-size] items-center justify-center text-[0.8125rem] font-normal text-app-muted",
           defaultClassNames.week_number
         ),
         day: cn(

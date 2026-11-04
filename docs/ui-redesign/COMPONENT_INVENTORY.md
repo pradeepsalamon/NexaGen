@@ -103,7 +103,7 @@ Keep channel triplets: colours must stay `--rgb-*` values because Tailwind alpha
 | `ui/WidgetError` | 74 | 63 | SystemState | Same family; must keep Retry | P0 |
 | `ui/Alert` | 24 | 72 | SystemState | `-soft` backgrounds | P1 |
 | `ui/ClassStatusBadge` + `Legend` | 10, 3 | 7, 3 | Badge | Use `live`, `info`, `success`, `danger` tones | P1 |
-| `common/UserAvatar` | **0** | 0 | Avatar | Unused while avatars are hand-built in several places. **Adopt this one** | P1 |
+| `common/UserAvatar` | **0** | 0 | Avatar | **M11 (2026-11-04): deleted** — it was a profile link, not a general avatar. `components/ui/Avatar` is the one avatar now | P1 |
 | `charts/ChartContainer` + `Charts` | 11 | 12 | No DS spec | Empty and error states; keep as host | P1 |
 | `charts/useChartColors` | 2 | | No DS spec | Reads computed tokens and has hard-coded fallbacks that must change with the palette | P1 |
 
@@ -134,7 +134,7 @@ Keep channel triplets: colours must stay `--rgb-*` values because Tailwind alpha
 | `ui/TimePicker` | 3 | 3 | No DS spec | Same family | P2 |
 | `ui/Calendar` | 2 | 35 | No DS spec | Selected state in blue | P1 |
 | `forms/Form`, `FormInput`, `FormSelect` | 4, 4, 3 | 5, 5, 3 | TextField | Wrappers | P1 |
-| `forms/FormCheckbox` | **0** | 0 | Choice | Unused | P2 |
+| `forms/FormCheckbox` | **0** | 0 | Choice | Unused. **Deleted in M11** | P2 |
 | `layout/Header` | 4 | global | No DS spec | Navy or white per D2 | P0 |
 | `layout/Sidebar` (`NavDrawer`) | 3 | 6 + | Sidebar | 503 lines. Navy `brand-900`, gold inset bar; keep drawer behaviour per D2 | P0 |
 | `layout/AdminSidebar`, `CoachSidebar`, `StudentSidebar`, `RoleSidebar` | 1 each | | Sidebar | Styling flows from `Sidebar`. `StudentSidebar` has live badges to keep | P0 |
@@ -148,7 +148,7 @@ Keep channel triplets: colours must stay `--rgb-*` values because Tailwind alpha
 | `ui/BackButton` | 4 | 3 | Navigation crumbs | Replace with breadcrumbs on detail pages | P1 |
 | `ThemeToggle` | 1 | global | No DS spec | Gold active state changes | P1 |
 | `Logo` | **0** | 0 | | Unused; header has its own image code. Consolidate | P1 |
-| `PageContainer` | **0** | 0 | | Unused | P2 |
+| `PageContainer` | **0** | 0 | | Unused. **Deleted in M11** | P2 |
 | `icons/BrandIcons` | 1 | | | Absent on `main`; check the merge | P2 |
 
 ---
@@ -168,7 +168,7 @@ These are the places where one component would replace several. They are the hig
 | **Filter rows** | `AnalyticsFilters`, `ActivityFiltersBar`, `DataTableToolbar`, ad hoc rows | One `FilterBar` |
 | **Preset cards** | `/coach/presets`, `/admin/live-class` | One component (already mostly shared) |
 | **Settings forms** | Appearance, typography, scoring, policy, retention | One `SettingsSection` layout |
-| **Avatars** | `UserAvatar` unused; `ParticipantAvatar` in the room; profile uploader | One `Avatar` per v2, room variant on top |
+| **Avatars** | `UserAvatar` unused; `ParticipantAvatar` in the room; profile uploader | One `Avatar` per v2, room variant on top. **Done in M11:** `components/ui/Avatar` (`soft` / `brand`), `ParticipantAvatar` wraps it; nav menu and coach class cards adopted it |
 | **Empty chat states** | `ChatEmptyState`, `EmptyMeetingState` | `EmptyState` |
 | **Board frames** | Practice, puzzle solver, analysis, game viewer, room | One `BoardFrame` around existing board components |
 | **Logo and header image** | Header's inline images, `Logo` unused, academy's own | One `Logo` |

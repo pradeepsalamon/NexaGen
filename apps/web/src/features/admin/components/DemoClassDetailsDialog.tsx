@@ -204,7 +204,7 @@ export function DemoClassDetailsDialog({
                           <span className="flex min-w-0 flex-col">
                             <span className="flex flex-wrap items-center gap-1.5">
                               <span className="truncate font-medium">{r.name}</span>
-                              <Badge variant="outline" className="text-[10px]">{SOURCE_LABELS[r.source]}</Badge>
+                              <Badge variant="outline">{SOURCE_LABELS[r.source]}</Badge>
                             </span>
                             <span className="flex items-center gap-1 truncate text-xs text-app-muted">
                               {r.contactMethod === "EMAIL" ? (
@@ -304,8 +304,8 @@ function DetailRow({ icon, label, children }: { icon: React.ReactNode; label: st
 }
 
 function GuestStatusBadge({ registration }: { registration: DemoClassRegistrationItem }) {
-  if (registration.joined) return <Badge variant="success" className="text-[10px]">Joined</Badge>;
-  if (registration.approval === "PENDING") return <Badge variant="warning" className="text-[10px]">Waiting for coach</Badge>;
-  if (registration.approval === "DENIED") return <Badge variant="destructive" className="text-[10px]">Not admitted</Badge>;
-  return <Badge variant="secondary" className="text-[10px]">Registered</Badge>;
+  if (registration.joined) return <Badge variant="success">Joined</Badge>;
+  if (registration.approval === "PENDING") return <Badge variant="warning">Waiting for coach</Badge>;
+  if (registration.approval === "DENIED") return <Badge variant="destructive">Not admitted</Badge>;
+  return <Badge variant="secondary">Registered</Badge>;
 }

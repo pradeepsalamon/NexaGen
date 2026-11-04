@@ -27,6 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/DropdownMenu";
+import { Avatar } from "@/components/ui/Avatar";
 
 type UserWithAvatar = AuthUser & {
   avatarUrl?: string | null;
@@ -54,17 +55,6 @@ function getRoleLabel(role?: string) {
   }
 }
 
-function getInitials(user?: Pick<UserWithAvatar, "firstName" | "lastName">) {
-  const firstInitial = user?.firstName?.trim().charAt(0) ?? "";
-  const lastInitial = user?.lastName?.trim().charAt(0) ?? "";
-  const initials = `${firstInitial}${lastInitial}`.toUpperCase();
-  if (initials.length === 1 && user?.firstName && user.firstName.length >= 2) {
-    return (
-      user.firstName.charAt(0) + user.firstName.charAt(user.firstName.length - 1)
-    ).toUpperCase();
-  }
-  return initials || "NC";
-}
 
 export function UserNavMenu({
   user,
@@ -99,7 +89,6 @@ export function UserNavMenu({
   });
 
   const dashboardHref = getRoleDashboardHref(user.role);
-  const initials = getInitials(user);
   const newTabProps = openLinksInNewTab
     ? { target: "_blank" as const, rel: "noopener noreferrer" }
     : {};
@@ -113,21 +102,7 @@ export function UserNavMenu({
             aria-label="User navigation menu"
             className="group inline-flex min-h-[var(--control-h)] cursor-pointer items-center gap-2 rounded-control px-1.5 text-sm font-medium text-app-text transition-colors hover:bg-app-soft"
           >
-            <div
-              className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-soft text-xs font-bold text-primary-ink"
-            >
-              {user.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  alt=""
-                  className="size-full object-cover"
-                  referrerPolicy="no-referrer"
-                  src={user.avatarUrl}
-                />
-              ) : (
-                <span>{initials}</span>
-              )}
-            </div>
+            <Avatar name={[user.firstName, user.lastName].filter(Boolean).join(" ")} imageUrl={user.avatarUrl} className="size-7 text-xs" />
             <span className="hidden max-w-[110px] truncate sm:inline-block">
               {user.firstName}
             </span>

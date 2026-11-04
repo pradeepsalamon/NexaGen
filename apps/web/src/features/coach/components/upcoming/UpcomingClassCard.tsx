@@ -15,6 +15,7 @@ import {
   formatRelativeDay,
   formatTime
 } from "@/lib/datetime";
+import { Avatar } from "@/components/ui/Avatar";
 import { ClassBatchTypeSelect } from "./ClassBatchTypeSelect";
 import { ClassTopicEditor } from "./ClassTopicEditor";
 import { StartClassButton } from "./StartClassButton";
@@ -32,22 +33,6 @@ function fullName(student: Pick<CoachClassStudent, "firstName" | "lastName">) {
   return [student.firstName, student.lastName].filter(Boolean).join(" ");
 }
 
-function initials(student: Pick<CoachClassStudent, "firstName" | "lastName">) {
-  return `${student.firstName.charAt(0)}${student.lastName?.charAt(0) ?? ""}`.toUpperCase();
-}
-
-function StudentAvatar({ student }: { student: CoachClassStudent }) {
-  return (
-    <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-app-border bg-app-soft text-xs font-bold text-app-muted">
-      {student.avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img alt="" className="size-full object-cover" referrerPolicy="no-referrer" src={student.avatarUrl} />
-      ) : (
-        <span aria-hidden="true">{initials(student)}</span>
-      )}
-    </span>
-  );
-}
 
 function StudentDetails({ student }: { student: CoachClassStudent }) {
   const details = [
@@ -57,7 +42,7 @@ function StudentDetails({ student }: { student: CoachClassStudent }) {
 
   return (
     <li className="flex min-w-0 items-center gap-3">
-      <StudentAvatar student={student} />
+      <Avatar name={fullName(student)} imageUrl={student.avatarUrl} className="size-9 text-xs" />
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold text-app-text">{fullName(student)}</span>
         {details.length > 0 ? (

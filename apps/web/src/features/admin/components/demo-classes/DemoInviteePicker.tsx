@@ -157,7 +157,7 @@ function LeadSearch({
                 </p>
                 <p className="flex items-center gap-2 text-xs text-app-muted">
                   {lead.phone}
-                  <Badge variant="outline" className="text-[10px]">
+                  <Badge variant="outline">
                     {LEAD_STATUS_LABELS[lead.status]}
                   </Badge>
                 </p>
