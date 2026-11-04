@@ -341,7 +341,9 @@ test.describe("Full Attendance Flow", () => {
     // Check the table shows our class
     await expect(studentPage.getByText(E2E_CLASS_TOPIC).first()).toBeVisible({ timeout: 10000 });
 
-    // Click the row to open the session-logs dialog
+    // Click the row to open the session-logs dialog. Playwright's pointer starts
+    // at (0,0), which hover-opens the sidebar drawer over the table's left edge.
+    await studentPage.mouse.move(800, 400);
     const classRow = studentPage.getByText(E2E_CLASS_TOPIC).first();
     await classRow.click();
     // Dialog appears — titled "Session Logs" with a "Connection Timeline" section.

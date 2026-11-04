@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
-import { api, login, scheduleClass, seededBatchId, type Cookie } from "./fixtures";
+import { api, login, openRoomTab, scheduleClass, seededBatchId, type Cookie } from "./fixtures";
 
 /**
  * Shared live-class chessboard sync — two real participants over LiveKit.
@@ -135,9 +135,8 @@ test.describe("Live board sync", () => {
     const studentCtx = await browser.newContext();
     await studentCtx.addCookies(studentCookies);
 
-    // ── coach joins and shares the board ───────────────────────
+    // ── coach joins; their board is always shared on the single page ──
     const coachPage = await joinMeeting(coachCtx, classId);
-    await coachPage.getByRole("button", { name: /share board/i }).click();
     const coach = board(coachPage);
     await coach.waitReady();
 
@@ -154,8 +153,11 @@ test.describe("Live board sync", () => {
     await expect.poll(() => student.fen(), { timeout: 10_000 }).toContain("8/8/4P3/8/PPPP1PPP");
 
     // ── grant control; the student's move propagates BACK ──────
-    await coachPage.getByRole("button", { name: /^participants$/i }).click();
-    await coachPage.getByRole("button", { name: /grant board control/i }).first().click();
+    // People tab → the student's ⋮ menu → Board control → Both.
+    await openRoomTab(coachPage, /^People/);
+    await coachPage.getByRole("button", { name: /^Actions for / }).first().click();
+    await coachPage.getByRole("menuitemradio", { name: "Both" }).click();
+    await coachPage.keyboard.press("Escape");
     await expect.poll(() => student.permissionMode(), { timeout: 10_000 }).toBe("SELECTED_STUDENT");
 
     await student.move("e7", "e5");
@@ -163,6 +165,8 @@ test.describe("Live board sync", () => {
     await expect.poll(() => coach.fen(), { timeout: 10_000 }).toContain("4p3/4P3");
 
     // ── coach starts a clock; the student sees it running ──────
+    // Classes open on the Gallery stage; the clock sits on the Board stage.
+    await openRoomTab(coachPage, /^Board$/);
     await coachPage.getByRole("button", { name: /clock settings/i }).click();
     await coachPage.getByRole("button", { name: /^start$/i }).click();
     await expect.poll(() => student.clockRunning(), { timeout: 10_000 }).not.toBeNull();
@@ -185,7 +189,9 @@ test.describe("Live board sync", () => {
     expect(await coach.move("g1", "f3")).toBe(true);
     const whileOfflineFen = await coach.fen();
     expect(whileOfflineFen).not.toBe(coachFen);
-    expect(await student.fen()).not.toBe(whileOfflineFen);
+    // No assertion that the student missed the move: Playwright's offline mode
+    // blocks HTTP and new sockets, but an open WebRTC data channel over UDP
+    // keeps delivering. Full drop recovery is live-board-recovery's job.
     await studentCtx.setOffline(false); // Reconnect
 
     // Board should re-sync automatically upon LiveKit reconnect (REQUEST_SYNC -> SYNC_STATE)

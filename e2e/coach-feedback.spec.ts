@@ -133,6 +133,33 @@ test("student answers in the dashboard pop-up and skips the dashboard card", asy
     data: { createdAt: new Date(Date.now() - 7 * 86_400_000) }
   });
 
+  // Classes other specs completed with this student would be asked about too
+  // (newest first): mark them skipped for this run's form only. cleanup()
+  // removes the form's responses afterwards.
+  const form = await prisma.feedbackForm.findFirstOrThrow({ where: { title: FORM_TITLE } });
+  const student = await prisma.user.findUniqueOrThrow({ where: { email: "student@nexa.test" } });
+  const others = await prisma.classAttendance.findMany({
+    where: {
+      studentId: student.id,
+      status: { not: "ABSENT" },
+      class: { batchId: { not: null }, id: { not: { startsWith: PREFIX } }, status: "COMPLETED" }
+    },
+    select: { class: { select: { coachId: true, id: true } } }
+  });
+  if (others.length > 0) {
+    await prisma.feedbackResponse.createMany({
+      data: others.map((a: { class: { coachId: string; id: string } }) => ({
+        classId: a.class.id,
+        coachId: a.class.coachId,
+        contextKey: `class:${a.class.id}`,
+        formId: form.id,
+        status: "SKIPPED",
+        studentId: student.id
+      })),
+      skipDuplicates: true
+    });
+  }
+
   const page = await pageAs(browser, "student");
   await page.goto("/student");
 
@@ -190,7 +217,9 @@ test("an answered request can't be submitted again", async ({ browser }) => {
   );
   expect(res.status()).toBe(404);
 
-  const stored = await prisma.feedbackResponse.findMany({ where: { formId: form.id } });
+  const stored = await prisma.feedbackResponse.findMany({
+    where: { classId: { startsWith: PREFIX }, formId: form.id }
+  });
   expect(stored.map((r: { status: string }) => r.status).sort()).toEqual(["SKIPPED", "SUBMITTED"]);
   expect(stored.find((r: { status: string }) => r.status === "SUBMITTED").overallRating).toBe(4.5);
 });

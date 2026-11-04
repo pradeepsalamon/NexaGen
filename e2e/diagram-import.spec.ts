@@ -55,8 +55,11 @@ const squareName = (i: number) => `${"abcdefgh"[i % 8]}${8 - (i >> 3)}`;
 
 /** Centre of a square on the review board. */
 async function squareAt(page: Page, square: string, orientation: "white" | "black") {
-  // Board and both spare trays on screen, as a coach would have them.
-  await page.getByTestId("position-editor-board").evaluate((el) => el.scrollIntoView({ block: "center" }));
+  // Board and both spare trays on screen, as a coach would have them. Instant:
+  // `html` scrolls smoothly, and a box read mid-scroll misses the square.
+  await page
+    .getByTestId("position-editor-board")
+    .evaluate((el) => el.scrollIntoView({ behavior: "instant", block: "center" }));
   const box = (await page.getByTestId("position-editor-board").boundingBox()) as { x: number; y: number; width: number; height: number };
   const file = "abcdefgh".indexOf(square[0]);
   const rank = Number(square[1]);
@@ -269,7 +272,8 @@ test.describe("PDF diagram import", () => {
     expect(await fen(page)).toBe(`${placementOf(d.fen)} w - - 0 1`);
     await page.getByRole("button", { name: "Open on analysis board" }).click();
     await page.waitForURL(/\/games\/[^/]+$/);
-    await expect(page.getByText("scanned-page — p.1 #1")).toBeVisible();
+    // The title is also the breadcrumb's last crumb.
+    await expect(page.getByRole("heading", { level: 1, name: "scanned-page — p.1 #1" })).toBeVisible();
   });
 
   // generate-jpx-fixture.py: the scanned-page.pdf page, stored as JPEG2000.

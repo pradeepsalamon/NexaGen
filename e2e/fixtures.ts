@@ -267,4 +267,20 @@ export async function scheduleClass(
   return classId as string;
 }
 
+/**
+ * Opens a live-room tab by name. Room tab rows show a few tabs and put the
+ * rest under a "More views" menu (`RoomTabs maxVisible`), so a tab may be a
+ * menu item instead.
+ */
+export async function openRoomTab(page: Page, name: string | RegExp, timeout = 15_000) {
+  const tab = page.getByRole("tab", { name }).first();
+  if (await tab.isVisible()) {
+    await tab.click({ timeout });
+    return;
+  }
+  const more = page.getByRole("button", { name: /^More views/ }).first();
+  await more.click({ timeout });
+  await page.getByRole("menuitem", { name }).first().click({ timeout });
+}
+
 export { API_URL };

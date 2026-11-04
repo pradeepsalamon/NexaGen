@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Locator, type Page } from "@playwright/test";
-import { API_URL, loginContext, seededBatchId, scheduleClass, type TestRole } from "./fixtures";
+import { API_URL, loginContext, openRoomTab, seededBatchId, scheduleClass, type TestRole } from "./fixtures";
 
 /**
  * MCQ + Playout through the one activity queue, in a real browser against real
@@ -126,7 +126,7 @@ test.describe("MCQ and Playout in a live class", () => {
         { activityId: backRank.activity.id, kind: "PLAYOUT" }
       ]
     });
-    await coach.getByRole("tab", { name: /Queue/ }).click();
+    await openRoomTab(coach, /Queue/);
     await coach.getByRole("button", { name: /Launch for the class/ }).click();
     await coach.getByRole("button", { name: "Launch", exact: true }).click();
 
@@ -143,7 +143,7 @@ test.describe("MCQ and Playout in a live class", () => {
     await expect(student.getByText("The king starts on e1.")).toBeVisible();
 
     // Playout: the real engine answers.
-    await coach.getByRole("tab", { name: /Queue/ }).click();
+    await openRoomTab(coach, /Queue/);
     await coach.getByRole("button", { name: new RegExp(`Next: E2E Rook`) }).click();
     await expect(student.getByText("Your move")).toBeVisible({ timeout: 30_000 });
     await student.waitForTimeout(800);
@@ -152,7 +152,7 @@ test.describe("MCQ and Playout in a live class", () => {
     await expect(student.getByText("Your move")).toBeVisible({ timeout: 20_000 });
 
     // The coach sees it live, and can't touch it.
-    await coach.getByRole("tab", { name: "Student boards" }).click({ timeout: 15_000 });
+    await openRoomTab(coach, "Student boards");
     // This student's card: the only one with a move on it.
     const card = coach.getByRole("button", { name: /Open .*'s board/ }).filter({ hasText: /1 move/ });
     await expect(card).toHaveCount(1, { timeout: 20_000 });
@@ -178,7 +178,7 @@ test.describe("MCQ and Playout in a live class", () => {
 
     // Back in class: on to a real checkmate.
     await enterRoom(coach, classId);
-    await coach.getByRole("tab", { name: /Queue/ }).click();
+    await openRoomTab(coach, /Queue/);
     await coach.getByRole("button", { name: new RegExp(`Next: E2E Back rank`) }).click();
     await expect(student.getByText("Your move")).toBeVisible({ timeout: 30_000 });
     await student.waitForTimeout(800);

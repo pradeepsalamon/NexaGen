@@ -275,6 +275,15 @@ test.describe("Full Recording Lifecycle & Video Player Flow", () => {
     });
 
     await studentPage.goto("/student");
+    // Playwright's pointer starts at (0,0), which hover-opens the sidebar drawer over the page.
+    await studentPage.mouse.move(800, 400);
+    // Dashboard pop-ups (homework reminder, then feedback — one at a time)
+    // would sit over the row; close each as it appears.
+    for (let i = 0; i < 4; i += 1) {
+      await studentPage.waitForTimeout(800);
+      if (!(await studentPage.getByRole("dialog").isVisible().catch(() => false))) break;
+      await studentPage.keyboard.press("Escape");
+    }
     const row = studentPage.getByTestId(`past-class-${classId}`);
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.getByRole("button", { name: /^watch$/i }).click();
@@ -348,7 +357,10 @@ test.describe("Full Recording Lifecycle & Video Player Flow", () => {
     ).toBeVisible();
     await expect(adminPage.getByText(/of\s+\d/i).first()).toBeVisible();
 
-    // The recording log lists the class this run recorded.
+    // The recording log lists the class this run recorded (searched by topic:
+    // the shared DB carries many earlier runs' recordings).
+    const search = adminPage.getByPlaceholder("Search class topic…");
+    if (await search.isVisible().catch(() => false)) await search.fill(uniqueTopic);
     await expect(await findInDataTable(adminPage, uniqueTopic)).toBeVisible({
       timeout: 15_000,
     });
