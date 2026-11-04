@@ -99,7 +99,7 @@ function CoachVideoPopup({
   preferSpeaker = false,
 }: {
   constraintsRef: RefObject<HTMLDivElement | null>;
-  /** The coach would only see themselves: show the speaker instead. */
+  /** The coach would only see themselves: show the speaker (else a student) instead. */
   preferSpeaker?: boolean;
 }) {
   const [minimized, setMinimized] = useState(false);
@@ -110,7 +110,10 @@ function CoachVideoPopup({
   const trackRef = useMemo(
     () =>
       preferSpeaker
-        ? spotlight
+        ? // Never the coach's own camera: whoever is speaking, else the first student.
+          spotlight && !spotlight.participant.isLocal
+          ? spotlight
+          : tracks.find((t) => !t.participant.isLocal) ?? null
         : tracks.find((t) => getRole(t.participant)?.toUpperCase() === "COACH") ?? spotlight,
     [preferSpeaker, tracks, spotlight],
   );
