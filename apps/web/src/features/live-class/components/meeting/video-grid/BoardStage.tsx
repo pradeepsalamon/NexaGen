@@ -14,6 +14,9 @@ import { Crown, LayoutGrid, Minus, Puzzle as PuzzleIcon, Video } from "lucide-re
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
+import { BoardNavigation } from "@/features/chessboard/components/toolbars/BoardNavigation";
+import { IllegalMovesBadge, IllegalMovesToggle } from "@/features/chessboard/components/toolbars/IllegalMovesToggle";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useSpotlightTrack } from "../../../hooks/useSpotlightTrack";
 import { isHumanParticipant } from "../../../lib/participants";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
@@ -23,8 +26,10 @@ import { RequestControlButton } from "./RequestControlButton";
 import { getRole } from "./videoGrid.utils";
 
 /**
- * Opt-in full-screen board for a student on a phone (the grid tile's expand
- * button); the coach's camera floats in a draggable popup.
+ * Full-stage board on a phone (the Board tab or the grid tile's expand
+ * button). Students see the coach's camera in a draggable popup; the coach
+ * drives the board here — move navigation under it, Allow Illegal Moves in
+ * the header — and sees whoever is speaking in the popup.
  */
 export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -32,6 +37,8 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
     "activePuzzle",
     "setPuzzleSolverOpen",
   );
+  const role = useAuthStore((state) => state.user?.role);
+  const isCoach = role === "COACH" || isStaffRole(role);
 
   return (
     <div
@@ -46,7 +53,8 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto sm:justify-center">
           <ChessClock layout="horizontal" />
           <RequestControlButton surface />
-          {activePuzzle ? (
+          {isCoach ? <IllegalMovesToggle /> : <IllegalMovesBadge />}
+          {activePuzzle && !isCoach ? (
             <Button size="sm" className="shrink-0" onClick={() => setPuzzleSolverOpen(true)}>
               <PuzzleIcon aria-hidden="true" className="size-4" strokeWidth={2} />
               Solve puzzle
@@ -75,20 +83,36 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
         </div>
       </div>
 
-      <CoachVideoPopup constraintsRef={stageRef} />
+      {isCoach ? (
+        <div className="flex shrink-0 flex-wrap items-center justify-center gap-2" role="toolbar" aria-label="Board tools">
+          <BoardNavigation />
+        </div>
+      ) : null}
+
+      <CoachVideoPopup constraintsRef={stageRef} preferSpeaker={isCoach} />
     </div>
   );
 }
 
-function CoachVideoPopup({ constraintsRef }: { constraintsRef: RefObject<HTMLDivElement | null> }) {
+function CoachVideoPopup({
+  constraintsRef,
+  preferSpeaker = false,
+}: {
+  constraintsRef: RefObject<HTMLDivElement | null>;
+  /** The coach would only see themselves: show the speaker instead. */
+  preferSpeaker?: boolean;
+}) {
   const [minimized, setMinimized] = useState(false);
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }], {
     onlySubscribed: false,
   }).filter((t) => isHumanParticipant(t.participant));
   const spotlight = useSpotlightTrack(null);
   const trackRef = useMemo(
-    () => tracks.find((t) => getRole(t.participant)?.toUpperCase() === "COACH") ?? spotlight,
-    [tracks, spotlight],
+    () =>
+      preferSpeaker
+        ? spotlight
+        : tracks.find((t) => getRole(t.participant)?.toUpperCase() === "COACH") ?? spotlight,
+    [preferSpeaker, tracks, spotlight],
   );
 
   if (!trackRef) return null;

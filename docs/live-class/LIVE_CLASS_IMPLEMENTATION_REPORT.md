@@ -51,4 +51,4 @@ See [LIVE_CLASS_TEST_REPORT.md](LIVE_CLASS_TEST_REPORT.md) § "Not tested" and [
 - no real class has been run;
 - the seven spec decisions are waiting for the owner;
 - lowering a hand and allowing a share unasked have no backend;
-- coach phones stay video-only, as before.
+- coach phones stay video-only, as before. (Superseded 2026-11-04: coaches get the Board / Video switch and a full-stage board on phones.)

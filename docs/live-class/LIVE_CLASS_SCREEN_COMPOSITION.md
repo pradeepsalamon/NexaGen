@@ -7,6 +7,6 @@
 | Tablet, tall (768–1023 × > 820) | Stage on top with the control bar over its bottom; panel underneath (video beside the tabs). |
 | Tablet, short (≥ 768 × ≤ 820) | Side by side, as laptop. |
 | Student, phone (< 768px) | 48px top bar (Live, topic, time) · 44px Board / Video (/ Puzzle) switch when the board is shared · grid or board stage (coach camera in a draggable popup) · control bar: mic, camera, chat, hand, reactions, More, Leave. Chat, People, Settings, Puzzle are full-height sheets. |
-| Coach, phone | Same top bar · video grid · control bar: mic, camera, Students, chat, Interactives, More, Leave (People, puzzles, reactions, recording and the rest in More). Class-wide controls also head the People sheet. |
+| Coach, phone | Same top bar · 44px Board / Video switch (the coach's board is always shared; Board = full-stage board with move navigation, the speaker in the popup) · video grid · control bar: mic, camera, Students, chat, Interactives, More, Leave (People, puzzles, reactions, recording and the rest in More). Class-wide controls also head the People sheet. |
 | Entry screens | Top bar with topic and batch · one centred 448px card (loading, ready to begin, waiting, pre-join, not admitted, removed, access denied, connection lost). |
 | Class summary | App header · summary page (unchanged in this pass). |

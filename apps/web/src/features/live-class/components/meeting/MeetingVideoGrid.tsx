@@ -60,7 +60,10 @@ export function MeetingVideoGrid({
   );
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
-  const showBoardTile = isChessboardOpen && !hideBoard && (!isCoach || presentBoard);
+  // Phones (this grid is the whole stage) get the board for the coach too: it
+  // is their only board there. On md+ the coach's board sits beside the video.
+  const phoneGrid = !hideBoard && !presentBoard && !compact;
+  const showBoardTile = isChessboardOpen && !hideBoard && (!isCoach || presentBoard || phoneGrid);
   // A shared board is a grid tile; full screen is opt-in and ends with the share.
   const [boardStage, setBoardStage] = useState(false);
   useEffect(() => {
@@ -132,8 +135,7 @@ export function MeetingVideoGrid({
     </AnimatePresence>
   );
 
-  // Phones (this grid is the whole stage): a 44px Board / Video switch, plus Puzzle while one runs.
-  const phoneGrid = !hideBoard && !presentBoard && !compact;
+  // Phones: a 44px Board / Video switch, plus Puzzle while one runs.
   const puzzleOpen = !isCoach && !!activePuzzle && puzzleSolverOpen;
   const phoneStage: "board" | "video" | "puzzle" = puzzleOpen ? "puzzle" : boardTileShown && boardStage ? "board" : "video";
   const phoneOptions: RoomTabItem<"board" | "video" | "puzzle">[] = [
