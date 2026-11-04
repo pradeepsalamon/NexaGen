@@ -18,7 +18,11 @@ export type TenantAuditKind =
   | "session_mismatch";
 
 export type TenantAuditEvent = {
-  /** Where it happened: `METHOD /path` for a request, a caller frame otherwise. */
+  /**
+   * `METHOD /path` for a request or webhook, the job label inside `runInTenant`,
+   * `background` otherwise: Prisma runs a query lazily when it's awaited, so
+   * no stack frame names the caller (Phase 3 labels each job instead).
+   */
   at: string;
   detail?: Record<string, string | null | undefined>;
   kind: TenantAuditKind;
@@ -38,15 +42,6 @@ export function reportTenantGap(event: TenantAuditEvent, key: string): void {
   if (counts.size < MAX_KEYS || counts.has(key)) counts.set(key, count);
   if (!shouldLog(count)) return;
   logger.warn({ msg: "tenant-audit", count, ...event });
-}
-
-/** First stack frame outside node_modules and this folder, for background hits. */
-export function callerFrame(): string {
-  const lines = (new Error().stack ?? "").split("\n").slice(1);
-  const frame = lines.find(
-    (line) => !line.includes("node_modules") && !line.includes("/tenancy/") && !line.includes("node:")
-  );
-  return frame?.trim().replace(/^at /, "") ?? "unknown";
 }
 
 export function tenantAuditCountsForTesting(): ReadonlyMap<string, number> {

@@ -54,7 +54,7 @@ describe("tenant-scope extension (audit mode)", () => {
     expect(applyTenantScope("Batch", "findFirst", args)).toBe(args);
     const keys = [...tenantAuditCountsForTesting().keys()];
     expect(keys.some((key) => key.startsWith("missing_context|request|GET /batches|Batch|findFirst"))).toBe(true);
-    expect(keys.some((key) => key.startsWith("missing_context|background|"))).toBe(true);
+    expect(keys).toContain("missing_context|background|background|Batch|findFirst");
   });
 
   it("files a provider callback under webhook, not request", () => {

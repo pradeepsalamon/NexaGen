@@ -13,7 +13,7 @@
  * with `asPlatform` as the only bypass.
  */
 import { Prisma } from "@prisma/client";
-import { callerFrame, reportTenantGap } from "../tenancy/tenant-audit";
+import { reportTenantGap } from "../tenancy/tenant-audit";
 import { getTenantContext } from "../tenancy/tenant-context";
 import { TENANT_MODELS } from "../tenancy/tenant-models";
 
@@ -34,7 +34,7 @@ export function applyTenantScope(model: string, operation: string, args: unknown
   const tenantId = context?.tenantId;
   if (!tenantId) {
     const scope = !context ? "background" : context.origin === "webhook" ? "webhook" : "request";
-    const at = context?.label ?? callerFrame();
+    const at = context?.label ?? "background";
     reportTenantGap(
       { at, detail: { model, operation }, kind: "missing_context", scope },
       `missing_context|${scope}|${at}|${model}|${operation}`

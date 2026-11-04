@@ -836,8 +836,10 @@ logged on its 1st, 10th, 100th, … occurrence per process:
 - `scope: "request"` with `at: "METHOD /path"`: a request whose academy wasn't
   resolved. **Phase 2's exit check is a full production release with none of
   these.**
-- `scope: "background"`, with `at` set to the calling frame: crons, queues and
-  boot; `scope: "webhook"`: provider callbacks (LiveKit, payment gateways), which
+- `scope: "background"` (`at: "background"`, so read `detail.model` and
+  `detail.operation`): crons, queues and boot. Prisma runs a query lazily when
+  it's awaited, so no stack frame names the caller; Phase 3's
+  `runInTenant(tenantId, label, fn)` labels each job instead. `scope: "webhook"`: provider callbacks (LiveKit, payment gateways), which
   name no academy by design. Both are Phase 3's worklist (`runInTenant`, academy
   from the event's row) and don't block Phase 2.
 
