@@ -235,7 +235,7 @@ describe("AuthService", () => {
       });
 
       expect(prismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: "test@example.com" }
+        where: { tenantId_email: { email: "test@example.com", tenantId: "tenant_nexa" } }
       });
 
       const createCall = prismaService.user.create.mock.calls[0][0];

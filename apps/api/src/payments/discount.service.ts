@@ -23,6 +23,7 @@ import {
   type PrismaTransactionClient
 } from "../prisma/prisma.service";
 import { isUniqueViolation } from "./payments.util";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 
@@ -73,7 +74,7 @@ export class DiscountService {
     const code = input.code.trim().toUpperCase();
     if (!code) return this.reject("NOT_FOUND");
 
-    const discount = await this.prisma.discount.findUnique({ where: { code } });
+    const discount = await this.prisma.discount.findUnique({ where: { tenantId_code: { code, tenantId: requireTenantId("discount") } } });
     if (!discount) return this.reject("NOT_FOUND");
     if (!discount.isActive) return this.reject("INACTIVE");
     // A personal code (referral credits) exists for one account only; to anyone

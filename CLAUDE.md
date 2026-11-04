@@ -149,7 +149,7 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 ### 3.6m2 Multi-tenancy (Phases 2–3)
 
-`apps/api/src/tenancy/`. **Every model not in `PLATFORM_MODELS` gets `tenantId`** (a spec checks); the request's academy is in `TenantContext` (resolver middleware + `authenticateUser`) and the Prisma extension filters every query by it. Background work: `await runInTenant(tenantId, label, fn)`; cross-academy work only inside `asPlatform(reason, fn)` — both await inside, never return an unawaited query. `TENANT_SCOPE_MODE` `audit` logs gaps (`tenant-audit`), `enforce` refuses them. **Raw SQL bypasses the extension**: put `tenantFilter(alias)` on the driving table and record the call in `tenancy/raw-sql-review.spec.ts`. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 2 as built", "Phase 3 plan"
+`apps/api/src/tenancy/`. **Every model not in `PLATFORM_MODELS` gets `tenantId`** (a spec checks); the request's academy is in `TenantContext` (resolver middleware + `authenticateUser`) and the Prisma extension filters every query by it. Background work: `await runInTenant(tenantId, label, fn)`; cross-academy work only inside `asPlatform(reason, fn)` — both await inside, never return an unawaited query. `TENANT_SCOPE_MODE` `audit` logs gaps (`tenant-audit`), `enforce` refuses them. Per-academy keys the extension can't add (`tenantId_email`, a settings row by `tenantId` + `singletonRowId`) take `requireTenantId()`. **Raw SQL bypasses the extension**: put `tenantFilter(alias)` on the driving table and record the call in `tenancy/raw-sql-review.spec.ts`. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 2 as built", "Phase 3 plan"
 
 ### 3.6n AI runtime (mock only)
 

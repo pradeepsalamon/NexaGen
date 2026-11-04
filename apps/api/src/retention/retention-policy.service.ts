@@ -24,6 +24,7 @@ import {
   type RetentionRule
 } from "./retention.rules";
 import { sqlTenantId } from "../tenancy/tenant-sql";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 const CATEGORIES = retentionCategorySchema.options;
 
@@ -78,7 +79,7 @@ export class RetentionPolicyService {
       create: { category, changedAt: now, days: dto.days, updatedById: user.id },
       select: this.select,
       update: { changedAt: now, days: dto.days, updatedById: user.id },
-      where: { category }
+      where: { tenantId_category: { category, tenantId: requireTenantId("retentionPolicy") } }
     });
     this.logger.log(
       `Retention for ${category} set to ${dto.days === null ? "keep forever" : `${dto.days} days`} by user ${user.id}`
@@ -120,7 +121,7 @@ export class RetentionPolicyService {
   async recordSweep(category: RetentionCategory, deleted: number, at: Date): Promise<void> {
     await this.prisma.retentionPolicy.update({
       data: { lastDeletedCount: deleted, lastSweptAt: at },
-      where: { category }
+      where: { tenantId_category: { category, tenantId: requireTenantId("retentionPolicy") } }
     });
   }
 

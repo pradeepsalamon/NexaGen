@@ -367,7 +367,7 @@ That's required because rollback restores images and never reverses migrations.
 | D2 | Add `"tenantId" TEXT DEFAULT 'tenant_nexa'` (nullable) to every T/T\*/F table, `users` included. No backfill: on Postgres 11+ a constant default is metadata-only, so existing rows read `'tenant_nexa'` without a table rewrite | Old code still inserts without `tenantId`, and the default covers it |
 | D3 | Deploy code that always sets `tenantId` from context, with the extension in **audit mode**: it logs, doesn't throw, when context is missing | Watch logs until there are no missing-context hits |
 | D4 | Set `NOT NULL`, add `(tenantId, …)` indexes mirroring the hot indexes, add composite uniques **next to** the old global ones (`users.email`, `plans.code`, `invoices.number`, `messaging_rules.event`, …), add composite FKs on core relations | Extension switches to **enforce** mode |
-| D5 | Drop the old global uniques and the `'tenant_nexa'` default | A second real academy is allowed only after this |
+| D5 | Drop the old global uniques and the `'tenant_nexa'` default; number sequences' primary key `year` → `(tenantId, year)` | A second real academy is allowed only after this |
 
 A partial unique index `WHERE "isDeleted" = false` (soft-deletable models) gains
 `tenantId` as its leading column. The trash checklist in `README.md` gains a
@@ -940,6 +940,28 @@ audit/enforce rule as the extension.
   subquery is one student's rows), the Lichess catalogue, job locks, health,
   advisory locks.
 
+**Slice 5 (built 2026-11-04, migration `20261104191504_saas_per_academy_settings_and_sequences`).**
+- **Settings rows with a fixed id** (`EmailSettings`, `InvoiceSettings`,
+  `PuzzleScoringSettings`, `GameSourceSettings`, `ReferralSettings`) are one row
+  per academy: `tenantId @unique`, read and upserted by `tenantId`, created with
+  `singletonRowId(tenantId)` (Nexa keeps `"default"`, others use the academy
+  id). The `findFirst` singletons (`AttendancePolicy`, `LiveClassPolicy`,
+  appearance, typography, `PaymentSetting`) were already per academy through
+  the extension.
+- Invoice details for an academy with no saved row start from its own name;
+  the `PAYMENTS_SELLER_*` env (Nexa's GSTIN and address) is used for Nexa only.
+- **Lookups by a key that §D5 makes per-academy** (login and sign-up by email,
+  username checks, plan/discount/referral codes, demo slug, messaging rule,
+  retention category, game `sourceKey`, puzzle `(source, sourceId)`, storage
+  snapshot date) use the `tenantId_…` compound key with `requireTenantId()`.
+  Found by type-checking against a schema with the global uniques removed;
+  that check came back clean, so §D5 needs no further code for them.
+- Number sequences have a `(tenantId, year)` unique and are allocated by it,
+  but `year` is still the primary key: **a second academy can't issue
+  invoices, credit notes or payslips in a year Nexa already has until §D5**
+  swaps the key to `(tenantId, year)`. The same goes for
+  `StorageSnapshot.capturedDate`. Both are additive-only blockers, not code.
+
 - **Slice 3b (not built):** `(tenantId, …)` indexes on hot paths (worth it only
   with many academies: with one, `tenantId` filters nothing) and composite FKs
   `(tenantId, parentId) → parent(tenantId, id)` on core relations (they change
@@ -999,6 +1021,19 @@ the identity model, the first thing Phase 2 builds.
 | N-14 | Can one person belong to more than one academy? | **No: one account per academy.** The same email in two academies is two separate accounts (own password, MFA, sessions); no membership table, no academy switcher. Rejected: one login with a `TenantMembership` per academy (+2–3 weeks, every role check reads the membership) |
 | N-13 | Start | **Plan approved.** Phase 2 branches off `dev` (which already changed `authenticateUser` and `schema.prisma` for SALES and referrals); its merge into `dev` waits until the redesign is on `main`, and Phase 2 needs one production release with no missing-tenant log hits before it counts as done |
 | N-15 | Who holds platform powers? | **Nexa's `SUPER_ADMIN`s control every academy**; each academy's own super admins and admins manage only their academy. Rejected: limiting platform powers to named `platform_staff` rows. Consequence: every Nexa super-admin account is a platform account, so MFA stays mandatory for them and the number of Nexa super admins should stay small |
+
+### Decided (2026-11-04, before the overnight run)
+
+- **N-9 Branding:** logos are PNG/JPEG/WebP only (resized on upload, no SVG).
+  Gating is dynamic: each branding item (logo and colours, full domain,
+  white-label) is its own catalogued feature, and the platform console decides
+  which plans include it.
+- **N-11 (part) Platform billing provider:** Razorpay (built in test mode and
+  against mocks until live keys exist).
+- **Run scope:** Phases 3–6 in code and tests on `feat/saas-phase2-foundation`,
+  plus the D5 migration file and a rehearsal script (never run against
+  production). Staging (`vps_dev_saas` copy) is used to verify each phase,
+  including `TENANT_SCOPE_MODE=enforce` there at the end of Phase 3.
 
 ### N-17 Database layout (decided 2026-11-04: shared tables)
 

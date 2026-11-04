@@ -59,6 +59,7 @@ import {
 import { authenticateUser, verifyAccessToken as verifySharedAccessToken } from "./authenticate";
 import { MfaService } from "./mfa/mfa.service";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 type SessionContext = {
   ipAddress?: string;
@@ -170,7 +171,7 @@ export class AuthService {
     // users.email covers deleted rows too, so a filtered read would miss the
     // conflict and the insert would fail with P2002 -> unhandled 500.
     const existingUser = await this.prisma.withDeleted.user.findUnique({
-      where: { email: payload.email.toLowerCase() }
+      where: { tenantId_email: { email: payload.email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
 
     if (existingUser) {
@@ -239,7 +240,7 @@ export class AuthService {
 
     // See register(): must include soft-deleted rows, the unique index does.
     const existingUser = await this.prisma.withDeleted.user.findUnique({
-      where: { email: payload.email.toLowerCase() }
+      where: { tenantId_email: { email: payload.email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
 
     if (existingUser) {
@@ -294,7 +295,7 @@ export class AuthService {
     const startedAt = Date.now();
     const user = await this.prisma.user.findUnique({
       include: { coachProfile: true, studentProfile: true },
-      where: { email: payload.email.toLowerCase() }
+      where: { tenantId_email: { email: payload.email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
     // Locked even for the right password, or the guessing would simply go on.
     if (user?.loginLockedUntil && user.loginLockedUntil.getTime() > Date.now()) {
@@ -759,7 +760,7 @@ export class AuthService {
   async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
     const startedAt = Date.now();
     const user = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
+      where: { tenantId_email: { email: email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
 
     if (!user) {
@@ -1015,9 +1016,9 @@ export class AuthService {
     // Must include soft-deleted rows — the unique indexes on email/username
     // span them, so a filtered read would let the update fail with P2002.
     const [existingEmailUser, existingUsernameUser] = await Promise.all([
-      this.prisma.withDeleted.user.findUnique({ where: { email } }),
+      this.prisma.withDeleted.user.findUnique({ where: { tenantId_email: { email, tenantId: requireTenantId("user") } } }),
       username
-        ? this.prisma.withDeleted.user.findUnique({ where: { username } })
+        ? this.prisma.withDeleted.user.findUnique({ where: { tenantId_username: { username, tenantId: requireTenantId("user") } } })
         : null
     ]);
 

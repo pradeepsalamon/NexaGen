@@ -27,6 +27,7 @@ import { MessagingDispatchService } from "../messaging/messaging-dispatch.servic
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum } from "../common/query-params";
 import { EntitlementService } from "../platform/entitlement.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 type UserWithProfiles = Prisma.UserGetPayload<{ include: typeof userInclude }>;
@@ -115,7 +116,7 @@ export class UserService {
     // indexed across deleted rows too, so a filtered read would miss the
     // conflict and the insert would fail with P2002 -> unhandled 500.
     const existingUser = await this.prisma.withDeleted.user.findUnique({
-      where: { email: data.email }
+      where: { tenantId_email: { email: data.email, tenantId: requireTenantId("user") } }
     });
 
     if (existingUser) {
@@ -198,7 +199,7 @@ export class UserService {
     if (data.email && data.email !== userToUpdate.email) {
       // See create(): must include soft-deleted rows, the unique index does.
       const existingUser = await this.prisma.withDeleted.user.findUnique({
-        where: { email: data.email }
+        where: { tenantId_email: { email: data.email, tenantId: requireTenantId("user") } }
       });
       if (existingUser) {
         throw new BadRequestException("User with this email already exists.");

@@ -36,6 +36,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { maskEmail, maskPhoneNumber } from "./messaging.format";
 import { authenticateUser } from "../auth/authenticate";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 /**
  * Admin-facing CRUD over the one-row-per-event rule table, plus the delivery
@@ -92,7 +93,7 @@ export class MessagingRuleService {
     }
 
     const row = await this.prisma.messagingRule.update({
-      where: { event },
+      where: { tenantId_event: { event, tenantId: requireTenantId("messagingRule") } },
       data: {
         ...(dto.enabled === undefined ? {} : { enabled: dto.enabled }),
         ...(dto.whatsappEnabled === undefined
@@ -310,7 +311,7 @@ export class MessagingRuleService {
   /** The rule for an event, seeding it from the shared defaults on first use. */
   async getRule(event: MessagingEvent): Promise<MessagingRule> {
     const existing = await this.prisma.messagingRule.findUnique({
-      where: { event }
+      where: { tenantId_event: { event, tenantId: requireTenantId("messagingRule") } }
     });
     if (existing) return existing;
 
@@ -336,7 +337,7 @@ export class MessagingRuleService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
-        return this.prisma.messagingRule.findUniqueOrThrow({ where: { event } });
+        return this.prisma.messagingRule.findUniqueOrThrow({ where: { tenantId_event: { event, tenantId: requireTenantId("messagingRule") } } });
       }
       throw error;
     }

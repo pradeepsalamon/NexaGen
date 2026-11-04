@@ -4,6 +4,7 @@ import { RecordingStorageService } from "../live-class/recording-storage.service
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { DEFAULT_TIME_ZONE, zonedDayBounds } from "../common/time";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 /**
  * Daily rollup of recording-storage usage into `storage_snapshots` — one row per
@@ -50,7 +51,7 @@ export class AnalyticsScheduler {
     );
 
     await this.prisma.storageSnapshot.upsert({
-      where: { capturedDate },
+      where: { tenantId_capturedDate: { capturedDate, tenantId: requireTenantId("storageSnapshot") } },
       create: {
         capturedDate,
         recordingBytes: BigInt(Math.round(usage.usedBytes)),

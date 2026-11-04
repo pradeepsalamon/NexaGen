@@ -24,6 +24,7 @@ import { puzzleContentHash } from '../puzzle/puzzle-content-hash';
 import { PuzzleCatalogService } from '../puzzle/puzzle-catalog.service';
 import type { StoredReport } from './game-analysis.mapper';
 import { revisionEligibility } from './revision-eligibility';
+import { requireTenantId } from '../tenancy/tenant-sql';
 
 /**
  * Missed tactic → Smart Revision. Never automatic: the student (or their
@@ -71,7 +72,7 @@ export class GameRevisionService {
     const moveNumber = Math.floor(ply / 2) + 1;
     let puzzle = await this.prisma.withDeleted.puzzle.findUnique({
       select: { id: true, isDeleted: true },
-      where: { source_sourceId: { source: PuzzleSource.GAME, sourceId } },
+      where: { tenantId_source_sourceId: { source: PuzzleSource.GAME, sourceId, tenantId: requireTenantId('puzzle') } },
     });
     if (puzzle?.isDeleted) throw new BadRequestException('That puzzle was deleted.');
     if (!puzzle) {
@@ -105,7 +106,7 @@ export class GameRevisionService {
         if ((error as { code?: string }).code !== 'P2002') throw error;
         puzzle = await this.prisma.puzzle.findUniqueOrThrow({
           select: { id: true, isDeleted: true },
-          where: { source_sourceId: { source: PuzzleSource.GAME, sourceId } },
+          where: { tenantId_source_sourceId: { source: PuzzleSource.GAME, sourceId, tenantId: requireTenantId('puzzle') } },
         });
       }
     }

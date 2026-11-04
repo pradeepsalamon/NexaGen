@@ -17,6 +17,7 @@ import { fullName } from "../payments/payments-auth.helper";
 import { payslipPdfJobId, PAYSLIP_JOBS, PAYSLIP_QUEUE } from "./payslip-queue";
 import { PayslipPdfService } from "./payslip-pdf.service";
 import { PayslipStorageService } from "./payslip-storage.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 const MAX_PDF_ATTEMPTS = 5;
 
@@ -108,8 +109,9 @@ export class PayslipGenerationService {
   private async allocateDocumentNumber(tx: PrismaTransactionClient): Promise<string> {
     const year = new Date().getUTCFullYear();
     const sequence = await tx.payslipSequence.upsert({
-      where: { year },
-      create: { year, lastNumber: 1 },
+      // Each academy numbers its own documents (slice 5).
+      where: { tenantId_year: { tenantId: requireTenantId("payslipSequence"), year } },
+      create: { lastNumber: 1, tenantId: requireTenantId("payslipSequence"), year },
       update: { lastNumber: { increment: 1 } }
     });
     return formatPayslipNumber(year, sequence.lastNumber);
