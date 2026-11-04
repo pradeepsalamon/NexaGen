@@ -86,9 +86,9 @@ export class GameAnalysisWorker implements OnModuleInit, OnApplicationShutdown {
   @Cron(CronExpression.EVERY_30_SECONDS)
   async tick(): Promise<void> {
     if (!getApiEnv().GAME_ANALYSIS_ENABLED || this.shuttingDown) return;
-    await this.jobLocks.runExclusive(JOB_LOCKS.gameAnalysisStaleSweep, () => this.sweepStale());
+    await this.jobLocks.runForEachTenant(JOB_LOCKS.gameAnalysisStaleSweep, () => this.sweepStale());
     if (getApiEnv().GAME_ANALYSIS_AUTO_LIVE_GAMES) {
-      await this.jobLocks.runExclusive(JOB_LOCKS.gameAnalysisAutoQueue, () => this.queueFinishedLiveGames());
+      await this.jobLocks.runForEachTenant(JOB_LOCKS.gameAnalysisAutoQueue, () => this.queueFinishedLiveGames());
     }
     this.nudge();
   }

@@ -884,6 +884,30 @@ Re-counted that day: **117 raw-SQL calls in 44 files** (80/24 in 2026-10),
 | 6 | Caches keyed by academy, Cloudinary/recording paths, LiveKit room names, host-only cookies (no forced Nexa logout), per-academy CSRF origins | §K threat-model rows covered |
 | 7 | Two-academy integration suites (every route, cross-academy ids), then `TENANT_SCOPE_MODE=enforce` on staging | A second seeded academy can't see or change any Nexa row |
 
+**Slice 1 (built 2026-11-04, `927988f5`).** Unit and integration suites green with
+filtering on. In `authenticateUser` the token's user and session are read
+under `asPlatform`: the signed token is the authority, and `bindAuthenticatedUser`
+then checks the result against the host.
+
+**Slice 2 (built 2026-11-04).** *(builder's calls)*
+- **Crons run once per academy** (`JobLockService.runForEachTenant`: one lock,
+  then `forEachTenant` → `runInTenant`), rather than sweeping under `asPlatform`
+  and entering each row's academy. Every query stays scoped and per-academy
+  settings resolve with no per-row code; the cost is one `tenants` read per
+  tick. DEACTIVATED academies are skipped; a failure in one academy doesn't stop
+  the rest (the first error is rethrown). Trash cleanup sums its counts.
+- **The outbox claim stays global** (one raw-SQL batch across academies, fair
+  and cheap); each claimed row is sent inside its own academy.
+- **Queue jobs** carry `tenantId`; `runJobForRow` reads the row's academy as
+  platform, drops a job whose payload disagrees, and runs the work as the row's
+  academy. Jobs queued before the change still run (the row decides).
+- **LiveKit webhook:** the room's `LiveSession` row names the academy.
+- **Payment webhooks run as Nexa** (`gatewayTenantId`): every gateway credential
+  is in env and is Nexa's merchant account. Phase 6's per-academy credentials
+  and webhook URLs replace that one function.
+- Known follow-up for slice 5: `StorageSnapshot.capturedDate` is still globally
+  unique, so the daily snapshot cron would collide once a second academy exists.
+
 
 ---
 

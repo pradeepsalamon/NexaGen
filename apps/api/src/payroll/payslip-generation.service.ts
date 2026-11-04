@@ -12,6 +12,7 @@ import type { Queue } from "bullmq";
 import { JOB_LOCKS, JobLockService, type JobLockName } from "../prisma/job-lock.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { isQueueEnabled } from "../queue/queue.config";
+import { currentTenantId } from "../tenancy/tenant-context";
 import { fullName } from "../payments/payments-auth.helper";
 import { payslipPdfJobId, PAYSLIP_JOBS, PAYSLIP_QUEUE } from "./payslip-queue";
 import { PayslipPdfService } from "./payslip-pdf.service";
@@ -123,7 +124,7 @@ export class PayslipGenerationService {
 
     await this.queue.add(
       PAYSLIP_JOBS.generatePayslipPdf,
-      { payslipId, force: options?.force },
+      { force: options?.force, payslipId, tenantId: currentTenantId() ?? undefined },
       { jobId: payslipPdfJobId(payslipId, options?.force) }
     );
   }
@@ -315,7 +316,7 @@ export class PayslipGenerationService {
 
   private async withLock(name: JobLockName, run: () => Promise<void>): Promise<void> {
     try {
-      await this.jobLocks.runExclusive(name, run);
+      await this.jobLocks.runForEachTenant(name, run);
     } catch (error) {
       this.logger.error("Payslip generation cron failed", error as Error);
     }

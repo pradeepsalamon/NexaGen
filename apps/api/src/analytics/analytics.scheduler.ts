@@ -23,7 +23,7 @@ export class AnalyticsScheduler {
   @Cron(CronExpression.EVERY_DAY_AT_1AM)
   async captureStorageSnapshot(): Promise<void> {
     try {
-      await this.jobLocks.runExclusive(JOB_LOCKS.analyticsStorageSnapshot, () =>
+      await this.jobLocks.runForEachTenant(JOB_LOCKS.analyticsStorageSnapshot, () =>
         this.snapshot()
       );
     } catch (error) {

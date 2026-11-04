@@ -2,7 +2,9 @@ import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
 import type { Job } from "bullmq";
+import { PrismaService } from "../prisma/prisma.service";
 import { buildWorkerOptions } from "../queue/queue.config";
+import { runJobForRow } from "../tenancy/run-job-for-row";
 import { PayslipGenerationService } from "./payslip-generation.service";
 import { PAYSLIP_JOBS, PAYSLIP_QUEUE, type GeneratePayslipPdfJob } from "./payslip-queue";
 
@@ -16,7 +18,10 @@ import { PAYSLIP_JOBS, PAYSLIP_QUEUE, type GeneratePayslipPdfJob } from "./paysl
 export class PayslipProcessor extends WorkerHost {
   private readonly logger = new Logger(PayslipProcessor.name);
 
-  constructor(private readonly generation: PayslipGenerationService) {
+  constructor(
+    private readonly generation: PayslipGenerationService,
+    private readonly prisma: PrismaService
+  ) {
     super();
   }
 
@@ -24,7 +29,12 @@ export class PayslipProcessor extends WorkerHost {
     switch (job.name) {
       case PAYSLIP_JOBS.generatePayslipPdf: {
         const data = job.data as GeneratePayslipPdfJob;
-        await this.generation.generate(data.payslipId, data.force);
+        await runJobForRow(
+          "queue:payslip-pdf",
+          data.tenantId,
+          () => this.prisma.payslip.findUnique({ select: { tenantId: true }, where: { id: data.payslipId } }),
+          () => this.generation.generate(data.payslipId, data.force)
+        );
         return;
       }
       default:

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import type { PaymentProvider } from "@nexa-chess/types";
+import { DEFAULT_TENANT_ID, type PaymentProvider } from "@nexa-chess/types";
 import {
   Prisma,
   RefundStatus,
@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { runInTenant } from "../tenancy/tenant-context";
 import { PaymentService } from "./payment.service";
 import { toJson } from "./payments.util";
 import type { WebhookResult } from "./providers/payment-provider.interface";
@@ -37,6 +38,16 @@ const MAX_RECOVERY_ATTEMPTS = 6;
  * the HTTP response is still 200, because a provider that retries forever on a
  * bug of ours is worse than a row we can replay ourselves.
  */
+/**
+ * The academy a gateway webhook belongs to. Today every gateway credential is
+ * set in env and is Nexa's own merchant account, so it is Nexa. Phase 6 gives
+ * each academy its own credentials and webhook URL, and this then names the
+ * academy whose credentials verified the event (docs/SAAS_MULTI_TENANCY.md §G).
+ */
+function gatewayTenantId(_provider: PaymentProvider): string {
+  return DEFAULT_TENANT_ID;
+}
+
 @Injectable()
 export class PaymentWebhookService {
   private readonly logger = new Logger(PaymentWebhookService.name);
@@ -51,6 +62,16 @@ export class PaymentWebhookService {
   ) {}
 
   async handle(
+    provider: PaymentProvider,
+    rawBody: string,
+    headers: Record<string, string | string[] | undefined>
+  ): Promise<{ received: true; status: WebhookEventStatus }> {
+    return runInTenant(gatewayTenantId(provider), `webhook:payments:${provider}`, () =>
+      this.handleNow(provider, rawBody, headers)
+    );
+  }
+
+  private async handleNow(
     provider: PaymentProvider,
     rawBody: string,
     headers: Record<string, string | string[] | undefined>
@@ -298,7 +319,7 @@ export class PaymentWebhookService {
    */
   @Cron(CronExpression.EVERY_10_MINUTES)
   async recoverFailedEvents(): Promise<void> {
-    await this.jobLocks.runExclusive(JOB_LOCKS.paymentWebhookRecovery, () =>
+    await this.jobLocks.runForEachTenant(JOB_LOCKS.paymentWebhookRecovery, () =>
       this.recoverFailedEventsNow()
     );
   }

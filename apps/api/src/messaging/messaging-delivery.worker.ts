@@ -1,12 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { markdownToWhatsApp, MESSAGE_MAX_ATTEMPTS } from "@nexa-chess/types";
+import { DEFAULT_TENANT_ID, markdownToWhatsApp, MESSAGE_MAX_ATTEMPTS } from "@nexa-chess/types";
 import type { MessageDelivery } from "@prisma/client";
 import { MailService } from "../mail/mail.service";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { runInTenant } from "../tenancy/tenant-context";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { nextAttemptAt } from "./messaging.schedule";
+
 
 /** Rows claimed per sweep. Caps how long one tick can run. */
 const BATCH_SIZE = 200;
@@ -51,7 +53,11 @@ export class MessagingDeliveryWorker {
       for (const delivery of claimed) {
         // Unsent rows wait for their claim to go stale, then a later sweep takes them.
         if (Date.now() > deadline) break;
-        const ok = await this.deliver(delivery);
+        // The claim spans academies; each row is sent as its own academy
+        // (docs/SAAS_MULTI_TENANCY.md § "Phase 3 plan", slice 2).
+        const ok = await runInTenant(delivery.tenantId ?? DEFAULT_TENANT_ID, "job:messaging.outbox", () =>
+          this.deliver(delivery)
+        );
         if (ok) sent += 1;
         else failed += 1;
       }

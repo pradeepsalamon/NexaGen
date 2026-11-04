@@ -25,7 +25,7 @@ export class RetentionService {
 
   @Cron(`0 ${RETENTION_SWEEP_HOUR_UTC} * * *`, { timeZone: "UTC" })
   async sweep(): Promise<void> {
-    await this.jobLocks.runExclusive(JOB_LOCKS.retentionSweep, () => this.pruneAll());
+    await this.jobLocks.runForEachTenant(JOB_LOCKS.retentionSweep, () => this.pruneAll());
   }
 
   /** Fixed rules first, then every admin-set window. Keyed by table. */

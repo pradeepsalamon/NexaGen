@@ -319,7 +319,7 @@ export class AttendanceService {
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handleStaleHeartbeats() {
     try {
-      await this.jobLocks.runExclusive(JOB_LOCKS.attendanceHeartbeatSweep, () =>
+      await this.jobLocks.runForEachTenant(JOB_LOCKS.attendanceHeartbeatSweep, () =>
         this.sweepStaleHeartbeats()
       );
     } catch (error) {

@@ -196,7 +196,7 @@ export class EntitlementService {
    */
   @Cron(CronExpression.EVERY_HOUR)
   async expireLapsed(): Promise<void> {
-    await this.jobLocks.runExclusive(JOB_LOCKS.entitlementExpiry, () => this.expireLapsedNow());
+    await this.jobLocks.runForEachTenant(JOB_LOCKS.entitlementExpiry, () => this.expireLapsedNow());
   }
 
   private async expireLapsedNow(): Promise<void> {

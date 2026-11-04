@@ -591,7 +591,7 @@ export class LiveClassService {
   async handleStaleClasses() {
     try {
       // Only one instance should sweep stale classes per tick (AUDIT M21).
-      await this.jobLocks.runExclusive(JOB_LOCKS.liveClassStaleSweep, () =>
+      await this.jobLocks.runForEachTenant(JOB_LOCKS.liveClassStaleSweep, () =>
         this.sweepStaleClasses()
       );
     } catch (error) {
