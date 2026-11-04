@@ -4,7 +4,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { NavDrawer, NavDrawerAccordion, NavDrawerLink } from "@/components/layout/Sidebar";
-import { getAdminNavGroups } from "@/components/layout/navItems";
+import { activeNavHref, getAdminNavGroups } from "@/components/layout/navItems";
 import { useChatNavBadge } from "@/features/chat/hooks/useChat";
 import { useLiveClassesMonitor } from "@/features/live-monitor/hooks/useLiveMonitor";
 import { useCurrentEntitlements } from "@/features/subscription/hooks/useSubscription";
@@ -38,14 +38,10 @@ export function AdminSidebar() {
 
   // Only the most specific match is active, so a nested link and its parent
   // never both light up (e.g. /admin/classes and /admin/classes/requests).
-  const activeHref = useMemo(() => {
-    const matches = (href: string) =>
-      pathname === href || (href !== "/admin" && pathname.startsWith(`${href}/`));
-    return groups
-      .flatMap((group) => group.items.map((item) => item.href))
-      .filter(matches)
-      .sort((a, b) => b.length - a.length)[0];
-  }, [groups, pathname]);
+  const activeHref = useMemo(
+    () => activeNavHref(groups.flatMap((group) => group.items.map((item) => item.href)), pathname),
+    [groups, pathname]
+  );
 
   const isItemActive = (href: string) => href === activeHref;
 

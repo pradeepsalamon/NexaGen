@@ -1,6 +1,6 @@
 "use client";
 
-import { LifeBuoy, Loader2, LogIn, Menu, X } from "lucide-react";
+import { LifeBuoy, Loader2, LogIn, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
@@ -8,7 +8,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { HEADER_ICON_BUTTON } from "@/components/layout/headerStyles";
+import { NAV_DOCKED_QUERY } from "@/components/layout/Sidebar";
 import { UserNavMenu } from "@/components/layout/UserNavMenu";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { useSidebarStore } from "@/stores/sidebarStore";
@@ -37,6 +39,10 @@ export function Header({
   const hasSidebar = useSidebarStore((state) => state.available);
   const sidebarOpen = useSidebarStore((state) => state.open);
   const toggleSidebar = useSidebarStore((state) => state.toggle);
+  const navCollapsed = useSidebarStore((state) => state.collapsed);
+  const toggleNavCollapsed = useSidebarStore((state) => state.toggleCollapsed);
+  // From `xl` the nav is docked: the same button collapses it to a rail instead of opening a drawer.
+  const navDocked = useMediaQuery(NAV_DOCKED_QUERY);
 
   const isAuthPending = !isHydrated || isSessionLoading || !isSessionChecked;
   const activeUser = isSessionChecked ? user : undefined;
@@ -46,10 +52,33 @@ export function Header({
 
   return (
     <header className="surface-brand fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-brand-800 px-3 text-on-brand sm:px-4 md:px-6 lg:px-8">
-      <div className="mx-auto flex h-full w-full max-w-7xl items-center justify-between gap-2">
+      {/* Docked nav: the menu button and logo sit over the nav column, not in the centred page width. */}
+      <div
+        className={cn(
+          "mx-auto flex h-full w-full items-center justify-between gap-2",
+          hasSidebar && navDocked ? "max-w-none" : "max-w-7xl"
+        )}
+      >
         {/* Left: menu + logo */}
         <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-3">
-          {hasSidebar ? (
+          {hasSidebar && navDocked ? (
+            <SimpleTooltip label={navCollapsed ? "Expand menu" : "Collapse menu"} side="bottom">
+              <button
+                aria-controls="nav-drawer"
+                aria-expanded={!navCollapsed}
+                aria-label={navCollapsed ? "Expand menu" : "Collapse menu"}
+                className={HEADER_ICON_BUTTON}
+                onClick={toggleNavCollapsed}
+                type="button"
+              >
+                {navCollapsed ? (
+                  <PanelLeftOpen aria-hidden="true" className="size-5" strokeWidth={2.25} />
+                ) : (
+                  <PanelLeftClose aria-hidden="true" className="size-5" strokeWidth={2.25} />
+                )}
+              </button>
+            </SimpleTooltip>
+          ) : hasSidebar ? (
             <button
               aria-controls="nav-drawer"
               aria-expanded={sidebarOpen}

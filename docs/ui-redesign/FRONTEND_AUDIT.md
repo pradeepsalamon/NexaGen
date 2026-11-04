@@ -128,7 +128,7 @@ Nothing is truly orphaned, but these need a link inside another page to be found
 
 **Issues:**
 
-- **Decided (D2, reconfirmed 2026-11-01):** the off-canvas drawer stays at every width. There is no persistent desktop sidebar and no mobile bottom navigation. The drawer is restyled navy and a visible desktop menu button returns. The Patterns board, and v2's Sidebar, which reads as a persistent rail, do not overturn this.
+- **Decided (D2, reconfirmed 2026-11-01; revised 2026-11-04: the nav docks from `xl`, see REDESIGN_ROADMAP D2):** the off-canvas drawer stays at every width. There is no persistent desktop sidebar and no mobile bottom navigation. The drawer is restyled navy and a visible desktop menu button returns. The Patterns board, and v2's Sidebar, which reads as a persistent rail, do not overturn this.
 - On `dev`, the desktop menu button is gone, leaving the edge tab and hover as the only ways in [verdict].
 - Touching the left screen edge dims the page by 15% [verdict].
 - The closed drawer's tab overlays page content on phones [baseline; seen again in this sweep].

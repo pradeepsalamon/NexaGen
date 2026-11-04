@@ -5,46 +5,63 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  createContext,
+  useContext,
   useEffect,
   useRef,
   useState,
   type PointerEvent,
+  type ReactElement,
   type ReactNode
 } from "react";
 import type { NavItem } from "@/components/layout/navItems";
+import { Avatar } from "@/components/ui/Avatar";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useAuthStore } from "@/stores/authStore";
 import { useSidebarStore } from "@/stores/sidebarStore";
 import { cn } from "@/lib/utils";
 
+/** From here the nav is docked beside the page instead of an off-canvas drawer. */
+export const NAV_DOCKED_QUERY = "(min-width: 1280px)";
+
+/** True while the docked nav is collapsed to an icon rail: labels become tooltips. */
+const NavRailContext = createContext(false);
+
+/** In the rail a label is only a tooltip; elsewhere the label is on screen. */
+function RailTooltip({ children, label }: { children: ReactElement; label: string }) {
+  const rail = useContext(NavRailContext);
+  return rail ? (
+    <SimpleTooltip label={label} side="right">
+      {children}
+    </SimpleTooltip>
+  ) : (
+    children
+  );
+}
+
 /** Signed-in user pinned to the drawer's foot; links to their profile. */
 function NavDrawerUser() {
   const user = useAuthStore((state) => state.user);
+  const rail = useContext(NavRailContext);
 
   if (!user) return null;
 
   const name =
     [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
-  const initials =
-    `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase() ||
-    user.email.slice(0, 1).toUpperCase();
 
   return (
+    <RailTooltip label={name}>
     <Link
       className={cn(
         "flex items-center gap-3 rounded-control p-2 transition-colors duration-150",
-        "text-on-brand hover:bg-brand-800"
+        "text-on-brand hover:bg-brand-800",
+        rail && "justify-center px-0"
       )}
       href="/profile"
     >
-      <span
-        className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-          "bg-primary-soft text-primary-ink"
-        )}
-      >
-        {initials}
-      </span>
-      <span className="min-w-0 flex-1">
+      <Avatar className="font-bold" imageUrl={user.avatarUrl} name={name} size="sm" />
+      <span className={cn("min-w-0 flex-1", rail && "sr-only")}>
         <span className="block truncate text-sm font-semibold">{name}</span>
         <span
           className={cn(
@@ -56,6 +73,7 @@ function NavDrawerUser() {
         </span>
       </span>
     </Link>
+    </RailTooltip>
   );
 }
 
@@ -79,6 +97,9 @@ export function NavDrawer({
   const show = useSidebarStore((state) => state.show);
   const toggle = useSidebarStore((state) => state.toggle);
   const setAvailable = useSidebarStore((state) => state.setAvailable);
+  const collapsed = useSidebarStore((state) => state.collapsed);
+  const docked = useMediaQuery(NAV_DOCKED_QUERY);
+  const rail = docked && collapsed;
 
   const panelRef = useRef<HTMLElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -97,6 +118,23 @@ export function NavDrawer({
     return () => setAvailable(false);
   }, [setAvailable]);
 
+  // `--app-nav-w` (globals.css) sizes the docked column and AppShell's offset.
+  // The root layout's init script sets it before paint; this keeps it current.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.nav = collapsed ? "collapsed" : "expanded";
+    return () => {
+      delete root.dataset.nav;
+    };
+  }, [collapsed]);
+
+  // Widening past `xl` docks the nav: an open drawer or a peek has no meaning there.
+  useEffect(() => {
+    if (!docked) return;
+    close();
+    setPeek(false);
+  }, [close, docked]);
+
   useEffect(() => {
     close();
   }, [close, pathname]);
@@ -111,9 +149,9 @@ export function NavDrawer({
   }, [close, open]);
 
   useEffect(() => {
-    panelRef.current?.toggleAttribute("inert", !open && !peek);
+    panelRef.current?.toggleAttribute("inert", !docked && !open && !peek);
     if (open) setPeek(false);
-  }, [open, peek]);
+  }, [docked, open, peek]);
 
   // A peek ends once the pointer is past the drawer, even if it never entered
   // it (then the drawer's pointerleave never fires and it would stay out).
@@ -187,6 +225,41 @@ export function NavDrawer({
     }
     action();
   };
+
+  if (docked) {
+    return (
+      <NavRailContext.Provider value={rail}>
+        <aside
+          aria-label={`${title} navigation`}
+          className="surface-brand fixed bottom-0 left-0 top-16 z-30 flex w-[var(--app-nav-w)] flex-col overflow-hidden border-r border-app-drawer-border bg-app-drawer text-on-brand motion-safe:transition-[width] motion-safe:duration-200"
+          id="nav-drawer"
+          ref={panelRef}
+        >
+          {rail ? null : (
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-app-drawer-border px-4 py-3.5">
+              <span className="font-display text-base font-bold tracking-tight">{title}</span>
+              {subtitle ? (
+                <span className="min-w-0 truncate rounded-full border border-app-drawer-border px-2.5 py-0.5 text-xs font-medium text-on-brand-muted">
+                  {subtitle}
+                </span>
+              ) : null}
+            </div>
+          )}
+          <nav
+            className={cn(
+              "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain [contain:content] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0",
+              rail ? "p-2" : "p-3"
+            )}
+          >
+            {children}
+          </nav>
+          <div className="flex shrink-0 flex-col gap-2 border-t border-app-drawer-border p-2">
+            {footer ?? <NavDrawerUser />}
+          </div>
+        </aside>
+      </NavRailContext.Provider>
+    );
+  }
 
   return (
     <>
@@ -363,6 +436,20 @@ function NavBadge({ badge }: { badge: NonNullable<NavItem["badge"]> }) {
   );
 }
 
+/** A badge in the rail: a dot on the icon's corner (the tooltip carries the text). */
+function RailBadgeDot({ badge }: { badge: NonNullable<NavItem["badge"]> }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "absolute -right-1 -top-1 size-2.5 rounded-full ring-2 ring-app-drawer",
+        DOT_TONE[badge.tone],
+        badge.pulse && "motion-safe:animate-pulse"
+      )}
+    />
+  );
+}
+
 export function NavDrawerLink({
   active,
   item
@@ -372,25 +459,31 @@ export function NavDrawerLink({
 }) {
   const Icon = item.icon;
   const close = useSidebarStore((state) => state.close);
+  const rail = useContext(NavRailContext);
 
   return (
+    <RailTooltip label={item.badge?.label ? `${item.label} (${item.badge.label})` : item.label}>
     <Link
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex h-10 w-full items-center gap-3 rounded-control px-3 text-sm font-medium transition-colors duration-150",
         active
           ? "bg-brand-700 font-semibold text-on-brand shadow-[inset_3px_0_0_rgb(var(--rgb-accent))]"
-          : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
+          : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand",
+        rail && "justify-center px-0"
       )}
       href={item.href}
       onClick={close}
     >
-      <span className="flex size-5 shrink-0 items-center justify-center">
+      <span className="relative flex size-5 shrink-0 items-center justify-center">
         <Icon aria-hidden="true" className="size-5" strokeWidth={active ? 2.3 : 2} />
+        {rail && item.badge ? <RailBadgeDot badge={item.badge} /> : null}
       </span>
-      <span className="flex-1 truncate">{item.label}</span>
-      {item.badge ? <NavBadge badge={item.badge} /> : null}
+      <span className={cn("flex-1 truncate", rail && "sr-only")}>{item.label}</span>
+      {item.badge && !rail ? <NavBadge badge={item.badge} /> : null}
+      {item.badge?.label && rail ? <span className="sr-only">{item.badge.label}</span> : null}
     </Link>
+    </RailTooltip>
   );
 }
 
@@ -412,7 +505,34 @@ export function NavDrawerAccordion({
   open: boolean;
 }) {
   const close = useSidebarStore((state) => state.close);
+  const setCollapsed = useSidebarStore((state) => state.setCollapsed);
+  const rail = useContext(NavRailContext);
   const panelId = `sidebar-submenu-${id}`;
+
+  // The rail has no room for a section's links: its icon widens the nav and opens the section.
+  if (rail) {
+    const holdsRoute = items.some((item) => isItemActive(item.href));
+    return (
+      <SimpleTooltip label={label} side="right">
+        <button
+          aria-label={`${label}: expand the menu`}
+          className={cn(
+            "flex h-10 w-full items-center justify-center rounded-control transition-colors duration-150",
+            holdsRoute
+              ? "bg-brand-700 text-on-brand shadow-[inset_3px_0_0_rgb(var(--rgb-accent))]"
+              : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
+          )}
+          onClick={() => {
+            setCollapsed(false);
+            if (!open) onToggle();
+          }}
+          type="button"
+        >
+          <Icon aria-hidden="true" className="size-5" strokeWidth={holdsRoute ? 2.3 : 2} />
+        </button>
+      </SimpleTooltip>
+    );
+  }
 
   return (
     <div className="flex flex-col">

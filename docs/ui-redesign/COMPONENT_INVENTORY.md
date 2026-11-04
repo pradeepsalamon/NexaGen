@@ -136,7 +136,7 @@ Keep channel triplets: colours must stay `--rgb-*` values because Tailwind alpha
 | `forms/Form`, `FormInput`, `FormSelect` | 4, 4, 3 | 5, 5, 3 | TextField | Wrappers | P1 |
 | `forms/FormCheckbox` | **0** | 0 | Choice | Unused. **Deleted in M11** | P2 |
 | `layout/Header` | 4 | global | No DS spec | Navy or white per D2 | P0 |
-| `layout/Sidebar` (`NavDrawer`) | 3 | 6 + | Sidebar | 503 lines. Navy `brand-900`, gold inset bar; keep drawer behaviour per D2 | P0 |
+| `layout/Sidebar` (`NavDrawer`) | 3 | 6 + | Sidebar | Navy `brand-900`, gold inset bar; drawer below `xl`, docked + collapsible rail from `xl` (D2 revised 2026-11-04) | P0 |
 | `layout/AdminSidebar`, `CoachSidebar`, `StudentSidebar`, `RoleSidebar` | 1 each | | Sidebar | Styling flows from `Sidebar`. `StudentSidebar` has live badges to keep | P0 |
 | `layout/navItems` | 4 | | | **Source of role and plan visibility. Do not move logic** | P0 |
 | `layout/UserNavMenu` | 1 | | Avatar + Menu | | P1 |

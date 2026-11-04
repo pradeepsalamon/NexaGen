@@ -196,6 +196,20 @@ export function getAdminNavItems(role?: string, features?: readonly PlanFeatureK
   return filterNavByPlan(items, features);
 }
 
+/** Role home pages: active only on themselves, never for the pages below them. */
+const ROLE_HOMES = new Set(["/admin", "/coach", "/sales", "/student"]);
+
+/**
+ * The one nav link the current route belongs to: the most specific href that
+ * equals the path or is a parent of it, so `/coach/batches/<id>` lights up
+ * "My batches" and a nested link never lights up together with its parent.
+ */
+export function activeNavHref(hrefs: readonly string[], pathname: string): string | undefined {
+  return hrefs
+    .filter((href) => pathname === href || (!ROLE_HOMES.has(href) && pathname.startsWith(`${href}/`)))
+    .sort((a, b) => b.length - a.length)[0];
+}
+
 /** `group: ""` holds the top-level direct links; every other group is a sidebar section. */
 export type NavGroup = { group: string; icon?: LucideIcon; items: NavItem[] };
 

@@ -51,6 +51,14 @@ const themeInitScript = `
       root.style.setProperty("--text-scale", String(t.scale));
     }
   } catch {}
+  try {
+    // Signed in: reserve the docked nav column (globals.css --app-nav-w) at its saved width.
+    const auth = JSON.parse(window.localStorage.getItem("nexa-auth") || "null");
+    if (auth && auth.state && auth.state.user) {
+      const nav = JSON.parse(window.localStorage.getItem("nexa-sidebar") || "null");
+      root.dataset.nav = nav && nav.state && nav.state.collapsed ? "collapsed" : "expanded";
+    }
+  } catch {}
 })();
 `;
 

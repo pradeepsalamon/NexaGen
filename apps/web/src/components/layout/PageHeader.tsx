@@ -24,7 +24,8 @@ export function PageHeader({ title, description, actions, breadcrumbs, children 
           )}
         </div>
         {actions && (
-          <div className="flex flex-wrap items-center gap-2">
+          // Never squeezed below its buttons by a long description: up to 60% of the row, wrapping inside it.
+          <div className="flex flex-wrap items-center gap-2 sm:max-w-[60%] sm:flex-none sm:justify-end">
             {actions}
           </div>
         )}

@@ -252,6 +252,19 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Docked role nav width (components/layout/Sidebar.tsx, AppShell). `data-nav`
+     is set before paint by the root layout and kept current by NavDrawer;
+     unset (signed out, or no nav) means no column. Below xl the nav is a drawer:
+     docked at 1280 the page keeps 960px, what lg layouts were built for. */
+  @media (min-width: 1280px) {
+    html[data-nav="expanded"] {
+      --app-nav-w: 16rem;
+    }
+    html[data-nav="collapsed"] {
+      --app-nav-w: 4rem;
+    }
+  }
+
   /* No double-tap-to-zoom delay on controls (iPad / Android tablets). */
   a,
   button,

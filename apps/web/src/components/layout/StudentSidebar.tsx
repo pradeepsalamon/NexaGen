@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { NavDrawer, NavDrawerLink } from "@/components/layout/Sidebar";
 import {
+  activeNavHref,
   filterNavByPlan,
   studentNavItems,
   type NavBadge,
@@ -87,11 +88,13 @@ export function StudentSidebar() {
     })
   );
 
+  const activeHref = activeNavHref(items.map((item) => item.href), pathname);
+
   return (
     <NavDrawer subtitle="Student" title="Nexa Chess">
       {items.map((item) => (
         <NavDrawerLink
-          active={pathname === item.href}
+          active={item.href === activeHref}
           item={item}
           key={item.href}
         />
