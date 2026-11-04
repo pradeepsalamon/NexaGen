@@ -605,6 +605,55 @@ describe("LiveClassModerationService.moderateParticipant (coach force-mute)", ()
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
+
+  describe("lowerHand", () => {
+    it("tells the whole room, unaddressed, that the coach lowered this hand", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+
+      const result = await service.lowerHand(ACCESS_TOKEN, "class-1", { identity: "student-1_tab-a" });
+
+      expect(result).toEqual({ identity: "student-1_tab-a" });
+      expect(broadcastData).toHaveBeenCalledWith("room-1", expect.any(Uint8Array), "moderation");
+      const notice = JSON.parse(new TextDecoder().decode(broadcastData.mock.calls[0][1]));
+      expect(notice).toEqual({ type: "LOWER_HAND", identity: "student-1_tab-a", byName: "Ada Coach" });
+    });
+
+    it("is coach-owner or admin only", async () => {
+      authenticateAs("student-2", UserRole.STUDENT);
+      await expect(
+        service.lowerHand(ACCESS_TOKEN, "class-1", { identity: "student-1_tab-a" })
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      authenticateAs("coach-2", UserRole.COACH);
+      await expect(
+        service.lowerHand(ACCESS_TOKEN, "class-1", { identity: "student-1_tab-a" })
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      authenticateAs("admin-1", UserRole.ADMIN);
+      await expect(
+        service.lowerHand(ACCESS_TOKEN, "class-1", { identity: "student-1_tab-a" })
+      ).resolves.toEqual({ identity: "student-1_tab-a" });
+    });
+
+    it("refuses the coach's own identity and 404s for someone who left", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      await expect(
+        service.lowerHand(ACCESS_TOKEN, "class-1", { identity: "coach-1" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.lowerHand(ACCESS_TOKEN, "class-1", { identity: "student-9_tab-z" })
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(broadcastData).not.toHaveBeenCalled();
+    });
+
+    it("surfaces a failed delivery", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      broadcastData.mockRejectedValue(new Error("livekit down"));
+      await expect(
+        service.lowerHand(ACCESS_TOKEN, "class-1", { identity: "student-1_tab-a" })
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
+  });
 });
 
 describe("LiveClassService.getToken coach-presence gate", () => {
@@ -1266,7 +1315,12 @@ describe("LiveClassService screen-share requests", () => {
             liveClassWaitingParticipant: { findUnique: jest.fn().mockResolvedValue(null) },
             coachClass: { findUnique: coachClassFindUnique, update: coachClassUpdate },
             liveSession: { findUnique: liveSessionFindUnique, updateMany: liveSessionUpdateMany },
-            user: { findUnique: userFindUnique },
+            user: {
+              findUnique: userFindUnique,
+              findFirst: jest.fn(({ where }: { where: { id: string } }) =>
+                Promise.resolve(where.id.startsWith("student-") ? { id: where.id } : null)
+              )
+            },
             liveClassScreenShareRequest: {
               findUnique: shareFindUnique,
               upsert: shareUpsert,
@@ -1440,6 +1494,79 @@ describe("LiveClassService screen-share requests", () => {
       );
       expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_client-a", "track-1");
       expect(result.status).toBe("REVOKED");
+    });
+  });
+
+  describe("grantScreenShare (coach allows without a request)", () => {
+    it("writes an APPROVED row, widens the student's grant and announces it", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      shareUpsert.mockImplementation(({ create }: { create: Record<string, unknown> }) =>
+        Promise.resolve(shareRow({ studentId: create.studentId, status: create.status }))
+      );
+
+      const entry = await screenShare.grantScreenShare(ACCESS_TOKEN, "class-1", { studentId: "student-1" });
+
+      expect(entry.status).toBe("APPROVED");
+      expect(shareUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ status: "APPROVED", resolvedById: "coach-1" }),
+          update: expect.objectContaining({ status: "APPROVED", resolvedById: "coach-1" })
+        })
+      );
+      expect(updateParticipantPermissions).toHaveBeenCalledWith(
+        "room-1",
+        "student-1_client-a",
+        expect.objectContaining({ canPublishSources: expect.arrayContaining(["screen_share"]) })
+      );
+      const event = JSON.parse(new TextDecoder().decode(broadcastData.mock.calls[0][1]));
+      expect(event.type).toBe("RESOLVED");
+      expect(event.entry.status).toBe("APPROVED");
+    });
+
+    it("is idempotent for a student already allowed", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      shareFindUnique.mockResolvedValue(shareRow({ status: "APPROVED" }));
+
+      const entry = await screenShare.grantScreenShare(ACCESS_TOKEN, "class-1", { studentId: "student-1" });
+
+      expect(entry.status).toBe("APPROVED");
+      expect(shareUpsert).not.toHaveBeenCalled();
+      expect(broadcastData).not.toHaveBeenCalled();
+    });
+
+    it("refuses when everyone may already share, or the student isn't in the room", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      await expect(
+        screenShare.grantScreenShare(ACCESS_TOKEN, "class-1", { studentId: "student-2" })
+      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(
+        screenShare.grantScreenShare(ACCESS_TOKEN, "class-1", { studentId: "coach-2" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      liveSessionFindUnique.mockResolvedValue({
+        id: "session-1",
+        classId: "class-1",
+        coachId: "coach-1",
+        roomName: "room-1",
+        status: "LIVE",
+        effectiveSettings: allowedSettings
+      });
+      await expect(
+        screenShare.grantScreenShare(ACCESS_TOKEN, "class-1", { studentId: "student-1" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(shareUpsert).not.toHaveBeenCalled();
+    });
+
+    it("is coach-owner or admin only", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      await expect(
+        screenShare.grantScreenShare(ACCESS_TOKEN, "class-1", { studentId: "student-1" })
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      authenticateAs("coach-2", UserRole.COACH);
+      await expect(
+        screenShare.grantScreenShare(ACCESS_TOKEN, "class-1", { studentId: "student-1" })
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(shareUpsert).not.toHaveBeenCalled();
     });
   });
 

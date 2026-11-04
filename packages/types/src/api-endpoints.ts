@@ -154,6 +154,8 @@ export const API_ROUTES = {
     // Ask one participant to turn their mic / camera back on (a prompt, never a remote unmute).
     requestTrackOn: (id: string = ":id") => `/live-class/${id}/moderate/request-on`,
     kick: (id: string = ":id") => `/live-class/${id}/kick`,
+    // Coach-owner+admin: lower one participant's raised hand.
+    lowerHand: (id: string = ":id") => `/live-class/${id}/lower-hand`,
     // In-class puzzle: POST assign / DELETE end / GET current (coach-owner+admin
     // for write, any participant for read).
     puzzle: (id: string = ":id") => `/live-class/${id}/puzzle`,
@@ -287,6 +289,8 @@ export const API_ROUTES = {
     requestScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/request`,
     // Screen-share request (coach-owner/admin): approve, deny, or revoke one student's request.
     resolveScreenShareRequest: (id: string = ":id") => `/live-class/${id}/screen-share-requests/resolve`,
+    // Screen-share (coach-owner/admin): let one student share without a request.
+    grantScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/grant`,
     // Screen-share request (student): self-report that sharing has stopped.
     endScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/end`,
     // Pull a student in (coach-owner/admin): GET batch roster with presence,

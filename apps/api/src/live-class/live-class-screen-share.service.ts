@@ -11,6 +11,7 @@ import {
   deriveLiveKitGrants,
   liveClassSettingsSchema,
   LIVE_CLASS_SCREEN_SHARE_TOPIC,
+  type GrantScreenShareRequest,
   type LiveClassSettings,
   type ResolveScreenShareRequest,
   type ScreenShareRequestEntry,
@@ -19,6 +20,7 @@ import {
 } from "@nexa-chess/types";
 import {
   ScreenShareRequestStatus,
+  UserRole,
 } from "@prisma/client";
 import { LiveClassAccessService } from "./live-class-access.service";
 import { withScreenShareSources } from "./live-class.util";
@@ -227,6 +229,76 @@ export class LiveClassScreenShareService {
     } else if (body.action === "REVOKE") {
       await this.narrowScreenShareGrant(liveSession, body.studentId, settings);
     }
+
+    const entry = LiveClassScreenShareService.toScreenShareRequestEntry(updated);
+    await this.announceScreenShareEvent(liveSession.roomName, "RESOLVED", entry);
+    return entry;
+  }
+
+  /**
+   * Coach-owner/admin: let one student share their screen without waiting
+   * for a request. Writes the same row an approved request ends in, so
+   * revoke, `endScreenShare` and the disconnect sweep need nothing new. The
+   * student must be in the room (the grant widens a live connection) and
+   * still starts the share themselves.
+   */
+  async grantScreenShare(
+    accessToken: string | undefined,
+    classId: string,
+    body: GrantScreenShareRequest,
+  ): Promise<ScreenShareRequestEntry> {
+    const { user, liveSession } = await this.access.resolveClassManager(accessToken, classId, { requireLive: true });
+
+    let effectiveSettings: LiveClassSettings | null = null;
+    try {
+      if (liveSession.effectiveSettings) {
+        effectiveSettings = liveClassSettingsSchema.parse(liveSession.effectiveSettings);
+      }
+    } catch (error) {
+      this.logger.warn(`Invalid effectiveSettings for class ${classId}`, error as Error);
+    }
+    const settings = effectiveSettings ?? liveClassSettingsSchema.parse({});
+    if (settings.student.screenShare === "ALLOWED") {
+      throw new BadRequestException("Screen sharing is already allowed for everyone in this class.");
+    }
+
+    const student = await this.prisma.user.findFirst({
+      where: { id: body.studentId, role: UserRole.STUDENT },
+      select: { id: true },
+    });
+    if (!student) {
+      throw new BadRequestException("Only a student can be allowed to share their screen.");
+    }
+    const participants = await this.livekit.listParticipants(liveSession.roomName);
+    if (!participants.some((p) => p.identity.split("_")[0] === body.studentId)) {
+      throw new NotFoundException("That student is no longer in the class.");
+    }
+
+    const include = { student: { select: { firstName: true, lastName: true, avatarUrl: true } } } as const;
+    const existing = await this.prisma.liveClassScreenShareRequest.findUnique({
+      where: { liveSessionId_studentId: { liveSessionId: liveSession.id, studentId: body.studentId } },
+      include,
+    });
+    // Idempotent: a second click (or a second coach tab) changes nothing.
+    if (existing?.status === ScreenShareRequestStatus.APPROVED) {
+      return LiveClassScreenShareService.toScreenShareRequestEntry(existing);
+    }
+
+    const now = new Date();
+    const updated = await this.prisma.liveClassScreenShareRequest.upsert({
+      where: { liveSessionId_studentId: { liveSessionId: liveSession.id, studentId: body.studentId } },
+      create: {
+        liveSessionId: liveSession.id,
+        studentId: body.studentId,
+        status: ScreenShareRequestStatus.APPROVED,
+        resolvedAt: now,
+        resolvedById: user.id,
+      },
+      update: { status: ScreenShareRequestStatus.APPROVED, resolvedAt: now, resolvedById: user.id },
+      include,
+    });
+
+    await this.widenScreenShareGrant(liveSession, body.studentId, settings);
 
     const entry = LiveClassScreenShareService.toScreenShareRequestEntry(updated);
     await this.announceScreenShareEvent(liveSession.roomName, "RESOLVED", entry);

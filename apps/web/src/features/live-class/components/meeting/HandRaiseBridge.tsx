@@ -8,6 +8,7 @@ import {
 } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
 import { toast } from "sonner";
+import { LIVE_CLASS_MODERATION_TOPIC, type ModerationNotice } from "@nexa-chess/types";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import {
@@ -28,11 +29,12 @@ function toastId(identity: string) {
  * Must render inside both `<LiveKitRoom>` and `<LiveClassProvider>`.
  */
 export function HandRaiseBridge() {
-  const { applyHandRaise, handRaised, pruneRaisedHands, setActiveSidebar } = useLiveClassState(
+  const { applyHandRaise, handRaised, pruneRaisedHands, setActiveSidebar, setHandRaised } = useLiveClassState(
     "applyHandRaise",
     "handRaised",
     "pruneRaisedHands",
     "setActiveSidebar",
+    "setHandRaised",
   );
   const { localParticipant } = useLocalParticipant();
   const participants = useRoster();
@@ -105,6 +107,33 @@ export function HandRaiseBridge() {
   useEffect(() => {
     sendRef.current = send;
   }, [send]);
+
+  // The coach lowered a hand. Only the API sends this (no `from`); the owner
+  // puts their own hand down, which the effect below then announces on the
+  // peer topic as usual, and everyone else drops it from their list now.
+  const onModerationNotice = useCallback(
+    (msg: { payload: Uint8Array; from?: unknown }) => {
+      if (msg.from) return;
+      let notice: ModerationNotice;
+      try {
+        notice = JSON.parse(new TextDecoder().decode(msg.payload)) as ModerationNotice;
+      } catch {
+        return;
+      }
+      if (notice?.type !== "LOWER_HAND" || typeof notice.identity !== "string") return;
+
+      if (notice.identity === identityRef.current) {
+        if (!handRaisedRef.current) return;
+        setHandRaised(false);
+        toast(`${notice.byName} lowered your hand`, { id: `hand-lowered-${notice.identity}`, duration: 4000 });
+        return;
+      }
+      applyHandRaise({ identity: notice.identity, name: "", at: Date.now() }, false);
+      toast.dismiss(toastId(notice.identity));
+    },
+    [applyHandRaise, setHandRaised],
+  );
+  useDataChannel(LIVE_CLASS_MODERATION_TOPIC, onModerationNotice);
 
   // Announce our own changes.
   useEffect(() => {

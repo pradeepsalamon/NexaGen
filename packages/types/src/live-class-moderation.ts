@@ -79,6 +79,22 @@ export interface KickParticipantResponse {
 }
 
 /**
+ * Coach lowers one participant's raised hand. Hand raise itself is a peer
+ * topic (each participant announces only their own), so a lowered-by-coach
+ * hand rides the API-injected moderation topic instead: receivers trust it
+ * only because it has no sender.
+ */
+export const lowerHandRequestSchema = z.object({
+  identity: z.string().trim().min(1).max(200),
+});
+
+export type LowerHandRequest = z.infer<typeof lowerHandRequestSchema>;
+
+export interface LowerHandResponse {
+  identity: string;
+}
+
+/**
  * Topic the API injects a moderation notice on so the room can explain a track
  * that just went dead. Purely cosmetic — the mute itself already happened at
  * the SFU, so a dropped packet costs a toast, never the enforcement.
@@ -99,6 +115,12 @@ export type ModerationNotice =
       type: "REQUEST_ON";
       identity: string;
       source: RequestTrackOnRequest["source"];
+      byName: string;
+    }
+  | {
+      /** The coach lowered this participant's hand (sent to the whole room). */
+      type: "LOWER_HAND";
+      identity: string;
       byName: string;
     };
 

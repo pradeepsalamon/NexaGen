@@ -24,6 +24,19 @@ export const resolveScreenShareRequestSchema = z.object({
 
 export type ResolveScreenShareRequest = z.infer<typeof resolveScreenShareRequestSchema>;
 
+/**
+ * Coach/admin lets one student share without waiting for them to ask. Writes
+ * the same per-student row as an approved request, so revoke, the student's
+ * own "stop sharing" and the disconnect sweep all work unchanged. The student
+ * still starts the share themselves (a browser only captures a screen from its
+ * own page's click).
+ */
+export const grantScreenShareRequestSchema = z.object({
+  studentId: z.string().min(1).max(50),
+});
+
+export type GrantScreenShareRequest = z.infer<typeof grantScreenShareRequestSchema>;
+
 export interface ScreenShareRequestListResponse {
   entries: ScreenShareRequestEntry[];
 }

@@ -48,7 +48,9 @@ import { isHumanParticipant } from "../../lib/participants";
 import { useParticipantActivity } from "../../hooks/useParticipantActivity";
 import { isActivelySpeaking, isSharingScreen } from "../../lib/participantActivity";
 import {
+  grantScreenShare,
   kickParticipant,
+  lowerHand,
   moderateParticipant,
   resolveScreenShareRequest,
   resolveWaitingRoomEntry,
@@ -153,6 +155,10 @@ interface ParticipantItemProps {
   onKick?: (identity: string, name: string) => Promise<boolean> | void;
   isKicking?: boolean;
   onMessagePrivately?: (userId: string, name: string) => void;
+  /** Coach: put this participant's raised hand down. Offered only while it is up. */
+  onLowerHand?: (identity: string, name: string) => void;
+  /** Coach: let this student share without asking. Passed only when the class policy blocks it. */
+  onAllowScreenShare?: (userId: string, name: string) => void;
   /** Side this student may move, or null when they hold no control. */
   boardControlSide?: BoardControlSide | null;
   onSetBoardControlSide?: (identity: string, side: BoardControlSide | null) => void;
@@ -168,8 +174,9 @@ const BOARD_SIDES: { value: BoardControlSide | "none"; label: string }[] = [
 /**
  * People row (spec component 16): 48–64px. Avatar with a presence dot, name,
  * role and state badges, mic and camera (the two visible actions for a
- * coach), then a ⋮ menu: message privately, board control (None, White,
- * Black, Both), stop screen share, and Remove from class last, red and confirmed.
+ * coach), then a ⋮ menu: message privately, lower hand, allow or stop screen
+ * share, board control (None, White, Black, Both), and Remove from class last,
+ * red and confirmed.
  */
 const ParticipantListItem = memo(function ParticipantListItem({
   participant,
@@ -182,6 +189,8 @@ const ParticipantListItem = memo(function ParticipantListItem({
   onKick,
   isKicking = false,
   onMessagePrivately,
+  onLowerHand,
+  onAllowScreenShare,
   boardControlSide = null,
   onSetBoardControlSide,
 }: ParticipantItemProps) {
@@ -196,7 +205,16 @@ const ParticipantListItem = memo(function ParticipantListItem({
   // Identity is `<userId>` or `<userId>_<clientId>`; cuids carry no underscore.
   const participantUserId = participant.identity.split("_")[0];
   const canAct = !!canModerate && !participant.isLocal;
-  const hasMenu = canAct && (!!onMessagePrivately || (showBoardControl && !!onSetBoardControlSide) || !!onKick || isScreenSharing);
+  const canLowerHand = canAct && !!handRaised && !!onLowerHand;
+  const canAllowScreenShare = canAct && !isScreenSharing && !!onAllowScreenShare;
+  const hasMenu =
+    canAct &&
+    (!!onMessagePrivately ||
+      (showBoardControl && !!onSetBoardControlSide) ||
+      !!onKick ||
+      isScreenSharing ||
+      canLowerHand ||
+      canAllowScreenShare);
 
   return (
     <div
@@ -278,6 +296,18 @@ const ParticipantListItem = memo(function ParticipantListItem({
                 <DropdownMenuItem className="gap-2" onSelect={() => onMessagePrivately(participantUserId, name)}>
                   <MessageSquareLock aria-hidden="true" className="size-4" strokeWidth={1.75} />
                   Message privately
+                </DropdownMenuItem>
+              ) : null}
+              {canLowerHand && onLowerHand ? (
+                <DropdownMenuItem className="gap-2" onSelect={() => onLowerHand(participant.identity, name)}>
+                  <Hand aria-hidden="true" className="size-4" strokeWidth={1.75} />
+                  Lower hand
+                </DropdownMenuItem>
+              ) : null}
+              {canAllowScreenShare && onAllowScreenShare ? (
+                <DropdownMenuItem className="gap-2" onSelect={() => onAllowScreenShare(participantUserId, name)}>
+                  <MonitorUp aria-hidden="true" className="size-4" strokeWidth={1.75} />
+                  Allow screen sharing
                 </DropdownMenuItem>
               ) : null}
               {isScreenSharing && onModerate ? (
@@ -437,6 +467,7 @@ export function MeetingParticipants({
     waitingRoomEntries,
     removeWaitingRoomEntry,
     screenShareRequests,
+    settings,
     upsertScreenShareRequest,
   } = useLiveClassState(
     "boardControlStudents",
@@ -447,6 +478,7 @@ export function MeetingParticipants({
     "waitingRoomEntries",
     "removeWaitingRoomEntry",
     "screenShareRequests",
+    "settings",
     "upsertScreenShareRequest",
   );
   const { canMessagePrivately, openPrivateThread } = useLiveClassChat();
@@ -550,6 +582,48 @@ export function MeetingParticipants({
     [roomId, upsertScreenShareRequest],
   );
 
+  const handleLowerHand = useCallback(
+    async (identity: string, name: string) => {
+      if (!roomId) return;
+      try {
+        await lowerHand(roomId, { identity });
+      } catch (error) {
+        meetingToast({
+          tone: "warning",
+          title: `Couldn't lower ${name}'s hand`,
+          description: error instanceof Error ? error.message : undefined,
+        });
+      }
+    },
+    [roomId],
+  );
+
+  const handleAllowScreenShare = useCallback(
+    async (studentId: string, name: string) => {
+      if (!roomId) return;
+      try {
+        const entry = await grantScreenShare(roomId, { studentId });
+        upsertScreenShareRequest(entry);
+        meetingToast({
+          tone: "success",
+          title: `${name} can share their screen now`,
+          description: "They start it from their own controls. Revoke it any time under \"Asking to share\".",
+        });
+      } catch (error) {
+        meetingToast({
+          tone: "warning",
+          title: `Couldn't let ${name} share their screen`,
+          description: error instanceof Error ? error.message : undefined,
+        });
+      }
+    },
+    [roomId, upsertScreenShareRequest],
+  );
+
+  // Only offered while the class policy keeps students from sharing; an
+  // already-approved student has a Revoke row instead.
+  const screenSharePolicyBlocks = !!settings && settings.student.screenShare !== "ALLOWED";
+
   const handleMessagePrivately = useCallback(
     (targetUserId: string) => {
       openPrivateThread(targetUserId);
@@ -621,6 +695,14 @@ export function MeetingParticipants({
       isKicking={kickingIdentity === p.identity}
       onMessagePrivately={
         canMessagePrivately(p.identity.split("_")[0]) ? handleMessagePrivately : undefined
+      }
+      onLowerHand={isCoach ? handleLowerHand : undefined}
+      onAllowScreenShare={
+        isCoach &&
+        screenSharePolicyBlocks &&
+        screenShareRequests[p.identity.split("_")[0]]?.status !== "APPROVED"
+          ? handleAllowScreenShare
+          : undefined
       }
       showBoardControl={isChessboardOpen && isCoach}
       boardControlSide={boardControlStudents[p.identity] ?? null}

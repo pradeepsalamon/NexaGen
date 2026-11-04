@@ -24,11 +24,13 @@ import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { optionalQueryString } from "../common/query-params";
 import {
   API_ROUTES,
+  grantScreenShareRequestSchema,
   guestJoinDemoRequestSchema,
   liveBoardStateSchema,
   moderateAllRequestSchema,
   kickParticipantRequestSchema,
   liveClassHeartbeatRequestSchema,
+  lowerHandRequestSchema,
   moderateParticipantRequestSchema,
   requestTrackOnRequestSchema,
   resolveScreenShareRequestSchema,
@@ -37,11 +39,13 @@ import {
   resolveWaitingRoomRequestSchema,
   saveLiveChatMessageRequestSchema,
   updateLiveClassSettingsRequestSchema,
+  type GrantScreenShareRequest,
   type GuestJoinDemoRequest,
   type LiveBoardState,
   type ModerateAllRequest,
   type KickParticipantRequest,
   type LiveClassHeartbeatRequest,
+  type LowerHandRequest,
   type ModerateParticipantRequest,
   type RequestTrackOnRequest,
   type ResolveScreenShareRequest,
@@ -216,6 +220,15 @@ export class LiveClassController {
     return this.screenShare.resolveScreenShareRequest(this.getAccessToken(request), id, body);
   }
 
+  @Post(API_ROUTES.liveClass.grantScreenShare())
+  grantScreenShare(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(grantScreenShareRequestSchema)) body: GrantScreenShareRequest
+  ) {
+    return this.screenShare.grantScreenShare(this.getAccessToken(request), id, body);
+  }
+
   @Post(API_ROUTES.liveClass.endScreenShare())
   endScreenShare(@Param("id") id: string, @Req() request: Request) {
     return this.screenShare.endScreenShare(this.getAccessToken(request), id);
@@ -246,6 +259,15 @@ export class LiveClassController {
     @Body(new ZodBodyPipe(moderateAllRequestSchema)) body: ModerateAllRequest
   ) {
     return this.moderation.moderateAll(this.getAccessToken(request), id, body);
+  }
+
+  @Post(API_ROUTES.liveClass.lowerHand())
+  lowerHand(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(lowerHandRequestSchema)) body: LowerHandRequest
+  ) {
+    return this.moderation.lowerHand(this.getAccessToken(request), id, body);
   }
 
   @Post(API_ROUTES.liveClass.kick())

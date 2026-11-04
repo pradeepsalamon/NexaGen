@@ -2,12 +2,15 @@ import { API_BASE_URL, apiFetch } from "@/lib/api";
 import {
   API_ROUTES,
   type ClassSummaryResponse,
+  type GrantScreenShareRequest,
   type LiveChatMessageResponse,
   type ModerateAllRequest,
   type KickParticipantRequest,
   type KickParticipantResponse,
   type LiveBoardState,
   type LiveBoardStateResponse,
+  type LowerHandRequest,
+  type LowerHandResponse,
   type ModerateAllResponse,
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
@@ -136,6 +139,14 @@ export const kickParticipant = (
   });
 };
 
+/** Coach-only: lower one participant's raised hand. */
+export const lowerHand = (roomId: string, body: LowerHandRequest): Promise<LowerHandResponse> => {
+  return apiFetch<LowerHandResponse>(API_ROUTES.liveClass.lowerHand(roomId), {
+    method: "POST",
+    body,
+  });
+};
+
 /** Coach-only: switch mic and/or camera off for every student. Off only. */
 export const moderateAll = (
   roomId: string,
@@ -188,6 +199,17 @@ export const resolveScreenShareRequest = (
   body: ResolveScreenShareRequest
 ): Promise<ScreenShareRequestEntry> => {
   return apiFetch<ScreenShareRequestEntry>(API_ROUTES.liveClass.resolveScreenShareRequest(roomId), {
+    method: "POST",
+    body,
+  });
+};
+
+/** Coach-owner/admin: let one student share their screen without a request. */
+export const grantScreenShare = (
+  roomId: string,
+  body: GrantScreenShareRequest
+): Promise<ScreenShareRequestEntry> => {
+  return apiFetch<ScreenShareRequestEntry>(API_ROUTES.liveClass.grantScreenShare(roomId), {
     method: "POST",
     body,
   });
