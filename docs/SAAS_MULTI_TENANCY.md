@@ -908,6 +908,26 @@ then checks the result against the host.
 - Known follow-up for slice 5: `StorageSnapshot.capturedDate` is still globally
   unique, so the daily snapshot cron would collide once a second academy exists.
 
+**Slice 3 (built 2026-11-04, migration `20261104183209_saas_d4_tenant_id_required_and_academy_uniques`).**
+- `tenantId` is NOT NULL on all 152 tables (default kept until D5);
+  `tenant-models.spec.ts` now also fails an optional one.
+- 23 per-academy uniques beside the global ones: `users` email and username;
+  plan, discount, referral and demo-schedule codes/slugs; order, invoice,
+  credit-note and payslip numbers; gateway ids (payments, refunds,
+  subscriptions, webhook events); messaging-rule event, retention category,
+  offline-method key, storage-snapshot date, payroll period; puzzle
+  `(source, sourceId)`; chess-game `sourceKey`; knowledge category and slug.
+  Keys built from global cuids (class, batch, room ids and the dedupe keys made
+  from them) stay global: they can't collide across academies.
+- *(builder's call)* No `CHECK … NOT VALID` step: Prisma sends a migration as
+  one multi-statement query, which Postgres runs as one transaction, so the
+  lock would be held to the end anyway. 2.6 s on the staging copy and the test
+  DB; the timing that matters is the rehearsal on a copy of production.
+- **Slice 3b (not built):** `(tenantId, …)` indexes on hot paths (worth it only
+  with many academies: with one, `tenantId` filters nothing) and composite FKs
+  `(tenantId, parentId) → parent(tenantId, id)` on core relations (they change
+  the relation definitions, so they get their own step).
+
 
 ---
 

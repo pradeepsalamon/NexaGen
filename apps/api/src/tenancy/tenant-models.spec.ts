@@ -11,9 +11,17 @@ describe("tenant model classification", () => {
       .filter((model) => TENANT_MODELS.has(model.name))
       .filter((model) => !model.fields.some((field) => field.name === "tenantId" && field.kind === "scalar"))
       .map((model) => model.name);
-    // Fix: add `tenantId String? @default("tenant_nexa")` to the model (and a
+    // Fix: add `tenantId String @default("tenant_nexa")` to the model (and a
     // migration), or list it in PLATFORM_MODELS with the reason it has no academy.
     expect(missing).toEqual([]);
+  });
+
+  it("makes that column required (D4)", () => {
+    const optional = models
+      .filter((model) => TENANT_MODELS.has(model.name))
+      .filter((model) => model.fields.some((field) => field.name === "tenantId" && !field.isRequired))
+      .map((model) => model.name);
+    expect(optional).toEqual([]);
   });
 
   it("lists only models that exist", () => {
