@@ -983,6 +983,22 @@ audit/enforce rule as the extension.
   Recordings stay in one flat directory, named after the room. PGN uploads stay
   public for now. The per-academy throttle bucket waits for Phase 4.
 
+**Slice 7 (in progress, part 1 built 2026-11-04).**
+- `test/integration/access/cross-academy-access.int-spec.ts`: a second academy
+  with a full copy of the access world, run with `TENANT_SCOPE_MODE=enforce`.
+  Every `OWN_CASES` route still works for Nexa under enforce; replayed on the
+  other academy's ids it's refused for Nexa's users and Nexa's super admin;
+  lists never show the other academy; a user is refused (401) on the other
+  academy's host. The case tables moved to `access/access-cases.ts`.
+- Found and fixed: admins' student-progress check (`assertCanViewStudent`)
+  didn't check the student existed, so another academy's student id gave an
+  empty 200 (no data). Now a 404.
+- Migration `20261104195406_saas_per_academy_partial_uniques`: per-academy twins
+  of the hand-written partial uniques D4 missed (puzzle folder name/slug,
+  automatic referral stage, verified chess username).
+- Still to do: the full suites green, then `TENANT_SCOPE_MODE=enforce` on staging
+  (`vps_dev_saas`) and a read of its audit log.
+
 - **Slice 3b (not built):** `(tenantId, …)` indexes on hot paths (worth it only
   with many academies: with one, `tenantId` filters nothing) and composite FKs
   `(tenantId, parentId) → parent(tenantId, id)` on core relations (they change

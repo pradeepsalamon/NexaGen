@@ -8,6 +8,8 @@ import { getApiEnv } from "@nexa-chess/config/api";
 import { AppModule } from "../../app.module";
 import { configureApp } from "../../app.setup";
 import { PrismaService } from "../../prisma/prisma.service";
+import { runInTenant } from "../../tenancy/tenant-context";
+import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
 
 export type TestApp = Awaited<ReturnType<typeof createTestApp>>;
 
@@ -35,9 +37,10 @@ export async function createTestApp() {
 
   // authenticateUser rejects a token whose session is missing or revoked, so
   // each signed-in user gets a live session row like a real login leaves.
-  const tokenFor = async (user: Pick<User, "email" | "id" | "role">) => {
+  const tokenFor = async (user: Pick<User, "email" | "id" | "role"> & { tenantId?: string }) => {
     const sessionId = `int-${user.id}`;
-    await prisma.authSession.upsert({
+    // The session belongs to the user's academy, as a real login leaves it.
+    await runInTenant(user.tenantId ?? DEFAULT_TENANT_ID, "test:tokenFor", () => prisma.authSession.upsert({
       create: {
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         id: sessionId,
@@ -46,7 +49,7 @@ export async function createTestApp() {
       },
       update: {},
       where: { id: sessionId }
-    });
+    }));
     return jwt.signAsync(
       { email: user.email, role: user.role, sessionId, sub: user.id, type: "access" },
       { expiresIn: "15m", secret: ACCESS_SECRET }
@@ -55,12 +58,13 @@ export async function createTestApp() {
 
   /** Calls the API as `user` (or anonymously) with a real signed access cookie. */
   const call = async (
-    user: Pick<User, "email" | "id" | "role"> | null,
+    user: (Pick<User, "email" | "id" | "role"> & { tenantId?: string }) | null,
     method: string,
     path: string,
-    body?: unknown
+    body?: unknown,
+    options: { origin?: string } = {}
   ): Promise<CallResult> => {
-    const headers: Record<string, string> = { Origin: ORIGIN };
+    const headers: Record<string, string> = { Origin: options.origin ?? ORIGIN };
     if (user) headers.Cookie = `nexa_access_token=${await tokenFor(user)}`;
     if (body !== undefined) headers["Content-Type"] = "application/json";
     const res = await fetch(`${baseUrl.replace("[::1]", "127.0.0.1")}${path}`, {

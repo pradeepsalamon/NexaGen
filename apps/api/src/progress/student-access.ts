@@ -1,4 +1,4 @@
-import { ForbiddenException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { UserRole } from "@prisma/client";
 import type { PrismaService } from "../prisma/prisma.service";
 
@@ -13,7 +13,13 @@ export async function assertCanViewStudent(
   viewer: { id: string; role: UserRole },
   studentId: string
 ): Promise<void> {
-  if (viewer.role === UserRole.ADMIN || viewer.role === UserRole.SUPER_ADMIN) return;
+  if (viewer.role === UserRole.ADMIN || viewer.role === UserRole.SUPER_ADMIN) {
+    // An admin sees any student of their own academy; the read is scoped, so a
+    // student of another academy (or an unknown id) is a 404, not an empty page.
+    const student = await prisma.user.findFirst({ select: { id: true }, where: { id: studentId, role: UserRole.STUDENT } });
+    if (!student) throw new NotFoundException("Student not found.");
+    return;
+  }
   if (viewer.role === UserRole.STUDENT) {
     if (viewer.id !== studentId) throw new ForbiddenException("You can only view your own progress.");
     return;
