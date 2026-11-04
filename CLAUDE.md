@@ -147,6 +147,10 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 `platform/` + `features/subscription/`, catalogue `@nexa-chess/types` `platform-plans.ts`. The API enforces every feature/limit: global `FeatureGateGuard` + `@RequireFeature("key")`, and `EntitlementService.assert*` inside the creating transaction; refusals are **402**. A new catalogued feature must be required by a route (a spec checks) and added to the Enterprise row by migration. Plan changes are `platform_staff` only. [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md)
 
+### 3.6m2 Multi-tenancy (Phase 2, audit mode)
+
+`apps/api/src/tenancy/`. **Every model not in `PLATFORM_MODELS` gets `tenantId String? @default("tenant_nexa")`** (a spec checks); the request's academy is in `TenantContext` (resolver middleware + `authenticateUser`), background work uses `runInTenant`. Gaps are logged (`tenant-audit`), not refused, until Phase 3. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 2 as built"
+
 ### 3.6n AI runtime (mock only)
 
 NestJS `apps/api/src/ai/` is the only caller of stateless Python `services/ai-runtime/`; contract in `@nexa-chess/types` `ai-runtime-contract.ts`, exported by `node scripts/ai/export-contract.mjs` (commit output; `--check` in CI). The runtime never sees a user or DB: NestJS authorizes, then signs a 30 s HS256 token (`AI_RUNTIME_SHARED_SECRET`, never a JWT secret). Runtime 4xx → 502. Off unless `AI_ENABLED=true` via `compose.ai.yml` only. RAG PoC (`app/rag/`, `eval/rag_poc/`) never runs on the production box. [docs/ai/architecture/ROADMAP.md](docs/ai/architecture/ROADMAP.md), [RAG_POC](docs/ai/architecture/RAG_POC.md)

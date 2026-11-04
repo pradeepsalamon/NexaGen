@@ -6,6 +6,8 @@ import { API_ROUTES } from "@nexa-chess/types";
 import * as express from "express";
 import { createOriginCheckMiddleware } from "./common/security/origin-check";
 import { securityHeaders } from "./common/security/security-headers";
+import { createTenantContextMiddleware } from "./tenancy/tenant-context.middleware";
+import { TenantResolverService } from "./tenancy/tenant-resolver.service";
 
 /**
  * The HTTP pipeline shared by main.ts and the integration test app. The app
@@ -54,6 +56,9 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
     req.body ??= {};
     next();
   });
+  // After every body parser (see the middleware's comment): the academy for
+  // the rest of the request (docs/SAAS_MULTI_TENANCY.md §B).
+  app.use(createTenantContextMiddleware(app.get(TenantResolverService), webhookPaths));
 
   app.use(cookieParser());
   app.useGlobalPipes(

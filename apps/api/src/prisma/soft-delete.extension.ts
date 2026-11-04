@@ -168,27 +168,32 @@ const filterableRelationNames = new Set([
   "students"
 ]);
 
+/** The extension's work on one query's args (mutates and returns them). */
+export function applySoftDeleteArgs<T>(model: string, operation: string, args: T): T {
+  const queryArgs = args as QueryArgs | undefined;
+  const includeDeleted = Boolean(queryArgs?.includeDeleted);
+
+  if (queryArgs && "includeDeleted" in queryArgs) {
+    delete queryArgs.includeDeleted;
+  }
+
+  if (
+    !includeDeleted &&
+    readOperations.has(operation) &&
+    trashableModelNames.has(model)
+  ) {
+    applySoftDeleteFilter(queryArgs);
+  }
+
+  return args;
+}
+
 export const softDeleteExtension = Prisma.defineExtension({
   name: "soft-delete-filter",
   query: {
     $allModels: {
       async $allOperations({ args, model, operation, query }) {
-        const queryArgs = args as QueryArgs | undefined;
-        const includeDeleted = Boolean(queryArgs?.includeDeleted);
-
-        if (queryArgs && "includeDeleted" in queryArgs) {
-          delete queryArgs.includeDeleted;
-        }
-
-        if (
-          !includeDeleted &&
-          readOperations.has(operation) &&
-          trashableModelNames.has(model)
-        ) {
-          applySoftDeleteFilter(queryArgs);
-        }
-
-        return query(args);
+        return query(applySoftDeleteArgs(model, operation, args));
       }
     }
   }

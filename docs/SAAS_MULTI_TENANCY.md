@@ -21,6 +21,9 @@ feature gates. See [SAAS_PLANS.md](SAAS_PLANS.md). This plan replaces two of
 those behaviours: `PlatformStaff` as the source of platform powers (§E), and the
 fixed "grace = GET/HEAD only" rule (§G).
 
+**Phase 2 progress (2026-11-04, branch `feat/saas-phase2-foundation`):** D1–D3
+are built; see [Phase 2 as built](#phase-2-as-built) under §L.
+
 Contents: Summary · 1 Intent and goals · 2 Scope · A current state · B target
 architecture · C entity ownership matrix · D schema and migration · E auth and
 isolation · F branding, email and WhatsApp · G SaaS billing and entitlements ·
@@ -361,7 +364,7 @@ That's required because rollback restores images and never reverses migrations.
 | Step | Migration | App code at that point |
 |---|---|---|
 | D1 | Create `tenant_domains`; add the new `tenants` columns. Insert Nexa's current production hostnames as `ACTIVE` domains of `tenant_nexa` (the tenant row already exists) | Unchanged |
-| D2 | Add `"tenantId" TEXT DEFAULT 'tenant_nexa'` (nullable) to every T/T\*/F table, `users` included. Backfill large tables in batches (`puzzle_attempts`, `attendance_logs`, `analytics_events`, `message_deliveries`, `live_chat_messages`) | Old code still inserts without `tenantId`, and the default covers it |
+| D2 | Add `"tenantId" TEXT DEFAULT 'tenant_nexa'` (nullable) to every T/T\*/F table, `users` included. No backfill: on Postgres 11+ a constant default is metadata-only, so existing rows read `'tenant_nexa'` without a table rewrite | Old code still inserts without `tenantId`, and the default covers it |
 | D3 | Deploy code that always sets `tenantId` from context, with the extension in **audit mode**: it logs, doesn't throw, when context is missing | Watch logs until there are no missing-context hits |
 | D4 | Set `NOT NULL`, add `(tenantId, …)` indexes mirroring the hot indexes, add composite uniques **next to** the old global ones (`users.email`, `plans.code`, `invoices.number`, `messaging_rules.event`, …), add composite FKs on core relations | Extension switches to **enforce** mode |
 | D5 | Drop the old global uniques and the `'tenant_nexa'` default | A second real academy is allowed only after this |
@@ -798,6 +801,49 @@ real data.
 | 7 | **D5 contract + rehearsal** on a restored production backup | 3–6 | Row counts, FK integrity and financial totals match; rollback drill done |
 | 8 | **Pilot**: one pilot academy, monitoring, then general availability | 7 | The pilot runs a month with no isolation incident |
 | Later | RLS under `nexa_app`; academy deletion workflow; sending from an academy's own email domain; card auto-debit; CSV student import | — | — |
+
+### Phase 2 as built
+
+Built 2026-11-04 on `feat/saas-phase2-foundation`; nothing here changes what
+Nexa users see.
+
+| Piece | Where | Notes |
+|---|---|---|
+| D1 + D2 migration | `20261104161742_saas_tenant_domains_and_tenant_id` | `tenant_domains`; `tenants.timezone`/`country`; `"tenantId" TEXT DEFAULT 'tenant_nexa'` on all 152 academy-owned tables; `nexachess.in` (primary) and `www.nexachess.in` as ACTIVE domains. No FK or index on `tenantId` until D4 |
+| Model classification | `apps/api/src/tenancy/tenant-models.ts` | `PLATFORM_MODELS` (10, each with a reason); everything else is `TENANT_MODELS`. `tenant-models.spec.ts` fails a model with neither |
+| Hostname rule | `tenancy/hostname.ts` `normalizeHostname` | lowercase, no port, no trailing dot, punycode |
+| TenantContext | `tenancy/tenant-context.ts` | AsyncLocalStorage; `currentTenantId()`, `runInTenant(tenantId, label, fn)` for Phase 3's jobs |
+| Host resolver | `tenancy/tenant-resolver.service.ts`, middleware in `app.setup.ts` after the body parsers | Candidates `Origin` → `Referer` → `req.hostname`; ACTIVE `tenant_domains` row (60 s in-process cache, misses included), then the deployment's `FRONTEND_URL`/`CORS_ORIGIN` hosts as Nexa; otherwise no academy, never a fallback |
+| Extension, audit mode | `prisma/tenant-scope.extension.ts`, in `PrismaService` and `withDeleted` | Stamps `tenantId` on create/createMany/upsert from context; no academy in context → logged, query unchanged; reads unfiltered |
+| `authenticateUser` | `tenancy/bind-authenticated-user.ts` | Fills an empty context from the user; host ≠ user or session ≠ user → logged, not refused |
+| Entitlements | `EntitlementService.currentTenantId()` | The context's academy (Nexa outside a request); the 30 s cache is now per academy |
+
+*Builder's calls* (owner may change):
+- **`Origin`/`Referer` before the request host.** The browser calls the separate
+  `api.nexachess.in`, whose own host names no academy. This stays until Phase 5
+  serves the API same-origin under `/api`; `authenticateUser` then still checks
+  the user's academy against it.
+- **Configured web origins count as Nexa's** (`source: "config"`), so staging,
+  local dev and the test stack need no `tenant_domains` rows. Only the two
+  production hosts are in the migration.
+- **`TenantDomain.isPrimary`** instead of `Tenant.primaryDomainId`: no circular
+  relation. At most one per academy is kept by the code that sets it (Phase 4).
+
+**Reading the audit log.** Each gap is a pino `warn` with `msg: "tenant-audit"`,
+logged on its 1st, 10th, 100th, … occurrence per process:
+`docker logs nexa_api 2>&1 | grep tenant-audit`. Fields: `kind`
+(`missing_context`, `user_mismatch`, `session_mismatch`), `scope` and `at`.
+- `scope: "request"` with `at: "METHOD /path"`: a request whose academy wasn't
+  resolved. **Phase 2's exit check is a full production release with none of
+  these.**
+- `scope: "background"`, with `at` set to the calling frame: crons, queues and
+  boot; `scope: "webhook"`: provider callbacks (LiveKit, payment gateways), which
+  name no academy by design. Both are Phase 3's worklist (`runInTenant`, academy
+  from the event's row) and don't block Phase 2.
+
+**Left for Phase 2:** the full e2e run on staging, then one production release
+read through the audit log. The merge into `dev` waits until the redesign is on
+`main` (§N-13).
 
 ---
 

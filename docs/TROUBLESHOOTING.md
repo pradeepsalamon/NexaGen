@@ -8,6 +8,8 @@
 
 | Symptom | Start here |
 |---|---|
+| `tsc --noEmit` in `apps/api` dies with "JavaScript heap out of memory" (exit 134) | Happens on a **cold** run (no `tsconfig.tsbuildinfo`, e.g. a fresh worktree): the Prisma client types need ~2.5–2.9 GB, above Node's default heap on the 11 GB box. Run once with `NODE_OPTIONS=--max-old-space-size=6144`; later incremental runs need ~1.2 GB |
+| Many `tenant-audit` warnings in the API log | Phase 2 audit mode (CLAUDE.md §3.6m2): `scope: "request"` = a request whose academy wasn't resolved (check its `Origin`/host against `tenant_domains` and `CORS_ORIGIN`); `scope: "background"` = a cron/queue not yet in `runInTenant` (Phase 3). [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) § "Phase 2 as built" |
 | 401 loops / session drops | `src/lib/api.ts` interceptor, `auth.service.ts#refresh`, cookie options in `getCookieBaseOptions` (`COOKIE_SAME_SITE`), `middleware.ts`. A 403 "Request origin is not allowed" means the caller's origin is missing from `CORS_ORIGIN` |
 | `docker system df` shows a huge Build Cache on the prod box | On Engine 29 (containerd image store) that total also counts live image layers — trust `df -h /` and the RECLAIMABLE column. `until=`/size-cap prunes left it behind; the deploy keeps the cache (it saves ~2 min per service) and runs a plain `docker builder prune -f` only when `/` has under `DEPLOY_PRUNE_MIN_FREE_GB` (default 40) free (`scripts/deploy-production.sh`) |
 | "model X does not exist on PrismaService" | missing getter in `prisma.service.ts` |

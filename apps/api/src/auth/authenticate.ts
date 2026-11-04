@@ -4,6 +4,7 @@ import { getApiEnv } from "@nexa-chess/config/api";
 import { setTag, setUser } from "@sentry/nestjs";
 import { type Prisma, UserRole, UserStatus } from "@prisma/client";
 import type { PrismaService } from "../prisma/prisma.service";
+import { bindAuthenticatedUser } from "../tenancy/bind-authenticated-user";
 import type { AccessTokenPayload } from "./types";
 
 /**
@@ -73,7 +74,7 @@ export async function authenticateUser(
     payload.sessionId
       ? prisma.authSession.findUnique({
           where: { id: payload.sessionId },
-          select: { revokedAt: true, userId: true }
+          select: { revokedAt: true, tenantId: true, userId: true }
         })
       : null
   ]);
@@ -83,6 +84,8 @@ export async function authenticateUser(
   if (payload.sessionId && (!session || session.revokedAt || session.userId !== user.id)) {
     throw new UnauthorizedException("Invalid session.");
   }
+  // Academy check, audit mode (docs/SAAS_MULTI_TENANCY.md §B step 4).
+  bindAuthenticatedUser(user, session);
   if (user.role === UserRole.SALES && !args?.allowSales) {
     throw new ForbiddenException("Sales accounts can only use the referral board.");
   }

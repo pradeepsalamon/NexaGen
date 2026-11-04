@@ -63,11 +63,13 @@ import { ChatModule } from "./chat/chat.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { PlatformModule } from "./platform/platform.module";
 import { FeatureGateGuard } from "./platform/feature-gate.guard";
+import { TenancyModule } from "./tenancy/tenancy.module";
 
 @Module({
   imports: [
     SentryModule.forRoot(),
     LoggerModule.forRoot(buildLoggerParams(getApiEnv())),
+    TenancyModule,
     ThrottlerModule.forRootAsync({
       useFactory: () => {
         const storage = createThrottlerStorage();

@@ -16,6 +16,7 @@ import {
   type TenantAccessMode
 } from "@nexa-chess/types";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
+import { currentTenantId as contextTenantId } from "../tenancy/tenant-context";
 import { PlanRestrictionException } from "./plan-restriction.exception";
 
 /** Every request reads this; plan changes are rare and call `invalidate()`. */
@@ -38,17 +39,23 @@ export type TenantEntitlementState = ResolvedEntitlements & {
  */
 @Injectable()
 export class EntitlementService {
-  private cache: { at: number; tenantId: string; state: Promise<TenantEntitlementState> } | null = null;
+  /** Per academy: the request's academy now comes from TenantContext, so one slot would thrash. */
+  private readonly cache = new Map<string, { at: number; state: Promise<TenantEntitlementState> }>();
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Single tenant until the host resolver lands (SAAS_MULTI_TENANCY.md Phase 2). */
+  /**
+   * The request's academy (TenantContext). Outside one — crons, boot — Nexa,
+   * the only academy until Phase 3 runs background work in `runInTenant`.
+   */
   currentTenantId() {
-    return DEFAULT_TENANT_ID;
+    return contextTenantId() ?? DEFAULT_TENANT_ID;
   }
 
-  invalidate() {
-    this.cache = null;
+  /** Drops one academy's cached state, or every academy's. */
+  invalidate(tenantId?: string) {
+    if (tenantId) this.cache.delete(tenantId);
+    else this.cache.clear();
   }
 
   private loadTenant(tenantId: string) {
@@ -78,14 +85,13 @@ export class EntitlementService {
 
   getState(tenantId = this.currentTenantId()): Promise<TenantEntitlementState> {
     const now = Date.now();
-    if (this.cache && this.cache.tenantId === tenantId && now - this.cache.at < CACHE_TTL_MS) {
-      return this.cache.state;
-    }
+    const cached = this.cache.get(tenantId);
+    if (cached && now - cached.at < CACHE_TTL_MS) return cached.state;
     const state = this.computeState(tenantId);
-    this.cache = { at: now, state, tenantId };
+    this.cache.set(tenantId, { at: now, state });
     // A failed load must not be served from the cache for 30s.
     state.catch(() => {
-      if (this.cache?.state === state) this.cache = null;
+      if (this.cache.get(tenantId)?.state === state) this.cache.delete(tenantId);
     });
     return state;
   }

@@ -1,8 +1,26 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
-import { PrismaClient } from "@prisma/client";
-import { softDeleteExtension } from "./soft-delete.extension";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { applySoftDeleteArgs } from "./soft-delete.extension";
+import { applyTenantScope, tenantScopeExtension } from "./tenant-scope.extension";
 
-const createPrismaClient = (base: PrismaClient) => base.$extends(softDeleteExtension);
+/**
+ * The main client's query pipeline: tenant scope (docs/SAAS_MULTI_TENANCY.md §E),
+ * then the soft-delete filter, as one extension: every stacked `$extends` layer
+ * adds to tsc's memory, which is already near the limit on a cold typecheck.
+ */
+const dataLayerExtension = Prisma.defineExtension({
+  name: "data-layer",
+  query: {
+    $allModels: {
+      async $allOperations({ args, model, operation, query }) {
+        const scoped = applyTenantScope(model, operation, args) as typeof args;
+        return query(applySoftDeleteArgs(model, operation, scoped));
+      }
+    }
+  }
+});
+
+const createPrismaClient = (base: PrismaClient) => base.$extends(dataLayerExtension);
 
 export type ExtendedPrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -20,9 +38,14 @@ export type PrismaTransactionClient = Omit<
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
   private readonly base = new PrismaClient();
   private readonly client = createPrismaClient(this.base);
-  // The unextended client (same connection pool). Layering another extension on
-  // `client` cannot undo the soft-delete filter, which runs after it.
-  readonly withDeleted = this.base;
+  // Same connection pool, without the soft-delete filter but still
+  // tenant-scoped. Layering another extension on `client` cannot undo the
+  // soft-delete filter, which runs after it.
+  readonly withDeleted = this.base.$extends(tenantScopeExtension);
+
+  get tenantDomain() {
+    return this.client.tenantDomain;
+  }
 
   get user() {
     return this.client.user;
