@@ -1,54 +1,150 @@
-# Multi-tenant white-label SaaS — Phase 0 assessment and Phase 1 design
+# Multi-tenant white-label SaaS — plan
 
-Status: **proposal, awaiting owner sign-off** (written 2026-10-17). The decisions
-in §N block Phase 2. **Implemented since (2026-10-19):** the plan/feature/limit
-half of §G — `Tenant` (one row, `tenant_nexa`), `PlatformPlan`,
-`TenantSubscription`, `TenantSubscriptionEvent`, `PlatformStaff`,
-`EntitlementService` and the feature gates. See [SAAS_PLANS.md](SAAS_PLANS.md).
-Online SaaS billing and everything tenant-isolation related are still proposals.
+Status: **design, awaiting owner approval to start Phase 2.** The identity
+decisions (§N-14, §N-15) were answered on 2026-11-04. Nothing tenant-isolation
+related is built.
 
-Contents: A current state · B target architecture · C entity ownership matrix ·
-D schema and migration · E auth and isolation · F branding · G SaaS billing and
-entitlements · H onboarding and domains · I platform admin · J migrating the
-existing academy · K threat model and tests · L roadmap · M effort · N owner decisions.
+This is the single plan for the programme. It merges the Phase 0 assessment
+(written 2026-10-17) and the owner-decisions design spec (2026-10-19, formerly
+`docs/superpowers/specs/2026-10-19-multi-tenant-saas-design.md`). Where the two
+disagreed, the owner decisions won; the changes are listed in
+[Appendix: what the owner decisions changed](#appendix-what-the-owner-decisions-changed).
+Items marked *(builder's call)* were decided by Claude during design, not by the
+owner, and can be revisited.
+
+**Built so far (2026-10-19):** the plan/feature/limit half of §G. That covers
+`Tenant` (one row, `tenant_nexa`), `PlatformPlan`, `TenantSubscription`,
+`TenantSubscriptionEvent`, `PlatformStaff`, `EntitlementService` and the
+feature gates. See [SAAS_PLANS.md](SAAS_PLANS.md). This plan replaces two of
+those behaviours: `PlatformStaff` as the source of platform powers (§E), and the
+fixed "grace = GET/HEAD only" rule (§G).
+
+Contents: Summary · 1 Intent and goals · 2 Scope · A current state · B target
+architecture · C entity ownership matrix · D schema and migration · E auth and
+isolation · F branding, email and WhatsApp · G SaaS billing and entitlements ·
+H academies and domains · I platform console · J migrating Nexa · K threat
+model and tests · L roadmap · M effort · N decisions · Appendix.
 
 ---
 
 ## Summary
 
 1. **Today the app is single-tenant by design.** No academy or tenant id exists
-   anywhere. `ADMIN` and `SUPER_ADMIN` see every row (`docs/AUTHORIZATION.md`,
+   on any data row. `ADMIN` and `SUPER_ADMIN` see every row (`docs/AUTHORIZATION.md`,
    "One academy, platform-wide admins"). Scale of the change: 125 Prisma models,
    ~1,600 Prisma call sites in 125 services, 516 routes in 57 controllers, 80
    raw-SQL calls in 24 files, 19 cron jobs, 9 global "singleton" settings tables
    and ~12 globally-unique business keys.
-2. **Three features are already white-label at the single-tenant level.** Invoice
+2. **Target:** many independent Indian chess academies on **one deployment, one
+   database, one schema**. Each academy has its own addresses, full white-label
+   branding, separate data, and its own payment gateway. The owner runs
+   everything from a "Platform" section in Nexa's admin area. Nexa becomes the
+   first academy (`tenant_nexa`) and its users notice no change.
+3. **Three features are already white-label at the single-tenant level.** Invoice
    seller details (`InvoiceSettings`), board appearance and typography each have
    an admin-editable singleton and a 3-layer resolver. Turning each singleton
-   into a per-tenant row is most of the "branding" work for those areas.
-3. **Name clash.** `Plan`, `Subscription`, `Entitlement`, `Order` and `Invoice` already
-   mean *the academy bills its students*. SaaS billing (*the academy pays NexaChess*)
-   must use separate tables and names (`PlatformPlan`, `TenantSubscription`, …) and a
-   separate module. It must never be a second mode of `PaymentService`.
-4. **Data migration can't wait for Phase 9.** Production is one live tenant,
-   deployed continuously from `main`. So `tenantId` columns have to arrive already
-   backfilled to the NexaChess tenant, in additive expand/contract steps, starting
-   in Phase 2. The pasted plan puts migration at Phase 9; that ordering doesn't fit
-   this repo.
-5. **Custom domains break today's cookie and API model.** The web calls an absolute
-   `NEXT_PUBLIC_API_URL` (baked in at build time) with `SameSite=lax` cookies shared
-   across `api.`/`www.` subdomains. A customer domain like `learn.acme.com` calling
-   `api.nexachess…` is cross-site, so the browser won't send the cookies. **Every
-   tenant host must serve the API same-origin under `/api`.**
-6. **The database connection bypasses row security.** The app connects as the
-   `postgres` superuser (`docker-compose.yml`), so Postgres RLS would be silently
-   skipped. Using RLS as defence in depth needs a dedicated non-superuser role first.
-7. **Recommended shape:** one shared database and schema. `tenantId` goes on
-   every tenant-owned table, child rows included. Enforcement has three layers:
-   (1) a fail-closed Prisma extension driven by a request-scoped tenant context,
-   modelled on the existing `soft-delete.extension.ts`; (2) composite foreign keys
-   on core relations; (3) RLS later, under a non-superuser role. A
-   two-tenant version of the existing cross-user integration suite is the gate.
+   into a per-tenant row is most of the branding work for those areas.
+4. **Name clash.** `Plan`, `Subscription`, `Entitlement`, `Order` and `Invoice`
+   already mean *the academy bills its students*. SaaS billing (*the academy pays
+   the owner*) uses separate tables and names (`PlatformPlan`,
+   `TenantSubscription`, …) and a separate module. It is never a second mode of
+   `PaymentService`.
+5. **Data migration starts in Phase 2, not at the end.** Production is one live
+   tenant, deployed continuously from `main`, and migrations are never reversed.
+   So `tenantId` columns arrive already backfilled to `tenant_nexa`, in additive
+   expand/contract steps.
+6. **The browser must call the API on its own address.** The web calls an
+   absolute, build-time `NEXT_PUBLIC_API_URL` with cookies shared across
+   `api.`/`www.`. A full domain like `learn.acme.com` calling `api.nexachess.in`
+   is cross-site, so cookies wouldn't be sent. **Every academy host serves the
+   API same-origin under `/api`.**
+7. **The database connection bypasses row security.** The app connects as the
+   `postgres` superuser, so Postgres RLS would be silently skipped. RLS needs a
+   dedicated non-superuser role first; it is follow-up hardening, not part of the
+   first isolation release.
+8. **Enforcement shape:** `tenantId` on every academy-owned table, child rows
+   included, plus (1) a fail-closed Prisma extension driven by a request-scoped
+   tenant context, modelled on `soft-delete.extension.ts`; (2) composite foreign
+   keys on core relations; (3) RLS later. A two-academy version of the existing
+   cross-user integration suite is the gate.
+
+---
+
+## 1. Intent and goals
+
+Nexa Chess today is one academy's platform. The owner wants **many independent
+chess academies** to run on it, where:
+
+- each academy looks like its own product: its own address and brand, with no
+  sign of Nexa;
+- each academy's data is completely separate from every other academy's;
+- the owner creates academies and controls, without a developer, what each one
+  pays and gets: plans, prices, features, limits and the content it can use;
+- each academy collects its students' fees into its **own** payment account and
+  pays the owner for its plan.
+
+No second academy is signed yet, so everything commercial (plans, prices,
+features, limits, content, one-off deals) is configurable at runtime.
+
+Goals:
+
+1. **Shared tenancy.** One deployment, database and schema. Every academy-owned
+   row carries its academy; every request runs in exactly one academy; nothing
+   crosses.
+2. **Platform console** for academies, plans, features, limits, content packs,
+   custom deals, domains, subscriptions and support access (§I).
+3. **Addresses.** Every academy gets `<slug>.nexachess.in` automatically and may
+   have any number of full domains (`learn.acme.com`).
+4. **Full white-label.** On an academy's addresses, people see only that
+   academy's name, logo, colours and wording.
+5. **Two money flows.** Academies pay the owner; students pay their academy's own
+   gateway account.
+6. **Nexa unchanged.** `nexachess.in` keeps Nexa's brand, data, payments and logins.
+
+## 2. Scope
+
+### Not in this programme
+
+- Separate deployments or databases per academy (rejected by the owner).
+- Self-serve academy sign-up. Only the owner creates academies.
+- One login shared across academies, or an academy switcher.
+- Automatic TLS / certificate issuance for full domains. The owner configures
+  DNS, certificates and the proxy on the VPS by hand.
+- Customer-supplied CSS or JavaScript.
+- Sending email from an academy's own email domain (later).
+- Deleting a whole academy. Suspend and reactivate are in scope. *(builder's call)*
+- Scaling beyond the single VPS. Capacity is a known risk (§N-2), not solved here.
+
+### Failure even if it "works"
+
+- **Any** academy can see, change or infer another academy's data: through a
+  route, list, search, cache, job, file URL, live-class token, export or email.
+- A Nexa student or coach is logged out, loses data or sees anything different.
+- "Nexa", Nexa's logo or Nexa's colours appear in another academy's pages, email
+  content, PDFs or authenticator entry. **Accepted exceptions (owner decision):**
+  `nexachess.in` in academy subdomains and in the shared email sender address;
+  the owner's company name on the plan checkout and on plan invoices to academies.
+- Nexa's private puzzles, courses or student data become visible to another
+  academy without the owner publishing them.
+- A student's payment lands in the wrong account, or an academy's plan payment
+  lands anywhere but the owner's account.
+- A plan change silently deletes an academy's data.
+
+### Constraints
+
+- **India only for now (owner decision):** every academy is Indian, prices and
+  payments are INR, and tax is the existing GST engine made per-academy. Don't
+  generalise the tax engine.
+- Every rule in `CLAUDE.md` holds: no auth guards; `authenticateUser`;
+  `API_ROUTES`; integer minor units; `applyProviderState` as the single funnel;
+  UTC storage; soft delete via `TrashRepository`.
+- Every schema step is additive (expand/contract, §D), because rollback restores
+  images and never reverses migrations.
+- Students are minors: platform analytics are aggregate-only; Sentry stays
+  `user.id` + role (+ a tenant tag).
+- One ARM64 VPS runs everything.
+- The owner approves each phase before the next starts. Nothing is merged into
+  `dev`/`main` without explicit approval.
 
 ---
 
@@ -75,80 +171,85 @@ flowchart LR
 | Area | What exists | Single-academy assumption |
 |---|---|---|
 | Stack | Turborepo; Next 15 App Router; NestJS 11; Prisma 6 / Postgres 15; Redis 7; LiveKit; one ARM64 VPS | One deployment = one academy |
-| Identity | `User` with global `@unique email` / `username`; `role` enum on the user (`SUPER_ADMIN`, `ADMIN`, `COACH`, `STUDENT`); MFA, lockout, rotating refresh sessions | Role is global, not per organisation |
+| Identity | `User` with global `@unique email` / `username`; `role` enum on the user (`SUPER_ADMIN`, `ADMIN`, `COACH`, `STUDENT`); MFA, lockout, rotating refresh sessions | Accounts and roles are global |
 | Authz | No guards. Controllers pass the token string → `authenticateUser` → per-service `assertCanX` / `getXVisibilityWhere`. Admins get `{}` (everything) | `{}` would mean "every tenant" |
 | Web gating | `middleware.ts` + `routeAccess.ts` read the role from the JWT payload | Fine as a routing hint. Needs no tenant knowledge |
 | Soft delete | `$extends` query extension + `TrashRepository` | A precedent for a tenant-scope extension |
 | Global settings (singletons) | `AttendancePolicy`, `LiveClassPolicy`, `ChessAppearanceSettings`, `TypographySettings`, `PuzzleScoringSettings` (id `"default"`), `InvoiceSettings` (id `"default"`), `PaymentSetting`, `MessagingRule` (unique per `event`), `OfflinePaymentMethod` (unique `key`) | One row for everyone |
 | Number sequences | `InvoiceSequence`, `CreditNoteSequence`, `PayslipSequence` keyed by year only | One gap-free series. Legally each seller (GSTIN) needs its own |
-| Student billing | `Plan → Order → Payment → Entitlement`, `Subscription`, `Invoice`, `CreditNote`, `Discount`; provider creds and seller name from env (`RAZORPAY_*`, `PAYMENTS_SELLER_*`) | NexaChess is the only merchant |
+| Student billing | `Plan → Order → Payment → Entitlement`, `Subscription`, `Invoice`, `CreditNote`, `Discount`; provider creds and seller name from env (`RAZORPAY_*`, `PAYMENTS_SELLER_*`) | Nexa is the only merchant |
 | Payroll | `CoachCompensation*`, `PayrollPeriod` unique on `(periodType, startDate, endDate)`, `Payslip` | One payroll calendar |
-| Live class | `LiveSession.roomName = class_<classId>`; tokens only from the API; webhook `POST /webhooks/livekit` maps room → class | Room ids are cuids, so they're unique globally. Tenant would come from the class |
+| Live class | `LiveSession.roomName = class_<classId>`; tokens only from the API; webhook `POST /webhooks/livekit` maps room → class | Room ids are cuids, so unique globally. The tenant would come from the class |
 | Files | Cloudinary: avatars (public), PGNs (`nexa_chess/pgns`), invoices/payslips (`type: authenticated`); recordings on local disk with one `RECORDING_STORAGE_LIMIT_GB` | No tenant in paths or quotas |
 | Jobs | 19 `@Cron` jobs under `JobLockService.runExclusive`. BullMQ is optional | Sweeps cover all rows; per-row config read from singletons |
-| Caches | Analytics `cache.wrap` key = range + filters, **with no user and no tenant**. Stockfish cache keyed by FEN | Fine with one academy and admin-only analytics. With two tenants it **leaks data across tenants** |
+| Caches | Analytics `cache.wrap` key = range + filters, **with no user and no tenant**. Stockfish cache keyed by FEN | With two tenants the analytics cache **leaks data across tenants** |
 | Raw SQL | 80 calls in 24 files, mainly analytics sections, activity history, puzzle catalogue/training, puzzle rush, job locks | Each one needs a hand-written tenant predicate |
-| Branding (web) | `SITE_NAME = "Nexa Chess"` (`lib/site.ts`); `/academy` marketing site with hard-coded NexaChess content; ~62 source files mention the brand; CSS-variable `--rgb-*` theme tokens | One brand at build time |
+| Branding (web) | `SITE_NAME = "Nexa Chess"` (`lib/site.ts`); `/academy` marketing site with hard-coded Nexa content; ~62 source files mention the brand; CSS-variable `--rgb-*` theme tokens | One brand at build time |
 | Email | One `SMTP_FROM`; brand strings in `mail.service.ts`, `messaging.format.ts`, MFA issuer | One sender |
-| Ops | `deploy-production.sh`, image rollback, `pg_dump` backups of the whole database (also exposed in the admin UI as "Backup now") | A backup is a whole-platform object |
+| Ops | `deploy-production.sh`, image rollback, `pg_dump` backups of the whole database (also "Backup now" in the admin UI) | A backup is a whole-platform object |
 | Tests | Jest unit tests; integration suite with `auth-boundary`, `cross-user-access` (two mirror-image "worlds"), `admin-routes`, `route-auth.spec.ts`; Playwright e2e | The two-world harness is the natural base for two-tenant tests |
 
 ---
 
-## B. Proposed multi-tenant architecture
+## B. Target architecture
 
 ```mermaid
 flowchart TB
-  subgraph Edge
-    C[Caddy, on-demand TLS<br/>ask = API /internal/domains/allow]
+  subgraph Edge["nginx on the VPS (configured by hand)"]
+    N[wildcard *.nexachess.in<br/>+ one server block per full domain]
   end
-  B1[acme.nexachess.app] --> C
-  B2[learn.acme.com] --> C
-  B3[console.nexachess.app] --> C
-  C -->|/api/* same-origin| A[NestJS API]
-  C -->|everything else| W[Next.js web]
+  B0[nexachess.in] --> N
+  B1[acme.nexachess.in] --> N
+  B2[learn.acme.com] --> N
+  N -->|/api/* same-origin| A[NestJS API]
+  N -->|everything else| W[Next.js web]
   W -->|SSR: internal URL + forwarded host| A
   A --> TR[TenantResolver<br/>host → TenantDomain, cached]
   TR --> CTX[AsyncLocalStorage TenantContext]
   CTX --> EXT[Prisma tenant-scope extension<br/>fail-closed]
-  EXT --> PG[(Postgres, shared schema<br/>tenantId everywhere, role nexa_app)]
+  EXT --> PG[(Postgres, shared schema<br/>tenantId everywhere)]
   A --> ENT[EntitlementService<br/>plan + overrides + usage]
   A --> PB[platform-billing module<br/>separate from payments/]
-  LK[LiveKit, platform host] --> A
+  LK[LiveKit, one shared host] --> A
 ```
 
 ### Hosts
-- `<slug>.<platform-domain>`: every tenant gets one automatically.
-- `<custom domain>`: optional, plan-gated. It must be verified before activation (§H).
-- `console.<platform-domain>`: the platform admin console. It is not a tenant, and
-  only platform staff can sign in there.
-- The NexaChess tenant keeps its current production hostnames as verified domains,
-  so nothing changes for existing users.
-- LiveKit stays on one platform host. A WebRTC token carries no cookie, so it
+
+- `<slug>.nexachess.in`: every academy gets one on creation. Reserved slugs
+  (`www`, `api`, `console`, `livekit`, `admin`, `mail`, …) are refused.
+- Full domains (`learn.acme.com`): any number per academy, added by the owner (§H).
+- `nexachess.in` and Nexa's current hostnames: Nexa's academy, as today. The
+  Platform section lives here too; there is **no separate console host** (owner
+  decision).
+- `api.nexachess.in` stays reachable for webhooks and anything else that uses it.
+- LiveKit stays on one shared host. A WebRTC token carries no cookie, so it
   doesn't need to be same-origin.
 
 ### Request lifecycle
-1. The edge proxy forwards `Host`. The API trusts `X-Forwarded-Host` only via the
+
+1. nginx forwards `Host`. The API trusts `X-Forwarded-Host` only through the
    existing `TRUST_PROXY_HOPS`.
-2. `TenantResolver` normalises the host (lowercase, strip the port and trailing
-   dot, punycode) and looks it up in `TenantDomain` (status `ACTIVE`). Lookups are
-   cached in-process and in Redis for 60s; a change invalidates the cache. An
-   unknown host gets a 404 tenant-not-found page and never falls back to a
-   default tenant.
-3. This sets a **public context** `{ tenantId, source: "host" }`. That's enough for
-   login, public demo pages, lead forms and branding.
-4. `authenticateUser` also requires `session.tenantId === context.tenantId` and an
-   `ACTIVE` membership, then upgrades the context to
-   `{ tenantId, userId, role: membership.role }`.
-5. The domain only names the tenant. Permission still comes from membership plus the
-   existing per-service checks.
+2. `TenantResolver` normalises the host (lowercase, strip port and trailing dot,
+   punycode) and looks it up in `TenantDomain` (status `ACTIVE`). Lookups are
+   cached in-process and in Redis for 60 s; a change invalidates the cache. An
+   unknown host gets a "no such academy" page and **never falls back to Nexa**.
+3. That sets a **public context** `{ tenantId, source: "host" }`: enough for login,
+   public demo pages, lead forms and branding.
+4. `authenticateUser` also requires `user.tenantId === context.tenantId` and
+   `session.tenantId === context.tenantId`, then upgrades the context to
+   `{ tenantId, userId, role }`.
+5. The address only names the academy. Permission still comes from the user's
+   role and the existing per-service checks.
 
 ### Tenant and subscription state are separate
-- `Tenant.status` is one of `PROVISIONING | ACTIVE | SUSPENDED | DEACTIVATED | PENDING_DELETION`.
-- `TenantSubscription.status` is one of `TRIALING | ACTIVE | PAST_DUE | GRACE | CANCEL_SCHEDULED | EXPIRED | CANCELLED`.
-- A single policy function `resolveTenantAccessMode(tenant, subscription)` returns
-  `FULL | READ_ONLY | LOCKED`. It lives in `@nexa-chess/types`, in the same style
-  as `class-availability.ts`.
+
+- `Tenant.status`: `PROVISIONING | ACTIVE | SUSPENDED | DEACTIVATED` (a
+  `PENDING_DELETION` state arrives with academy deletion, later).
+- `TenantSubscription.status`: `TRIALING | ACTIVE | PAST_DUE | GRACE |
+  CANCEL_SCHEDULED | EXPIRED | CANCELLED`.
+- One policy function, `resolveTenantAccessMode(tenant, subscription, lapsePolicy)`
+  in `@nexa-chess/types` (it exists today without the lapse policy), returns
+  `FULL | GRACE | LOCKED`, and in grace, which switches stay on (§G).
 
 ---
 
@@ -156,73 +257,97 @@ flowchart TB
 
 Legend:
 - **P**: platform-wide, no `tenantId`.
-- **T**: tenant-owned, gets a `tenantId NOT NULL` column.
-- **T\***: a tenant-owned singleton that becomes one row per tenant.
-- **F**: tenant-owned financial or immutable record (`onDelete: Restrict`, never edited).
-- **U**: global user identity, linked to tenants through membership.
+- **T**: academy-owned, gets a `tenantId NOT NULL` column.
+- **T\***: an academy-owned singleton that becomes one row per academy.
+- **F**: academy-owned financial or immutable record (`onDelete: Restrict`, never edited).
+
+**Accounts belong to one academy** (owner decision 2026-11-04, §N-14).
+The same email may exist in two academies as two unrelated accounts with
+separate passwords, MFA and sessions. Email and username become unique **per
+academy**. There is no membership table: `User` gets a `tenantId` and keeps its
+`role`.
 
 | Domain | Models | Class | Notes |
 |---|---|---|---|
-| Identity | `User` | U | Email stays globally unique (§N-3). The `role` column becomes legacy; the effective role comes from `TenantMembership` |
-| | `UserMfa`, `UserChessAppearancePreference`, `UserTypographyPreference`, `ExternalChessAccount` | U | Belong to the person, not the academy |
-| | `AuthSession`, `PasswordResetToken`, `EmailVerificationToken` | T | A session/token is bound to the tenant it was issued on. Reset links are built from the tenant's primary domain, **never from the `Host` header** |
-| | `StudentProfile`, `CoachProfile` | T | `userId @unique` holds while v1 allows one membership per non-platform user (§N-3). Later: `(tenantId, userId)` |
-| | `AccountDeletionRequest` | T | Handled by the tenant admin. Platform staff see it for support |
+| Identity | `User` | T | `email` / `username` unique → `(tenantId, email)` / `(tenantId, username)`, checked with `prisma.withDeleted` as today |
+| | `UserMfa`, `UserChessAppearancePreference`, `UserTypographyPreference`, `ExternalChessAccount` | T | Follow their user's academy |
+| | `AuthSession`, `PasswordResetToken`, `EmailVerificationToken` | T | Bound to the academy they were issued on. Reset links are built from the academy's primary domain, **never from the `Host` header** |
+| | `StudentProfile`, `CoachProfile` | T | `userId @unique` still holds (one account = one academy) |
+| | `AccountDeletionRequest` | T | Handled by the academy admin |
 | Org structure | `Batch`, `BatchCoach`, `BatchStudent`, `TrashAuditLog` | T | Composite FK `(tenantId, batchId)` |
-| Scheduling | `CoachClass`, `BatchClassSchedule`, `BatchClassScheduleRule`, `BatchScheduleException`, `ClassChangeRequest` (read-only history since Stage 5) | T | |
-| Demo / marketing | `DemoSchedule` (`slug @unique` → `(tenantId, slug)`), `DemoClassRegistration`, `VisitorSession`, `Lead`, `LeadActivity`, `LeadNote` | T | Public forms resolve the tenant from the host |
+| Scheduling | `CoachClass`, `BatchClassSchedule`, `BatchClassScheduleRule`, `BatchScheduleException`, `ClassChangeRequest` (read-only history), approval requests | T | |
+| Demo / marketing | `DemoSchedule` (`slug @unique` → `(tenantId, slug)`), `DemoClassRegistration`, `VisitorSession`, `Lead`, `LeadActivity`, `LeadNote` | T | Public forms resolve the academy from the host |
 | Attendance | `ClassAttendance`, `AttendanceLog`, `CoachAttendance`, `CoachAttendanceLog` | T | |
 | | `AttendancePolicy` | T\* | |
 | Live class | `LiveSession`, `LiveClassPull`, `LiveClassWaitingParticipant`, `LiveClassScreenShareRequest`, `LiveChatMessage`, `LiveClassPuzzleAssignment`, `LiveClassLeaderboardAdjustment`, `LiveClassSimul`, `LiveClassSimulGame`, `LiveClassMatchRound`, `LiveClassMatchGame`, `LiveClassMatchChallenge`, `LiveClassMovePoll`, `LiveClassMovePollAnswer`, `LiveClassPuzzleRush`, `LiveClassPuzzleRushEntry`, `LiveClassToolState`, `LiveClassChapter`, `LiveClassActivityQueue`, `LiveClassActivityQueueItem` | T | `scopeKey` uniques (`LiveClassToolState`, `LiveClassChapter`) become tenant-prefixed |
 | | `LiveClassPolicy` | T\* | |
-| | `LiveClassPreset` | T | Scope `ORG` now means "this tenant". A platform-provided preset is a new `SYSTEM` scope with no `tenantId` (or stays in code) |
-| Appearance | `ChessAppearanceSettings`, `TypographySettings` | T\* | The admin layer of the 3-layer resolver becomes "tenant admin" |
-| Courses | `Course`, `CourseModule`, `StudentCourseProgress`, `StudentModuleProgress`, `Practice`, `StudentPractice` | T | |
+| | `LiveClassPreset` | T | Scope `ORG` means "this academy". A platform preset is a `SYSTEM` scope with no `tenantId` (or stays in code) |
+| Appearance | `ChessAppearanceSettings`, `TypographySettings` | T\* | The admin layer of the 3-layer resolver becomes "academy admin" |
+| Courses | `Course`, `CourseModule`, `StudentCourseProgress`, `StudentModuleProgress`, `Practice`, `StudentPractice` | T | Published courses can join a content pack (§I) |
 | Assignments | `Assignment`, `AssignmentBatch`, `StudentAssignment`, `StudentAssignmentAttempt`, `AssignmentPuzzle` | T | |
-| Puzzles | `PuzzleTopic`, `Puzzle`, `PuzzleAttempt`, `PuzzleRatingChange`, `StudentProgress` | T | `Puzzle` visibility `GLOBAL` now means tenant-wide. `(source, sourceId)` unique → `(tenantId, source, sourceId)`. Whether NexaChess's own library is offered to other tenants is §N-6 |
+| Puzzles | `PuzzleTopic`, `Puzzle`, `PuzzleAttempt`, `PuzzleRatingChange`, `StudentProgress`, puzzle activities | T | `Puzzle` visibility `GLOBAL` means academy-wide. `(source, sourceId)` unique → `(tenantId, source, sourceId)`. Sharing with other academies is only through content packs |
 | | `PuzzleScoringSettings` | T\* | id `"default"` → keyed by `tenantId` |
-| | `LichessPuzzle`, `LichessCatalogueRelease` | P | Shared read-only catalogue. Each tenant's `Puzzle` copies reference it |
+| | `LichessPuzzle`, `LichessCatalogueRelease` | P | Shared read-only catalogue; a built-in content pack |
 | Revision | `RevisionItem`, `RevisionReview` | T | |
-| Games | `ChessGame`, `GameAnalysis`, `GameAnalysisSide` | T | `sourceKey @unique` and `(ownerId, contentHash)` get `tenantId` added. `GAME_ANALYSIS_DAILY_LIMIT` becomes a per-tenant quota |
+| Games | `ChessGame`, `GameAnalysis`, `GameAnalysisSide` | T | `sourceKey @unique` and `(ownerId, contentHash)` get `tenantId` added. `GAME_ANALYSIS_DAILY_LIMIT` becomes a per-academy quota |
 | Communication | `Notification`, `Announcement`, `Conversation`, `ConversationMember`, `ChatMessage`, `MessageDelivery` | T | `Conversation.batchId/directKey @unique` become tenant-scoped. `MessageDelivery.(channel, dedupeKey)` gets `tenantId` added |
 | | `MessagingRule` | T\* | `event @unique` → `(tenantId, event)` |
 | Feedback | `FeedbackForm`, `FeedbackResponse`, `FeedbackAnswer` | T | |
+| Knowledge base | articles and versions | T | Each academy's help centre is its own |
 | Analytics | `StudentActivity`, `AnalyticsEvent`, `RecordingWatchProgress` | T | |
-| | `StorageSnapshot` | T + P | Splits into a per-tenant usage snapshot plus a platform total. `capturedDate @unique` → `(tenantId, capturedDate)` |
-| Student billing | `Plan` (`code @unique`), `Order` (`orderNumber`, `idempotencyKey`), `Payment`, `PaymentAttempt`, `PaymentWebhookEvent`, `Refund`, `Subscription`, `Entitlement`, `Invoice` (`number`), `InvoiceAuditLog`, `CreditNote` (`number`), `BillingProfile`, `Discount` (`code`), `DiscountRedemption`, `ManualPaymentRecord` | F | Each business key becomes `(tenantId, key)`. Provider ids (`provider, providerPaymentId`) get `tenantId` added once tenants bring their own merchant accounts |
-| | `InvoiceSettings`, `PaymentSetting`, `OfflinePaymentMethod` | T\* | Seller identity moves out of `PAYMENTS_SELLER_*` env into the tenant row |
-| | `InvoiceSequence`, `CreditNoteSequence` | F | Primary key `year` → `(tenantId, year)`. Required for a gap-free series per seller |
-| | `PaymentProviderEvent` | T | Provider-health samples per tenant merchant account. The platform aggregates them |
+| | `StorageSnapshot` | T + P | Splits into a per-academy usage snapshot plus a platform total. `capturedDate @unique` → `(tenantId, capturedDate)` |
+| Student billing | `Plan` (`code @unique`), `Order` (`orderNumber`, `idempotencyKey`), `Payment`, `PaymentAttempt`, `PaymentWebhookEvent`, `Refund`, `Subscription`, `Entitlement`, `Invoice` (`number`), `InvoiceAuditLog`, `CreditNote` (`number`), `BillingProfile`, `Discount` (`code`), `DiscountRedemption`, `ManualPaymentRecord` | F | Each business key becomes `(tenantId, key)`. Provider ids (`provider, providerPaymentId`) get `tenantId` added, since each academy has its own merchant account |
+| | `InvoiceSettings`, `PaymentSetting`, `OfflinePaymentMethod` | T\* | Seller identity moves out of `PAYMENTS_SELLER_*` env into the academy row |
+| | `InvoiceSequence`, `CreditNoteSequence` | F | Primary key `year` → `(tenantId, year)`: a gap-free series per seller |
+| | `PaymentProviderEvent` | T | Provider-health samples per academy merchant account; the platform aggregates them |
 | Payroll | `CoachCompensationProfile`, `CoachCompensationRate`, `PayrollRule`, `PayrollPeriod` (unique → `+tenantId`), `CoachPayrollRecord`, `PayrollAdjustment`, `CoachPayout`, `Payslip` (`documentNumber`) | F | |
 | | `PayslipSequence` | F | `(tenantId, year)` |
 | Infrastructure | `JobLock`, `ProcessedWebhookEvent` | P | LiveKit event ids are globally unique |
 
+The model list is from 2026-10-17. Models added since (approvals, puzzle
+activities, knowledge base, and so on) are classified in Phase 3 by the schema
+test (§K), which fails any model that isn't on the platform list and has no
+`tenantId`.
+
+**New features are academy-owned by default.** Anything built after this plan
+(for example a tournaments module, which doesn't exist today) gets `tenantId`
+on every table. Making a model platform-wide means adding it to `PLATFORM_MODELS`
+with a one-line reason, reviewed like the raw-SQL list.
+
 **Child rows get their own `tenantId`, not just the root.** Three reasons:
 
-1. The Prisma extension can then filter any model without a join.
+1. The Prisma extension can filter any model without a join.
 2. RLS policies stay one line each.
-3. Composite FKs `(tenantId, parentId) → parent(tenantId, id)` on core
-   relations make a cross-tenant link impossible at the database level, even if
-   application code is wrong.
+3. Composite FKs `(tenantId, parentId) → parent(tenantId, id)` on core relations
+   make a cross-academy link impossible in the database, even if application
+   code is wrong.
 
-### New models (all P, except where noted)
+### New models
 
-- `Tenant`: id, slug (unique, reserved-word list), name, status, primaryDomainId, timezone, country, currency, createdAt.
-- `TenantDomain`: hostname (unique, normalised), tenantId, kind `SUBDOMAIN | CUSTOM`, status `PENDING | VERIFIED | ACTIVE | FAILED | REMOVED`, verificationToken, verifiedAt, lastCheckedAt.
-- `TenantMembership`: (userId, tenantId) unique, role `OWNER | ADMIN | COACH | STUDENT` (plus `PARENT` later), status, invitedById.
-- `PlatformStaff`: userId, role `PLATFORM_ADMIN | PLATFORM_SUPPORT`. MFA always required.
-- `TenantBranding` (T\*): validated JSON settings, draft and published versions, asset references.
-- `PlatformPlan` + `PlatformPlanVersion`: the price and limits a subscription signed up on are frozen in a version, so later price changes don't silently re-price existing customers.
-- `TenantSubscription`, `TenantSubscriptionEvent`: an append-only log of state transitions, each recording its source (webhook, reconcile, admin, system).
-- `PlatformOrder`, `PlatformPayment`, `PlatformInvoice`, `PlatformWebhookEvent`: never shared with the student-billing tables.
-- `TenantEntitlementOverride`: enterprise or negotiated limits.
+All are platform-wide (P) unless noted. Names are proposals. Each needs its
+getter in `prisma.service.ts` (CLAUDE.md §7 rule 1).
+
+- `Tenant` (exists): add slug (unique, reserved-word list), primaryDomainId,
+  timezone, country.
+- `TenantDomain`: hostname (unique, normalised), tenantId, kind `SUBDOMAIN | CUSTOM`,
+  status `PENDING | ACTIVE | REMOVED`, lastCheckedAt, lastCheckResult.
+- `TenantBranding` (T\*): validated JSON settings, draft and published versions,
+  asset references.
+- `PlatformPlan` (exists) + `PlatformPlanVersion`: a subscription keeps the price,
+  features, limits and packs of the version it signed up on.
+- `TenantSubscription`, `TenantSubscriptionEvent` (exist): the append-only event
+  log records each transition's source (webhook, reconcile, console, system).
+- `TenantLapsePolicy`: per plan, with a per-academy override (§G).
+- `PlatformOrder`, `PlatformPayment`, `PlatformInvoice`, `PlatformInvoiceSequence`,
+  `PlatformWebhookEvent`: never shared with the student-billing tables.
 - `TenantUsage`: counters per metric.
-- `TenantPaymentCredential` (T): AES-256-GCM encrypted, using the same approach as `UserMfa`.
-- `TenantOnboarding` (T): step states.
+- `TenantPaymentCredential` (T) and `TenantWhatsAppCredential` (T): AES-256-GCM
+  encrypted, the same approach as `UserMfa`.
+- `ContentPack`, `ContentPackItem`, `PlanContentPack`, `TenantContentPackOverride` (§I).
 - `PlatformAuditLog`.
-- `SupportAccessGrant`.
-
-Each new model needs its getter in `prisma.service.ts` (CLAUDE.md §7 rule 1).
+- `SupportSession`: staff user, academy, reason, started/expires/ended, plus each
+  request logged against it.
+- `PlatformStaff` (exists) is **retired** as the source of platform powers (§E).
 
 ---
 
@@ -233,14 +358,14 @@ That's required because rollback restores images and never reverses migrations.
 
 | Step | Migration | App code at that point |
 |---|---|---|
-| D1 | Create `tenants`, `tenant_domains`, `tenant_memberships`, `platform_staff`. Insert the NexaChess tenant with a fixed id (`tenant_nexa`) and its current production hostnames as `ACTIVE` domains. Create one membership per existing user, mapping `role` 1:1 (`SUPER_ADMIN` → `OWNER`, §N-4) | Unchanged |
-| D2 | Add `"tenantId" TEXT DEFAULT 'tenant_nexa'` (nullable) to every T/T\*/F table. Backfill in batches for large tables (`puzzle_attempts`, `attendance_logs`, `analytics_events`, `message_deliveries`, `live_chat_messages`) | Old code still inserts without `tenantId`, and the default covers it |
-| D3 | Deploy code that always sets `tenantId` from context (extension in **audit mode**: it logs, doesn't throw, when context is missing) | Watch logs until there are no missing-context hits |
-| D4 | Set `NOT NULL`, add indexes `(tenantId, …)` that mirror the existing hot indexes, add composite uniques **next to** the old global ones, add composite FKs on core relations | Extension switches to **enforce** mode |
-| D5 | Drop the old global uniques (`plans.code`, `invoices.number`, `messaging_rules.event`, …) and the `'tenant_nexa'` default | Second tenant allowed only after this |
+| D1 | Create `tenant_domains`; add the new `tenants` columns. Insert Nexa's current production hostnames as `ACTIVE` domains of `tenant_nexa` (the tenant row already exists) | Unchanged |
+| D2 | Add `"tenantId" TEXT DEFAULT 'tenant_nexa'` (nullable) to every T/T\*/F table, `users` included. Backfill large tables in batches (`puzzle_attempts`, `attendance_logs`, `analytics_events`, `message_deliveries`, `live_chat_messages`) | Old code still inserts without `tenantId`, and the default covers it |
+| D3 | Deploy code that always sets `tenantId` from context, with the extension in **audit mode**: it logs, doesn't throw, when context is missing | Watch logs until there are no missing-context hits |
+| D4 | Set `NOT NULL`, add `(tenantId, …)` indexes mirroring the hot indexes, add composite uniques **next to** the old global ones (`users.email`, `plans.code`, `invoices.number`, `messaging_rules.event`, …), add composite FKs on core relations | Extension switches to **enforce** mode |
+| D5 | Drop the old global uniques and the `'tenant_nexa'` default | A second real academy is allowed only after this |
 
-A partial unique index `WHERE "isDeleted" = false` (soft-deletable models)
-gains `tenantId` as its leading column. The trash checklist in `README.md` gains a
+A partial unique index `WHERE "isDeleted" = false` (soft-deletable models) gains
+`tenantId` as its leading column. The trash checklist in `README.md` gains a
 tenant step.
 
 ---
@@ -248,287 +373,375 @@ tenant step.
 ## E. Authentication, authorization and isolation
 
 ### Identity and roles
-- **Keep `AuthenticatedUser.role` as the effective role.** `authenticateUser` loads
-  the membership for `context.tenantId` and returns `{ ...user, role: membership.role, tenantId }`.
-  The ~125 services' existing `user.role` checks then keep working unchanged.
-  This is the main reason the migration is tractable.
-- Mapping: `SUPER_ADMIN` becomes `OWNER`; `ADMIN`, `COACH` and `STUDENT` map
-  across unchanged. Platform powers come only from `PlatformStaff`, never from a
-  tenant role. An `OWNER` is not platform staff.
-- Login on a tenant host looks up the user by email (global). It succeeds only if an
-  `ACTIVE` membership in that tenant exists. Otherwise it returns the same generic
-  error as a wrong password, so membership elsewhere isn't revealed. Lockout, MFA
-  and throttles are unchanged.
-- Roles change only through tenant-admin endpoints. Rules: nobody edits their own
-  role, `OWNER` transfer needs re-authentication with password and MFA plus a
-  notice to the old owner, and the last `OWNER` can't be removed. These mirror
-  the existing `SUPER_ADMIN` rules.
-- Cookies become host-only per tenant host. `COOKIE_DOMAIN` auto-derivation is
-  dropped for tenant hosts, which stops a session on `acme.nexachess.app` from
-  being readable on `beta.nexachess.app`. The access token's `sessionId` →
-  `auth_sessions.tenantId` check is the second lock.
+
+- `User.tenantId` is the account's academy. `AuthenticatedUser` gains `tenantId`;
+  `role` keeps its meaning inside that academy. The ~125 services' existing
+  `user.role` checks keep working unchanged, which is the main reason the
+  migration is tractable.
+- Login on an academy host looks up `(context.tenantId, email)`. An account in
+  another academy is simply "not found", with the same generic error as a wrong
+  password. Lockout, MFA and throttles are unchanged and per account.
+- **Platform powers = `role === SUPER_ADMIN` and `tenantId === 'tenant_nexa'`**
+  (owner decision). A super admin of any other academy has no platform powers,
+  ever. This replaces the `PlatformStaff` row; `admin-routes.int-spec.ts` changes
+  from "every tenant role is 403 on `/platform`" to "every role except Nexa's
+  `SUPER_ADMIN` is 403". MFA is always required for platform actions.
+- Platform screens act across academies only through the data layer's one
+  explicit bypass (`asPlatform`, below), never by dropping the academy filter ad hoc.
+- Existing role rules carry over per academy: nobody edits their own role, and
+  the last `SUPER_ADMIN` of an academy can't be removed.
+
+### Sessions and cookies
+
+- A session issued on academy A's host is rejected on any other host
+  (`auth_sessions.tenantId` must equal the resolved tenant).
+- Cookies become **host-only**. Because the platform domain stays
+  `nexachess.in` (owner decision), Nexa's existing `.nexachess.in` domain-wide
+  cookies would reach every academy subdomain. The plan therefore includes an
+  explicit migration to host-only cookies **with no forced logout for Nexa**
+  *(builder's call on how)*. Proposed: on the next refresh, the API reissues
+  the cookies host-only and clears the domain-wide ones. Until that completes, the session
+  binding keeps a Nexa token useless on another academy's host.
+- The request-origin (CSRF) check accepts the resolved academy's own active
+  domains instead of the static `CORS_ORIGIN` list.
 
 ### Tenant scoping in the data layer
+
 1. **TenantContext**: an AsyncLocalStorage store set by the resolver middleware,
-   upgraded in `authenticateUser`, and explicitly entered by jobs via
+   upgraded in `authenticateUser`, and entered explicitly by jobs via
    `runInTenant(tenantId, fn)`.
-2. **Prisma `tenantScope` extension**: for models in `TENANT_MODELS`:
+2. **Prisma `tenantScope` extension** for models in `TENANT_MODELS`:
    - It adds `tenantId` to `where` on reads, updates, deletes and counts, and to
-     `data` on create/upsert/createMany. `findUnique` is handled the same way
+     `data` on create/upsert/createMany. `findUnique` is handled the way
      `soft-delete.extension.ts` already handles it.
    - With no context, it **throws** (fail closed).
-   - `prisma.asPlatform(reason)` is the only bypass. It's grep-able and
-     restricted to an allow-list of call sites (platform console, global sweeps).
+   - `prisma.asPlatform(reason)` is the only bypass. It's grep-able and limited
+     to an allow-list of call sites (Platform section, global sweeps).
    - Known Prisma limit: nested writes don't run the extension for the child
      model. The `NOT NULL` column and composite FKs catch these, and the
      extension requires an explicit `tenantId` in nested `create` payloads.
-3. **Raw SQL** (80 calls in 24 files): each one gets an explicit
-   `"tenantId" = ${tenantId}`. A unit test fails any new `$queryRaw` file that isn't
-   on a reviewed list, the same way `route-auth.spec.ts` works.
-4. **RLS (Phase 3b, defence in depth)**:
-   - Create a `nexa_app` role (`NOSUPERUSER NOBYPASSRLS`) for the API, and keep
-     `postgres` for migrations only.
-   - Add policies of the form `tenant_id = current_setting('app.tenant_id', true)`.
-     The extension sets that value per transaction.
-   - Measure the per-query transaction overhead first. If it's too high, apply RLS
-     only to F tables and identity tables.
-5. **Visibility helpers** (`getXVisibilityWhere`) stay as they are. Admin `{}` is
-   now safe because the extension adds the tenant filter.
+3. **Raw SQL** (80 calls in 24 files): each gets an explicit
+   `"tenantId" = ${tenantId}`. A unit test fails any new `$queryRaw` file that
+   isn't on a reviewed list, the same way `route-auth.spec.ts` works.
+4. **Visibility helpers** (`getXVisibilityWhere`) stay as they are. Admin `{}` is
+   safe because the extension adds the academy filter.
+5. **RLS (follow-up hardening, not required for Phase 3)** *(builder's call)*:
+   a `nexa_app` role (`NOSUPERUSER NOBYPASSRLS`) for the API, `postgres` for
+   migrations only, and policies `tenant_id = current_setting('app.tenant_id', true)`
+   set per transaction by the extension. Measure the per-query overhead first; if
+   it's too high, apply RLS only to F and identity tables.
 
 ### Asynchronous and realtime paths
-- **Crons**: global sweeps read rows under `asPlatform` and then process each
-  row inside `runInTenant(row.tenantId)`, so per-tenant config (messaging rules,
-  attendance policy, invoice settings) resolves for the right tenant.
-- **BullMQ**: every payload carries `tenantId`, and the worker checks it against the
-  row it loads. A mismatch is dropped and reported. The `jobId` stays row-derived.
-- **Caches**: the analytics cache key gains `tenantId` (that's a must-fix in
-  Phase 3). The Stockfish FEN cache stays global because it holds no personal data.
-  Every new `cache.wrap` key needs a tenant component, enforced by a lint rule or
-  helper.
+
+- **Crons**: global sweeps read rows under `asPlatform`, then process each row
+  inside `runInTenant(row.tenantId)`, so per-academy config (messaging rules,
+  attendance policy, invoice settings) resolves for the right academy.
+- **BullMQ**: every payload carries `tenantId`, and the worker checks it against
+  the row it loads. A mismatch is dropped and reported. The `jobId` stays
+  row-derived.
+- **Caches**: the analytics cache key gains `tenantId` (must-fix in Phase 3). The
+  Stockfish FEN cache stays global because it holds no personal data. Every new
+  `cache.wrap` key needs a tenant component, enforced by a helper or lint rule.
 - **LiveKit**:
-  - Room names become `t_<tenantId>_class_<classId>`, which makes ops and
-    webhooks easy to read.
-  - Token issuance already checks class access. It now also checks
+  - Room names become `t_<tenantId>_class_<classId>`.
+  - Token issuance already checks class access; it now also checks
     `class.tenantId === context.tenantId`.
-  - The webhook derives the tenant from the `LiveSession` row, never from the
-    packet. A per-tenant concurrent-room quota is checked at room start.
-- **Throttling**: the existing keys plus a per-tenant bucket, so one tenant can't
-  use up shared capacity (Stockfish, egress).
+  - The webhook derives the academy from the `LiveSession` row, never the packet.
+    A per-academy concurrent-room limit is checked at room start (it exists today
+    as `maxConcurrentLiveClasses`).
+- **Throttling**: the existing keys plus a per-academy bucket, so one academy
+  can't use up shared capacity (Stockfish, egress).
 - **Files**:
   - Cloudinary paths become `tenants/<tenantId>/…`. The `nexa_chess/…` paths stay
-    valid for the NexaChess tenant's existing assets.
-  - Recordings go under `<RECORDING_STORAGE_DIR>/<tenantId>/`, with a quota per tenant.
-  - The existing download-time checks (signed stream tokens, Cloudinary
-    `authenticated` downloads) gain the tenant comparison.
+    valid for Nexa's existing assets.
+  - Recordings go under `<RECORDING_STORAGE_DIR>/<tenantId>/`, with a quota per academy.
+  - Download-time checks (signed stream tokens, Cloudinary `authenticated`
+    downloads) gain the academy comparison.
   - PGN uploads move from public to `authenticated`.
 
 ---
 
-## F. White-label branding
+## F. Branding, email and WhatsApp
 
-**v1 scope:** academy name, logo (light/dark), favicon, primary/secondary colour,
-font from the existing `FONT_CATALOG`, login-screen image, contact details,
-footer/legal links, SEO title/description, email sender display name and reply-to,
-invoice/payslip seller block (from the per-tenant `InvoiceSettings`), board
-appearance and typography defaults (existing resolvers, now per tenant).
+### What an academy can set
 
-**How it renders:**
+Name, logo (light/dark), favicon, brand colours, default theme, login-page
+image, contact details, SEO title/description, link-preview image, landing-page
+content, legal-page details, email sender name and reply-to, the invoice /
+payslip seller block (per-academy `InvoiceSettings`), and board appearance and
+font defaults (existing resolvers, now per academy).
+
+The owner sets these when creating the academy. Afterwards the academy's admins
+can edit them **if** the plan's `customBranding` feature is on.
+
+### How it renders
+
 - The root layout's `generateMetadata` and the `<html>` element read a cached
-  `GET /api/tenant/public-config` resolved by host.
+  `GET /api/tenant/public-config`, resolved by host.
 - Brand colours are injected server-side as `--rgb-*` triplets. They must stay
-  triplets, otherwise Tailwind `/opacity` utilities produce no CSS.
-- No customer CSS or JS is ever executed. Colours are validated as hex, converted
-  server-side, and **checked against WCAG AA contrast** on `app-surface` and
-  `app-background`. A failing colour is rejected with an explanation.
-- The draft/publish/reset flow uses a preview route that renders the draft for the
-  tenant admin only.
+  triplets, or Tailwind `/opacity` utilities produce no CSS.
+- No customer CSS or JS is ever executed. Colours are validated as hex,
+  converted server-side and **checked against WCAG AA contrast** on `app-surface`
+  and `app-background`; a failing colour is rejected with an explanation.
+- Draft / publish / reset uses a preview route that renders the draft for that
+  academy's admins only.
+- **Assets:** PNG/JPEG/WebP, plus SVG if §N-9 allows it (sanitised or
+  rasterised). Size and dimension limits via `RequireAccessTokenInterceptor` +
+  multer `limits`, stored under `tenants/<id>/branding/`. Logos are public by nature.
 
-**Assets:** PNG/JPEG/WebP/SVG. SVG is sanitised or rasterised (§N-9). Size and
-dimension limits go through `RequireAccessTokenInterceptor` + multer `limits`,
-stored under `tenants/<id>/branding/`. Logos are public by nature; that's fine.
+### Nexa disappears everywhere on other academies
 
-**Hard-coded brand:** ~62 files mention NexaChess.
-- `SITE_NAME` and the API strings (mail, MFA issuer, messaging format, invoice
-  and payslip PDFs) read the tenant name.
-- The MFA issuer should be `"<Academy> (NexaChess)"`, so authenticator apps stay
-  unambiguous.
-- `/academy` (the current marketing site) stays as the NexaChess tenant's custom
-  landing page. Other tenants get a generic, block-based landing page driven by
-  `TenantBranding` content (hero, programmes, contact, demo booking) built from
-  the existing section components.
+Tab titles, header, login, favicon, preview images, landing page, FAQ, SEO data
+and `llms.txt`, emails, PDFs (invoices, payslips, credit notes), legal pages,
+WhatsApp text, and the authenticator-app entry (issuer = **the academy's name
+only**).
 
-**Email:**
-- v1 sends from the platform domain as
-  `"Acme Chess" <noreply@mail.nexachess.app>`, with `Reply-To` set to the tenant's
-  address. That keeps deliverability (SPF/DKIM) under platform control.
-- Sending from the customer's own domain needs a transactional provider with
-  per-domain DKIM (SES, Postmark). That's a later plan feature (§N-8).
+- ~62 files mention the brand today. `SITE_NAME` and the API strings (mail, MFA
+  issuer, messaging format, PDFs) read the academy name.
+- `nexachess.in` keeps Nexa's `/academy` marketing site. Other academies get a
+  generic, block-based landing page (hero, programmes, contact, demo booking)
+  built from the existing section components and their branding content.
+- `features/legal/content.ts` becomes per-academy (§N-12).
+- A Playwright smoke test on a second academy's address finds no "Nexa" text.
+
+### Email
+
+Sent from one shared platform address with the **academy's name** as the sender
+name and the academy's contact as `Reply-To` (owner agreed). That keeps SPF/DKIM
+under platform control. Sending from an academy's own domain needs a provider
+with per-domain DKIM; it's later.
+
+### WhatsApp
+
+An academy connects its **own** WhatsApp Business credentials, as it does its
+payment gateway. Without them, WhatsApp is off for that academy and email still
+works. Nexa keeps today's number. *(builder's call: the shared Nexa number would
+show Nexa's business name.)*
 
 ---
 
 ## G. SaaS billing and entitlements
 
 ### Module boundary
-`apps/api/src/platform-billing/` with its own tables and webhook routes
-(`/platform-billing/webhooks/<provider>`, added to the origin-check exempt list). It
-may reuse provider adapters from `payments/providers/` through a narrow interface.
-That needs a written exception to the "no adapter outside `payments/providers/`"
-rule, or the adapters move to a shared `providers` package. It never touches
-`PaymentService.applyProviderState`, student `Entitlement`s or student invoices.
-Money stays in integer minor units via `toMinorUnits`.
 
-### Plans
-`PlatformPlan` defines:
-- Monthly and annual prices per currency.
-- Trial days.
-- A feature set (keys from one catalogue in `@nexa-chess/types`).
-- Limits: `students`, `coaches`, `concurrentLiveRooms`, `liveMinutesPerMonth`,
-  `recordingStorageGB`, `gameAnalysesPerDay`, `whatsappMessagesPerMonth`,
-  `customDomains`.
-- Branding level, support tier, grace days.
+`apps/api/src/platform-billing/`, with its own tables and webhook routes
+(`/platform-billing/webhooks/<provider>`, added to the origin-check exempt list).
+It may reuse provider adapters from `payments/providers/` through a narrow
+interface. That needs a written exception to the "no adapter outside
+`payments/providers/`" rule, or the adapters move to a shared package. It never
+touches `PaymentService.applyProviderState`, student `Entitlement`s or student
+invoices. Money stays in integer minor units via `toMinorUnits`.
 
-Starter/Growth/Business/Enterprise are seed data, not code.
+### Plans: fully customisable from the console
+
+- Create, edit, duplicate and retire plans. Retired = no new subscriptions;
+  existing ones continue.
+- Per plan: name, description, display order, public/hidden; price per billing
+  period (monthly and yearly, INR only for now); trial length; lapse policy;
+  feature switches (every key in the feature catalogue); every limit (number or
+  unlimited); content packs (§I).
+- **Editing a plan applies to new subscriptions only.** Each subscription keeps
+  the version it signed up on. The console offers an explicit "apply to existing
+  subscribers" action, logged per academy. *(builder's call; replaces today's
+  "editing a plan re-scopes everyone".)*
+- **Feature catalogue stays in code**, because every feature must be enforced by
+  an API route (the `SAAS_PLANS.md` rule). The console switches any catalogued
+  feature on or off per plan and per academy; a brand-new feature or limit type
+  still needs a developer.
+- **Custom deals per academy:** add/remove features, override any limit,
+  add/remove content packs, a custom price, and a note. Shown clearly as overrides.
+- Starter/Growth/Business/Enterprise are seed data, not code.
+
+### Lapse policy: per plan, overridable per academy (owner decision)
+
+- *Past-due days*: days after a missed payment with full access (owner banner + email).
+- *Grace days*: days after that in grace; then locked.
+- *What still works in grace*: switches for at least live classes and joining them
+  (with attendance), homework and puzzle attempts, students paying fees, and chat.
+  Admin growth (new students, coaches, batches) is always blocked in grace.
+  *(builder's call on the exact switch list)*
+- Locked: members can't use the academy; its super admin can sign in to pay or
+  export. Nothing is ever deleted.
+
+This replaces today's fixed "grace = GET/HEAD only" rule in `resolveTenantAccessMode`.
 
 ### State machine
+
 Allowed transitions: `TRIALING → ACTIVE | EXPIRED`;
 `ACTIVE → PAST_DUE | CANCEL_SCHEDULED`; `PAST_DUE → ACTIVE | GRACE`;
 `GRACE → ACTIVE | EXPIRED`; `CANCEL_SCHEDULED → ACTIVE | EXPIRED`;
 `EXPIRED → ACTIVE` (resubscribe).
 
-Every transition goes through one function, `applySubscriptionTransition`. It has a
-rank or allowed-transition guard, an idempotent `PlatformWebhookEvent (provider, eventId)`,
-and appends a `TenantSubscriptionEvent`. A browser success callback only
-triggers a provider read (reconcile). It never grants anything, the same rule
-as student payments.
-
-### Access policy (proposed default, §N-5)
-
-| Subscription | Access mode | Effect |
-|---|---|---|
-| TRIALING / ACTIVE / CANCEL_SCHEDULED | FULL | |
-| PAST_DUE (≤ grace days) | FULL | Owner banner + email |
-| GRACE | READ_ONLY | Sign-in, view, export and recordings work. No new students, classes, live rooms or student payments |
-| EXPIRED / tenant SUSPENDED | LOCKED for members; owner can sign in to pay or export | Data kept. Deletion only through the tenant-deletion workflow (§K) |
+Every transition goes through one function, `applySubscriptionTransition`. It
+has an allowed-transition guard, an idempotent `PlatformWebhookEvent (provider, eventId)`,
+and appends a `TenantSubscriptionEvent`. A browser "success" callback only
+triggers a provider read (reconcile); it never grants anything, the same rule as
+student payments.
 
 ### Enforcement
-`EntitlementService` (platform) offers three checks:
-- `assertFeature(tenantId, key)`
-- `assertWritable(tenantId)`
-- `reserve(tenantId, metric, n)`
 
-`reserve` is an atomic conditional `UPDATE tenant_usage SET used = used + n WHERE used + n <= limit`,
-using the codebase's existing claim pattern. Zero rows updated means a 402/409 with
-a typed error, so concurrent requests can't go over a hard limit. Counters are
-reconciled nightly from real counts to repair drift.
+`EntitlementService` (exists) offers `assertFeature`, `assertWritable` and the
+limit checks. Limits are checked inside the creating transaction under a
+transaction-scoped advisory lock (as built today), so concurrent requests can't
+pass a hard limit. Usage counters in `TenantUsage` are reconciled nightly from
+real counts.
 
-- A **downgrade** never deletes anything. Resources over the limit stay readable;
+- A **downgrade never deletes anything**. Over-limit resources stay readable;
   only creates are blocked.
-- **Gate placement:** create-student/coach (`UserService`), class start
-  (`LiveClassService` lifecycle), recording start, analysis enqueue, WhatsApp
-  dispatch, custom-domain add, payroll/analytics/payments module entry.
+- **Gate placement:** create student/coach (`UserService`), class start
+  (`LiveClassService`), recording start, analysis enqueue, WhatsApp dispatch,
+  domain add, and module entry for payroll, analytics and payments.
+- `EntitlementService.currentTenantId()` switches from `tenant_nexa` to the
+  request's academy in Phase 2.
 
-### Two separate money flows
-1. Academy → NexaChess: `platform-billing`, the platform's merchant account.
-2. Student → academy: the existing `payments/`.
-   - **v1:** NexaChess stays the only tenant with online student payments
-     (env credentials). Other tenants use offline/manual payments.
-   - **v2:** each tenant connects its **own** Razorpay/Cashfree/Stripe account.
-     Credentials are encrypted in `TenantPaymentCredential`. Webhooks go to
-     `/payments/webhooks/<provider>/<tenantKey>` and are verified with that
-     tenant's secret.
-   - The platform never collects money on a tenant's behalf. Doing so would make
-     NexaChess a payment aggregator, which is a regulatory question (§N-7).
+### Two money flows
 
----
-
-## H. Onboarding and domains
-
-### Onboarding
-
-| Step | What happens | Notes |
-|---|---|---|
-| 1 | Sign up or sign in on the platform marketing site | |
-| 2 | Choose academy name and slug | Reserved words and existing hosts are rejected |
-| 3 | Choose plan, or start a trial | One trial per verified owner email and per payment fingerprint |
-| 4 | Create the tenant, owner membership, a `{slug}.platform` domain and default settings rows | One transaction with an idempotency key, so a double submit returns the same tenant |
-| 5 | Branding | Resumable; progress kept in `TenantOnboarding` |
-| 6 | Optional custom domain | Resumable |
-| 7 | Invite admins and coaches | Resumable |
-| 8 | CSV import of students | Resumable; reuses user-creation validation and consumes `reserve(students)` |
-| 9 | Settings | Resumable |
-| 10 | Readiness checklist | Resumable |
-| 11 | Publish | The landing page goes live |
-
-### Custom domains
-1. The owner adds `learn.acme.com`. Hostnames under the platform domain, IP
-   addresses, and hosts already claimed (any status other than `REMOVED`) are
-   rejected.
-2. The owner creates a CNAME to `edge.<platform>` and a TXT record
-   `_nexa-verify.learn.acme.com = <token>`.
-3. A verifier job resolves both and marks the domain `VERIFIED`.
-4. Caddy's on-demand TLS `ask` endpoint returns 200 only for `VERIFIED` or `ACTIVE`
-   hosts, so certificates can't be issued for arbitrary hosts. Rate limits apply.
-5. The first successful TLS handshake plus a health probe → `ACTIVE`.
-6. Re-verification runs daily. Repeated failures move the domain to `FAILED`, it is
-   then served with a notice, and the owner is emailed.
-7. Removing a domain → `REMOVED`, and the hostname is held for 30 days before it can
-   be claimed again. That stops another tenant from immediately taking over
-   bookmarked links.
-8. A canonical redirect goes from the subdomain to the custom domain. Redirect
-   targets are **only** that tenant's active domains, never request input.
-
-**Infrastructure change:** nginx + certbot with static `server_name`s can't issue
-certificates for customer domains on demand. Two options, §N-1:
-- Switch the edge to Caddy, on the same VPS.
-- Use Cloudflare for SaaS custom hostnames, keeping LiveKit outside Cloudflare's
-  proxy.
-
-Either way, the web build must call `/api` relatively. That means removing the
-absolute `NEXT_PUBLIC_API_URL` from 5 files, with SSR using an internal URL plus
-the forwarded host. The `next.config.mjs` CSP gets `connect-src 'self' <livekit host>`.
+1. **Academy → owner (platform billing):**
+   - Razorpay, Cashfree or Stripe on the **owner's** merchant account (§N-11), or
+     a manual payment the owner records in the console.
+   - Each billing period the academy's super admin pays from the academy's
+     subscription page; the owner can also send a payment link. No card-on-file
+     auto-debit in v1. *(builder's call)*
+   - The owner issues each academy a GST invoice under the owner's company
+     details, through the shared tax engine, with its own number series.
+   - Missed payment: past due → grace → locked, timed and scoped by the lapse policy.
+2. **Student → academy (existing `payments/`):**
+   - Each academy's admins connect their **own** Razorpay / Cashfree / Stripe keys
+     in admin settings, stored encrypted in `TenantPaymentCredential`.
+   - Webhooks arrive on `/payments/webhooks/<provider>/<tenantKey>` and are
+     verified with that academy's secret.
+   - No gateway connected ⇒ online payments are off; manual payments still work.
+   - The `studentPayments` feature still decides whether an academy has payments at all.
+   - Nexa's current environment credentials become Nexa's academy credentials,
+     with no interruption.
+   - Invoices, credit notes and payslips use each academy's own seller details and
+     number series; payroll stays inside the academy.
+   - The owner never collects money on an academy's behalf (that would make the
+     owner a payment aggregator).
 
 ---
 
-## I. Platform admin (console host)
+## H. Academies and domains
 
-- **Tenants:** directory, detail, lifecycle actions (suspend, reactivate,
-  deactivate, schedule deletion), plan overrides.
-- **Billing:** plans, plan versions, subscriptions, failed payments and
-  reconciliation queue, platform invoices.
-- **Usage and quotas:** per tenant, plus the platform total (storage, live minutes,
-  Stockfish lane).
-- **Operations:** domain states, provisioning failures, job health, backups
-  (whole-database `pg_dump` moves here from the tenant admin UI).
-- **Business analytics:** aggregates only (MRR, churn, active tenants). It never
-  shows tenant personal data by default.
-- **Audit:** `PlatformAuditLog` for every console action.
-- **Support access:**
-  - A `SupportAccessGrant` is requested by staff with a reason, optionally approved
-    by the tenant owner (§N-10), and lasts 1 hour by default.
-  - It is **read-only by default**.
-  - Every request made under it is logged with the grant id. A banner is shown,
-    and the tenant owner can see the grant history.
-  - Writes need a separate, explicitly approved grant type.
-- **Who can sign in:** only `PlatformStaff`, with MFA always enforced. Tenant
-  `OWNER`/`ADMIN` accounts can't sign in to the console.
+### Creating an academy
+
+Only the owner creates academies, in the console (no self-serve sign-up). Inputs:
+name, slug (→ `<slug>.nexachess.in`), timezone, plan, the first super admin's
+email, and initial branding. One transaction with an idempotency key creates the
+tenant, its subdomain, default settings rows, its subscription, its hidden
+"Platform support" user (§I) and the super-admin invite. A double submit returns
+the same academy. The invite is sent from the academy's address and brand.
+
+The academy's admins then invite coaches and add students with the existing
+screens. A CSV student import (reusing user-creation validation and the seat
+limit) is a later addition.
+
+### Full domains (owner sets up the VPS by hand)
+
+- The owner adds `learn.acme.com` in the console. Hostnames under
+  `nexachess.in`, IP addresses and hosts already claimed (any status but
+  `REMOVED`) are refused.
+- The console shows the exact nginx server block to add and a **"check"** button
+  that confirms the domain reaches this app and resolves to the right academy.
+  *(builder's call)* A successful check marks the domain `ACTIVE`.
+- The app's job is to know the hostname, map it to the academy and refuse
+  unknown ones. A mistake in the manual setup shows up as a "no such academy"
+  page, never as a data leak.
+- One **primary address** per academy. Password-reset, invite and email links
+  are always built from it, never from the request's `Host`.
+- Removing a domain marks it `REMOVED` and holds the hostname for 30 days before
+  anyone can claim it again.
+- An optional canonical redirect from the subdomain to the primary domain. Its
+  targets are only that academy's active domains, never request input.
+
+### Routing
+
+- The web app always calls the API **on its own address under `/api`**. Every
+  host (`nexachess.in`, academy subdomains via a wildcard server block, full
+  domains) needs the `/api` proxy rule to the same API container. This means
+  removing the absolute `NEXT_PUBLIC_API_URL` from browser calls (5 files); SSR
+  calls the API internally with the forwarded host. The `next.config.mjs` CSP gets
+  `connect-src 'self' <livekit host>`.
+- The owner gets a written VPS checklist in [DEPLOYMENT.md](DEPLOYMENT.md):
+  wildcard DNS and a certificate for `*.nexachess.in` (DNS challenge),
+  a per-domain server block with certbot, and the `/api` rule.
 
 ---
 
-## J. Migrating the existing academy
+## I. Platform console
+
+A "Platform" section inside Nexa's admin area on `nexachess.in`, visible and
+usable only by Nexa's super admins (§E), backed by the existing `/platform/*`
+routes plus new ones. The API enforces the rule on every `/platform/*` route.
+Every console action is written to `PlatformAuditLog`.
+
+- **Academies:** create (§H), list, view, edit, suspend, reactivate; usage against
+  limits (students, coaches, batches, live classes, storage).
+- **Plans and custom deals:** §G.
+- **Subscriptions:** move an academy between plans (now or at period end), set
+  status and dates, record a manual payment, send a payment link, and read the
+  full history (who, what, when, why).
+- **Domains:** list an academy's addresses, add or remove a full domain, run the
+  check, mark one as primary (§H).
+- **Operations:** domain states, job health, platform-wide usage (storage, live
+  minutes, Stockfish), and backups (the whole-database `pg_dump` moves here from
+  the academy admin UI).
+- **Business analytics:** aggregates only (MRR, churn, active academies), never
+  academy personal data.
+
+### Support access
+
+"Open as support" on any academy starts a support session in that academy:
+
+- full access (read and write) with super-admin rights *(builder's call; the
+  owner said "can control")*;
+- actions are recorded under a hidden **"Platform support" user that each
+  academy gets on creation**, so no Nexa user id lands in another academy's rows;
+  the support log names the real staff member *(builder's call)*;
+- a visible "Platform support" banner on every page;
+- every request logged with the staff member and a reason they typed;
+- expires automatically (1 hour by default);
+- no per-visit approval from the academy (owner decision);
+- the academy's super admin can see the support-visit history.
+
+### Content packs
+
+- The owner groups platform content into named **content packs**. The Lichess
+  puzzle catalogue is one built-in pack; others are made by publishing Nexa's own
+  puzzle folders, puzzle sets and courses (later presets).
+- **Nothing of Nexa's is shared until the owner publishes it**, one item or
+  folder at a time.
+- Plans include packs; custom deals add or remove packs per academy.
+- Academies see pack content **read-only** and can copy any item into their own
+  library to edit the copy. Their own content, attempts and progress stay private.
+- A copy is the academy's own row from then on: its edits never reach the
+  original or any other academy, and later changes to the original never
+  overwrite it. (Example: academies A and B both copy a published opening course;
+  A's changes are invisible to B and to Nexa.)
+- Losing a pack (downgrade) never breaks homework already assigned from it; it
+  only stops new assignments from that pack.
+- Storage (live reference to the published originals vs a snapshot taken on
+  publish) is the builder's call, as long as Nexa's unpublished data is
+  unreachable from other academies.
+
+---
+
+## J. Migrating the existing academy (Nexa)
 
 | # | Item | Plan |
 |---|---|---|
-| 1 | Inventory | Every T/T\*/F table in §C. All existing rows are unambiguously NexaChess, because only one academy has ever existed. The ambiguous items are **P vs T** classification only: the Lichess catalogue (P), NexaChess's `GLOBAL` puzzles (T, owned by NexaChess, §N-6), system presets, and `StorageSnapshot` (split) |
+| 1 | Inventory | Every T/T\*/F table in §C. All existing rows are unambiguously Nexa's, because only one academy has ever existed. The only judgement calls are **P vs T**: the Lichess catalogue (P), Nexa's `GLOBAL` puzzles (T, shared only through packs), system presets, and `StorageSnapshot` (split) |
 | 2 | Backfill | The D2 column default plus a batched `UPDATE … WHERE "tenantId" IS NULL` for large tables, run under `JobLockService` |
-| 3 | Order | Tenant → domains → memberships → roots (batches, users' profiles, plans) → children. A column default makes ordering non-critical until D4 |
-| 4 | Constraints | Composite uniques added next to the old ones (D4) and the old ones dropped (D5) only after a count check shows no duplicates within a tenant (trivially true for one tenant) |
-| 5 | Roles | 1:1 into memberships. Existing `SUPER_ADMIN`s become `OWNER`. The person running the platform also gets a `PlatformStaff` row |
-| 6 | Sequences | `InvoiceSequence`/`CreditNoteSequence`/`PayslipSequence` rows get `tenantId = tenant_nexa`. Numbering continues unchanged, with prefixes from `InvoiceSettings` |
-| 7 | Financial history | Never rewritten. Only the `tenantId` column is added. Totals are verified before and after (sum of `payments.amount` by status, invoice count/sum, payroll totals) |
-| 8 | Domain and branding | Current hostnames → `TenantDomain ACTIVE`. Current `InvoiceSettings`, appearance and typography rows become NexaChess's tenant rows |
-| 9 | Rehearsal | Restore the latest production backup into a staging DB (`docs/DATABASE_RESTORE.md`), run D1–D5, run the verification script (row counts per table, FK integrity, financial totals, a sample of logins), and run the e2e suite against staging |
-| 10 | Rollback | D1–D4 are additive: rolling back an image leaves extra columns that old code ignores. D5 (dropping global uniques) is the only point of no return. It ships alone, after a full backup, once the new code has been stable for a release cycle |
-| 11 | Compatibility | The `tenant_nexa` default stays until D5, so any old image that is still running keeps writing valid rows |
+| 3 | Order | Tenant → domains → users → roots (batches, profiles, plans) → children. The column default makes ordering non-critical until D4 |
+| 4 | Constraints | Composite uniques added next to the old ones (D4); the old ones dropped (D5) only after a count check shows no duplicates within a tenant (trivially true for one tenant) |
+| 5 | Accounts and roles | Every user gets `tenantId = tenant_nexa` and keeps its role. Nexa's `SUPER_ADMIN`s gain platform powers by the §E rule; `platform_staff` rows become unused |
+| 6 | Sessions | No forced logout: existing sessions get `tenantId = tenant_nexa`, and cookies move to host-only on refresh (§E) |
+| 7 | Sequences | `InvoiceSequence`/`CreditNoteSequence`/`PayslipSequence` rows get `tenantId = tenant_nexa`. Numbering continues unchanged |
+| 8 | Financial history | Never rewritten; only the `tenantId` column is added. Totals verified before and after (sum of `payments.amount` by status, invoice count/sum, payroll totals) |
+| 9 | Domain, branding, credentials | Current hostnames → `TenantDomain ACTIVE`. Current `InvoiceSettings`, appearance and typography rows become Nexa's academy rows. Env payment and WhatsApp credentials become Nexa's academy credentials |
+| 10 | Rehearsal | Restore the latest production backup into a staging DB (`docs/DATABASE_RESTORE.md`), run D1–D5, run the verification script (row counts per table, FK integrity, financial totals, sample logins), and run the e2e suite against staging |
+| 11 | Rollback | D1–D4 are additive: rolling back an image leaves extra columns old code ignores. D5 (dropping global uniques) is the only point of no return. It ships alone, after a full backup, once the new code has been stable for a release cycle |
+| 12 | Compatibility | The `tenant_nexa` default stays until D5, so any old image still running writes valid rows |
 
 ---
 
@@ -536,115 +749,170 @@ the forwarded host. The `next.config.mjs` CSP gets `connect-src 'self' <livekit 
 
 | Threat | Control | Test |
 |---|---|---|
-| Cross-tenant IDOR/BOLA with known ids | Extension adds `tenantId` to every query; composite FKs | **Two-tenant cross-access suite**: `world.ts` builds two worlds in **two tenants** (the existing mirror-image design). Every existing cross-user row is run cross-tenant, including admin → other tenant |
-| Session replayed on another tenant's host | `auth_sessions.tenantId` must equal the resolved tenant; host-only cookies | Auth-boundary: a token minted on tenant A's host is a 401 on B's host |
-| Host-header injection / spoofed `X-Forwarded-Host` | Trust only via `TRUST_PROXY_HOPS`; links built from `Tenant.primaryDomain` | Reset email for tenant A never contains a host taken from the request |
-| Domain takeover / unverified claim | TXT verification, `ask` endpoint, 30-day hold after removal, platform-host blocklist | Unit tests on the domain state machine; `ask` rejects unknown hosts |
-| Role escalation / self-join | Membership writes only through admin endpoints; last-owner rule; no self-role edit | Integration: coach promoting self, student joining another tenant |
-| Tenant owner reaching platform controls | `PlatformStaff` separate from tenant roles; console host only | `admin-routes.int-spec.ts` extended: every `/platform/*` route is a 403 for every tenant role, including `OWNER` |
-| Subscription / quota bypass | Server-side `EntitlementService`; atomic `reserve` | Parallel create-student requests at limit − 1 → exactly one succeeds |
-| Forged payment success | Browser callback only triggers a reconcile read | Callback without a provider capture grants nothing |
-| Webhook replay / duplication | `(provider, eventId)` unique; signature on raw bytes | Same event twice → one transition |
-| Shared-cache leak | `tenantId` in every cache key | Same analytics query in tenants A and B returns different payloads |
-| Cross-tenant jobs | Payload `tenantId` checked against the row; `runInTenant` | Job with a mismatched tenant is dropped |
-| File / export leak | Tenant prefix; download-time check | Tenant A's user can't fetch B's invoice, payslip or recording via a known id |
-| LiveKit token misuse | Token only after class + tenant check; tenant-prefixed rooms; webhook removal on join | Student of A requests a token for B's class → 404 |
-| Support access abuse | Time-boxed, read-only, audited grants | Expired grant → 403; every request logged |
-| Missing scope in new code | Fail-closed extension; schema test: every model not on the `PLATFORM_MODELS` list has `tenantId`; reviewed-raw-SQL list | Unit test reads the Prisma DMMF and fails on a new unscoped model |
-| Tenant deletion | `PENDING_DELETION` → 30-day hold → export offered → hard delete except F tables, which are kept for the statutory period (§N-11) | Purge leaves invoices/payroll; integration test |
+| Cross-academy IDOR/BOLA with known ids | Extension adds `tenantId` to every query; composite FKs | **Two-academy cross-access suite**: `world.ts` builds its two mirror-image worlds in **two academies**. Every existing cross-user row also runs across academies, admins included |
+| Session replayed on another academy's host | `auth_sessions.tenantId` must equal the resolved tenant; host-only cookies | Auth-boundary: a token minted on A's host is a 401 on B's host |
+| Same email in two academies | Accounts are per academy; login looks up `(tenantId, email)` | Same email in A and B: each login reaches only its own account; a reset in A never touches B |
+| Host-header injection / spoofed `X-Forwarded-Host` | Trust only via `TRUST_PROXY_HOPS`; links built from the primary domain | A reset email for A never contains a host taken from the request |
+| Unknown or mis-set-up domain | Resolver refuses unknown hosts; no fallback to Nexa | Unknown host → "no such academy", never Nexa data |
+| Role escalation | Existing role rules per academy; no self-role edit; last-super-admin rule | Integration: coach promoting self; super admin of A editing a user of B |
+| Academy super admin reaching platform controls | Platform powers = Nexa `SUPER_ADMIN` only | `admin-routes.int-spec.ts`: every `/platform/*` route is 403 for every role of every other academy, super admins included |
+| Subscription / limit bypass | Server-side `EntitlementService`; limit checks under transaction locks | Parallel creates at limit − 1 → exactly one succeeds, per academy |
+| Forged payment success (both flows) | Browser callback only triggers a reconcile read | A callback without a provider capture grants nothing |
+| Webhook replay / wrong academy | `(provider, eventId)` unique; signature on raw bytes; per-academy secret | Same event twice → one transition; A's webhook signed with B's secret is refused |
+| Shared-cache leak | `tenantId` in every cache key | The same analytics query in A and B returns different payloads |
+| Cross-academy jobs | Payload `tenantId` checked against the row; `runInTenant` | A job with a mismatched academy is dropped |
+| File / export leak | Tenant prefix; download-time check | A's user can't fetch B's invoice, payslip or recording via a known id |
+| LiveKit token misuse | Token only after class + academy check; prefixed rooms | A student of A requests a token for B's class → 404 |
+| Content-pack leak | Only published items are reachable; packs are read-only | Another academy can't read an unpublished Nexa puzzle or course by id |
+| Support access abuse | Time-boxed, reason required, every request logged, visible banner, history for the academy | Expired session → 403; every request logged with staff member and reason |
+| Missing scope in new code | Fail-closed extension; schema test; reviewed-raw-SQL list | A unit test reads the Prisma DMMF and fails on a model with no `tenantId` that isn't on `PLATFORM_MODELS`; another fails an unreviewed raw-SQL file |
+| White-label leak | Brand strings from the academy | Playwright smoke test on a second academy's address finds no "Nexa" text |
 
-**Privacy:** students are minors. Platform analytics are aggregate-only, Sentry stays
-`user.id` + role (+ `tenantId` tag), and support access is logged. The privacy
-export gains tenant context.
+Also: Nexa's existing Playwright suite stays green throughout, and the
+migration rehearsal (§J-10) runs before D5.
+
+**Privacy:** students are minors. Platform analytics are aggregate-only, Sentry
+stays `user.id` + role (+ `tenantId` tag), and support access is logged. The
+privacy export gains academy context.
 
 ---
 
 ## L. Phased roadmap
 
-Each phase ends green on `typecheck`, `lint`, unit tests and integration tests,
-with docs updated and a checkpoint with the owner. Nothing is committed or
-deployed without explicit approval.
+Each phase ends green on `typecheck`, `lint`, unit and integration tests, with
+docs updated and an owner checkpoint. Nothing is merged or deployed without
+explicit approval. Phases 2–3 must be complete before any second academy holds
+real data.
 
-| Phase | Scope | Depends on | Acceptance |
+| Phase | Scope | Depends on | Done when |
 |---|---|---|---|
-| 0 | This assessment | — | Owner review |
-| 1 | Decisions in §N signed off; this doc amended | 0 | §N all answered |
-| 2 | **Foundation**: D1–D3; TenantContext; host resolver (the NexaChess hosts resolve to `tenant_nexa`); memberships; session tenant binding; `authenticateUser` returns the membership role; extension in audit mode | 1 | Zero behaviour change for NexaChess users (full e2e green on staging); no missing-context log hits for one release |
-| 3 | **Isolation**: D4; extension enforcing; per-tenant singletons and sequences; composite uniques; 80 raw-SQL calls; crons/BullMQ/caches/files/LiveKit; two-tenant integration suite; DMMF schema test. 3b: `nexa_app` role + RLS on F and identity tables | 2 | A second seeded tenant in staging can't see or change any NexaChess row via any of the 516 routes; suite green |
-| 4 | **Branding**: `TenantBranding`, public config, SSR theming, assets, previews, brand strings out of code, email sender | 3 | Two tenants render different brands from one build; contrast validation; no customer CSS/JS |
-| 5 | **SaaS billing + entitlements**: `platform-billing`, plans/versions, state machine, webhooks, reconcile, `EntitlementService`, usage counters, gates | 3 | Forged callbacks are no-ops; duplicate webhooks are safe; quota race test; downgrade keeps data |
-| 6 | **Onboarding + domains**: wizard, invites, CSV import, domain verification, edge proxy switch, relative `/api` | 4, 5 | Duplicate submit makes one tenant; unverified domain gets no certificate; custom domain serves the tenant with working login |
-| 7 | **Platform console**: tenants, billing ops, usage, audit, support grants, backups moved | 5 | Tenant roles can't reach `/platform/*`; grants expire and are logged |
-| 8 | **Feature adaptation leftovers**: tenant-owned payment credentials, per-tenant WhatsApp (if chosen), landing-page blocks, tenant data export, tenant deletion workflow | 6, 7 | Per-feature tests from §K |
-| 9 | **D5 contract + staging rehearsal** on a restored production backup | 3–8 | Row counts, FK integrity and financial totals match; rollback drill done |
-| 10 | **Controlled rollout**: one pilot academy, monitoring, then general availability | 9 | Pilot runs a month with no isolation incident |
+| 0 | Assessment | — | Done 2026-10-17 |
+| 1 | Owner decisions | 0 | Done 2026-10-19 and 2026-11-04; the items still open in §N don't block Phase 2 |
+| 2 | **Foundation**: D1–D3; `TenantDomain`; host resolver (Nexa's hosts → `tenant_nexa`); TenantContext; `User.tenantId`; session binding; `authenticateUser` checks the academy; `EntitlementService.currentTenantId()` from context; extension in audit mode | 1 | No behaviour change for Nexa (full e2e green on staging); no missing-context log hits for one release |
+| 3 | **Isolation**: D4; extension enforcing; per-academy singletons and sequences; composite uniques; 80 raw-SQL calls; crons/BullMQ/caches/files/LiveKit; host-only cookie migration; per-academy CSRF origins; two-academy test suites; DMMF schema test | 2 | A second seeded academy on staging can't see or change any Nexa row through any route; suites green |
+| 4 | **Platform console**: platform rule replaces `PlatformStaff`; create academy + support user + invite; plans with versions, lapse policy, custom deals; subscriptions; content packs; support sessions; audit log | 3 | Other academies' roles get 403 on every `/platform/*` route; editing a plan leaves existing subscriptions unchanged; support sessions expire and are logged |
+| 5 | **Domains + branding**: domain table UI and check; relative `/api`; VPS checklist; `TenantBranding`, public config, SSR theming, assets, previews; brand strings out of code; landing page; email sender name; per-academy WhatsApp credentials | 4 | Two academies render different brands from one build; white-label smoke test finds no "Nexa"; a full domain serves its academy with working login |
+| 6 | **Money**: `platform-billing` (checkout, payment links, webhooks, reconcile, GST invoices); per-academy student gateways and webhooks; usage counters | 4 | Forged callbacks are no-ops; duplicate webhooks are safe; a student payment can only land in its academy's account |
+| 7 | **D5 contract + rehearsal** on a restored production backup | 3–6 | Row counts, FK integrity and financial totals match; rollback drill done |
+| 8 | **Pilot**: one pilot academy, monitoring, then general availability | 7 | The pilot runs a month with no isolation incident |
+| Later | RLS under `nexa_app`; academy deletion workflow; sending from an academy's own email domain; card auto-debit; CSV student import | — | — |
 
 ---
 
-## M. Effort (rough, with assumptions)
+## M. Effort (rough)
 
-Assumes one senior full-stack engineer working with AI assistance, the current test
-harness, and decisions in §N made promptly. These are ranges, not commitments.
+Assumes one senior full-stack engineer working with AI assistance, the current
+test harness, and the remaining §N decisions made promptly. These are ranges,
+not commitments, re-grouped from the 2026-10-17 estimates to the phases above.
 The biggest uncertainty is Phase 3: how many of the ~1,600 call sites need hand
 changes beyond what the extension covers, mainly nested writes and raw SQL.
 
 | Phase | Estimate |
 |---|---|
-| 1 | 2–4 days (owner decisions) |
 | 2 | 2–3 weeks |
-| 3 (+3b) | 5–8 weeks (+1–2) |
-| 4 | 2–3 weeks |
-| 5 | 3–5 weeks |
-| 6 | 3–4 weeks (domains + edge change carry infrastructure risk) |
-| 7 | 2–3 weeks |
-| 8 | 3–5 weeks (depends on §N-7/8) |
-| 9–10 | 2–3 weeks plus a pilot month |
-| **Total** | **~6–9 months** to general availability. A first paying tenant on subdomains with manual billing is possible after Phase 4 (~3 months) |
+| 3 | 5–8 weeks |
+| 4 | 3–5 weeks |
+| 5 | 3–4 weeks |
+| 6 | 5–8 weeks |
+| 7–8 | 1–2 weeks plus a pilot month |
+| Later: RLS | 1–2 weeks |
+| **Total** | **~6–9 months** to general availability, including the pilot month. Phases 2–3 (the separation work) alone are 2–3 months |
 
-**Faster interim option, if a customer arrives early.** Run them as a separate
-deployment of the *same* image: their own compose stack and database, configured
-through the existing admin singletons (invoice seller, appearance, typography) and
-env (brand, payment credentials). That gives perfect isolation in days, at the cost
-of per-customer operations. It doesn't fork the code. It's a stopgap, not the
-target.
+A separate deployment per academy would give isolation in days, but the owner
+rejected it as the shape of the product (§2).
 
 ---
 
-## N. Decisions and inputs needed from the owner
+## N. Decisions
 
-1. **Edge / TLS for custom domains:** Caddy on-demand TLS on the VPS, or
-   Cloudflare for SaaS? Also the platform domain name, and DNS control for
-   `*.platform` (wildcard certificate via DNS challenge).
-2. **Hosting capacity:** one ARM64 VPS runs web, API, Postgres, Redis, LiveKit and
-   egress. Multi-tenant live video needs a capacity plan: a separate LiveKit node,
-   managed Postgres, or object storage for recordings instead of local disk.
-3. **Identity:** keep email globally unique, with one membership per
-   non-platform user in v1 (simplest and safest; a person can't join two academies
-   with one email). Or allow multiple academies per identity now (an academy
-   switcher, per-tenant profiles; +2–3 weeks)?
-4. **Role mapping:** `SUPER_ADMIN` → tenant `OWNER`; which named person becomes
-   `PLATFORM_ADMIN`? Is a `PARENT` role in scope (see `docs/PARENT_REPORTS.md`)?
-5. **Lapsed-subscription policy:** grace days, and what `READ_ONLY` allows (do
-   already-scheduled classes still run?).
-6. **Content:** is NexaChess's puzzle library, courses or presets offered to other
-   tenants as platform content (licensed, read-only), or kept private to the
-   NexaChess tenant?
-7. **Student payments for other tenants:** offline-only in v1, then
-   bring-your-own merchant account? Confirm NexaChess must not collect on tenants'
-   behalf (aggregator licensing).
-8. **Email and WhatsApp:** platform sender with tenant reply-to (v1), and when to
-   offer the tenant's own domain or WhatsApp Business number. Which transactional
-   email provider?
-9. **Branding limits:** SVG logos allowed (sanitise) or raster only; which
-   capabilities are plan-gated (e.g. custom domain from Growth up, "Powered by
-   NexaChess" removable from Business up)?
-10. **Support access:** does a tenant owner have to approve each grant, or is it
-    covered by the terms of service?
-11. **SaaS billing:** provider and currency (Stripe Billing vs Razorpay
-    Subscriptions), GST on platform invoices (NexaChess's GSTIN, B2B buyer GSTIN
-    capture), retention period for financial records after a tenant is deleted.
-12. **Legal:** tenant-facing terms, a data processing agreement (the tenant is the
-    controller for its students' data), and how `features/legal/content.ts`
-    becomes per-tenant.
-13. **Process:** approve this doc's direction, then Phase 2 runs on a branch off
-    `main` (or `dev`), with a checkpoint at the end of each phase.
+### Decided (2026-10-19)
+
+| # | Question | Decision |
+|---|---|---|
+| N-1 | Edge / TLS for full domains | Owner configures DNS, certificates and nginx on the VPS by hand; the app maps hostnames and offers a check. The platform domain stays `nexachess.in` |
+| N-3 | Identity | Accounts per academy; `User.tenantId`; email/username unique per academy; no memberships, no switcher (confirmed 2026-11-04, §N-14) |
+| N-4 | Who runs the platform | Nexa's `SUPER_ADMIN`s, from a Platform section in Nexa's admin area; no separate console host (confirmed 2026-11-04, §N-15) |
+| N-5 | Lapsed subscription | Past-due days, grace days and what works in grace are customisable per plan and overridable per academy |
+| N-6 | Content | Content packs; nothing of Nexa's is shared until the owner publishes it |
+| N-7 | Student payments for other academies | Each academy brings its own gateway, in this programme |
+| N-8 | Email and WhatsApp | Shared sender with the academy's name and reply-to; each academy connects its own WhatsApp Business number |
+| N-10 | Support access | Full access, logged, auto-expiring, no per-visit approval |
+| N-11 (part) | Market | India only; INR; the existing GST engine made per-academy |
+| N-13 (part) | Process | The owner approves each phase before the next starts |
+
+### Decided (2026-11-04)
+
+Raised when comparing this plan with general multi-tenant guidance; both shape
+the identity model, the first thing Phase 2 builds.
+
+| # | Question | Decision |
+|---|---|---|
+| N-14 | Can one person belong to more than one academy? | **No: one account per academy.** The same email in two academies is two separate accounts (own password, MFA, sessions); no membership table, no academy switcher. Rejected: one login with a `TenantMembership` per academy (+2–3 weeks, every role check reads the membership) |
+| N-15 | Who holds platform powers? | **Nexa's `SUPER_ADMIN`s control every academy**; each academy's own super admins and admins manage only their academy. Rejected: limiting platform powers to named `platform_staff` rows. Consequence: every Nexa super-admin account is a platform account, so MFA stays mandatory for them and the number of Nexa super admins should stay small |
+
+### N-17 Database layout (recommendation, owner to confirm)
+
+Shared tables, a schema per academy, or a database per academy? Compared on
+2026-11-04; **recommended: shared tables** (this plan).
+
+| | Shared tables + `tenantId` (chosen) | Schema per academy | Database (container) per academy |
+|---|---|---|---|
+| Isolation | Fail-closed extension, composite FKs, tests, RLS later | Stronger: a missing filter can't leak, but picking the wrong schema leaks everything | Strongest |
+| Prisma fit | Native: one client, one pool | Poor: one `PrismaClient` and connection pool per academy, `search_path` for every raw query | One client and pool per database |
+| Migrations | Run once | Run once per academy; a deploy can leave academies on different versions | Once per database, plus a container each |
+| Shared data (Lichess catalogue, plans, content packs, console, usage) | Plain queries | A shared schema plus cross-schema queries | Copy jobs or a separate platform database |
+| Unique keys, singletons, number sequences | Have to become per-academy (§D, D4–D5) | Stay as they are (the main saving) | Stay as they are |
+| Caches, files, LiveKit, jobs, cookies, host resolution, branding (§E–§F) | Needed | Still needed | Still needed, unless the whole stack is separate |
+| Cost on one 2-core ARM VPS | Flat | Grows with each academy (pools, engines) | Grows fastest (a Postgres per academy) |
+
+A schema or database per academy saves the D4/D5 constraint work, but only
+that. It adds per-academy migrations, connection pools and cross-academy
+queries, and leaves every non-database risk in §E unchanged. A dedicated
+database for a single large customer stays possible later (§N-16).
+
+### Still open (doesn't block Phase 2)
+
+- **N-2 Hosting capacity:** one ARM64 VPS runs web, API, Postgres, Redis, LiveKit
+  and egress. Multi-academy live video needs a plan: a separate LiveKit node,
+  managed Postgres, or object storage for recordings.
+- **N-4 (part) Parent role:** is a `PARENT` role in scope (see [PARENT_REPORTS.md](PARENT_REPORTS.md))?
+- **N-9 Branding limits:** SVG logos allowed (sanitised) or raster only; which
+  branding items are plan-gated beyond `customBranding` (for example full domains).
+- **N-11 (part) Platform billing:** which provider (Razorpay, Cashfree or Stripe)
+  on the owner's account, and how long financial records are kept after an
+  academy is suspended or, later, deleted.
+- **N-12 Legal:** academy-facing terms, a data processing agreement (the academy
+  is the controller for its students' data), and per-academy legal pages.
+- **N-13 (part) Start:** approve this plan, and choose whether Phase 2 branches off
+  `main` or `dev`.
+- **N-16 Dedicated database for a large customer later?** Separate deployments
+  were rejected as the product's shape. Keeping this plan's design means a
+  dedicated database for one enterprise customer stays possible later (same
+  image, own stack) if a contract ever requires it; no work now.
+- **Builder's calls** marked *(builder's call)* above, for the owner to confirm
+  or change.
+
+---
+
+## Appendix: what the owner decisions changed
+
+How the 2026-10-19 decisions changed the 2026-10-17 assessment, for anyone
+reading older commits or comments:
+
+| 2026-10-17 assessment | Now |
+|---|---|
+| One global identity + `TenantMembership`; `SUPER_ADMIN` → `OWNER` | Accounts per academy; `User.tenantId`; roles unchanged; no memberships |
+| Self-serve onboarding wizard on a platform marketing site | The owner creates academies in the console |
+| Separate `console.` host; powers from `PlatformStaff` only | Platform section in Nexa's admin area; Nexa `SUPER_ADMIN`s only; `PlatformStaff` retired |
+| A new platform domain (`*.nexachess.app`) | `<slug>.nexachess.in` |
+| Caddy on-demand TLS or Cloudflare for SaaS; TXT verification | Manual VPS setup; the app maps hostnames and offers a reachability check |
+| Student payments for other academies offline-only in v1 | Each academy brings its own gateway in this programme |
+| Platform WhatsApp, per-academy later | Each academy's own WhatsApp credentials; off without them |
+| MFA issuer "Academy (NexaChess)" | The academy's name only |
+| Support access read-only by default, optional owner approval | Full access, logged, auto-expiring, no approval |
+| Editing a plan re-scopes everyone | Subscriptions keep what they signed up on; explicit "apply to existing" |
+| Fixed grace policy (READ_ONLY = view and export) | Lapse policy per plan, overridable per academy |
+| RLS in Phase 3b | Follow-up hardening after Phase 3 |
+| Academy deletion workflow in scope | Later; suspend/reactivate only |
+| Interim option: separate deployment per early customer | Rejected by the owner |
+| 10 phases with onboarding and console at 6–7 | 8 phases: foundation, isolation, console, domains + branding, money, contract, pilot |
