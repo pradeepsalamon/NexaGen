@@ -144,7 +144,7 @@ its precondition, the student training surface, now exists).
   6. People rows: mic and camera visible, the rest in a ⋮ menu (alternative: every action on the row).
   7. Smallest text: 12px everywhere (alternative: 11px for dense labels). Board coordinates are drawn by chessground and not touched.
   Also: the drafts place the coach's Chapters/Leaderboard column at the far left; the build follows the code (beside the board, only when it fits).
-- **2026-11-04 — approved for build:** a coach lowering a student's hand (today hand raise is sender-only: `HandRaiseBridge`), "allow screen sharing" without a student's request (the approval flow needs a request row), a coach board on phones, and a Design System v2 `LiveClassFab`. In progress on local `dev`.
+- **2026-11-04 — approved for build:** a coach lowering a student's hand (today hand raise is sender-only: `HandRaiseBridge`), "allow screen sharing" without a student's request (the approval flow needs a request row), a coach board on phones, and a Design System v2 `LiveClassFab`. All four built on local `dev` (d5ab2fb2, 50a4e165, and the FAB commit after them); browser checks are part of the owed test pass.
 - **2026-11-03, `feat/live-class-redesign` — `GET /live-class/:id` now also returns `batchName`** (name only, no roster) for the top bar. Additive; say if you'd rather the top bar show only the head count.
 - **2026-11-03, `feat/live-class-redesign` — pre-join stays a two-column card** (camera preview beside the details) rather than the spec's 448px single column, which would push the preview below the fold on laptops. Waiting and error screens are 448px.
 
