@@ -120,6 +120,9 @@ export function updateInvoiceSettings(
 // there is no signed storage URL in the markup — so the cookie is what grants
 // access, and changing the id reaches nothing you are not allowed to see.
 
+// Links to these open the API host directly, with no Origin header. Keep them
+// `rel="noopener"` without `noreferrer`: the origin-only Referer is how the API
+// tells which academy the request is for (docs/SAAS_MULTI_TENANCY.md § "Phase 2 as built").
 export function invoicePdfUrl(id: string): string {
   return `${API_BASE_URL}${API_ROUTES.invoices.pdf(id)}`;
 }

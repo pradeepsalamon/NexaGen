@@ -843,9 +843,26 @@ logged on its 1st, 10th, 100th, … occurrence per process:
   name no academy by design. Both are Phase 3's worklist (`runInTenant`, academy
   from the event's row) and don't block Phase 2.
 
-**Left for Phase 2:** the full e2e run on staging, then one production release
-read through the audit log. The merge into `dev` waits until the redesign is on
-`main` (§N-13).
+**Links to the API host keep the Referer.** A link or `window.open` that opens
+the API host directly (invoice, credit-note and payslip PDFs, manual-payment
+attachments) sends no `Origin`, so it is `rel="noopener"` **without
+`noreferrer`**: the web's `strict-origin-when-cross-origin` policy then sends
+only the site's origin, which names the academy. With `noreferrer` it is a
+`scope: "request"` hit (checked in a browser on staging, 2026-11-04). External
+links keep `noreferrer`.
+
+**Staging run (2026-11-04).** Staging (`dev.nexachess.in`) ran this branch on
+`vps_dev_saas`, a copy of `vps_dev` with the Phase 2 migration (vps_dev itself
+untouched). Default e2e specs: 17 passed, 2 failed, 28 opt-in skipped. Both
+failures stopped at the login page: 23 of the suite's 54 logins got a 429 from
+the 5-a-minute login limit, since every spec logs in from one IP; not Phase 2.
+Audit log: every `scope: "request"` hit came from the e2e helpers' direct API
+calls, which send no `Origin` (Playwright's request client, not a browser);
+`webhook` hits were LiveKit callbacks and `background` hits crons, both Phase 3.
+
+**Left for Phase 2:** the opt-in e2e specs on staging, then one production
+release read through the audit log. The merge into `dev` waits until the
+redesign is on `main` (§N-13).
 
 ---
 
