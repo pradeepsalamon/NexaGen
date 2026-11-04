@@ -1,8 +1,10 @@
 # Multi-tenant white-label SaaS — plan
 
-Status: **design, awaiting owner approval to start Phase 2.** The identity
-decisions (§N-14, §N-15) were answered on 2026-11-04. Nothing tenant-isolation
-related is built.
+Status: **approved 2026-11-04; Phase 2 in progress** on `feat/saas-phase2-foundation`
+(branched off `dev`). The identity decisions (§N-14, §N-15), the database layout
+(§N-17) and the start (§N-13) were answered on 2026-11-04. Phase 2 is merged into
+`dev` only after the UI redesign has reached `main`, so the two never ship in the
+same release.
 
 This is the single plan for the programme. It merges the Phase 0 assessment
 (written 2026-10-17) and the owner-decisions design spec (2026-10-19, formerly
@@ -848,12 +850,13 @@ the identity model, the first thing Phase 2 builds.
 | # | Question | Decision |
 |---|---|---|
 | N-14 | Can one person belong to more than one academy? | **No: one account per academy.** The same email in two academies is two separate accounts (own password, MFA, sessions); no membership table, no academy switcher. Rejected: one login with a `TenantMembership` per academy (+2–3 weeks, every role check reads the membership) |
+| N-13 | Start | **Plan approved.** Phase 2 branches off `dev` (which already changed `authenticateUser` and `schema.prisma` for SALES and referrals); its merge into `dev` waits until the redesign is on `main`, and Phase 2 needs one production release with no missing-tenant log hits before it counts as done |
 | N-15 | Who holds platform powers? | **Nexa's `SUPER_ADMIN`s control every academy**; each academy's own super admins and admins manage only their academy. Rejected: limiting platform powers to named `platform_staff` rows. Consequence: every Nexa super-admin account is a platform account, so MFA stays mandatory for them and the number of Nexa super admins should stay small |
 
-### N-17 Database layout (recommendation, owner to confirm)
+### N-17 Database layout (decided 2026-11-04: shared tables)
 
 Shared tables, a schema per academy, or a database per academy? Compared on
-2026-11-04; **recommended: shared tables** (this plan).
+2026-11-04; **the owner confirmed shared tables** (this plan) the same day.
 
 | | Shared tables + `tenantId` (chosen) | Schema per academy | Database (container) per academy |
 |---|---|---|---|
@@ -883,8 +886,6 @@ database for a single large customer stays possible later (§N-16).
   academy is suspended or, later, deleted.
 - **N-12 Legal:** academy-facing terms, a data processing agreement (the academy
   is the controller for its students' data), and per-academy legal pages.
-- **N-13 (part) Start:** approve this plan, and choose whether Phase 2 branches off
-  `main` or `dev`.
 - **N-16 Dedicated database for a large customer later?** Separate deployments
   were rejected as the product's shape. Keeping this plan's design means a
   dedicated database for one enterprise customer stays possible later (same
