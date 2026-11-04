@@ -9,6 +9,7 @@ import { PRACTICE_BOARD_BESIDE } from "@/features/chessboard/components/board/Pr
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
+import { BoardFrame } from "@/features/chessboard/components/board/BoardFrame";
 
 type Ply = { fen: string; san: string; from: string; to: string; check: boolean };
 
@@ -107,14 +108,16 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-start">
       <div className={cn("w-full max-w-[420px]", PRACTICE_BOARD_BESIDE)}>
-        <div
-          ref={containerRef}
-          className="aspect-square w-full rounded-app border border-app-border"
-          data-nexa-board-theme={currentBoardTheme}
-          data-nexa-piece-set={currentPieceSet}
-          data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
-          data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
-        />
+        <BoardFrame className="aspect-square w-full">
+          <div
+            ref={containerRef}
+            className="size-full"
+            data-nexa-board-theme={currentBoardTheme}
+            data-nexa-piece-set={currentPieceSet}
+            data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
+            data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
+          />
+        </BoardFrame>
         <div className="mt-3 flex items-center justify-center gap-2">
           <Button
             aria-label="First move"

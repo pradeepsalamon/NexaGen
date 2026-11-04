@@ -170,7 +170,7 @@ These are the places where one component would replace several. They are the hig
 | **Settings forms** | Appearance, typography, scoring, policy, retention | One `SettingsSection` layout |
 | **Avatars** | `UserAvatar` unused; `ParticipantAvatar` in the room; profile uploader | One `Avatar` per v2, room variant on top. **Done in M11:** `components/ui/Avatar` (`soft` / `brand`), `ParticipantAvatar` wraps it; nav menu and coach class cards adopted it |
 | **Empty chat states** | `ChatEmptyState`, `EmptyMeetingState` | `EmptyState` |
-| **Board frames** | Practice, puzzle solver, analysis, game viewer, room | One `BoardFrame` around existing board components |
+| **Board frames** | Practice, puzzle solver, analysis, game viewer, room | One `BoardFrame` around existing board components. **Done in M11** |
 | **Logo and header image** | Header's inline images, `Logo` unused, academy's own | One `Logo` |
 
 ---

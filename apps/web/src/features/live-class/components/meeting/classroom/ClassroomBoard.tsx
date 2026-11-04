@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { SendPositionButton } from "@/features/assignments/components/SendPositionButton";
+import { BoardFrame } from "@/features/chessboard/components/board/BoardFrame";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { PromotionDialog } from "@/features/chessboard/components/dialogs/PromotionDialog";
 import { SetupPositionWorkspace } from "@/features/chessboard/components/layout/SetupPositionWorkspace";
@@ -218,13 +219,8 @@ export function ClassroomBoard({
         {/* Hidden, not unmounted, while setting up: the side-column fit keeps observing the board box. */}
         <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-2", settingUp && "hidden")}>
           <div ref={boardBoxRef} className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
-            {/* Board frame (spec component 11): square, 6px padding, 12px radius; sized in code, never by centring. */}
-            <div
-              className="relative rounded-app border border-app-border bg-app-surface p-1.5 shadow-card"
-              style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}
-              data-board-frame
-            >
-              <div className="relative size-full overflow-hidden rounded-control">
+            {/* Board frame (spec component 11), sized in code, never by centring. */}
+            <BoardFrame style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
               <ChessgroundBoard />
               {waiting ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-app-background/60 backdrop-blur-[2px]">
@@ -234,8 +230,7 @@ export function ClassroomBoard({
                   </span>
                 </div>
               ) : null}
-              </div>
-            </div>
+            </BoardFrame>
           </div>
 
           {/* Board tools (spec component 12) under the board: navigation, brushes, flip; students get flip only. */}
