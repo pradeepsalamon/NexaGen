@@ -77,7 +77,7 @@ code on 2026-10-31.
 ### P2 — reliability / correctness edges
 
 - **E2E specs collide on one coach's time slot (found 2026-11-04).** Each live-class spec files a CLASS_EXTRA request for "now" through `scheduleClass` (`e2e/fixtures.ts`), and `pre-class-settings.spec.ts` leaves its class SCHEDULED, so in one full run the later specs (`puzzle-activities`, `recording-flow`, `live-board-*`, `live-class-puzzle`, `analysis-board`) fail with 409 "Coach already has a class…". Each passes on its own after the leftover is ended. Fix: have `scheduleClass` pick a free slot (or end E2E-topic leftovers first), and have each spec end its class in `afterAll`. `coach-feedback.spec.ts` no longer depends on it: it marks the student's other completed classes skipped for its own form (2026-11-04).
-- **Saving a PGN "to Cloud" without Cloudinary credentials returns 400** (`upload.service.ts` passes the SDK error through as `BadRequestException`). It should be a 503 "uploads aren't configured". Seen when `analysis-board.spec.ts` ran on a stack without `CLOUDINARY_*`.
+- ~~**Saving a PGN "to Cloud" without Cloudinary credentials returns 400**~~ **Fixed 2026-11-04:** every Cloudinary upload is a 503 "File uploads aren't set up on this server" without `CLOUDINARY_*` (`assertUploadsConfigured`, `upload.service.spec.ts`). `analysis-board.spec.ts` still needs real Cloudinary credentials for its Save to cloud step.
 
 ### P3 — feature follow-ups (net-new, each needs a product yes)
 

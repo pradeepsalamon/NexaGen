@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import * as streamifier from 'streamifier';
 
@@ -43,10 +43,20 @@ export function isActivityImageUrl(url: string, cloudName = process.env.CLOUDINA
   }
 }
 
+export const UPLOADS_NOT_CONFIGURED = "File uploads aren't set up on this server.";
+
+/** Cloudinary credentials present. Without them an upload is a 503, not the SDK's error as a 400. */
+function assertUploadsConfigured(): void {
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    throw new ServiceUnavailableException(UPLOADS_NOT_CONFIGURED);
+  }
+}
+
 @Injectable()
 export class UploadService {
   /** Question and answer images. Random public ids: a URL says nothing about the answer. */
   uploadActivityImage(file: Express.Multer.File): Promise<UploadApiResponse> {
+    assertUploadsConfigured();
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -65,6 +75,7 @@ export class UploadService {
   }
 
   uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
+    assertUploadsConfigured();
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -104,6 +115,7 @@ export class UploadService {
   }
 
   uploadPgn(content: string, filename: string = 'game.pgn'): Promise<UploadApiResponse> {
+    assertUploadsConfigured();
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
