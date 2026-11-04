@@ -197,7 +197,11 @@ export class AttendanceWebhookController {
     }
   }
 
-  private async tenantForRoom(event: any): Promise<string | null> {
+  private async tenantForRoom(event: {
+    egressInfo?: { roomName?: unknown; room_name?: unknown };
+    egress_info?: { roomName?: unknown; room_name?: unknown };
+    room?: { name?: unknown };
+  }): Promise<string | null> {
     const egressInfo = event.egressInfo ?? event.egress_info;
     const roomName: unknown = event.room?.name ?? egressInfo?.roomName ?? egressInfo?.room_name;
     if (typeof roomName !== "string" || !roomName) return null;
