@@ -145,7 +145,7 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 ### 3.6m SaaS plans
 
-`platform/` + `features/subscription/`, catalogue `@nexa-chess/types` `platform-plans.ts`. The API enforces every feature/limit: global `FeatureGateGuard` + `@RequireFeature("key")`, and `EntitlementService.assert*` inside the creating transaction; refusals are **402**. A new catalogued feature must be required by a route (a spec checks) and added to the Enterprise row by migration. Plan changes are `platform_staff` only. [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md)
+`platform/` + `features/subscription/`, catalogue `@nexa-chess/types` `platform-plans.ts`. The API enforces every feature/limit: global `FeatureGateGuard` + `@RequireFeature("key")`, and `EntitlementService.assert*` inside the creating transaction; refusals are **402**. A new catalogued feature must be required by a route (a spec checks) and added to the Enterprise row by migration. Plan and academy changes are platform operators only (Nexa's `SUPER_ADMIN`s, `assertPlatformOperator`; every write in `PlatformAuditLog`); status changes go through `applySubscriptionTransition`. [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md)
 
 ### 3.6m2 Multi-tenancy (Phases 2–3)
 

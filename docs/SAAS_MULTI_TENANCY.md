@@ -1005,6 +1005,71 @@ audit/enforce rule as the extension.
   the relation definitions, so they get their own step).
 
 
+
+### Phase 4 plan
+
+Built on the same branch during the 2026-11-04 overnight run, in slices. The API
+enforces everything; the console is a "Platform" area at `/admin/platform/*`.
+
+| # | Slice | Done when |
+|---|---|---|
+| 4a | Platform rule (`isPlatformOperator`: a `SUPER_ADMIN` of `tenant_nexa`) replaces `PlatformStaff` on every `/platform/*` route; `PlatformAuditLog` written by every console write | Other academies' super admins get 403 on every `/platform/*` route (spec) |
+| 4b | Academies: list, view (usage against limits), create (one transaction, idempotency key: tenant, `<slug>.<PLATFORM_ROOT_DOMAIN>` domain, trial subscription, default settings, hidden support user, super-admin invite through the reset-password link on the academy's host), edit, suspend, reactivate; domains: add/remove/primary | A created academy's super admin can sign in on its subdomain; a double submit returns the same academy |
+| 4c | Plans: create, duplicate, retire, versions (`PlatformPlanVersion`; a subscription keeps its version; "apply to existing subscribers"); lapse policy per plan (past-due days, grace days, what works in grace), overridable per academy; custom deals (overrides, custom price, note) | Editing a plan leaves existing subscriptions unchanged |
+| 4d | Subscriptions: `applySubscriptionTransition` (the §G state machine, one funnel, event per change); move plan now or at period end; record a manual payment; nightly lapse sweep | Every disallowed transition is refused (spec) |
+| 4e | Support sessions: start with a reason (1 h), enter the academy on its host as its "Platform support" user, banner, request log with the staff member, history visible to the academy's super admin | Sessions expire and are logged |
+| 4f | Content packs: the owner publishes Nexa puzzle folders into packs; plans/deals include packs; academies read pack puzzles read-only and copy them into their own library | Unpublished Nexa content is unreachable from another academy (spec) |
+| 4g | Console UI for 4a–4f | Pages render, no horizontal overflow |
+
+**4a–4f API (built 2026-11-04, migration `20261104203047_saas_platform_console`).**
+- **4a:** `isPlatformOperator` / `assertPlatformOperator` (`platform/platform-operator.ts`)
+  on every `/platform/*` route; `writePlatformAudit` → `platform_audit_logs` on every
+  console write; `GET /platform/audit`.
+- **4b:** `PlatformTenantsService`: list (usage, access mode), create (one transaction,
+  `Tenant.creationKey` idempotency; subdomain `<slug>.<PLATFORM_ROOT_DOMAIN>`, trial
+  or active subscription on the plan's current version, hidden support user
+  `support+<tenantId>@platform.invalid` with `isPlatformSupport`, the super admin
+  plus a 7-day set-password link mailed from the academy (`ACADEMY_ADMIN_INVITE`)),
+  edit, suspend/reactivate with a reason (never Nexa), full domains (PENDING until
+  the Phase 5 check), remove, primary.
+- **4c:** `PlatformPlansService`: create, duplicate, retire, versioned edit
+  (`platform_plan_versions`; the replaced version is frozen first),
+  apply-to-existing (an event and audit row per academy). `EntitlementService`
+  resolves features/limits/lapse from the subscription's frozen version. Lapse policy
+  per plan (`pastDueDays`, `graceDays`, `graceAllows`), overridable per academy
+  (`overrides.lapse`). In grace, `FeatureGateGuard` keeps open the writes under
+  `GRACE_ALLOWANCES` (live classes + attendance, homework/puzzles/revision,
+  fees/invoices, chat); admin growth stays blocked.
+- **4d:** `applySubscriptionTransition` (status-filtered claim, allowed-transition
+  guard, event row) for console transitions, manual payments (`platform_payments`;
+  ACTIVE + new period end) and the hourly lapse sweep (`platform.subscription-lapse`:
+  trial end, ACTIVE→PAST_DUE at period end, PAST_DUE→GRACE after `pastDueDays`,
+  GRACE→EXPIRED, scheduled plan changes at period end). Deals: custom price, note,
+  feature/limit/lapse/pack overrides.
+- **4e:** support visits (`platform_support_sessions`): a typed reason, a one-time
+  5-minute link to the academy's primary host, `POST /auth/support/enter` there
+  signs in as the support user for 1 hour (`AuthSession.supportSessionId`, a
+  `support` claim on the access token, kept across refresh), `GET /auth/me` returns
+  `support` for the banner, `SupportVisitInterceptor` logs each request and counts
+  writes, ending revokes the sessions, the academy's super admin reads the history
+  at `/admin/subscription/support-visits`. The support user is hidden from user
+  management.
+- **4f:** content packs of Nexa puzzle folders (`content_packs`,
+  `content_pack_items`); plans list `contentPackIds`, deals add/remove packs;
+  academies read a published, entitled pack's GLOBAL published puzzles (live
+  reference, read under `asPlatform` only through the pack) and copy a folder into
+  their own library (the copy is `source: NEXA`, academy-wide, their own row).
+- Builder's calls are in `docs/BACKLOG.md` (2026-11-04 overnight run).
+- **4g (console UI):** `apps/web/src/features/platform/`. `/admin/platform` tabs
+  (academies + create dialog, plans + versioned editor, duplicate, retire, apply to
+  existing; content packs; support visits; audit log), `/admin/platform/academies/[tenantId]`
+  (subscription: record payment, change plan now / at period end, allowed status
+  moves, deal; addresses; support visits; audit; suspend/reactivate; "Open as
+  support"). `/support/enter` (public) consumes the one-time link; `SupportVisitBanner`
+  in `AppShell` reads `support` from the session query. Academy side:
+  `/admin/content-packs`, "Support visits" on `/admin/subscription`. The nav shows the
+  console only when `AuthUser.isPlatformOperator`.
+
 ---
 
 ## M. Effort (rough)

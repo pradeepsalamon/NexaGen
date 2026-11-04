@@ -46,6 +46,33 @@ const under = (path: string, prefixes: string[]) =>
   prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 
 
+// Valid bodies, so each /platform write reaches its role check (validation runs first).
+const PLATFORM_SAMPLE_BODIES: Record<string, unknown> = {
+  "PATCH /platform/plans/:id": { name: "x" },
+  "PATCH /platform/tenants/:tenantId": { name: "Academy" },
+  "POST /platform/content-packs": { name: "Pack" },
+  "POST /platform/content-packs/:id/items": { kind: "PUZZLE_FOLDER", sourceId: "x" },
+  "POST /platform/plans": { code: "X_PLAN", limits: { maxBatches: 1, maxCoaches: 1, maxConcurrentLiveClasses: 1, maxStudents: 1 }, name: "X" },
+  "POST /platform/plans/:id/duplicate": { code: "X_COPY", name: "Copy" },
+  "POST /platform/tenants": {
+    idempotencyKey: "probe-key-0001",
+    name: "Probe",
+    planCode: "GROWTH",
+    slug: "probe",
+    superAdmin: { email: "probe@int.test", firstName: "P" }
+  },
+  "POST /platform/tenants/:tenantId/domains": { hostname: "probe.example" },
+  "POST /platform/tenants/:tenantId/payments": { amountMinor: 100, currentPeriodEnd: "2099-01-01T00:00:00.000Z", note: "probe" },
+  "POST /platform/tenants/:tenantId/plan": { planCode: "GROWTH" },
+  "POST /platform/tenants/:tenantId/reactivate": { reason: "probe" },
+  "POST /platform/tenants/:tenantId/support": { reason: "probe reason" },
+  "POST /platform/tenants/:tenantId/suspend": { reason: "probe" },
+  "POST /platform/tenants/:tenantId/transition": { note: "probe", status: "ACTIVE" },
+  "PUT /platform/content-packs/:id": { name: "Pack" },
+  "PUT /platform/tenants/:tenantId/deal": { customPriceMinor: null, lapse: null, note: null, overrides: {} },
+  "PUT /platform/tenants/:tenantId/subscription": { status: "ACTIVE" }
+};
+
 describe("admin-only routes refuse other roles (real app, real Postgres)", () => {
   let t: TestApp;
   let users: Record<"student" | "coach" | "admin" | "superAdmin", User>;
@@ -132,19 +159,27 @@ describe("admin-only routes refuse other roles (real app, real Postgres)", () =>
     }
   }, 120_000);
 
-  // Platform powers come from a PlatformStaff row, never a tenant role (docs/SAAS_PLANS.md).
-  it("every /platform route refuses every tenant role, super admin included, with 403", async () => {
+  // Platform powers are Nexa's SUPER_ADMINs only (docs/SAAS_MULTI_TENANCY.md §E);
+  // another academy's super admin is covered in platform-tenants.int-spec.ts.
+  it("every /platform route refuses every role but Nexa's super admin with 403", async () => {
     const routes = registeredRoutes(t).filter((r) => under(r.path, ["/platform"]));
     expect(routes.length).toBeGreaterThan(0);
+    const wrong: string[] = [];
     for (const route of routes) {
-      for (const role of ["student", "coach", "admin", "superAdmin"] as const) {
-        const key = `${route.method} ${route.path}`;
-        const body = route.method === "PUT" ? { status: "ACTIVE" } : route.method === "GET" ? undefined : {};
-        const res = await t.call(users[role], route.method, route.path.replace(/:[^/]+/g, DUMMY_ID), body);
-        const ok = res.status === 403;
-        expect({ role, route: key, status: res.status, ok }).toMatchObject({ ok: true });
+      const key = `${route.method} ${route.path}`;
+      const path = route.path.replace(/:[^/]+/g, DUMMY_ID);
+      const body = route.method === "GET" ? undefined : (PLATFORM_SAMPLE_BODIES[key] ?? {});
+      for (const role of ["student", "coach", "admin"] as const) {
+        const res = await t.call(users[role], route.method, path, body);
+        if (res.status !== 403) wrong.push(`${role} ${res.status} ${key}`);
+      }
+      // Positive control: Nexa's super admin is let in (reads; writes need real bodies).
+      if (route.method === "GET") {
+        const res = await t.call(users.superAdmin, route.method, path);
+        if ([401, 403].includes(res.status)) wrong.push(`superAdmin ${res.status} ${key}`);
       }
     }
+    expect(wrong).toEqual([]);
   }, 120_000);
 
   it("a super admin is never refused (positive control)", async () => {

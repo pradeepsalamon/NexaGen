@@ -5,6 +5,7 @@ export const API_ROUTES = {
     refresh: "/auth/refresh",
     logout: "/auth/logout",
     me: "/auth/me",
+    supportEnter: "/auth/support/enter",
     profile: "/auth/profile",
     forgotPassword: "/auth/forgot-password",
     resetPassword: "/auth/reset-password",
@@ -897,13 +898,45 @@ export const API_ROUTES = {
   // user (drives web feature gating); `admin`: academy admins, with usage.
   subscription: {
     current: "/subscription",
-    admin: "/admin/subscription"
+    admin: "/admin/subscription",
+    /** The academy super admin's history of platform support visits (§I). */
+    supportVisits: "/admin/subscription/support-visits",
+    /** Content packs this academy's plan includes (§I "Content packs"). */
+    contentPacks: "/content-packs",
+    contentPackFolder: (packId: string = ":packId", itemId: string = ":itemId") =>
+      `/content-packs/${packId}/items/${itemId}`,
+    contentPackFolderCopy: (packId: string = ":packId", itemId: string = ":itemId") =>
+      `/content-packs/${packId}/items/${itemId}/copy`
   },
-  // Platform staff only (PlatformStaff row), never a tenant role.
+  // Platform operators only: Nexa's SUPER_ADMINs (docs/SAAS_MULTI_TENANCY.md §E), never another academy's role.
   platform: {
     plans: "/platform/plans",
     plan: (id: string = ":id") => `/platform/plans/${id}`,
-    tenantSubscription: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/subscription`
+    planDuplicate: (id: string = ":id") => `/platform/plans/${id}/duplicate`,
+    planRetire: (id: string = ":id") => `/platform/plans/${id}/retire`,
+    planApplyToExisting: (id: string = ":id") => `/platform/plans/${id}/apply-to-existing`,
+    tenantDeal: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/deal`,
+    tenantPlan: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/plan`,
+    tenantTransition: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/transition`,
+    tenantPayments: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/payments`,
+    tenantSupport: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/support`,
+    supportSessions: "/platform/support-sessions",
+    supportSessionEnd: (id: string = ":id") => `/platform/support-sessions/${id}/end`,
+    contentPacks: "/platform/content-packs",
+    contentPack: (id: string = ":id") => `/platform/content-packs/${id}`,
+    contentPackItems: (id: string = ":id") => `/platform/content-packs/${id}/items`,
+    contentPackItem: (id: string = ":id", itemId: string = ":itemId") => `/platform/content-packs/${id}/items/${itemId}`,
+    tenantSubscription: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/subscription`,
+    audit: "/platform/audit",
+    tenants: "/platform/tenants",
+    tenant: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}`,
+    tenantSuspend: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/suspend`,
+    tenantReactivate: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/reactivate`,
+    tenantDomains: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/domains`,
+    tenantDomain: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
+      `/platform/tenants/${tenantId}/domains/${domainId}`,
+    tenantDomainPrimary: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
+      `/platform/tenants/${tenantId}/domains/${domainId}/primary`
   },
   health: {
     // Public, unauthenticated, not rate limited. `live` never touches a

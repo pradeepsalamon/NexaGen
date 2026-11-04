@@ -4,10 +4,12 @@ import {
   DEFAULT_TENANT_ID,
   isWithinLimit,
   resolveEntitlements,
+  resolveLapsePolicy,
   resolveTenantAccessMode,
   sanitizePlanFeatures,
   sanitizePlanLimits,
   type CurrentEntitlementsResponse,
+  type LapsePolicy,
   type PlanFeatureKey,
   type PlanLimitKey,
   type PlanUsage,
@@ -26,6 +28,8 @@ type TenantRow = NonNullable<Awaited<ReturnType<EntitlementService["loadTenant"]
 
 export type TenantEntitlementState = ResolvedEntitlements & {
   accessMode: TenantAccessMode;
+  /** The lapse policy in force (plan version + the academy's overrides). */
+  lapse: LapsePolicy;
   tenant: { id: string; name: string } | null;
   subscription: TenantRow["subscription"];
 };
@@ -65,6 +69,21 @@ export class EntitlementService {
     });
   }
 
+  /**
+   * The plan as this subscription has it: the frozen version it signed up on
+   * when the plan has been edited since (§G), else the plan row.
+   */
+  private async effectivePlan(subscription: NonNullable<TenantRow["subscription"]>) {
+    const { plan, planVersion } = subscription;
+    if (planVersion === null || planVersion === plan.version) return plan;
+    const frozen = await this.prisma.platformPlanVersion.findUnique({
+      where: { planId_version: { planId: plan.id, version: planVersion } }
+    });
+    if (!frozen) return plan;
+    const snapshot = (frozen.snapshot ?? {}) as Record<string, unknown>;
+    return { ...plan, ...snapshot } as typeof plan;
+  }
+
   private async computeState(tenantId: string): Promise<TenantEntitlementState> {
     const tenant = await this.loadTenant(tenantId);
     const subscription = tenant?.subscription ?? null;
@@ -72,12 +91,20 @@ export class EntitlementService {
     const accessMode = tenant
       ? resolveTenantAccessMode({ subscription, tenantStatus: tenant.status })
       : "LOCKED";
-    const resolved = subscription
-      ? resolveEntitlements(subscription.plan, subscription.overrides)
+    const plan = subscription ? await this.effectivePlan(subscription) : null;
+    const resolved = plan
+      ? resolveEntitlements(plan, subscription?.overrides)
       : resolveEntitlements({ features: [], limits: {} });
+    const lapse = resolveLapsePolicy(
+      plan
+        ? { graceAllows: plan.graceAllows as LapsePolicy["graceAllows"], graceDays: plan.graceDays, pastDueDays: plan.pastDueDays }
+        : null,
+      subscription?.overrides
+    );
     return {
       ...resolved,
       accessMode,
+      lapse,
       subscription,
       tenant: tenant ? { id: tenant.id, name: tenant.name } : null
     };
@@ -184,6 +211,7 @@ export class EntitlementService {
 export function toPlatformPlanSummary(plan: {
   id: string;
   code: string;
+  contentPackIds: string[];
   name: string;
   description: string | null;
   sortOrder: number;
@@ -195,9 +223,14 @@ export function toPlatformPlanSummary(plan: {
   trialDays: number;
   isPublic: boolean;
   isActive: boolean;
+  version: number;
+  pastDueDays: number;
+  graceDays: number;
+  graceAllows: string[];
 }): PlatformPlanSummary {
   return {
     code: plan.code,
+    contentPackIds: plan.contentPackIds,
     currency: plan.currency,
     description: plan.description,
     features: sanitizePlanFeatures(plan.features),
@@ -209,6 +242,12 @@ export function toPlatformPlanSummary(plan: {
     priceMonthlyMinor: plan.priceMonthlyMinor,
     priceYearlyMinor: plan.priceYearlyMinor,
     sortOrder: plan.sortOrder,
-    trialDays: plan.trialDays
+    trialDays: plan.trialDays,
+    lapse: resolveLapsePolicy({
+      graceAllows: plan.graceAllows as LapsePolicy["graceAllows"],
+      graceDays: plan.graceDays,
+      pastDueDays: plan.pastDueDays
+    }),
+    version: plan.version
   };
 }

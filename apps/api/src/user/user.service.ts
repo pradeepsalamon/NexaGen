@@ -57,7 +57,8 @@ export class UserService {
 
     const { page, pageSize, skip, take, search } = resolvePagination(query);
 
-    const where: Prisma.UserWhereInput = { isDeleted: false };
+    // The academy's hidden "Platform support" account is never listed (§I).
+    const where: Prisma.UserWhereInput = { isDeleted: false, isPlatformSupport: false };
     const status = queryEnum(query?.status, UserStatus, "status");
     if (status) {
       where.status = status;
@@ -93,7 +94,7 @@ export class UserService {
 
     const targetUser = await this.prisma.user.findUnique({
       include: userInclude,
-      where: { id, isDeleted: false }
+      where: { id, isDeleted: false, isPlatformSupport: false }
     });
 
     if (!targetUser) {
@@ -179,7 +180,7 @@ export class UserService {
     this.assertCanManageUsers(authUser);
 
     const userToUpdate = await this.prisma.user.findUnique({
-      where: { id, isDeleted: false },
+      where: { id, isDeleted: false, isPlatformSupport: false },
       include: userInclude
     });
 
@@ -331,7 +332,7 @@ export class UserService {
 
     const userToArchive = await this.prisma.user.findUnique({
       include: userInclude,
-      where: { id, isDeleted: false }
+      where: { id, isDeleted: false, isPlatformSupport: false }
     });
 
     if (!userToArchive) {
@@ -345,7 +346,7 @@ export class UserService {
     this.assertCanModifyTarget(authUser, userToArchive);
 
     const updated = await this.prisma.user.update({
-      where: { id, isDeleted: false },
+      where: { id, isDeleted: false, isPlatformSupport: false },
       data: { status: UserStatus.ARCHIVED },
       include: userInclude
     });
@@ -359,7 +360,7 @@ export class UserService {
 
     const userToRestore = await this.prisma.user.findUnique({
       include: userInclude,
-      where: { id, isDeleted: false }
+      where: { id, isDeleted: false, isPlatformSupport: false }
     });
 
     if (!userToRestore) {
@@ -373,7 +374,7 @@ export class UserService {
         await this.entitlements.assertSeatAvailable(tx, userToRestore.role, id);
       }
       return tx.user.update({
-        where: { id, isDeleted: false },
+        where: { id, isDeleted: false, isPlatformSupport: false },
         data: { status: UserStatus.ACTIVE },
         include: userInclude
       });
@@ -396,7 +397,7 @@ export class UserService {
     this.assertCanManageUsers(authUser);
 
     const userToDelete = await this.prisma.user.findUnique({
-      where: { id, isDeleted: false }
+      where: { id, isDeleted: false, isPlatformSupport: false }
     });
 
     if (!userToDelete) {

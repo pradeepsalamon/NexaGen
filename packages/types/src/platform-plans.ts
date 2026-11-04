@@ -212,7 +212,10 @@ export const planLimitsSchema = z.object({
 export const entitlementOverridesSchema = z.object({
   addFeatures: z.array(planFeatureKeySchema).default([]),
   removeFeatures: z.array(planFeatureKeySchema).default([]),
-  limits: planLimitsSchema.partial().default({})
+  limits: planLimitsSchema.partial().default({}),
+  /** ContentPack ids a deal adds to, or removes from, the plan's packs (§I). */
+  addContentPacks: z.array(z.string().min(1).max(100)).optional(),
+  removeContentPacks: z.array(z.string().min(1).max(100)).optional()
 });
 
 export type EntitlementOverrides = z.infer<typeof entitlementOverridesSchema>;
@@ -465,6 +468,11 @@ export type PlatformPlanSummary = {
   trialDays: number;
   isPublic: boolean;
   isActive: boolean;
+  /** Bumped on every edit (§G); subscriptions keep the version they signed up on. */
+  version: number;
+  lapse: LapsePolicy;
+  /** Content packs every academy on this plan can read (§I "Content packs"). */
+  contentPackIds: string[];
 };
 
 /** `GET /subscription`: what any signed-in user's academy can use (drives the web's feature gating). */
@@ -495,6 +503,63 @@ export type AdminSubscriptionResponse = CurrentEntitlementsResponse & {
 
 export type PlatformPlansResponse = { plans: PlatformPlanSummary[] };
 
+// ──────────────────────────────────────────────
+// Lapse policy, grace allowances, subscription transitions (§G; Phase 4c/4d)
+// ──────────────────────────────────────────────
+
+/**
+ * What still works while an academy is in GRACE (§G "Lapse policy"). Each is a
+ * group of API prefixes whose writes stay open; reads always work in grace and
+ * admin growth (new students, coaches, batches) is always blocked.
+ * *(builder's call on the exact groups and prefixes)*
+ */
+export const GRACE_ALLOWANCES = {
+  chat: { label: "Chat", prefixes: ["/chat"] },
+  fees: { label: "Students paying fees", prefixes: ["/payments", "/invoices", "/billing"] },
+  homework: { label: "Homework and puzzle attempts", prefixes: ["/assignments", "/puzzles", "/revision", "/puzzle-training"] },
+  liveClasses: { label: "Live classes, joining them, attendance", prefixes: ["/live-class", "/attendance"] }
+} as const;
+
+export type GraceAllowance = keyof typeof GRACE_ALLOWANCES;
+export const GRACE_ALLOWANCE_KEYS = Object.keys(GRACE_ALLOWANCES) as GraceAllowance[];
+export const graceAllowanceSchema = z.enum(GRACE_ALLOWANCE_KEYS as [GraceAllowance, ...GraceAllowance[]]);
+
+export type LapsePolicy = {
+  /** Days after a missed payment with full access (banner + email). */
+  pastDueDays: number;
+  /** Days in grace after that; then locked. */
+  graceDays: number;
+  graceAllows: GraceAllowance[];
+};
+
+export const DEFAULT_LAPSE_POLICY: LapsePolicy = {
+  graceAllows: [...GRACE_ALLOWANCE_KEYS],
+  graceDays: 14,
+  pastDueDays: 7
+};
+
+export const lapsePolicySchema = z.object({
+  graceAllows: z.array(graceAllowanceSchema),
+  graceDays: z.number().int().min(0).max(365),
+  pastDueDays: z.number().int().min(0).max(365)
+});
+
+/** The plan's lapse policy with an academy's overrides on top. */
+export function resolveLapsePolicy(plan: Partial<LapsePolicy> | null | undefined, overrides?: unknown): LapsePolicy {
+  const raw = overrides && typeof overrides === "object" ? ((overrides as Record<string, unknown>).lapse ?? {}) : {};
+  const merged = { ...DEFAULT_LAPSE_POLICY, ...(plan ?? {}), ...(raw as object) };
+  const parsed = lapsePolicySchema.safeParse(merged);
+  return parsed.success ? parsed.data : DEFAULT_LAPSE_POLICY;
+}
+
+/** Whether a write to `path` stays open in grace under `allows`. */
+export function isGraceAllowedPath(path: string, allows: readonly GraceAllowance[]): boolean {
+  return allows.some((key) =>
+    GRACE_ALLOWANCES[key].prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+  );
+}
+
+
 export const updatePlatformPlanRequestSchema = z
   .object({
     currency: z.string().trim().length(3).toUpperCase(),
@@ -507,7 +572,9 @@ export const updatePlatformPlanRequestSchema = z
     priceMonthlyMinor: z.number().int().min(0).nullable(),
     priceYearlyMinor: z.number().int().min(0).nullable(),
     sortOrder: z.number().int(),
-    trialDays: z.number().int().min(0).max(365)
+    trialDays: z.number().int().min(0).max(365),
+    lapse: lapsePolicySchema,
+    contentPackIds: z.array(z.string().trim().min(1).max(100)).max(50)
   })
   .partial();
 
@@ -544,6 +611,291 @@ export type TenantSubscriptionEventItem = {
   createdAt: string;
 };
 
+export type PlatformPaymentItem = {
+  id: string;
+  method: "MANUAL" | "RAZORPAY";
+  amountMinor: number;
+  currency: string;
+  reference: string | null;
+  periodEnd: string;
+  note: string | null;
+  createdAt: string;
+};
+
 export type PlatformTenantSubscriptionResponse = AdminSubscriptionResponse & {
   events: TenantSubscriptionEventItem[];
+  /** Platform-only: the academy's deal and version (never shown to the academy). */
+  deal: {
+    customPriceMinor: number | null;
+    note: string | null;
+    planVersion: number | null;
+    currentPlanVersion: number | null;
+    pendingPlanCode: string | null;
+    lapse: LapsePolicy;
+  } | null;
+  payments: PlatformPaymentItem[];
 };
+
+// ──────────────────────────────────────────────
+// Platform console: academies (docs/SAAS_MULTI_TENANCY.md §H, §I; Phase 4b)
+// ──────────────────────────────────────────────
+
+/** Subdomain label: lowercase letters, digits and single hyphens, not at the ends. */
+export const tenantSlugSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3)
+  .max(40)
+  .regex(/^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9]))*$/, "Use lowercase letters, digits and hyphens.");
+
+/** Subdomains a new academy can never take. */
+export const RESERVED_TENANT_SLUGS: ReadonlySet<string> = new Set([
+  "admin", "api", "app", "crm", "dev", "docs", "help", "mail", "platform", "staging", "status", "support", "www"
+]);
+
+export const createPlatformTenantRequestSchema = z.object({
+  country: z.string().trim().length(2).toUpperCase().default("IN"),
+  /** A double submit with the same key returns the same academy. */
+  idempotencyKey: z.string().trim().min(8).max(100),
+  name: z.string().trim().min(2).max(120),
+  planCode: z.string().trim().min(1).max(40),
+  slug: tenantSlugSchema,
+  superAdmin: z.object({
+    email: z.string().trim().toLowerCase().email().max(254),
+    firstName: z.string().trim().min(1).max(80),
+    lastName: z.string().trim().max(80).optional()
+  }),
+  timezone: z.string().trim().min(1).max(64).default("Asia/Kolkata")
+});
+export type CreatePlatformTenantRequest = z.infer<typeof createPlatformTenantRequestSchema>;
+
+export const updatePlatformTenantRequestSchema = z
+  .object({
+    country: z.string().trim().length(2).toUpperCase(),
+    name: z.string().trim().min(2).max(120),
+    timezone: z.string().trim().min(1).max(64)
+  })
+  .partial()
+  .refine((body) => Object.keys(body).length > 0, { message: "Nothing to change." });
+export type UpdatePlatformTenantRequest = z.infer<typeof updatePlatformTenantRequestSchema>;
+
+/** Suspend / reactivate: the reason goes to the audit log. */
+export const platformTenantStatusRequestSchema = z.object({
+  reason: z.string().trim().min(3).max(500)
+});
+export type PlatformTenantStatusRequest = z.infer<typeof platformTenantStatusRequestSchema>;
+
+export const addPlatformTenantDomainRequestSchema = z.object({
+  hostname: z.string().trim().toLowerCase().min(3).max(253)
+});
+export type AddPlatformTenantDomainRequest = z.infer<typeof addPlatformTenantDomainRequestSchema>;
+
+export type PlatformTenantDomainItem = {
+  id: string;
+  hostname: string;
+  kind: "SUBDOMAIN" | "CUSTOM";
+  status: "PENDING" | "ACTIVE" | "REMOVED";
+  isPrimary: boolean;
+  lastCheckedAt: string | null;
+  lastCheckResult: string | null;
+};
+
+export type PlatformTenantSummary = {
+  id: string;
+  slug: string;
+  name: string;
+  status: TenantStatusType;
+  timezone: string;
+  country: string;
+  createdAt: string;
+  primaryHost: string | null;
+  plan: { code: string; name: string } | null;
+  subscriptionStatus: TenantSubscriptionStatusType | null;
+  accessMode: TenantAccessMode;
+  usage: PlanUsage;
+};
+
+export type PlatformTenantsResponse = {
+  tenants: PlatformTenantSummary[];
+  /** New academies get `<slug>.<rootDomain>` (env `PLATFORM_ROOT_DOMAIN`). */
+  rootDomain: string;
+};
+
+export type PlatformTenantDetail = PlatformTenantSummary & {
+  domains: PlatformTenantDomainItem[];
+  limits: PlanLimits;
+};
+
+export type PlatformTenantResponse = { tenant: PlatformTenantDetail };
+
+export type PlatformAuditItem = {
+  id: string;
+  action: string;
+  actorUserId: string | null;
+  actorName: string | null;
+  targetTenantId: string | null;
+  reason: string | null;
+  details: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type PlatformAuditResponse = { entries: PlatformAuditItem[]; nextCursor: string | null };
+
+/** The §G state machine: every allowed `from → to`. */
+export const SUBSCRIPTION_TRANSITIONS: Record<TenantSubscriptionStatusType, readonly TenantSubscriptionStatusType[]> = {
+  ACTIVE: ["PAST_DUE", "CANCEL_SCHEDULED"],
+  CANCEL_SCHEDULED: ["ACTIVE", "EXPIRED"],
+  CANCELLED: ["ACTIVE"],
+  EXPIRED: ["ACTIVE"],
+  GRACE: ["ACTIVE", "EXPIRED"],
+  PAST_DUE: ["ACTIVE", "GRACE"],
+  TRIALING: ["ACTIVE", "EXPIRED"]
+};
+
+export function isAllowedSubscriptionTransition(
+  from: TenantSubscriptionStatusType,
+  to: TenantSubscriptionStatusType
+): boolean {
+  return from === to || SUBSCRIPTION_TRANSITIONS[from].includes(to);
+}
+
+// ── Plans in the console: create, duplicate, retire, versions, deals ──
+
+export const createPlatformPlanRequestSchema = z.object({
+  code: z.string().trim().toUpperCase().min(2).max(40).regex(/^[A-Z0-9_]+$/, "Use A–Z, 0–9 and _."),
+  contentPackIds: z.array(z.string().trim().min(1).max(100)).max(50).default([]),
+  currency: z.string().trim().length(3).toUpperCase().default("INR"),
+  description: z.string().trim().max(500).nullable().default(null),
+  features: z.array(planFeatureKeySchema).default([]),
+  isPublic: z.boolean().default(false),
+  lapse: lapsePolicySchema.default(DEFAULT_LAPSE_POLICY),
+  limits: planLimitsSchema,
+  name: z.string().trim().min(1).max(80),
+  priceMonthlyMinor: z.number().int().min(0).nullable().default(null),
+  priceYearlyMinor: z.number().int().min(0).nullable().default(null),
+  sortOrder: z.number().int().default(100),
+  trialDays: z.number().int().min(0).max(365).default(0)
+});
+export type CreatePlatformPlanRequest = z.infer<typeof createPlatformPlanRequestSchema>;
+
+export const duplicatePlatformPlanRequestSchema = z.object({
+  code: createPlatformPlanRequestSchema.shape.code,
+  name: z.string().trim().min(1).max(80)
+});
+export type DuplicatePlatformPlanRequest = z.infer<typeof duplicatePlatformPlanRequestSchema>;
+
+/** The academy-specific part of a subscription: a negotiated deal (§G "Custom deals"). */
+export const platformDealRequestSchema = z.object({
+  customPriceMinor: z.number().int().min(0).nullable(),
+  lapse: lapsePolicySchema.partial().nullable(),
+  note: z.string().trim().max(1000).nullable(),
+  overrides: entitlementOverridesSchema
+});
+export type PlatformDealRequest = z.infer<typeof platformDealRequestSchema>;
+
+/** Move an academy to another plan, now or when its current period ends. */
+export const changeTenantPlanRequestSchema = z.object({
+  note: z.string().trim().max(500).optional(),
+  planCode: z.string().trim().min(1).max(40),
+  when: z.enum(["now", "periodEnd"]).default("now")
+});
+export type ChangeTenantPlanRequest = z.infer<typeof changeTenantPlanRequestSchema>;
+
+export const transitionTenantSubscriptionRequestSchema = z.object({
+  currentPeriodEnd: z.string().datetime({ offset: true }).nullable().optional(),
+  note: z.string().trim().min(3).max(500),
+  status: z.enum(TENANT_SUBSCRIPTION_STATUSES)
+});
+export type TransitionTenantSubscriptionRequest = z.infer<typeof transitionTenantSubscriptionRequestSchema>;
+
+/** A payment the platform received outside a gateway (bank transfer, cheque). */
+export const recordPlatformPaymentRequestSchema = z.object({
+  amountMinor: z.number().int().min(1),
+  /** The paid-up period now ends here; the subscription becomes ACTIVE. */
+  currentPeriodEnd: z.string().datetime({ offset: true }),
+  note: z.string().trim().min(3).max(500),
+  reference: z.string().trim().max(120).optional()
+});
+export type RecordPlatformPaymentRequest = z.infer<typeof recordPlatformPaymentRequestSchema>;
+
+// ── Support sessions (§I "Support access"; Phase 4e) ──
+
+export const startSupportSessionRequestSchema = z.object({
+  reason: z.string().trim().min(5).max(500)
+});
+export type StartSupportSessionRequest = z.infer<typeof startSupportSessionRequestSchema>;
+
+export type StartSupportSessionResponse = {
+  id: string;
+  /** One-time link (5 minutes) that opens the academy's own address as its support user. */
+  enterUrl: string;
+  expiresAt: string;
+};
+
+export const enterSupportSessionRequestSchema = z.object({ token: z.string().trim().min(20).max(200) });
+export type EnterSupportSessionRequest = z.infer<typeof enterSupportSessionRequestSchema>;
+
+export type PlatformSupportSessionItem = {
+  id: string;
+  tenantId: string;
+  staffName: string | null;
+  reason: string;
+  createdAt: string;
+  enteredAt: string | null;
+  expiresAt: string;
+  endedAt: string | null;
+  isActive: boolean;
+  actionCount: number;
+};
+
+export type PlatformSupportSessionsResponse = { sessions: PlatformSupportSessionItem[] };
+
+/** On `GET /auth/me` while the browser is a support visit: drives the banner. */
+export type SupportVisitInfo = { id: string; staffName: string | null; reason: string; expiresAt: string };
+
+// ── Content packs (§I "Content packs"; Phase 4f) ──
+
+export const contentPackRequestSchema = z.object({
+  description: z.string().trim().max(1000).nullable().default(null),
+  isPublished: z.boolean().default(false),
+  name: z.string().trim().min(2).max(120)
+});
+export type ContentPackRequest = z.infer<typeof contentPackRequestSchema>;
+
+export const addContentPackItemRequestSchema = z.object({
+  kind: z.literal("PUZZLE_FOLDER"),
+  /** A Nexa puzzle folder id. */
+  sourceId: z.string().trim().min(1).max(100)
+});
+export type AddContentPackItemRequest = z.infer<typeof addContentPackItemRequestSchema>;
+
+export type ContentPackItemSummary = { id: string; kind: "PUZZLE_FOLDER"; sourceId: string; title: string; puzzleCount: number };
+
+export type ContentPackSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  isPublished: boolean;
+  items: ContentPackItemSummary[];
+};
+
+export type ContentPacksResponse = { packs: ContentPackSummary[] };
+
+/** A pack folder's puzzles, read-only to the academy. */
+export type ContentPackFolderResponse = {
+  pack: { id: string; name: string };
+  item: ContentPackItemSummary;
+  puzzles: Array<{ id: string; title: string; fen: string; difficulty: string; puzzleType: string }>;
+};
+
+export type CopyContentPackFolderResponse = { topicId: string; copied: number };
+
+/** The packs an academy can read: the plan's, plus a deal's additions, minus its removals. */
+export function resolveContentPackIds(planPackIds: readonly string[], overrides?: unknown): string[] {
+  const raw = overrides && typeof overrides === "object" ? (overrides as Record<string, unknown>) : {};
+  const strings = (value: unknown) => (Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : []);
+  const ids = new Set([...planPackIds, ...strings(raw.addContentPacks)]);
+  for (const id of strings(raw.removeContentPacks)) ids.delete(id);
+  return [...ids].sort();
+}

@@ -1,5 +1,6 @@
 import { type CanActivate, type ExecutionContext, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { isGraceAllowedPath } from "@nexa-chess/types";
 import { EntitlementService } from "./entitlement.service";
 import { PlanRestrictionException } from "./plan-restriction.exception";
 import { REQUIRED_FEATURE_KEY, type RequiredFeature } from "./require-feature.decorator";
@@ -44,7 +45,13 @@ export class FeatureGateGuard implements CanActivate {
 
     const state = await this.entitlements.getState();
     if (state.accessMode === "LOCKED") throw PlanRestrictionException.locked();
-    if (state.accessMode === "READ_ONLY" && !SAFE_METHODS.has(request.method)) {
+    // Grace (§G "Lapse policy"): reads work, and so do the writes the lapse
+    // policy keeps open (live classes, homework, fees, chat); admin growth never.
+    if (
+      state.accessMode === "READ_ONLY" &&
+      !SAFE_METHODS.has(request.method) &&
+      !isGraceAllowedPath(request.path, state.lapse.graceAllows)
+    ) {
       throw PlanRestrictionException.readOnly();
     }
 

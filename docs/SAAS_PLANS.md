@@ -125,18 +125,24 @@ answer from "your plan can't").
 change takes up to 30s to reach the others. The web caches `/subscription` for
 5 minutes; the API is the enforcement either way.
 
-## Platform staff and changing a plan
+## Platform operators and changing a plan
 
-Platform powers come only from a `platform_staff` row — never a tenant role,
-not even `SUPER_ADMIN` (`admin-routes.int-spec.ts` asserts every `/platform`
-route is 403 for every tenant role). Grant it on the box:
+Platform powers belong to **Nexa's own `SUPER_ADMIN`s** (a `SUPER_ADMIN` whose
+`tenantId` is `tenant_nexa`) and nobody else: a super admin of any other academy
+is an ordinary academy admin (docs/SAAS_MULTI_TENANCY.md §E; `isPlatformOperator`
+in `platform/platform-operator.ts`). `admin-routes.int-spec.ts` asserts every
+`/platform` route is 403 for every other role, and `platform-tenants.int-spec.ts`
+that another academy's super admin is refused. `platform_staff` rows no longer
+grant anything (the table is kept, unused). MFA for these accounts is the login
+rule (`MFA_REQUIRED_ROLES`, `SUPER_ADMIN` by default). Every console write is in
+`platform_audit_logs`.
 
-```sql
-INSERT INTO platform_staff (id, "userId", role)
-SELECT 'staff_' || id, id, 'PLATFORM_ADMIN' FROM users WHERE email = '…';
-```
-
-The dev seed makes `superadmin@nexa.test` platform staff.
+The console API (Phase 4, docs/SAAS_MULTI_TENANCY.md § "Phase 4 plan"):
+academies (`/platform/tenants`), plans with versions (`/platform/plans`; an edit
+bumps the version and existing subscriptions keep theirs until
+`apply-to-existing`), subscriptions (`…/plan`, `…/transition`, `…/payments`,
+`…/deal`, all through `applySubscriptionTransition`), support visits
+(`…/support`) and content packs (`/platform/content-packs`).
 
 Change the academy's plan (until online billing exists):
 

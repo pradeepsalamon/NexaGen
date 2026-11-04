@@ -68,7 +68,7 @@ type MockPrismaService = {
 
 describe("AuthService", () => {
   let service: AuthService;
-  let jwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
+  let jwtService: { decode: jest.Mock; signAsync: jest.Mock; verifyAsync: jest.Mock };
   let mailService: {
     sendPasswordResetLink: jest.Mock;
     sendEmailChangedNotice: jest.Mock;
@@ -92,6 +92,7 @@ describe("AuthService", () => {
 
   beforeEach(async () => {
     jwtService = {
+      decode: jest.fn().mockReturnValue(null),
       signAsync: jest.fn(),
       verifyAsync: jest.fn()
     };

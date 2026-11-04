@@ -375,6 +375,8 @@ export type AuthUser = {
   firstName: string;
   id: string;
   isEmailVerified: boolean;
+  /** Nexa's own SUPER_ADMIN: may open the platform console (docs/SAAS_PLANS.md). The API still checks every call. */
+  isPlatformOperator?: boolean;
   lastName?: string | null;
   phoneNumber?: string | null;
   role: UserRole;
@@ -461,6 +463,8 @@ export type BatchResponse = {
 
 export type AuthResponse = {
   user: AuthUser;
+  /** Set while this browser is a platform support visit (§I): drives the banner. */
+  support?: import("./platform-plans").SupportVisitInfo | null;
 };
 
 /**

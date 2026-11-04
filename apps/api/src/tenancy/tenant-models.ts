@@ -8,11 +8,17 @@ import { Prisma } from "@prisma/client";
  * the raw-SQL list.
  */
 export const PLATFORM_MODELS = {
+  ContentPack: "Nexa content the owner publishes to academies (§I), platform-wide",
+  ContentPackItem: "An item of a content pack (points at a Nexa folder)",
   JobLock: "Cron single-runner locks for the whole process",
   LichessCatalogueRelease: "Shared read-only Lichess catalogue",
   LichessPuzzle: "Shared read-only Lichess catalogue (a built-in content pack)",
+  PlatformAuditLog: "Platform-console audit log (§I), across academies",
+  PlatformPayment: "What academies paid the platform (§G), keyed by tenantId (with FK)",
   PlatformPlan: "SaaS tiers, the same for every academy",
-  PlatformStaff: "Retired source of platform powers (§E); kept until Phase 4",
+  PlatformPlanVersion: "Frozen plan versions (§G)",
+  PlatformStaff: "Retired: platform powers are Nexa's SUPER_ADMINs (§E); table kept, unused",
+  PlatformSupportSession: "Support visits by Nexa staff (§I), keyed by tenantId (with FK)",
   ProcessedWebhookEvent: "LiveKit event ids are globally unique",
   Tenant: "The academies themselves",
   TenantDomain: "Host → academy map, read before any academy is known",

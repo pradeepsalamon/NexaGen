@@ -691,6 +691,30 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.platformStaff;
   }
 
+  get platformAuditLog() {
+    return this.client.platformAuditLog;
+  }
+
+  get platformPlanVersion() {
+    return this.client.platformPlanVersion;
+  }
+
+  get platformPayment() {
+    return this.client.platformPayment;
+  }
+
+  get platformSupportSession() {
+    return this.client.platformSupportSession;
+  }
+
+  get contentPack() {
+    return this.client.contentPack;
+  }
+
+  get contentPackItem() {
+    return this.client.contentPackItem;
+  }
+
   async $connect() {
     return this.client.$connect();
   }

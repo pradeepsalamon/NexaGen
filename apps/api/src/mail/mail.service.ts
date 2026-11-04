@@ -36,6 +36,11 @@ export class MailService {
     await this.sendSystemEmail("ACCOUNT_ACCESS_EMAIL", to, { "links.reset": link, "recipient.firstName": firstName });
   }
 
+  /** A new academy's first super admin: set a password on the academy's own address (§H). */
+  async sendAcademyAdminInvite(to: string, firstName: string, link: string) {
+    await this.sendSystemEmail("ACADEMY_ADMIN_INVITE", to, { "links.reset": link, "recipient.firstName": firstName });
+  }
+
   async sendEmailVerificationLink(to: string, verificationLink: string) {
     await this.sendSystemEmail("EMAIL_VERIFICATION", to, { "links.verify": verificationLink });
   }

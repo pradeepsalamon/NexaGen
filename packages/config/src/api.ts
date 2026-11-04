@@ -20,6 +20,8 @@ const MFA_ROLE_NAMES = ["ADMIN", "COACH", "SALES", "STUDENT", "SUPER_ADMIN"];
 const apiEnvSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
   FRONTEND_URL: optionalUrlSchema,
+  /** Academies get `<slug>.<PLATFORM_ROOT_DOMAIN>` (docs/SAAS_MULTI_TENANCY.md §H). */
+  PLATFORM_ROOT_DOMAIN: z.string().trim().toLowerCase().default("nexachess.in"),
   JWT_ACCESS_SECRET: z.string().default("change-this-access-token-secret"),
   JWT_ACCESS_TTL: durationSchema.default("15m"),
   JWT_REFRESH_SECRET: z.string().default("change-this-refresh-token-secret"),

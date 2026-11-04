@@ -185,6 +185,19 @@ its precondition, the student training surface, now exists).
   3. **PGN uploads stay public** in Cloudinary (the plan says move them to `authenticated`). They're now under the academy's folder; the access change is a separate step.
   4. **No per-academy throttle bucket yet** (§E "Throttling"). With one academy it changes nothing; it's listed for Phase 4 with plan limits.
 
+- **2026-11-04 (overnight run), `feat/saas-phase2-foundation`: builder's calls for SaaS Phase 4 (platform console API)**; change any of them:
+  1. **Emails stay unique across the platform until §D5**: creating an academy whose first super admin's email already has an account anywhere is refused (409) with a clear message.
+  2. **Grace allowances** (what still works in grace) are four groups of API prefixes (`GRACE_ALLOWANCES` in `@nexa-chess/types`): live classes + attendance, homework/puzzles/revision, fees/invoices, chat. All four are on by default; admin growth is always blocked.
+  3. **Lapse defaults:** 7 past-due days, then 14 grace days, then locked. The sweep runs hourly. A subscription with no period end (manual billing) never lapses by itself.
+  4. **A plan with trial days starts TRIALING**; with none it starts ACTIVE with no period end (manual billing until Phase 6).
+  5. **The support user is a `SUPER_ADMIN`** of the academy (full access, as the owner said "can control"). Reads during a visit go to the request log only; writes are counted on the visit row.
+  6. **Content packs are a live reference** to Nexa's published folders (only GLOBAL + PUBLISHED puzzles, only through an entitled, published pack). A copy becomes the academy's own `source: NEXA` row; its Lichess origin isn't kept on the copy.
+  7. **Only puzzle folders can be packed for now** (`ContentPackItemKind.PUZZLE_FOLDER`); puzzle sets and courses are a later kind.
+  8. **The Lichess catalogue isn't a pack row yet.** It stays readable by every academy as before (platform tables).
+  9. **Staging runs `TENANT_SCOPE_MODE=enforce`** from the stage API's process environment, not `apps/api/.env`. The unit tests read `.env`, and enforce there broke them. A plain `nexa.sh restart stage api` drops it (see memory).
+  10. **A plan's content packs aren't versioned.** Changing a plan's `contentPackIds` reaches its academies at once (adding is harmless, and a removed pack only stops new copies; copies already made stay). Features, limits and lapse rules still wait for "Apply to existing".
+  11. **Console UI (4g):** one page `/admin/platform` (Academies, Plans, Content packs, Support visits, Audit log tabs) plus `/admin/platform/academies/<id>`. It shows only for Nexa's super admins (`AuthUser.isPlatformOperator`). Academies get `/admin/content-packs` (browse, preview, copy) and a "Support visits" section on `/admin/subscription` (super admins). The banner is on every page of a support visit. Choosing time zones and countries is free text for now.
+
 ## Open audit findings (2026-10-31)
 
 From a ponytail audit of the API's payments, auth, backup and cron paths. The web

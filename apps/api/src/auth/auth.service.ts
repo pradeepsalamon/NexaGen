@@ -33,6 +33,7 @@ import type {
   RegisterCoachResponse,
   RegisterResponse,
   ResetPasswordRequest,
+  SupportVisitInfo,
   UpdateProfileRequest
 } from "@nexa-chess/types";
 import { isParentContactChange } from "@nexa-chess/types";
@@ -58,7 +59,9 @@ import {
 } from "./auth.utils";
 import { authenticateUser, verifyAccessToken as verifySharedAccessToken } from "./authenticate";
 import { MfaService } from "./mfa/mfa.service";
+import { isPlatformOperator } from "../platform/platform-operator";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { asPlatform } from "../tenancy/tenant-context";
 import { requireTenantId } from "../tenancy/tenant-sql";
 
 type SessionContext = {
@@ -493,7 +496,8 @@ export class AuthService {
       context,
       refreshTokenMaxAge,
       refreshTokenTtl,
-      familyId
+      familyId,
+      session.supportSessionId
     );
 
     return {
@@ -544,7 +548,69 @@ export class AuthService {
       include: { coachProfile: true, studentProfile: true }
     });
 
-    return { user: this.toAuthUser(user) };
+    // authenticateUser has verified the token; only its support claim is read here.
+    const payload = this.jwtService.decode<Partial<AccessTokenPayload> | null>(accessToken);
+    return { support: payload?.support ? await this.supportVisit(payload.support) : null, user: this.toAuthUser(user) };
+  }
+
+  /** The banner for a support visit: who is in the academy, why, until when (§I). */
+  private async supportVisit(supportSessionId: string): Promise<SupportVisitInfo | null> {
+    const visit = await asPlatform("auth: support visit banner", () =>
+      this.prisma.platformSupportSession.findUnique({
+        include: { staffUser: { select: { firstName: true, lastName: true } } },
+        where: { id: supportSessionId }
+      })
+    );
+    if (!visit) return null;
+    return {
+      expiresAt: visit.expiresAt.toISOString(),
+      id: visit.id,
+      reason: visit.reason,
+      staffName: visit.staffUser ? [visit.staffUser.firstName, visit.staffUser.lastName].filter(Boolean).join(" ") : null
+    };
+  }
+
+  /**
+   * Opens a platform support visit on the academy's own host (§I "Support
+   * access"): the one-time link from the console signs this browser in as the
+   * academy's hidden "Platform support" user until the visit ends. The link
+   * works once, for 5 minutes, and only on its academy's host.
+   */
+  async enterSupportSession(token: string, context: SessionContext): Promise<AuthResult> {
+    const tenantId = requireTenantId("supportEnter");
+    const now = new Date();
+    const refused = new UnauthorizedException("This support link is invalid or has expired.");
+    const visit = await asPlatform("auth: support link", () =>
+      this.prisma.platformSupportSession.findUnique({ where: { entryTokenHash: hashOpaqueToken(token) } })
+    );
+    if (
+      !visit ||
+      visit.tenantId !== tenantId ||
+      visit.enteredAt ||
+      visit.endedAt ||
+      visit.entryExpiresAt <= now ||
+      visit.expiresAt <= now
+    ) {
+      throw refused;
+    }
+    const claimed = await asPlatform("auth: claim support link", () =>
+      this.prisma.platformSupportSession.updateMany({ data: { enteredAt: now }, where: { enteredAt: null, id: visit.id } })
+    );
+    if (claimed.count !== 1) throw refused;
+    const user = await this.prisma.user.findFirst({
+      include: { coachProfile: true, studentProfile: true },
+      where: { isDeleted: false, isPlatformSupport: true, status: UserStatus.ACTIVE }
+    });
+    if (!user) throw refused;
+    const maxAge = Math.max(1_000, visit.expiresAt.getTime() - now.getTime());
+    const ttl = `${Math.max(1, Math.floor(maxAge / 1_000))}s` as JwtDuration;
+    const tokenPair = await this.createSession(user, context, maxAge, ttl, undefined, visit.id);
+    return {
+      ...tokenPair,
+      accessTokenMaxAge: Math.min(this.accessTokenMaxAge, maxAge),
+      refreshTokenMaxAge: maxAge,
+      user: this.toAuthUser(user)
+    };
   }
 
   async updateProfile(
@@ -899,7 +965,8 @@ export class AuthService {
     context: SessionContext,
     refreshTokenMaxAge: number,
     refreshTokenTtl: JwtDuration,
-    familyId?: string
+    familyId?: string,
+    supportSessionId?: string | null
   ): Promise<TokenPair> {
     const session = await this.prisma.authSession.create({
       data: {
@@ -907,6 +974,7 @@ export class AuthService {
         familyId,
         refreshTokenHash: "",
         ipAddress: context.ipAddress,
+        supportSessionId: supportSessionId ?? null,
         userAgent: context.userAgent,
         userId: user.id
       }
@@ -918,7 +986,8 @@ export class AuthService {
         role: user.role,
         sessionId: session.id,
         sub: user.id,
-        type: "access"
+        type: "access",
+        ...(supportSessionId ? { support: supportSessionId } : {})
       } satisfies AccessTokenPayload,
       {
         expiresIn: this.accessTokenTtl,
@@ -986,6 +1055,7 @@ export class AuthService {
       firstName: user.firstName,
       id: user.id,
       isEmailVerified: user.isEmailVerified,
+      isPlatformOperator: isPlatformOperator(user),
       lastName: user.lastName,
       phoneNumber: user.phoneNumber,
       role: user.role,
