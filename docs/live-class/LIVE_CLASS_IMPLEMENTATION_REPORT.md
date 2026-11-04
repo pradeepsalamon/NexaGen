@@ -49,6 +49,6 @@ Branch `feat/live-class-redesign` (not pushed), 2026-11-03. Spec: *NexaChess liv
 
 See [LIVE_CLASS_TEST_REPORT.md](LIVE_CLASS_TEST_REPORT.md) § "Not tested" and [LIVE_CLASS_IMPLEMENTATION_ROADMAP.md](LIVE_CLASS_IMPLEMENTATION_ROADMAP.md) § "Still open". Most importantly:
 - no real class has been run;
-- the seven spec decisions are waiting for the owner;
-- lowering a hand and allowing a share unasked have no backend;
+- the seven spec decisions are waiting for the owner (settled 2026-11-04: the owner kept all seven as built);
+- lowering a hand and allowing a share unasked have no backend (built 2026-11-04: `POST /live-class/:id/lower-hand` and `/screen-share-requests/grant`, in the member ⋮ menu);
 - coach phones stay video-only, as before. (Superseded 2026-11-04: coaches get the Board / Video switch and a full-stage board on phones.)
