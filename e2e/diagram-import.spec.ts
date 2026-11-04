@@ -192,7 +192,9 @@ test.describe("PDF diagram import", () => {
     const firstTopic = await topic.locator("option").nth(1).getAttribute("value");
     await topic.selectOption(firstTopic as string);
     await page.getByRole("button", { name: "Save draft" }).click();
-    await page.waitForURL(/\/coach\/puzzles\/[^/]+$/);
+    // The saved puzzle's page — not the form's own /coach/puzzles/new?from=pdf,
+    // which the looser /[^/]+$/ already matched before the save landed.
+    await page.waitForURL(/\/coach\/puzzles\/(?!new\b)[^/?]+$/);
 
     // Saved as a DRAFT with the confirmed FEN — never published by the import.
     const res = await page.request.get(`${API_URL}/puzzles?placement=${encodeURIComponent(placementOf(italian.fen))}`, {

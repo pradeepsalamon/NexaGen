@@ -136,6 +136,13 @@ test("student answers in the dashboard pop-up and skips the dashboard card", asy
   const page = await pageAs(browser, "student");
   await page.goto("/student");
 
+  // One dashboard pop-up at a time: a homework reminder (when the student has
+  // overdue work) goes first, and the feedback pop-up follows once it closes.
+  const reminder = page.getByRole("dialog", { name: /don.t forget your homework/i });
+  if (await reminder.waitFor({ timeout: 5_000 }).then(() => true).catch(() => false)) {
+    await reminder.getByRole("button", { name: "Later" }).click();
+  }
+
   // Pop-up: the newest class.
   const popup = page.getByRole("dialog");
   await expect(popup.getByRole("heading", { name: FORM_TITLE })).toBeVisible({ timeout: 30_000 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,7 @@ import {
   DialogTitle
 } from "@/components/ui/Dialog";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { useDashboardPopup } from "@/lib/dashboardPopup";
 import { useMyAssignmentReminders } from "../../hooks/useAssignmentsApi";
 import { describeReminderCounts } from "./reminderText";
 import { ReminderItemRow } from "./ReminderItemRow";
@@ -36,19 +37,33 @@ function markShown() {
   }
 }
 
+const POPUP_ID = "assignment-reminder";
+
 export function AssignmentReminderPopup() {
   const timeZone = useUserTimeZone();
   const { data } = useMyAssignmentReminders();
   const [open, setOpen] = useState(false);
+  // One dashboard pop-up at a time: waits behind the feedback pop-up if that opened first.
+  const popupOwner = useDashboardPopup((s) => s.owner);
+  const claimPopup = useDashboardPopup((s) => s.claim);
+  const releasePopup = useDashboardPopup((s) => s.release);
 
   const pressing = data ? data.counts.overdue + data.counts.dueToday : 0;
 
   useEffect(() => {
-    if (pressing > 0 && !alreadyShown()) {
+    if (pressing > 0 && !alreadyShown() && claimPopup(POPUP_ID)) {
       markShown();
       setOpen(true);
     }
-  }, [pressing]);
+  }, [claimPopup, popupOwner, pressing]);
+
+  // Release only on a real close: in the commit that claims, `open` is still false.
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) releasePopup(POPUP_ID);
+    wasOpen.current = open;
+  }, [open, releasePopup]);
+  useEffect(() => () => releasePopup(POPUP_ID), [releasePopup]);
 
   if (!data) return null;
   const items = data.items

@@ -11,6 +11,7 @@ import {
 import { usePendingFeedbackQuery } from "../hooks/useFeedbackApi";
 import { FeedbackItemCard, FeedbackItemHeading } from "./FeedbackItemCard";
 import { FeedbackQuestionnaire } from "./FeedbackQuestionnaire";
+import { useDashboardPopup } from "@/lib/dashboardPopup";
 
 const DISMISSED_KEY = "nexa-feedback-popup-dismissed";
 
@@ -34,6 +35,8 @@ function writeDismissed(keys: string[]) {
   }
 }
 
+const POPUP_ID = "feedback";
+
 export function DashboardFeedback() {
   const { data } = usePendingFeedbackQuery();
   const [dismissed, setDismissed] = useState<string[] | null>(null);
@@ -41,6 +44,12 @@ export function DashboardFeedback() {
   const [popupDone, setPopupDone] = useState(false);
 
   useEffect(() => setDismissed(readDismissed()), []);
+
+  // Waits its turn behind another dashboard pop-up (the homework reminder).
+  const popupOwner = useDashboardPopup((s) => s.owner);
+  const claimPopup = useDashboardPopup((s) => s.claim);
+  const releasePopup = useDashboardPopup((s) => s.release);
+  useEffect(() => () => releasePopup(POPUP_ID), [releasePopup]);
 
   const items = useMemo(() => data?.items ?? [], [data]);
 
@@ -51,8 +60,8 @@ export function DashboardFeedback() {
         item.placements.includes("DASHBOARD_POPUP") &&
         !dismissed.includes(itemKey(item))
     );
-    if (first) setPopupKey(itemKey(first));
-  }, [dismissed, items, popupDone, popupKey]);
+    if (first && claimPopup(POPUP_ID)) setPopupKey(itemKey(first));
+  }, [claimPopup, dismissed, items, popupDone, popupKey, popupOwner]);
 
   const popupItem = popupKey
     ? items.find((item) => itemKey(item) === popupKey)
@@ -66,6 +75,7 @@ export function DashboardFeedback() {
   const closePopup = () => {
     setPopupKey(null);
     setPopupDone(true);
+    releasePopup(POPUP_ID);
   };
 
   const dismiss = (item: PendingFeedbackItem) => {
