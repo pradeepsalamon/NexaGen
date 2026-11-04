@@ -235,14 +235,12 @@ export function NavDrawer({
           id="nav-drawer"
           ref={panelRef}
         >
-          {rail ? null : (
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-app-drawer-border px-4 py-3.5">
-              <span className="font-display text-base font-bold tracking-tight">{title}</span>
-              {subtitle ? (
-                <span className="min-w-0 truncate rounded-full border border-app-drawer-border px-2.5 py-0.5 text-xs font-medium text-on-brand-muted">
-                  {subtitle}
-                </span>
-              ) : null}
+          {/* The header's logo sits right above: docked, only the role is named here. */}
+          {rail || !subtitle ? null : (
+            <div className="shrink-0 px-4 pt-4">
+              <span className="inline-block max-w-full truncate rounded-full border border-app-drawer-border px-2.5 py-0.5 text-xs font-medium text-on-brand-muted">
+                {subtitle}
+              </span>
             </div>
           )}
           <nav
