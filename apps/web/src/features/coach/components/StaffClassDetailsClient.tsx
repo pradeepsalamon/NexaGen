@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useEffect, type ReactNode } from "react";
 import { Calendar, CalendarX, Clock, Loader2, Video } from "lucide-react";
 import Link from "next/link";
@@ -32,6 +33,7 @@ import { describeOpensAt } from "./upcoming/StartClassButton";
  * the API enforces, so the button never offers a start the server refuses.
  */
 export function StaffClassDetailsClient({ classId, isCoach }: { classId: string; isCoach: boolean }) {
+  const brandName = useBrandName();
   const router = useRouter();
   const startLiveClassMutation = useStartLiveClass(classId);
   const tz = useUserTimeZone();
@@ -41,9 +43,9 @@ export function StaffClassDetailsClient({ classId, isCoach }: { classId: string;
 
   useEffect(() => {
     if (cls) {
-      document.title = `${cls.title || cls.topic || "Class Details"} - Nexa Chess`;
+      document.title = `${cls.title || cls.topic || "Class Details"} - ${brandName}`;
     }
-  }, [cls]);
+  }, [brandName, cls]);
 
   if (isLoading) {
     return (

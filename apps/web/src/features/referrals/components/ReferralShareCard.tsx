@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useEffect, useState } from "react";
 import { Check, Copy, MessageCircle, Share2 } from "lucide-react";
 import { referralLink } from "@nexa-chess/types";
@@ -16,6 +17,7 @@ type Props = {
 
 /** The referrer's link and code, with copy and share. */
 export function ReferralShareCard({ active, code }: Props) {
+  const brandName = useBrandName();
   const toast = useToast();
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
   // The page's own origin, so a staging or self-hosted deployment shares its own link.
@@ -23,7 +25,7 @@ export function ReferralShareCard({ active, code }: Props) {
   useEffect(() => setOrigin(window.location.origin), []);
 
   const link = referralLink(origin, code);
-  const message = `Join me at Nexa Chess Academy! Book a free demo class here: ${link}`;
+  const message = `Join me at ${brandName}! Book a free demo class here: ${link}`;
 
   const copy = async (what: "code" | "link") => {
     try {
@@ -37,7 +39,7 @@ export function ReferralShareCard({ active, code }: Props) {
 
   const share = async () => {
     if (navigator.share) {
-      await navigator.share({ text: message, title: "Nexa Chess Academy", url: link }).catch(() => undefined);
+      await navigator.share({ text: message, title: brandName, url: link }).catch(() => undefined);
     } else {
       await copy("link");
     }

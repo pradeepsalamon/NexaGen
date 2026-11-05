@@ -27,6 +27,7 @@ import {
   MessageSquareHeart,
   MessagesSquare,
   Package,
+  Paintbrush,
   Palette,
   Puzzle,
   Radio,
@@ -174,6 +175,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/finance/coach-payroll", label: "Coach payroll", icon: Wallet, group: "Finance", feature: "coachPayroll" },
   // Platform settings
   { href: "/admin/live-class", label: "Live class settings", icon: SlidersHorizontal, group: "Settings" },
+  { href: "/admin/branding", label: "Branding", icon: Paintbrush, group: "Settings", feature: "brandIdentity" },
   { href: "/admin/chess-appearance", label: "Chess appearance", icon: Palette, group: "Settings", feature: "customBranding" },
   { href: "/admin/typography", label: "Fonts & text", icon: Type, group: "Settings", feature: "customBranding" },
   { href: "/admin/game-sync", label: "Game sync", icon: RefreshCw, group: "Settings", feature: "gameAnalysis" },

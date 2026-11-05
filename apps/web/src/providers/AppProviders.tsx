@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { EmailVerificationBanner } from "@/components/layout/EmailVerificationBanner";
 import { Header } from "@/components/layout/Header";
 import { TooltipProvider } from "@/components/ui/Tooltip";
+import { TenantBrandProvider } from "@/features/branding/context/TenantBrandProvider";
 import { ChessAppearanceProvider } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 import { PresenceBridge } from "@/features/presence/components/PresenceBridge";
 import { TypographySync } from "@/features/typography/context/TypographySync";
@@ -59,6 +60,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <ThemeProvider>
         <ToastProvider>
           <TooltipProvider delayDuration={600}>
+            <TenantBrandProvider>
             <ChessAppearanceProvider>
               <SessionBootstrap />
               <PresenceBridge />
@@ -70,6 +72,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
                 {children}
               </div>
             </ChessAppearanceProvider>
+            </TenantBrandProvider>
           </TooltipProvider>
         </ToastProvider>
       </ThemeProvider>

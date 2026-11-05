@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { usePathname } from "next/navigation";
 import { NavDrawer, NavDrawerLink } from "@/components/layout/Sidebar";
 import {
@@ -76,6 +77,7 @@ function useStudentNavBadges(): Record<string, NavBadge | undefined> {
 }
 
 export function StudentSidebar() {
+  const brandName = useBrandName();
   const pathname = usePathname();
   const badges = useStudentNavBadges();
   const chatBadge = useChatNavBadge();
@@ -91,7 +93,7 @@ export function StudentSidebar() {
   const activeHref = activeNavHref(items.map((item) => item.href), pathname);
 
   return (
-    <NavDrawer subtitle="Student" title="Nexa Chess">
+    <NavDrawer subtitle="Student" title={brandName}>
       {items.map((item) => (
         <NavDrawerLink
           active={item.href === activeHref}

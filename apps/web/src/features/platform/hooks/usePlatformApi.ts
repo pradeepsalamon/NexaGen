@@ -25,6 +25,7 @@ import {
   addPlatformTenantDomain,
   applyPlatformPlanToExisting,
   changePlatformTenantPlan,
+  checkPlatformTenantDomain,
   copyAcademyContentPackFolder,
   createPlatformContentPack,
   createPlatformPlan,
@@ -140,6 +141,19 @@ export const useRemovePlatformTenantDomain = (tenantId: string) =>
 
 export const useMakePlatformTenantDomainPrimary = (tenantId: string) =>
   usePlatformMutation((domainId: string) => makePlatformTenantDomainPrimary(tenantId, domainId), "Primary address changed");
+
+export function useCheckPlatformTenantDomain(tenantId: string) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (domainId: string) => checkPlatformTenantDomain(tenantId, domainId),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.platform.all });
+      if (result.ok) toast.success({ message: result.result, title: "Domain is live" });
+      else toast.warning({ message: result.result, title: "Check failed" });
+    }
+  });
+}
 
 export const useChangePlatformTenantPlan = (tenantId: string) =>
   usePlatformMutation((body: ChangeTenantPlanRequest) => changePlatformTenantPlan(tenantId, body), "Plan changed");

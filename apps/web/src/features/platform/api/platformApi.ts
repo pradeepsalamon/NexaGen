@@ -15,6 +15,7 @@ import {
   type EnterSupportSessionRequest,
   type PlatformAuditResponse,
   type PlatformDealRequest,
+  type PlatformDomainCheckResponse,
   type PlatformPlanSummary,
   type PlatformPlansResponse,
   type PlatformSupportSessionsResponse,
@@ -58,6 +59,9 @@ export const removePlatformTenantDomain = (tenantId: string, domainId: string) =
 
 export const makePlatformTenantDomainPrimary = (tenantId: string, domainId: string) =>
   apiFetch<PlatformTenantResponse>(API_ROUTES.platform.tenantDomainPrimary(tenantId, domainId), { method: "POST" });
+
+export const checkPlatformTenantDomain = (tenantId: string, domainId: string) =>
+  apiFetch<PlatformDomainCheckResponse>(API_ROUTES.platform.tenantDomainCheck(tenantId, domainId), { method: "POST" });
 
 export const getPlatformAudit = (params: { cursor?: string; tenantId?: string }) => {
   const search = new URLSearchParams();

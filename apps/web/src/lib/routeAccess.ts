@@ -6,6 +6,12 @@ export const AUTH_COOKIES = {
   refreshToken: "nexa_refresh_token"
 } as const;
 
+/** On an academy's own address the API sets host-only cookies under these names (API `auth-cookies.ts`). */
+export const HOST_ONLY_AUTH_COOKIES = {
+  accessToken: "nexa_h_access_token",
+  refreshToken: "nexa_h_refresh_token"
+} as const;
+
 const STAFF_ROLES = ["SUPER_ADMIN", "ADMIN"] as const;
 
 type RouteRule = {

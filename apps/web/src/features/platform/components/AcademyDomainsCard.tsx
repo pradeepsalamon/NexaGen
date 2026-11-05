@@ -1,6 +1,6 @@
 "use client";
 
-import { Star, Trash2 } from "lucide-react";
+import { RefreshCw, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { PlatformTenantDetail } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
@@ -11,15 +11,25 @@ import { SectionCard } from "@/components/ui/SectionCard";
 import { enumLabel } from "@/lib/utils";
 import {
   useAddPlatformTenantDomain,
+  useCheckPlatformTenantDomain,
   useMakePlatformTenantDomainPrimary,
   useRemovePlatformTenantDomain
 } from "../hooks/usePlatformApi";
+
+/** The server block the owner adds by hand (§H "Full domains"); certbot fills in the TLS lines. */
+const nginxBlock = (host: string) => `server {
+    server_name ${host};
+    location /api/ { proxy_pass http://127.0.0.1:3001/; include /etc/nginx/nexa-proxy.conf; }
+    location /     { proxy_pass http://127.0.0.1:3000;  include /etc/nginx/nexa-proxy.conf; }
+}`;
 
 /** The academy's addresses: its subdomain, plus custom domains (checked and activated in Phase 5). */
 export function AcademyDomainsCard({ tenant }: { tenant: PlatformTenantDetail }) {
   const add = useAddPlatformTenantDomain(tenant.id);
   const remove = useRemovePlatformTenantDomain(tenant.id);
   const makePrimary = useMakePlatformTenantDomainPrimary(tenant.id);
+  const check = useCheckPlatformTenantDomain(tenant.id);
+  const pending = tenant.domains.find((domain) => domain.kind === "CUSTOM" && domain.status === "PENDING");
   const [hostname, setHostname] = useState("");
 
   return (
@@ -34,8 +44,18 @@ export function AcademyDomainsCard({ tenant }: { tenant: PlatformTenantDetail })
             {domain.isPrimary ? <Badge variant="default">Primary</Badge> : null}
             <Badge variant={domain.status === "ACTIVE" ? "success" : "warning"}>{enumLabel(domain.status)}</Badge>
             <Badge variant="outline">{enumLabel(domain.kind)}</Badge>
+            {domain.lastCheckResult ? (
+              <p className="w-full text-xs text-app-muted">{domain.lastCheckResult}</p>
+            ) : null}
             <RowActions
               actions={[
+                {
+                  ariaLabel: `Check ${domain.hostname}`,
+                  disabled: domain.kind === "SUBDOMAIN" || check.isPending,
+                  icon: RefreshCw,
+                  label: "Check",
+                  onSelect: () => check.mutate(domain.id)
+                },
                 {
                   ariaLabel: `Make ${domain.hostname} the primary address`,
                   disabled: domain.isPrimary || domain.status !== "ACTIVE",
@@ -56,6 +76,13 @@ export function AcademyDomainsCard({ tenant }: { tenant: PlatformTenantDetail })
           </li>
         ))}
       </ul>
+      {pending ? (
+        <div className="mt-3 rounded-app bg-app-soft p-3 text-xs text-app-text">
+          <p className="mb-1 font-semibold">VPS setup for {pending.hostname} (docs/DEPLOYMENT.md, Step 4c)</p>
+          <pre className="overflow-x-auto whitespace-pre font-mono text-xs leading-5">{nginxBlock(pending.hostname)}</pre>
+          <p className="mt-1 text-app-muted">Then run certbot for the host, reload nginx, and press Check.</p>
+        </div>
+      ) : null}
       <form
         className="mt-3 flex flex-wrap gap-2"
         onSubmit={(event) => {

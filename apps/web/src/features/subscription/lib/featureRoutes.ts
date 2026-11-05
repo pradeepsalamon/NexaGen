@@ -7,6 +7,7 @@ import type { PlanFeatureKey } from "@nexa-chess/types";
  */
 const FEATURE_ROUTES: { prefix: string; feature: PlanFeatureKey }[] = [
   { feature: "advancedAnalytics", prefix: "/admin/analytics" },
+  { feature: "brandIdentity", prefix: "/admin/branding" },
   { feature: "coachFeedback", prefix: "/admin/feedback" },
   { feature: "coachFeedback", prefix: "/coach/feedback" },
   { feature: "coachPayroll", prefix: "/admin/finance/coach-payroll" },

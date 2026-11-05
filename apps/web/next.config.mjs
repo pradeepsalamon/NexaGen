@@ -111,7 +111,7 @@ const nextConfig = (phase) => ({
       // These pages carry a one-time token in the query string.
       {
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
-        source: "/(reset-password|verify-email)"
+        source: "/(reset-password|verify-email|support/enter)"
       },
       ...cacheRules
     ];
@@ -120,6 +120,13 @@ const nextConfig = (phase) => ({
     formats: ["image/avif", "image/webp"],
     // Only the default; every <Image> uses it (the sources are already q85 WebP).
     qualities: [75]
+  },
+  // An academy's own address calls the API on itself under /api (lib/apiBase.ts; docs/SAAS_MULTI_TENANCY.md §H
+  // "Routing"). nginx should proxy /api/ straight to the API; this rewrite is the fallback when it doesn't.
+  // Baked in at build time, like every NEXT_PUBLIC_ value.
+  async rewrites() {
+    const target = (process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(/\/+$/, "");
+    return [{ destination: `${target}/:path*`, source: "/api/:path*" }];
   },
   async redirects() {
     return [...canonicalHostRedirects()];

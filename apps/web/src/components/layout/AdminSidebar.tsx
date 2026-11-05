@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -11,6 +12,7 @@ import { useCurrentEntitlements } from "@/features/subscription/hooks/useSubscri
 import { useAuthStore } from "@/stores/authStore";
 
 export function AdminSidebar() {
+  const brandName = useBrandName();
   const pathname = usePathname();
   const role = useAuthStore((state) => state.user?.role);
   const isPlatformOperator = useAuthStore((state) => state.user?.isPlatformOperator === true);
@@ -67,7 +69,7 @@ export function AdminSidebar() {
   return (
     <NavDrawer
       subtitle={role === "SUPER_ADMIN" ? "Super Admin" : "Admin"}
-      title="Nexa Chess"
+      title={brandName}
     >
       {groups.map((group) =>
         group.group ? (

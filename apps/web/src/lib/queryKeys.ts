@@ -235,6 +235,11 @@ export const queryKeys = {
     contentPacks: ["subscription", "content-packs"] as const,
     supportVisits: ["subscription", "support-visits"] as const,
   },
+  branding: {
+    admin: ["branding", "admin"] as const,
+    domains: ["branding", "domains"] as const,
+    whatsapp: ["branding", "whatsapp"] as const,
+  },
   platform: {
     all: ["platform"] as const,
     audit: (tenantId?: string) => ["platform", "audit", tenantId ?? "all"] as const,
