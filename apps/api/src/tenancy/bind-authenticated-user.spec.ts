@@ -19,8 +19,8 @@ describe("bindAuthenticatedUser", () => {
   });
   afterAll(() => setTenantScopeModeForTesting(null));
 
-  it("refuses a host/user or session/user mismatch with a 401 in enforce mode", () => {
-    setTenantScopeModeForTesting("enforce");
+  it.each(["enforce", "audit"] as const)("refuses a host/user or session/user mismatch with a 401 (%s mode)", (mode) => {
+    setTenantScopeModeForTesting(mode);
     expect(() => runWithTenantContext(store("tenant_acme"), () => bindAuthenticatedUser(user, null))).toThrow(
       UnauthorizedException
     );
@@ -38,16 +38,18 @@ describe("bindAuthenticatedUser", () => {
     expect(tenantAuditCountsForTesting().size).toBe(0);
   });
 
-  it("keeps the host's academy and logs a user from another one (audit mode)", () => {
+  it("logs a user from another academy before refusing them (audit mode)", () => {
     runWithTenantContext(store("tenant_acme"), () => {
-      bindAuthenticatedUser(user, null);
+      expect(() => bindAuthenticatedUser(user, null)).toThrow(UnauthorizedException);
       expect(getTenantContext()).toMatchObject({ source: "host", tenantId: "tenant_acme" });
     });
     expect([...tenantAuditCountsForTesting().keys()]).toEqual(["user_mismatch|GET /me|tenant_acme|tenant_nexa"]);
   });
 
-  it("logs a session issued for another academy", () => {
-    runWithTenantContext(store("tenant_nexa"), () => bindAuthenticatedUser(user, { tenantId: "tenant_acme" }));
+  it("logs a session issued for another academy before refusing it", () => {
+    expect(() =>
+      runWithTenantContext(store("tenant_nexa"), () => bindAuthenticatedUser(user, { tenantId: "tenant_acme" }))
+    ).toThrow(UnauthorizedException);
     expect([...tenantAuditCountsForTesting().keys()]).toEqual(["session_mismatch|tenant_acme|tenant_nexa"]);
   });
 

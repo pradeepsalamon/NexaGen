@@ -87,7 +87,7 @@ export async function authenticateUser(
   if (payload.sessionId && (!session || session.revokedAt || session.userId !== user.id)) {
     throw new UnauthorizedException("Invalid session.");
   }
-  // Academy check, audit mode (docs/SAAS_MULTI_TENANCY.md §B step 4).
+  // Academy check: a host/user/session mismatch is a 401 in every mode (docs/SAAS_MULTI_TENANCY.md §B step 4).
   bindAuthenticatedUser(user, session);
   if (user.role === UserRole.SALES && !args?.allowSales) {
     throw new ForbiddenException("Sales accounts can only use the referral board.");

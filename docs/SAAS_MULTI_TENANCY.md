@@ -886,7 +886,7 @@ Nexa users see.
 **Reading the audit log.** Each gap is a pino `warn` with `msg: "tenant-audit"`,
 logged on its 1st, 10th, 100th, … occurrence per process:
 `docker logs nexa_api 2>&1 | grep tenant-audit`. Fields: `kind`
-(`missing_context`, `user_mismatch`, `session_mismatch`), `scope` and `at`.
+(`missing_context`, `user_mismatch`, `session_mismatch`), `scope` and `at`. The two mismatch kinds are logged and then refused with a 401 in every mode.
 - `scope: "request"` with `at: "METHOD /path"`: a request whose academy wasn't
   resolved. **Phase 2's exit check is a full production release with none of
   these.**
@@ -930,7 +930,7 @@ Re-counted that day: **117 raw-SQL calls in 44 files** (80/24 in 2026-10),
 
 | # | Slice | Done when |
 |---|---|---|
-| 1 | Extension filters every read/update/delete/count/upsert by the context's academy; `asPlatform(reason, fn)` bypass; `TENANT_SCOPE_MODE`; `authenticateUser` looks the token's user up as platform, then a host/user/session mismatch is a 401 under `enforce`; under `enforce` an HTTP request that still has no academy when it queries (no academy host, Origin or Referer, not signed in) is a 400 `AcademyNotResolved` (2026-11-05; was a 500), while a background job or webhook without one stays a 500 | Unit + integration suites green with filtering on |
+| 1 | Extension filters every read/update/delete/count/upsert by the context's academy; `asPlatform(reason, fn)` bypass; `TENANT_SCOPE_MODE`; `authenticateUser` looks the token's user up as platform, then a host/user/session mismatch is a 401 (under `enforce`, and since 2026-11-05 under `audit` too: audit mode is for *missing* context, and a resolved academy that isn't the user's would let one academy's admin act in another by setting `Origin`); under `enforce` an HTTP request that still has no academy when it queries (no academy host, Origin or Referer, not signed in) is a 400 `AcademyNotResolved` (2026-11-05; was a 500), while a background job or webhook without one stays a 500 | Unit + integration suites green with filtering on |
 | 2 | Crons, queue workers and webhooks: sweep under `asPlatform`, process each row in `runInTenant(row.tenantId)`; queue payloads carry `tenantId` and the worker checks it | No `background`/`webhook` hits on staging |
 | 3 | D4 migration: `tenantId` NOT NULL (CHECK … NOT VALID, VALIDATE, then SET NOT NULL, so no long lock), `(tenantId, …)` indexes, composite uniques beside the global ones, composite FKs on core relations | Migration rehearsed on a copy of production data |
 | 4 | Raw SQL: explicit `"tenantId" = ${tenantId}` in all 117 calls; a spec fails an unreviewed `$queryRaw` file | Spec green |

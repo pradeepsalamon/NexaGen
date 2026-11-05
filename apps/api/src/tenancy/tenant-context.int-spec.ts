@@ -9,7 +9,7 @@ import { TenantResolverService } from "./tenant-resolver.service";
 
 // Phase 2 tenant context end to end (docs/SAAS_MULTI_TENANCY.md §B, §D3): the
 // request's academy comes from its Origin, creates are stamped with it, and a
-// host/user mismatch is logged but not refused (audit mode).
+// host/user mismatch is logged and refused (401) even in audit mode.
 describe("tenant context (real app, real Postgres)", () => {
   let t: TestApp;
   let admin: User;
@@ -59,10 +59,21 @@ describe("tenant context (real app, real Postgres)", () => {
     });
     t.app.get(EntitlementService).invalidate("tenant_int_acme");
     resetTenantAuditForTesting();
-    const batch = await createBatch("tenant-ctx acme");
-    // Stamped from the host's academy; the Nexa admin is logged, not refused.
-    expect(batch.tenantId).toBe("tenant_int_acme");
+    // A Nexa admin on Acme's address is logged and refused, even in audit mode:
+    // otherwise any academy's admin could act in another by setting Origin.
+    const crossed = await t.call(admin, "POST", API_ROUTES.batches.create, { name: "tenant-ctx crossed" });
+    expect(crossed.status).toBe(401);
     expect(auditKeys()).toContain("user_mismatch|POST /batches|tenant_int_acme|tenant_nexa");
+    expect(await t.prisma.batch.count({ where: { name: "tenant-ctx crossed" } })).toBe(0);
+    // Acme's own admin is stamped from the host's academy.
+    const acmeAdmin = await t.prisma.user.update({
+      data: { status: UserStatus.ACTIVE, tenantId: "tenant_int_acme" },
+      where: { id: (await createUser(t.prisma, UserRole.ADMIN, { email: "admin@acme.int.test" })).id }
+    });
+    const res = await t.call(acmeAdmin, "POST", API_ROUTES.batches.create, { name: "tenant-ctx acme" });
+    expect(res.status).toBe(201);
+    const batch = await t.prisma.batch.findFirstOrThrow({ select: { tenantId: true }, where: { name: "tenant-ctx acme" } });
+    expect(batch.tenantId).toBe("tenant_int_acme");
   });
 
   it("under enforce, a request that names no academy is a 400, not a 500", async () => {
