@@ -201,6 +201,8 @@ describe('StockfishController', () => {
 
       expect(r.headers['Content-Type']).toMatch(/^text\/event-stream/);
       expect(r.headers['X-Accel-Buffering']).toBe('no');
+      // Hop-by-hop: a hand-set `Connection: keep-alive` poisoned nginx's upstream pool.
+      expect(Object.keys(r.headers).map((h) => h.toLowerCase())).not.toContain('connection');
       expect(events(r)).toEqual([
         { type: 'info', result: { ...RESULT, depth: 5 } },
         { type: 'info', result: { ...RESULT, depth: 12 } },
