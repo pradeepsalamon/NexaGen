@@ -108,7 +108,7 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
                       ) : (
                         <span
                           className={
-                            s.deltaPct >= 0 ? "text-success" : "text-app-danger"
+                            s.deltaPct >= 0 ? "text-success-ink" : "text-app-danger-ink"
                           }
                         >
                           {s.deltaPct > 0 ? "+" : ""}
