@@ -1216,7 +1216,7 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
   secret verifies the event, and it is processed in that academy's context.
   The old URLs (no key) stay Nexa's. Admin page: Payments → Gateways (super admins). The routes are `/admin/payment-gateways…`, not under `/admin/payments/`, whose `:id` route would claim them.
 
-### D5 contract and rehearsal (prepared 2026-11-05, not run)
+### D5 contract and rehearsal (prepared 2026-11-05; rehearsed on a `vps_dev` copy 2026-11-05: PASS)
 
 - `apps/api/prisma/contract/d5_saas_drop_global_uniques/`: `migration.sql` (23
   global uniques dropped beside their per-academy twins, number sequences keyed
@@ -1232,6 +1232,11 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
   migrates, applies the contract, and fails unless row counts, money totals and
   foreign keys are unchanged; then the rollback drill (restore into `*_rb`,
   compare) with timings. Phase 7 runs it on a restored production backup.
+- **Rehearsed 2026-11-05** on a dump of `vps_dev` (the backup script's flags,
+  so no Lichess puzzle rows): PASS, the contract itself under 1 s, `migrate
+  deploy` of the 9 SaaS migrations 4 s, rollback drill matching. The log and
+  the release-day steps are in the contract's README. Still owed: the same run
+  on a real production backup.
 - The API type-checks against the patched schema (only the seed needed the
   compound keys, changed now).
 

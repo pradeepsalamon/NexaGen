@@ -27,6 +27,18 @@ sequences are re-keyed. Then it restores the same dump
 into `<name>_rb` (the rollback drill) and prints the timings. Run the e2e suite
 against the rehearsal database afterwards (§J-10).
 
+### Rehearsal log
+
+| Date | Source | Result |
+|---|---|---|
+| 2026-11-05 | `vps_dev` dumped with the backup script's flags (Lichess puzzle rows excluded, 113 KB gzip). It's production-sized and at the referral migrations, without the 9 SaaS ones, so it went through the same D1–D4 steps production will | **PASS.** Restore 6 s, `migrate deploy` (all 9 SaaS migrations) 4 s, **contract under 1 s**. 178 tables, 1,148 rows; counts, money totals and FKs unchanged; 0 rows without an academy; raising default on every `tenantId`; an insert without one refused; 3/3 sequences re-keyed; sampled global uniques gone. Rollback drill: restore 6 s, migrate 3 s, counts match. Both databases dropped afterwards |
+
+Still to do before promoting: the same run on a **real production backup**
+(Phase 7; the owner fetches it from the backup bucket), because production may
+hold rows `vps_dev` doesn't. The e2e half of §J-10 is already covered by
+staging: `vps_dev_saas` has run with D5 applied since 2026-11-04, and the full
+Chromium and WebKit suites pass against it.
+
 ## 2. Promote (after the rehearsal passes and the owner approves)
 
 1. `git apply apps/api/prisma/contract/d5_saas_drop_global_uniques/schema.patch`
@@ -36,3 +48,25 @@ against the rehearsal database afterwards (§J-10).
 3. `npm run db:generate && npm run typecheck && npm run test && npm run test:integration`
 4. Release it alone, right after a fresh backup, once the previous release has
    been stable for a full cycle (§J-11). Rolling back means restoring that backup.
+
+## 3. Release day (production)
+
+What the contract does to a live database, measured above: dropping indexes and
+re-keying three small sequence tables takes `ACCESS EXCLUSIVE` locks for
+milliseconds at today's size, and changing a column default only touches the
+catalog. The deploy script runs migrations before swapping the API (§6 of
+CLAUDE.md), so the old API keeps serving during the run.
+
+1. The release before it has been stable for a full cycle, with **no
+   `tenant-audit` `scope: "request"` lines from browsers**
+   (`docker logs nexa_api 2>&1 | grep tenant-audit`).
+2. Take a fresh backup (`scripts/backup_db.sh`) and check it restores (step 1
+   against it). This backup is the rollback.
+3. Merge the promoted migration alone, with nothing else in the release.
+4. After deploy: `select count(*) from pg_indexes where indexname = 'users_email_key'`
+   is 0; signing in, a new class and an invoice number all still work.
+5. **Rollback is the backup, not an image rollback:** an old image would write
+   rows without `tenantId`, and the raising default now refuses them. If
+   something is wrong, restore the step 2 backup (`docs/DATABASE_RESTORE.md`),
+   which loses everything written since.
+
