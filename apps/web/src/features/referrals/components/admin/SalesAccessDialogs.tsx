@@ -126,25 +126,42 @@ export function NewSalesAccountDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SendReferrerAccessLinkResponse | null>(null);
 
+  // The account and its link are two writes: when only the link fails, the
+  // account already exists, so a retry sends the link again instead of
+  // creating a duplicate (which the API would refuse).
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
+
   const create = useReferralAdminMutation(
     async () => {
-      const { user } = await createUser({
-        email: email.trim().toLowerCase(),
-        firstName: firstName.trim(),
-        lastName: lastName.trim() || undefined,
-        password: placeholderPassword(),
-        role: "SALES",
-        status: "ACTIVE"
-      });
+      let userId = createdUserId;
+      if (!userId) {
+        const { user } = await createUser({
+          email: email.trim().toLowerCase(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim() || undefined,
+          password: placeholderPassword(),
+          role: "SALES",
+          status: "ACTIVE"
+        });
+        userId = user.id;
+        setCreatedUserId(userId);
+      }
       if (channels.length === 0) return null;
-      return referralAdminApi.sendAccessLink(user.id, { channels, phoneNumber: phone.trim() || undefined });
+      try {
+        return await referralAdminApi.sendAccessLink(userId, { channels, phoneNumber: phone.trim() || undefined });
+      } catch (linkError) {
+        setError("The account was created, but its sign-in link wasn't sent. Try again, or send it later from the Referrers tab.");
+        throw linkError;
+      }
     },
-    { failure: "Could not create the account", success: "Sales account created" }
+    { failure: createdUserId ? "Could not send the sign-in link" : "Could not create the account", success: "Sales account created" }
   );
 
   const submit = () => {
-    if (!firstName.trim()) return setError("Enter a first name.");
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Enter a valid email address.");
+    if (!createdUserId) {
+      if (!firstName.trim()) return setError("Enter a first name.");
+      if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Enter a valid email address.");
+    }
     if (channels.includes("WHATSAPP") && phone.replace(/\D/g, "").length < 10) return setError("Enter a WhatsApp number.");
     setError(null);
     create.mutate(undefined, {
@@ -167,14 +184,14 @@ export function NewSalesAccountDialog({ onClose }: { onClose: () => void }) {
           <div className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField id="sales-first" label="First name" required>
-                <Input id="sales-first" maxLength={120} onChange={(event) => setFirstName(event.target.value)} value={firstName} />
+                <Input disabled={!!createdUserId} id="sales-first" maxLength={120} onChange={(event) => setFirstName(event.target.value)} value={firstName} />
               </FormField>
               <FormField id="sales-last" label="Last name">
-                <Input id="sales-last" maxLength={120} onChange={(event) => setLastName(event.target.value)} value={lastName} />
+                <Input disabled={!!createdUserId} id="sales-last" maxLength={120} onChange={(event) => setLastName(event.target.value)} value={lastName} />
               </FormField>
             </div>
             <FormField id="sales-email" label="Email" required>
-              <Input id="sales-email" inputMode="email" onChange={(event) => setEmail(event.target.value)} type="email" value={email} />
+              <Input disabled={!!createdUserId} id="sales-email" inputMode="email" onChange={(event) => setEmail(event.target.value)} type="email" value={email} />
             </FormField>
             <FormField hint="Needed to send the link by WhatsApp." id="sales-phone" label="Phone (WhatsApp)">
               <Input id="sales-phone" inputMode="tel" onChange={(event) => setPhone(event.target.value)} value={phone} />
@@ -192,7 +209,7 @@ export function NewSalesAccountDialog({ onClose }: { onClose: () => void }) {
                 Cancel
               </Button>
               <Button isLoading={create.isPending} onClick={submit}>
-                {channels.length ? "Create and send link" : "Create account"}
+                {createdUserId ? (channels.length ? "Send link" : "Done") : channels.length ? "Create and send link" : "Create account"}
               </Button>
             </>
           )}

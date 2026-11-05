@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { RowActions } from "@/components/ui/RowActions";
 import { SectionCard } from "@/components/ui/SectionCard";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { enumLabel } from "@/lib/utils";
 import {
   useAddPlatformTenantDomain,
@@ -31,6 +32,27 @@ export function AcademyDomainsCard({ tenant }: { tenant: PlatformTenantDetail })
   const check = useCheckPlatformTenantDomain(tenant.id);
   const pending = tenant.domains.find((domain) => domain.kind === "CUSTOM" && domain.status === "PENDING");
   const [hostname, setHostname] = useState("");
+  // Removing a live custom domain takes the academy's address down (re-adding
+  // means a new DNS check), and there's no reverse endpoint: held for the undo
+  // window before it's sent, with the row hidden meanwhile.
+  const [removingIds, setRemovingIds] = useState<ReadonlySet<string>>(new Set());
+  const setRemoving = (id: string, on: boolean) =>
+    setRemovingIds((current) => {
+      const next = new Set(current);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  const { run: runRemove } = useUndoableMutation<{ id: string; hostname: string }, unknown>({
+    strategy: "defer",
+    mutationFn: ({ id }) => remove.mutateAsync(id),
+    undo: async () => {},
+    onSchedule: ({ id }) => setRemoving(id, true),
+    onCancel: ({ id }) => setRemoving(id, false),
+    onCommitSuccess: ({ id }) => setRemoving(id, false),
+    toast: ({ hostname: host }) => ({ title: `Removing ${host}` }),
+    invalidates: []
+  });
 
   return (
     <SectionCard
@@ -38,7 +60,7 @@ export function AcademyDomainsCard({ tenant }: { tenant: PlatformTenantDetail })
       title="Addresses"
     >
       <ul className="divide-y divide-app-border rounded-app border border-app-border">
-        {tenant.domains.map((domain) => (
+        {tenant.domains.filter((domain) => !removingIds.has(domain.id)).map((domain) => (
           <li className="flex flex-wrap items-center gap-2 px-3 py-2" key={domain.id}>
             <span className="min-w-0 flex-1 break-all text-sm font-medium text-app-text">{domain.hostname}</span>
             {domain.isPrimary ? <Badge variant="default">Primary</Badge> : null}
@@ -68,7 +90,7 @@ export function AcademyDomainsCard({ tenant }: { tenant: PlatformTenantDetail })
                   disabled: domain.kind === "SUBDOMAIN",
                   icon: Trash2,
                   label: "Remove",
-                  onSelect: () => remove.mutate(domain.id),
+                  onSelect: () => void runRemove({ hostname: domain.hostname, id: domain.id }),
                   tone: "danger"
                 }
               ]}

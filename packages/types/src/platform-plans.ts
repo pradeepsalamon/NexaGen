@@ -811,6 +811,7 @@ export type DuplicatePlatformPlanRequest = z.infer<typeof duplicatePlatformPlanR
 /** The academy-specific part of a subscription: a negotiated deal (§G "Custom deals"). */
 export const platformDealRequestSchema = z.object({
   customPriceMinor: z.number().int().min(0).nullable(),
+  /** null keeps the academy's current lapse override; `{}` clears it (plan policy). */
   lapse: lapsePolicySchema.partial().nullable(),
   note: z.string().trim().max(1000).nullable(),
   overrides: entitlementOverridesSchema

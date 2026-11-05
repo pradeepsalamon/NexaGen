@@ -289,7 +289,12 @@ export class PlatformSubscriptionsService {
   ): Promise<PlatformTenantSubscriptionResponse> {
     const actor = await this.operator(accessToken);
     const sub = await this.subscriptionOrThrow(tenantId);
-    const overrides = { ...body.overrides, ...(body.lapse ? { lapse: body.lapse } : {}) };
+    // `lapse: null` keeps the academy's lapse override (the console's deal
+    // dialog has no lapse fields, and a price edit mustn't erase it); `{}`
+    // clears it back to the plan's policy.
+    const keptLapse = (sub.overrides as { lapse?: unknown } | null)?.lapse ?? null;
+    const lapse = body.lapse ?? keptLapse;
+    const overrides = { ...body.overrides, ...(lapse ? { lapse } : {}) };
     await this.prisma.$transaction(async (tx) => {
       await tx.tenantSubscription.update({
         data: {

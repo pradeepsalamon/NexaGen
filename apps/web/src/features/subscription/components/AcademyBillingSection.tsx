@@ -65,15 +65,22 @@ export function AcademyBillingSection({ data }: { data: AdminSubscriptionRespons
     }
     setBusyId(checkout.id);
     try {
-      const outcome = await openGateway(
-        { kind: "SDK", provider: "RAZORPAY", providerOrderId: checkout.gateway.orderId, publicKey: checkout.gateway.keyId },
-        {
-          amount: checkout.amountMinor,
-          currency: checkout.currency,
-          description: `${checkout.planName} plan`,
-          merchantName: checkout.gateway.merchantName,
-        }
-      );
+      let outcome: Awaited<ReturnType<typeof openGateway>>;
+      try {
+        outcome = await openGateway(
+          { kind: "SDK", provider: "RAZORPAY", providerOrderId: checkout.gateway.orderId, publicKey: checkout.gateway.keyId },
+          {
+            amount: checkout.amountMinor,
+            currency: checkout.currency,
+            description: `${checkout.planName} plan`,
+            merchantName: checkout.gateway.merchantName,
+          }
+        );
+      } catch (gatewayError) {
+        // e.g. the Razorpay script was blocked and never loaded.
+        toast.error({ message: (gatewayError as Error).message, title: "Payment didn't start" });
+        return;
+      }
       if (outcome.kind === "failed") {
         toast.error({ message: outcome.message, title: "Payment didn't start" });
         return;
@@ -98,14 +105,20 @@ export function AcademyBillingSection({ data }: { data: AdminSubscriptionRespons
           title: "Payment is being confirmed",
         });
       }
+    } catch {
+      // A failed confirm is reported by apiFetch's error toast.
     } finally {
       setBusyId(null);
     }
   }
 
   async function startAndPay() {
-    const checkout = await start.mutateAsync({ period });
-    await pay(checkout);
+    try {
+      const checkout = await start.mutateAsync({ period });
+      await pay(checkout);
+    } catch {
+      // apiFetch reports a failed start.
+    }
   }
 
   const open = billing.data?.openCheckouts ?? [];

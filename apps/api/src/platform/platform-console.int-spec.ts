@@ -66,6 +66,26 @@ describe("platform console: plans, subscriptions, support, packs (real app, real
     expect((await sub()).limits.maxStudents).toBe(1);
   });
 
+  it("a deal save without lapse fields keeps the academy's lapse override; {} clears it", async () => {
+    const deal = (lapse: unknown, customPriceMinor: number | null) =>
+      op("PUT", API_ROUTES.platform.tenantDeal(tenantId), {
+        customPriceMinor,
+        lapse,
+        note: null,
+        overrides: { addFeatures: [], limits: {}, removeFeatures: [] }
+      });
+    const planDefault = (await sub()).deal?.lapse;
+    expect((await deal({ graceDays: 3, pastDueDays: 2 }, null)).status).toBe(200);
+    expect((await sub()).deal?.lapse).toMatchObject({ graceDays: 3, pastDueDays: 2 });
+    // The console's deal dialog sends lapse: null with a price edit.
+    expect((await deal(null, 150000)).status).toBe(200);
+    const kept = await sub();
+    expect(kept.deal?.lapse).toMatchObject({ graceDays: 3, pastDueDays: 2 });
+    expect(kept.deal?.customPriceMinor).toBe(150000);
+    expect((await deal({}, null)).status).toBe(200);
+    expect((await sub()).deal?.lapse).toEqual(planDefault);
+  });
+
   it("refuses a disallowed transition and allows the §G ones", async () => {
     // GROWTH has a trial: TRIALING → GRACE is not allowed.
     const bad = await op("POST", API_ROUTES.platform.tenantTransition(tenantId), { note: "Try grace", status: "GRACE" });

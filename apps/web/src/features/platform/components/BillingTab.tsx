@@ -21,7 +21,10 @@ function SellerForm({ saved, seller }: { seller: PlatformSellerDetails; saved: b
   const set = (key: keyof PlatformSellerDetails) => (event: { target: { value: string } }) =>
     setForm((current) => ({ ...current, [key]: event.target.value }));
   const gstinOk = !form.gstin || isValidGstin(form.gstin.toUpperCase());
-  const rate = Number(form.gstRateBps) / 100;
+  // Raw text, so "1." on the way to "1.5" survives a re-render; bps only on save.
+  const [rateText, setRateText] = useState(String(seller.gstRateBps / 100));
+  const rate = Number(rateText);
+  const rateOk = rateText.trim() !== "" && Number.isFinite(rate) && rate >= 0 && rate <= 50; // the API allows 0–5000 bps
 
   return (
     <form
@@ -46,12 +49,12 @@ function SellerForm({ saved, seller }: { seller: PlatformSellerDetails; saved: b
           <FormField hint="e.g. NXP" id="seller-prefix" label="Invoice prefix">
             <Input id="seller-prefix" maxLength={12} onChange={set("invoicePrefix")} value={form.invoicePrefix} />
           </FormField>
-          <FormField id="seller-rate" label="GST rate (%)">
+          <FormField error={rateOk ? undefined : "Enter a rate from 0 to 50."} id="seller-rate" label="GST rate (%)">
             <Input
               id="seller-rate"
               inputMode="decimal"
-              onChange={(event) => setForm((current) => ({ ...current, gstRateBps: Math.round(Number(event.target.value || 0) * 100) }))}
-              value={String(rate)}
+              onChange={(event) => setRateText(event.target.value)}
+              value={rateText}
             />
           </FormField>
         </div>
@@ -60,7 +63,7 @@ function SellerForm({ saved, seller }: { seller: PlatformSellerDetails; saved: b
         <Textarea id="seller-address" onChange={set("address")} rows={2} value={form.address} />
       </FormField>
       <div>
-        <Button disabled={!gstinOk || !form.invoicePrefix.trim()} isLoading={save.isPending} type="submit">
+        <Button disabled={!gstinOk || !rateOk || !form.invoicePrefix.trim()} isLoading={save.isPending} type="submit">
           Save seller details
         </Button>
       </div>
