@@ -50,20 +50,26 @@ describe("platform console: plans, subscriptions, support, packs (real app, real
     const plans = (await op("GET", API_ROUTES.platform.plans)).body as { plans: Array<{ code: string; id: string; version: number }> };
     const growth = plans.plans.find((plan) => plan.code === "GROWTH")!;
     const before = await sub();
+    const oldLapse = before.deal!.lapse;
     const edited = await op("PATCH", API_ROUTES.platform.plan(growth.id), {
+      lapse: { ...oldLapse, graceDays: oldLapse.graceDays + 5 },
       limits: { maxBatches: 1, maxCoaches: 1, maxConcurrentLiveClasses: 1, maxStudents: 1 }
     });
     expect(edited.status).toBe(200);
     t.app.get(EntitlementService).invalidate();
     const after = await sub();
     expect(after.limits).toEqual(before.limits);
+    // The lapse policy is pinned too (what the sweep applies), not the live plan's.
+    expect(after.deal?.lapse).toEqual(oldLapse);
     expect(after.deal?.planVersion).toBe(growth.version);
     expect(after.deal?.currentPlanVersion).toBe(growth.version + 1);
 
     const applied = await op("POST", API_ROUTES.platform.planApplyToExisting(growth.id));
     expect((applied.body as { updated: number }).updated).toBeGreaterThanOrEqual(1);
     t.app.get(EntitlementService).invalidate();
-    expect((await sub()).limits.maxStudents).toBe(1);
+    const applied2 = await sub();
+    expect(applied2.limits.maxStudents).toBe(1);
+    expect(applied2.deal?.lapse.graceDays).toBe(oldLapse.graceDays + 5);
   });
 
   it("a deal save without lapse fields keeps the academy's lapse override; {} clears it", async () => {
@@ -149,11 +155,19 @@ describe("platform console: plans, subscriptions, support, packs (real app, real
     expect(body.support).toMatchObject({ id, reason: "Ticket 42: batch missing" });
 
     // A write during the visit is counted; the academy's super admin sees the visit.
-    await fetch(`${t.baseUrl.replace("[::1]", "127.0.0.1")}${API_ROUTES.batches.create}`, {
+    const made = await fetch(`${t.baseUrl.replace("[::1]", "127.0.0.1")}${API_ROUTES.batches.create}`, {
       body: JSON.stringify({ name: "Support-made batch" }),
       headers: { "Content-Type": "application/json", Cookie: cookie, Origin: ACADEMY_ORIGIN },
       method: "POST"
     });
+    expect(made.status).toBe(201);
+    // A refused write (no name: 400) isn't counted.
+    const refused = await fetch(`${t.baseUrl.replace("[::1]", "127.0.0.1")}${API_ROUTES.batches.create}`, {
+      body: JSON.stringify({}),
+      headers: { "Content-Type": "application/json", Cookie: cookie, Origin: ACADEMY_ORIGIN },
+      method: "POST"
+    });
+    expect(refused.status).toBe(400);
     const visit = await asPlatform("spec", () => t.prisma.platformSupportSession.findUniqueOrThrow({ where: { id } }));
     expect(visit.actionCount).toBe(1);
 

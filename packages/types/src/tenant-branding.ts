@@ -155,9 +155,11 @@ const WHITE: [number, number, number] = [255, 255, 255];
 const DARK_SURFACE: [number, number, number] = [17, 26, 46];
 
 /**
- * WCAG AA (§F): the primary colour carries white button text (4.5:1); the
- * accent marks UI on the light surface (3:1). Returns why a colour is refused,
- * or null when it passes.
+ * The primary colour carries white button text, so it must meet WCAG AA
+ * (4.5:1). The accent only has to stand out from white (1.5:1), not WCAG's
+ * 3:1 for UI: a deliberate builder's call (docs/BACKLOG.md, SaaS Phase 5 #4)
+ * that the owner may tighten.
+ * Returns why a colour is refused, or null when it passes.
  */
 export function brandColorIssue(kind: "accent" | "primary", hex: string): string | null {
   const rgb = hexToRgb(hex);

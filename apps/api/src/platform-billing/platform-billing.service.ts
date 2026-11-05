@@ -356,7 +356,22 @@ export class PlatformBillingService {
     return asPlatform("platform-billing:settle", async () => {
       const checkout = await this.prisma.platformCheckout.findUnique({ include: { plan: true }, where: { providerOrderId } });
       if (!checkout) return false;
-      if (checkout.status === PlatformCheckoutStatus.PAID) return true;
+      if (checkout.status === PlatformCheckoutStatus.PAID) {
+        // Paying the same order twice (two tabs, a retry) captures money that
+        // no row records: say so, so the owner can reconcile and refund it.
+        if (payment.status === "captured") {
+          const recorded = await this.prisma.platformPayment.findUnique({
+            select: { gatewayPaymentId: true },
+            where: { checkoutId: checkout.id }
+          });
+          if (recorded && recorded.gatewayPaymentId !== payment.id) {
+            this.logger.warn(
+              `Checkout ${checkout.id} is already paid by ${recorded.gatewayPaymentId}; captured payment ${payment.id} is extra and needs a refund.`
+            );
+          }
+        }
+        return true;
+      }
       if (payment.status !== "captured") return false;
       if (payment.amountMinor < checkout.amountMinor || payment.currency.toUpperCase() !== checkout.currency.toUpperCase()) {
         this.logger.warn(`Checkout ${checkout.id}: payment ${payment.id} does not match the order (amount or currency); not applied.`);

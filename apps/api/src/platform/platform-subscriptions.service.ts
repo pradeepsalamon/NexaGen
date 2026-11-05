@@ -3,7 +3,6 @@ import { JwtService } from "@nestjs/jwt";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import {
   isAllowedSubscriptionTransition,
-  resolveLapsePolicy,
   type ChangeTenantPlanRequest,
   type PlatformDealRequest,
   type PlatformTenantSubscriptionResponse,
@@ -21,7 +20,7 @@ import {
 import { authenticateUser } from "../auth/authenticate";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
-import { EntitlementService } from "./entitlement.service";
+import { EntitlementService, pinnedLapsePolicy } from "./entitlement.service";
 import { assertPlatformOperator, writePlatformAudit } from "./platform-operator";
 import { PlatformService } from "./platform.service";
 
@@ -423,11 +422,9 @@ export class PlatformSubscriptionsService {
     });
   }
 
+  /** The pinned plan version's lapse policy, so editing a plan never shortens an existing academy's terms. */
   private async lapseFor(tx: PrismaTransactionClient, tenantId: string) {
     const sub = await tx.tenantSubscription.findUnique({ include: { plan: true }, where: { tenantId } });
-    return resolveLapsePolicy(
-      sub ? { graceAllows: sub.plan.graceAllows as never, graceDays: sub.plan.graceDays, pastDueDays: sub.plan.pastDueDays } : null,
-      sub?.overrides
-    );
+    return pinnedLapsePolicy(tx, sub);
   }
 }

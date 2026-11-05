@@ -3,15 +3,13 @@ import { JwtService } from "@nestjs/jwt";
 import { Prisma, TenantSubscriptionEventSource } from "@prisma/client";
 import {
   isAllowedSubscriptionTransition,
-  resolveLapsePolicy,
-  type LapsePolicy,
   type PlatformTenantSubscriptionResponse,
   type UpdateTenantSubscriptionRequest
 } from "@nexa-chess/types";
 import { authenticateUser } from "../auth/authenticate";
 import { PrismaService } from "../prisma/prisma.service";
 import { runInTenant } from "../tenancy/tenant-context";
-import { EntitlementService } from "./entitlement.service";
+import { EntitlementService, pinnedLapsePolicy } from "./entitlement.service";
 import { assertPlatformOperator, writePlatformAudit } from "./platform-operator";
 import { buildAdminSubscriptionView } from "./subscription.service";
 
@@ -50,20 +48,15 @@ export class PlatformService {
       this.prisma.tenantSubscription.findUnique({ include: { pendingPlan: true, plan: true }, where: { tenantId } }),
       this.prisma.platformPayment.findMany({ orderBy: { createdAt: "desc" }, take: 50, where: { tenantId } })
     ]);
+    // The pinned plan version's policy (what the sweep applies), not the live plan's.
+    const lapse = await pinnedLapsePolicy(this.prisma, sub);
     return {
       ...base,
       deal: sub
         ? {
             currentPlanVersion: sub.plan.version,
             customPriceMinor: sub.customPriceMinor,
-            lapse: resolveLapsePolicy(
-              {
-                graceAllows: sub.plan.graceAllows as LapsePolicy["graceAllows"],
-                graceDays: sub.plan.graceDays,
-                pastDueDays: sub.plan.pastDueDays
-              },
-              sub.overrides
-            ),
+            lapse,
             note: sub.dealNote,
             pendingPlanCode: sub.pendingPlan?.code ?? null,
             planVersion: sub.planVersion

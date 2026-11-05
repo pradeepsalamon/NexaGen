@@ -26,6 +26,45 @@ const CACHE_TTL_MS = 30_000;
 
 type TenantRow = NonNullable<Awaited<ReturnType<EntitlementService["loadTenant"]>>>;
 
+type PlanVersionReader = { platformPlanVersion: Pick<PrismaTransactionClient["platformPlanVersion"], "findUnique"> };
+
+/**
+ * The plan as the subscription signed up for it: the frozen
+ * `PlatformPlanVersion` snapshot when the live plan has moved on (§G "Editing
+ * a plan applies to new subscriptions only"). Features, limits and the lapse
+ * policy all read through here.
+ */
+export async function pinnedPlan<P extends { id: string; version: number }>(
+  db: PlanVersionReader,
+  plan: P,
+  planVersion: number | null
+): Promise<P> {
+  if (planVersion === null || planVersion === plan.version) return plan;
+  const frozen = await db.platformPlanVersion.findUnique({
+    where: { planId_version: { planId: plan.id, version: planVersion } }
+  });
+  if (!frozen) return plan;
+  return { ...plan, ...((frozen.snapshot ?? {}) as Record<string, unknown>) } as P;
+}
+
+/** The lapse policy in force: the pinned plan version's, then the academy's overrides. */
+export async function pinnedLapsePolicy(
+  db: PlanVersionReader,
+  subscription: {
+    overrides: unknown;
+    plan: { graceAllows: unknown; graceDays: number; id: string; pastDueDays: number; version: number };
+    planVersion: number | null;
+  } | null
+): Promise<LapsePolicy> {
+  const plan = subscription ? await pinnedPlan(db, subscription.plan, subscription.planVersion) : null;
+  return resolveLapsePolicy(
+    plan
+      ? { graceAllows: plan.graceAllows as LapsePolicy["graceAllows"], graceDays: plan.graceDays, pastDueDays: plan.pastDueDays }
+      : null,
+    subscription?.overrides as Parameters<typeof resolveLapsePolicy>[1]
+  );
+}
+
 export type TenantEntitlementState = ResolvedEntitlements & {
   accessMode: TenantAccessMode;
   /** The lapse policy in force (plan version + the academy's overrides). */
@@ -73,15 +112,8 @@ export class EntitlementService {
    * The plan as this subscription has it: the frozen version it signed up on
    * when the plan has been edited since (§G), else the plan row.
    */
-  private async effectivePlan(subscription: NonNullable<TenantRow["subscription"]>) {
-    const { plan, planVersion } = subscription;
-    if (planVersion === null || planVersion === plan.version) return plan;
-    const frozen = await this.prisma.platformPlanVersion.findUnique({
-      where: { planId_version: { planId: plan.id, version: planVersion } }
-    });
-    if (!frozen) return plan;
-    const snapshot = (frozen.snapshot ?? {}) as Record<string, unknown>;
-    return { ...plan, ...snapshot } as typeof plan;
+  private effectivePlan(subscription: NonNullable<TenantRow["subscription"]>) {
+    return pinnedPlan(this.prisma, subscription.plan, subscription.planVersion);
   }
 
   private async computeState(tenantId: string): Promise<TenantEntitlementState> {
