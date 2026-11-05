@@ -17,7 +17,7 @@ import { GameAnalysisEngineService, resolveGameAnalysisConfig } from '../stockfi
 import { AnalysisAbortedError } from '../stockfish/stockfish.service';
 import type { StoredReport } from './game-analysis.mapper';
 import { buildAnalysis, gameFingerprint, gameMovesFromPgn, resultFor } from './report-builder';
-import { runInTenant } from "../tenancy/tenant-context";
+import { asPlatform, runInTenant } from "../tenancy/tenant-context";
 
 /** A RUNNING row whose heartbeat is older than this is presumed dead and re-queued. */
 export const STALE_AFTER_MS = 5 * 60_000;
@@ -65,12 +65,15 @@ export class GameAnalysisWorker implements OnModuleInit, OnApplicationShutdown {
     const ids = [...this.running.keys()];
     for (const controller of this.running.values()) controller.abort();
     if (ids.length) {
-      await this.prisma.gameAnalysis
-        .updateMany({
+      // The running jobs can belong to several academies and there's no request
+      // here: without asPlatform, enforce mode refuses this and the jobs wait
+      // for the stale sweep. The ids are this process's own claims.
+      await asPlatform("game-analysis: requeue this process's running jobs on shutdown", () =>
+        this.prisma.gameAnalysis.updateMany({
           data: { claimedAt: null, heartbeatAt: null, status: GameAnalysisStatus.QUEUED },
           where: { id: { in: ids }, status: GameAnalysisStatus.RUNNING },
         })
-        .catch(() => undefined);
+      ).catch((error: unknown) => this.logger.warn(`Shutdown requeue failed: ${(error as Error).message}`));
     }
   }
 
