@@ -69,7 +69,7 @@ describe("Puzzle folder delete (real app, real Postgres)", () => {
 
     const res = await t.call(w.admin, "DELETE", route);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ folders: 2, puzzles: 3, success: true });
+    expect(res.body).toEqual({ activities: 0, folders: 2, puzzles: 3, success: true });
     expect(await liveCounts()).toEqual({ puzzles: 0, topics: 0 });
 
     // Untouched: the sibling folder and its puzzle.

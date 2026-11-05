@@ -259,7 +259,9 @@ describe("MCQ + Playout activities (real app, real Postgres)", () => {
       const copyFolder = (copied.body as any).topic.id;
       expect(await t.prisma.libraryActivity.count({ where: { title: "In a folder", topicId: copyFolder } })).toBe(1);
 
-      expect((await t.call(w.admin, "DELETE", API_ROUTES.puzzles.topic(folderId))).status).toBe(200);
+      const deleted = await t.call(w.admin, "DELETE", API_ROUTES.puzzles.topic(folderId));
+      expect(deleted.status).toBe(200);
+      expect(deleted.body).toEqual({ activities: 1, folders: 1, puzzles: 0, success: true });
       expect(await t.prisma.libraryActivity.findUnique({ where: { id } })).toBeNull();
       const row = await t.prisma.withDeleted.libraryActivity.findUniqueOrThrow({ where: { id } });
       expect(row.isDeleted).toBe(true);

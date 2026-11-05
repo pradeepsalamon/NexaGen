@@ -136,7 +136,7 @@ describe("PuzzleTopicService", () => {
     prisma.puzzleTopic.findUnique.mockResolvedValue({ id: "t1" });
     prisma.puzzleTopic.findMany.mockResolvedValue(TREE);
     prisma.puzzleTopic.count.mockResolvedValue(0);
-    await expect(service.remove(TOKEN, "t1")).resolves.toEqual({ folders: 3, puzzles: 7, success: true });
+    await expect(service.remove(TOKEN, "t1")).resolves.toEqual({ activities: 7, folders: 3, puzzles: 7, success: true });
     expect(trash.softDeleteGroup).toHaveBeenCalledWith(
       prisma,
       "PuzzleTopic",
@@ -144,12 +144,14 @@ describe("PuzzleTopicService", () => {
       ADMIN_ID
     );
     expect(trash.softDeleteGroup.mock.calls[0][2]).not.toContain("t4");
-    expect(trash.softDeleteManyIntoGroup).toHaveBeenCalledWith(
-      prisma,
-      "Puzzle",
-      { topicId: { in: expect.arrayContaining(["t1", "t2", "t3"]) } },
-      { cascadedFrom: "PuzzleTopic", deleteGroupId: "group-1", parentId: "t1", userId: ADMIN_ID }
-    );
+    for (const model of ["LibraryActivity", "Puzzle"]) {
+      expect(trash.softDeleteManyIntoGroup).toHaveBeenCalledWith(
+        prisma,
+        model,
+        { topicId: { in: expect.arrayContaining(["t1", "t2", "t3"]) } },
+        { cascadedFrom: "PuzzleTopic", deleteGroupId: "group-1", parentId: "t1", userId: ADMIN_ID }
+      );
+    }
   });
 
   it("refuses to delete a subtree holding a system folder", async () => {

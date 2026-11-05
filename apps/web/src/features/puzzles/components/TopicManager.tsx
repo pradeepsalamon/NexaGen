@@ -496,9 +496,14 @@ export function TopicManager({
           node={deleting}
           onClose={() => setDeleting(null)}
           onDone={(res) => {
+            const parts = [
+              countLabel(res.folders, "folder", "folders"),
+              countLabel(res.puzzles, "puzzle", "puzzles"),
+              ...(res.activities > 0 ? [countLabel(res.activities, "activity", "activities")] : [])
+            ];
             toast.success({
               title: `Deleted "${deleting.topic.name}"`,
-              message: `${res.folders} folder${res.folders === 1 ? "" : "s"} and ${res.puzzles} puzzle${res.puzzles === 1 ? "" : "s"} moved to Trash. A Super Admin can restore them; they are removed for good after 30 days.`
+              message: `${joinLabels(parts)} moved to Trash. A Super Admin can restore them; they are removed for good after 30 days.`
             });
             if (openFolderId && collectPuzzleTopicSubtreeIds(topics, deleting.topic.id).includes(openFolderId)) {
               setOpenFolderId(null);
@@ -511,10 +516,20 @@ export function TopicManager({
   );
 }
 
+function countLabel(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/** "a", "a and b", "a, b and c". */
+function joinLabels(parts: string[]): string {
+  return parts.length <= 1 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
 /**
- * Deleting a folder takes everything inside it — a confirm that names the
- * counts, then the API moves the whole subtree and its puzzles to Trash as one
- * group (Undo = Restore in Trash; permanent after the retention period).
+ * Deleting a folder takes everything inside it — subfolders at any depth, their
+ * puzzles and their MCQs/Playouts. A confirm names the counts, then the API moves
+ * the whole subtree to Trash as one group (Undo = Restore in Trash; permanent
+ * after the retention period).
  */
 function DeleteFolderDialog({
   node,
@@ -529,7 +544,14 @@ function DeleteFolderDialog({
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const { topic, totalPuzzleCount } = node;
-  const subfolders = flattenPuzzleTopicTree([node]).length - 1;
+  const subtree = flattenPuzzleTopicTree([node]);
+  const subfolders = subtree.length - 1;
+  const activities = subtree.reduce((sum, n) => sum + n.topic.activityCount, 0);
+  const inside = [
+    ...(subfolders > 0 ? [countLabel(subfolders, "subfolder", "subfolders")] : []),
+    ...(totalPuzzleCount > 0 ? [countLabel(totalPuzzleCount, "puzzle", "puzzles")] : []),
+    ...(activities > 0 ? [countLabel(activities, "activity", "activities")] : [])
+  ];
 
   return (
     <Dialog open onOpenChange={(v) => !v && !busy && onClose()}>
@@ -538,21 +560,10 @@ function DeleteFolderDialog({
           <DialogTitle>Delete &quot;{topic.name}&quot;?</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-app-muted">
-          {totalPuzzleCount > 0 || subfolders > 0 ? (
+          {inside.length > 0 ? (
             <>
-              This also deletes{" "}
-              {subfolders > 0 ? (
-                <strong className="text-app-text">
-                  {subfolders} subfolder{subfolders === 1 ? "" : "s"}
-                </strong>
-              ) : null}
-              {subfolders > 0 && totalPuzzleCount > 0 ? " and " : null}
-              {totalPuzzleCount > 0 ? (
-                <strong className="text-app-text">
-                  {totalPuzzleCount} puzzle{totalPuzzleCount === 1 ? "" : "s"}
-                </strong>
-              ) : null}{" "}
-              inside it.{" "}
+              This also deletes everything inside it:{" "}
+              <strong className="text-app-text">{joinLabels(inside)}</strong>.{" "}
             </>
           ) : null}
           Everything moves to Trash, where a Super Admin can restore it together for 30 days; after that it is

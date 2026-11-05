@@ -252,22 +252,23 @@ export class PuzzleTopicService {
       throw new BadRequestException("System folders can't be deleted.");
     }
 
-    const puzzles = await this.prisma.$transaction(async (tx) => {
+    const { activities, puzzles } = await this.prisma.$transaction(async (tx) => {
       const deleteGroupId = await this.trash.softDeleteGroup(tx, "PuzzleTopic", subtree, user.id);
-      await this.trash.softDeleteManyIntoGroup(
+      const activities = await this.trash.softDeleteManyIntoGroup(
         tx,
         "LibraryActivity",
         { topicId: { in: subtree } },
         { cascadedFrom: "PuzzleTopic", deleteGroupId, parentId: id, userId: user.id }
       );
-      return this.trash.softDeleteManyIntoGroup(
+      const puzzles = await this.trash.softDeleteManyIntoGroup(
         tx,
         "Puzzle",
         { topicId: { in: subtree } },
         { cascadedFrom: "PuzzleTopic", deleteGroupId, parentId: id, userId: user.id }
       );
+      return { activities, puzzles };
     });
-    return { folders: subtree.length, puzzles, success: true };
+    return { activities, folders: subtree.length, puzzles, success: true };
   }
 
   /** Move every live puzzle in the folder's subtree elsewhere, then archive the subtree. */
