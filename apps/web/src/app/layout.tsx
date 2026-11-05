@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { BING_SITE_VERIFICATION, GOOGLE_SITE_VERIFICATION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { PLATFORM_HOSTS } from "@/lib/apiBase";
 import { AppProviders } from "../providers/AppProviders";
 import { fontVariablesCss } from "./fonts";
 import "../styles/globals.css";
@@ -33,23 +34,16 @@ export const viewport: Viewport = {
 
 // Sets the saved light/dark mode, and the last resolved fonts + text size
 // (cached by TypographyProvider), before first paint. Colours live only in globals.css.
-// The host check mirrors lib/apiBase.ts `isPlatformHost`: an academy's own address gets
+// The host check is lib/apiBase.ts `isPlatformHost` (same PLATFORM_HOSTS): an academy's own address gets
 // data-host="academy" (globals.css hides Nexa-only branding) and its last saved palette.
-const siteHost = (() => {
-  try {
-    return new URL(SITE_URL).hostname.toLowerCase();
-  } catch {
-    return "";
-  }
-})();
 
 const themeInitScript = `
 (() => {
   const root = document.documentElement;
   try {
-    const site = ${JSON.stringify(siteHost)};
+    const hosts = ${JSON.stringify(PLATFORM_HOSTS)};
     const h = window.location.hostname.toLowerCase();
-    const platform = h === "localhost" || h === "127.0.0.1" || h === "[::1]" || !site || h === site || h === "www." + site || "www." + h === site;
+    const platform = h === "localhost" || h === "127.0.0.1" || h === "[::1]" || hosts.length === 0 || hosts.indexOf(h) !== -1;
     root.dataset.host = platform ? "platform" : "academy";
     if (!platform) {
       const brand = JSON.parse(window.localStorage.getItem("nexa-brand") || "null");

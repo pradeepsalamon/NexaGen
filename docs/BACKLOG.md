@@ -221,6 +221,7 @@ its precondition, the student training surface, now exists).
   9. **`WHATSAPP_CREDENTIALS_KEY` (Phase 5) is renamed `CREDENTIALS_ENCRYPTION_KEY`** and now also encrypts gateway keys (nothing was deployed with the old name).
   10. **Usage counters** (`TenantUsage`) are a nightly snapshot (02:00 UTC) of the plan-limit counts, shown on the console's academy page. Limits are still enforced from live counts.
   11. **Not done in Phase 6:** card-on-file auto-debit (v1 excludes it, §G), Cashfree/Stripe for platform billing, per-academy invoice seller details for student invoices beyond what Phase 3 slice 5 already gives, and refunds of platform payments (record them manually; no credit note flow yet).
+  12. **Found by the staging browser check and fixed (`fix(web)` after Phase 6):** the Phase 5 host rule only knew `NEXT_PUBLIC_SITE_URL`, which the staging build leaves at its localhost default, so `dev.nexachess.in` was treated as an academy's address (host-only cookie names, `/api`, and a title-rewrite loop that froze the page because Nexa's name contains "Nexa Chess"). Nexa's hosts are now the site host plus the web host paired with the API host (`api-dev.x` -> `dev.x`, `api.x` -> `x`), and the title rewrite never writes an unchanged title. Production (`NEXT_PUBLIC_SITE_URL=https://nexachess.in`) was never affected; nothing is deployed.
 
 ## Open audit findings (2026-10-31)
 

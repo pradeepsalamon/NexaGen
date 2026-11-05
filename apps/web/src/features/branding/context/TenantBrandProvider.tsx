@@ -35,9 +35,13 @@ function setFavicon(href: string) {
 
 /** Pages title themselves "X | Nexa Chess"; on an academy's address the brand part becomes its name. */
 function watchTitle(name: string) {
+  // A name that is or contains "Nexa Chess" would rewrite forever: the
+  // observer fires on every write, so only ever write a changed title.
+  if (name.includes(SITE_NAME)) return undefined;
   const rewrite = () => {
     if (!document.title.includes(SITE_NAME)) return;
-    document.title = document.title.split(SITE_NAME).join(name);
+    const next = document.title.split(SITE_NAME).join(name);
+    if (next !== document.title) document.title = next;
   };
   rewrite();
   const observer = new MutationObserver(rewrite);

@@ -42,7 +42,7 @@ function SellerForm({ saved, seller }: { seller: PlatformSellerDetails; saved: b
         <FormField id="seller-email" label="Billing email">
           <Input id="seller-email" onChange={set("email")} type="email" value={form.email} />
         </FormField>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 items-start gap-4">
           <FormField hint="e.g. NXP" id="seller-prefix" label="Invoice prefix">
             <Input id="seller-prefix" maxLength={12} onChange={set("invoicePrefix")} value={form.invoicePrefix} />
           </FormField>

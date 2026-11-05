@@ -15,19 +15,38 @@ function hostOf(url: string): string | null {
   }
 }
 
-const siteHost = hostOf(env.NEXT_PUBLIC_SITE_URL);
+/**
+ * This deployment's own (Nexa's) web hosts, decided at build time: the site
+ * host (and its www twin), and the web host paired with the API host
+ * (`api.nexachess.in` -> `nexachess.in`, `api-dev.nexachess.in` ->
+ * `dev.nexachess.in`), so a deployment whose `NEXT_PUBLIC_SITE_URL` is left at
+ * its localhost default (staging) still knows its own address.
+ */
+export const PLATFORM_HOSTS: readonly string[] = (() => {
+  const hosts = new Set<string>();
+  const add = (host: string | null) => {
+    if (!host) return;
+    const bare = host.replace(/^www\./, "");
+    hosts.add(bare);
+    hosts.add(`www.${bare}`);
+  };
+  add(hostOf(env.NEXT_PUBLIC_SITE_URL));
+  const apiHost = hostOf(ABSOLUTE_API_URL);
+  add(apiHost ? (/^api[.-](.+\..+)$/.exec(apiHost)?.[1] ?? null) : null);
+  return [...hosts];
+})();
 
 /**
- * This deployment's own (Nexa's) addresses: they keep calling the API host
+ * Nexa's own addresses (and local development) keep calling the API host
  * directly, exactly as before. Every other host is an academy's own address,
  * which calls the API on itself under `/api` (docs/SAAS_MULTI_TENANCY.md §H
- * "Routing"), so its session cookies stay host-only.
+ * "Routing"), so its session cookies stay host-only. `app/layout.tsx`'s
+ * pre-paint script applies the same rule from `PLATFORM_HOSTS`.
  */
 export function isPlatformHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
   if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") return true;
-  if (!siteHost) return true;
-  return host === siteHost || host === `www.${siteHost}` || `www.${host}` === siteHost;
+  return PLATFORM_HOSTS.length === 0 || PLATFORM_HOSTS.includes(host);
 }
 
 /** The API's base URL for this page: absolute on Nexa's hosts, same-origin `/api` elsewhere. */
