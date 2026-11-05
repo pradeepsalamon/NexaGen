@@ -16,10 +16,6 @@ import { api, login, openRoomTab, scheduleClass, seededBatchId, type Cookie } fr
  */
 
 const RUN = process.env.RUN_LIVE_BOARD_E2E === "1";
-const FAKE_MEDIA_ARGS = [
-  "--use-fake-ui-for-media-stream",
-  "--use-fake-device-for-media-stream",
-];
 
 interface NexaBoardHarness {
   move: (from: string, to: string, promotion?: string) => boolean;
@@ -86,8 +82,6 @@ function board(page: Page) {
     resync: () => page.evaluate(() => window.__nexaBoard!.resync()),
   };
 }
-
-test.use({ launchOptions: { args: FAKE_MEDIA_ARGS } });
 
 test.describe("Live board sync", () => {
   test.skip(!RUN, "opt-in: RUN_LIVE_BOARD_E2E=1 + LiveKit + NEXT_PUBLIC_E2E=1 web");

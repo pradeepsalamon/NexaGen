@@ -402,6 +402,16 @@ helper for dirty-state UX.
   `live-board-sync.spec.ts` is opt-in (`RUN_LIVE_BOARD_E2E=1`): it needs a real
   LiveKit (`docker compose up -d livekit postgres redis`) and the web server run
   with `NEXT_PUBLIC_E2E=1` (mounts the `window.__nexaBoard` test harness).
+- Safari engine: `E2E_WEBKIT=1 npx playwright test --project=webkit` adds a
+  Desktop Safari (WebKit) project. WebKit needs system libraries most Linux
+  boxes lack; run it in the official image instead of installing them, e.g.
+  `docker run --rm --network host -v "$PWD:$PWD" -w "$PWD" -e E2E_WEBKIT=1 …
+  mcr.microsoft.com/playwright:v<same version as @playwright/test>-noble npx
+  playwright test --project=webkit`. WebKit has no fake camera, so rooms are
+  joined with camera and mic off; the fake-device flags live on the chromium
+  project only (WebKit refuses to launch with them). It is not a real iPhone:
+  real touch drags, iOS camera prompts and Safari's tracking prevention still
+  need a device.
 - No web component unit tests today — don't retrofit a framework without agreement;
   add Playwright coverage for critical flows instead.
 

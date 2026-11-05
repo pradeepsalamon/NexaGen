@@ -99,8 +99,6 @@ async function watchFens(page: Page) {
 const seenFens = (page: Page) => page.evaluate(() => window.__seenFens ?? []);
 const placement = (f: string) => f.split(" ")[0];
 
-test.use({ launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] } });
-
 test.describe("Live board recovery", () => {
   test.skip(!RUN, "opt-in: RUN_LIVE_BOARD_E2E=1 + LiveKit + NEXT_PUBLIC_E2E=1 web");
   test.setTimeout(240_000);

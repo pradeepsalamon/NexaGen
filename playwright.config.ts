@@ -46,7 +46,14 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // A fake camera/mic for the live-class specs. Chromium-only flags.
+        launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] },
+      },
     },
+    // Opt-in Safari engine: E2E_WEBKIT=1 npx playwright test --project=webkit.
+    // WebKit has no fake camera, so a room is joined with camera and mic off.
+    ...(process.env.E2E_WEBKIT === "1" ? [{ name: "webkit", use: { ...devices["Desktop Safari"] } }] : []),
   ],
 });
