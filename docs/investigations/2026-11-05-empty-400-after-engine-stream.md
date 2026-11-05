@@ -1,6 +1,7 @@
 # Empty 400s after an engine analysis stream (investigation, 2026-11-05)
 
-**Status:** root cause established. **No fix applied** (owner review first).
+**Status:** root cause established. **Fixed on `dev` and verified on staging,
+2026-11-05 (`a74cad1b`); not in production until the next release** (§8).
 **Scope of the investigation:** staging only. The owner approved diagnostic
 logging on the `api-dev.nexachess.in` nginx server block for at most one hour.
 It ran 19:27:56–19:32:50 UTC and is fully reverted (config byte-identical to
@@ -149,3 +150,25 @@ No safe config-only mitigation without touching production nginx. The app fix
 before a release, the least risky nginx option is removing `keepalive 64` from
 `nestjs_api_upstream` (it's unused because of `Connection: close`). That needs
 the owner's approval.
+
+## 8. Fix (2026-11-05, owner-approved as P0)
+
+`a74cad1b` on `dev` removes `response.setHeader('Connection', 'keep-alive')`
+from `analyzeStream`. A spec asserts the stream response sets no `Connection`
+header. No nginx, HTTP/2, cancellation or retry change.
+
+Verified on staging (`api-dev`), same reproductions as §4:
+
+| Run | Before | After |
+|---|---|---|
+| curl `--http1.1`, stream then 3 requests, ×4 | 4 of 4 rounds failed | 0 of 12 requests |
+| curl HTTP/2, same | 2 of 3 rounds | 0 of 12 |
+| Chromium page, 15 cancelled streams + 120 requests | 12–15 failed | 0 |
+| WebKit page, same | 12–14 failed | 0 |
+| Empty 400s in the staging nginx log since the deploy | – | 0 |
+
+**Production:** unchanged until a release carries `a74cad1b`. After it, check
+that the daily count of `400 0` responses from `https://nexachess.in/` drops to
+0 on days with engine streams (§5 query):
+`grep '"https://nexachess.in/' /var/log/nginx/access.log | awk '$9==400 && $10==0' | wc -l`.
+
