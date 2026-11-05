@@ -9,6 +9,10 @@ while [ -h "$SOURCE" ]; do
 done
 SCRIPTS_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 ROOT_DIR="$(cd -P "$SCRIPTS_DIR/.." && pwd)"
+# A cold API build (prisma generate + nest build type-checks everything) needs
+# ~3 GB, above Node's ~2 GB default heap on this box; it aborted with
+# "JavaScript heap out of memory". A caller's own NODE_OPTIONS wins.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=6144}"
 
 COMMAND=$1
 ENV=$2
