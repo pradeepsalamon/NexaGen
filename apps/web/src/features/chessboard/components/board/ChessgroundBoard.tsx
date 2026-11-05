@@ -140,6 +140,8 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       moves.get(move.from).push(move.to);
     }
     return moves;
+    // `chess` mutates in place, so `fen` is what tells this memo the position changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fen, isGameOver, chess, movableColor, isEditingPosition, setupOnly]);
 
   // chessground keeps the `after` handler from construction: it reads the
@@ -307,7 +309,11 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       // the rendered board; clear it so re-initialization doesn't stack wraps.
       while (boardEl && boardEl.firstChild) boardEl.removeChild(boardEl.firstChild);
     };
-  }, [showCoordinates]); // Re-create on coordinate toggle: chessground v9 renders rank/file labels only at construction (renderWrap)
+    // Built once; later changes go through cg.set() in the effects below. Re-created
+    // only when coordinates toggle: chessground v9 renders rank/file labels only at
+    // construction (renderWrap). Listing every prop would rebuild the board each move.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCoordinates]);
 
   // A cancelled promotion leaves the dragged pawn on the last rank with no new
   // fen to correct it, so put chessground back on the store's position.

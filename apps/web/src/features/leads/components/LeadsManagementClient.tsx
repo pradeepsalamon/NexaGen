@@ -105,6 +105,7 @@ export function LeadsManagementClient() {
           <DataTableToolbar
             filters={
               <Select
+                aria-label="Filter by status"
                 className="w-48"
                 onChange={(event) => serverTable.setStatus(event.target.value)}
                 options={[{ label: "All statuses", value: "ALL" }, ...LEAD_STATUS_OPTIONS]}

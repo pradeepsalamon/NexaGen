@@ -13,13 +13,13 @@ import {
 } from "@nestjs/common";
 import type { Request } from "express";
 import { Prisma } from "@prisma/client";
-import { WebhookReceiver } from "livekit-server-sdk";
+import { WebhookReceiver, type WebhookEvent } from "livekit-server-sdk";
 import { DisconnectReason } from "@livekit/protocol";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { AttendanceService } from "./attendance.service";
 import { resolveJoinAction } from "./attendance-session.util";
 import { LiveClassModerationService } from "../live-class/live-class-moderation.service";
-import { LiveClassRecordingService } from "../live-class/live-class-recording.service";
+import { LiveClassRecordingService, type EgressFileResult } from "../live-class/live-class-recording.service";
 import { LiveClassScreenShareService } from "../live-class/live-class-screen-share.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { asPlatform, runInTenant } from "../tenancy/tenant-context";
@@ -63,6 +63,28 @@ function describeDisconnectReason(reason: DisconnectReason | undefined): string 
   );
 }
 
+
+/** Egress details as LiveKit's SDK reports them, or snake_case in a raw (unverified, development-only) payload. */
+type IncomingEgressInfo = {
+  egressId?: string;
+  egress_id?: string;
+  file?: EgressFileResult;
+  fileResults?: EgressFileResult[];
+  file_results?: EgressFileResult[];
+  roomName?: string;
+  room_name?: string;
+  status?: string | number;
+};
+
+/**
+ * A LiveKit webhook as handled here: the SDK's verified `WebhookEvent`, or in
+ * development (no receiver configured) the raw JSON body.
+ */
+type IncomingWebhook = Omit<WebhookEvent, "egressInfo"> & {
+  egressInfo?: IncomingEgressInfo;
+  egress_info?: IncomingEgressInfo;
+};
+
 @Controller()
 export class AttendanceWebhookController {
   private readonly logger = new Logger(AttendanceWebhookController.name);
@@ -104,7 +126,7 @@ export class AttendanceWebhookController {
           ? request.body
           : JSON.stringify(request.body);
 
-      let event: any;
+      let event: IncomingWebhook;
 
       if (this.webhookReceiver) {
         // Verify the signature. A failure here means the payload is forged or
@@ -235,7 +257,7 @@ export class AttendanceWebhookController {
     return ageMs >= 0 && ageMs < DUPLICATE_JOIN_WINDOW_MS;
   }
 
-  private async processEvent(event: any) {
+  private async processEvent(event: IncomingWebhook) {
     const roomName: string | undefined = event.room?.name;
     const participantIdentity: string | undefined =
       event.participant?.identity;
@@ -278,7 +300,7 @@ export class AttendanceWebhookController {
     if (
       participantIdentity?.startsWith("EG_") ||
       participantKind === 2 || // ParticipantInfo_Kind.EGRESS
-      participantKind === "EGRESS"
+      String(participantKind) === "EGRESS" // a raw JSON (development) payload names the enum
     ) {
       return;
     }
@@ -445,7 +467,7 @@ export class AttendanceWebhookController {
     }
   }
 
-  private async handleEgressEvent(event: any) {
+  private async handleEgressEvent(event: IncomingWebhook) {
     const egressInfo = event.egressInfo ?? event.egress_info;
     if (!egressInfo) return;
     await this.recording.handleEgressEnded({
