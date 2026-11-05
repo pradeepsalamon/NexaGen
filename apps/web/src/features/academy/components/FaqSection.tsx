@@ -195,33 +195,36 @@ export function FaqSection() {
                       : "bg-app-surface border-app-border hover:border-accent/50 shadow-[0_2px_8px_rgb(var(--rgb-brand-800)/0.02)]"
                     }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => toggleItem(index)}
-                    aria-expanded={isOpen}
-                    className="w-full flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 sm:py-4 text-left cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 sm:gap-3.5">
-                      <div className="shrink-0 flex items-center justify-center text-accent-ink">
-                        <Icon className="size-4 sm:size-[18px]" strokeWidth={2.1} />
-                      </div>
-                      <h3
-                        className="text-xs sm:text-[14px] font-bold leading-snug text-app-text"
-                      >
-                        {item.question}
-                      </h3>
-                    </div>
+                  {/* The button sits inside the heading (an <h3> can't go inside a <button>), so the questions stay in heading navigation. */}
+                  <h3>
+                    <button
+                      type="button"
+                      onClick={() => toggleItem(index)}
+                      aria-expanded={isOpen}
+                      aria-controls={`academy-faq-panel-${index}`}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 sm:py-4 text-left cursor-pointer"
+                    >
+                      <span className="flex items-center gap-3 sm:gap-3.5">
+                        <span className="shrink-0 flex items-center justify-center text-accent-ink">
+                          <Icon aria-hidden="true" className="size-4 sm:size-[18px]" strokeWidth={2.1} />
+                        </span>
+                        <span className="text-xs sm:text-[14px] font-bold leading-snug text-app-text">
+                          {item.question}
+                        </span>
+                      </span>
 
-                    <ChevronDown
-                      aria-hidden="true"
-                      className={`size-4 shrink-0 text-accent-ink transition-transform duration-300 ${isOpen ? "rotate-180" : ""
-                        }`}
-                      strokeWidth={2.4}
-                    />
-                  </button>
+                      <ChevronDown
+                        aria-hidden="true"
+                        className={`size-4 shrink-0 text-accent-ink transition-transform duration-300 ${isOpen ? "rotate-180" : ""
+                          }`}
+                        strokeWidth={2.4}
+                      />
+                    </button>
+                  </h3>
 
                   {/* Accordion Body */}
                   <div
+                    id={`academy-faq-panel-${index}`}
                     className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen
                         ? "max-h-[360px] opacity-100 px-4 sm:px-5 pb-4 sm:pb-5"
                         : "max-h-0 opacity-0 px-4 sm:px-5 pb-0"

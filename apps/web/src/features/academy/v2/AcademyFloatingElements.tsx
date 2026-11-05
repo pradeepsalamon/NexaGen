@@ -5,6 +5,10 @@ import Image from "next/image";
 import { ArrowUp, CalendarDays } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
+import { ACADEMY_WHATSAPP } from "../content";
+
+// The number lives once in content.ts (the contact section and JSON-LD use it too).
+const WHATSAPP_CHAT_HREF = `https://wa.me/${ACADEMY_WHATSAPP.replace(/\D/g, "")}?text=${encodeURIComponent("Hi! I'm interested in chess classes")}`;
 
 const FLOATING_BUTTON =
   "fixed z-50 flex size-12 items-center justify-center rounded-full shadow-lift transition-transform hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus motion-reduce:transition-none md:size-14";
@@ -34,7 +38,7 @@ export function AcademyFloatingElements() {
         <a
           aria-label="Chat on WhatsApp"
           className={cn(FLOATING_BUTTON, "bottom-4 right-4 overflow-hidden bg-success md:bottom-6 md:right-6")}
-          href="https://api.whatsapp.com/send?phone=919344967940&text=Hi! I'm interested in chess classes"
+          href={WHATSAPP_CHAT_HREF}
           rel="noopener noreferrer"
           target="_blank"
         >

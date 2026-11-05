@@ -1,5 +1,3 @@
-"use client";
-
 import Image from "next/image";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
 import { ACADEMY_PROGRAMS } from "../content";

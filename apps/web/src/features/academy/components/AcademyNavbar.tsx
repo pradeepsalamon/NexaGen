@@ -72,7 +72,7 @@ function ThemeSwitch({
       type="button"
       role="switch"
       aria-checked={isDark}
-      aria-label="Switch to dark theme"
+      aria-label="Dark theme"
       onClick={onToggle}
       className={`
         relative inline-flex shrink-0 cursor-pointer items-center rounded-full border p-[3px]

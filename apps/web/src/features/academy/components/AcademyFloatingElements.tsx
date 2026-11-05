@@ -4,6 +4,10 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowUp } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { ACADEMY_WHATSAPP } from "../content";
+
+// The number lives once in content.ts (the contact section and JSON-LD use it too).
+const WHATSAPP_CHAT_HREF = `https://wa.me/${ACADEMY_WHATSAPP.replace(/\D/g, "")}?text=${encodeURIComponent("Hi! I'm interested in chess classes")}`;
 
 export function AcademyFloatingElements() {
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -30,7 +34,7 @@ export function AcademyFloatingElements() {
     <>
       {/* Floating WhatsApp button */}
       <a
-        href="https://api.whatsapp.com/send?phone=919344967940&text=Hi! I'm interested in chess classes"
+        href={WHATSAPP_CHAT_HREF}
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-4 md:bottom-6 right-4 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 rounded-full bg-success flex items-center justify-center text-on-success text-2xl shadow-lg shadow-success/30 hover:shadow-success/50 transition-all duration-300 hover:scale-110 active:scale-95 animate-[academy-float_6s_ease-in-out_infinite]"
