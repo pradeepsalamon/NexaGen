@@ -57,6 +57,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [NEXA_CLI.md](NEXA_CLI.md) | The `nexa` dev/stage/prod helper |
 | [PERF_CPU.md](PERF_CPU.md) | Measuring CPU contention on the VPS |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Symptom → where to look, per feature |
+| [investigations/](investigations/) | Dated root-cause write-ups (2026-11-05: empty 400s after an engine stream) |
 | [BACKLOG.md](BACKLOG.md) | Known gaps and the recurring root causes — read before a new feature |
 
 ## Design records & assessments (point-in-time)
