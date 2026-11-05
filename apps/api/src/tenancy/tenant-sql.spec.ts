@@ -1,6 +1,6 @@
-import { setTenantScopeModeForTesting, TenantScopeViolation } from "../prisma/tenant-scope.extension";
+import { AcademyNotResolved, setTenantScopeModeForTesting, TenantScopeViolation } from "../prisma/tenant-scope.extension";
 import { resetTenantAuditForTesting, tenantAuditCountsForTesting } from "./tenant-audit";
-import { runInTenant } from "./tenant-context";
+import { runInTenant, runWithTenantContext } from "./tenant-context";
 import { sqlTenantId, tenantFilter } from "./tenant-sql";
 
 describe("tenantFilter", () => {
@@ -26,5 +26,9 @@ describe("tenantFilter", () => {
     expect([...tenantAuditCountsForTesting().keys()]).toEqual(["missing_context|background|background|raw-sql"]);
     setTenantScopeModeForTesting("enforce");
     expect(() => sqlTenantId()).toThrow(TenantScopeViolation);
+    // Inside an HTTP request that named no academy it's the caller's: a 400.
+    expect(() =>
+      runWithTenantContext({ host: null, label: "POST /auth/login", source: null, tenantId: null }, () => sqlTenantId())
+    ).toThrow(AcademyNotResolved);
   });
 });
