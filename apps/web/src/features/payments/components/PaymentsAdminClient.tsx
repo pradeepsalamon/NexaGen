@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { DiscountsPanel } from "./DiscountsPanel";
+import { GatewayKeysPanel } from "./GatewayKeysPanel";
 import { ManualPaymentsPanel } from "./ManualPaymentsPanel";
 import { PaymentsOverviewPanel } from "./PaymentsOverviewPanel";
 import { PaymentsTablePanel } from "./PaymentsTablePanel";
@@ -62,6 +63,7 @@ export function PaymentsAdminClient() {
         </TabsContent>
         <TabsContent value="gateways">
           <div className="space-y-6">
+            <GatewayKeysPanel />
             <ProviderHealthPanel />
             <RoutingPanel />
           </div>

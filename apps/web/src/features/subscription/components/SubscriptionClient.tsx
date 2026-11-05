@@ -27,6 +27,7 @@ import { SupportVisitsTable } from "@/features/platform/components/SupportVisits
 import { useAcademySupportVisits } from "@/features/platform/hooks/usePlatformApi";
 import { useAuthStore } from "@/stores/authStore";
 import { useAdminSubscription } from "../hooks/useSubscription";
+import { AcademyBillingSection } from "./AcademyBillingSection";
 
 const LIMIT_TILES: Record<PlanLimitKey, { icon: LucideIcon; tone: Tone }> = {
   maxBatches: { icon: Layers3, tone: "primary" },
@@ -239,6 +240,7 @@ export function SubscriptionClient() {
           <StatusAlert data={data} />
           <CurrentPlan data={data} />
           <Usage data={data} />
+          <AcademyBillingSection data={data} />
           <PlanComparison data={data} />
           <SupportVisitHistory />
         </>

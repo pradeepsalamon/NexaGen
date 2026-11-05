@@ -9,15 +9,20 @@ import {
   type ContentPackSummary,
   type ContentPacksResponse,
   type CopyContentPackFolderResponse,
+  type CreatePlatformPayLinkRequest,
   type CreatePlatformPlanRequest,
   type CreatePlatformTenantRequest,
   type DuplicatePlatformPlanRequest,
   type EnterSupportSessionRequest,
   type PlatformAuditResponse,
+  type PlatformCheckoutView,
   type PlatformDealRequest,
   type PlatformDomainCheckResponse,
+  type PlatformInvoiceView,
+  type PlatformInvoicesResponse,
   type PlatformPlanSummary,
   type PlatformPlansResponse,
+  type PlatformSellerDetails,
   type PlatformSupportSessionsResponse,
   type PlatformTenantResponse,
   type PlatformTenantStatusRequest,
@@ -26,8 +31,10 @@ import {
   type RecordPlatformPaymentRequest,
   type StartSupportSessionRequest,
   type StartSupportSessionResponse,
+  type TenantUsageSnapshot,
   type TransitionTenantSubscriptionRequest,
   type UpdatePlatformPlanRequest,
+  type UpdatePlatformSellerDetailsRequest,
   type UpdatePlatformTenantRequest
 } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
@@ -148,3 +155,21 @@ export const copyAcademyContentPackFolder = (packId: string, itemId: string) =>
 /** The one-time support link: signs this browser in on the academy's own host. */
 export const enterSupportSession = (body: EnterSupportSessionRequest) =>
   apiFetch<AuthResponse>(API_ROUTES.auth.supportEnter, { body, method: "POST" });
+
+// ── Platform billing (SaaS Phase 6) ──
+
+export const createPlatformPayLink = (tenantId: string, body: CreatePlatformPayLinkRequest) =>
+  apiFetch<PlatformCheckoutView & { payPath: string }>(API_ROUTES.platform.tenantPayLink(tenantId), { body, method: "POST" });
+
+export const listPlatformInvoices = (tenantId?: string) =>
+  apiFetch<PlatformInvoicesResponse>(tenantId ? API_ROUTES.platform.tenantInvoices(tenantId) : API_ROUTES.platform.invoices);
+
+export const getPlatformInvoice = (id: string) => apiFetch<PlatformInvoiceView>(API_ROUTES.platform.invoice(id));
+
+export const getPlatformSellerDetails = () =>
+  apiFetch<{ seller: PlatformSellerDetails; saved: boolean }>(API_ROUTES.platform.sellerDetails);
+
+export const updatePlatformSellerDetails = (body: UpdatePlatformSellerDetailsRequest) =>
+  apiFetch<{ seller: PlatformSellerDetails; saved: boolean }>(API_ROUTES.platform.sellerDetails, { body, method: "PUT" });
+
+export const listPlatformUsage = () => apiFetch<{ usage: TenantUsageSnapshot[] }>(API_ROUTES.platform.usage);

@@ -11,11 +11,12 @@ import { useAuthStore } from "@/stores/authStore";
 import { useEndSupportSession, usePlatformSupportSessions, usePlatformTenants } from "../hooks/usePlatformApi";
 import { AcademiesTab } from "./AcademiesTab";
 import { AuditList } from "./AuditList";
+import { BillingTab } from "./BillingTab";
 import { ContentPacksTab } from "./ContentPacksTab";
 import { PlansTab } from "./PlansTab";
 import { SupportVisitsTable } from "./SupportVisitsTable";
 
-const TABS = ["academies", "plans", "packs", "support", "audit"] as const;
+const TABS = ["academies", "plans", "packs", "billing", "support", "audit"] as const;
 type Tab = (typeof TABS)[number];
 
 /** The academy name for an id, from the (small) academy list the console already holds. */
@@ -64,6 +65,7 @@ export function PlatformConsoleClient() {
             <TabsTrigger value="academies">Academies</TabsTrigger>
             <TabsTrigger value="plans">Plans</TabsTrigger>
             <TabsTrigger value="packs">Content packs</TabsTrigger>
+            <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="support">Support visits</TabsTrigger>
             <TabsTrigger value="audit">Audit log</TabsTrigger>
           </TabsList>
@@ -75,6 +77,9 @@ export function PlatformConsoleClient() {
           </TabsContent>
           <TabsContent value="packs">
             <ContentPacksTab />
+          </TabsContent>
+          <TabsContent value="billing">
+            <BillingTab />
           </TabsContent>
           <TabsContent value="support">
             <SupportTab />

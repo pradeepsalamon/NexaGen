@@ -21,6 +21,7 @@ import {
   useSuspendPlatformTenant,
   useUpdatePlatformTenant
 } from "../hooks/usePlatformApi";
+import { AcademyBillingCard } from "./AcademyBillingCard";
 import { AcademyDomainsCard } from "./AcademyDomainsCard";
 import { AcademySubscriptionCard } from "./AcademySubscriptionCard";
 import { AuditList } from "./AuditList";
@@ -166,6 +167,7 @@ export function AcademyDetailClient({ tenantId }: { tenantId: string }) {
         <div className="grid content-start gap-6">
           <DetailsCard key={`${tenant.name}|${tenant.timezone}|${tenant.country}`} tenant={tenant} />
           <AcademyDomainsCard tenant={tenant} />
+          {isNexa ? null : <AcademyBillingCard primaryHost={tenant.primaryHost} tenantId={tenantId} />}
         </div>
       </div>
       <section className="mt-6 grid gap-3">

@@ -6,6 +6,7 @@ import type {
   AddPlatformTenantDomainRequest,
   ChangeTenantPlanRequest,
   ContentPackRequest,
+  CreatePlatformPayLinkRequest,
   CreatePlatformPlanRequest,
   CreatePlatformTenantRequest,
   DuplicatePlatformPlanRequest,
@@ -16,6 +17,7 @@ import type {
   StartSupportSessionRequest,
   TransitionTenantSubscriptionRequest,
   UpdatePlatformPlanRequest,
+  UpdatePlatformSellerDetailsRequest,
   UpdatePlatformTenantRequest
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
@@ -28,20 +30,25 @@ import {
   checkPlatformTenantDomain,
   copyAcademyContentPackFolder,
   createPlatformContentPack,
+  createPlatformPayLink,
   createPlatformPlan,
   createPlatformTenant,
   duplicatePlatformPlan,
   endSupportSession,
   getAcademyContentPackFolder,
   getPlatformAudit,
+  getPlatformInvoice,
+  getPlatformSellerDetails,
   getPlatformTenant,
   getPlatformTenantSubscription,
   listAcademyContentPacks,
   listAcademySupportVisits,
   listPlatformContentPacks,
+  listPlatformInvoices,
   listPlatformPlans,
   listPlatformSupportSessions,
   listPlatformTenants,
+  listPlatformUsage,
   makePlatformTenantDomainPrimary,
   reactivatePlatformTenant,
   recordPlatformPayment,
@@ -54,6 +61,7 @@ import {
   transitionPlatformTenant,
   updatePlatformContentPack,
   updatePlatformPlan,
+  updatePlatformSellerDetails,
   updatePlatformTenant
 } from "../api/platformApi";
 
@@ -231,3 +239,22 @@ export function useCopyAcademyContentPackFolder() {
     }
   });
 }
+
+// ── Platform billing (SaaS Phase 6) ──
+
+export const usePlatformInvoices = (tenantId?: string) =>
+  useQuery({ queryFn: () => listPlatformInvoices(tenantId), queryKey: queryKeys.platform.invoices(tenantId) });
+
+export const usePlatformInvoice = (id: string) =>
+  useQuery({ queryFn: () => getPlatformInvoice(id), queryKey: queryKeys.platform.invoice(id) });
+
+export const usePlatformSellerDetails = () =>
+  useQuery({ queryFn: getPlatformSellerDetails, queryKey: queryKeys.platform.seller });
+
+export const usePlatformUsage = () => useQuery({ queryFn: listPlatformUsage, queryKey: queryKeys.platform.usage });
+
+export const useCreatePlatformPayLink = (tenantId: string) =>
+  usePlatformMutation((body: CreatePlatformPayLinkRequest) => createPlatformPayLink(tenantId, body), "Pay link created");
+
+export const useUpdatePlatformSellerDetails = () =>
+  usePlatformMutation((body: UpdatePlatformSellerDetailsRequest) => updatePlatformSellerDetails(body), "Seller details saved");
