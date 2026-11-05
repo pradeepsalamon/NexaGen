@@ -162,6 +162,7 @@ export function LeadDetailsDialog({ leadId, isOpen, onOpenChange }: LeadDetailsD
                   </div>
                 ) : null}
                 <Select
+                  aria-label="Assign a demo class"
                   disabled={assignDemoClassMutation.isPending || demoClassOptions.length === 0}
                   onChange={(event) => {
                     if (!event.target.value) return;

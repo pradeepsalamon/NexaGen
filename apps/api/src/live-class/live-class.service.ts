@@ -216,7 +216,7 @@ export class LiveClassService {
     const isCoach = user.role === UserRole.COACH && liveSession.coachId === user.id;
     const isStudent =
       user.role === UserRole.STUDENT &&
-      (liveSession.batch?.students.some((s: any) => s.studentId === user.id) ||
+      (liveSession.batch?.students.some((s) => s.studentId === user.id) ||
         !!(await this.prisma.liveClassPull.findFirst({
           where: { liveSessionId: liveSession.id, studentId: user.id, status: { in: ["PENDING", "JOINED"] } },
           select: { id: true },

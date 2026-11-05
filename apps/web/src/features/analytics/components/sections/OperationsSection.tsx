@@ -75,7 +75,7 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Stat label="Classes today" value={ops.data?.classesToday ?? 0} />
-              <Stat label="Live now" value={ops.data?.classesLiveNow ?? 0} tone={ops.data?.classesLiveNow ? "text-app-danger" : undefined} />
+              <Stat label="Live now" value={ops.data?.classesLiveNow ?? 0} tone={ops.data?.classesLiveNow ? "text-app-danger-ink" : undefined} />
               <Stat label="Completed today" value={ops.data?.classesCompletedToday ?? 0} />
               <Stat label="Need attention" value={ops.data?.classesNeedingAttention ?? 0} tone={ops.data?.classesNeedingAttention ? "text-warning-ink" : undefined} />
               <Stat label="Recording failures" value={ops.data?.recordingFailures ?? 0} tone={ops.data?.recordingFailures ? "text-warning-ink" : undefined} />

@@ -161,6 +161,19 @@ disagree.
 - Focus styles: `focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus`
   (the shared components include it). Never `focus:outline-none` without a
   visible replacement.
+- Every form control has an accessible name: a visible `<label>` (`Field`,
+  `FormField`, or a `<label>` around it), or an `aria-label` for a toolbar
+  filter with no visible label (`aria-label="Filter by status"`). A hidden
+  `<input type="file">` opened by a button still gets an `aria-label`.
+- A box that scrolls on its own must be reachable by keyboard. `ScrollShadow`
+  (tables) and `KpiCardRow` do it: while their content overflows they become a
+  focusable, named region (`label` prop). A hand-built scroller uses
+  `useScrollableRegion(ref, label)` from `hooks/useScrollableRegion.ts`. Don't
+  put a second `overflow-x-auto` around a table that already scrolls inside
+  its card.
+- Check new pages with axe (WCAG 2.1 A/AA) in light and dark: no violations
+  is the bar. Coloured text on a soft fill or on a card is `-ink`, never the
+  plain `text-app-danger` / `text-app-success` (they fail contrast as text).
 - Touch targets are 44px for controls on touch screens (`--control-h`); table
   action icons are 32px (`size-8`) with 8px gaps.
 - Animations use `transition-colors` / `transition-transform` for what actually

@@ -1,14 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useScrollableRegion } from "@/hooks/useScrollableRegion";
 import { cn } from "@/lib/utils";
 
 const EDGE =
   "pointer-events-none absolute inset-y-0 z-[1] w-5 transition-opacity duration-200 from-[var(--color-scroll-shade)] to-transparent";
 
-/** Horizontal scroller that shades whichever edge still has content past it. */
-export function ScrollShadow({ children, className }: { children: ReactNode; className?: string }) {
+/**
+ * Horizontal scroller that shades whichever edge still has content past it.
+ * While it overflows it is also a focusable region, so the keyboard can scroll it.
+ */
+export function ScrollShadow({
+  children,
+  className,
+  label = "Scrollable table"
+}: {
+  children: ReactNode;
+  className?: string;
+  /** The region's accessible name while it scrolls. */
+  label?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
+  const region = useScrollableRegion(ref, label);
   const [edges, setEdges] = useState({ left: false, right: false });
 
   useEffect(() => {
@@ -33,7 +47,14 @@ export function ScrollShadow({ children, className }: { children: ReactNode; cla
 
   return (
     <div className="relative">
-      <div className={cn("w-full overflow-auto", className)} ref={ref}>
+      <div
+        className={cn(
+          "w-full overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
+          className
+        )}
+        ref={ref}
+        {...region}
+      >
         {children}
       </div>
       <span
