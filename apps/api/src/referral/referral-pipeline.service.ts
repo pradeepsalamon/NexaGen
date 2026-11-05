@@ -2,11 +2,13 @@ import { BadRequestException, ConflictException, Injectable, Logger, NotFoundExc
 import {
   canAutoAdvanceReferral,
   DEFAULT_REFERRAL_STAGES,
+  DEFAULT_TENANT_ID,
   referralMilestonesReached,
   referralStagesReached
 } from "@nexa-chess/types";
 import type { ReferralBeneficiary, ReferralStage, ReferralStageTrigger, UserRole } from "@prisma/client";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 import { ReferralCreditsService } from "./referral-credits.service";
 
 export type ReferralForMove = {
@@ -46,9 +48,17 @@ export class ReferralPipelineService {
     const read = () => client.referralStage.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
     const stages = await read();
     if (stages.length > 0) return stages;
-    // The migration seeds these; a wiped table (a test reset, a hand-cleaned
-    // dev database) gets them back rather than a pipeline with no stages.
-    await client.referralStage.createMany({ data: [...DEFAULT_REFERRAL_STAGES], skipDuplicates: true });
+    // The migration seeds Nexa's; another academy (or a wiped table) gets the
+    // defaults here. Stage ids are a global primary key, so another academy's
+    // are derived from its id: still deterministic (skipDuplicates keeps two
+    // concurrent first reads from making two sets), never Nexa's.
+    const tenantId = requireTenantId("referralStage");
+    await client.referralStage.createMany({
+      data: DEFAULT_REFERRAL_STAGES.map((stage) =>
+        tenantId === DEFAULT_TENANT_ID ? { ...stage } : { ...stage, id: `${stage.id}_${tenantId}` }
+      ),
+      skipDuplicates: true
+    });
     return read();
   }
 

@@ -2,6 +2,7 @@ import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
 import { UserRole } from "@prisma/client";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { InvoiceSettingsService } from "../payments/invoice-settings.service";
+import { ReferralPipelineService } from "../referral/referral-pipeline.service";
 import { ReferralSettingsService } from "../referral/referral-settings.service";
 import { createTestApp, type TestApp } from "../test/integration/app";
 import { createUser, resetDatabase } from "../test/integration/db";
@@ -65,5 +66,27 @@ describe("per-academy settings rows (real Postgres)", () => {
     expect(first.id).toBe("default");
     expect(second.id).toBe(ACME);
     expect((await acme(() => referrals.get())).id).toBe(ACME);
+  });
+
+  it("gives another academy its own default referral stages (ids never Nexa's)", async () => {
+    const pipeline = t.app.get(ReferralPipelineService);
+    const nexaStages = await nexa(() => pipeline.listStages());
+    // A second academy needs §D5, which drops this global index (contract
+    // d5_saas_drop_global_uniques); dropped here the same way and put back after.
+    await t.prisma.$executeRawUnsafe('DROP INDEX IF EXISTS "referral_stages_trigger_automatic_key"');
+    try {
+      const acmeStages = await acme(() => pipeline.listStages());
+      expect(nexaStages.map((stage) => stage.id)).toContain("refstage_visited");
+      expect(acmeStages).toHaveLength(nexaStages.length);
+      expect(acmeStages.every((stage) => stage.tenantId === ACME && stage.id.endsWith(`_${ACME}`))).toBe(true);
+      expect(pipeline.entryStage(acmeStages).trigger).toBe("LINK_VISITED");
+      // A second read reuses them.
+      expect((await acme(() => pipeline.listStages())).map((stage) => stage.id)).toEqual(acmeStages.map((stage) => stage.id));
+    } finally {
+      await asPlatform("spec: restore the pre-D5 index", () => t.prisma.referralStage.deleteMany({ where: { tenantId: ACME } }));
+      await t.prisma.$executeRawUnsafe(
+        `CREATE UNIQUE INDEX IF NOT EXISTS "referral_stages_trigger_automatic_key" ON "referral_stages"("trigger") WHERE "trigger" <> 'MANUAL'`
+      );
+    }
   });
 });

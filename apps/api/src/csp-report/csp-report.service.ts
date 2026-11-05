@@ -112,12 +112,22 @@ export function parseCspReports(body: unknown): CspViolation[] {
 export class CspReportService {
   private readonly logger = new Logger("CspReport");
   private readonly counts = new Map<string, number>();
+  private overflow = 0;
 
   record(body: unknown): void {
     for (const violation of parseCspReports(body)) {
       const key = [violation.directive, violation.blocked, violation.document, violation.source ?? ""].join("|");
+      if (!this.counts.has(key) && this.counts.size >= MAX_KEYS) {
+        // Full (a public route: anyone can send 2,000 distinct URLs): new keys
+        // share one throttled counter, so they can't log on every report.
+        this.overflow += 1;
+        if (/^10*$/.test(String(this.overflow))) {
+          this.logger.warn({ msg: "csp-violation-overflow", count: this.overflow, directive: violation.directive });
+        }
+        continue;
+      }
       const count = (this.counts.get(key) ?? 0) + 1;
-      if (this.counts.size < MAX_KEYS || this.counts.has(key)) this.counts.set(key, count);
+      this.counts.set(key, count);
       if (/^10*$/.test(String(count))) {
         this.logger.warn({ msg: "csp-violation", count, ...violation });
       }

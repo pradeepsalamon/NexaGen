@@ -596,15 +596,16 @@ export class AuthService {
     ) {
       throw refused;
     }
+    // The user first, so a missing support user doesn't burn the one-time link.
+    const user = await this.prisma.user.findFirst({
+      include: { coachProfile: true, studentProfile: true },
+      where: { isDeleted: false, isPlatformSupport: true, status: UserStatus.ACTIVE, tenantId }
+    });
+    if (!user) throw refused;
     const claimed = await asPlatform("auth: claim support link", () =>
       this.prisma.platformSupportSession.updateMany({ data: { enteredAt: now }, where: { enteredAt: null, id: visit.id } })
     );
     if (claimed.count !== 1) throw refused;
-    const user = await this.prisma.user.findFirst({
-      include: { coachProfile: true, studentProfile: true },
-      where: { isDeleted: false, isPlatformSupport: true, status: UserStatus.ACTIVE }
-    });
-    if (!user) throw refused;
     const maxAge = Math.max(1_000, visit.expiresAt.getTime() - now.getTime());
     const ttl = `${Math.max(1, Math.floor(maxAge / 1_000))}s` as JwtDuration;
     const tokenPair = await this.createSession(user, context, maxAge, ttl, undefined, visit.id);

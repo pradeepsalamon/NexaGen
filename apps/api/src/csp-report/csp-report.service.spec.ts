@@ -89,6 +89,21 @@ describe("CSP violation reports", () => {
     warn.mockRestore();
   });
 
+  it("once 2,000 distinct violations are tracked, new ones share one throttled counter", () => {
+    const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    const service = new CspReportService();
+    const distinct = (i: number) => ({ "csp-report": { ...legacy["csp-report"], "blocked-uri": `https://evil${i}.example/x.js` } });
+    for (let i = 0; i < 2_000; i += 1) service.record(distinct(i));
+    warn.mockClear();
+    for (let i = 2_000; i < 2_100; i += 1) service.record(distinct(i));
+    expect(warn.mock.calls.map(([entry]) => entry as { count: number; msg: string })).toEqual([
+      expect.objectContaining({ count: 1, msg: "csp-violation-overflow" }),
+      expect.objectContaining({ count: 10, msg: "csp-violation-overflow" }),
+      expect.objectContaining({ count: 100, msg: "csp-violation-overflow" })
+    ]);
+    warn.mockRestore();
+  });
+
   it("the web sends its reports to this route through its own /api", () => {
     const config = fs.readFileSync(path.resolve(__dirname, "../../../web/next.config.mjs"), "utf8");
     expect(config).toContain(`const CSP_REPORT_PATH = "/api${API_ROUTES.security.cspReport}";`);

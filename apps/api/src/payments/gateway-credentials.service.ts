@@ -102,7 +102,9 @@ export class GatewayCredentialsService implements OnModuleInit {
     const keys: GatewayEnvKeys = {
       CASHFREE_APP_ID: own.CASHFREE?.publicKey,
       CASHFREE_SECRET_KEY: own.CASHFREE?.keySecret,
-      CASHFREE_WEBHOOK_SECRET: own.CASHFREE?.webhookSecret ?? undefined,
+      // Cashfree signs webhooks with the client secret key; a separate webhook
+      // secret is optional (the gateway form doesn't require one for Cashfree).
+      CASHFREE_WEBHOOK_SECRET: own.CASHFREE?.webhookSecret ?? own.CASHFREE?.keySecret ?? undefined,
       RAZORPAY_KEY_ID: own.RAZORPAY?.publicKey,
       RAZORPAY_KEY_SECRET: own.RAZORPAY?.keySecret,
       RAZORPAY_WEBHOOK_SECRET: own.RAZORPAY?.webhookSecret ?? undefined,

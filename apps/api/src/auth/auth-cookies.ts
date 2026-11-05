@@ -40,6 +40,18 @@ export function usesHostOnlyCookies(store: TenantContextStore | undefined = getT
   return isAcademyHost(store) || isPlatformHostOnly(store);
 }
 
+/**
+ * Base options for the visitor/referral tracking cookies: host-only on an
+ * academy's own address (a `.nexachess.in` Domain is refused on a custom
+ * domain, and on `<slug>.nexachess.in` it would reach every other academy),
+ * Nexa's domain-wide options elsewhere.
+ */
+export function trackingCookieBase(store: TenantContextStore | undefined = getTenantContext()): CookieOptions {
+  const domainBase = getCookieBaseOptions(getApiEnv());
+  const { domain: _domain, ...hostBase } = domainBase;
+  return usesHostOnlyCookies(store) ? hostBase : domainBase;
+}
+
 function clearCookiePair(response: Response, names: { accessToken: string; refreshToken: string }, base: CookieOptions) {
   response.clearCookie(names.accessToken, { ...base, path: AUTH_COOKIE_PATHS.accessToken });
   response.clearCookie(names.refreshToken, { ...base, path: AUTH_COOKIE_PATHS.refreshToken });

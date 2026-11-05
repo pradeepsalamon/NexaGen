@@ -2,7 +2,6 @@ import { randomUUID } from "crypto";
 import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Throttle } from "@nestjs/throttler";
-import { getApiEnv, getCookieBaseOptions } from "@nexa-chess/config/api";
 import {
   API_ROUTES,
   convertReferralPointsRequestSchema,
@@ -19,6 +18,7 @@ import {
   type RequestReferralWithdrawalRequest
 } from "@nexa-chess/types";
 import type { Request, Response } from "express";
+import { trackingCookieBase } from "../auth/auth-cookies";
 import { verifyAccessToken } from "../auth/authenticate";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
@@ -68,7 +68,7 @@ export class ReferralController {
       visitorId
     });
 
-    const base = getCookieBaseOptions(getApiEnv());
+    const base = trackingCookieBase();
     if (!existingVisitorId) {
       response.cookie(TRACKING_COOKIE_NAMES.visitorId, visitorId, {
         ...base,

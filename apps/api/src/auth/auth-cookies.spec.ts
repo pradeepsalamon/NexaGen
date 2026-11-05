@@ -1,6 +1,13 @@
 import type { Request, Response } from "express";
 import { runWithTenantContext, type TenantContextStore } from "../tenancy/tenant-context";
-import { aliasHostOnlyCookies, clearAuthCookies, HOST_ONLY_COOKIE_NAMES, setAuthCookies, usesHostOnlyCookies } from "./auth-cookies";
+import {
+  aliasHostOnlyCookies,
+  clearAuthCookies,
+  HOST_ONLY_COOKIE_NAMES,
+  setAuthCookies,
+  trackingCookieBase,
+  usesHostOnlyCookies
+} from "./auth-cookies";
 import { AUTH_COOKIE_NAMES } from "./types";
 
 const env = { COOKIE_DOMAIN: ".nexachess.in", PLATFORM_HOST_ONLY_COOKIES: false };
@@ -59,6 +66,12 @@ describe("session cookies per host (docs/AUTHORIZATION.md Cookies)", () => {
       expect(set.every((c) => c.options.domain === undefined)).toBe(true);
       expect(alias(academy, { [AUTH_COOKIE_NAMES.accessToken]: "nexa" })[AUTH_COOKIE_NAMES.accessToken]).toBeUndefined();
     });
+  });
+
+  it("tracking (visitor/referral) cookies follow the same host rule", () => {
+    expect(inContext(nexa, () => trackingCookieBase()).domain).toBe(".nexachess.in");
+    expect(inContext(academy, () => trackingCookieBase()).domain).toBeUndefined();
+    expect(inContext(academy, () => trackingCookieBase())).toMatchObject({ sameSite: "lax", secure: true });
   });
 
   describe("PLATFORM_HOST_ONLY_COOKIES on", () => {
