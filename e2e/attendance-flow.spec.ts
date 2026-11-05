@@ -10,6 +10,7 @@ import {
   WEB_URL,
   api,
   cookieHeader,
+  findInDataTable,
   login,
   scheduleClass,
   seededBatchId,
@@ -380,7 +381,8 @@ test.describe("Full Attendance Flow", () => {
     await expect(adminPage.getByText(/completed classes/i).first()).toBeVisible();
 
     // Our class should appear
-    await expect(adminPage.getByText(E2E_CLASS_TOPIC).first()).toBeVisible({ timeout: 10000 });
+    // Oldest first and 15 a page: on a shared DB today's class is pages in.
+    await expect(await findInDataTable(adminPage, E2E_CLASS_TOPIC, 30)).toBeVisible({ timeout: 10000 });
 
     // Open the class detail via the row's "Details" button.
     await adminPage

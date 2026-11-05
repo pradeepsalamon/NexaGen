@@ -5,31 +5,13 @@ import {
   API_URL,
   apiCall,
   apiCallOk,
+  findInDataTable,
   loginContext,
   scheduleClass,
   seededBatchId,
   sendLiveKitWebhook,
 } from "./fixtures";
 
-/**
- * Locate a row by text in a client-paginated DataTable, walking pages with the
- * "Next" button. The shared dev DB carries hundreds of leftover E2E classes, so
- * a freshly-created one is rarely on page 1 of a date-sorted history list.
- */
-async function findInDataTable(page: Page, text: string, maxPages = 15) {
-  const firstRow = page.locator("tbody tr").first();
-  for (let i = 0; i < maxPages; i += 1) {
-    await firstRow.waitFor({ state: "visible" });
-    const cell = page.getByText(text).first();
-    if (await cell.isVisible().catch(() => false)) return cell;
-    const next = page.getByRole("button", { name: /^next$/i });
-    if (!(await next.isEnabled().catch(() => false))) break;
-    const before = await firstRow.innerText();
-    await next.click();
-    await expect.poll(() => firstRow.innerText()).not.toBe(before);
-  }
-  return page.getByText(text).first();
-}
 
 /**
  * Host-side path of the directory the API container exposes as

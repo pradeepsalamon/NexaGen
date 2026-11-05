@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
-import { api, login, seededBatchId, type Cookie } from "./fixtures";
+import { api, clearE2EClasses, login, seededBatchId, type Cookie } from "./fixtures";
 
 /**
  * Durable board recovery (`LiveSession.boardState`, `useBoardPersistence`).
@@ -23,6 +23,10 @@ declare global {
 async function makeLiveClass(request: APIRequestContext, coach: Cookie[], admin: Cookie[]) {
   const batches = await (await api(request, "GET", "/coach/batches", coach)).json();
   const batchId = seededBatchId(batches);
+  await clearE2EClasses(
+    (method, path, body) => api(request, method, path, coach, body),
+    (method, path, body) => api(request, method, path, admin, body)
+  );
 
   // Walk forward from now until approval stops reporting a scheduling conflict.
   // Only inside the start window (CLASS_EARLY_START_MINUTES = 30): a class any
