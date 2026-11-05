@@ -1098,7 +1098,7 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
 - **5e (partial, 2026-11-05):** `useBrandName()` replaces "Nexa Chess" in the auth pages,
   sidebars, sign-out dialog, checkout (also the gateway's merchant name), referrals, payroll,
   class titles and acquisition analytics. Opt-in smoke test `e2e/white-label.spec.ts`
-  (`RUN_WHITE_LABEL_E2E=1 ACADEMY_BASE_URL=…`). Still to do: see `docs/BACKLOG.md` (Phase 5 item 11).
+  (`RUN_WHITE_LABEL_E2E=1 ACADEMY_BASE_URL=…`). Follow-up 2026-11-05: copy the academy sends or prints (`{{academy.name}}` in messages and system emails, payslip PDFs, PGN headers, live-class PiP / Wall of Moments / Video Generator) reads `BrandingService.nameFor()`; what is left is in `docs/BACKLOG.md` (Phase 5 item 11).
 - Web theming is client-side (builder's call): the root layout stays static for Nexa; an
   inline script sets `data-host` and the last saved palette before first paint, and
   `TenantBrandProvider` applies the fetched config.

@@ -121,7 +121,7 @@ export function BillingClient() {
 
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-app-text">
-                      {payment.planName ?? "NexaChess purchase"}
+                      {payment.planName ?? "Purchase"}
                     </p>
                     <p className="text-xs text-app-muted">
                       {payment.orderNumber}

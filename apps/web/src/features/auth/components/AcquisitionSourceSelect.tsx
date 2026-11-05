@@ -14,7 +14,7 @@ export const ACQUISITION_OPTIONS: {
   { label: "Facebook", value: "facebook" },
   { label: "YouTube", value: "youtube" },
   { label: "WhatsApp", value: "whatsapp" },
-  { label: "NexaChess website", value: "website" },
+  { label: "Our website", value: "website" },
   { label: "Friend or family referral", value: "referral" },
   { label: "School / Institution", value: "school" },
   { label: "A coach recommended it", value: "coach_referral" },

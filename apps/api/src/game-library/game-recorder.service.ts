@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import {
   lineThroughPath,
   moveTreeFromMoves,
@@ -13,6 +13,8 @@ import {
 import { ChessGameSource, ChessGameStatus, Prisma } from "@prisma/client";
 import { Chess } from "../common/chess/chess";
 import { createMoveTreeChess } from "../common/chess/move-tree-chess";
+import { BrandingService } from "../branding/branding.service";
+import { ACADEMY_NAME } from "../messaging/messaging.format";
 import { PrismaService } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 
@@ -53,7 +55,10 @@ const pgnDate = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, ".");
 export class GameRecorderService {
   private readonly logger = new Logger(GameRecorderService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly branding?: BrandingService
+  ) {}
 
   /** Never throws; logs instead. */
   recordMatchGameInBackground(gameId: string) {
@@ -290,12 +295,13 @@ export class GameRecorderService {
     endedAt: Date | null;
   }): Promise<void> {
     const tree = input.tree ?? this.treeFromMoves(input.startFen, input.moves ?? []);
+    const site = this.branding ? await this.branding.nameFor() : ACADEMY_NAME;
     const headers: PgnHeaders = {
       Black: input.blackName,
       Date: pgnDate(input.startedAt),
-      Event: input.classCtx.title || input.classCtx.topic || "Nexa Chess class",
+      Event: input.classCtx.title || input.classCtx.topic || `${site} class`,
       Result: input.result,
-      Site: "Nexa Chess",
+      Site: site,
       White: input.whiteName,
       ...(input.termination ? { Termination: input.termination } : {}),
     };

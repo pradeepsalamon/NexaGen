@@ -36,6 +36,7 @@ toggles (WhatsApp / in-app / email) + audience + lead time + `{{placeholder}}` t
 use them, don't reimplement, or the admin preview stops matching the send.
 `MESSAGE_VARIABLE_DOCS` gives every placeholder its label and example value for
 the editors; a new placeholder needs an entry (a spec checks).
+`{{academy.name}}` is the recipient's academy (`BrandingService.nameFor()`, the name its pages show); Nexa's is "Nexa Chess". Both `MessagingDispatchService` and `SystemMessageRenderer` fill it.
 
 - **`MessagingDispatchService.dispatchInBackground(request)` is the only entry
   point** a feature service calls. It never throws — messaging must not fail

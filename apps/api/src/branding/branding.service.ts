@@ -22,6 +22,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { currentTenantId } from "../tenancy/tenant-context";
 import { requireTenantId } from "../tenancy/tenant-sql";
 import { UploadService } from "../upload/upload.service";
+import { ACADEMY_NAME } from "../messaging/messaging.format";
 
 const PUBLIC_CACHE_MS = 60_000;
 const ASSET_COLUMN: Record<BrandAssetKind, "faviconUrl" | "loginImageUrl" | "logoDarkUrl" | "logoLightUrl"> = {
@@ -67,6 +68,20 @@ export class BrandingService {
   publicConfig(): Promise<TenantPublicConfig> {
     const tenantId = currentTenantId();
     if (!tenantId) return Promise.resolve(emptyPublicConfig());
+    return this.configFor(tenantId);
+  }
+
+  /**
+   * The academy's name for copy it sends or prints (messages, system emails,
+   * PDFs, PGN headers): the same name its pages show. Nexa's is its own;
+   * no academy in context falls back to it too.
+   */
+  async nameFor(tenantId: string | null | undefined = currentTenantId()): Promise<string> {
+    if (!tenantId || tenantId === DEFAULT_TENANT_ID) return ACADEMY_NAME;
+    return (await this.configFor(tenantId)).name || ACADEMY_NAME;
+  }
+
+  private configFor(tenantId: string): Promise<TenantPublicConfig> {
     const now = Date.now();
     const cached = this.publicCache.get(tenantId);
     if (cached && now - cached.at < PUBLIC_CACHE_MS) return cached.config;

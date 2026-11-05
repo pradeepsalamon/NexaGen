@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import {
   renderFormattedTemplate,
   renderMessageTemplate,
@@ -6,6 +6,7 @@ import {
   type MessageVariables,
   type SystemMessageKey
 } from "@nexa-chess/types";
+import { BrandingService } from "../branding/branding.service";
 import { ACADEMY_NAME } from "../messaging/messaging.format";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -19,13 +20,17 @@ export interface RenderedSystemMessage {
 /** A system message in the admin's saved wording, or the default when there is none. */
 @Injectable()
 export class SystemMessageRenderer {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly branding?: BrandingService
+  ) {}
 
   async render(key: SystemMessageKey, values: MessageVariables): Promise<RenderedSystemMessage> {
     const definition = SYSTEM_MESSAGE_DEFINITIONS[key];
     const template =
       (await this.prisma.systemMessageTemplate.findUnique({ where: { key } })) ?? definition.defaults;
-    const variables: MessageVariables = { "academy.name": ACADEMY_NAME, ...values };
+    const academyName = this.branding ? await this.branding.nameFor() : ACADEMY_NAME;
+    const variables: MessageVariables = { "academy.name": academyName, ...values };
 
     const url = definition.actionVariable ? variables[definition.actionVariable] : "";
     const label = template.actionLabel ?? definition.defaults.actionLabel;

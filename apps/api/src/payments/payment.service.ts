@@ -1047,7 +1047,7 @@ export class PaymentService {
         amount: order.amount,
         currency: order.currency,
         method,
-        description: order.plan?.name ?? "NexaChess purchase",
+        description: order.plan?.name ?? "Purchase",
         customer: {
           id: user.id,
           name: fullName(user) ?? user.email,
@@ -1218,7 +1218,7 @@ export class PaymentService {
             amount: order.amount,
             currency: order.currency,
             method: dto.method,
-            description: order.plan?.name ?? "NexaChess purchase",
+            description: order.plan?.name ?? "Purchase",
             customer: {
               id: order.userId,
               name: fullName(order.user) ?? order.user.email,
@@ -1426,7 +1426,7 @@ export function describePurchase(
   // whole invoice design exists to prevent. A missing field costs a nicer
   // label, never the money.
   const name = plan?.name?.trim();
-  if (!plan || !name) return "NexaChess purchase";
+  if (!plan || !name) return "Purchase";
 
   const parts = [name];
   const lower = name.toLowerCase();

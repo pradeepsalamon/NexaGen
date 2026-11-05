@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
   APPROVAL_ACTIONS,
@@ -15,6 +15,7 @@ import {
 import { Prisma, UserRole, UserStatus, type MessagingRule } from "@prisma/client";
 import { zonedYmd } from "../common/time";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
+import { BrandingService } from "../branding/branding.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MessagingRuleService } from "./messaging-rule.service";
@@ -148,7 +149,8 @@ export class MessagingDispatchService {
     private readonly emailVerification: EmailVerificationService,
     private readonly prisma: PrismaService,
     private readonly rules: MessagingRuleService,
-    private readonly whatsapp: WhatsAppService
+    private readonly whatsapp: WhatsAppService,
+    @Optional() private readonly branding?: BrandingService
   ) {}
 
   /** Fire-and-forget entry point for feature services. Never throws. */
@@ -167,6 +169,14 @@ export class MessagingDispatchService {
     }
 
     const recipients = await this.resolveRecipients(request, rule);
+    // Recipients are built synchronously with Nexa's name; another academy's
+    // students get its own (a caller's explicit value still wins).
+    const academyName = this.branding ? await this.branding.nameFor() : ACADEMY_NAME;
+    if (academyName !== ACADEMY_NAME) {
+      for (const recipient of recipients) {
+        if (recipient.variables["academy.name"] === ACADEMY_NAME) recipient.variables["academy.name"] = academyName;
+      }
+    }
     // With verification off nobody is asked to confirm, so an unverified address proves nothing.
     const verifiedOnly = rule.emailEnabled && (await this.emailVerification.policy()) !== "OFF";
     const summary: MessagingDispatchSummary = {

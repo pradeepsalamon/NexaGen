@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useToast } from "@/providers/ToastProvider";
 import {
   useClassroomTool,
@@ -52,6 +53,7 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
   const roster = useToolRoster(classId, isManager);
   const leaderboard = useClassLeaderboard(classId, isManager);
   const toast = useToast();
+  const brandName = useBrandName();
 
   const [studentId, setStudentId] = useState("");
   const [preset, setPreset] = useState("0");
@@ -102,7 +104,7 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
   };
 
   const exportImage = (mode: "download" | "print") => {
-    const canvas = renderWall(state);
+    const canvas = renderWall(state, brandName);
     if (mode === "print") {
       printImage(canvas.toDataURL("image/png"), state.title);
       return;
@@ -276,7 +278,7 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
 }
 
 /** Draws the wall as a 1600px-wide poster. */
-function renderWall(state: WallOfMomentsState): HTMLCanvasElement {
+function renderWall(state: WallOfMomentsState, brandName: string): HTMLCanvasElement {
   const c = brandColors();
   const W = 1600;
   const cols = state.moments.length > 4 ? 3 : 2;
@@ -305,7 +307,7 @@ function renderWall(state: WallOfMomentsState): HTMLCanvasElement {
   ctx.font = bodyFont(600, 28);
   ctx.globalAlpha = 0.8;
   ctx.fillText(
-    `${state.moments.length} moment${state.moments.length === 1 ? "" : "s"} · Nexa Chess`,
+    `${state.moments.length} moment${state.moments.length === 1 ? "" : "s"} · ${brandName}`,
     pad,
     168,
   );
@@ -345,7 +347,7 @@ function renderWall(state: WallOfMomentsState): HTMLCanvasElement {
   ctx.fillStyle = c.onPrimary;
   ctx.globalAlpha = 0.7;
   ctx.font = bodyFont(600, 24);
-  ctx.fillText("NexaGen · Nexa Chess Academy", pad, H - 64);
+  ctx.fillText(brandName, pad, H - 64);
   ctx.globalAlpha = 1;
   return canvas;
 }
