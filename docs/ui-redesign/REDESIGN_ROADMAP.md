@@ -236,9 +236,9 @@ Remove or adopt unused components (`nx-*`, `warm`, `navy`, `gold` were deleted b
 - unnamed filter `Select`s on `/admin/users`, `/admin/classes`, `/admin/leads`, `/admin/trash` (same pattern fixed in demo classes, the puzzle-assign modal's difficulty filter and the lead dialog's demo-class picker): `aria-label`;
 - the four hidden image inputs on `/admin/branding`: `aria-label`;
 - scrolling regions a keyboard couldn't reach (`/admin/analytics/students`, `/admin/payments`, `/admin/subscription`, `/student/revision`): `ScrollShadow` and `KpiCardRow` become a focusable, named region with the focus ring while their content overflows (`hooks/useScrollableRegion.ts`), and the subscription pages lost a second `overflow-x-auto` around a table that already scrolled;
-- low contrast on the low-attendance % in `/admin/analytics/students`: `text-app-danger-ink`.
+- low contrast in dark mode on analytics status text (low-attendance %, acquisition deltas, live-now count, storage state): `-ink` colours.
 
-`/` (legacy home, untouched by request) still fails colour contrast in 7 places in light and 3 in dark; `/academy`, its replacement, passes. Re-run after the next staging build to confirm the fixes. Lint: API 0 warnings (typed the LiveKit webhook and egress payloads, the attendance report's `where`s and the coach student map instead of `any`); web 1 warning, an `<img>` in the legacy home's `TestimonialsSection`. Real-device tests (iOS Safari) are still the owner's, in the release checklist.
+Re-run on this branch's build (served in place of the staging web, against the staging API): 264 runs, no violations except `/` (legacy home, untouched by request), which still fails colour contrast in 7 places in light and 3 in dark; `/academy`, its replacement, passes. Lint: API 0 warnings (typed the LiveKit webhook and egress payloads, the attendance report's `where`s and the coach student map instead of `any`); web 1 warning, an `<img>` in the legacy home's `TestimonialsSection`. Real-device tests (iOS Safari) are still the owner's, in the release checklist.
 
 ### Sequence
 
