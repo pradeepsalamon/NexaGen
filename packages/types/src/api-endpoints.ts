@@ -624,6 +624,11 @@ export const API_ROUTES = {
     webhookRazorpay: "/payments/webhooks/razorpay",
     webhookCashfree: "/payments/webhooks/cashfree",
     webhookStripe: "/payments/webhooks/stripe",
+    // Another academy's own gateway account (SaaS Phase 6): the key names the
+    // academy whose stored secret verifies the event.
+    webhookRazorpayAcademy: (tenantKey: string = ":tenantKey") => `/payments/webhooks/razorpay/${tenantKey}`,
+    webhookCashfreeAcademy: (tenantKey: string = ":tenantKey") => `/payments/webhooks/cashfree/${tenantKey}`,
+    webhookStripeAcademy: (tenantKey: string = ":tenantKey") => `/payments/webhooks/stripe/${tenantKey}`,
     // ── Manual / offline payments (admin OR coach) ──
     manual: {
       methods: "/payments/manual/methods",
@@ -683,6 +688,10 @@ export const API_ROUTES = {
     subscriptions: "/admin/payments/subscriptions",
     invoices: "/admin/payments/invoices",
     providerHealth: "/admin/payments/provider-health",
+    // The academy's own gateway keys (SaaS Phase 6; super admin only). Not
+    // under /admin/payments/: `GET /admin/payments/:id` would claim it.
+    gateways: "/admin/payment-gateways",
+    gateway: (provider: string = ":provider") => `/admin/payment-gateways/${provider}`,
     routing: "/admin/payments/routing",
     plans: "/admin/payments/plans",
     plan: (id: string = ":id") => `/admin/payments/plans/${id}`,
@@ -901,6 +910,12 @@ export const API_ROUTES = {
     admin: "/admin/subscription",
     /** The academy super admin's history of platform support visits (§I). */
     supportVisits: "/admin/subscription/support-visits",
+    /** Paying the platform (SaaS Phase 6): open checkouts and GST invoices. */
+    billing: "/admin/subscription/billing",
+    checkout: "/admin/subscription/checkout",
+    checkoutGet: (id: string = ":id") => `/admin/subscription/checkout/${id}`,
+    checkoutConfirm: (id: string = ":id") => `/admin/subscription/checkout/${id}/confirm`,
+    invoice: (id: string = ":id") => `/admin/subscription/invoices/${id}`,
     /** Content packs this academy's plan includes (§I "Content packs"). */
     contentPacks: "/content-packs",
     contentPackFolder: (packId: string = ":packId", itemId: string = ":itemId") =>
@@ -953,7 +968,17 @@ export const API_ROUTES = {
     tenantDomainPrimary: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
       `/platform/tenants/${tenantId}/domains/${domainId}/primary`,
     tenantDomainCheck: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
-      `/platform/tenants/${tenantId}/domains/${domainId}/check`
+      `/platform/tenants/${tenantId}/domains/${domainId}/check`,
+    tenantPayLink: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/pay-link`,
+    tenantInvoices: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/invoices`,
+    sellerDetails: "/platform/billing/seller",
+    invoices: "/platform/billing/invoices",
+    invoice: (id: string = ":id") => `/platform/billing/invoices/${id}`,
+    usage: "/platform/usage"
+  },
+  // The owner's gateway account (SaaS Phase 6): public, signature-verified.
+  platformBilling: {
+    webhookRazorpay: "/platform-billing/webhooks/razorpay"
   },
   health: {
     // Public, unauthenticated, not rate limited. `live` never touches a

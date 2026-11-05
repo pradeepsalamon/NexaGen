@@ -903,8 +903,8 @@ then checks the result against the host.
   academy. Jobs queued before the change still run (the row decides).
 - **LiveKit webhook:** the room's `LiveSession` row names the academy.
 - **Payment webhooks run as Nexa** (`gatewayTenantId`): every gateway credential
-  is in env and is Nexa's merchant account. Phase 6's per-academy credentials
-  and webhook URLs replace that one function.
+  is in env and is Nexa's merchant account. *(Replaced in Phase 6: see "Phase 6
+  as built".)*
 - Known follow-up for slice 5: `StorageSnapshot.capturedDate` is still globally
   unique, so the daily snapshot cron would collide once a second academy exists.
 
@@ -1090,7 +1090,7 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
   academy other than Nexa; only there are cookies host-only and named `nexa_h_*`.
   Nexa's hosts, cookies and absolute API URL are unchanged.
 - **5d (built 2026-11-05, migration `…_saas_academy_whatsapp`):** `whatsapp_settings` (one row per
-  academy, token AES-256-GCM encrypted with `WHATSAPP_CREDENTIALS_KEY`, else a key derived from
+  academy, token AES-256-GCM encrypted with `CREDENTIALS_ENCRYPTION_KEY`, else a key derived from
   `MFA_ENCRYPTION_KEY`), `GET/PUT /admin/branding/whatsapp` (the academy's super admin),
   `WhatsAppCredentialsService` (decrypted per academy in memory, loaded at boot and on save).
   `WhatsAppService.isConfigured()` and every send pick the request's academy: Nexa and work
@@ -1104,6 +1104,65 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
   `TenantBrandProvider` applies the fetched config.
 
 ---
+
+### Phase 6 as built (2026-11-05)
+
+| Slice | What | Proof |
+|---|---|---|
+| 6a | Academy → owner: `platform-billing/` (checkout, pay link, owner's Razorpay, webhook, hourly reconcile) | `platform-billing.int-spec.ts`: forged callback is a no-op, unsigned webhook refused and not stored, duplicate webhook safe, short payment ignored |
+| 6b | GST invoices from the owner: own number series per financial year, frozen snapshot, printable page | same spec: one invoice per payment, `NXP/yy-yy/00001` |
+| 6c | Student → academy: each academy's own gateway keys (`TenantPaymentCredential`), per-academy webhook URL | same spec: the academy's URL verifies with its secret only and writes only its rows |
+| 6d | Usage counters: nightly `TenantUsage` snapshot, console endpoint | — |
+
+- **Owner's account** (`platform-billing/platform-razorpay.client.ts`): its own
+  `PLATFORM_RAZORPAY_KEY_ID` / `_KEY_SECRET` / `_WEBHOOK_SECRET`, separate from the
+  student gateways (`payments/providers/`), so no adapter is imported outside
+  `payments/providers/`. Webhook: `POST /platform-billing/webhooks/razorpay`
+  (raw body, CSRF-exempt, always open in the plan gate). Events `payment.captured`
+  and `order.paid` settle; `payment.failed` notes the reason.
+- **Checkout** (`PlatformCheckout`): plan, period and price frozen at creation
+  (plan prices exclude GST; GST from `computeTax` with the owner's seller details
+  and the academy's own invoice details as the buyer). Our row first, then the
+  Razorpay order; an open checkout for the same plan, period and amount is reused.
+  Valid 7 days.
+- **Settlement** (`PlatformBillingService.settle`): one transaction: a
+  status-filtered claim on the checkout, `PlatformPayment` (unique
+  `gatewayPaymentId` and `checkoutId`), the period extended from the later of
+  now and the current period end, the plan switched if the checkout was for
+  another plan, `applyPaidPeriod` (ACTIVE stays ACTIVE with an event; anything
+  else goes through `applySubscriptionTransition`), and the invoice. The browser
+  callback only triggers a read of the order from Razorpay.
+- **Pay link:** the console creates a checkout for an academy (optionally with a
+  one-off price) and shows `/admin/subscription?checkout=<id>`; the owner sends it.
+- **Seller details:** console, `PlatformSellerSettings` (singleton); until saved,
+  Nexa's own academy's invoice details.
+- **Per-academy gateways:** `GatewayCredentialsService.envFor` gives each adapter
+  the server env with the gateway keys swapped for the current academy's (from
+  the TenantContext), or blanked when it has none. Nexa keeps the server env and
+  stores nothing. Secrets AES-256-GCM (`CREDENTIALS_ENCRYPTION_KEY`, else
+  `MFA_ENCRYPTION_KEY`). Webhooks for another academy arrive on
+  `/payments/webhooks/<provider>/<webhookKey>`; the key names the academy, its
+  secret verifies the event, and it is processed in that academy's context.
+  The old URLs (no key) stay Nexa's. Admin page: Payments → Gateways (super admins). The routes are `/admin/payment-gateways…`, not under `/admin/payments/`, whose `:id` route would claim them.
+
+### D5 contract and rehearsal (prepared 2026-11-05, not run)
+
+- `apps/api/prisma/contract/d5_saas_drop_global_uniques/`: `migration.sql` (23
+  global uniques dropped beside their per-academy twins, number sequences keyed
+  by `(tenantId, year)`, four hand-written global partial uniques dropped, and
+  the `'tenant_nexa'` default of all 155 `tenantId` columns replaced by
+  `nexa_tenant_required()`, which raises) and the matching `schema.patch`.
+  *(builder's call)* A raising default instead of none: with no default,
+  Prisma's create types make `tenantId` required and 483 call sites (which the
+  extension fills at runtime) would fail to compile. Outside `prisma/migrations/`, so nothing applies it;
+  its README has the promotion steps.
+- `scripts/saas/rehearse-d5.sh`: restores a backup into a `*_rehearsal`
+  database (local only unless `--allow-remote`; refuses live database names),
+  migrates, applies the contract, and fails unless row counts, money totals and
+  foreign keys are unchanged; then the rollback drill (restore into `*_rb`,
+  compare) with timings. Phase 7 runs it on a restored production backup.
+- The API type-checks against the patched schema (only the seed needed the
+  compound keys, changed now).
 
 ## M. Effort (rough)
 

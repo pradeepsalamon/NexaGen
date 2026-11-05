@@ -79,6 +79,54 @@ export async function applySubscriptionTransition(
 }
 
 /**
+ * A payment extended the paid-up period (a manual payment the owner recorded,
+ * or a gateway payment). An ACTIVE subscription keeps its status and logs the
+ * extension; any other status goes to ACTIVE through
+ * `applySubscriptionTransition`, the one status funnel (§G "State machine").
+ */
+export async function applyPaidPeriod(
+  tx: PrismaTransactionClient,
+  input: {
+    tenantId: string;
+    source: TenantSubscriptionEventSource;
+    actorUserId: string | null;
+    note?: string | null;
+    data: Prisma.TenantSubscriptionUncheckedUpdateInput;
+    changes: Record<string, unknown>;
+  }
+): Promise<TenantSubscription> {
+  const sub = await tx.tenantSubscription.findUnique({ include: { plan: true }, where: { tenantId: input.tenantId } });
+  if (!sub) throw new NotFoundException("This academy has no subscription.");
+  if (sub.status !== TenantSubscriptionStatus.ACTIVE) {
+    return applySubscriptionTransition(tx, {
+      actorUserId: input.actorUserId,
+      changes: input.changes,
+      data: input.data,
+      note: input.note ?? null,
+      source: input.source,
+      tenantId: input.tenantId,
+      to: TenantSubscriptionStatus.ACTIVE
+    });
+  }
+  const updated = await tx.tenantSubscription.update({ data: input.data, include: { plan: true }, where: { id: sub.id } });
+  await tx.tenantSubscriptionEvent.create({
+    data: {
+      actorUserId: input.actorUserId,
+      changes: input.changes as Prisma.InputJsonValue,
+      fromPlanCode: sub.plan.code,
+      fromStatus: sub.status,
+      note: input.note ?? null,
+      source: input.source,
+      subscriptionId: sub.id,
+      tenantId: input.tenantId,
+      toPlanCode: updated.plan.code,
+      toStatus: updated.status
+    }
+  });
+  return updated;
+}
+
+/**
  * Platform console: an academy's subscription (§G, §I "Subscriptions";
  * Phase 4c/4d), and the nightly lapse sweep.
  */
@@ -214,34 +262,14 @@ export class PlatformSubscriptionsService {
           tenantId
         }
       });
-      const data = { currentPeriodEnd: periodEnd, graceEndsAt: null, trialEndsAt: null };
-      if (sub.status === TenantSubscriptionStatus.ACTIVE) {
-        await tx.tenantSubscription.update({ data, where: { id: sub.id } });
-        await tx.tenantSubscriptionEvent.create({
-          data: {
-            actorUserId: actor.id,
-            changes: { amountMinor: body.amountMinor, paymentId: payment.id, periodEnd: periodEnd.toISOString() },
-            fromPlanCode: sub.plan.code,
-            fromStatus: sub.status,
-            note: body.note,
-            source: TenantSubscriptionEventSource.ADMIN,
-            subscriptionId: sub.id,
-            tenantId,
-            toPlanCode: sub.plan.code,
-            toStatus: sub.status
-          }
-        });
-      } else {
-        await applySubscriptionTransition(tx, {
-          actorUserId: actor.id,
-          changes: { amountMinor: body.amountMinor, paymentId: payment.id, periodEnd: periodEnd.toISOString() },
-          data,
-          note: body.note,
-          source: TenantSubscriptionEventSource.ADMIN,
-          tenantId,
-          to: TenantSubscriptionStatus.ACTIVE
-        });
-      }
+      await applyPaidPeriod(tx, {
+        actorUserId: actor.id,
+        changes: { amountMinor: body.amountMinor, paymentId: payment.id, periodEnd: periodEnd.toISOString() },
+        data: { currentPeriodEnd: periodEnd, graceEndsAt: null, trialEndsAt: null },
+        note: body.note,
+        source: TenantSubscriptionEventSource.ADMIN,
+        tenantId
+      });
       await writePlatformAudit(tx, {
         action: "subscription.payment",
         actorUserId: actor.id,

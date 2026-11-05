@@ -62,6 +62,7 @@ const PLATFORM_SAMPLE_BODIES: Record<string, unknown> = {
     superAdmin: { email: "probe@int.test", firstName: "P" }
   },
   "POST /platform/tenants/:tenantId/domains": { hostname: "probe.example" },
+  "POST /platform/tenants/:tenantId/pay-link": { period: "MONTHLY" },
   "POST /platform/tenants/:tenantId/payments": { amountMinor: 100, currentPeriodEnd: "2099-01-01T00:00:00.000Z", note: "probe" },
   "POST /platform/tenants/:tenantId/plan": { planCode: "GROWTH" },
   "POST /platform/tenants/:tenantId/reactivate": { reason: "probe" },

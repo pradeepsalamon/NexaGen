@@ -37,10 +37,10 @@ const apiEnvSchema = z.object({
     .min(32, "MFA_ENCRYPTION_KEY must be at least 32 characters.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
-  // Encrypts academies' own WhatsApp tokens at rest (SaaS §F). Unset = MFA_ENCRYPTION_KEY is used.
-  WHATSAPP_CREDENTIALS_KEY: z
+  // Encrypts academies' own WhatsApp tokens and payment gateway keys at rest (SaaS §F, §G). Unset = MFA_ENCRYPTION_KEY is used.
+  CREDENTIALS_ENCRYPTION_KEY: z
     .string()
-    .min(32, "WHATSAPP_CREDENTIALS_KEY must be at least 32 characters.")
+    .min(32, "CREDENTIALS_ENCRYPTION_KEY must be at least 32 characters.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
   // Roles that must sign in with two-factor (comma-separated; empty = none).
@@ -210,6 +210,10 @@ const apiEnvSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  // The owner's own Razorpay account: academies paying their plan (SaaS Phase 6).
+  PLATFORM_RAZORPAY_KEY_ID: z.string().optional(),
+  PLATFORM_RAZORPAY_KEY_SECRET: z.string().optional(),
+  PLATFORM_RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 
   CASHFREE_APP_ID: z.string().optional(),
   CASHFREE_SECRET_KEY: z.string().optional(),

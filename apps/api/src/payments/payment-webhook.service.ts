@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { DEFAULT_TENANT_ID, type PaymentProvider } from "@nexa-chess/types";
+import { DEFAULT_TENANT_ID, type PaymentProvider, type TenantGatewayProvider } from "@nexa-chess/types";
 import {
   Prisma,
   RefundStatus,
@@ -10,6 +10,7 @@ import {
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { runInTenant } from "../tenancy/tenant-context";
+import { GatewayCredentialsService } from "./gateway-credentials.service";
 import { PaymentService } from "./payment.service";
 import { toJson } from "./payments.util";
 import type { WebhookResult } from "./providers/payment-provider.interface";
@@ -38,21 +39,12 @@ const MAX_RECOVERY_ATTEMPTS = 6;
  * the HTTP response is still 200, because a provider that retries forever on a
  * bug of ours is worse than a row we can replay ourselves.
  */
-/**
- * The academy a gateway webhook belongs to. Today every gateway credential is
- * set in env and is Nexa's own merchant account, so it is Nexa. Phase 6 gives
- * each academy its own credentials and webhook URL, and this then names the
- * academy whose credentials verified the event (docs/SAAS_MULTI_TENANCY.md §G).
- */
-function gatewayTenantId(_provider: PaymentProvider): string {
-  return DEFAULT_TENANT_ID;
-}
-
 @Injectable()
 export class PaymentWebhookService {
   private readonly logger = new Logger(PaymentWebhookService.name);
 
   constructor(
+    private readonly credentials: GatewayCredentialsService,
     private readonly jobLocks: JobLockService,
     private readonly payments: PaymentService,
     private readonly prisma: PrismaService,
@@ -61,14 +53,27 @@ export class PaymentWebhookService {
     private readonly subscriptions: SubscriptionService
   ) {}
 
+  /**
+   * The academy is the one whose gateway account sent the event
+   * (docs/SAAS_MULTI_TENANCY.md §G "Two money flows" 2): the URL without a key
+   * is Nexa's (the server's env keys); `/payments/webhooks/<provider>/<key>`
+   * names another academy, and the adapter then verifies with that academy's
+   * own secret, because it runs inside that academy's context. An unknown or
+   * switched-off key is a 404, before anything is read or stored.
+   */
   async handle(
     provider: PaymentProvider,
     rawBody: string,
-    headers: Record<string, string | string[] | undefined>
+    headers: Record<string, string | string[] | undefined>,
+    tenantKey?: string
   ): Promise<{ received: true; status: WebhookEventStatus }> {
-    return runInTenant(gatewayTenantId(provider), `webhook:payments:${provider}`, () =>
-      this.handleNow(provider, rawBody, headers)
-    );
+    let tenantId = DEFAULT_TENANT_ID;
+    if (tenantKey !== undefined) {
+      const owner = await this.credentials.tenantForWebhookKey(provider as TenantGatewayProvider, tenantKey);
+      if (!owner) throw new NotFoundException("Unknown webhook address.");
+      tenantId = owner;
+    }
+    return runInTenant(tenantId, `webhook:payments:${provider}`, () => this.handleNow(provider, rawBody, headers));
   }
 
   private async handleNow(

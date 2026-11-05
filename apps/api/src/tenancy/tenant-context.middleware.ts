@@ -11,12 +11,13 @@ export function createTenantContextMiddleware(
   resolver: TenantResolverService,
   webhookPaths: readonly string[]
 ) {
-  const webhooks = new Set(webhookPaths);
+  // A path or anything below it (`/payments/webhooks/razorpay/<academy key>`).
+  const isWebhook = (path: string) => webhookPaths.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
   return (request: Request, _response: Response, next: NextFunction) => {
     resolver.resolveRequest(request).then(
       (store) =>
         runWithTenantContext(
-          { ...store, origin: webhooks.has(request.path) ? "webhook" : "request" },
+          { ...store, origin: isWebhook(request.path) ? "webhook" : "request" },
           () => next()
         ),
       (error: unknown) => next(error)

@@ -25,7 +25,8 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
     API_ROUTES.attendance.webhook,
     API_ROUTES.payments.webhookRazorpay,
     API_ROUTES.payments.webhookCashfree,
-    API_ROUTES.payments.webhookStripe
+    API_ROUTES.payments.webhookStripe,
+    API_ROUTES.platformBilling.webhookRazorpay
   ];
   // An academy's own ACTIVE domains are allowed too, for the CSRF check and
   // for CORS (docs/SAAS_MULTI_TENANCY.md §E "Sessions and cookies").
@@ -39,13 +40,15 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
     express.text({ type: "application/webhook+json" })
   );
 
-  // Payment gateways sign the exact request body. Parse these three routes as
+  // Payment gateways sign the exact request body. Parse these routes (and the
+  // per-academy paths below them, `app.use` matches by prefix) as
   // raw text BEFORE any JSON parser claims them — re-serialising JSON changes
   // the bytes and every signature check would then fail.
   for (const path of [
     API_ROUTES.payments.webhookRazorpay,
     API_ROUTES.payments.webhookCashfree,
-    API_ROUTES.payments.webhookStripe
+    API_ROUTES.payments.webhookStripe,
+    API_ROUTES.platformBilling.webhookRazorpay
   ]) {
     app.use(path, express.text({ type: "*/*", limit: "1mb" }));
   }

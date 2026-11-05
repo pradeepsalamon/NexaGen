@@ -11,7 +11,7 @@ export type AcademyWhatsAppCredentials = { accessToken: string; phoneNumberId: s
  * Another academy's own WhatsApp Business credentials (docs/SAAS_MULTI_TENANCY.md
  * §F "WhatsApp"; Phase 5d). Nexa keeps the server's env number; every other
  * academy sends only from its own, or not at all. Tokens are stored encrypted
- * (AES-256-GCM, key from `WHATSAPP_CREDENTIALS_KEY`, else `MFA_ENCRYPTION_KEY`) and kept decrypted in
+ * (AES-256-GCM, key from `CREDENTIALS_ENCRYPTION_KEY`, else `MFA_ENCRYPTION_KEY`) and kept decrypted in
  * memory per academy, because `WhatsAppService.isConfigured()` is synchronous.
  */
 @Injectable()
@@ -19,7 +19,7 @@ export class WhatsAppCredentialsService implements OnModuleInit {
   private readonly logger = new Logger(WhatsAppCredentialsService.name);
   private readonly env = getApiEnv();
   private readonly key = (() => {
-    const secret = this.env.WHATSAPP_CREDENTIALS_KEY ?? this.env.MFA_ENCRYPTION_KEY;
+    const secret = this.env.CREDENTIALS_ENCRYPTION_KEY ?? this.env.MFA_ENCRYPTION_KEY;
     return secret ? deriveMfaKey(`whatsapp:${secret}`) : null;
   })();
   private readonly byTenant = new Map<string, AcademyWhatsAppCredentials>();
@@ -43,7 +43,7 @@ export class WhatsAppCredentialsService implements OnModuleInit {
   }
 
   encrypt(token: string): string {
-    if (!this.key) throw new Error("WHATSAPP_CREDENTIALS_KEY / MFA_ENCRYPTION_KEY is not set.");
+    if (!this.key) throw new Error("CREDENTIALS_ENCRYPTION_KEY / MFA_ENCRYPTION_KEY is not set.");
     return encryptSecret(token, this.key);
   }
 

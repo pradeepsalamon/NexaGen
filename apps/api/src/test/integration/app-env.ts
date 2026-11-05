@@ -1,12 +1,16 @@
 // Imported first by app.ts: AppModule's decorators read getApiEnv() at import time.
 export const TEST_ORIGIN = "http://localhost:3000";
 export const TEST_ACCESS_SECRET = "integration-access-secret-0123456789abcdef";
+/** The owner's Razorpay webhook secret (SaaS Phase 6); order calls are mocked in the spec. */
+export const TEST_PLATFORM_RAZORPAY_WEBHOOK_SECRET = "integration-platform-webhook-secret";
 
 Object.assign(process.env, {
   // Blank, not unset: Prisma's loader copies apps/api/.env into any unset var, so a
   // box with a real .env would otherwise send these tests' mail to the real admins.
   ADMIN_EMAILS: "",
   CORS_ORIGIN: TEST_ORIGIN,
+  // Encrypts academies' stored WhatsApp and gateway credentials.
+  CREDENTIALS_ENCRYPTION_KEY: "integration-credentials-key-0123456789abcdef",
   // Analyses are only queued; specs drive GameAnalysisWorker.claim/run themselves.
   GAME_ANALYSIS_WORKER: "false",
   JWT_ACCESS_SECRET: TEST_ACCESS_SECRET,
@@ -18,10 +22,12 @@ Object.assign(process.env, {
   LIVEKIT_URL: "http://127.0.0.1:7880",
   LOG_LEVEL: "silent",
   NODE_ENV: "test",
+  PLATFORM_RAZORPAY_KEY_ID: "rzp_test_platform",
+  PLATFORM_RAZORPAY_KEY_SECRET: "integration-platform-key-secret",
+  PLATFORM_RAZORPAY_WEBHOOK_SECRET: TEST_PLATFORM_RAZORPAY_WEBHOOK_SECRET,
   REDIS_URL: "",
   SMTP_FROM: "",
   SMTP_HOST: "",
   SMTP_PASS: "",
-  SMTP_USER: "",
-  WHATSAPP_CREDENTIALS_KEY: "integration-whatsapp-key-0123456789abcdef"
+  SMTP_USER: ""
 });

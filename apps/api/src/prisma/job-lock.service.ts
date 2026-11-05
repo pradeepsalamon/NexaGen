@@ -24,9 +24,11 @@ export const JOB_LOCKS = {
   paymentReconciliation: "payments.reconciliation",
   paymentWebhookRecovery: "payments.webhook-recovery",
   payslipPdfSweep: "payroll.payslip-pdf-sweep",
+  platformCheckoutReconcile: "platform.checkout-reconcile",
   platformSubscriptionLapse: "platform.subscription-lapse",
   refundReconciliation: "payments.refund-reconciliation",
   retentionSweep: "retention.sweep",
+  tenantUsageSnapshot: "platform.tenant-usage",
   trashCleanup: "trash.cleanup"
 } as const;
 

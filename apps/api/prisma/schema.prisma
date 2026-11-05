@@ -6184,6 +6184,9 @@ model Tenant {
   supportSessions    PlatformSupportSession[]
   subscription       TenantSubscription?
   subscriptionEvents TenantSubscriptionEvent[]
+  platformCheckouts  PlatformCheckout[]
+  platformInvoices   PlatformInvoice[]
+  usage              TenantUsage?
 
   @@map("tenants")
 }
@@ -6253,6 +6256,7 @@ model PlatformPlan {
   subscriptions        TenantSubscription[]
   pendingSubscriptions TenantSubscription[]  @relation("PendingPlan")
   versions             PlatformPlanVersion[]
+  checkouts            PlatformCheckout[]
 
   @@index([sortOrder])
   @@map("platform_plans")
@@ -6339,23 +6343,172 @@ enum PlatformPaymentMethod {
 /// Money an academy paid the platform for its SaaS plan (§G "Two money flows").
 /// Platform table; never touches student payments. Phase 6 adds gateway payments.
 model PlatformPayment {
-  id           String                @id @default(cuid())
-  tenantId     String
-  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  method       PlatformPaymentMethod
-  amountMinor  Int
-  currency     String                @default("INR")
+  id               String                @id @default(cuid())
+  tenantId         String
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  method           PlatformPaymentMethod
+  amountMinor      Int
+  currency         String                @default("INR")
   /// Bank reference, cheque number, or the gateway's payment id.
-  reference    String?
+  reference        String?
   /// The paid-up period this payment extends the subscription to.
-  periodEnd    DateTime
-  note         String?
-  recordedById String?
-  recordedBy   User?                 @relation("PlatformPaymentRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
-  createdAt    DateTime              @default(now())
+  periodEnd        DateTime
+  note             String?
+  recordedById     String?
+  recordedBy       User?                 @relation("PlatformPaymentRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  /// Gateway payments (Phase 6): the provider's payment id, so a payment is applied once.
+  gatewayPaymentId String?               @unique
+  /// The checkout this payment settled (Phase 6).
+  checkoutId       String?               @unique
+  checkout         PlatformCheckout?     @relation(fields: [checkoutId], references: [id], onDelete: Restrict)
+  createdAt        DateTime              @default(now())
+  invoice          PlatformInvoice?
 
   @@index([tenantId, createdAt])
   @@map("platform_payments")
+}
+
+enum PlatformBillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+enum PlatformCheckoutStatus {
+  CREATED
+  PAID
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+/// One attempt to pay the platform (SaaS Phase 6, §G "Two money flows" 1): a
+/// plan, a period and a price frozen when it was created, and the Razorpay
+/// order on the owner's account. Only a provider read (webhook or reconcile)
+/// marks it PAID; the browser callback never does.
+model PlatformCheckout {
+  id                String                 @id @default(cuid())
+  tenantId          String
+  tenant            Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  planId            String
+  plan              PlatformPlan           @relation(fields: [planId], references: [id], onDelete: Restrict)
+  period            PlatformBillingPeriod
+  /// Integer minor units, frozen at creation: price before GST, GST, total.
+  subtotalMinor     Int
+  taxMinor          Int
+  amountMinor       Int
+  currency          String                 @default("INR")
+  /// TaxBreakdown from the shared engine, frozen with the price.
+  taxBreakdown      Json                   @default("{}")
+  status            PlatformCheckoutStatus @default(CREATED)
+  /// The Razorpay order id; unique so a webhook names exactly one checkout.
+  providerOrderId   String?                @unique
+  expiresAt         DateTime
+  paidAt            DateTime?
+  /// A pay link the owner sent from the console (vs. one the academy started).
+  createdByPlatform Boolean                @default(false)
+  createdById       String?
+  note              String?
+  failureReason     String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  payment           PlatformPayment?
+
+  @@index([tenantId, status])
+  @@map("platform_checkouts")
+}
+
+/// Every verified webhook from the owner's gateway account, once (Phase 6).
+/// The unique (provider, eventId) makes a redelivery a no-op.
+model PlatformWebhookEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  eventId     String
+  eventType   String
+  payloadHash String
+  /// RECEIVED | PROCESSED | IGNORED | FAILED
+  status      String    @default("RECEIVED")
+  error       String?
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@unique([provider, eventId])
+  @@index([receivedAt])
+  @@map("platform_webhook_events")
+}
+
+/// A GST invoice from the owner to an academy (Phase 6). A frozen snapshot:
+/// never edited after it is issued.
+model PlatformInvoice {
+  id            String          @id @default(cuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  paymentId     String          @unique
+  payment       PlatformPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  /// Own number series, e.g. NXP/2026-27/0001.
+  number        String          @unique
+  financialYear Int
+  sequence      Int
+  issuedAt      DateTime        @default(now())
+  /// Seller, buyer, lines and tax at issue time (PlatformInvoiceView without ids).
+  snapshot      Json
+  totalMinor    Int
+  currency      String          @default("INR")
+
+  @@unique([financialYear, sequence])
+  @@index([tenantId, issuedAt])
+  @@map("platform_invoices")
+}
+
+/// The platform invoice number series, one row per financial year (an atomic increment, no raw SQL).
+model PlatformInvoiceCounter {
+  financialYear Int @id
+  lastSequence  Int @default(0)
+
+  @@map("platform_invoice_counters")
+}
+
+/// The owner's company details on platform invoices (singleton row id "platform").
+model PlatformSellerSettings {
+  id          String   @id @default("platform")
+  details     Json     @default("{}")
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("platform_seller_settings")
+}
+
+/// Nightly usage counts per academy (Phase 6, §G "Enforcement"): for the
+/// console. Limits are still checked against live counts inside the creating
+/// transaction; this is a reconciled snapshot, never the enforcement source.
+model TenantUsage {
+  tenantId   String   @id
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  counts     Json     @default("{}")
+  measuredAt DateTime @default(now())
+
+  @@map("tenant_usage")
+}
+
+/// An academy's own gateway keys for student payments (Phase 6, §G "Two money
+/// flows" 2). Nexa's academy keeps the server's env keys and has no row. The
+/// secrets are AES-256-GCM encrypted; `webhookKey` is the random last segment
+/// of the academy's webhook URL and names the academy before any secret is read.
+model TenantPaymentCredential {
+  id               String          @id @default(cuid())
+  tenantId         String          @default("tenant_nexa")
+  provider         PaymentProvider
+  enabled          Boolean         @default(false)
+  /// Razorpay key id, Cashfree app id or Stripe publishable key (not secret).
+  publicKey        String
+  /// Encrypted JSON {keySecret, webhookSecret}.
+  secretsEncrypted String
+  webhookKey       String          @unique
+  updatedById      String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([tenantId, provider])
+  @@map("tenant_payment_credentials")
 }
 
 /// "Open as support" (docs/SAAS_MULTI_TENANCY.md §I "Support access"): a Nexa

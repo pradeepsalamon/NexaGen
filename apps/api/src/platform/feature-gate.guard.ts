@@ -18,6 +18,8 @@ const ALWAYS_OPEN_PREFIXES = [
   "/health",
   "/payments/webhooks",
   "/platform",
+  // The owner's gateway webhook: an academy's plan payment must settle even when it is locked.
+  "/platform-billing",
   "/privacy",
   "/subscription",
   // The academy's public config and domain check: the login page needs them even when locked.

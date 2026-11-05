@@ -14,16 +14,22 @@ export const PLATFORM_MODELS = {
   LichessCatalogueRelease: "Shared read-only Lichess catalogue",
   LichessPuzzle: "Shared read-only Lichess catalogue (a built-in content pack)",
   PlatformAuditLog: "Platform-console audit log (§I), across academies",
+  PlatformCheckout: "An academy paying the platform (§G), keyed by tenantId (with FK)",
+  PlatformInvoice: "The owner's GST invoices to academies (§G), keyed by tenantId (with FK)",
+  PlatformInvoiceCounter: "The owner's invoice number series, one per financial year",
   PlatformPayment: "What academies paid the platform (§G), keyed by tenantId (with FK)",
   PlatformPlan: "SaaS tiers, the same for every academy",
   PlatformPlanVersion: "Frozen plan versions (§G)",
+  PlatformSellerSettings: "The owner's company details on platform invoices (singleton)",
   PlatformStaff: "Retired: platform powers are Nexa's SUPER_ADMINs (§E); table kept, unused",
   PlatformSupportSession: "Support visits by Nexa staff (§I), keyed by tenantId (with FK)",
+  PlatformWebhookEvent: "Webhooks from the owner's gateway account (§G), across academies",
   ProcessedWebhookEvent: "LiveKit event ids are globally unique",
   Tenant: "The academies themselves",
   TenantDomain: "Host → academy map, read before any academy is known",
   TenantSubscription: "Platform billing state, keyed by tenantId (with FK)",
-  TenantSubscriptionEvent: "Platform billing log, keyed by tenantId (with FK)"
+  TenantSubscriptionEvent: "Platform billing log, keyed by tenantId (with FK)",
+  TenantUsage: "Nightly usage counts per academy for the console (§G), keyed by tenantId (with FK)"
 } as const satisfies Partial<Record<Prisma.ModelName, string>>;
 
 export type PlatformModel = keyof typeof PLATFORM_MODELS;

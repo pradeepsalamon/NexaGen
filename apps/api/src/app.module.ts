@@ -63,6 +63,7 @@ import { ChatModule } from "./chat/chat.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { BrandingModule } from "./branding/branding.module";
 import { PlatformModule } from "./platform/platform.module";
+import { PlatformBillingModule } from "./platform-billing/platform-billing.module";
 import { FeatureGateGuard } from "./platform/feature-gate.guard";
 import { TenancyModule } from "./tenancy/tenancy.module";
 
@@ -85,6 +86,7 @@ import { TenancyModule } from "./tenancy/tenancy.module";
     PrismaModule, 
     PlatformModule,
     BrandingModule,
+    PlatformBillingModule,
     AuthModule, 
     BatchModule,
     BatchScheduleModule,
