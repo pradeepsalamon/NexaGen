@@ -22,14 +22,17 @@ type LogoProps = {
   onDark?: boolean;
 };
 
-/** An academy's own logo (or its name) on its own address (docs/SAAS_MULTI_TENANCY.md §F). */
+/**
+ * An academy's own logo (or its name) on its own address (docs/SAAS_MULTI_TENANCY.md §F).
+ * Width-capped: a long name or a wide upload must not push the header's menu off a phone.
+ */
 function AcademyLogo({ height, onDark }: { height: number; onDark: boolean }) {
   const { config, name } = useTenantBrand();
   const light = config?.logoLightUrl ?? config?.logoDarkUrl ?? null;
   const dark = config?.logoDarkUrl ?? config?.logoLightUrl ?? null;
   if (!light && !dark) {
     return name ? (
-      <span className="academy-brand-only truncate font-display text-lg font-extrabold leading-none" style={{ lineHeight: `${height}px` }}>
+      <span className="academy-brand-only max-w-[40vw] truncate font-display text-lg font-extrabold leading-none sm:max-w-xs" style={{ lineHeight: `${height}px` }}>
         {name}
       </span>
     ) : (
@@ -39,11 +42,11 @@ function AcademyLogo({ height, onDark }: { height: number; onDark: boolean }) {
   // Remote images the academy uploaded (Cloudinary); next/image would need every host allow-listed.
   /* eslint-disable @next/next/no-img-element */
   return onDark ? (
-    <img alt={name} className="academy-brand-only w-auto object-contain" src={dark ?? light ?? ""} style={{ height }} />
+    <img alt={name} className="academy-brand-only w-auto max-w-[40vw] object-contain sm:max-w-xs" src={dark ?? light ?? ""} style={{ height }} />
   ) : (
     <>
-      <img alt={name} className="academy-brand-only w-auto object-contain dark:hidden" src={light ?? ""} style={{ height }} />
-      <img alt={name} className="academy-brand-only hidden w-auto object-contain dark:block" src={dark ?? ""} style={{ height }} />
+      <img alt={name} className="academy-brand-only w-auto max-w-[40vw] object-contain sm:max-w-xs dark:hidden" src={light ?? ""} style={{ height }} />
+      <img alt={name} className="academy-brand-only hidden w-auto max-w-[40vw] object-contain sm:max-w-xs dark:block" src={dark ?? ""} style={{ height }} />
     </>
   );
   /* eslint-enable @next/next/no-img-element */
