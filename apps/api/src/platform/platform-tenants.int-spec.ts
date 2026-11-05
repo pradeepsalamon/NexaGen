@@ -15,7 +15,8 @@ describe("platform console: academies (real app, real Postgres)", () => {
     t.call(users.superAdmin, "POST", API_ROUTES.platform.tenants, {
       idempotencyKey: "create-acme-0001",
       name: "Acme Chess",
-      planCode: "GROWTH",
+      // Business: it includes `customDomain`, which the domain tests below need.
+      planCode: "BUSINESS",
       slug: "acme",
       superAdmin: { email: "owner@acme.int.test", firstName: "Asha" },
       ...overrides
@@ -42,7 +43,7 @@ describe("platform console: academies (real app, real Postgres)", () => {
     const tenant = (first.body as PlatformTenantResponse).tenant;
     expect(tenant).toMatchObject({
       name: "Acme Chess",
-      plan: { code: "GROWTH" },
+      plan: { code: "BUSINESS" },
       primaryHost: "acme.nexachess.in",
       slug: "acme",
       status: "ACTIVE"

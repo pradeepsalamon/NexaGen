@@ -1,3 +1,4 @@
+import { runWithTenantContext } from "../tenancy/tenant-context";
 import { BadRequestException, Logger, ServiceUnavailableException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import * as configModule from "@nexa-chess/config/api";
@@ -129,6 +130,31 @@ describe("WhatsAppService", () => {
         service.sendText({ to: "+919876543210", body: "hi" })
       ).rejects.toBeInstanceOf(ServiceUnavailableException);
       expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("per academy (§F WhatsApp)", () => {
+    const academy = (tenantId: string) => ({ host: null, label: "spec", source: "host" as const, tenantId });
+
+    it("another academy never uses the server's number; it sends from its own or not at all", async () => {
+      const service = await setupService();
+      const credentials = { forTenant: jest.fn().mockReturnValue(null) };
+      (service as unknown as { credentials: typeof credentials }).credentials = credentials;
+
+      runWithTenantContext(academy("tenant_other"), () => {
+        expect(service.isConfigured()).toBe(false);
+      });
+
+      credentials.forTenant.mockReturnValue({ accessToken: "academy-token", phoneNumberId: "4455" });
+      fetchMock.mockResolvedValue(new Response(JSON.stringify({ messages: [{ id: "wamid.1" }] }), { status: 200 }));
+      await runWithTenantContext(academy("tenant_other"), () => service.sendText({ body: "hi", to: "+919876543210" }));
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain("/4455/messages");
+      expect((init.headers as Record<string, string>).Authorization).toBe("Bearer academy-token");
+
+      runWithTenantContext(academy("tenant_nexa"), () => {
+        expect(service.isConfigured()).toBe(true);
+      });
     });
   });
 

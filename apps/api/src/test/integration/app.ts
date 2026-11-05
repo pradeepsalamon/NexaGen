@@ -65,7 +65,11 @@ export async function createTestApp() {
     options: { origin?: string } = {}
   ): Promise<CallResult> => {
     const headers: Record<string, string> = { Origin: options.origin ?? ORIGIN };
-    if (user) headers.Cookie = `nexa_access_token=${await tokenFor(user)}`;
+    if (user) {
+      // Both names: Nexa's hosts read the first, an academy's own address the host-only one (§E).
+      const token = await tokenFor(user);
+      headers.Cookie = `nexa_access_token=${token}; nexa_h_access_token=${token}`;
+    }
     if (body !== undefined) headers["Content-Type"] = "application/json";
     const res = await fetch(`${baseUrl.replace("[::1]", "127.0.0.1")}${path}`, {
       body: body === undefined ? undefined : JSON.stringify(body),

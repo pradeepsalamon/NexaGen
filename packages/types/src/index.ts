@@ -2646,6 +2646,7 @@ export * from "./system-messages";
 // Payments: provider-agnostic checkout, refunds, subscriptions, invoices
 // ──────────────────────────────────────────────
 export * from "./payments";
+export * from "./tenant-branding";
 
 // Invoicing: tax engine, invoice + credit-note documents, billing settings
 export * from "./invoices";

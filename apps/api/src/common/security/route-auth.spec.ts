@@ -12,6 +12,8 @@ const PUBLIC_ROUTES = new Set([
   "auth/auth.controller.ts#forgotPassword",
   "auth/auth.controller.ts#resetPassword",
   "auth/auth.controller.ts#verifyEmail",
+  // Public by host: the academy's look before sign-in, and the domain check echo (§F, §H).
+  "branding/branding.controller.ts#publicConfig",
   "health/health.controller.ts#live",
   "health/health.controller.ts#ready",
   "live-class/live-class.controller.ts#getDemoInfo",

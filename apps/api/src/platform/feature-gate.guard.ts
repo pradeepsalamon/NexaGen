@@ -20,6 +20,8 @@ const ALWAYS_OPEN_PREFIXES = [
   "/platform",
   "/privacy",
   "/subscription",
+  // The academy's public config and domain check: the login page needs them even when locked.
+  "/tenant",
   "/webhooks"
 ];
 

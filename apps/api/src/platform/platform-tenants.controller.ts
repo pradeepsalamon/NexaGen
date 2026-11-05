@@ -92,6 +92,11 @@ export class PlatformTenantsController {
     return this.tenants.removeDomain(this.getAccessToken(request), tenantId, domainId);
   }
 
+  @Post(API_ROUTES.platform.tenantDomainCheck())
+  checkDomain(@Req() request: Request, @Param("tenantId") tenantId: string, @Param("domainId") domainId: string) {
+    return this.tenants.checkDomain(this.getAccessToken(request), tenantId, domainId);
+  }
+
   @Post(API_ROUTES.platform.tenantDomainPrimary())
   makePrimary(@Req() request: Request, @Param("tenantId") tenantId: string, @Param("domainId") domainId: string) {
     return this.tenants.makePrimary(this.getAccessToken(request), tenantId, domainId);

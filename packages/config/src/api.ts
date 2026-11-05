@@ -37,6 +37,12 @@ const apiEnvSchema = z.object({
     .min(32, "MFA_ENCRYPTION_KEY must be at least 32 characters.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  // Encrypts academies' own WhatsApp tokens at rest (SaaS §F). Unset = MFA_ENCRYPTION_KEY is used.
+  WHATSAPP_CREDENTIALS_KEY: z
+    .string()
+    .min(32, "WHATSAPP_CREDENTIALS_KEY must be at least 32 characters.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   // Roles that must sign in with two-factor (comma-separated; empty = none).
   MFA_REQUIRED_ROLES: z.string().default("SUPER_ADMIN,ADMIN"),
   NODE_ENV: z.string().default("development"),

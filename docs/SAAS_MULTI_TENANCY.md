@@ -1070,6 +1070,39 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
   `/admin/content-packs`, "Support visits" on `/admin/subscription`. The nav shows the
   console only when `AuthUser.isPlatformOperator`.
 
+### Phase 5 plan
+
+| Slice | Scope | Done when |
+|---|---|---|
+| 5a | Branding features `brandIdentity`, `customDomain`, `whiteLabel` (catalogued, per plan); `TenantBranding`; public config by host; admin branding API (contrast-checked colours, PNG/JPEG/WebP assets); domain check; 30-day hold; email sender name / Reply-To; MFA issuer = academy | `branding.int-spec.ts` green |
+| 5b | Same-origin `/api` on academy hosts (`lib/apiBase.ts`, nginx rule, Next rewrite fallback); host-only cookies named apart; Nexa's domain-wide cookie dropped on academy hosts; refresh binds the session's academy | A login on an academy host sets only host-only cookies; Nexa's cookie is refused there |
+| 5c | Web: `TenantBrandProvider` (palette, favicon, titles, logo, copy), pre-paint `data-host`, academy home page, `/admin/branding`, console "Check" + nginx block, VPS checklist ([DEPLOYMENT.md](DEPLOYMENT.md) Step 4c) | Pages build; no horizontal overflow |
+| 5d | Per-academy WhatsApp credentials (encrypted); no shared Nexa number for others | A second academy without credentials sends no WhatsApp |
+| 5e | Brand strings out of code (the remaining "Nexa" copy), white-label smoke test | The smoke test finds no "Nexa" on a white-label academy |
+
+**5a–5c (built 2026-11-05, migration `20261104212053_saas_tenant_branding`).**
+- API: `branding/` (`BrandingService`, `PublicBrandingController`, `BrandingController`),
+  `tenancy/domain-check.service.ts`, `auth/auth-cookies.ts` (`HOST_ONLY_COOKIE_NAMES`,
+  `aliasHostOnlyCookies` after `cookie-parser`), `POST /platform/tenants/:id/domains/:domainId/check`.
+  Contract: `@nexa-chess/types` `tenant-branding.ts` (schemas, `brandColorIssue`,
+  `deriveBrandPalette`, `brandPaletteCss`).
+- Rules: a host is "an academy's own" when it resolves through `tenant_domains` to an
+  academy other than Nexa; only there are cookies host-only and named `nexa_h_*`.
+  Nexa's hosts, cookies and absolute API URL are unchanged.
+- **5d (built 2026-11-05, migration `…_saas_academy_whatsapp`):** `whatsapp_settings` (one row per
+  academy, token AES-256-GCM encrypted with `WHATSAPP_CREDENTIALS_KEY`, else a key derived from
+  `MFA_ENCRYPTION_KEY`), `GET/PUT /admin/branding/whatsapp` (the academy's super admin),
+  `WhatsAppCredentialsService` (decrypted per academy in memory, loaded at boot and on save).
+  `WhatsAppService.isConfigured()` and every send pick the request's academy: Nexa and work
+  outside an academy use the env number; any other academy only its own, else WhatsApp is off.
+- **5e (partial, 2026-11-05):** `useBrandName()` replaces "Nexa Chess" in the auth pages,
+  sidebars, sign-out dialog, checkout (also the gateway's merchant name), referrals, payroll,
+  class titles and acquisition analytics. Opt-in smoke test `e2e/white-label.spec.ts`
+  (`RUN_WHITE_LABEL_E2E=1 ACADEMY_BASE_URL=…`). Still to do: see `docs/BACKLOG.md` (Phase 5 item 11).
+- Web theming is client-side (builder's call): the root layout stays static for Nexa; an
+  inline script sets `data-host` and the last saved palette before first paint, and
+  `TenantBrandProvider` applies the fetched config.
+
 ---
 
 ## M. Effort (rough)

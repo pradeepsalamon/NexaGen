@@ -76,6 +76,27 @@ export class UploadService {
     });
   }
 
+  /** An academy's logo, favicon or login image (docs/SAAS_MULTI_TENANCY.md §F): public by nature. */
+  uploadBrandAsset(file: Express.Multer.File, kind: string): Promise<UploadApiResponse> {
+    assertUploadsConfigured();
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+          folder: `${tenantStorageRoot()}/branding`,
+          public_id: `${kind}_${Date.now()}`,
+          use_filename: false,
+        },
+        (error, result) => {
+          if (error) return reject(new BadRequestException(error.message));
+          resolve(result as UploadApiResponse);
+        },
+      );
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+
   uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
     assertUploadsConfigured();
     return new Promise((resolve, reject) => {

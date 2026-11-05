@@ -8,6 +8,7 @@ import {
   type AddPlatformTenantDomainRequest,
   type CreatePlatformTenantRequest,
   type PlatformAuditResponse,
+  type PlatformDomainCheckResponse,
   type PlatformTenantDetail,
   type PlatformTenantDomainItem,
   type PlatformTenantResponse,
@@ -34,8 +35,10 @@ import { isUniqueViolation } from "../payments/payments.util";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { normalizeHostname } from "../tenancy/hostname";
 import { asPlatform, runInTenant } from "../tenancy/tenant-context";
+import { DomainCheckService } from "../tenancy/domain-check.service";
 import { TenantResolverService } from "../tenancy/tenant-resolver.service";
 import { EntitlementService } from "./entitlement.service";
+import { PlanRestrictionException } from "./plan-restriction.exception";
 import { assertPlatformOperator, writePlatformAudit } from "./platform-operator";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60_000;
@@ -53,6 +56,8 @@ const TENANT_INCLUDE = { domains: true, subscription: { include: { plan: true } 
  * (usage, users) run inside that academy (`runInTenant`); platform tables
  * (tenants, domains, subscriptions) are read directly.
  */
+const REMOVED_HOLD_MS = 30 * 86_400_000;
+
 @Injectable()
 export class PlatformTenantsService {
   private readonly logger = new Logger(PlatformTenantsService.name);
@@ -63,7 +68,8 @@ export class PlatformTenantsService {
     private readonly jwtService: JwtService,
     private readonly mail: MailService,
     private readonly prisma: PrismaService,
-    private readonly resolver: TenantResolverService
+    private readonly resolver: TenantResolverService,
+    private readonly domainCheck: DomainCheckService
   ) {}
 
   private async operator(accessToken: string | undefined) {
@@ -326,8 +332,16 @@ export class PlatformTenantsService {
     if (hostname === this.env.PLATFORM_ROOT_DOMAIN || hostname.endsWith(`.${this.env.PLATFORM_ROOT_DOMAIN}`)) {
       throw new BadRequestException("Addresses under the platform's own domain are given by the academy's slug.");
     }
+    // An academy's own domain is a plan feature (§F, owner decision N-9: each branding item is catalogued).
+    if (!(await this.entitlements.getState(tenantId)).features.includes("customDomain")) {
+      throw PlanRestrictionException.featureRequired("customDomain");
+    }
     const existing = await this.prisma.tenantDomain.findUnique({ where: { hostname } });
     if (existing && existing.status !== TenantDomainStatus.REMOVED) throw new ConflictException("That domain is already in use.");
+    // §H: a removed hostname is held for 30 days before another academy can claim it.
+    if (existing && existing.tenantId !== tenantId && Date.now() - existing.updatedAt.getTime() < REMOVED_HOLD_MS) {
+      throw new ConflictException("That domain was removed from another academy recently; it is held for 30 days.");
+    }
     await this.prisma.$transaction(async (tx) => {
       if (existing) {
         await tx.tenantDomain.update({
@@ -341,6 +355,37 @@ export class PlatformTenantsService {
     });
     this.resolver.invalidate(hostname);
     return { tenant: await this.detail(tenantId) };
+  }
+
+  /**
+   * The console's "check" (§H "Full domains"): proves the host's `/api` rule
+   * reaches this deployment, then marks a PENDING domain ACTIVE. The result
+   * is kept on the row either way.
+   */
+  async checkDomain(accessToken: string | undefined, tenantId: string, domainId: string): Promise<PlatformDomainCheckResponse> {
+    const actor = await this.operator(accessToken);
+    const domain = await this.domainOrThrow(tenantId, domainId);
+    if (domain.status === TenantDomainStatus.REMOVED) throw new BadRequestException("That domain was removed.");
+    const scheme = getFrontendUrl(this.env).startsWith("http://") ? "http" : "https";
+    const outcome = await this.domainCheck.check(domain.hostname, scheme);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.tenantDomain.update({
+        data: {
+          lastCheckResult: outcome.result.slice(0, 500),
+          lastCheckedAt: new Date(),
+          ...(outcome.ok && domain.status === TenantDomainStatus.PENDING ? { status: TenantDomainStatus.ACTIVE } : {})
+        },
+        where: { id: domain.id }
+      });
+      await writePlatformAudit(tx, {
+        action: "domain.check",
+        actorUserId: actor.id,
+        details: { hostname: domain.hostname, ok: outcome.ok },
+        targetTenantId: tenantId
+      });
+    });
+    this.resolver.invalidate(domain.hostname);
+    return outcome;
   }
 
   async removeDomain(accessToken: string | undefined, tenantId: string, domainId: string): Promise<PlatformTenantResponse> {

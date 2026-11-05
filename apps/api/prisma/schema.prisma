@@ -705,6 +705,53 @@ enum EmailVerificationPolicy {
   REQUIRED
 }
 
+/// An academy's look (docs/SAAS_MULTI_TENANCY.md §F; Phase 5): one row per
+/// academy, written by its admins when the plan has `brandIdentity`. Images are
+/// public URLs under `tenants/<id>/branding/`. Colours are stored as hex and
+/// contrast-checked on save; the web derives the theme variables from them.
+model TenantBranding {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique @default("tenant_nexa")
+  displayName     String?
+  tagline         String?
+  primaryColor    String?
+  accentColor     String?
+  defaultTheme    String   @default("system")
+  logoLightUrl    String?
+  logoDarkUrl     String?
+  faviconUrl      String?
+  loginImageUrl   String?
+  contactEmail    String?
+  contactPhone    String?
+  seoTitle        String?
+  seoDescription  String?
+  emailSenderName String?
+  replyToEmail    String?
+  /// With the plan's `whiteLabel`: hide "Powered by NexaChess" (on by default; the academy may show it).
+  hidePoweredBy   Boolean  @default(true)
+  updatedById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("tenant_brandings")
+}
+
+/// An academy's own WhatsApp Business number (docs/SAAS_MULTI_TENANCY.md §F
+/// "WhatsApp"; Phase 5d). Nexa uses the server's env number and has no row.
+/// The token is AES-256-GCM encrypted (WHATSAPP_CREDENTIALS_KEY, else MFA_ENCRYPTION_KEY).
+model WhatsAppSettings {
+  id                   String   @id @default(cuid())
+  tenantId             String   @unique @default("tenant_nexa")
+  enabled              Boolean  @default(false)
+  phoneNumberId        String?
+  accessTokenEncrypted String?
+  updatedById          String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("whatsapp_settings")
+}
+
 /// One row per academy (Nexa's is id "default"). No row means OFF.
 model EmailSettings {
   id                 String                  @id @default("default")

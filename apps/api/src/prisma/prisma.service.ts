@@ -79,6 +79,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.emailSettings;
   }
 
+  get tenantBranding() {
+    return this.client.tenantBranding;
+  }
+
+  get whatsAppSettings() {
+    return this.client.whatsAppSettings;
+  }
+
   get directEmail() {
     return this.client.directEmail;
   }

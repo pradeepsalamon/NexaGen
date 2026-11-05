@@ -61,6 +61,7 @@ import { EmailAdminModule } from "./email-admin/email-admin.module";
 import { GameSourcesModule } from "./game-sources/game-sources.module";
 import { ChatModule } from "./chat/chat.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
+import { BrandingModule } from "./branding/branding.module";
 import { PlatformModule } from "./platform/platform.module";
 import { FeatureGateGuard } from "./platform/feature-gate.guard";
 import { TenancyModule } from "./tenancy/tenancy.module";
@@ -83,6 +84,7 @@ import { TenancyModule } from "./tenancy/tenancy.module";
     QueueModule.forRoot(),
     PrismaModule, 
     PlatformModule,
+    BrandingModule,
     AuthModule, 
     BatchModule,
     BatchScheduleModule,

@@ -61,6 +61,7 @@ import { authenticateUser, verifyAccessToken as verifySharedAccessToken } from "
 import { MfaService } from "./mfa/mfa.service";
 import { isPlatformOperator } from "../platform/platform-operator";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { bindAuthenticatedUser } from "../tenancy/bind-authenticated-user";
 import { asPlatform } from "../tenancy/tenant-context";
 import { requireTenantId } from "../tenancy/tenant-sql";
 
@@ -447,6 +448,8 @@ export class AuthService {
     if (!session || !(await refreshTokenMatches(refreshToken, session.refreshTokenHash))) {
       throw new UnauthorizedException("Session expired.");
     }
+    // Another academy's session never refreshes on this host (§E "Sessions and cookies").
+    bindAuthenticatedUser(session.user, session);
 
     // Same gate as login: a coach whose approval was withdrawn is signed out.
     if (

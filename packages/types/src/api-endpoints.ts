@@ -908,6 +908,21 @@ export const API_ROUTES = {
     contentPackFolderCopy: (packId: string = ":packId", itemId: string = ":itemId") =>
       `/content-packs/${packId}/items/${itemId}/copy`
   },
+  // An academy's look and addresses (docs/SAAS_MULTI_TENANCY.md §F, §H; Phase 5).
+  branding: {
+    /** Public, by host: name, logos, colours, SEO; drives every page before sign-in. */
+    publicConfig: "/tenant/public-config",
+    /** Public: echoes a one-time token, so the console can prove a domain reaches this app. */
+    domainCheck: (token: string = ":token") => `/tenant/domain-check/${token}`,
+    admin: "/admin/branding",
+    /** POST multipart PNG/JPEG/WebP; DELETE clears it. */
+    asset: (kind: string = ":kind") => `/admin/branding/assets/${kind}`,
+    whiteLabel: "/admin/branding/white-label",
+    /** The academy's own WhatsApp Business credentials (super admin). */
+    whatsapp: "/admin/branding/whatsapp",
+    /** The academy's own addresses and how to point a domain at it. */
+    domains: "/admin/branding/domains"
+  },
   // Platform operators only: Nexa's SUPER_ADMINs (docs/SAAS_MULTI_TENANCY.md §E), never another academy's role.
   platform: {
     plans: "/platform/plans",
@@ -936,7 +951,9 @@ export const API_ROUTES = {
     tenantDomain: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
       `/platform/tenants/${tenantId}/domains/${domainId}`,
     tenantDomainPrimary: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
-      `/platform/tenants/${tenantId}/domains/${domainId}/primary`
+      `/platform/tenants/${tenantId}/domains/${domainId}/primary`,
+    tenantDomainCheck: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
+      `/platform/tenants/${tenantId}/domains/${domainId}/check`
   },
   health: {
     // Public, unauthenticated, not rate limited. `live` never touches a

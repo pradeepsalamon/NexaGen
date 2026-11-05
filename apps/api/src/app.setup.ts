@@ -6,6 +6,7 @@ import { API_ROUTES } from "@nexa-chess/types";
 import * as express from "express";
 import { createOriginCheckMiddleware } from "./common/security/origin-check";
 import { securityHeaders } from "./common/security/security-headers";
+import { aliasHostOnlyCookies } from "./auth/auth-cookies";
 import { createTenantContextMiddleware } from "./tenancy/tenant-context.middleware";
 import { TenantResolverService } from "./tenancy/tenant-resolver.service";
 
@@ -65,6 +66,8 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
   app.use(createTenantContextMiddleware(resolver, webhookPaths));
 
   app.use(cookieParser());
+  // On another academy's own address: its host-only session cookies (§E).
+  app.use(aliasHostOnlyCookies);
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,

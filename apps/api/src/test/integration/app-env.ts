@@ -22,5 +22,6 @@ Object.assign(process.env, {
   SMTP_FROM: "",
   SMTP_HOST: "",
   SMTP_PASS: "",
-  SMTP_USER: ""
+  SMTP_USER: "",
+  WHATSAPP_CREDENTIALS_KEY: "integration-whatsapp-key-0123456789abcdef"
 });

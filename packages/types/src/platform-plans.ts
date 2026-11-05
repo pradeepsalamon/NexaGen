@@ -23,11 +23,13 @@ export const DEFAULT_TENANT_ID = "tenant_nexa";
 
 export const PLAN_FEATURE_KEYS = [
   "advancedAnalytics",
+  "brandIdentity",
   "classRecording",
   "coachFeedback",
   "coachPayroll",
   "courses",
   "customBranding",
+  "customDomain",
   "demoClasses",
   "directChat",
   "gameAnalysis",
@@ -37,7 +39,8 @@ export const PLAN_FEATURE_KEYS = [
   "messagingAutomation",
   "referralProgram",
   "smartRevision",
-  "studentPayments"
+  "studentPayments",
+  "whiteLabel"
 ] as const;
 
 export type PlanFeatureKey = (typeof PLAN_FEATURE_KEYS)[number];
@@ -64,6 +67,12 @@ export const PLAN_FEATURES: Record<PlanFeatureKey, PlanFeatureDefinition> = {
     description: "Detailed analytics for users, coaches, classes, attendance, recordings and engagement, with exports.",
     key: "advancedAnalytics",
     label: "Advanced analytics"
+  },
+  brandIdentity: {
+    category: "Growth",
+    description: "The academy's own name, logo, colours, favicon, login image and email sender name.",
+    key: "brandIdentity",
+    label: "Logo and colours"
   },
   classRecording: {
     category: "Teaching",
@@ -94,6 +103,12 @@ export const PLAN_FEATURES: Record<PlanFeatureKey, PlanFeatureDefinition> = {
     description: "Academy-wide chessboard appearance and fonts.",
     key: "customBranding",
     label: "Custom branding"
+  },
+  customDomain: {
+    category: "Growth",
+    description: "The academy on its own web address (e.g. learn.example.com) instead of a NexaChess subdomain.",
+    key: "customDomain",
+    label: "Own domain"
   },
   demoClasses: {
     category: "Growth",
@@ -154,6 +169,12 @@ export const PLAN_FEATURES: Record<PlanFeatureKey, PlanFeatureDefinition> = {
     description: "Sell plans to students: online payments, invoices, credit notes and manual payments.",
     key: "studentPayments",
     label: "Student payments & invoices"
+  },
+  whiteLabel: {
+    category: "Growth",
+    description: "No NexaChess name anywhere the academy's users see: no \"Powered by\" line, links or wording.",
+    key: "whiteLabel",
+    label: "White label"
   }
 };
 
@@ -247,6 +268,7 @@ const GROWTH_FEATURES: PlanFeatureKey[] = [
   "classRecording",
   "coachFeedback",
   "courses",
+  "brandIdentity",
   "customBranding",
   "demoClasses",
   "interactiveClassroom",
@@ -259,6 +281,7 @@ const BUSINESS_FEATURES: PlanFeatureKey[] = [
   ...GROWTH_FEATURES,
   "advancedAnalytics",
   "coachPayroll",
+  "customDomain",
   "gameAnalysis",
   "messagingAutomation"
 ];

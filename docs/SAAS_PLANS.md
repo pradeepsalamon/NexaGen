@@ -39,11 +39,13 @@ attendance, assignments, the puzzle library, announcements, notifications.
 | Key | What it gates (API) |
 |---|---|
 | `advancedAnalytics` | `AnalyticsController` except `overview` / `today` / `alerts` (the admin home dashboard) |
+| `brandIdentity` | `/admin/branding` writes (name, logo, colours, sender name); without it the public config shows only the academy's name |
 | `classRecording` | `POST liveClass.startRecording` only — existing recordings stay watchable |
 | `coachFeedback` | `FeedbackController` |
 | `coachPayroll` | `PayrollController`, `PayrollAdminController` |
 | `courses` | `CourseController` |
 | `customBranding` | chess-appearance and typography **admin** routes (users' own preferences stay) |
+| `customDomain` | `GET /admin/branding/domains`, and the console refuses to add an own domain (402) |
 | `demoClasses` | `DemoScheduleController`, the admin demo-class routes in `AdminController` |
 | `directChat` | `ChatController` |
 | `gameAnalysis` | `GameAnalysisController`, `GameSourcesController` |
@@ -54,11 +56,11 @@ attendance, assignments, the puzzle library, announcements, notifications.
 | `messagingAutomation` | `MessagingController` |
 | `smartRevision` | `RevisionController` |
 | `studentPayments` | payments, invoices, admin payments/invoices, manual payments (never the provider webhooks) |
+| `whiteLabel` | `PUT /admin/branding/white-label`; with it, "Powered by NexaChess" is hidden unless the academy shows it |
 
 **Rule:** a key exists in `PLAN_FEATURE_KEYS` only if some route enforces it.
 `platform/platform-plans.spec.ts` fails a catalogued feature that no
-`@RequireFeature` uses. Something not enforced yet (custom domain, white label)
-is not listed.
+`@RequireFeature` uses. Something not enforced yet is not listed.
 
 ### Adding a feature
 

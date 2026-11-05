@@ -14,6 +14,8 @@ import { registeredRoutes } from "../routes";
 const ANONYMOUS_OK = new Set([
   "GET /health",
   "GET /health/ready",
+  // The academy's look before sign-in, by host (§F).
+  "GET /tenant/public-config",
   "POST /auth/logout"
 ]);
 
