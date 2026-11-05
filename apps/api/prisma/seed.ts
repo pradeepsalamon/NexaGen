@@ -10,7 +10,7 @@ import {
   UserRole,
   UserStatus
 } from "@prisma/client";
-import type { LiveClassSettingsOverride } from "@nexa-chess/types";
+import { DEFAULT_TENANT_ID, type LiveClassSettingsOverride } from "@nexa-chess/types";
 import { Chess } from "chess.js";
 import { hashSecret } from "../src/auth/auth.utils";
 import { puzzleContentHash } from "../src/puzzle/puzzle-content-hash";
@@ -127,7 +127,8 @@ const PLANS: Array<{
 async function seedPlans() {
   for (const plan of PLANS) {
     await prisma.plan.upsert({
-      where: { code: plan.code },
+      // Per-academy key (§D5 drops the global one); the seed writes Nexa's academy.
+      where: { tenantId_code: { code: plan.code, tenantId: DEFAULT_TENANT_ID } },
       create: { ...plan, currency: "INR", isActive: true },
       // Price and billing terms are left alone on re-seed: changing them under
       // an existing subscriber is a deliberate admin action, not a seed's job.
@@ -149,7 +150,7 @@ async function seedPlans() {
  */
 async function seedDiscounts() {
   await prisma.discount.upsert({
-    where: { code: "WELCOME10" },
+    where: { tenantId_code: { code: "WELCOME10", tenantId: DEFAULT_TENANT_ID } },
     create: {
       code: "WELCOME10",
       name: "Welcome offer",
