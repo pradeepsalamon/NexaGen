@@ -1057,6 +1057,23 @@ audit/enforce rule as the extension.
   with many academies: with one, `tenantId` filters nothing) and composite FKs
   `(tenantId, parentId) → parent(tenantId, id)` on core relations (they change
   the relation definitions, so they get their own step).
+- **Index check before the release (2026-11-05, staging `vps_dev_saas`,
+  production-sized at 2763 MB vs 2766 MB):** nothing to add yet.
+  - Every academy-owned table is small: the largest has 848 rows. `classes` has
+    140, `auth_sessions` 465 and `users` a few dozen, so Postgres scans them
+    whether or not a filter is indexed.
+  - 2.7 GB of the database is `lichess_puzzles` (6.2 M rows). It's a platform
+    model with no `tenantId`, so the extension never filters it, and it keeps
+    its own indexes. Left as it is (owner's call, 2026-11-05).
+  - Nine hot queries were timed with and without `"tenantId" = 'tenant_nexa'`,
+    best of 20 each: classes by coach, a student's batches, a batch's coaches,
+    attendance by class, live sessions by class, a user's notifications, a
+    user's open sessions, user by email, and a count of completed classes. The
+    predicate added 0.003–0.04 ms and no plan changed.
+  - `pg_stat_statements` isn't enabled, so this is a sample, not a census.
+  - When to revisit: once a second academy has real data, or any academy table
+    passes ~10k rows. Then index the queries that filter by academy alone and
+    sort (admin lists, analytics), as `(tenantId, <sort column>)`.
 
 
 
