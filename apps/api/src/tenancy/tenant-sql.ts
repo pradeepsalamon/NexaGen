@@ -1,6 +1,6 @@
 import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
 import { Prisma } from "@prisma/client";
-import { tenantScopeMode, TenantScopeViolation } from "../prisma/tenant-scope.extension";
+import { missingContextError, tenantScopeMode } from "../prisma/tenant-scope.extension";
 import { reportTenantGap } from "./tenant-audit";
 import { getTenantContext } from "./tenant-context";
 
@@ -8,7 +8,7 @@ import { getTenantContext } from "./tenant-context";
  * The context's academy, for a place the tenant-scope extension can't reach:
  * raw SQL, or a per-academy key the caller builds itself (`tenantId_email`, a
  * settings row looked up by `tenantId`). No academy in context: refused under
- * `enforce`; under `audit` logged (as `what`) and Nexa's, the only academy
+ * `enforce` (a 400 inside an HTTP request, else a 500); under `audit` logged (as `what`) and Nexa's, the only academy
  * until then.
  */
 export function requireTenantId(what: string): string {
@@ -18,7 +18,7 @@ export function requireTenantId(what: string): string {
   const scope = !context ? "background" : context.origin === "webhook" ? "webhook" : "request";
   const at = context?.label ?? "background";
   if (tenantScopeMode() === "enforce") {
-    throw new TenantScopeViolation(`missing_context at ${at} (${what})`);
+    throw missingContextError(context, what);
   }
   reportTenantGap(
     { at, detail: { model: what, operation: "query" }, kind: "missing_context", scope },

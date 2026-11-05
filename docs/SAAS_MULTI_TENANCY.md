@@ -930,7 +930,7 @@ Re-counted that day: **117 raw-SQL calls in 44 files** (80/24 in 2026-10),
 
 | # | Slice | Done when |
 |---|---|---|
-| 1 | Extension filters every read/update/delete/count/upsert by the context's academy; `asPlatform(reason, fn)` bypass; `TENANT_SCOPE_MODE`; `authenticateUser` looks the token's user up as platform, then a host/user/session mismatch is a 401 under `enforce` | Unit + integration suites green with filtering on |
+| 1 | Extension filters every read/update/delete/count/upsert by the context's academy; `asPlatform(reason, fn)` bypass; `TENANT_SCOPE_MODE`; `authenticateUser` looks the token's user up as platform, then a host/user/session mismatch is a 401 under `enforce`; under `enforce` an HTTP request that still has no academy when it queries (no academy host, Origin or Referer, not signed in) is a 400 `AcademyNotResolved` (2026-11-05; was a 500), while a background job or webhook without one stays a 500 | Unit + integration suites green with filtering on |
 | 2 | Crons, queue workers and webhooks: sweep under `asPlatform`, process each row in `runInTenant(row.tenantId)`; queue payloads carry `tenantId` and the worker checks it | No `background`/`webhook` hits on staging |
 | 3 | D4 migration: `tenantId` NOT NULL (CHECK … NOT VALID, VALIDATE, then SET NOT NULL, so no long lock), `(tenantId, …)` indexes, composite uniques beside the global ones, composite FKs on core relations | Migration rehearsed on a copy of production data |
 | 4 | Raw SQL: explicit `"tenantId" = ${tenantId}` in all 117 calls; a spec fails an unreviewed `$queryRaw` file | Spec green |

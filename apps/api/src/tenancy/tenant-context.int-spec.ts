@@ -1,6 +1,7 @@
 import { API_ROUTES } from "@nexa-chess/types";
 import { UserRole, UserStatus, type User } from "@prisma/client";
 import { EntitlementService } from "../platform/entitlement.service";
+import { setTenantScopeModeForTesting } from "../prisma/tenant-scope.extension";
 import { createTestApp, type TestApp } from "../test/integration/app";
 import { createUser, resetDatabase } from "../test/integration/db";
 import { resetTenantAuditForTesting, tenantAuditCountsForTesting } from "./tenant-audit";
@@ -62,6 +63,21 @@ describe("tenant context (real app, real Postgres)", () => {
     // Stamped from the host's academy; the Nexa admin is logged, not refused.
     expect(batch.tenantId).toBe("tenant_int_acme");
     expect(auditKeys()).toContain("user_mismatch|POST /batches|tenant_int_acme|tenant_nexa");
+  });
+
+  it("under enforce, a request that names no academy is a 400, not a 500", async () => {
+    setTenantScopeModeForTesting("enforce");
+    try {
+      // No Origin/Referer, an API host that isn't an academy's, not signed in: curl or a script.
+      const res = await t.call(null, "POST", API_ROUTES.auth.login, { email: "nobody@example.com", password: "x".repeat(12) }, { origin: null });
+      expect(res.status).toBe(400);
+      expect(JSON.stringify(res.body)).toContain("which academy");
+      // The same call from Nexa's web origin reaches the login itself (bad credentials).
+      const fromWeb = await t.call(null, "POST", API_ROUTES.auth.login, { email: "nobody@example.com", password: "x".repeat(12) });
+      expect(fromWeb.status).toBe(401);
+    } finally {
+      setTenantScopeModeForTesting(null);
+    }
   });
 
   it("ignores a PENDING domain", async () => {

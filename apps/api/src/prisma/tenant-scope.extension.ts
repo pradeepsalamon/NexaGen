@@ -15,7 +15,7 @@
  * Known Prisma limit: nested writes and `include`d relations don't pass
  * through here; the NOT NULL column and composite FKs (D4) cover them.
  */
-import { InternalServerErrorException } from "@nestjs/common";
+import { BadRequestException, InternalServerErrorException } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { Prisma } from "@prisma/client";
 import { reportTenantGap, type TenantAuditEvent } from "../tenancy/tenant-audit";
@@ -63,6 +63,27 @@ export class TenantScopeViolation extends InternalServerErrorException {
   }
 }
 
+/**
+ * Enforce mode, an HTTP request whose academy is still unknown when it queries:
+ * no academy host, Origin or Referer, and no signed-in user (curl, scripts,
+ * uptime checks). That's the caller's to fix, so a 400 rather than a 500. A
+ * missing academy in a background job or a webhook stays a 500 (a code bug).
+ */
+export class AcademyNotResolved extends BadRequestException {
+  constructor() {
+    super(
+      "This request doesn't say which academy it is for. Call the API from the academy's own web address (the browser sends its Origin), or sign in first."
+    );
+  }
+}
+
+/** The enforce-mode refusal for an academy-scoped query with no academy in context. */
+export function missingContextError(context: TenantContextStore | undefined, detail: string): Error {
+  return scopeOf(context) === "request"
+    ? new AcademyNotResolved()
+    : new TenantScopeViolation(`missing_context at ${context?.label ?? "background"} (${detail})`);
+}
+
 function scopeOf(context: TenantContextStore | undefined): TenantAuditEvent["scope"] {
   if (!context) return "background";
   return context.origin === "webhook" ? "webhook" : "request";
@@ -76,6 +97,7 @@ function gap(
   const scope = scopeOf(context);
   const at = context?.label ?? "background";
   if (tenantScopeMode() === "enforce") {
+    if (kind === "missing_context") throw missingContextError(context, Object.values(detail).join(" "));
     throw new TenantScopeViolation(`${kind} at ${at} (${Object.values(detail).join(" ")})`);
   }
   reportTenantGap({ at, detail, kind, scope }, `${kind}|${scope}|${at}|${Object.values(detail).join("|")}`);

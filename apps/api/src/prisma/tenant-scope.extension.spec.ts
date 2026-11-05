@@ -1,6 +1,6 @@
 import { resetTenantAuditForTesting, tenantAuditCountsForTesting } from "../tenancy/tenant-audit";
 import { asPlatform, runInTenant, runWithTenantContext, type TenantContextStore } from "../tenancy/tenant-context";
-import { applyTenantScope, setTenantScopeModeForTesting, TenantScopeViolation } from "./tenant-scope.extension";
+import { AcademyNotResolved, applyTenantScope, setTenantScopeModeForTesting, TenantScopeViolation } from "./tenant-scope.extension";
 
 const store = (tenantId: string | null): TenantContextStore => ({
   host: "nexachess.in",
@@ -93,9 +93,26 @@ describe("tenant-scope extension", () => {
       expect(keys()).toEqual(["missing_context|webhook|POST /webhooks/livekit|LiveSession|findFirst"]);
     });
 
-    it("refuses in enforce mode", () => {
+    it("refuses in enforce mode: a 500 for background work and webhooks", () => {
       setTenantScopeModeForTesting("enforce");
       expect(() => applyTenantScope("Batch", "findMany", {})).toThrow(TenantScopeViolation);
+      expect(() =>
+        runWithTenantContext({ ...store(null), label: "POST /webhooks/livekit", origin: "webhook" }, () =>
+          applyTenantScope("LiveSession", "findFirst", { where: {} })
+        )
+      ).toThrow(TenantScopeViolation);
+    });
+
+    it("refuses in enforce mode: a 400 for a request that names no academy", () => {
+      setTenantScopeModeForTesting("enforce");
+      let thrown: unknown;
+      try {
+        runWithTenantContext(store(null), () => applyTenantScope("User", "findFirst", { where: { email: "a@b.c" } }));
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(AcademyNotResolved);
+      expect((thrown as AcademyNotResolved).getStatus()).toBe(400);
     });
   });
 

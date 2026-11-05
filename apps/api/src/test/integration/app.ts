@@ -62,9 +62,11 @@ export async function createTestApp() {
     method: string,
     path: string,
     body?: unknown,
-    options: { origin?: string } = {}
+    /** `origin: null` sends no Origin header, like curl or a script. */
+    options: { origin?: string | null } = {}
   ): Promise<CallResult> => {
-    const headers: Record<string, string> = { Origin: options.origin ?? ORIGIN };
+    const headers: Record<string, string> = {};
+    if (options.origin !== null) headers.Origin = options.origin ?? ORIGIN;
     if (user) {
       // Both names: Nexa's hosts read the first, an academy's own address the host-only one (§E).
       const token = await tokenFor(user);
