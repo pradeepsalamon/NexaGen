@@ -48,7 +48,8 @@ Every puzzle query (training, homework sets, courses, revision, the catalogue)
 assumes a position plus a solution line, so adding rows without them would mean a
 new filter on every one of those queries, and any miss would be a production bug.
 Instead `library_activities.topicId` points at the same `puzzle_topics`, and:
-the folder delete, archive, reassign and copy routes carry activities along;
+the folder reassign and copy routes carry activities along, and delete/archive refuse a
+folder that still holds one;
 `GET /puzzles/library` is one SQL `UNION ALL` over both tables, so sorting and
 paging are exact across kinds. No existing puzzle row, route or attempt changes.
 
