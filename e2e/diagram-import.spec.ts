@@ -25,8 +25,7 @@ const expected = JSON.parse(readFileSync(join(FIXTURES, "expected.json"), "utf8"
   { diagrams?: { fen: string; orientation: string; sideToMove: string | null }[] }
 >;
 
-// Fake camera/microphone for the live-classroom test (harmless for the rest).
-test.use({ launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] } });
+// The live-classroom test's fake camera/mic comes from the chromium project (playwright.config.ts).
 
 const placementOf = (fen: string) => fen.split(" ")[0];
 
