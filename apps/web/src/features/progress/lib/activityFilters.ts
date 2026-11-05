@@ -1,7 +1,8 @@
-import type {
-  StudentActivityScope,
-  StudentActivityStatusFilter,
-  StudentActivityType
+import {
+  addDays,
+  type StudentActivityScope,
+  type StudentActivityStatusFilter,
+  type StudentActivityType
 } from "@nexa-chess/types";
 
 export type ActivityPeriod = "7" | "30" | "90" | "365" | "all" | "custom";
@@ -30,14 +31,21 @@ export type ActivityFilters = {
 
 export const DEFAULT_ACTIVITY_FILTERS: ActivityFilters = { from: "", period: "90", to: "" };
 
-/** The calendar day `offsetDays` from today, in `timeZone`, as `YYYY-MM-DD`. */
+/**
+ * The calendar day `offsetDays` from today, in `timeZone`, as `YYYY-MM-DD`.
+ * Steps whole calendar days from today's date, never 24-hour blocks: across a
+ * daylight-saving change a day is 23 or 25 hours, so "now − 6 × 24 h" can land
+ * on the wrong date in the hour around midnight and "Last 7 days" covers 6 or 8.
+ */
 export function dayIn(timeZone: string, offsetDays = 0): string {
-  const base = new Date(Date.now() + offsetDays * 86_400_000);
+  const now = new Date();
+  let today: string;
   try {
-    return new Intl.DateTimeFormat("en-CA", { day: "2-digit", month: "2-digit", timeZone, year: "numeric" }).format(base);
+    today = new Intl.DateTimeFormat("en-CA", { day: "2-digit", month: "2-digit", timeZone, year: "numeric" }).format(now);
   } catch {
-    return base.toISOString().slice(0, 10);
+    today = now.toISOString().slice(0, 10);
   }
+  return offsetDays === 0 ? today : addDays(today, offsetDays);
 }
 
 /** Filters → the API scope: a preset period becomes concrete days in the viewer's zone. */
