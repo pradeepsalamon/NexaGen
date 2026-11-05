@@ -57,6 +57,7 @@ describe("MailService", () => {
       STOCKFISH_MAX_DEPTH: 20,
       COOKIE_DOMAIN: undefined,
       COOKIE_SAME_SITE: "lax",
+      PLATFORM_HOST_ONLY_COOKIES: false,
       TRUST_PROXY_HOPS: 0,
       TENANT_SCOPE_MODE: "audit" as const,
     PLATFORM_ROOT_DOMAIN: "nexachess.in",

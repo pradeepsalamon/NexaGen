@@ -974,7 +974,9 @@ export const API_ROUTES = {
     sellerDetails: "/platform/billing/seller",
     invoices: "/platform/billing/invoices",
     invoice: (id: string = ":id") => `/platform/billing/invoices/${id}`,
-    usage: "/platform/usage"
+    usage: "/platform/usage",
+    // GET the latest runs, POST to run the check now (platform operators only).
+    integrityRuns: "/platform/integrity/runs"
   },
   // The owner's gateway account (SaaS Phase 6): public, signature-verified.
   platformBilling: {

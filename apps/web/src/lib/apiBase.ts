@@ -2,8 +2,16 @@ import { getWebEnv } from "@nexa-chess/config/web";
 
 const env = getWebEnv({
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API: process.env.NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL
 });
+
+/**
+ * Nexa's own hosts call `/api` on themselves too (build-time switch, off by
+ * default), so their session cookies can be host-only. Local development
+ * keeps the API host.
+ */
+export const PLATFORM_SAME_ORIGIN_API = env.NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API;
 
 const ABSOLUTE_API_URL = env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "");
 
@@ -43,16 +51,30 @@ export const PLATFORM_HOSTS: readonly string[] = (() => {
  * "Routing"), so its session cookies stay host-only. `app/layout.tsx`'s
  * pre-paint script applies the same rule from `PLATFORM_HOSTS`.
  */
+function isLocalHost(host: string): boolean {
+  return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+}
+
 export function isPlatformHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
-  if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") return true;
+  if (isLocalHost(host)) return true;
   return PLATFORM_HOSTS.length === 0 || PLATFORM_HOSTS.includes(host);
 }
 
-/** The API's base URL for this page: absolute on Nexa's hosts, same-origin `/api` elsewhere. */
+/**
+ * Whether this page's session lives in the host-only `nexa_h_*` cookies: always
+ * on an academy's address, and on Nexa's own (non-local) hosts once
+ * `PLATFORM_SAME_ORIGIN_API` is on.
+ */
+export function usesHostOnlySession(hostname: string): boolean {
+  if (!isPlatformHost(hostname)) return true;
+  return PLATFORM_SAME_ORIGIN_API && !isLocalHost(hostname.toLowerCase());
+}
+
+/** The API's base URL for this page: same-origin `/api` wherever the session is host-only, else absolute. */
 export function apiBaseUrl(): string {
   if (typeof window === "undefined") return ABSOLUTE_API_URL;
-  return isPlatformHost(window.location.hostname) ? ABSOLUTE_API_URL : "/api";
+  return usesHostOnlySession(window.location.hostname) ? "/api" : ABSOLUTE_API_URL;
 }
 
 /** An absolute-or-relative URL to an API path, for links (downloads, exports) and raw `fetch`. */

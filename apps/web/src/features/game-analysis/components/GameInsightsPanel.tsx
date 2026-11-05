@@ -36,7 +36,7 @@ const sourceLabel = (source: string) =>
     ? EXTERNAL_CHESS_PROVIDER_LABELS[source as keyof typeof EXTERNAL_CHESS_PROVIDER_LABELS]
     : source === "IMPORT"
       ? "Uploaded PGN"
-      : "NexaGen class games";
+      : "Class games";
 
 const pct = (n: number | null) => (n === null ? "—" : `${n}%`);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;

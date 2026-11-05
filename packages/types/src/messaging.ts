@@ -529,7 +529,14 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "requester.email": { label: "Requester's email address", sample: "asha@example.com" },
   "requester.role": { label: "Requester's role", sample: "STUDENT" },
   "request.reason": { label: "Reason they gave", sample: "Moving to another academy." },
-  "request.noteLine": { label: "The academy's note (empty if none)", sample: "Note from the academy: Your invoices are kept as the law requires." }
+  "request.noteLine": { label: "The academy's note (empty if none)", sample: "Note from the academy: Your invoices are kept as the law requires." },
+  "integrity.violationCount": { label: "Rows pointing at another academy", sample: "3" },
+  "integrity.linksChecked": { label: "Relationships checked", sample: "314" },
+  "integrity.summary": {
+    label: "What was found (tables, ids, academies)",
+    sample: "batch_students.studentId → users: 3 rows (e.g. row id=bs_1 in tenant_rook points at cus_9 in tenant_nexa)"
+  },
+  "links.integrity": { label: "Platform console link (integrity tab)", sample: "https://nexa.test/admin/platform?tab=integrity" }
 };
 
 /** Example values for a set of placeholders, for previews and test sends — never real member data. */

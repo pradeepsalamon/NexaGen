@@ -64,6 +64,7 @@ import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { BrandingModule } from "./branding/branding.module";
 import { PlatformModule } from "./platform/platform.module";
 import { PlatformBillingModule } from "./platform-billing/platform-billing.module";
+import { TenantIntegrityModule } from "./tenancy/integrity/tenant-integrity.module";
 import { FeatureGateGuard } from "./platform/feature-gate.guard";
 import { TenancyModule } from "./tenancy/tenancy.module";
 
@@ -87,6 +88,7 @@ import { TenancyModule } from "./tenancy/tenancy.module";
     PlatformModule,
     BrandingModule,
     PlatformBillingModule,
+    TenantIntegrityModule,
     AuthModule, 
     BatchModule,
     BatchScheduleModule,

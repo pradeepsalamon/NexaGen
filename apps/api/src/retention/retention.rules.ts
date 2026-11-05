@@ -38,7 +38,9 @@ export const RETENTION_RULES: readonly FixedRetentionRuleDef[] = [
   { column: "createdAt", days: 365, label: "Emails sent by staff", table: "direct_emails" },
   // One row per referral-link hit; the referral itself (and its stage history)
   // stays, so only the raw visit counts age out.
-  { column: "createdAt", days: 365, label: "Referral link visits", table: "referral_visits" }
+  { column: "createdAt", days: 365, label: "Referral link visits", table: "referral_visits" },
+  // Platform table: the nightly integrity check's results (ids only).
+  { column: "startedAt", days: 180, label: "Tenant integrity check results", table: "tenant_integrity_runs" }
 ];
 
 /**

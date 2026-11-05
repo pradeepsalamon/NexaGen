@@ -22,20 +22,22 @@ export const systemMessageKeySchema = z.enum([
   "DEMO_INVITATION_EMAIL",
   "DEMO_INVITATION_WHATSAPP",
   "NEW_LEAD_ADMIN",
-  "ACCOUNT_DELETION_REQUESTED_ADMIN"
+  "ACCOUNT_DELETION_REQUESTED_ADMIN",
+  "TENANT_INTEGRITY_ALERT"
 ]);
 export type SystemMessageKey = z.infer<typeof systemMessageKeySchema>;
 
 export const SYSTEM_MESSAGE_KEYS = systemMessageKeySchema.options;
 
 export type SystemMessageChannel = "EMAIL" | "WHATSAPP";
-export type SystemMessageGroup = "ACCOUNT" | "BILLING" | "DEMO" | "ADMIN";
+export type SystemMessageGroup = "ACCOUNT" | "BILLING" | "DEMO" | "ADMIN" | "PLATFORM";
 
 export const SYSTEM_MESSAGE_GROUP_LABELS: Record<SystemMessageGroup, string> = {
   ACCOUNT: "Sign-in and account",
   BILLING: "Billing",
   DEMO: "Demo classes",
-  ADMIN: "Sent to admins"
+  ADMIN: "Sent to admins",
+  PLATFORM: "Sent to platform operators"
 };
 
 export interface SystemMessageDefinition {
@@ -51,7 +53,14 @@ export interface SystemMessageDefinition {
   requiredVariables?: readonly string[];
   /** A button added below the email. The code adds it, so an edit can't lose the link. */
   actionVariable?: string;
+  /** Nexa's platform operators only: hidden from (and not editable by) other academies. */
+  platformOnly?: boolean;
   defaults: { subject: string | null; body: string; actionLabel: string | null };
+}
+
+/** The keys an academy's admins see: platform-only messages belong to Nexa's academy. */
+export function systemMessageKeysFor(isPlatformAcademy: boolean): SystemMessageKey[] {
+  return SYSTEM_MESSAGE_KEYS.filter((key) => isPlatformAcademy || !SYSTEM_MESSAGE_DEFINITIONS[key].platformOnly);
 }
 
 const DEMO_VARIABLES = ["academy.name", "guest.name", "demo.topic", "demo.dateTime", "links.join"];
@@ -310,6 +319,24 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
       subject: "Account deletion requested: {{requester.name}}",
       body: "{{requester.name}} ({{requester.email}}, {{requester.role}}) asked for their account to be deleted.\n\nReason: {{request.reason}}\n\nReview it in Admin → Privacy.",
       actionLabel: null
+    }
+  },
+  TENANT_INTEGRITY_ALERT: {
+    key: "TENANT_INTEGRITY_ALERT",
+    group: "PLATFORM",
+    channel: "EMAIL",
+    label: "Tenant integrity alert",
+    description:
+      "Sent when the nightly integrity check finds rows that point at another academy's rows, or could not check some relationships. Monitoring only: nothing was blocked.",
+    sentTo: "Nexa's platform operators (super admins)",
+    platformOnly: true,
+    variables: ["academy.name", "integrity.violationCount", "integrity.linksChecked", "integrity.summary", "links.integrity"],
+    requiredVariables: ["integrity.summary"],
+    actionVariable: "links.integrity",
+    defaults: {
+      subject: "Tenant integrity check: {{integrity.violationCount}} cross-academy rows",
+      body: "The nightly tenant integrity check went through {{integrity.linksChecked}} relationships and found {{integrity.violationCount}} rows that point at another academy's rows.\n\n{{integrity.summary}}\n\nThis is monitoring only: nothing was blocked or changed. Open the platform console to see every table, row id and academy.",
+      actionLabel: "Open the integrity report"
     }
   }
 };

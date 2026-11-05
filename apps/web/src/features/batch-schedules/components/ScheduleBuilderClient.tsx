@@ -176,7 +176,7 @@ export function ScheduleBuilderClient() {
           <p className="text-xs font-extrabold text-primary-ink">Class Scheduler</p>
           <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">New schedule</h1>
           <p className="mt-1 text-sm text-app-muted">
-            Define a recurring weekly schedule and NexaGen generates every class for the period.
+            Define a recurring weekly schedule and every class for the period is generated for you.
           </p>
         </header>
 

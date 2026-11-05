@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 import { BoardContext } from "@/features/chessboard/context/BoardProvider";
 import { Chess } from "@/lib/chess";
@@ -66,6 +67,7 @@ function VideoGeneratorWorkspace({ isManager }: ToolContext) {
   const match = useOptionalMatch();
   const simul = useOptionalSimul();
   const { currentPieceSet } = useChessAppearance();
+  const brandName = useBrandName();
   const mime = useMemo(() => supportedVideoMime(), []);
 
   const [boardPgn] = useState(() => board?.getState().fullPgn ?? "");
@@ -201,7 +203,7 @@ function VideoGeneratorWorkspace({ isManager }: ToolContext) {
           orientation,
           pieceSet: currentPieceSet,
           secondsPerMove: Number(speed),
-          title: title.trim() || "Nexa Chess",
+          title: title.trim() || brandName,
         },
         setProgress,
         controller.signal,

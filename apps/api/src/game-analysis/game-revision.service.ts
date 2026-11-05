@@ -55,7 +55,7 @@ export class GameRevisionService {
     const opp = report?.tactics.opportunities.find((o) => o.ply === ply);
     if (!opp) throw new NotFoundException('There is no tactic at that move.');
     const studentId = opp.side === 'white' ? analysis.game.whitePlayerId : analysis.game.blackPlayerId;
-    if (!studentId) throw new BadRequestException("That side wasn't played by a NexaGen student.");
+    if (!studentId) throw new BadRequestException("That side wasn't played by one of the academy's students.");
 
     // The student whose tactic it was, an admin, or one of their coaches.
     if (user.role === UserRole.STUDENT) {

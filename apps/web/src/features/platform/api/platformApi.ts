@@ -31,6 +31,8 @@ import {
   type RecordPlatformPaymentRequest,
   type StartSupportSessionRequest,
   type StartSupportSessionResponse,
+  type TenantIntegrityRunSummary,
+  type TenantIntegrityRunsResponse,
   type TenantUsageSnapshot,
   type TransitionTenantSubscriptionRequest,
   type UpdatePlatformPlanRequest,
@@ -173,3 +175,7 @@ export const updatePlatformSellerDetails = (body: UpdatePlatformSellerDetailsReq
   apiFetch<{ seller: PlatformSellerDetails; saved: boolean }>(API_ROUTES.platform.sellerDetails, { body, method: "PUT" });
 
 export const listPlatformUsage = () => apiFetch<{ usage: TenantUsageSnapshot[] }>(API_ROUTES.platform.usage);
+
+export const listIntegrityRuns = () => apiFetch<TenantIntegrityRunsResponse>(API_ROUTES.platform.integrityRuns);
+
+export const runIntegrityCheck = () => apiFetch<TenantIntegrityRunSummary>(API_ROUTES.platform.integrityRuns, { method: "POST" });

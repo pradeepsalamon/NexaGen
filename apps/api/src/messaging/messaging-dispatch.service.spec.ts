@@ -12,6 +12,7 @@ import {
   type MessagingEvent
 } from "@nexa-chess/types";
 import { Prisma } from "@prisma/client";
+import { BrandingService } from "../branding/branding.service";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
@@ -95,7 +96,7 @@ describe("MessagingDispatchService", () => {
   let getRule: jest.Mock;
   let verificationPolicy: jest.Mock;
 
-  const setup = async (rule = makeRule(), student = makeStudent()) => {
+  const setup = async (rule = makeRule(), student = makeStudent(), academyName?: string) => {
     getRule = jest.fn().mockResolvedValue(rule);
     verificationPolicy = jest.fn().mockResolvedValue("OFF");
     prisma = {
@@ -135,7 +136,8 @@ describe("MessagingDispatchService", () => {
         {
           provide: MessagingRuleService,
           useValue: { getRule, usesLeadTime: () => false }
-        }
+        },
+        ...(academyName ? [{ provide: BrandingService, useValue: { nameFor: jest.fn().mockResolvedValue(academyName) } }] : [])
       ]
     }).compile();
 
@@ -195,6 +197,17 @@ describe("MessagingDispatchService", () => {
     expect(row.body).toContain("Rook Endgames");
     // 12:30 UTC is 6:00 pm in the student's saved zone, not the server's.
     expect(row.body).toContain("6:00 pm");
+  });
+
+  it("names the recipient's own academy, Nexa's by default", async () => {
+    await setup(makeRule({ body: "Welcome to {{academy.name}}" }), makeStudent(), "Rook Academy");
+    await service.dispatch({ event: "CLASS_SCHEDULED", classId: CLASS_ID });
+    expect(queuedRows(prisma.messageDelivery.create)[0].body).toBe("Welcome to Rook Academy");
+
+    jest.clearAllMocks();
+    await setup(makeRule({ body: "Welcome to {{academy.name}}" }));
+    await service.dispatch({ event: "CLASS_SCHEDULED", classId: CLASS_ID });
+    expect(queuedRows(prisma.messageDelivery.create)[0].body).toBe("Welcome to Nexa Chess");
   });
 
   it("holds a scheduled rule until its next send time", async () => {

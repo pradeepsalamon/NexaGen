@@ -128,6 +128,18 @@ can't silently switch off.
 - `getCookieBaseOptions` (`@nexa-chess/config/api`) sets every cookie: `secure`
   when `FRONTEND_URL` is https, `sameSite` from `COOKIE_SAME_SITE` (default
   `lax` — web and API are same-site subdomains).
+- **Host-only vs domain-wide** (`auth/auth-cookies.ts`, `usesHostOnlyCookies`):
+  Nexa's own hosts use the pair above on `COOKIE_DOMAIN` (`.nexachess.in`), so
+  every subdomain receives it. Another academy's address always gets host-only
+  `nexa_h_access_token` / `nexa_h_refresh_token` and never reads Nexa's pair
+  (`aliasHostOnlyCookies` drops it). With `PLATFORM_HOST_ONLY_COOKIES=true`
+  (API) **and** `NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API=true` (web build) Nexa
+  goes host-only too: the browser calls `/api` on the page's own host, sign-in
+  and refresh set the `nexa_h_*` pair and clear the old domain-wide one, and
+  until then the old cookie is still accepted (API alias and web
+  `middleware.ts`), so nobody is signed out by the switch. Both off by default;
+  rollout steps in [DEPLOYMENT.md](DEPLOYMENT.md) § "Nexa on host-only
+  cookies". Tests: `auth/auth-cookies.spec.ts`.
 - **CSRF**: `app.setup.ts` `configureApp` (shared by `main.ts` and the
   integration test app) registers only the JSON body parser (no urlencoded),
   then defaults a missing body to `{}` (body-parser 2 leaves it undefined;

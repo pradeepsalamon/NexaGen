@@ -4,7 +4,9 @@ import { hashSecret } from "../auth/auth.utils";
 import { createTestApp, type TestApp } from "../test/integration/app";
 import { TEST_ORIGIN } from "../test/integration/app-env";
 import { createUser, resetDatabase } from "../test/integration/db";
-import { asPlatform } from "../tenancy/tenant-context";
+import { asPlatform, runInTenant } from "../tenancy/tenant-context";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { BrandingService } from "./branding.service";
 import { EntitlementService } from "../platform/entitlement.service";
 
 // Phase 5 (docs/SAAS_MULTI_TENANCY.md §E cookies, §F branding, §H domains).
@@ -53,6 +55,18 @@ describe("academy branding, domains and host-only cookies (real app, real Postgr
     expect(await publicConfig(ACADEMY)).toMatchObject({ isPlatformHome: false, name: "Rook Academy", poweredBy: true, tenantId });
     expect(await publicConfig(TEST_ORIGIN)).toMatchObject({ isPlatformHome: true, poweredBy: false, tenantId: "tenant_nexa" });
     expect(await publicConfig("https://unknown.example.com")).toMatchObject({ name: "", tenantId: null });
+  });
+
+  it("copy the academy sends names it: messages, system emails, PDFs (nameFor)", async () => {
+    const branding = t.app.get(BrandingService);
+    expect(await runInTenant(tenantId, "spec", () => branding.nameFor())).toBe("Rook Academy");
+    expect(await runInTenant("tenant_nexa", "spec", () => branding.nameFor())).toBe("Nexa Chess");
+    expect(await branding.nameFor(null)).toBe("Nexa Chess");
+    const reset = await runInTenant(tenantId, "spec", () =>
+      t.app.get(SystemMessageRenderer).render("PASSWORD_RESET", { "links.reset": "https://rook.nexachess.in/reset" })
+    );
+    expect(reset.subject).toContain("Rook Academy");
+    expect(reset.subject).not.toContain("Nexa");
   });
 
   it("admins set the look; a colour white text can't read on is refused", async () => {

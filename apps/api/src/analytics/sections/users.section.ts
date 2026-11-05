@@ -22,7 +22,7 @@ import {
 import { tenantFilter } from "../../tenancy/tenant-sql";
 
 const ACQUISITION_LABELS: Record<string, string> = {
-  WEBSITE: "NexaChess website",
+  WEBSITE: "Our website",
   GOOGLE: "Google / Search",
   INSTAGRAM: "Instagram",
   FACEBOOK: "Facebook",

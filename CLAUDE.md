@@ -57,6 +57,8 @@ Every request/response shape lives in `packages/types/src/index.ts` (often `z.in
 
 ### 3.2 API auth pattern (there are NO NestJS guards)
 
+**Before any API change read [docs/API_DEVELOPMENT_RULES.md](docs/API_DEVELOPMENT_RULES.md) (strict MUST/NEVER rules + definition of done).** Academy isolation: load every request id through a scoped query before linking it; jobs run in `runInTenant`; `asPlatform` only with a reason.
+
 1. **Controller** takes `@Req() request: Request`, has `private getAccessToken(request) { return request.cookies?.[AUTH_COOKIE_NAMES.accessToken]; }`, and passes the raw token as the service method's first argument.
 2. **Service** `private getAuthenticatedUser(accessToken)` calls **`authenticateUser(this.jwtService, this.prisma, accessToken)`** (`auth/authenticate.ts`; 4th arg `{ include }` for relations; `verifyAccessToken` is the no-DB variant). It turns every bad/expired/revoked/non-ACTIVE case into a 401. **Never hand-roll `jwtService.verifyAsync` for an access token.**
 3. **Role checks**: private `assertCanX(user)` / inline `ForbiddenException`. **Row visibility**: private `getXVisibilityWhere(user)` → `Prisma.WhereInput` (admins `{}`). Reference: `batch.service.ts`.
@@ -146,6 +148,8 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 ### 3.6m SaaS plans
 
 `platform/` + `features/subscription/`, catalogue `@nexa-chess/types` `platform-plans.ts`. The API enforces every feature/limit: global `FeatureGateGuard` + `@RequireFeature("key")`, and `EntitlementService.assert*` inside the creating transaction; refusals are **402**. A new catalogued feature must be required by a route (a spec checks) and added to the Enterprise row by migration. Plan and academy changes are platform operators only (Nexa's `SUPER_ADMIN`s, `assertPlatformOperator`; every write in `PlatformAuditLog`); status changes go through `applySubscriptionTransition`. [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md)
+
+**Tenant integrity monitoring** (`tenancy/integrity/`): nightly read-only check of every FK between academy tables; reports, never blocks (no FKs/triggers; RLS is future). A link that may legitimately cross academies goes in `PLATFORM_OPERATOR_LINKS` (security review). [SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Tenant integrity monitoring"
 
 ### 3.6m2 Multi-tenancy (Phases 2–3)
 

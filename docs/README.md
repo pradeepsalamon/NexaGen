@@ -17,6 +17,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [PROJECT_RULES.md](PROJECT_RULES.md) | Development manual: repo shape, backend/frontend conventions, testing, git |
 | [UI_RULES.md](UI_RULES.md) | Colour/radius tokens, which component for which control, pre-PR UI checklist |
 | [RESPONSIVE.md](RESPONSIVE.md) | Breakpoints, per-area responsive spec, device test matrix |
+| [API_DEVELOPMENT_RULES.md](API_DEVELOPMENT_RULES.md) | **Strict** rules for any API change: contract, auth, validation, academy isolation, schema, side effects, errors, tests, definition of done |
 | [AUTHORIZATION.md](AUTHORIZATION.md) | Auth mechanics (sessions, MFA, lockout, cookies, CSRF, headers), who may do what per resource, the 2026-10-16 audit, access test suites |
 | [PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md](PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md) | Platform-wide permission model (direct / approval / admin-only / consent), the admin-approval engine design, roadmap and progress |
 | [UNDO_ARCHITECTURE.md](UNDO_ARCHITECTURE.md) | `useUndoableMutation` design (immediate vs defer) |

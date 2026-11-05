@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { PlatformSupportSessionItem } from "@nexa-chess/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Alert } from "@/components/ui/Alert";
@@ -13,10 +13,11 @@ import { AcademiesTab } from "./AcademiesTab";
 import { AuditList } from "./AuditList";
 import { BillingTab } from "./BillingTab";
 import { ContentPacksTab } from "./ContentPacksTab";
+import { IntegrityTab } from "./IntegrityTab";
 import { PlansTab } from "./PlansTab";
 import { SupportVisitsTable } from "./SupportVisitsTable";
 
-const TABS = ["academies", "plans", "packs", "billing", "support", "audit"] as const;
+const TABS = ["academies", "plans", "packs", "billing", "support", "audit", "integrity"] as const;
 type Tab = (typeof TABS)[number];
 
 /** The academy name for an id, from the (small) academy list the console already holds. */
@@ -48,6 +49,11 @@ export function PlatformConsoleClient() {
   const isOperator = useAuthStore((state) => state.user?.isPlatformOperator === true);
   const academyName = useAcademyName();
   const [tab, setTab] = useState<Tab>("academies");
+  // `?tab=integrity` (the integrity alert email's link) opens that tab.
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    if (requested && (TABS as readonly string[]).includes(requested)) setTab(requested as Tab);
+  }, []);
 
   return (
     <div>
@@ -68,6 +74,7 @@ export function PlatformConsoleClient() {
             <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="support">Support visits</TabsTrigger>
             <TabsTrigger value="audit">Audit log</TabsTrigger>
+            <TabsTrigger value="integrity">Integrity</TabsTrigger>
           </TabsList>
           <TabsContent value="academies">
             <AcademiesTab />
@@ -86,6 +93,9 @@ export function PlatformConsoleClient() {
           </TabsContent>
           <TabsContent value="audit">
             <AuditList academyName={academyName} />
+          </TabsContent>
+          <TabsContent value="integrity">
+            <IntegrityTab academyName={academyName} />
           </TabsContent>
         </Tabs>
       )}

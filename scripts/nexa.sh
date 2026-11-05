@@ -55,7 +55,9 @@ function http_status() {
 
 DEV_API_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"
 DEV_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -p 3010 2>&1 | tee web-dev.log'"
-STAGE_API_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
+# Staging runs SaaS isolation enforced (docs/SAAS_MULTI_TENANCY.md Phase 3); STAGE_TENANT_SCOPE_MODE=audit overrides.
+# Set here, not in apps/api/.env: Prisma loads that file into unit tests too, which run without an academy.
+STAGE_API_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production TENANT_SCOPE_MODE=${STAGE_TENANT_SCOPE_MODE:-enforce} node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
 STAGE_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
 
 # (Re)launch one window, leaving the other one running.

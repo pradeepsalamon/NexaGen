@@ -8,15 +8,17 @@ import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MessagingRuleService } from "./messaging-rule.service";
 import { SystemMessageService } from "./system-message.service";
 
-const ADMIN = { id: "admin_1", email: "admin@example.com", phoneNumber: "+919876543210" };
+const ADMIN = { id: "admin_1", email: "admin@example.com", phoneNumber: "+919876543210", tenantId: "tenant_nexa" };
 
 describe("SystemMessageService", () => {
   let service: SystemMessageService;
+  let assertAdmin: jest.Mock;
   let templates: { deleteMany: jest.Mock; findMany: jest.Mock; upsert: jest.Mock };
   let mail: { isConfigured: jest.Mock; sendSystemMessageSample: jest.Mock };
   let whatsapp: { isConfigured: jest.Mock; normalizeRecipient: jest.Mock; trySendText: jest.Mock };
 
   beforeEach(async () => {
+    assertAdmin = jest.fn().mockResolvedValue(ADMIN);
     templates = {
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       findMany: jest.fn().mockResolvedValue([]),
@@ -40,7 +42,7 @@ describe("SystemMessageService", () => {
         { provide: MailService, useValue: mail },
         { provide: PrismaService, useValue: { systemMessageTemplate: templates } },
         { provide: SystemMessageRenderer, useValue: { render: jest.fn().mockResolvedValue({ body: "Rendered" }) } },
-        { provide: MessagingRuleService, useValue: { assertAdmin: jest.fn().mockResolvedValue(ADMIN) } },
+        { provide: MessagingRuleService, useValue: { assertAdmin } },
         { provide: WhatsAppService, useValue: whatsapp }
       ]
     }).compile();
@@ -53,6 +55,16 @@ describe("SystemMessageService", () => {
 
     expect(messages.map((message) => message.key)).toEqual(SYSTEM_MESSAGE_KEYS);
     expect(messages.every((message) => !message.isCustomized)).toBe(true);
+  });
+
+  it("hides platform-only messages from another academy's admins and refuses to edit them", async () => {
+    assertAdmin.mockResolvedValue({ ...ADMIN, tenantId: "tenant_rook" });
+    const { messages } = await service.list("token");
+    expect(messages.map((message) => message.key)).not.toContain("TENANT_INTEGRITY_ALERT");
+    expect(messages.map((message) => message.key)).toContain("NEW_LEAD_ADMIN");
+    await expect(
+      service.update("token", "TENANT_INTEGRITY_ALERT", { actionLabel: "Open", body: "{{integrity.summary}}", subject: "s" })
+    ).rejects.toThrow("Message not found.");
   });
 
   it("saves new wording", async () => {

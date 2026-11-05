@@ -245,8 +245,8 @@ function ReportBody({
       <Tactics onJump={onJump} report={report} viewer={viewer} />
 
       <p className="text-xs text-app-muted">
-        NexaGen’s own analysis{report.analysis.engine ? ` (${report.analysis.engine}, ${report.analysis.depth.toLowerCase()})` : ""}. Its
-        labels and accuracy follow NexaGen’s method and are not the same numbers as other chess sites.
+        Our own analysis{report.analysis.engine ? ` (${report.analysis.engine}, ${report.analysis.depth.toLowerCase()})` : ""}. Its
+        labels and accuracy follow our own method and are not the same numbers as other chess sites.
       </p>
     </div>
   );

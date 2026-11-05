@@ -6477,6 +6477,32 @@ model PlatformSellerSettings {
   @@map("platform_seller_settings")
 }
 
+/// One run of the nightly tenant integrity check (docs/SAAS_MULTI_TENANCY.md
+/// "Tenant integrity monitoring"): every single-column foreign key between two
+/// academy-scoped tables, looking for a row whose parent belongs to another
+/// academy. Monitoring only, never enforcement. Platform table (no tenantId);
+/// `violations` holds table/column names, row ids and tenant ids, no content.
+model TenantIntegrityRun {
+  id             String                   @id @default(cuid())
+  status         TenantIntegrityRunStatus
+  trigger        String                   @default("cron")
+  linksChecked   Int                      @default(0)
+  violationCount Int                      @default(0)
+  violations     Json                     @default("[]")
+  errors         Json                     @default("[]")
+  startedAt      DateTime                 @default(now())
+  finishedAt     DateTime?
+
+  @@index([startedAt])
+  @@map("tenant_integrity_runs")
+}
+
+enum TenantIntegrityRunStatus {
+  OK
+  VIOLATIONS
+  FAILED
+}
+
 /// Nightly usage counts per academy (Phase 6, §G "Enforcement"): for the
 /// console. Limits are still checked against live counts inside the creating
 /// transaction; this is a reconciled snapshot, never the enforcement source.
