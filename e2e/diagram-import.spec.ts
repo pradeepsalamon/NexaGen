@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import { API_URL, cookieHeader, login, type Cookie } from "./fixtures";
 
 /**
@@ -112,10 +112,35 @@ test.describe("PDF diagram import", () => {
 
   let cookies: Cookie[] = [];
 
+  /**
+   * The suite saves one draft ("book-two-diagrams — p.1 #1") and the next test
+   * expects exactly that one. On a database that outlives the run (staging),
+   * an earlier run's draft would turn the save into a duplicate warning, so
+   * clear it before the suite and again after.
+   */
+  async function deleteSavedDraft(request: APIRequestContext) {
+    const [italian] = expected["book-two-diagrams.pdf"].diagrams ?? [];
+    const headers = { Cookie: cookieHeader(cookies) };
+    const res = await request.get(`${API_URL}/puzzles?placement=${encodeURIComponent(placementOf(italian.fen))}`, { headers });
+    if (!res.ok()) return;
+    const body = (await res.json()) as { puzzles: Array<{ id: string; title: string }> };
+    for (const puzzle of body.puzzles.filter((p) => p.title === "book-two-diagrams — p.1 #1")) {
+      await request.delete(`${API_URL}/puzzles/${puzzle.id}`, { headers });
+    }
+  }
+
   // One login for the serial suite: /auth/login is throttled 5/min.
   test.beforeAll(async ({ playwright }) => {
     const request = await playwright.request.newContext();
     cookies = await login(request, "coach");
+    await deleteSavedDraft(request);
+    await request.dispose();
+  });
+
+  test.afterAll(async ({ playwright }) => {
+    if (!cookies.length) return;
+    const request = await playwright.request.newContext();
+    await deleteSavedDraft(request);
     await request.dispose();
   });
 

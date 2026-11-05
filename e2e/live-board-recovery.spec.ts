@@ -20,6 +20,12 @@ declare global {
 }
 
 /** Coaches can't create classes: request an extra class and have the admin approve it. */
+/**
+ * How long a move may take to reach the other side. Over a real LiveKit (staging,
+ * shared with live classes) a packet now and then takes longer than 15 s to land.
+ */
+const BOARD_SYNC_MS = 30_000;
+
 async function makeLiveClass(request: APIRequestContext, coach: Cookie[], admin: Cookie[]) {
   const batches = await (await api(request, "GET", "/coach/batches", coach)).json();
   const batchId = seededBatchId(batches);
@@ -129,7 +135,7 @@ test.describe("Live board recovery", () => {
     expect(await move(coachPage, "e7", "e5")).toBe(true);
     expect(await move(coachPage, "g1", "f3")).toBe(true);
     const afterNf3 = await fen(coachPage);
-    await expect.poll(() => fen(studentPage), { timeout: 15_000 }).toBe(afterNf3);
+    await expect.poll(() => fen(studentPage), { timeout: BOARD_SYNC_MS }).toBe(afterNf3);
 
     // ── the throttled save lands on the server ────────────────
     await expect
@@ -146,7 +152,7 @@ test.describe("Live board recovery", () => {
     await watchFens(studentPage);
     await coachPage.reload();
     await enterRoom(coachPage);
-    await expect.poll(() => fen(coachPage), { timeout: 15_000 }).toBe(afterNf3);
+    await expect.poll(() => fen(coachPage), { timeout: BOARD_SYNC_MS }).toBe(afterNf3);
     await studentPage.waitForTimeout(3_000);
     expect(await fen(studentPage)).toBe(afterNf3);
     expect((await seenFens(studentPage)).map(placement)).not.toContain(START_PLACEMENT);
@@ -154,14 +160,14 @@ test.describe("Live board recovery", () => {
     // the refreshed coach is still the authority
     expect(await move(coachPage, "b8", "c6")).toBe(true);
     const afterNc6 = await fen(coachPage);
-    await expect.poll(() => fen(studentPage), { timeout: 15_000 }).toBe(afterNc6);
+    await expect.poll(() => fen(studentPage), { timeout: BOARD_SYNC_MS }).toBe(afterNc6);
 
     // ── 2. coach refresh straight after a move (pagehide flush) ─
     expect(await move(coachPage, "f1", "b5")).toBe(true);
     const afterBb5 = await fen(coachPage);
     await coachPage.reload();
     await enterRoom(coachPage);
-    await expect.poll(() => fen(coachPage), { timeout: 15_000 }).toBe(afterBb5);
+    await expect.poll(() => fen(coachPage), { timeout: BOARD_SYNC_MS }).toBe(afterBb5);
     await studentPage.waitForTimeout(3_000);
     expect(await fen(studentPage)).toBe(afterBb5);
     expect((await seenFens(studentPage)).map(placement)).not.toContain(START_PLACEMENT);
@@ -169,7 +175,7 @@ test.describe("Live board recovery", () => {
     // ── 3. student refresh ────────────────────────────────────
     await studentPage.reload();
     await enterRoom(studentPage);
-    await expect.poll(() => fen(studentPage), { timeout: 15_000 }).toBe(afterBb5);
+    await expect.poll(() => fen(studentPage), { timeout: BOARD_SYNC_MS }).toBe(afterBb5);
 
     // ── 4. coach alone: only the server snapshot can restore it ─
     await studentCtx.close();
@@ -177,7 +183,7 @@ test.describe("Live board recovery", () => {
     const afterA6 = await fen(coachPage);
     await coachPage.reload();
     await enterRoom(coachPage);
-    await expect.poll(() => fen(coachPage), { timeout: 15_000 }).toBe(afterA6);
+    await expect.poll(() => fen(coachPage), { timeout: BOARD_SYNC_MS }).toBe(afterA6);
 
     await request.dispose();
   });
