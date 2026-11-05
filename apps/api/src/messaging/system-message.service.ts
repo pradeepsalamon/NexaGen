@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   findMissingRequiredVariables,
   markdownToWhatsApp,
   sampleVariables,
+  DEFAULT_TENANT_ID,
   SYSTEM_MESSAGE_DEFINITIONS,
-  SYSTEM_MESSAGE_KEYS,
+  systemMessageKeysFor,
   type SystemMessageItem,
   type SystemMessageKey,
   type SystemMessageListResponse,
@@ -38,14 +39,14 @@ export class SystemMessageService {
   ) {}
 
   async list(accessToken: string | undefined): Promise<SystemMessageListResponse> {
-    await this.rules.assertAdmin(accessToken);
+    const admin = await this.rules.assertAdmin(accessToken);
 
     const rows = await this.prisma.systemMessageTemplate.findMany({ include: WITH_EDITOR });
     const byKey = new Map(rows.map((row) => [row.key, row]));
 
     return {
       emailConfigured: this.mail.isConfigured(),
-      messages: SYSTEM_MESSAGE_KEYS.map((key) => this.toItem(key, byKey.get(key) ?? null)),
+      messages: systemMessageKeysFor(admin.tenantId === DEFAULT_TENANT_ID).map((key) => this.toItem(key, byKey.get(key) ?? null)),
       whatsappConfigured: this.whatsapp.isConfigured()
     };
   }
@@ -57,6 +58,7 @@ export class SystemMessageService {
     dto: UpdateSystemMessageRequest
   ): Promise<SystemMessageItem> {
     const admin = await this.rules.assertAdmin(accessToken);
+    this.assertVisible(admin, key);
     const definition = SYSTEM_MESSAGE_DEFINITIONS[key];
 
     const subject = definition.channel === "EMAIL" ? dto.subject : null;
@@ -101,12 +103,20 @@ export class SystemMessageService {
     dto: TestSystemMessageRequest
   ): Promise<TestMessagingRuleResponse> {
     const admin = await this.rules.assertAdmin(accessToken);
+    this.assertVisible(admin, key);
     const definition = SYSTEM_MESSAGE_DEFINITIONS[key];
     const { body: preview } = await this.renderer.render(key, sampleVariables(definition.variables));
 
     return definition.channel === "EMAIL"
       ? this.testEmail(key, admin, preview)
       : this.testWhatsApp(admin, dto, preview);
+  }
+
+  /** A platform-only message (e.g. the integrity alert) is Nexa's: another academy's admins never see it. */
+  private assertVisible(admin: Pick<User, "tenantId">, key: SystemMessageKey) {
+    if (SYSTEM_MESSAGE_DEFINITIONS[key].platformOnly && admin.tenantId !== DEFAULT_TENANT_ID) {
+      throw new NotFoundException("Message not found.");
+    }
   }
 
   private async testEmail(

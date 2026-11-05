@@ -28,6 +28,7 @@ export const JOB_LOCKS = {
   platformSubscriptionLapse: "platform.subscription-lapse",
   refundReconciliation: "payments.refund-reconciliation",
   retentionSweep: "retention.sweep",
+  tenantIntegrity: "platform.tenant-integrity",
   tenantUsageSnapshot: "platform.tenant-usage",
   trashCleanup: "trash.cleanup"
 } as const;

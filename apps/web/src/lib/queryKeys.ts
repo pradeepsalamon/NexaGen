@@ -253,6 +253,7 @@ export const queryKeys = {
     invoices: (tenantId?: string) => ["platform", "invoices", "list", tenantId ?? "all"] as const,
     seller: ["platform", "seller"] as const,
     usage: ["platform", "usage"] as const,
+    integrity: ["platform", "integrity"] as const,
     supportSessions: (tenantId?: string) => ["platform", "support-sessions", tenantId ?? "all"] as const,
     tenant: (tenantId: string) => ["platform", "tenants", tenantId] as const,
     tenantSubscription: (tenantId: string) => ["platform", "tenants", tenantId, "subscription"] as const,

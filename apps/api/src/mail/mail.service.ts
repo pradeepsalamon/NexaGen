@@ -212,6 +212,30 @@ export class MailService {
   }
 
   /** A message staff wrote themselves: formatted text, never trusted as HTML. */
+  /**
+   * The nightly tenant integrity check found something (platform operators
+   * only; docs/SAAS_MULTI_TENANCY.md "Tenant integrity monitoring"). Rendered
+   * in Nexa's academy, whose catalogue holds the platform-only wording.
+   */
+  async sendTenantIntegrityAlert(input: {
+    to: string[];
+    linksChecked: number;
+    violationCount: number;
+    summary: string;
+    link: string;
+  }) {
+    if (input.to.length === 0) {
+      this.logger.warn("Skipped tenant integrity alert: no platform operator has an email address.");
+      return;
+    }
+    await this.sendSystemEmail("TENANT_INTEGRITY_ALERT", input.to.join(","), {
+      "integrity.linksChecked": String(input.linksChecked),
+      "integrity.summary": input.summary,
+      "integrity.violationCount": String(input.violationCount),
+      "links.integrity": input.link
+    });
+  }
+
   async sendDirectEmail(input: { to: string; subject: string; body: string }) {
     await this.createTransporter().sendMail({
       ...(await this.sender()),

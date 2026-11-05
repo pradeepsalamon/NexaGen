@@ -48,7 +48,9 @@ import {
   listPlatformPlans,
   listPlatformSupportSessions,
   listPlatformTenants,
+  listIntegrityRuns,
   listPlatformUsage,
+  runIntegrityCheck,
   makePlatformTenantDomainPrimary,
   reactivatePlatformTenant,
   recordPlatformPayment,
@@ -252,6 +254,10 @@ export const usePlatformSellerDetails = () =>
   useQuery({ queryFn: getPlatformSellerDetails, queryKey: queryKeys.platform.seller });
 
 export const usePlatformUsage = () => useQuery({ queryFn: listPlatformUsage, queryKey: queryKeys.platform.usage });
+
+export const useIntegrityRuns = () => useQuery({ queryFn: listIntegrityRuns, queryKey: queryKeys.platform.integrity });
+
+export const useRunIntegrityCheck = () => usePlatformMutation((_: void) => runIntegrityCheck(), "Integrity check finished");
 
 export const useCreatePlatformPayLink = (tenantId: string) =>
   usePlatformMutation((body: CreatePlatformPayLinkRequest) => createPlatformPayLink(tenantId, body), "Pay link created");

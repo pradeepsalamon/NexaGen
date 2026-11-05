@@ -15,8 +15,10 @@ import { join, relative } from "node:path";
  * - `global-claim`: claims work across academies on purpose; each claimed row is
  *   then handled inside its own academy (`runInTenant(row.tenantId)`).
  * - `infra`: not a query on academy data (client bindings, docs, advisory locks).
+ * - `integrity`: reads across every academy on purpose to find rows linked to
+ *   another academy (monitoring only, read-only, platform operators).
  */
-type Kind = "global-claim" | "id-keyed" | "infra" | "platform" | "tenant-filtered";
+type Kind = "global-claim" | "id-keyed" | "infra" | "integrity" | "platform" | "tenant-filtered";
 
 const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "activity-queue/activity-queue.service.ts": { calls: 2, kind: "id-keyed", why: "FOR UPDATE on one queue by id" },
@@ -64,6 +66,11 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "retention/retention.service.ts": { calls: 1, kind: "tenant-filtered", why: "retentionParams on academy tables" },
   "revision/revision.service.ts": { calls: 2, kind: "id-keyed", why: "one student's attempts; one item lock" },
   "student-match/live-class-match.service.ts": { calls: 1, kind: "id-keyed", why: "locks one round" },
+  "tenancy/integrity/tenant-integrity.service.ts": {
+    calls: 4,
+    kind: "integrity",
+    why: "catalogue read, SET LOCAL timeout, cross-academy sample + count per FK (read-only)"
+  },
   "tenancy/tenant-sql.ts": { calls: 2, kind: "infra", why: "doc comment" },
   "trash/trash.service.ts": { calls: 2, kind: "id-keyed", why: "one user's avatar by id (+ its type)" }
 };

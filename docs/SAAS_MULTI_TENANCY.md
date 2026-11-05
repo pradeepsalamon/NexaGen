@@ -423,8 +423,11 @@ tenant step.
    - `prisma.asPlatform(reason)` is the only bypass. It's grep-able and limited
      to an allow-list of call sites (Platform section, global sweeps).
    - Known Prisma limit: nested writes don't run the extension for the child
-     model. The `NOT NULL` column and composite FKs catch these, and the
-     extension requires an explicit `tenantId` in nested `create` payloads.
+     model. The `NOT NULL` column (and, after D5, the raising default) catches a
+     missing `tenantId`, and the extension requires an explicit `tenantId` in
+     nested `create` payloads. Composite FKs were **not** built (see "Tenant
+     integrity monitoring" below); a row linked to another academy's row is
+     found by the nightly check instead.
 3. **Raw SQL** (80 calls in 24 files): each gets an explicit
    `"tenantId" = ${tenantId}`. A unit test fails any new `$queryRaw` file that
    isn't on a reviewed list, the same way `route-auth.spec.ts` works.
@@ -435,6 +438,57 @@ tenant step.
    migrations only, and policies `tenant_id = current_setting('app.tenant_id', true)`
    set per transaction by the extension. Measure the per-query overhead first; if
    it's too high, apply RLS only to F and identity tables.
+
+### Tenant integrity monitoring (monitoring, not enforcement)
+
+Built 2026-11-05 instead of slice 3b's composite foreign keys. **It detects; it
+never blocks.** Application-level isolation (TenantContext, the `tenantScope`
+extension, `authenticateUser`, the reviewed raw-SQL list, the two-academy
+suites) stays the guard. No foreign key is changed and no trigger is added.
+
+- **Why not composite FKs:** 314 single-column relationships link academy
+  tables; 127 of them are `onDelete: SetNull`, and a composite FK
+  `(tenantId, parentId)` would null `tenantId` too (a `NOT NULL` column), so
+  those deletes would fail. The rest would need relation rewrites across the
+  code and write-blocking constraint validation in a production migration.
+- **What it checks** (`apps/api/src/tenancy/integrity/`): every single-column
+  foreign key between two tables that both carry `tenantId`, read from
+  `pg_constraint` at run time, so a new relation is covered with no code
+  change. A row whose `tenantId` differs from its parent's is a violation.
+  Read-only, one relationship per transaction with a 60 s statement timeout; a
+  relationship that errors is reported and the rest still run.
+- **Legitimate cross-academy links** (`PLATFORM_OPERATOR_LINKS`): a platform
+  operator (Nexa `SUPER_ADMIN`, `isPlatformOperator`) acting on an academy:
+  `tenant_subscription_events.actorUserId`, `platform_payments.recordedById`,
+  `platform_support_sessions.staffUserId`. Exempt **only** when the parent user
+  is an operator; anyone else there is still a violation. Adding an entry is a
+  security review, like the raw-SQL list.
+- **When:** nightly at 03:40 UTC (`TENANT_INTEGRITY_CRON`) under
+  `JobLockService.runExclusive(JOB_LOCKS.tenantIntegrity)`, and on demand from
+  the platform console (Integrity tab, "Run now").
+- **Results:** each run is a `tenant_integrity_runs` row (platform table:
+  status `OK` / `VIOLATIONS` / `FAILED`, relationship and row counts, up to
+  `TENANT_INTEGRITY_SAMPLE_LIMIT` (20) example rows per relationship with the
+  child's primary key, both academy ids and the parent id; no row content).
+  Kept 180 days (`RETENTION_RULES`).
+- **Reporting:** `GET /platform/integrity/runs` and `POST` (run now), platform
+  operators only (others 403). A run with findings or errors emails every
+  active Nexa `SUPER_ADMIN` through the system message `TENANT_INTEGRITY_ALERT`
+  (group `PLATFORM`, `platformOnly`: other academies' admins never see or edit
+  it), with a link to `/admin/platform?tab=integrity`.
+- **Tests:** `tenant-integrity.rules.spec.ts` (SQL shape, operator exemption
+  only on listed links, every exempt link is a real relation to `User`, email
+  summary), `tenant-integrity.int-spec.ts` (three academies: correct data and
+  operator actions find nothing; a non-operator actor and raw-SQL corruptions
+  towards Nexa and towards another academy are reported with table, row ids and
+  both academies; console access; the nightly run; the alert message stays
+  Nexa's).
+- **Staging, 2026-11-05:** first run on `vps_dev_saas` (D5 applied, two
+  academies): 314 relationships in about 2 s, status `OK`, nothing found; the
+  operator's subscription event on the test academy is the one cross-academy
+  link and is correctly exempt.
+- **Database-level enforcement stays on the roadmap as RLS** (item 5 above and
+  "Later" in §L), not part of this.
 
 ### Asynchronous and realtime paths
 
@@ -999,7 +1053,7 @@ audit/enforce rule as the extension.
 - Still to do: the full suites green, then `TENANT_SCOPE_MODE=enforce` on staging
   (`vps_dev_saas`) and a read of its audit log.
 
-- **Slice 3b (not built):** `(tenantId, …)` indexes on hot paths (worth it only
+- **Slice 3b (composite FKs replaced by monitoring, 2026-11-05):** see "Tenant integrity monitoring" in §E. Not built: `(tenantId, …)` indexes on hot paths (worth it only
   with many academies: with one, `tenantId` filters nothing) and composite FKs
   `(tenantId, parentId) → parent(tenantId, id)` on core relations (they change
   the relation definitions, so they get their own step).

@@ -2648,6 +2648,7 @@ export * from "./system-messages";
 export * from "./payments";
 export * from "./tenant-branding";
 export * from "./platform-billing";
+export * from "./tenant-integrity";
 
 // Invoicing: tax engine, invoice + credit-note documents, billing settings
 export * from "./invoices";
