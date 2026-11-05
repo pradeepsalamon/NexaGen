@@ -16,14 +16,16 @@ export const CLASSROOM_PRESENTATION_ATTRIBUTE = "classroomPresentation";
 /**
  * One press of Pull back / Push to video. `seq` grows with every press, so
  * presenting what is already presented still moves everyone back to it (a
- * student who wandered off to the puzzle, or another tab).
+ * student who wandered off to the puzzle, or another tab). It is the press
+ * time in ms (`presentClassroom`), so presses from different staff clients
+ * compare by time.
  */
 export type PresentationState = { presentation: ClassroomPresentation; seq: number };
 
 const isPresentation = (value: unknown): value is ClassroomPresentation =>
   value === "gallery" || value === "board" || value === "pushed";
 
-/** Attribute / storage form: `board:3`. */
+/** Attribute / storage form: `board:1762370000000`. */
 export function encodeClassroomPresentation({ presentation, seq }: PresentationState): string {
   return `${presentation}:${seq}`;
 }

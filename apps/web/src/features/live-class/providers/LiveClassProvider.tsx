@@ -72,7 +72,7 @@ export interface LiveClassState {
    * the gallery. The coach sets it; students mirror the coach's attribute.
    */
   classroomPresentation: ClassroomPresentation;
-  /** Grows with every press (`PresentationState.seq`), so re-presenting the same thing still lands. */
+  /** Grows with every press (`PresentationState.seq`, a timestamp), so re-presenting the same thing still lands. */
   presentationSeq: number;
   /** Coach: present `presentation` now (a new press). */
   presentClassroom: (presentation: ClassroomPresentation) => void;
@@ -255,8 +255,11 @@ function createLiveClassStore(init: {
 
       classroomPresentation: "gallery",
       presentationSeq: 0,
+      // A press's seq is a timestamp (still +1 within a tab), so presses from
+      // two staff clients (coach + admin, or a second tab) order by time: the
+      // latest press wins for students, not whoever has pressed most often.
       presentClassroom: (classroomPresentation) =>
-        set((s) => ({ classroomPresentation, presentationSeq: s.presentationSeq + 1 })),
+        set((s) => ({ classroomPresentation, presentationSeq: Math.max(s.presentationSeq + 1, Date.now()) })),
       applyClassroomPresentation: ({ presentation, seq }) =>
         set((s) =>
           s.classroomPresentation === presentation && s.presentationSeq === seq

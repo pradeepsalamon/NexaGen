@@ -750,9 +750,9 @@ function Runner({
       <ol className="space-y-1" aria-label="Activities">
         {queue.items.map((item, i) => {
           const isCurrent = item.id === queue.currentItemId;
-          const currentIndex = queue.items.findIndex((x) => x.id === queue.currentItemId);
-          const isNext = !isCurrent && !item.completedAt && i === currentIndex + 1;
-          const done = !!item.completedAt && !isCurrent;
+          // A finished queue has no current item (index -1): no row is "Next" then.
+          const isNext = live && index >= 0 && !isCurrent && !item.completedAt && i === index + 1;
+          const itemDone = !!item.completedAt && !isCurrent;
           return (
             // Queue step (spec component 23): a 48px row — number or tick, title, kind, state badge.
             <li
@@ -766,13 +766,13 @@ function Runner({
               <span
                 className={cn(
                   "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
-                  isCurrent ? "bg-primary text-on-primary" : done ? "bg-success-soft text-success-ink" : "bg-app-soft text-app-muted"
+                  isCurrent ? "bg-primary text-on-primary" : itemDone ? "bg-success-soft text-success-ink" : "bg-app-soft text-app-muted"
                 )}
               >
-                {done ? <Check aria-label="Done" className="size-3.5" strokeWidth={2.5} /> : i + 1}
+                {itemDone ? <Check aria-label="Done" className="size-3.5" strokeWidth={2.5} /> : i + 1}
               </span>
               <span className="min-w-0 flex-1">
-                <span className={cn("block truncate font-medium", isCurrent ? "text-primary-ink" : done ? "text-app-muted" : "text-app-text")}>
+                <span className={cn("block truncate font-medium", isCurrent ? "text-primary-ink" : itemDone ? "text-app-muted" : "text-app-text")}>
                   {item.title}
                 </span>
                 <span className="flex items-center gap-1 text-xs text-app-muted">
@@ -791,7 +791,7 @@ function Runner({
                 </SimpleTooltip>
               ) : isCurrent ? (
                 <Badge variant="default" className="shrink-0">Now</Badge>
-              ) : done ? (
+              ) : itemDone ? (
                 <Badge variant="success" className="shrink-0">Done</Badge>
               ) : isNext ? (
                 <Badge variant="secondary" className="shrink-0">Next</Badge>

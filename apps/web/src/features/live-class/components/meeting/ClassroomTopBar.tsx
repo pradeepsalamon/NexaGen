@@ -54,7 +54,7 @@ export function ClassroomTopBar({
     >
       <div className="flex min-w-0 shrink-0 items-center gap-2">
         <Link
-          aria-label={activeUser ? "Go to dashboard (opens in a new tab)" : "Go to home"}
+          aria-label={`${activeUser ? "Go to dashboard" : "Go to home"}${openLinksInNewTab ? " (opens in a new tab)" : ""}`}
           className="hidden shrink-0 items-center rounded-control transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus md:flex"
           href={activeUser ? getRoleDashboardHref(activeUser.role) : "/"}
           {...newTab}

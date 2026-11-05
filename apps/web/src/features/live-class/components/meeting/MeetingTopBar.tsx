@@ -36,9 +36,7 @@ export const MeetingTopBar = memo(function MeetingTopBar() {
       // exit, well away from the controls a coach reaches for mid-class.
       actions={
         <>
-          <span className="hidden md:contents">
-            <ConnectionChip />
-          </span>
+          <ConnectionChip onlyProblemsBelowMd />
           <TimerBadge startedAt={startedAt} endsAt={endsAt} />
         </>
       }

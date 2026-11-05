@@ -35,7 +35,9 @@ function useConnectionSummary(): { state: ConnState; label: string } {
     return { state: "reconnecting", label: "Reconnecting…" };
   }
   if (connectionState === ConnectionState.Disconnected) return { state: "offline", label: "Offline" };
-  if (quality === ConnectionQuality.Poor) return { state: "weak", label: "Weak connection" };
+  if (quality === ConnectionQuality.Poor || quality === ConnectionQuality.Lost) {
+    return { state: "weak", label: "Weak connection" };
+  }
   if (quality === ConnectionQuality.Unknown) return { state: "measuring", label: "Measuring connection" };
   return { state: "good", label: quality === ConnectionQuality.Excellent ? "Good connection" : "Fair connection" };
 }
@@ -53,20 +55,23 @@ export function LiveChip() {
 
 /**
  * Connection chip: good (green), weak (amber), reconnecting (amber, the only
- * pulsing state). On phones a good connection shows just its dot.
+ * pulsing state). On phones a good connection shows just its dot, or nothing
+ * with `onlyProblemsBelowMd` (a crowded bar), so weak/reconnecting/offline
+ * always stay visible.
  */
-export function ConnectionChip({ className }: { className?: string }) {
+export function ConnectionChip({ className, onlyProblemsBelowMd = false }: { className?: string; onlyProblemsBelowMd?: boolean }) {
   const { state, label } = useConnectionSummary();
+  const fine = state === "good" || state === "measuring";
   const tone = state === "good" ? "success" : state === "measuring" ? "neutral" : "warning";
   return (
     <StatusChip
       tone={tone}
       role="status"
       aria-live="polite"
-      hideLabelBelowSm={state === "good" || state === "measuring"}
+      hideLabelBelowSm={fine}
       pulse={state === "reconnecting"}
       icon={state === "reconnecting" ? <RefreshCw aria-hidden="true" className="size-3.5 motion-safe:animate-spin" strokeWidth={2} /> : undefined}
-      className={className}
+      className={cn(onlyProblemsBelowMd && fine && "max-md:hidden", className)}
     >
       {label}
     </StatusChip>

@@ -73,7 +73,9 @@ const SidebarTabs = memo(function SidebarTabs({
           type="button"
           role="tab"
           aria-selected={active === panel.id}
-          aria-label={panel.label}
+          aria-label={
+            panel.id === "chat" && unreadChatCount > 0 ? `${panel.label} (${unreadChatCount} unread)` : panel.label
+          }
           onClick={() => onTabChange(panel.id)}
           className={cn(
             "relative flex min-h-11 items-center gap-1.5 rounded-control px-3 text-[0.8125rem] font-medium transition-colors sm:min-h-9",
