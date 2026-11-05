@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
+  addDays,
   API_ROUTES,
   type StudentActivityEntry,
   type StudentActivityHistoryResponse,
@@ -325,10 +326,16 @@ describe("Student activity history (real app, real Postgres)", () => {
 
   it("buckets by day in the viewer's own timezone and fills empty days", async () => {
     await t.prisma.user.update({ where: { id: w.admin.id }, data: { timezone: "America/Los_Angeles" } });
-    const day = (offsetDays: number) =>
-      new Intl.DateTimeFormat("en-CA", { day: "2-digit", month: "2-digit", timeZone: "America/Los_Angeles", year: "numeric" }).format(
-        new Date(Date.now() + offsetDays * 86_400_000)
-      );
+    // Whole calendar days back from today's date in the zone (as the web's
+    // `dayIn` does), never `Date.now() − n × 24 h`: in the week after a DST
+    // change that lands on the wrong date in the hour around midnight.
+    const today = new Intl.DateTimeFormat("en-CA", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: "America/Los_Angeles",
+      year: "numeric"
+    }).format(new Date());
+    const day = (offsetDays: number) => addDays(today, offsetDays);
     const range = `from=${day(-6)}&to=${day(0)}`;
     const res = await t.call(w.admin, "GET", `${API_ROUTES.progress.summary(w.a.student.id)}?${range}`);
     expect(res.status).toBe(200);

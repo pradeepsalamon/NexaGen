@@ -31,6 +31,11 @@ export default defineConfig({
 
   use: {
     baseURL: resolveBaseUrl(),
+    // A browser always sends its page's Origin to the API, and the API reads
+    // the academy from it (docs/SAAS_MULTI_TENANCY.md §B). The specs' direct
+    // API calls (`context.request`) send none, so under TENANT_SCOPE_MODE=enforce
+    // (staging) they'd have no academy and be refused. Send the web origin.
+    extraHTTPHeaders: { Origin: new URL(resolveBaseUrl()).origin },
     headless: true,
     screenshot: "only-on-failure",
     trace: "on-first-retry",

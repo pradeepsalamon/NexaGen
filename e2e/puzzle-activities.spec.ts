@@ -39,7 +39,7 @@ async function enterRoom(page: Page, classId: string) {
     const join = page.getByRole("button", { name: /^Join/i });
     if ((await join.count()) && (await join.first().isEnabled())) await join.first().click();
     throw new Error("not in the room yet");
-  }).toPass({ timeout: 60_000 });
+  }).toPass({ timeout: 90_000 }); // a real LiveKit join can take over a minute
 }
 
 /** Click-to-move on a chessground board, from White's side. */

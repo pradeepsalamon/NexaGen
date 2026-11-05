@@ -120,28 +120,19 @@ function daysFromToday(iso: string, timeZone: string): number | null {
     return null;
   }
   // Compare calendar dates, not elapsed hours: 11pm → 1am is "tomorrow", and
-  // 26 hours out on the same weekday is not "today".
-  const key = (value: Date) =>
-    formatIso(value.toISOString(), timeZone, {
+  // 26 hours out on the same weekday is not "today". Both dates are read in
+  // the zone, then subtracted as plain dates — stepping in 24-hour blocks would
+  // drift by an hour across a daylight-saving change.
+  const dayNumber = (value: Date) => {
+    const [month, day, year] = formatIso(value.toISOString(), timeZone, {
       day: "2-digit",
       month: "2-digit",
       year: "numeric"
-    });
-  const target = key(date);
-  const today = new Date();
-
-  for (let offset = 0; offset <= 7; offset += 1) {
-    const ahead = new Date(today.getTime() + offset * 86400000);
-    if (key(ahead) === target) {
-      return offset;
-    }
-    const behind = new Date(today.getTime() - offset * 86400000);
-    if (key(behind) === target) {
-      return -offset;
-    }
-  }
-
-  return null;
+    }).split("/");
+    return Date.UTC(Number(year), Number(month) - 1, Number(day)) / 86_400_000;
+  };
+  const offset = dayNumber(date) - dayNumber(new Date());
+  return Number.isInteger(offset) && Math.abs(offset) <= 7 ? offset : null;
 }
 
 /** "Today" / "Tomorrow" / "Friday" within the week, else "Mar 5". */

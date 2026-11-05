@@ -6,12 +6,17 @@ import type { PrismaTransactionClient } from "../../prisma/prisma.service";
 import { ClassCancelExceptionalHandler, ClassCancelHandler } from "./class-cancel.handler";
 
 const HOUR = 3_600_000;
-const inHours = (h: number) => new Date(Date.now() + h * HOUR);
+// One fixed clock for the whole file: the fixtures and the handler (its
+// `Date.now()` and `resolveCancellationPath`'s default) must read the same
+// instant, or a millisecond tick between two `inHours(10)` calls looks like a
+// reschedule.
+const NOW = new Date("2026-11-10T10:00:00Z");
+const inHours = (h: number) => new Date(NOW.getTime() + h * HOUR);
 const coach = { id: "coach-1", role: UserRole.COACH, timezone: "UTC" };
 
 describe("resolveCancellationPath (V10)", () => {
-  const now = new Date("2026-11-10T10:00:00Z");
-  const at = (h: number) => new Date(now.getTime() + h * HOUR);
+  const now = NOW;
+  const at = inHours;
 
   it.each([
     [{ status: "SCHEDULED", startsAt: at(24.5) }, "DIRECT"],
@@ -37,11 +42,16 @@ describe("class cancellation handlers", () => {
   const db = () => tx as unknown as PrismaTransactionClient;
 
   beforeEach(() => {
+    jest.useFakeTimers({ now: NOW });
     messaging = { dispatchInBackground: jest.fn() };
     tx = {
       $queryRaw: jest.fn().mockResolvedValue([]),
       coachClass: { findUnique: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }) }
     };
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   const handler = () => new ClassCancelHandler(messaging as unknown as MessagingDispatchService);
