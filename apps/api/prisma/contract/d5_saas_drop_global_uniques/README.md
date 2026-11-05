@@ -36,8 +36,9 @@ against the rehearsal database afterwards (§J-10).
 Still to do before promoting: the same run on a **real production backup**
 (Phase 7; the owner fetches it from the backup bucket), because production may
 hold rows `vps_dev` doesn't. The e2e half of §J-10 is already covered by
-staging: `vps_dev_saas` has run with D5 applied since 2026-11-04, and the full
-Chromium and WebKit suites pass against it.
+staging: `vps_dev_saas` has run with D5 applied since 2026-11-04. Every e2e spec
+that can run on staging passes there on Chromium and WebKit. Recording, white
+label and the live-classroom diagram test can't run there (release PR #129).
 
 ## 2. Promote (after the rehearsal passes and the owner approves)
 
