@@ -1112,7 +1112,7 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
 | 6a | Academy → owner: `platform-billing/` (checkout, pay link, owner's Razorpay, webhook, hourly reconcile) | `platform-billing.int-spec.ts`: forged callback is a no-op, unsigned webhook refused and not stored, duplicate webhook safe, short payment ignored |
 | 6b | GST invoices from the owner: own number series per financial year, frozen snapshot, printable page | same spec: one invoice per payment, `NXP/yy-yy/00001` |
 | 6c | Student → academy: each academy's own gateway keys (`TenantPaymentCredential`), per-academy webhook URL | same spec: the academy's URL verifies with its secret only and writes only its rows |
-| 6d | Usage counters: nightly `TenantUsage` snapshot, console endpoint | — |
+| 6d | Usage counters: nightly `TenantUsage` snapshot, console endpoint | `tenant-usage.int-spec.ts`: each academy counted in its own context, a rerun replaces the snapshot, only platform operators read it (academy and Nexa admins 403) |
 
 - **Owner's account** (`platform-billing/platform-razorpay.client.ts`): its own
   `PLATFORM_RAZORPAY_KEY_ID` / `_KEY_SECRET` / `_WEBHOOK_SECRET`, separate from the
