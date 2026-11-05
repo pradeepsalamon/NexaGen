@@ -224,6 +224,31 @@ API **on its own address under `/api/`**, so each academy host needs that rule.
    rule; don't rely on it in production — requests then come through two proxy
    hops and every user shares the web container's rate-limit bucket.
 
+### Nexa on host-only cookies (optional, owner's switch)
+
+Nexa's own session cookies are domain-wide (`.nexachess.in`), so every
+subdomain (staging, the CRM, academies' `<slug>.nexachess.in`) receives them.
+Academies already use host-only cookies. To move Nexa too (docs/AUTHORIZATION.md
+"Host-only vs domain-wide"):
+
+1. nginx: in the `nexachess.in` (and `www.`) server block, add the same rule the
+   academies use, **above** `location /`:
+   `location /api/ { proxy_pass http://127.0.0.1:3001/; include /etc/nginx/nexa-proxy.conf; }`
+   (one proxy hop, so `TRUST_PROXY_HOPS=1` still sees the visitor's IP; never
+   rely on the web build's `/api` rewrite in production). `nginx -t && reload`.
+   Check `curl -s https://nexachess.in/api/tenant/public-config` answers JSON.
+2. Root `.env`: `NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API=true` (web, build-time)
+   and `PLATFORM_HOST_ONLY_COOKIES=true` (API). Rebuild web, restart API, in the
+   same release.
+3. Check in a browser: sign in on nexachess.in sets `nexa_h_*` with no
+   `Domain`; an already signed-in tab keeps working and swaps to `nexa_h_*` at
+   its next refresh; sign-out clears both pairs.
+4. Keep `api.nexachess.in`: webhooks (Razorpay, LiveKit) and the recorder still
+   use it.
+
+Rollback: set both back to `false`, rebuild web, restart API. Users who got
+`nexa_h_*` cookies sign in again once (the domain-wide pair was cleared).
+
 ## CI, automated deploys and rollback
 
 Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselves.

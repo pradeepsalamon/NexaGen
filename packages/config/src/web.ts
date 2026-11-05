@@ -10,6 +10,12 @@ const webEnvSchema = z.object({
     .default("http://localhost:3001")
     .transform((url) => url.replace(/\/$/, "")),
   NEXT_PUBLIC_LIVEKIT_URL: z.string().url().default("ws://localhost:7880"),
+  // Nexa's own hosts call the API same-origin under `/api` (like academies), so the API's
+  // PLATFORM_HOST_ONLY_COOKIES can keep their session host-only. Needs the nginx `/api/` rule.
+  NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   // Public origin of the web app: canonical URLs, sitemap, Open Graph.
   NEXT_PUBLIC_SITE_URL: z
     .string()
@@ -25,6 +31,7 @@ export function getWebEnv(source: {
   NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?: string | undefined;
   NEXT_PUBLIC_API_URL?: string | undefined;
   NEXT_PUBLIC_LIVEKIT_URL?: string | undefined;
+  NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API?: string | undefined;
   NEXT_PUBLIC_SITE_URL?: string | undefined;
 }) {
   return webEnvSchema.parse(source);

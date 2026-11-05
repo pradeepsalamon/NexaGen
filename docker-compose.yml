@@ -216,6 +216,8 @@ services:
       FRONTEND_URL: ${FRONTEND_URL}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
       COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
+      # Nexa's own session cookies host-only; on together with the web's NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API (docs/DEPLOYMENT.md).
+      PLATFORM_HOST_ONLY_COOKIES: ${PLATFORM_HOST_ONLY_COOKIES:-false}
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
 
       LIVEKIT_URL: ${LIVEKIT_URL}
@@ -371,6 +373,8 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL}
+        # Nexa's pages call /api on their own host (needs nginx's /api/ rule on nexachess.in).
+        NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API: ${NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API:-false}
         # Canonical/sitemap/Open Graph origin (bare domain, not www).
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://nexachess.in}
         # Google Search Console HTML-tag verification token (optional).

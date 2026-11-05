@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isPlatformHost } from "./lib/apiBase";
+import { isPlatformHost, usesHostOnlySession } from "./lib/apiBase";
 import {
   AUTH_COOKIES,
   canAccessPath,
@@ -14,10 +14,15 @@ import {
 export function middleware(request: NextRequest) {
   // An academy's own address reads only its host-only cookies: Nexa's domain-wide ones also
   // reach `<slug>.nexachess.in`, and the API refuses them there (lib/apiBase.ts, §E).
-  const names = isPlatformHost(request.nextUrl.hostname) ? AUTH_COOKIES : HOST_ONLY_AUTH_COOKIES;
-  const accessToken = request.cookies.get(names.accessToken)?.value;
-  const hasSession =
-    Boolean(accessToken) || Boolean(request.cookies.get(names.refreshToken)?.value);
+  // Nexa's own hosts with host-only sessions on (lib/apiBase.ts) still read the old
+  // domain-wide cookies until the API swaps them at the next refresh.
+  const hostname = request.nextUrl.hostname;
+  const readsLegacy = isPlatformHost(hostname);
+  const names = usesHostOnlySession(hostname) ? HOST_ONLY_AUTH_COOKIES : AUTH_COOKIES;
+  const cookie = (key: keyof typeof AUTH_COOKIES) =>
+    request.cookies.get(names[key])?.value || (readsLegacy ? request.cookies.get(AUTH_COOKIES[key])?.value : undefined);
+  const accessToken = cookie("accessToken");
+  const hasSession = Boolean(accessToken) || Boolean(cookie("refreshToken"));
   // An expired access token still names the role; a refresh-only session has none,
   // so it passes here and SessionBootstrap redirects once /auth/me resolves.
   const role = readRoleFromJwt(accessToken);

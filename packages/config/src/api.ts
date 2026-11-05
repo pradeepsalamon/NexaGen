@@ -119,6 +119,13 @@ const apiEnvSchema = z.object({
   // Web and API are same-site subdomains, so Lax is enough and blocks cross-site form posts.
   // "none" only for a deployment where the API sits on a different registrable domain.
   COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
+  // Nexa's own hosts also get host-only `nexa_h_*` session cookies (docs/AUTHORIZATION.md
+  // "Cookies"). Turn on with the web build's NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API, after
+  // nexachess.in's nginx `location /api/` rule (docs/DEPLOYMENT.md).
+  PLATFORM_HOST_ONLY_COOKIES: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
   RECORDING_STORAGE_DIR: z.string().default("/recordings"),
   RECORDING_STORAGE_LIMIT_GB: z.coerce.number().positive().default(130),
