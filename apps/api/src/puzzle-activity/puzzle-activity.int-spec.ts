@@ -243,7 +243,7 @@ describe("MCQ + Playout activities (real app, real Postgres)", () => {
       upload.mockRestore();
     });
 
-    it("folders carry their activities: count, copy, and block archive/delete", async () => {
+    it("folders carry their activities: delete to Trash, restore, copy", async () => {
       const folder = await t.call(w.admin, "POST", API_ROUTES.puzzles.topics, { name: "Beginner rook endings" });
       const folderId = (folder.body as any).topic.id;
       const id = await createActivity(playoutBody({ title: "In a folder", topicId: folderId }));
@@ -251,15 +251,23 @@ describe("MCQ + Playout activities (real app, real Postgres)", () => {
       const list = await t.call(w.admin, "GET", API_ROUTES.puzzles.topics);
       expect((list.body as any).topics.find((f: any) => f.id === folderId)).toMatchObject({ activityCount: 1, puzzleCount: 0 });
 
-      // A folder with an activity in it isn't "empty": archive and delete both refuse.
+      // A folder with an activity in it isn't "empty".
       expect((await t.call(w.admin, "POST", API_ROUTES.puzzles.archiveTopic(folderId))).status).toBe(400);
-      expect((await t.call(w.admin, "DELETE", API_ROUTES.puzzles.topic(folderId))).status).toBe(400);
-      expect(await t.prisma.libraryActivity.findUnique({ where: { id } })).not.toBeNull();
 
       const copied = await t.call(w.admin, "POST", API_ROUTES.puzzles.copyTopic(folderId), { parentId: null });
       expect(copied.status).toBe(201);
       const copyFolder = (copied.body as any).topic.id;
       expect(await t.prisma.libraryActivity.count({ where: { title: "In a folder", topicId: copyFolder } })).toBe(1);
+
+      const deleted = await t.call(w.admin, "DELETE", API_ROUTES.puzzles.topic(folderId));
+      expect(deleted.status).toBe(200);
+      expect(deleted.body).toEqual({ activities: 1, folders: 1, puzzles: 0, success: true });
+      expect(await t.prisma.libraryActivity.findUnique({ where: { id } })).toBeNull();
+      const row = await t.prisma.withDeleted.libraryActivity.findUniqueOrThrow({ where: { id } });
+      expect(row.isDeleted).toBe(true);
+      expect(row.deleteGroupId).toBeTruthy();
+      // The sibling copy is untouched.
+      expect(await t.prisma.libraryActivity.count({ where: { topicId: copyFolder } })).toBe(1);
     });
   });
 

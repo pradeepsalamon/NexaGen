@@ -13,6 +13,7 @@ import {
   isSystemPuzzleFolder,
   MAX_PUZZLE_TOPIC_DEPTH,
   puzzleTopicPath,
+  SYSTEM_PUZZLE_FOLDER_SLUGS,
   type CopyPuzzleTopicRequest,
   type CopyPuzzleTopicResponse,
   type CreatePuzzleTopicRequest,
@@ -233,38 +234,41 @@ export class PuzzleTopicService {
   }
 
   /**
-   * Delete an empty folder (to Trash). Refused while it still has subfolders or
-   * live puzzles/activities: the admin moves or deletes those first, so one click
-   * never takes a whole tree of content with it.
+   * Delete a folder with everything in it: its subfolders and every live puzzle
+   * they hold go to Trash under one `deleteGroupId`, so restoring any of them
+   * brings the whole folder back, and the trash sweep purges them after the
+   * retention period (puzzles before folders — `puzzles.topicId` is RESTRICT).
    */
   async remove(accessToken: string | undefined, id: string): Promise<DeletePuzzleTopicResponse> {
     const user = assertAdmin(await authenticateUser(this.jwtService, this.prisma, accessToken));
     const topic = await this.prisma.puzzleTopic.findUnique({ where: { id } });
     if (!topic) throw new NotFoundException("Topic not found.");
-    if (isSystemPuzzleFolder(topic)) {
+
+    const subtree = collectPuzzleTopicSubtreeIds(await this.loadLinks(), id);
+    const system = await this.prisma.puzzleTopic.count({
+      where: { id: { in: subtree }, slug: { in: [...SYSTEM_PUZZLE_FOLDER_SLUGS] } }
+    });
+    if (system > 0) {
       throw new BadRequestException("System folders can't be deleted.");
     }
 
-    const subtree = collectPuzzleTopicSubtreeIds(await this.loadLinks(), id);
-    if (subtree.length > 1) {
-      throw new BadRequestException(
-        "This folder still has subfolders. Move or delete them first, then delete the folder."
+    const { activities, puzzles } = await this.prisma.$transaction(async (tx) => {
+      const deleteGroupId = await this.trash.softDeleteGroup(tx, "PuzzleTopic", subtree, user.id);
+      const activities = await this.trash.softDeleteManyIntoGroup(
+        tx,
+        "LibraryActivity",
+        { topicId: { in: subtree } },
+        { cascadedFrom: "PuzzleTopic", deleteGroupId, parentId: id, userId: user.id }
       );
-    }
-
-    await this.prisma.$transaction(async (tx) => {
-      const [puzzles, activities] = await Promise.all([
-        tx.puzzle.count({ where: { topicId: id, isDeleted: false } }),
-        tx.libraryActivity.count({ where: { topicId: id, isDeleted: false } })
-      ]);
-      if (puzzles + activities > 0) {
-        throw new BadRequestException(
-          "This folder still has puzzles or activities. Move or delete them first, then delete the folder."
-        );
-      }
-      await this.trash.softDelete(tx, "PuzzleTopic", id, user.id);
+      const puzzles = await this.trash.softDeleteManyIntoGroup(
+        tx,
+        "Puzzle",
+        { topicId: { in: subtree } },
+        { cascadedFrom: "PuzzleTopic", deleteGroupId, parentId: id, userId: user.id }
+      );
+      return { activities, puzzles };
     });
-    return { success: true };
+    return { activities, folders: subtree.length, puzzles, success: true };
   }
 
   /** Move every live puzzle in the folder's subtree elsewhere, then archive the subtree. */

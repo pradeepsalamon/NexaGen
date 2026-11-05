@@ -10,6 +10,7 @@ import {
   isSystemPuzzleFolder,
   MAX_PUZZLE_TOPIC_DEPTH,
   puzzleTopicPath,
+  type DeletePuzzleTopicResponse,
   type PuzzleTopicDto,
   type PuzzleTopicTreeNode
 } from "@nexa-chess/types";
@@ -494,12 +495,19 @@ export function TopicManager({
         <DeleteFolderDialog
           node={deleting}
           onClose={() => setDeleting(null)}
-          onDone={() => {
+          onDone={(res) => {
+            const parts = [
+              countLabel(res.folders, "folder", "folders"),
+              countLabel(res.puzzles, "puzzle", "puzzles"),
+              ...(res.activities > 0 ? [countLabel(res.activities, "activity", "activities")] : [])
+            ];
             toast.success({
               title: `Deleted "${deleting.topic.name}"`,
-              message: "Moved to Trash. A Super Admin can restore it; it is removed for good after 30 days."
+              message: `${joinLabels(parts)} moved to Trash. A Super Admin can restore them; they are removed for good after 30 days.`
             });
-            if (openFolderId === deleting.topic.id) setOpenFolderId(null);
+            if (openFolderId && collectPuzzleTopicSubtreeIds(topics, deleting.topic.id).includes(openFolderId)) {
+              setOpenFolderId(null);
+            }
             setDeleting(null);
           }}
         />
@@ -508,10 +516,20 @@ export function TopicManager({
   );
 }
 
+function countLabel(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/** "a", "a and b", "a, b and c". */
+function joinLabels(parts: string[]): string {
+  return parts.length <= 1 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
 /**
- * Only an empty folder can be deleted (the API refuses one with subfolders,
- * puzzles or activities). A non-empty folder gets an explanation and no Delete
- * button; an empty one a confirm, then Trash (Undo = Restore in Trash).
+ * Deleting a folder takes everything inside it — subfolders at any depth, their
+ * puzzles and their MCQs/Playouts. A confirm names the counts, then the API moves
+ * the whole subtree to Trash as one group (Undo = Restore in Trash; permanent
+ * after the retention period).
  */
 function DeleteFolderDialog({
   node,
@@ -520,79 +538,66 @@ function DeleteFolderDialog({
 }: {
   node: TopicNode;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (res: DeletePuzzleTopicResponse) => void;
 }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
-  const { topic } = node;
-  const contents = [
-    countLabel(node.children.length, "subfolder"),
-    countLabel(topic.puzzleCount, "puzzle"),
-    countLabel(topic.activityCount, "activity", "activities")
-  ].filter((part): part is string => part !== null);
-  const blocked = contents.length > 0;
+  const { topic, totalPuzzleCount } = node;
+  const subtree = flattenPuzzleTopicTree([node]);
+  const subfolders = subtree.length - 1;
+  const activities = subtree.reduce((sum, n) => sum + n.topic.activityCount, 0);
+  const inside = [
+    ...(subfolders > 0 ? [countLabel(subfolders, "subfolder", "subfolders")] : []),
+    ...(totalPuzzleCount > 0 ? [countLabel(totalPuzzleCount, "puzzle", "puzzles")] : []),
+    ...(activities > 0 ? [countLabel(activities, "activity", "activities")] : [])
+  ];
 
   return (
     <Dialog open onOpenChange={(v) => !v && !busy && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {blocked ? <>Can&apos;t delete &quot;{topic.name}&quot;</> : <>Delete &quot;{topic.name}&quot;?</>}
-          </DialogTitle>
+          <DialogTitle>Delete &quot;{topic.name}&quot;?</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-app-muted">
-          {blocked ? (
+          {inside.length > 0 ? (
             <>
-              This folder still contains <strong className="text-app-text">{joinParts(contents)}</strong>. Move or
-              delete them first, then delete the folder.
+              This also deletes everything inside it:{" "}
+              <strong className="text-app-text">{joinLabels(inside)}</strong>.{" "}
             </>
-          ) : (
-            <>
-              The folder moves to Trash, where a Super Admin can restore it for 30 days; after that it is deleted
-              permanently.
-            </>
-          )}
+          ) : null}
+          Everything moves to Trash, where a Super Admin can restore it together for 30 days; after that it is
+          deleted permanently.
         </p>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={busy}>
-            {blocked ? "Close" : "Cancel"}
+            Cancel
           </Button>
-          {blocked ? null : (
-            <Button
-              variant="destructive"
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  // undo: intentionally excluded — confirmed above; restored from Trash (lib/undo/README.md).
-                  await deletePuzzleTopic(topic.id);
-                  void queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.topics });
-                  void queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.all });
-                  onDone();
-                } catch (error) {
-                  toast.error({ title: "Could not delete the folder", message: (error as Error).message });
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <Trash2 className="mr-1.5 size-4" strokeWidth={2.5} />
-              Delete folder
-            </Button>
-          )}
+          <Button
+            variant="destructive"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                // undo: intentionally excluded — confirmed above; restored from Trash (lib/undo/README.md).
+                const res = await deletePuzzleTopic(topic.id);
+                void queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.topics });
+                void queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.all });
+                onDone(res);
+              } catch (error) {
+                toast.error({ title: "Could not delete the folder", message: (error as Error).message });
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <Trash2 className="mr-1.5 size-4" strokeWidth={2.5} />
+            Delete folder
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-}
-
-function countLabel(count: number, singular: string, plural = `${singular}s`): string | null {
-  return count > 0 ? `${count} ${count === 1 ? singular : plural}` : null;
-}
-
-function joinParts(parts: string[]): string {
-  return parts.length <= 1 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 }
 
 /**
