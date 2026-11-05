@@ -6,6 +6,8 @@ export type AccessTokenPayload = {
   sessionId: string;
   sub: string;
   type: "access";
+  /** Set while this session is a platform support visit (PlatformSupportSession.id, §I). */
+  support?: string;
 };
 
 export type RefreshTokenPayload = {

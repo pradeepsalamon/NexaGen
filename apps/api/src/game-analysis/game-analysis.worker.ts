@@ -17,6 +17,7 @@ import { GameAnalysisEngineService, resolveGameAnalysisConfig } from '../stockfi
 import { AnalysisAbortedError } from '../stockfish/stockfish.service';
 import type { StoredReport } from './game-analysis.mapper';
 import { buildAnalysis, gameFingerprint, gameMovesFromPgn, resultFor } from './report-builder';
+import { runInTenant } from "../tenancy/tenant-context";
 
 /** A RUNNING row whose heartbeat is older than this is presumed dead and re-queued. */
 export const STALE_AFTER_MS = 5 * 60_000;
@@ -86,9 +87,9 @@ export class GameAnalysisWorker implements OnModuleInit, OnApplicationShutdown {
   @Cron(CronExpression.EVERY_30_SECONDS)
   async tick(): Promise<void> {
     if (!getApiEnv().GAME_ANALYSIS_ENABLED || this.shuttingDown) return;
-    await this.jobLocks.runExclusive(JOB_LOCKS.gameAnalysisStaleSweep, () => this.sweepStale());
+    await this.jobLocks.runForEachTenant(JOB_LOCKS.gameAnalysisStaleSweep, () => this.sweepStale());
     if (getApiEnv().GAME_ANALYSIS_AUTO_LIVE_GAMES) {
-      await this.jobLocks.runExclusive(JOB_LOCKS.gameAnalysisAutoQueue, () => this.queueFinishedLiveGames());
+      await this.jobLocks.runForEachTenant(JOB_LOCKS.gameAnalysisAutoQueue, () => this.queueFinishedLiveGames());
     }
     this.nudge();
   }
@@ -102,7 +103,9 @@ export class GameAnalysisWorker implements OnModuleInit, OnApplicationShutdown {
       while (!this.shuttingDown && this.running.size < env.GAME_ANALYSIS_CONCURRENCY) {
         const claimed = await this.claim();
         if (!claimed) break;
-        void this.run(claimed)
+        // The claim spans academies; each job runs as its own
+        // (docs/SAAS_MULTI_TENANCY.md § "Phase 3 plan", slice 4).
+        void runInTenant(claimed.tenantId, "job:game-analysis", () => this.run(claimed))
           .catch((error) => {
             this.logger.error(`Game analysis job failed: ${claimed.id}`, error);
           })
@@ -118,7 +121,8 @@ export class GameAnalysisWorker implements OnModuleInit, OnApplicationShutdown {
 
   /** One QUEUED row → RUNNING, atomically, skipping rows another process holds. */
   async claim(): Promise<GameAnalysis | null> {
-    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+    // Global on purpose (fair across academies), like the outbox claim.
+    const rows = await this.prisma.$queryRaw<{ id: string; tenantId: string }[]>`
       UPDATE "game_analyses"
       SET "status" = 'RUNNING',
           -- Millisecond precision: the claim is compared back as a JS Date (ms), so a
@@ -135,9 +139,12 @@ export class GameAnalysisWorker implements OnModuleInit, OnApplicationShutdown {
         FOR UPDATE SKIP LOCKED
         LIMIT 1
       )
-      RETURNING "id"`;
+      RETURNING "id", "tenantId"`;
     if (!rows[0]) return null;
-    const row = await this.prisma.gameAnalysis.findUnique({ where: { id: rows[0].id } });
+    const { id, tenantId } = rows[0];
+    const row = await runInTenant(tenantId, "job:game-analysis", () =>
+      this.prisma.gameAnalysis.findUnique({ where: { id } })
+    );
     if (row) this.running.set(row.id, new AbortController());
     return row;
   }

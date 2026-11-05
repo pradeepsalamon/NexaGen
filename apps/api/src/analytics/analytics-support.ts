@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { AnalyticsGranularity } from "@nexa-chess/types";
 import type { ResolvedRange } from "./analytics-range.util";
+import { tenantFilter } from "../tenancy/tenant-sql";
 
 /**
  * A bound for a `timestamp` (naive UTC) column. A bare JS Date goes out as
@@ -86,7 +87,7 @@ export async function bucketedCounts(
     SELECT to_char(date_trunc(${trunc}, ((${col} AT TIME ZONE 'UTC') AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
            count(*)::bigint AS count
     FROM ${Prisma.raw(`"${table}"`)}
-    WHERE ${col} >= ${sqlTimestamp(range.start)}
+    WHERE ${tenantFilter(table)} AND ${col} >= ${sqlTimestamp(range.start)}
       AND ${col} < ${sqlTimestamp(range.end)}
       ${where === Prisma.empty ? Prisma.empty : Prisma.sql`AND ${where}`}
     GROUP BY 1

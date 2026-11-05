@@ -60,7 +60,7 @@ export function InvoiceDetail({
               >
                 <a
                   href={invoiceHtmlUrl(invoice.id)}
-                  rel="noopener noreferrer"
+                  rel="noopener"
                   target="_blank"
                 >
                   <Printer className="size-4" strokeWidth={2.5} />
@@ -68,7 +68,7 @@ export function InvoiceDetail({
               </Button>
             </SimpleTooltip>
             <Button asChild variant="primary">
-              <a href={downloadUrl} rel="noopener noreferrer" target="_blank">
+              <a href={downloadUrl} rel="noopener" target="_blank">
                 <Download className="size-4" strokeWidth={2.5} />
                 Download PDF
               </a>

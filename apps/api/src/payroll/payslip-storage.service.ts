@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 import streamifier from "streamifier";
+import { tenantStorageRoot } from "../tenancy/tenant-paths";
 
 /**
  * Private storage for payslip PDFs (§33) — same shape as
@@ -27,7 +28,7 @@ export class PayslipStorageService {
   buildKey(documentNumber: string, issuedAt: Date): string {
     const year = issuedAt.getUTCFullYear();
     const month = String(issuedAt.getUTCMonth() + 1).padStart(2, "0");
-    return `nexa_chess/payslips/${year}/${month}/${sanitize(documentNumber)}`;
+    return `${tenantStorageRoot()}/payslips/${year}/${month}/${sanitize(documentNumber)}`;
   }
 
   async upload(

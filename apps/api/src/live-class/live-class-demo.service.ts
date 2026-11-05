@@ -34,6 +34,7 @@ import { formatDemoTime } from "../messaging/messaging.format";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { signDemoGuestToken } from "./demo-guest-token";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 /** Public demo classes: guest registration, access modes and the guest join token. */
 @Injectable()
@@ -63,7 +64,7 @@ export class LiveClassDemoService {
 
     if (!coachClass) {
       const schedule = await this.prisma.demoSchedule.findUnique({
-        where: { slug: idOrSlug.toLowerCase() }
+        where: { tenantId_slug: { slug: idOrSlug.toLowerCase(), tenantId: requireTenantId("demoSchedule") } }
       });
       if (schedule?.isActive) {
         coachClass =

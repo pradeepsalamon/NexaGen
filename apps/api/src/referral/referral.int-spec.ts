@@ -1,4 +1,4 @@
-import { API_ROUTES, type AdminReferralDetail, type MyReferralSummary, type ReferralItem, type ReferralPage } from "@nexa-chess/types";
+import { API_ROUTES, DEFAULT_TENANT_ID, type AdminReferralDetail, type MyReferralSummary, type ReferralItem, type ReferralPage } from "@nexa-chess/types";
 import { UserRole, UserStatus, type User } from "@prisma/client";
 import { TEST_ORIGIN } from "../test/integration/app-env";
 import { createTestApp, type TestApp } from "../test/integration/app";
@@ -192,7 +192,7 @@ describe("referral programme (real app, real Postgres)", () => {
       studentName: "Rohan Das"
     });
     expect(signup.status).toBe(201);
-    const rohan = await t.prisma.user.update({ data: { status: UserStatus.ACTIVE }, where: { email: "rohan.new@example.com" } });
+    const rohan = await t.prisma.user.update({ data: { status: UserStatus.ACTIVE }, where: { tenantId_email: { email: "rohan.new@example.com", tenantId: DEFAULT_TENANT_ID } } });
     const referral = await t.prisma.referral.findFirstOrThrow({ where: { referredUserId: rohan.id } });
     expect(referral.referrerId).toBe(coach.id);
     expect((await summary(rohan)).points.balance).toBe(200);

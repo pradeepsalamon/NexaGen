@@ -6,6 +6,12 @@ export const AUTH_COOKIES = {
   refreshToken: "nexa_refresh_token"
 } as const;
 
+/** On an academy's own address the API sets host-only cookies under these names (API `auth-cookies.ts`). */
+export const HOST_ONLY_AUTH_COOKIES = {
+  accessToken: "nexa_h_access_token",
+  refreshToken: "nexa_h_refresh_token"
+} as const;
+
 const STAFF_ROLES = ["SUPER_ADMIN", "ADMIN"] as const;
 
 type RouteRule = {
@@ -20,6 +26,8 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/admin/classes", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/data-retention", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/demo-classes", roles: ["SUPER_ADMIN"] },
+  // Platform console: Nexa's super admins only (the API refuses any other academy's).
+  { prefix: "/admin/platform", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/trash", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin", roles: STAFF_ROLES },
   { prefix: "/coach", roles: ["COACH"] },
@@ -57,6 +65,8 @@ const PUBLIC_PREFIXES = [
   "/register",
   "/reset-password",
   "/signup",
+  // A platform support visit's one-time link (§I): signs in on the academy's host.
+  "/support",
   "/terms",
   "/verify-email"
 ] as const;

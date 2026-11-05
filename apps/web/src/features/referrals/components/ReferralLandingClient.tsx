@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Crown, Gift } from "lucide-react";
@@ -13,6 +14,7 @@ import { rememberReferralCode } from "../lib/referralStorage";
  * the demo booking section.
  */
 export function ReferralLandingClient({ code }: { code: string }) {
+  const brandName = useBrandName();
   const router = useRouter();
   const [inviter, setInviter] = useState<string | null>(null);
   const [benefits, setBenefits] = useState<ReferralBenefitItem[]>([]);
@@ -51,7 +53,7 @@ export function ReferralLandingClient({ code }: { code: string }) {
           <Crown aria-hidden="true" className="size-6" strokeWidth={2.25} />
         </span>
         <h1 className="mt-4 text-xl font-extrabold text-app-text">
-          {inviter ? `${inviter} invited you to Nexa Chess` : "You're invited to Nexa Chess"}
+          {inviter ? `${inviter} invited you to ${brandName}` : `You're invited to ${brandName}`}
         </h1>
         {benefits.length ? (
           <ul className="mt-4 grid gap-2 text-left">

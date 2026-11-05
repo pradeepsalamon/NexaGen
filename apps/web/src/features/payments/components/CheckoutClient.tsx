@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, ShieldCheck } from "lucide-react";
@@ -45,6 +46,7 @@ type Props = { planId: string };
  * would produce.
  */
 export function CheckoutClient({ planId }: Props) {
+  const brandName = useBrandName();
   const router = useRouter();
   const toast = useToast();
 
@@ -178,7 +180,8 @@ export function CheckoutClient({ planId }: Props) {
         const outcome = await openGateway(session.handoff, {
           amount: session.amount,
           currency: session.currency,
-          description: config?.plan.name ?? "NexaChess"
+          description: config?.plan.name ?? brandName,
+          merchantName: brandName
         });
         if (outcome.kind === "completed") {
           await verify.mutateAsync({
@@ -202,7 +205,7 @@ export function CheckoutClient({ planId }: Props) {
         message: (mutationError as Error).message
       });
     }
-  }, [config?.plan.name, method, paymentId, retry, toast, verify]);
+  }, [brandName, config?.plan.name, method, paymentId, retry, toast, verify]);
 
   if (isLoading) {
     return <Skeleton className="mx-auto h-[520px] w-full max-w-lg" />;
@@ -383,7 +386,7 @@ export function CheckoutClient({ planId }: Props) {
 
           <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-app-muted">
             <ShieldCheck aria-hidden className="size-3.5" strokeWidth={2.5} />
-            Card and UPI details are entered on the payment gateway. NexaChess
+            Card and UPI details are entered on the payment gateway. {brandName}{" "}
             never sees them.
           </p>
         </Card>

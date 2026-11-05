@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -86,14 +87,17 @@ interface AuthSplitShellProps {
  * Below `lg` the panel shrinks to a navy bar with the logo and theme toggle.
  */
 export function AuthSplitShell({ variant, children, wide = false }: AuthSplitShellProps) {
-  const copy = COPY[variant];
+  const brandName = useBrandName();
+  const base = COPY[variant];
+  // Copy names the academy on its own address (§F).
+  const copy = { ...base, title: base.title.replace("Nexa Chess", brandName) };
 
   return (
     <div className="min-h-dvh bg-app-background text-app-text lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
       <aside className="surface-brand relative flex flex-col overflow-hidden border-b border-app-border bg-app-background text-app-text lg:sticky lg:top-0 lg:h-dvh lg:border-b-0">
         <div className="relative z-10 flex h-16 shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:h-auto lg:px-10 lg:pt-8 xl:px-14">
           <Link
-            aria-label="Nexa Chess home"
+            aria-label={`${brandName} home`}
             className="rounded-control transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
             href="/"
           >

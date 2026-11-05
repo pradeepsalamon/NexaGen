@@ -20,6 +20,8 @@ const MFA_ROLE_NAMES = ["ADMIN", "COACH", "SALES", "STUDENT", "SUPER_ADMIN"];
 const apiEnvSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
   FRONTEND_URL: optionalUrlSchema,
+  /** Academies get `<slug>.<PLATFORM_ROOT_DOMAIN>` (docs/SAAS_MULTI_TENANCY.md §H). */
+  PLATFORM_ROOT_DOMAIN: z.string().trim().toLowerCase().default("nexachess.in"),
   JWT_ACCESS_SECRET: z.string().default("change-this-access-token-secret"),
   JWT_ACCESS_TTL: durationSchema.default("15m"),
   JWT_REFRESH_SECRET: z.string().default("change-this-refresh-token-secret"),
@@ -35,11 +37,21 @@ const apiEnvSchema = z.object({
     .min(32, "MFA_ENCRYPTION_KEY must be at least 32 characters.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  // Encrypts academies' own WhatsApp tokens and payment gateway keys at rest (SaaS §F, §G). Unset = MFA_ENCRYPTION_KEY is used.
+  CREDENTIALS_ENCRYPTION_KEY: z
+    .string()
+    .min(32, "CREDENTIALS_ENCRYPTION_KEY must be at least 32 characters.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   // Roles that must sign in with two-factor (comma-separated; empty = none).
   MFA_REQUIRED_ROLES: z.string().default("SUPER_ADMIN,ADMIN"),
   NODE_ENV: z.string().default("development"),
   PASSWORD_RESET_RESPONSE_DELAY: durationSchema.default("5s"),
   PORT: z.coerce.number().int().positive().default(3001),
+  // Multi-tenancy data layer (docs/SAAS_MULTI_TENANCY.md §E): `audit` logs a
+  // query with no academy in context, `enforce` refuses it. Reads are filtered
+  // by the context's academy in both modes.
+  TENANT_SCOPE_MODE: z.enum(["audit", "enforce"]).default("audit"),
   TRASH_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   SMTP_FROM: z.string().optional(),
   SMTP_HOST: z.string().optional(),
@@ -198,6 +210,10 @@ const apiEnvSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  // The owner's own Razorpay account: academies paying their plan (SaaS Phase 6).
+  PLATFORM_RAZORPAY_KEY_ID: z.string().optional(),
+  PLATFORM_RAZORPAY_KEY_SECRET: z.string().optional(),
+  PLATFORM_RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 
   CASHFREE_APP_ID: z.string().optional(),
   CASHFREE_SECRET_KEY: z.string().optional(),

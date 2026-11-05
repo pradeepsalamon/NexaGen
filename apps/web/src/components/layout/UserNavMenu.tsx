@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -60,6 +61,7 @@ export function UserNavMenu({
   user,
   openLinksInNewTab = false
 }: UserNavMenuProps) {
+  const brandName = useBrandName();
   const router = useRouter();
   const toast = useToast();
 
@@ -186,7 +188,7 @@ export function UserNavMenu({
         onConfirm={() => logoutMutation.mutate()}
         title="Logout?"
       >
-        Are you sure you want to sign out of Nexa Chess?
+        Are you sure you want to sign out of {brandName}?
       </ConfirmationModal>
     </>
   );

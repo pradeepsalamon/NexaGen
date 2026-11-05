@@ -15,7 +15,7 @@ import {
   type PaymentListQuery,
   type PaymentStatus
 } from "@nexa-chess/types";
-import { getWebEnv } from "@nexa-chess/config/web";
+import { apiBaseUrl } from "@/lib/apiBase";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -53,9 +53,6 @@ const STATUS_VARIANT: Record<
   REFUNDED: "secondary"
 };
 
-const API_BASE_URL = getWebEnv({
-  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
-}).NEXT_PUBLIC_API_URL;
 
 /** The admin payment table (§16) with its filters, export and refund action. */
 export function PaymentsTablePanel() {
@@ -85,7 +82,7 @@ export function PaymentsTablePanel() {
   const set = (patch: Partial<PaymentListQuery>) =>
     setFilters((current) => ({ ...current, ...patch, page: patch.page ?? 1 }));
 
-  const exportHref = `${API_BASE_URL}${API_ROUTES.adminPayments.export}?${new URLSearchParams(
+  const exportHref = `${apiBaseUrl()}${API_ROUTES.adminPayments.export}?${new URLSearchParams(
     Object.entries(filters)
       .filter(([, value]) => value !== undefined && value !== "")
       .map(([key, value]) => [key, String(value)])

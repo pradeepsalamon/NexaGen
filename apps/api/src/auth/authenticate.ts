@@ -4,6 +4,8 @@ import { getApiEnv } from "@nexa-chess/config/api";
 import { setTag, setUser } from "@sentry/nestjs";
 import { type Prisma, UserRole, UserStatus } from "@prisma/client";
 import type { PrismaService } from "../prisma/prisma.service";
+import { bindAuthenticatedUser } from "../tenancy/bind-authenticated-user";
+import { asPlatform } from "../tenancy/tenant-context";
 import type { AccessTokenPayload } from "./types";
 
 /**
@@ -59,7 +61,9 @@ export async function authenticateUser(
   args?: { include?: Prisma.UserInclude } & AuthenticateOptions
 ) {
   const payload = await verifyAccessToken(jwtService, accessToken);
-  const [user, session] = await Promise.all([
+  // The signed token names the user, so these two lookups run before (and
+  // decide) the academy; bindAuthenticatedUser then checks it against the host.
+  const [user, session] = await asPlatform("authenticate: the token names the user", () => Promise.all([
     prisma.user.findUnique({
       where: { id: payload.sub },
       // The overloads above type the result; comparing the default-args include
@@ -73,16 +77,18 @@ export async function authenticateUser(
     payload.sessionId
       ? prisma.authSession.findUnique({
           where: { id: payload.sessionId },
-          select: { revokedAt: true, userId: true }
+          select: { revokedAt: true, tenantId: true, userId: true }
         })
       : null
-  ]);
+  ]));
   if (!user || user.status !== UserStatus.ACTIVE) {
     throw new UnauthorizedException("Invalid session.");
   }
   if (payload.sessionId && (!session || session.revokedAt || session.userId !== user.id)) {
     throw new UnauthorizedException("Invalid session.");
   }
+  // Academy check, audit mode (docs/SAAS_MULTI_TENANCY.md §B step 4).
+  bindAuthenticatedUser(user, session);
   if (user.role === UserRole.SALES && !args?.allowSales) {
     throw new ForbiddenException("Sales accounts can only use the referral board.");
   }

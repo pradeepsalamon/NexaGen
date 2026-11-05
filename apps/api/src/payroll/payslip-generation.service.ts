@@ -12,10 +12,12 @@ import type { Queue } from "bullmq";
 import { JOB_LOCKS, JobLockService, type JobLockName } from "../prisma/job-lock.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { isQueueEnabled } from "../queue/queue.config";
+import { currentTenantId } from "../tenancy/tenant-context";
 import { fullName } from "../payments/payments-auth.helper";
 import { payslipPdfJobId, PAYSLIP_JOBS, PAYSLIP_QUEUE } from "./payslip-queue";
 import { PayslipPdfService } from "./payslip-pdf.service";
 import { PayslipStorageService } from "./payslip-storage.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 const MAX_PDF_ATTEMPTS = 5;
 
@@ -107,8 +109,9 @@ export class PayslipGenerationService {
   private async allocateDocumentNumber(tx: PrismaTransactionClient): Promise<string> {
     const year = new Date().getUTCFullYear();
     const sequence = await tx.payslipSequence.upsert({
-      where: { year },
-      create: { year, lastNumber: 1 },
+      // Each academy numbers its own documents (slice 5).
+      where: { tenantId_year: { tenantId: requireTenantId("payslipSequence"), year } },
+      create: { lastNumber: 1, tenantId: requireTenantId("payslipSequence"), year },
       update: { lastNumber: { increment: 1 } }
     });
     return formatPayslipNumber(year, sequence.lastNumber);
@@ -123,7 +126,7 @@ export class PayslipGenerationService {
 
     await this.queue.add(
       PAYSLIP_JOBS.generatePayslipPdf,
-      { payslipId, force: options?.force },
+      { force: options?.force, payslipId, tenantId: currentTenantId() ?? undefined },
       { jobId: payslipPdfJobId(payslipId, options?.force) }
     );
   }
@@ -315,7 +318,7 @@ export class PayslipGenerationService {
 
   private async withLock(name: JobLockName, run: () => Promise<void>): Promise<void> {
     try {
-      await this.jobLocks.runExclusive(name, run);
+      await this.jobLocks.runForEachTenant(name, run);
     } catch (error) {
       this.logger.error("Payslip generation cron failed", error as Error);
     }

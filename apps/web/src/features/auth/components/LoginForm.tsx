@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { useMutation } from "@tanstack/react-query";
@@ -34,6 +35,7 @@ const initialValues: LoginFormValues = {
 };
 
 export function LoginForm() {
+  const brandName = useBrandName();
   const router = useRouter();
   const toast = useToast();
   const setUser = useAuthStore((state) => state.setUser);
@@ -65,7 +67,7 @@ export function LoginForm() {
   function finishLogin(user: AuthUser) {
     setUser(user);
     toast.success({
-      message: "Welcome back to Nexa Chess.",
+      message: `Welcome back to ${brandName}.`,
       title: "Login successful"
     });
     router.push(getRoleDashboardHref(user.role));

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
+import { SupportVisitBanner } from "@/features/platform/components/SupportVisitBanner";
 import { RouteFeatureGate } from "@/features/subscription/components/RouteFeatureGate";
 
 /**
@@ -17,6 +18,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       />
       <RoleSidebar />
       <div className="xl:pl-[var(--app-nav-w,0px)] motion-safe:transition-[padding] motion-safe:duration-200">
+        <SupportVisitBanner />
         <RouteFeatureGate>{children}</RouteFeatureGate>
       </div>
     </>

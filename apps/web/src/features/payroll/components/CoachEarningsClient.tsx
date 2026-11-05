@@ -102,7 +102,7 @@ export function CoachEarningsClient() {
                             >
                               <a
                                 href={myPayslipPdfUrl(payslip.id)}
-                                rel="noopener noreferrer"
+                                rel="noopener"
                                 target="_blank"
                               >
                                 <Download className="size-4" strokeWidth={2.5} />

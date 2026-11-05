@@ -1,14 +1,16 @@
 import { Injectable, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import * as streamifier from 'streamifier';
+import { tenantStorageRoot } from '../tenancy/tenant-paths';
 
 export function safePgnBaseName(filename: string): string {
   const base = filename.replace(/\.pgn$/i, '').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 64);
   return base || 'game';
 }
 
-const PROFILE_IMAGE_FOLDER = 'nexa_chess/profiles';
-const ACTIVITY_IMAGE_FOLDER = 'nexa_chess/activities';
+// Per academy (`tenantStorageRoot`): Nexa's stay under nexa_chess/.
+const profileImageFolder = () => `${tenantStorageRoot()}/profiles`;
+const activityImageFolder = () => `${tenantStorageRoot()}/activities`;
 
 // Only images uploaded through /upload/image, so an avatar can't be an external tracking pixel.
 export function isProfileImageUrl(url: string, cloudName = process.env.CLOUDINARY_CLOUD_NAME): boolean {
@@ -20,7 +22,7 @@ export function isProfileImageUrl(url: string, cloudName = process.env.CLOUDINAR
       return false;
     }
     const rest = pathname.slice(prefix.length).replace(/^v\d+\//, '');
-    return rest.startsWith(`${PROFILE_IMAGE_FOLDER}/`) && !rest.includes('..');
+    return rest.startsWith(`${profileImageFolder()}/`) && !rest.includes('..');
   } catch {
     return false;
   }
@@ -37,7 +39,7 @@ export function isActivityImageUrl(url: string, cloudName = process.env.CLOUDINA
       return false;
     }
     const rest = pathname.slice(prefix.length).replace(/^v\d+\//, '');
-    return rest.startsWith(`${ACTIVITY_IMAGE_FOLDER}/`) && !rest.includes('..');
+    return rest.startsWith(`${activityImageFolder()}/`) && !rest.includes('..');
   } catch {
     return false;
   }
@@ -61,7 +63,28 @@ export class UploadService {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
-          folder: ACTIVITY_IMAGE_FOLDER,
+          folder: activityImageFolder(),
+          use_filename: false,
+        },
+        (error, result) => {
+          if (error) return reject(new BadRequestException(error.message));
+          resolve(result as UploadApiResponse);
+        },
+      );
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+
+  /** An academy's logo, favicon or login image (docs/SAAS_MULTI_TENANCY.md §F): public by nature. */
+  uploadBrandAsset(file: Express.Multer.File, kind: string): Promise<UploadApiResponse> {
+    assertUploadsConfigured();
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+          folder: `${tenantStorageRoot()}/branding`,
+          public_id: `${kind}_${Date.now()}`,
           use_filename: false,
         },
         (error, result) => {
@@ -79,7 +102,7 @@ export class UploadService {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: PROFILE_IMAGE_FOLDER,
+          folder: profileImageFolder(),
           allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
         },
         (error, result) => {
@@ -119,7 +142,7 @@ export class UploadService {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: 'nexa_chess/pgns',
+          folder: `${tenantStorageRoot()}/pgns`,
           resource_type: 'raw',
           public_id: `${Date.now()}_${safePgnBaseName(filename)}.pgn`,
         },

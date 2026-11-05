@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import type { PaymentProvider } from "@nexa-chess/types";
+import { DEFAULT_TENANT_ID, type PaymentProvider, type TenantGatewayProvider } from "@nexa-chess/types";
 import {
   Prisma,
   RefundStatus,
@@ -9,6 +9,8 @@ import {
 } from "@prisma/client";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { runInTenant } from "../tenancy/tenant-context";
+import { GatewayCredentialsService } from "./gateway-credentials.service";
 import { PaymentService } from "./payment.service";
 import { toJson } from "./payments.util";
 import type { WebhookResult } from "./providers/payment-provider.interface";
@@ -42,6 +44,7 @@ export class PaymentWebhookService {
   private readonly logger = new Logger(PaymentWebhookService.name);
 
   constructor(
+    private readonly credentials: GatewayCredentialsService,
     private readonly jobLocks: JobLockService,
     private readonly payments: PaymentService,
     private readonly prisma: PrismaService,
@@ -50,7 +53,30 @@ export class PaymentWebhookService {
     private readonly subscriptions: SubscriptionService
   ) {}
 
+  /**
+   * The academy is the one whose gateway account sent the event
+   * (docs/SAAS_MULTI_TENANCY.md §G "Two money flows" 2): the URL without a key
+   * is Nexa's (the server's env keys); `/payments/webhooks/<provider>/<key>`
+   * names another academy, and the adapter then verifies with that academy's
+   * own secret, because it runs inside that academy's context. An unknown or
+   * switched-off key is a 404, before anything is read or stored.
+   */
   async handle(
+    provider: PaymentProvider,
+    rawBody: string,
+    headers: Record<string, string | string[] | undefined>,
+    tenantKey?: string
+  ): Promise<{ received: true; status: WebhookEventStatus }> {
+    let tenantId = DEFAULT_TENANT_ID;
+    if (tenantKey !== undefined) {
+      const owner = await this.credentials.tenantForWebhookKey(provider as TenantGatewayProvider, tenantKey);
+      if (!owner) throw new NotFoundException("Unknown webhook address.");
+      tenantId = owner;
+    }
+    return runInTenant(tenantId, `webhook:payments:${provider}`, () => this.handleNow(provider, rawBody, headers));
+  }
+
+  private async handleNow(
     provider: PaymentProvider,
     rawBody: string,
     headers: Record<string, string | string[] | undefined>
@@ -298,7 +324,7 @@ export class PaymentWebhookService {
    */
   @Cron(CronExpression.EVERY_10_MINUTES)
   async recoverFailedEvents(): Promise<void> {
-    await this.jobLocks.runExclusive(JOB_LOCKS.paymentWebhookRecovery, () =>
+    await this.jobLocks.runForEachTenant(JOB_LOCKS.paymentWebhookRecovery, () =>
       this.recoverFailedEventsNow()
     );
   }

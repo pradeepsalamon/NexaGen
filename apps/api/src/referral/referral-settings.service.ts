@@ -10,8 +10,16 @@ import type { ReferralCode, ReferralSettings, User } from "@prisma/client";
 import { isUniqueViolation } from "../payments/payments.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { isReferrerRole, randomReferralSuffix } from "./referral.util";
+import { requireTenantId, singletonRowId } from "../tenancy/tenant-sql";
 
-const SETTINGS_ID = "default";
+/**
+ * This academy's row (one per academy, docs/SAAS_MULTI_TENANCY.md § "Phase 3
+ * plan", slice 5): found by `tenantId`, created with its own id.
+ */
+function settingsRow() {
+  const tenantId = requireTenantId("referralSettings");
+  return { create: { id: singletonRowId(tenantId), tenantId }, where: { tenantId } };
+}
 
 /** Program switches (singleton row) and the one code each referrer holds. */
 @Injectable()
@@ -20,9 +28,9 @@ export class ReferralSettingsService {
 
   async get(): Promise<ReferralSettings> {
     return this.prisma.referralSettings.upsert({
-      create: { id: SETTINGS_ID },
+      create: settingsRow().create,
       update: {},
-      where: { id: SETTINGS_ID }
+      where: settingsRow().where
     });
   }
 
@@ -53,7 +61,7 @@ export class ReferralSettingsService {
         ...(body.pointsPaymentEnabled !== undefined ? { pointsPaymentEnabled: body.pointsPaymentEnabled } : {}),
         updatedById: adminId
       },
-      where: { id: SETTINGS_ID }
+      where: settingsRow().where
     });
     return this.toItem(updated);
   }

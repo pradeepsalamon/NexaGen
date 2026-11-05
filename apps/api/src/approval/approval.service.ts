@@ -261,7 +261,7 @@ export class ApprovalService {
 
   @Cron(CronExpression.EVERY_10_MINUTES)
   async expireOverdue(): Promise<void> {
-    await this.jobLocks.runExclusive(JOB_LOCKS.approvalExpiry, () => this.expireOverdueNow());
+    await this.jobLocks.runForEachTenant(JOB_LOCKS.approvalExpiry, () => this.expireOverdueNow());
   }
 
   /** Marks every PENDING request past `expiresAt` EXPIRED, with an event each. */

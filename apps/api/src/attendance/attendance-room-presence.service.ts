@@ -37,7 +37,7 @@ export class AttendanceRoomPresenceService {
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handleSweep() {
     try {
-      await this.jobLocks.runExclusive(JOB_LOCKS.attendanceRoomPresenceSweep, () => this.sweep());
+      await this.jobLocks.runForEachTenant(JOB_LOCKS.attendanceRoomPresenceSweep, () => this.sweep());
     } catch (error) {
       this.logger.error("Error in room presence sweep", error);
     }

@@ -10,6 +10,7 @@ export const systemMessageKeySchema = z.enum([
   "PASSWORD_RESET",
   "ACCOUNT_ACCESS_EMAIL",
   "ACCOUNT_ACCESS_WHATSAPP",
+  "ACADEMY_ADMIN_INVITE",
   "EMAIL_VERIFICATION",
   "EMAIL_CHANGED",
   "PARENT_CONTACT_CHANGED",
@@ -83,6 +84,22 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
     defaults: {
       subject: "Your {{academy.name}} referral board",
       body: "Hi {{recipient.firstName}},\n\nUse the button below to set your password and sign in to your referral board. This link works once and expires in 24 hours.",
+      actionLabel: "Set password and sign in"
+    }
+  },
+  ACADEMY_ADMIN_INVITE: {
+    key: "ACADEMY_ADMIN_INVITE",
+    group: "ACCOUNT",
+    channel: "EMAIL",
+    label: "New academy: first super admin",
+    description: "Sent when the platform creates an academy. The link sets the super admin's password on the academy's own address.",
+    sentTo: "The academy's first super admin",
+    variables: ["academy.name", "recipient.firstName", "links.reset"],
+    requiredVariables: ["links.reset"],
+    actionVariable: "links.reset",
+    defaults: {
+      subject: "Your {{academy.name}} academy is ready",
+      body: "Hi {{recipient.firstName}},\n\nYour academy {{academy.name}} has been set up. Use the button below to choose your password and sign in. This link works once and expires in 7 days.",
       actionLabel: "Set password and sign in"
     }
   },

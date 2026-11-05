@@ -373,7 +373,7 @@ export class RefundService {
    */
   @Cron(CronExpression.EVERY_30_MINUTES)
   async reconcilePending(): Promise<void> {
-    await this.jobLocks.runExclusive(JOB_LOCKS.refundReconciliation, () =>
+    await this.jobLocks.runForEachTenant(JOB_LOCKS.refundReconciliation, () =>
       this.reconcilePendingNow()
     );
   }

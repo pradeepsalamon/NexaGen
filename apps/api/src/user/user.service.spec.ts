@@ -174,7 +174,7 @@ describe("UserService", () => {
         totalPages: 1
       });
       expect(prismaService.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { isDeleted: false }, skip: 0, take: 20 })
+        expect.objectContaining({ where: { isDeleted: false, isPlatformSupport: false }, skip: 0, take: 20 })
       );
     });
 

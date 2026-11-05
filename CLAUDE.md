@@ -145,7 +145,19 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 ### 3.6m SaaS plans
 
-`platform/` + `features/subscription/`, catalogue `@nexa-chess/types` `platform-plans.ts`. The API enforces every feature/limit: global `FeatureGateGuard` + `@RequireFeature("key")`, and `EntitlementService.assert*` inside the creating transaction; refusals are **402**. A new catalogued feature must be required by a route (a spec checks) and added to the Enterprise row by migration. Plan changes are `platform_staff` only. [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md)
+`platform/` + `features/subscription/`, catalogue `@nexa-chess/types` `platform-plans.ts`. The API enforces every feature/limit: global `FeatureGateGuard` + `@RequireFeature("key")`, and `EntitlementService.assert*` inside the creating transaction; refusals are **402**. A new catalogued feature must be required by a route (a spec checks) and added to the Enterprise row by migration. Plan and academy changes are platform operators only (Nexa's `SUPER_ADMIN`s, `assertPlatformOperator`; every write in `PlatformAuditLog`); status changes go through `applySubscriptionTransition`. [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md)
+
+### 3.6m2 Multi-tenancy (Phases 2–3)
+
+`apps/api/src/tenancy/`. **Every model not in `PLATFORM_MODELS` gets `tenantId`** (a spec checks); the request's academy is in `TenantContext` (resolver middleware + `authenticateUser`) and the Prisma extension filters every query by it. Background work: `await runInTenant(tenantId, label, fn)`; cross-academy work only inside `asPlatform(reason, fn)` — both await inside, never return an unawaited query. `TENANT_SCOPE_MODE` `audit` logs gaps (`tenant-audit`), `enforce` refuses them. Per-academy keys the extension can't add (`tenantId_email`, a settings row by `tenantId` + `singletonRowId`) take `requireTenantId()`. **Raw SQL bypasses the extension**: put `tenantFilter(alias)` on the driving table and record the call in `tenancy/raw-sql-review.spec.ts`. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 2 as built", "Phase 3 plan"
+
+### 3.6m3 Academy branding and addresses (Phase 5)
+
+`branding/` + `features/branding/`, contract `@nexa-chess/types` `tenant-branding.ts`. Public config by host (`GET /tenant/public-config`); colours only via `brandColorIssue`/`deriveBrandPalette`; images PNG/JPEG/WebP checked by magic bytes. **An academy's own address calls the API at `/api` (`lib/apiBase.ts`) and gets host-only `nexa_h_*` cookies; Nexa's hosts are unchanged** — never read the auth cookie by another name. Brand copy via `useBrandName()`, Nexa-only markup `platform-brand-only`. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 5 plan", VPS: [DEPLOYMENT.md](docs/DEPLOYMENT.md) Step 4c.
+
+### 3.6m4 Platform billing and academy gateways (Phase 6)
+
+`platform-billing/` (academy → owner: checkout, pay link, owner's Razorpay webhook, GST invoices, usage) never touches `PaymentService`; only a provider read settles a `PlatformCheckout` (status-filtered claim). Student gateways per academy: adapters read keys only via `GatewayCredentialsService.envFor`; another academy never falls back to Nexa's env keys. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 6 as built"
 
 ### 3.6n AI runtime (mock only)
 

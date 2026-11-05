@@ -22,7 +22,8 @@ import { LiveClassModerationService } from "../live-class/live-class-moderation.
 import { LiveClassRecordingService } from "../live-class/live-class-recording.service";
 import { LiveClassScreenShareService } from "../live-class/live-class-screen-share.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { API_ROUTES, isSpectatorIdentity } from "@nexa-chess/types";
+import { asPlatform, runInTenant } from "../tenancy/tenant-context";
+import { API_ROUTES, DEFAULT_TENANT_ID, isSpectatorIdentity } from "@nexa-chess/types";
 
 /**
  * How long after a session is opened a `participant_joined` webhook is treated
@@ -169,13 +170,18 @@ export class AttendanceWebhookController {
       }
 
       try {
-        if (typeof event.event === "string" && event.event.startsWith("egress_")) {
-          // Recording lifecycle — finalize `recordingUrl` only on success
-          // (AUDIT M20).
-          await this.handleEgressEvent(event);
-        } else {
-          await this.processEvent(event);
-        }
+        const work = () =>
+          typeof event.event === "string" && event.event.startsWith("egress_")
+            ? // Recording lifecycle — finalize `recordingUrl` only on success
+              // (AUDIT M20).
+              this.handleEgressEvent(event)
+            : this.processEvent(event);
+        // The room's LiveSession row names the academy, never the packet
+        // (docs/SAAS_MULTI_TENANCY.md §E "LiveKit"). No row: the handlers'
+        // own "no session" paths run as before.
+        const tenantId = await this.tenantForRoom(event);
+        if (tenantId) await runInTenant(tenantId, "webhook:livekit", work);
+        else await work();
       } catch (processingError) {
         // Release the claim so LiveKit's retry is processed instead of skipped.
         if (dedupeId) await this.releaseDedupeClaim(dedupeId);
@@ -189,6 +195,20 @@ export class AttendanceWebhookController {
       // 5xx so LiveKit retries the delivery (it gives up after a bounded number of attempts).
       throw new ServiceUnavailableException("Webhook processing failed.");
     }
+  }
+
+  private async tenantForRoom(event: {
+    egressInfo?: { roomName?: unknown; room_name?: unknown };
+    egress_info?: { roomName?: unknown; room_name?: unknown };
+    room?: { name?: unknown };
+  }): Promise<string | null> {
+    const egressInfo = event.egressInfo ?? event.egress_info;
+    const roomName: unknown = event.room?.name ?? egressInfo?.roomName ?? egressInfo?.room_name;
+    if (typeof roomName !== "string" || !roomName) return null;
+    const session = await asPlatform("livekit webhook: the room's academy", () =>
+      this.prisma.liveSession.findUnique({ select: { tenantId: true }, where: { roomName } })
+    );
+    return session ? (session.tenantId ?? DEFAULT_TENANT_ID) : null;
   }
 
   private async releaseDedupeClaim(id: string) {

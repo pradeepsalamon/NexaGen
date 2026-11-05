@@ -148,7 +148,7 @@ export function BillingClient() {
                       >
                         <a
                           href={invoicePdfUrl(payment.invoiceId)}
-                          rel="noopener noreferrer"
+                          rel="noopener"
                           target="_blank"
                         >
                           <FileText className="size-4" strokeWidth={2.5} />
@@ -223,7 +223,7 @@ export function BillingClient() {
                     >
                       <a
                         href={invoicePdfUrl(invoice.id)}
-                        rel="noopener noreferrer"
+                        rel="noopener"
                         target="_blank"
                       >
                         <Download className="size-4" strokeWidth={2.5} />
@@ -273,7 +273,7 @@ export function BillingClient() {
                     >
                       <a
                         href={creditNotePdfUrl(creditNote.id)}
-                        rel="noopener noreferrer"
+                        rel="noopener"
                         target="_blank"
                       >
                         <Download className="size-4" strokeWidth={2.5} />

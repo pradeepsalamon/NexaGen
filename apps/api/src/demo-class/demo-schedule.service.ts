@@ -203,7 +203,7 @@ export class DemoScheduleService {
   @Cron(CronExpression.EVERY_HOUR)
   async topUpOccurrences() {
     try {
-      await this.jobLocks.runExclusive(JOB_LOCKS.demoScheduleTopUp, async () => {
+      await this.jobLocks.runForEachTenant(JOB_LOCKS.demoScheduleTopUp, async () => {
         const active = await this.prisma.demoSchedule.findMany({
           where: { isActive: true },
           select: { id: true }

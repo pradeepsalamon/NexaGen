@@ -11,6 +11,12 @@ import type { PrismaService } from "../../../prisma/prisma.service";
 import { createUser } from "../db";
 
 const HOUR = 60 * 60 * 1000;
+
+/** The last day of a `YYYY-MM` month (UTC). */
+function monthEnd(month: string): Date {
+  const [year, index] = month.split("-").map(Number);
+  return new Date(Date.UTC(year, index, 0));
+}
 const FEN = "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1";
 
 async function activeUser(prisma: PrismaService, role: UserRole) {
@@ -351,18 +357,25 @@ export type Side = Awaited<ReturnType<typeof createSide>>;
  * Two mirror-image sides (A and B) that share nothing, plus an ADMIN and a
  * SUPER_ADMIN. Every cross-user test asks "can A reach B's row?".
  */
-export async function createWorld(prisma: PrismaService) {
+/**
+ * `prefix` keeps a second world's unique values apart (codes, numbers, slugs);
+ * `periodMonth` its payroll period, which is globally unique until §D5.
+ */
+export async function createWorld(
+  prisma: PrismaService,
+  { periodMonth = "2026-09", prefix = "" }: { periodMonth?: string; prefix?: string } = {}
+) {
   const superAdmin = await activeUser(prisma, UserRole.SUPER_ADMIN);
   const admin = await activeUser(prisma, UserRole.ADMIN);
-  const topic = await prisma.puzzleTopic.create({ data: { name: "Mates", slug: "mates" } });
+  const topic = await prisma.puzzleTopic.create({ data: { name: `${prefix}Mates`, slug: `${prefix.toLowerCase()}mates` } });
   const period = await prisma.payrollPeriod.create({
     data: {
-      endDate: new Date("2026-09-30"),
+      endDate: monthEnd(periodMonth),
       periodType: PayrollPeriodType.MONTHLY,
-      startDate: new Date("2026-09-01")
+      startDate: new Date(`${periodMonth}-01`)
     }
   });
-  const a = await createSide(prisma, "A", topic.id, period.id);
-  const b = await createSide(prisma, "B", topic.id, period.id);
+  const a = await createSide(prisma, `${prefix}A`, topic.id, period.id);
+  const b = await createSide(prisma, `${prefix}B`, topic.id, period.id);
   return { a, admin, b, superAdmin };
 }

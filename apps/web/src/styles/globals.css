@@ -468,3 +468,12 @@
     font-size: max(1rem, 16px);
   }
 }
+
+/* SaaS Phase 5 (docs/SAAS_MULTI_TENANCY.md §F): data-host is set before first paint by the
+   root layout. On an academy's own address nothing Nexa-branded shows, not even for a frame. */
+:root[data-host="academy"] .platform-brand-only {
+  display: none !important;
+}
+:root:not([data-host="academy"]) .academy-brand-only {
+  display: none !important;
+}

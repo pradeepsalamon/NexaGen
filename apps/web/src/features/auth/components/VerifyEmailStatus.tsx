@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -12,6 +13,7 @@ import { AuthSplitShell } from "./AuthSplitShell";
 import { AuthStatus } from "./AuthStatus";
 
 export function VerifyEmailStatus() {
+  const brandName = useBrandName();
   const searchParams = useSearchParams();
   const toast = useToast();
   const token = searchParams.get("token");
@@ -58,7 +60,7 @@ export function VerifyEmailStatus() {
 
       {status === "success" && (
         <AuthStatus title="Email verified" tone="success">
-          Taking you to Nexa Chess…
+          Taking you to {brandName}…
         </AuthStatus>
       )}
 

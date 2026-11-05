@@ -1,7 +1,7 @@
 # Multi-tenant white-label SaaS — plan
 
-Status: **approved 2026-11-04; Phase 2 in progress** on `feat/saas-phase2-foundation`
-(branched off `dev`). The identity decisions (§N-14, §N-15), the database layout
+Status: **approved 2026-11-04; Phase 2 built, Phase 3 in progress** on
+`feat/saas-phase2-foundation` (branched off `dev`). The identity decisions (§N-14, §N-15), the database layout
 (§N-17) and the start (§N-13) were answered on 2026-11-04. Phase 2 is merged into
 `dev` only after the UI redesign has reached `main`, so the two never ship in the
 same release.
@@ -20,6 +20,9 @@ owner, and can be revisited.
 feature gates. See [SAAS_PLANS.md](SAAS_PLANS.md). This plan replaces two of
 those behaviours: `PlatformStaff` as the source of platform powers (§E), and the
 fixed "grace = GET/HEAD only" rule (§G).
+
+**Phase 2 progress (2026-11-04, branch `feat/saas-phase2-foundation`):** D1–D3
+are built; see [Phase 2 as built](#phase-2-as-built) under §L.
 
 Contents: Summary · 1 Intent and goals · 2 Scope · A current state · B target
 architecture · C entity ownership matrix · D schema and migration · E auth and
@@ -361,10 +364,10 @@ That's required because rollback restores images and never reverses migrations.
 | Step | Migration | App code at that point |
 |---|---|---|
 | D1 | Create `tenant_domains`; add the new `tenants` columns. Insert Nexa's current production hostnames as `ACTIVE` domains of `tenant_nexa` (the tenant row already exists) | Unchanged |
-| D2 | Add `"tenantId" TEXT DEFAULT 'tenant_nexa'` (nullable) to every T/T\*/F table, `users` included. Backfill large tables in batches (`puzzle_attempts`, `attendance_logs`, `analytics_events`, `message_deliveries`, `live_chat_messages`) | Old code still inserts without `tenantId`, and the default covers it |
+| D2 | Add `"tenantId" TEXT DEFAULT 'tenant_nexa'` (nullable) to every T/T\*/F table, `users` included. No backfill: on Postgres 11+ a constant default is metadata-only, so existing rows read `'tenant_nexa'` without a table rewrite | Old code still inserts without `tenantId`, and the default covers it |
 | D3 | Deploy code that always sets `tenantId` from context, with the extension in **audit mode**: it logs, doesn't throw, when context is missing | Watch logs until there are no missing-context hits |
 | D4 | Set `NOT NULL`, add `(tenantId, …)` indexes mirroring the hot indexes, add composite uniques **next to** the old global ones (`users.email`, `plans.code`, `invoices.number`, `messaging_rules.event`, …), add composite FKs on core relations | Extension switches to **enforce** mode |
-| D5 | Drop the old global uniques and the `'tenant_nexa'` default | A second real academy is allowed only after this |
+| D5 | Drop the old global uniques and the `'tenant_nexa'` default; number sequences' primary key `year` → `(tenantId, year)` | A second real academy is allowed only after this |
 
 A partial unique index `WHERE "isDeleted" = false` (soft-deletable models) gains
 `tenantId` as its leading column. The trash checklist in `README.md` gains a
@@ -799,7 +802,367 @@ real data.
 | 8 | **Pilot**: one pilot academy, monitoring, then general availability | 7 | The pilot runs a month with no isolation incident |
 | Later | RLS under `nexa_app`; academy deletion workflow; sending from an academy's own email domain; card auto-debit; CSV student import | — | — |
 
+### Phase 2 as built
+
+Built 2026-11-04 on `feat/saas-phase2-foundation`; nothing here changes what
+Nexa users see.
+
+| Piece | Where | Notes |
+|---|---|---|
+| D1 + D2 migration | `20261104161742_saas_tenant_domains_and_tenant_id` | `tenant_domains`; `tenants.timezone`/`country`; `"tenantId" TEXT DEFAULT 'tenant_nexa'` on all 152 academy-owned tables; `nexachess.in` (primary) and `www.nexachess.in` as ACTIVE domains. No FK or index on `tenantId` until D4 |
+| Model classification | `apps/api/src/tenancy/tenant-models.ts` | `PLATFORM_MODELS` (10, each with a reason); everything else is `TENANT_MODELS`. `tenant-models.spec.ts` fails a model with neither |
+| Hostname rule | `tenancy/hostname.ts` `normalizeHostname` | lowercase, no port, no trailing dot, punycode |
+| TenantContext | `tenancy/tenant-context.ts` | AsyncLocalStorage; `currentTenantId()`, `runInTenant(tenantId, label, fn)` for Phase 3's jobs |
+| Host resolver | `tenancy/tenant-resolver.service.ts`, middleware in `app.setup.ts` after the body parsers | Candidates `Origin` → `Referer` → `req.hostname`; ACTIVE `tenant_domains` row (60 s in-process cache, misses included), then the deployment's `FRONTEND_URL`/`CORS_ORIGIN` hosts as Nexa; otherwise no academy, never a fallback |
+| Extension, audit mode | `prisma/tenant-scope.extension.ts`, in `PrismaService` and `withDeleted` | Stamps `tenantId` on create/createMany/upsert from context; no academy in context → logged, query unchanged; reads unfiltered |
+| `authenticateUser` | `tenancy/bind-authenticated-user.ts` | Fills an empty context from the user; host ≠ user or session ≠ user → logged, not refused |
+| Entitlements | `EntitlementService.currentTenantId()` | The context's academy (Nexa outside a request); the 30 s cache is now per academy |
+
+*Builder's calls* (owner may change):
+- **`Origin`/`Referer` before the request host.** The browser calls the separate
+  `api.nexachess.in`, whose own host names no academy. This stays until Phase 5
+  serves the API same-origin under `/api`; `authenticateUser` then still checks
+  the user's academy against it.
+- **Configured web origins count as Nexa's** (`source: "config"`), so staging,
+  local dev and the test stack need no `tenant_domains` rows. Only the two
+  production hosts are in the migration.
+- **`TenantDomain.isPrimary`** instead of `Tenant.primaryDomainId`: no circular
+  relation. At most one per academy is kept by the code that sets it (Phase 4).
+
+**Reading the audit log.** Each gap is a pino `warn` with `msg: "tenant-audit"`,
+logged on its 1st, 10th, 100th, … occurrence per process:
+`docker logs nexa_api 2>&1 | grep tenant-audit`. Fields: `kind`
+(`missing_context`, `user_mismatch`, `session_mismatch`), `scope` and `at`.
+- `scope: "request"` with `at: "METHOD /path"`: a request whose academy wasn't
+  resolved. **Phase 2's exit check is a full production release with none of
+  these.**
+- `scope: "background"` (`at: "background"`, so read `detail.model` and
+  `detail.operation`): crons, queues and boot. Prisma runs a query lazily when
+  it's awaited, so no stack frame names the caller; Phase 3's
+  `runInTenant(tenantId, label, fn)` labels each job instead. `scope: "webhook"`: provider callbacks (LiveKit, payment gateways), which
+  name no academy by design. Both are Phase 3's worklist (`runInTenant`, academy
+  from the event's row) and don't block Phase 2.
+
+**Links to the API host keep the Referer.** A link or `window.open` that opens
+the API host directly (invoice, credit-note and payslip PDFs, manual-payment
+attachments) sends no `Origin`, so it is `rel="noopener"` **without
+`noreferrer`**: the web's `strict-origin-when-cross-origin` policy then sends
+only the site's origin, which names the academy. With `noreferrer` it is a
+`scope: "request"` hit (checked in a browser on staging, 2026-11-04). External
+links keep `noreferrer`.
+
+**Staging run (2026-11-04).** Staging (`dev.nexachess.in`) ran this branch on
+`vps_dev_saas`, a copy of `vps_dev` with the Phase 2 migration (vps_dev itself
+untouched). Default e2e specs: 17 passed, 2 failed, 28 opt-in skipped. Both
+failures stopped at the login page: 23 of the suite's 54 logins got a 429 from
+the 5-a-minute login limit, since every spec logs in from one IP; not Phase 2.
+Audit log: every `scope: "request"` hit came from the e2e helpers' direct API
+calls, which send no `Origin` (Playwright's request client, not a browser);
+`webhook` hits were LiveKit callbacks and `background` hits crons, both Phase 3.
+
+**Left for Phase 2:** one production release read through the audit log. The
+merge into `dev` waits until the redesign is on `main` (§N-13). The opt-in e2e
+specs (live board, puzzles, feedback, …) were dropped as a Phase 2 check by the
+owner on 2026-11-04: they exercise live-class setup, not tenancy; their e2e
+issues are in BACKLOG.md.
+
+### Phase 3 plan
+
+Approved by the owner on 2026-11-04 ("continue saas"), on the same branch.
+Re-counted that day: **117 raw-SQL calls in 44 files** (80/24 in 2026-10),
+22 cron/interval jobs in 19 files, 3 queue workers, 114 `@unique` + 54
+`@@unique`. Built in slices; each is safe to merge alone because
+`TENANT_SCOPE_MODE` stays `audit` until the last one.
+
+| # | Slice | Done when |
+|---|---|---|
+| 1 | Extension filters every read/update/delete/count/upsert by the context's academy; `asPlatform(reason, fn)` bypass; `TENANT_SCOPE_MODE`; `authenticateUser` looks the token's user up as platform, then a host/user/session mismatch is a 401 under `enforce` | Unit + integration suites green with filtering on |
+| 2 | Crons, queue workers and webhooks: sweep under `asPlatform`, process each row in `runInTenant(row.tenantId)`; queue payloads carry `tenantId` and the worker checks it | No `background`/`webhook` hits on staging |
+| 3 | D4 migration: `tenantId` NOT NULL (CHECK … NOT VALID, VALIDATE, then SET NOT NULL, so no long lock), `(tenantId, …)` indexes, composite uniques beside the global ones, composite FKs on core relations | Migration rehearsed on a copy of production data |
+| 4 | Raw SQL: explicit `"tenantId" = ${tenantId}` in all 117 calls; a spec fails an unreviewed `$queryRaw` file | Spec green |
+| 5 | Per-academy singletons (T\*), invoice/credit-note/payslip sequences, login by `(tenantId, email)` | Two academies can each have their own settings and number series |
+| 6 | Caches keyed by academy, Cloudinary/recording paths, LiveKit room names, host-only cookies (no forced Nexa logout), per-academy CSRF origins | §K threat-model rows covered |
+| 7 | Two-academy integration suites (every route, cross-academy ids), then `TENANT_SCOPE_MODE=enforce` on staging | A second seeded academy can't see or change any Nexa row |
+
+**Slice 1 (built 2026-11-04, `927988f5`).** Unit and integration suites green with
+filtering on. In `authenticateUser` the token's user and session are read
+under `asPlatform`: the signed token is the authority, and `bindAuthenticatedUser`
+then checks the result against the host.
+
+**Slice 2 (built 2026-11-04).** *(builder's calls)*
+- **Crons run once per academy** (`JobLockService.runForEachTenant`: one lock,
+  then `forEachTenant` → `runInTenant`), rather than sweeping under `asPlatform`
+  and entering each row's academy. Every query stays scoped and per-academy
+  settings resolve with no per-row code; the cost is one `tenants` read per
+  tick. DEACTIVATED academies are skipped; a failure in one academy doesn't stop
+  the rest (the first error is rethrown). Trash cleanup sums its counts.
+- **The outbox claim stays global** (one raw-SQL batch across academies, fair
+  and cheap); each claimed row is sent inside its own academy.
+- **Queue jobs** carry `tenantId`; `runJobForRow` reads the row's academy as
+  platform, drops a job whose payload disagrees, and runs the work as the row's
+  academy. Jobs queued before the change still run (the row decides).
+- **LiveKit webhook:** the room's `LiveSession` row names the academy.
+- **Payment webhooks run as Nexa** (`gatewayTenantId`): every gateway credential
+  is in env and is Nexa's merchant account. *(Replaced in Phase 6: see "Phase 6
+  as built".)*
+- Known follow-up for slice 5: `StorageSnapshot.capturedDate` is still globally
+  unique, so the daily snapshot cron would collide once a second academy exists.
+
+**Slice 3 (built 2026-11-04, migration `20261104183209_saas_d4_tenant_id_required_and_academy_uniques`).**
+- `tenantId` is NOT NULL on all 152 tables (default kept until D5);
+  `tenant-models.spec.ts` now also fails an optional one.
+- 23 per-academy uniques beside the global ones: `users` email and username;
+  plan, discount, referral and demo-schedule codes/slugs; order, invoice,
+  credit-note and payslip numbers; gateway ids (payments, refunds,
+  subscriptions, webhook events); messaging-rule event, retention category,
+  offline-method key, storage-snapshot date, payroll period; puzzle
+  `(source, sourceId)`; chess-game `sourceKey`; knowledge category and slug.
+  Keys built from global cuids (class, batch, room ids and the dedupe keys made
+  from them) stay global: they can't collide across academies.
+- *(builder's call)* No `CHECK … NOT VALID` step: Prisma sends a migration as
+  one multi-statement query, which Postgres runs as one transaction, so the
+  lock would be held to the end anyway. 2.6 s on the staging copy and the test
+  DB; the timing that matters is the rehearsal on a copy of production.
+**Slice 4 (built 2026-11-04).** Every raw query is listed in
+`apps/api/src/tenancy/raw-sql-review.spec.ts` with its call count, kind and
+reason; a new or changed one fails until reviewed. `tenantFilter(alias)` /
+`sqlTenantId()` (`tenancy/tenant-sql.ts`) give the academy, with the same
+audit/enforce rule as the extension.
+- Filtered: all 46 analytics queries, knowledge search, the attendance
+  stale-log sweeps, retention (academy tables only, `retentionParams`), the
+  active-policy lock, and the puzzle library listing.
+- **The library listing was a real cross-academy leak:** it read puzzles and
+  activities with `visibility = 'GLOBAL'` (academy-wide) from every academy.
+- The game-analysis claim now returns `tenantId`; the job is read back and run
+  inside its own academy. Before, a `drain` nudged from a request read the
+  claimed row under that request's academy.
+- Not filtered, by review: row locks by id (about 30), activity history (every
+  subquery is one student's rows), the Lichess catalogue, job locks, health,
+  advisory locks.
+
+**Slice 5 (built 2026-11-04, migration `20261104191504_saas_per_academy_settings_and_sequences`).**
+- **Settings rows with a fixed id** (`EmailSettings`, `InvoiceSettings`,
+  `PuzzleScoringSettings`, `GameSourceSettings`, `ReferralSettings`) are one row
+  per academy: `tenantId @unique`, read and upserted by `tenantId`, created with
+  `singletonRowId(tenantId)` (Nexa keeps `"default"`, others use the academy
+  id). The `findFirst` singletons (`AttendancePolicy`, `LiveClassPolicy`,
+  appearance, typography, `PaymentSetting`) were already per academy through
+  the extension.
+- Invoice details for an academy with no saved row start from its own name;
+  the `PAYMENTS_SELLER_*` env (Nexa's GSTIN and address) is used for Nexa only.
+- **Lookups by a key that §D5 makes per-academy** (login and sign-up by email,
+  username checks, plan/discount/referral codes, demo slug, messaging rule,
+  retention category, game `sourceKey`, puzzle `(source, sourceId)`, storage
+  snapshot date) use the `tenantId_…` compound key with `requireTenantId()`.
+  Found by type-checking against a schema with the global uniques removed;
+  that check came back clean, so §D5 needs no further code for them.
+- Number sequences have a `(tenantId, year)` unique and are allocated by it,
+  but `year` is still the primary key: **a second academy can't issue
+  invoices, credit notes or payslips in a year Nexa already has until §D5**
+  swaps the key to `(tenantId, year)`. The same goes for
+  `StorageSnapshot.capturedDate`. Both are additive-only blockers, not code.
+
+**Slice 6 (built 2026-11-04).**
+- **Analytics cache:** `AnalyticsCache.wrap` prefixes every key with the
+  context's academy itself, so no caller can leave it out. The Stockfish FEN
+  cache stays global (no personal data). The other in-process maps are keyed by
+  global cuids (class, user, room).
+- **Origins:** the CSRF origin check and CORS also admit an academy's ACTIVE
+  `tenant_domains` host over https (`TenantResolverService.isAcademyOrigin`,
+  cached with the resolver). The static `CORS_ORIGIN` list still covers Nexa.
+- **Files:** `tenantStorageRoot()` (`tenancy/tenant-paths.ts`): Nexa keeps
+  `nexa_chess/…`, others get `tenants/<id>/…` for profile and activity images,
+  PGNs, invoice and credit-note PDFs, payslips and manual-payment attachments.
+  The profile/activity image URL checks compare against the current academy's
+  root, so one academy can't attach (or have deleted) another's file.
+- **LiveKit:** `liveRoomName()`: Nexa keeps `class_<id>`, others get
+  `t_<tenantId>_class_<id>`. Token issuance needs no extra check: the class is
+  read through the extension, so another academy's class is a 404.
+- *(builder's calls, in `docs/BACKLOG.md`)* Host-only cookies wait for Phase 5's
+  same-origin `/api` (the web middleware reads the cookie on the web host).
+  Recordings stay in one flat directory, named after the room. PGN uploads stay
+  public for now. The per-academy throttle bucket waits for Phase 4.
+
+**Slice 7 (in progress, part 1 built 2026-11-04).**
+- `test/integration/access/cross-academy-access.int-spec.ts`: a second academy
+  with a full copy of the access world, run with `TENANT_SCOPE_MODE=enforce`.
+  Every `OWN_CASES` route still works for Nexa under enforce; replayed on the
+  other academy's ids it's refused for Nexa's users and Nexa's super admin;
+  lists never show the other academy; a user is refused (401) on the other
+  academy's host. The case tables moved to `access/access-cases.ts`.
+- Found and fixed: admins' student-progress check (`assertCanViewStudent`)
+  didn't check the student existed, so another academy's student id gave an
+  empty 200 (no data). Now a 404.
+- Migration `20261104195406_saas_per_academy_partial_uniques`: per-academy twins
+  of the hand-written partial uniques D4 missed (puzzle folder name/slug,
+  automatic referral stage, verified chess username).
+- Still to do: the full suites green, then `TENANT_SCOPE_MODE=enforce` on staging
+  (`vps_dev_saas`) and a read of its audit log.
+
+- **Slice 3b (not built):** `(tenantId, …)` indexes on hot paths (worth it only
+  with many academies: with one, `tenantId` filters nothing) and composite FKs
+  `(tenantId, parentId) → parent(tenantId, id)` on core relations (they change
+  the relation definitions, so they get their own step).
+
+
+
+### Phase 4 plan
+
+Built on the same branch during the 2026-11-04 overnight run, in slices. The API
+enforces everything; the console is a "Platform" area at `/admin/platform/*`.
+
+| # | Slice | Done when |
+|---|---|---|
+| 4a | Platform rule (`isPlatformOperator`: a `SUPER_ADMIN` of `tenant_nexa`) replaces `PlatformStaff` on every `/platform/*` route; `PlatformAuditLog` written by every console write | Other academies' super admins get 403 on every `/platform/*` route (spec) |
+| 4b | Academies: list, view (usage against limits), create (one transaction, idempotency key: tenant, `<slug>.<PLATFORM_ROOT_DOMAIN>` domain, trial subscription, default settings, hidden support user, super-admin invite through the reset-password link on the academy's host), edit, suspend, reactivate; domains: add/remove/primary | A created academy's super admin can sign in on its subdomain; a double submit returns the same academy |
+| 4c | Plans: create, duplicate, retire, versions (`PlatformPlanVersion`; a subscription keeps its version; "apply to existing subscribers"); lapse policy per plan (past-due days, grace days, what works in grace), overridable per academy; custom deals (overrides, custom price, note) | Editing a plan leaves existing subscriptions unchanged |
+| 4d | Subscriptions: `applySubscriptionTransition` (the §G state machine, one funnel, event per change); move plan now or at period end; record a manual payment; nightly lapse sweep | Every disallowed transition is refused (spec) |
+| 4e | Support sessions: start with a reason (1 h), enter the academy on its host as its "Platform support" user, banner, request log with the staff member, history visible to the academy's super admin | Sessions expire and are logged |
+| 4f | Content packs: the owner publishes Nexa puzzle folders into packs; plans/deals include packs; academies read pack puzzles read-only and copy them into their own library | Unpublished Nexa content is unreachable from another academy (spec) |
+| 4g | Console UI for 4a–4f | Pages render, no horizontal overflow |
+
+**4a–4f API (built 2026-11-04, migration `20261104203047_saas_platform_console`).**
+- **4a:** `isPlatformOperator` / `assertPlatformOperator` (`platform/platform-operator.ts`)
+  on every `/platform/*` route; `writePlatformAudit` → `platform_audit_logs` on every
+  console write; `GET /platform/audit`.
+- **4b:** `PlatformTenantsService`: list (usage, access mode), create (one transaction,
+  `Tenant.creationKey` idempotency; subdomain `<slug>.<PLATFORM_ROOT_DOMAIN>`, trial
+  or active subscription on the plan's current version, hidden support user
+  `support+<tenantId>@platform.invalid` with `isPlatformSupport`, the super admin
+  plus a 7-day set-password link mailed from the academy (`ACADEMY_ADMIN_INVITE`)),
+  edit, suspend/reactivate with a reason (never Nexa), full domains (PENDING until
+  the Phase 5 check), remove, primary.
+- **4c:** `PlatformPlansService`: create, duplicate, retire, versioned edit
+  (`platform_plan_versions`; the replaced version is frozen first),
+  apply-to-existing (an event and audit row per academy). `EntitlementService`
+  resolves features/limits/lapse from the subscription's frozen version. Lapse policy
+  per plan (`pastDueDays`, `graceDays`, `graceAllows`), overridable per academy
+  (`overrides.lapse`). In grace, `FeatureGateGuard` keeps open the writes under
+  `GRACE_ALLOWANCES` (live classes + attendance, homework/puzzles/revision,
+  fees/invoices, chat); admin growth stays blocked.
+- **4d:** `applySubscriptionTransition` (status-filtered claim, allowed-transition
+  guard, event row) for console transitions, manual payments (`platform_payments`;
+  ACTIVE + new period end) and the hourly lapse sweep (`platform.subscription-lapse`:
+  trial end, ACTIVE→PAST_DUE at period end, PAST_DUE→GRACE after `pastDueDays`,
+  GRACE→EXPIRED, scheduled plan changes at period end). Deals: custom price, note,
+  feature/limit/lapse/pack overrides.
+- **4e:** support visits (`platform_support_sessions`): a typed reason, a one-time
+  5-minute link to the academy's primary host, `POST /auth/support/enter` there
+  signs in as the support user for 1 hour (`AuthSession.supportSessionId`, a
+  `support` claim on the access token, kept across refresh), `GET /auth/me` returns
+  `support` for the banner, `SupportVisitInterceptor` logs each request and counts
+  writes, ending revokes the sessions, the academy's super admin reads the history
+  at `/admin/subscription/support-visits`. The support user is hidden from user
+  management.
+- **4f:** content packs of Nexa puzzle folders (`content_packs`,
+  `content_pack_items`); plans list `contentPackIds`, deals add/remove packs;
+  academies read a published, entitled pack's GLOBAL published puzzles (live
+  reference, read under `asPlatform` only through the pack) and copy a folder into
+  their own library (the copy is `source: NEXA`, academy-wide, their own row).
+- Builder's calls are in `docs/BACKLOG.md` (2026-11-04 overnight run).
+- **4g (console UI):** `apps/web/src/features/platform/`. `/admin/platform` tabs
+  (academies + create dialog, plans + versioned editor, duplicate, retire, apply to
+  existing; content packs; support visits; audit log), `/admin/platform/academies/[tenantId]`
+  (subscription: record payment, change plan now / at period end, allowed status
+  moves, deal; addresses; support visits; audit; suspend/reactivate; "Open as
+  support"). `/support/enter` (public) consumes the one-time link; `SupportVisitBanner`
+  in `AppShell` reads `support` from the session query. Academy side:
+  `/admin/content-packs`, "Support visits" on `/admin/subscription`. The nav shows the
+  console only when `AuthUser.isPlatformOperator`.
+
+### Phase 5 plan
+
+| Slice | Scope | Done when |
+|---|---|---|
+| 5a | Branding features `brandIdentity`, `customDomain`, `whiteLabel` (catalogued, per plan); `TenantBranding`; public config by host; admin branding API (contrast-checked colours, PNG/JPEG/WebP assets); domain check; 30-day hold; email sender name / Reply-To; MFA issuer = academy | `branding.int-spec.ts` green |
+| 5b | Same-origin `/api` on academy hosts (`lib/apiBase.ts`, nginx rule, Next rewrite fallback); host-only cookies named apart; Nexa's domain-wide cookie dropped on academy hosts; refresh binds the session's academy | A login on an academy host sets only host-only cookies; Nexa's cookie is refused there |
+| 5c | Web: `TenantBrandProvider` (palette, favicon, titles, logo, copy), pre-paint `data-host`, academy home page, `/admin/branding`, console "Check" + nginx block, VPS checklist ([DEPLOYMENT.md](DEPLOYMENT.md) Step 4c) | Pages build; no horizontal overflow |
+| 5d | Per-academy WhatsApp credentials (encrypted); no shared Nexa number for others | A second academy without credentials sends no WhatsApp |
+| 5e | Brand strings out of code (the remaining "Nexa" copy), white-label smoke test | The smoke test finds no "Nexa" on a white-label academy |
+
+**5a–5c (built 2026-11-05, migration `20261104212053_saas_tenant_branding`).**
+- API: `branding/` (`BrandingService`, `PublicBrandingController`, `BrandingController`),
+  `tenancy/domain-check.service.ts`, `auth/auth-cookies.ts` (`HOST_ONLY_COOKIE_NAMES`,
+  `aliasHostOnlyCookies` after `cookie-parser`), `POST /platform/tenants/:id/domains/:domainId/check`.
+  Contract: `@nexa-chess/types` `tenant-branding.ts` (schemas, `brandColorIssue`,
+  `deriveBrandPalette`, `brandPaletteCss`).
+- Rules: a host is "an academy's own" when it resolves through `tenant_domains` to an
+  academy other than Nexa; only there are cookies host-only and named `nexa_h_*`.
+  Nexa's hosts, cookies and absolute API URL are unchanged.
+- **5d (built 2026-11-05, migration `…_saas_academy_whatsapp`):** `whatsapp_settings` (one row per
+  academy, token AES-256-GCM encrypted with `CREDENTIALS_ENCRYPTION_KEY`, else a key derived from
+  `MFA_ENCRYPTION_KEY`), `GET/PUT /admin/branding/whatsapp` (the academy's super admin),
+  `WhatsAppCredentialsService` (decrypted per academy in memory, loaded at boot and on save).
+  `WhatsAppService.isConfigured()` and every send pick the request's academy: Nexa and work
+  outside an academy use the env number; any other academy only its own, else WhatsApp is off.
+- **5e (partial, 2026-11-05):** `useBrandName()` replaces "Nexa Chess" in the auth pages,
+  sidebars, sign-out dialog, checkout (also the gateway's merchant name), referrals, payroll,
+  class titles and acquisition analytics. Opt-in smoke test `e2e/white-label.spec.ts`
+  (`RUN_WHITE_LABEL_E2E=1 ACADEMY_BASE_URL=…`). Still to do: see `docs/BACKLOG.md` (Phase 5 item 11).
+- Web theming is client-side (builder's call): the root layout stays static for Nexa; an
+  inline script sets `data-host` and the last saved palette before first paint, and
+  `TenantBrandProvider` applies the fetched config.
+
 ---
+
+### Phase 6 as built (2026-11-05)
+
+| Slice | What | Proof |
+|---|---|---|
+| 6a | Academy → owner: `platform-billing/` (checkout, pay link, owner's Razorpay, webhook, hourly reconcile) | `platform-billing.int-spec.ts`: forged callback is a no-op, unsigned webhook refused and not stored, duplicate webhook safe, short payment ignored |
+| 6b | GST invoices from the owner: own number series per financial year, frozen snapshot, printable page | same spec: one invoice per payment, `NXP/yy-yy/00001` |
+| 6c | Student → academy: each academy's own gateway keys (`TenantPaymentCredential`), per-academy webhook URL | same spec: the academy's URL verifies with its secret only and writes only its rows |
+| 6d | Usage counters: nightly `TenantUsage` snapshot, console endpoint | — |
+
+- **Owner's account** (`platform-billing/platform-razorpay.client.ts`): its own
+  `PLATFORM_RAZORPAY_KEY_ID` / `_KEY_SECRET` / `_WEBHOOK_SECRET`, separate from the
+  student gateways (`payments/providers/`), so no adapter is imported outside
+  `payments/providers/`. Webhook: `POST /platform-billing/webhooks/razorpay`
+  (raw body, CSRF-exempt, always open in the plan gate). Events `payment.captured`
+  and `order.paid` settle; `payment.failed` notes the reason.
+- **Checkout** (`PlatformCheckout`): plan, period and price frozen at creation
+  (plan prices exclude GST; GST from `computeTax` with the owner's seller details
+  and the academy's own invoice details as the buyer). Our row first, then the
+  Razorpay order; an open checkout for the same plan, period and amount is reused.
+  Valid 7 days.
+- **Settlement** (`PlatformBillingService.settle`): one transaction: a
+  status-filtered claim on the checkout, `PlatformPayment` (unique
+  `gatewayPaymentId` and `checkoutId`), the period extended from the later of
+  now and the current period end, the plan switched if the checkout was for
+  another plan, `applyPaidPeriod` (ACTIVE stays ACTIVE with an event; anything
+  else goes through `applySubscriptionTransition`), and the invoice. The browser
+  callback only triggers a read of the order from Razorpay.
+- **Pay link:** the console creates a checkout for an academy (optionally with a
+  one-off price) and shows `/admin/subscription?checkout=<id>`; the owner sends it.
+- **Seller details:** console, `PlatformSellerSettings` (singleton); until saved,
+  Nexa's own academy's invoice details.
+- **Per-academy gateways:** `GatewayCredentialsService.envFor` gives each adapter
+  the server env with the gateway keys swapped for the current academy's (from
+  the TenantContext), or blanked when it has none. Nexa keeps the server env and
+  stores nothing. Secrets AES-256-GCM (`CREDENTIALS_ENCRYPTION_KEY`, else
+  `MFA_ENCRYPTION_KEY`). Webhooks for another academy arrive on
+  `/payments/webhooks/<provider>/<webhookKey>`; the key names the academy, its
+  secret verifies the event, and it is processed in that academy's context.
+  The old URLs (no key) stay Nexa's. Admin page: Payments → Gateways (super admins). The routes are `/admin/payment-gateways…`, not under `/admin/payments/`, whose `:id` route would claim them.
+
+### D5 contract and rehearsal (prepared 2026-11-05, not run)
+
+- `apps/api/prisma/contract/d5_saas_drop_global_uniques/`: `migration.sql` (23
+  global uniques dropped beside their per-academy twins, number sequences keyed
+  by `(tenantId, year)`, four hand-written global partial uniques dropped, and
+  the `'tenant_nexa'` default of all 155 `tenantId` columns replaced by
+  `nexa_tenant_required()`, which raises) and the matching `schema.patch`.
+  *(builder's call)* A raising default instead of none: with no default,
+  Prisma's create types make `tenantId` required and 483 call sites (which the
+  extension fills at runtime) would fail to compile. Outside `prisma/migrations/`, so nothing applies it;
+  its README has the promotion steps.
+- `scripts/saas/rehearse-d5.sh`: restores a backup into a `*_rehearsal`
+  database (local only unless `--allow-remote`; refuses live database names),
+  migrates, applies the contract, and fails unless row counts, money totals and
+  foreign keys are unchanged; then the rollback drill (restore into `*_rb`,
+  compare) with timings. Phase 7 runs it on a restored production backup.
+- The API type-checks against the patched schema (only the seed needed the
+  compound keys, changed now).
 
 ## M. Effort (rough)
 
@@ -852,6 +1215,19 @@ the identity model, the first thing Phase 2 builds.
 | N-14 | Can one person belong to more than one academy? | **No: one account per academy.** The same email in two academies is two separate accounts (own password, MFA, sessions); no membership table, no academy switcher. Rejected: one login with a `TenantMembership` per academy (+2–3 weeks, every role check reads the membership) |
 | N-13 | Start | **Plan approved.** Phase 2 branches off `dev` (which already changed `authenticateUser` and `schema.prisma` for SALES and referrals); its merge into `dev` waits until the redesign is on `main`, and Phase 2 needs one production release with no missing-tenant log hits before it counts as done |
 | N-15 | Who holds platform powers? | **Nexa's `SUPER_ADMIN`s control every academy**; each academy's own super admins and admins manage only their academy. Rejected: limiting platform powers to named `platform_staff` rows. Consequence: every Nexa super-admin account is a platform account, so MFA stays mandatory for them and the number of Nexa super admins should stay small |
+
+### Decided (2026-11-04, before the overnight run)
+
+- **N-9 Branding:** logos are PNG/JPEG/WebP only (resized on upload, no SVG).
+  Gating is dynamic: each branding item (logo and colours, full domain,
+  white-label) is its own catalogued feature, and the platform console decides
+  which plans include it.
+- **N-11 (part) Platform billing provider:** Razorpay (built in test mode and
+  against mocks until live keys exist).
+- **Run scope:** Phases 3–6 in code and tests on `feat/saas-phase2-foundation`,
+  plus the D5 migration file and a rehearsal script (never run against
+  production). Staging (`vps_dev_saas` copy) is used to verify each phase,
+  including `TENANT_SCOPE_MODE=enforce` there at the end of Phase 3.
 
 ### N-17 Database layout (decided 2026-11-04: shared tables)
 

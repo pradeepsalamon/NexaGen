@@ -39,7 +39,7 @@ export class PaymentReconciliationService {
     if (!this.env.PAYMENTS_ENABLED) return;
 
     try {
-      await this.jobLocks.runExclusive(JOB_LOCKS.paymentReconciliation, async () => {
+      await this.jobLocks.runForEachTenant(JOB_LOCKS.paymentReconciliation, async () => {
         await this.reconcileInFlight();
         await this.expireStaleOrders();
         await this.subscriptions.expireLapsed();

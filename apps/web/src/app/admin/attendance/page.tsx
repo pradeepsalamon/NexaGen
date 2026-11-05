@@ -10,7 +10,7 @@ import { StatTile } from "@/components/ui/StatTile";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { apiFetch } from "@/lib/api";
 import { API_ROUTES, type AdminAttendanceDashboard } from "@nexa-chess/types";
-import { getWebEnv } from "@nexa-chess/config/web";
+import { apiUrl } from "@/lib/apiBase";
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { useTableSort } from "@/hooks/useTableSort";
@@ -20,9 +20,6 @@ import type { Tone } from "@/lib/tone";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDate } from "@/lib/datetime";
 
-const attendanceExportUrl =
-  getWebEnv({ NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL })
-    .NEXT_PUBLIC_API_URL + API_ROUTES.attendance.adminExport;
 
 const MORE_REPORTS = [
   {
@@ -44,6 +41,9 @@ export default function AdminAttendanceDashboardPage() {
   const [data, setData] = useState<AdminAttendanceDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+  // After hydration: an academy's own address downloads through its `/api` (lib/apiBase.ts).
+  const [attendanceExportUrl, setAttendanceExportUrl] = useState<string>(API_ROUTES.attendance.adminExport);
+  useEffect(() => setAttendanceExportUrl(apiUrl(API_ROUTES.attendance.adminExport)), []);
 
   useEffect(() => {
     async function loadDashboard() {

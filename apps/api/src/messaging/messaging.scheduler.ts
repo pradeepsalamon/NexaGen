@@ -185,7 +185,7 @@ export class MessagingScheduler {
 
   private async withLock(name: JobLockName, run: () => Promise<void>): Promise<void> {
     try {
-      await this.jobLocks.runExclusive(name, run);
+      await this.jobLocks.runForEachTenant(name, run);
     } catch (error) {
       this.logger.error("Messaging cron failed", error as Error);
     }

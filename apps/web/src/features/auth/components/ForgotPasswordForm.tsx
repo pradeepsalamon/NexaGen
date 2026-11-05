@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { useMutation } from "@tanstack/react-query";
@@ -15,6 +16,7 @@ import { AuthSplitShell } from "./AuthSplitShell";
 import { AuthStatus } from "./AuthStatus";
 
 export function ForgotPasswordForm() {
+  const brandName = useBrandName();
   const toast = useToast();
   const [email, setEmail] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -71,7 +73,7 @@ export function ForgotPasswordForm() {
   return (
     <AuthSplitShell variant="forgot-password">
       <AuthHeader
-        description="Enter the email address of your Nexa Chess account and we'll send you a reset link."
+        description={`Enter the email address of your ${brandName} account and we'll send you a reset link.`}
         title="Forgot your password?"
       />
 

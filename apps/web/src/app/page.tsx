@@ -20,6 +20,7 @@ import { ContactSection } from "@/features/academy/components/ContactSection";
 import { FaqSection } from "@/features/academy/components/FaqSection";
 import { AcademyFooter } from "@/features/academy/components/AcademyFooter";
 import { AcademyFloatingElements } from "@/features/academy/components/AcademyFloatingElements";
+import { AcademyHome } from "@/features/branding/components/AcademyHome";
 
 const academyFontVariablesCss = declareFontVariables(".academy-page", ACADEMY_FONT_FACES);
 
@@ -63,7 +64,10 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className="academy-page relative font-[family-name:var(--font-inter)]">
+    <>
+    {/* Another academy's own address shows its generic home instead (§F; hidden before first paint). */}
+    <AcademyHome />
+    <div className="platform-brand-only academy-page relative font-[family-name:var(--font-inter)]">
       <style dangerouslySetInnerHTML={{ __html: academyFontVariablesCss }} />
       <script
         type="application/ld+json"
@@ -108,5 +112,6 @@ export default function Home() {
         <AcademyFloatingElements />
       </main>
     </div>
+    </>
   );
 }

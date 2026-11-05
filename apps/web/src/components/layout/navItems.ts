@@ -3,6 +3,7 @@ import {
   Archive,
   BarChart3,
   BookOpen,
+  Building2,
   Brain,
   CalendarDays,
   Captions,
@@ -25,6 +26,8 @@ import {
   MessageSquare,
   MessageSquareHeart,
   MessagesSquare,
+  Package,
+  Paintbrush,
   Palette,
   Puzzle,
   Radio,
@@ -71,6 +74,8 @@ export type NavItem = {
    * See AUDIT.md H1.
    */
   superAdminOnly?: boolean;
+  /** Platform console pages: only Nexa's own super admins (`AuthUser.isPlatformOperator`). */
+  platformOnly?: boolean;
   /** The SaaS plan feature this page belongs to; hidden when the plan lacks it. */
   feature?: PlanFeatureKey;
 };
@@ -162,6 +167,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/puzzles", label: "Puzzle library", icon: Puzzle, group: "Learning" },
   { href: "/admin/puzzles/scoring", label: "Puzzle points", icon: Trophy, group: "Learning" },
   { href: "/games", label: "Game library", icon: Library, group: "Learning", feature: "gameLibrary" },
+  { href: "/admin/content-packs", label: "Content packs", icon: Package, group: "Learning" },
   { href: "/admin/knowledge", label: "Knowledge base", icon: LibraryBig, group: "Learning" },
   // Finance
   { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Finance", feature: "studentPayments" },
@@ -169,11 +175,13 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/finance/coach-payroll", label: "Coach payroll", icon: Wallet, group: "Finance", feature: "coachPayroll" },
   // Platform settings
   { href: "/admin/live-class", label: "Live class settings", icon: SlidersHorizontal, group: "Settings" },
+  { href: "/admin/branding", label: "Branding", icon: Paintbrush, group: "Settings", feature: "brandIdentity" },
   { href: "/admin/chess-appearance", label: "Chess appearance", icon: Palette, group: "Settings", feature: "customBranding" },
   { href: "/admin/typography", label: "Fonts & text", icon: Type, group: "Settings", feature: "customBranding" },
   { href: "/admin/game-sync", label: "Game sync", icon: RefreshCw, group: "Settings", feature: "gameAnalysis" },
   { href: "/admin/subscription", label: "Subscription", icon: Gem, group: "Settings" },
   // Super Admin
+  { href: "/admin/platform", label: "Platform console", icon: Building2, group: "Super Admin", superAdminOnly: true, platformOnly: true },
   { href: "/admin/backups", label: "Database backups", icon: Database, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/trash", label: "Trash", icon: Trash2, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/data-retention", label: "Data retention", icon: Archive, group: "Super Admin", superAdminOnly: true },
@@ -191,8 +199,14 @@ export function filterNavByPlan(items: NavItem[], features?: readonly PlanFeatur
 }
 
 /** Admin nav filtered to what the given role's API access and the plan actually permit. */
-export function getAdminNavItems(role?: string, features?: readonly PlanFeatureKey[]): NavItem[] {
-  const items = role === "SUPER_ADMIN" ? adminNavItems : adminNavItems.filter((item) => !item.superAdminOnly);
+export function getAdminNavItems(
+  role?: string,
+  features?: readonly PlanFeatureKey[],
+  isPlatformOperator = false
+): NavItem[] {
+  const items = adminNavItems.filter(
+    (item) => (role === "SUPER_ADMIN" || !item.superAdminOnly) && (isPlatformOperator || !item.platformOnly)
+  );
   return filterNavByPlan(items, features);
 }
 
@@ -225,9 +239,13 @@ const ADMIN_GROUP_ICONS: Record<string, LucideIcon> = {
 };
 
 /** Admin nav bucketed by `group`, preserving declaration order. */
-export function getAdminNavGroups(role?: string, features?: readonly PlanFeatureKey[]): NavGroup[] {
+export function getAdminNavGroups(
+  role?: string,
+  features?: readonly PlanFeatureKey[],
+  isPlatformOperator = false
+): NavGroup[] {
   const groups: NavGroup[] = [];
-  for (const item of getAdminNavItems(role, features)) {
+  for (const item of getAdminNavItems(role, features, isPlatformOperator)) {
     const key = item.group ?? "";
     let bucket = groups.find((g) => g.group === key);
     if (!bucket) {

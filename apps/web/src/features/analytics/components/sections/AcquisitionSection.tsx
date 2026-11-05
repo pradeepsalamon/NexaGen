@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import type { AnalyticsRangeQuery } from "@nexa-chess/types";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -14,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatNumber } from "../../lib/format";
 
 export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
+  const brandName = useBrandName();
   const searchParams = useSearchParams();
   const { data, isLoading, isError, refetch } = useAcquisitionQuery(query);
 
@@ -42,8 +44,8 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
 
   return (
     <SectionCard
-      description="How people discover NexaChess. 'Unknown' covers legacy accounts and anyone who skipped the question — it is never guessed."
-      title="How users discover NexaChess"
+      description={`How people discover ${brandName}. 'Unknown' covers legacy accounts and anyone who skipped the question — it is never guessed.`}
+      title={`How users discover ${brandName}`}
       updatedAt={data?.meta.generatedAt}
       onRefresh={() => refetch()}
     >

@@ -120,7 +120,7 @@ export function AdminCreditNotesPanel() {
                     >
                       <a
                         href={adminCreditNotePdfUrl(creditNote.id)}
-                        rel="noopener noreferrer"
+                        rel="noopener"
                         target="_blank"
                       >
                         <Download className="size-4" strokeWidth={2.5} />

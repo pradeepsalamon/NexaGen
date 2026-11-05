@@ -96,7 +96,7 @@ export function CoachManualPaymentsClient() {
                 <a
                   className="inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline"
                   href={manualPaymentAttachmentUrl(record.id)}
-                  rel="noopener noreferrer"
+                  rel="noopener"
                   target="_blank"
                 >
                   View proof <ExternalLink className="size-3" strokeWidth={2.5} />

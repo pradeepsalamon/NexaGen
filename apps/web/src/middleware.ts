@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isPlatformHost } from "./lib/apiBase";
 import {
   AUTH_COOKIES,
   canAccessPath,
+  HOST_ONLY_AUTH_COOKIES,
   getRoleDashboardHref,
   isProtectedPath,
   readRoleFromJwt
@@ -10,9 +12,12 @@ import {
 // The single page-level auth gate: pages and layouts do not re-check cookies.
 // Rules live in lib/routeAccess.ts (shared with the client guard in SessionBootstrap).
 export function middleware(request: NextRequest) {
-  const accessToken = request.cookies.get(AUTH_COOKIES.accessToken)?.value;
+  // An academy's own address reads only its host-only cookies: Nexa's domain-wide ones also
+  // reach `<slug>.nexachess.in`, and the API refuses them there (lib/apiBase.ts, §E).
+  const names = isPlatformHost(request.nextUrl.hostname) ? AUTH_COOKIES : HOST_ONLY_AUTH_COOKIES;
+  const accessToken = request.cookies.get(names.accessToken)?.value;
   const hasSession =
-    Boolean(accessToken) || Boolean(request.cookies.get(AUTH_COOKIES.refreshToken)?.value);
+    Boolean(accessToken) || Boolean(request.cookies.get(names.refreshToken)?.value);
   // An expired access token still names the role; a refresh-only session has none,
   // so it passes here and SessionBootstrap redirects once /auth/me resolves.
   const role = readRoleFromJwt(accessToken);

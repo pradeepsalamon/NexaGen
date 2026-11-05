@@ -5,6 +5,7 @@ export const API_ROUTES = {
     refresh: "/auth/refresh",
     logout: "/auth/logout",
     me: "/auth/me",
+    supportEnter: "/auth/support/enter",
     profile: "/auth/profile",
     forgotPassword: "/auth/forgot-password",
     resetPassword: "/auth/reset-password",
@@ -623,6 +624,11 @@ export const API_ROUTES = {
     webhookRazorpay: "/payments/webhooks/razorpay",
     webhookCashfree: "/payments/webhooks/cashfree",
     webhookStripe: "/payments/webhooks/stripe",
+    // Another academy's own gateway account (SaaS Phase 6): the key names the
+    // academy whose stored secret verifies the event.
+    webhookRazorpayAcademy: (tenantKey: string = ":tenantKey") => `/payments/webhooks/razorpay/${tenantKey}`,
+    webhookCashfreeAcademy: (tenantKey: string = ":tenantKey") => `/payments/webhooks/cashfree/${tenantKey}`,
+    webhookStripeAcademy: (tenantKey: string = ":tenantKey") => `/payments/webhooks/stripe/${tenantKey}`,
     // ── Manual / offline payments (admin OR coach) ──
     manual: {
       methods: "/payments/manual/methods",
@@ -682,6 +688,10 @@ export const API_ROUTES = {
     subscriptions: "/admin/payments/subscriptions",
     invoices: "/admin/payments/invoices",
     providerHealth: "/admin/payments/provider-health",
+    // The academy's own gateway keys (SaaS Phase 6; super admin only). Not
+    // under /admin/payments/: `GET /admin/payments/:id` would claim it.
+    gateways: "/admin/payment-gateways",
+    gateway: (provider: string = ":provider") => `/admin/payment-gateways/${provider}`,
     routing: "/admin/payments/routing",
     plans: "/admin/payments/plans",
     plan: (id: string = ":id") => `/admin/payments/plans/${id}`,
@@ -897,13 +907,78 @@ export const API_ROUTES = {
   // user (drives web feature gating); `admin`: academy admins, with usage.
   subscription: {
     current: "/subscription",
-    admin: "/admin/subscription"
+    admin: "/admin/subscription",
+    /** The academy super admin's history of platform support visits (§I). */
+    supportVisits: "/admin/subscription/support-visits",
+    /** Paying the platform (SaaS Phase 6): open checkouts and GST invoices. */
+    billing: "/admin/subscription/billing",
+    checkout: "/admin/subscription/checkout",
+    checkoutGet: (id: string = ":id") => `/admin/subscription/checkout/${id}`,
+    checkoutConfirm: (id: string = ":id") => `/admin/subscription/checkout/${id}/confirm`,
+    invoice: (id: string = ":id") => `/admin/subscription/invoices/${id}`,
+    /** Content packs this academy's plan includes (§I "Content packs"). */
+    contentPacks: "/content-packs",
+    contentPackFolder: (packId: string = ":packId", itemId: string = ":itemId") =>
+      `/content-packs/${packId}/items/${itemId}`,
+    contentPackFolderCopy: (packId: string = ":packId", itemId: string = ":itemId") =>
+      `/content-packs/${packId}/items/${itemId}/copy`
   },
-  // Platform staff only (PlatformStaff row), never a tenant role.
+  // An academy's look and addresses (docs/SAAS_MULTI_TENANCY.md §F, §H; Phase 5).
+  branding: {
+    /** Public, by host: name, logos, colours, SEO; drives every page before sign-in. */
+    publicConfig: "/tenant/public-config",
+    /** Public: echoes a one-time token, so the console can prove a domain reaches this app. */
+    domainCheck: (token: string = ":token") => `/tenant/domain-check/${token}`,
+    admin: "/admin/branding",
+    /** POST multipart PNG/JPEG/WebP; DELETE clears it. */
+    asset: (kind: string = ":kind") => `/admin/branding/assets/${kind}`,
+    whiteLabel: "/admin/branding/white-label",
+    /** The academy's own WhatsApp Business credentials (super admin). */
+    whatsapp: "/admin/branding/whatsapp",
+    /** The academy's own addresses and how to point a domain at it. */
+    domains: "/admin/branding/domains"
+  },
+  // Platform operators only: Nexa's SUPER_ADMINs (docs/SAAS_MULTI_TENANCY.md §E), never another academy's role.
   platform: {
     plans: "/platform/plans",
     plan: (id: string = ":id") => `/platform/plans/${id}`,
-    tenantSubscription: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/subscription`
+    planDuplicate: (id: string = ":id") => `/platform/plans/${id}/duplicate`,
+    planRetire: (id: string = ":id") => `/platform/plans/${id}/retire`,
+    planApplyToExisting: (id: string = ":id") => `/platform/plans/${id}/apply-to-existing`,
+    tenantDeal: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/deal`,
+    tenantPlan: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/plan`,
+    tenantTransition: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/transition`,
+    tenantPayments: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/payments`,
+    tenantSupport: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/support`,
+    supportSessions: "/platform/support-sessions",
+    supportSessionEnd: (id: string = ":id") => `/platform/support-sessions/${id}/end`,
+    contentPacks: "/platform/content-packs",
+    contentPack: (id: string = ":id") => `/platform/content-packs/${id}`,
+    contentPackItems: (id: string = ":id") => `/platform/content-packs/${id}/items`,
+    contentPackItem: (id: string = ":id", itemId: string = ":itemId") => `/platform/content-packs/${id}/items/${itemId}`,
+    tenantSubscription: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/subscription`,
+    audit: "/platform/audit",
+    tenants: "/platform/tenants",
+    tenant: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}`,
+    tenantSuspend: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/suspend`,
+    tenantReactivate: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/reactivate`,
+    tenantDomains: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/domains`,
+    tenantDomain: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
+      `/platform/tenants/${tenantId}/domains/${domainId}`,
+    tenantDomainPrimary: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
+      `/platform/tenants/${tenantId}/domains/${domainId}/primary`,
+    tenantDomainCheck: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
+      `/platform/tenants/${tenantId}/domains/${domainId}/check`,
+    tenantPayLink: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/pay-link`,
+    tenantInvoices: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/invoices`,
+    sellerDetails: "/platform/billing/seller",
+    invoices: "/platform/billing/invoices",
+    invoice: (id: string = ":id") => `/platform/billing/invoices/${id}`,
+    usage: "/platform/usage"
+  },
+  // The owner's gateway account (SaaS Phase 6): public, signature-verified.
+  platformBilling: {
+    webhookRazorpay: "/platform-billing/webhooks/razorpay"
   },
   health: {
     // Public, unauthenticated, not rate limited. `live` never touches a

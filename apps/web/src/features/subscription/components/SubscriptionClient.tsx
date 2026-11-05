@@ -23,7 +23,11 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import type { Tone } from "@/lib/tone";
 import { cn, enumLabel } from "@/lib/utils";
+import { SupportVisitsTable } from "@/features/platform/components/SupportVisitsTable";
+import { useAcademySupportVisits } from "@/features/platform/hooks/usePlatformApi";
+import { useAuthStore } from "@/stores/authStore";
 import { useAdminSubscription } from "../hooks/useSubscription";
+import { AcademyBillingSection } from "./AcademyBillingSection";
 
 const LIMIT_TILES: Record<PlanLimitKey, { icon: LucideIcon; tone: Tone }> = {
   maxBatches: { icon: Layers3, tone: "primary" },
@@ -196,6 +200,25 @@ function PlanComparison({ data }: { data: AdminSubscriptionResponse }) {
   );
 }
 
+/** Super admins see every NexaChess support visit to their academy, with its reason (§I). */
+function SupportVisitHistory() {
+  const isSuperAdmin = useAuthStore((state) => state.user?.role === "SUPER_ADMIN");
+  const visits = useAcademySupportVisits(isSuperAdmin);
+  if (!isSuperAdmin || !visits.data) return null;
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-lg font-bold text-app-text">Support visits</h2>
+        <p className="text-sm text-app-muted">
+          Each time the NexaChess team opened your academy to help, with the reason they gave and how many changes they
+          made.
+        </p>
+      </div>
+      <SupportVisitsTable visits={visits.data.sessions} />
+    </section>
+  );
+}
+
 export function SubscriptionClient() {
   const { data, error, isLoading, refetch } = useAdminSubscription();
 
@@ -217,7 +240,9 @@ export function SubscriptionClient() {
           <StatusAlert data={data} />
           <CurrentPlan data={data} />
           <Usage data={data} />
+          <AcademyBillingSection data={data} />
           <PlanComparison data={data} />
+          <SupportVisitHistory />
         </>
       )}
     </div>

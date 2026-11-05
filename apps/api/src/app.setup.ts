@@ -6,6 +6,9 @@ import { API_ROUTES } from "@nexa-chess/types";
 import * as express from "express";
 import { createOriginCheckMiddleware } from "./common/security/origin-check";
 import { securityHeaders } from "./common/security/security-headers";
+import { aliasHostOnlyCookies } from "./auth/auth-cookies";
+import { createTenantContextMiddleware } from "./tenancy/tenant-context.middleware";
+import { TenantResolverService } from "./tenancy/tenant-resolver.service";
 
 /**
  * The HTTP pipeline shared by main.ts and the integration test app. The app
@@ -22,9 +25,14 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
     API_ROUTES.attendance.webhook,
     API_ROUTES.payments.webhookRazorpay,
     API_ROUTES.payments.webhookCashfree,
-    API_ROUTES.payments.webhookStripe
+    API_ROUTES.payments.webhookStripe,
+    API_ROUTES.platformBilling.webhookRazorpay
   ];
-  app.use(createOriginCheckMiddleware(corsOrigins, webhookPaths));
+  // An academy's own ACTIVE domains are allowed too, for the CSRF check and
+  // for CORS (docs/SAAS_MULTI_TENANCY.md §E "Sessions and cookies").
+  const resolver = app.get(TenantResolverService);
+  const isAcademyOrigin = (origin: string) => resolver.isAcademyOrigin(origin);
+  app.use(createOriginCheckMiddleware(corsOrigins, webhookPaths, isAcademyOrigin));
 
   // LiveKit sends 'application/webhook+json'. Parse it as raw text so we can verify the signature.
   app.use(
@@ -32,13 +40,15 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
     express.text({ type: "application/webhook+json" })
   );
 
-  // Payment gateways sign the exact request body. Parse these three routes as
+  // Payment gateways sign the exact request body. Parse these routes (and the
+  // per-academy paths below them, `app.use` matches by prefix) as
   // raw text BEFORE any JSON parser claims them — re-serialising JSON changes
   // the bytes and every signature check would then fail.
   for (const path of [
     API_ROUTES.payments.webhookRazorpay,
     API_ROUTES.payments.webhookCashfree,
-    API_ROUTES.payments.webhookStripe
+    API_ROUTES.payments.webhookStripe,
+    API_ROUTES.platformBilling.webhookRazorpay
   ]) {
     app.use(path, express.text({ type: "*/*", limit: "1mb" }));
   }
@@ -54,16 +64,28 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
     req.body ??= {};
     next();
   });
+  // After every body parser (see the middleware's comment): the academy for
+  // the rest of the request (docs/SAAS_MULTI_TENANCY.md §B).
+  app.use(createTenantContextMiddleware(resolver, webhookPaths));
 
   app.use(cookieParser());
+  // On another academy's own address: its host-only session cookies (§E).
+  app.use(aliasHostOnlyCookies);
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
       whitelist: true
     })
   );
+  const staticOrigins = new Set(corsOrigins);
   app.enableCors({
     credentials: true,
-    origin: corsOrigins
+    origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
+      if (!origin || staticOrigins.has(origin)) return callback(null, true);
+      isAcademyOrigin(origin).then(
+        (allowed) => callback(null, allowed),
+        (error: Error) => callback(error)
+      );
+    }
   });
 }

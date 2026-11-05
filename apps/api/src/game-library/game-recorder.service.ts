@@ -14,6 +14,7 @@ import { ChessGameSource, ChessGameStatus, Prisma } from "@prisma/client";
 import { Chess } from "../common/chess/chess";
 import { createMoveTreeChess } from "../common/chess/move-tree-chess";
 import { PrismaService } from "../prisma/prisma.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 type StoredMove = { san: string; uci: string };
 
@@ -319,7 +320,7 @@ export class GameRecorderService {
 
     const existing = await this.prisma.chessGame.findUnique({
       select: { sourceRevision: true },
-      where: { sourceKey: input.sourceKey },
+      where: { tenantId_sourceKey: { sourceKey: input.sourceKey, tenantId: requireTenantId('chessGame') } },
     });
     if (!existing) {
       try {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { formatReferralPoints } from "@nexa-chess/types";
 import { Eye, Gift, UserCheck, Users, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -24,6 +25,7 @@ import { WalletPanel } from "./WalletPanel";
  * coaches (`/coach/referrals`) and sales staff (`/sales`).
  */
 export function ReferralBoardClient() {
+  const brandName = useBrandName();
   const role = useAuthStore((state) => state.user?.role);
   const isSales = role === "SALES";
   const { data, error, isLoading, refetch } = useMyReferralSummary();
@@ -33,7 +35,7 @@ export function ReferralBoardClient() {
       description={
         isSales
           ? "Track every person you bring to the academy, from first visit to onboarding."
-          : "Invite friends to Nexa Chess and earn rewards when they join."
+          : `Invite friends to ${brandName} and earn rewards when they join.`
       }
       title={isSales ? "Referral board" : "Refer & earn"}
     />

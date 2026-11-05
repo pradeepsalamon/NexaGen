@@ -18,7 +18,7 @@ export class GameSourcesScheduler {
   async autoSync(): Promise<void> {
     if (!getApiEnv().EXTERNAL_GAME_IMPORT_ENABLED) return;
     try {
-      await this.jobLocks.runExclusive(JOB_LOCKS.externalGameSync, (signal) => this.sources.runAutoSync(signal));
+      await this.jobLocks.runForEachTenant(JOB_LOCKS.externalGameSync, (signal) => this.sources.runAutoSync(signal));
     } catch (error) {
       this.logger.error('Game auto-sync cron failed', error as Error);
     }

@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
+import { Injectable, Logger, Optional, ServiceUnavailableException } from "@nestjs/common";
 import { getAdminNotificationEmails, getApiEnv } from "@nexa-chess/config/api";
 import {
   markdownToPlainText,
@@ -8,6 +8,8 @@ import {
   type SystemMessageKey
 } from "@nexa-chess/types";
 import nodemailer from "nodemailer";
+import { BrandingService } from "../branding/branding.service";
+import { currentTenantId } from "../tenancy/tenant-context";
 import { formatDemoTime } from "../messaging/messaging.format";
 import { EMAIL_LINK_STYLE, escapeHtml, messageToEmailHtml } from "./message-html";
 import { SystemMessageRenderer, type RenderedSystemMessage } from "./system-message-renderer.service";
@@ -25,7 +27,29 @@ export class MailService {
   private readonly secure = this.env.SMTP_SECURE;
   private readonly user = this.env.SMTP_USER;
 
-  constructor(private readonly renderer: SystemMessageRenderer) {}
+  constructor(
+    private readonly renderer: SystemMessageRenderer,
+    @Optional() private readonly branding?: BrandingService
+  ) {}
+
+  /**
+   * One shared platform address, with another academy's name as the sender
+   * name and its contact as Reply-To (docs/SAAS_MULTI_TENANCY.md §F "Email").
+   * Nexa's mail is unchanged.
+   */
+  private async sender(): Promise<{ from: string | { address: string; name: string } | undefined; replyTo?: string }> {
+    const tenantId = currentTenantId();
+    if (!tenantId || !this.branding || !this.from) return { from: this.from };
+    try {
+      const sender = await this.branding.senderFor(tenantId);
+      if (!sender.name) return { from: this.from };
+      const address = /<([^>]+)>/.exec(this.from)?.[1] ?? this.from;
+      return { from: { address, name: sender.name }, ...(sender.replyTo ? { replyTo: sender.replyTo } : {}) };
+    } catch (error) {
+      this.logger.warn(`Sender lookup failed; using the platform sender: ${(error as Error).message}`);
+      return { from: this.from };
+    }
+  }
 
   async sendPasswordResetLink(to: string, resetLink: string) {
     await this.sendSystemEmail("PASSWORD_RESET", to, { "links.reset": resetLink });
@@ -34,6 +58,11 @@ export class MailService {
   /** An admin sends a sales account its sign-in (set-password) link. */
   async sendAccountAccessLink(to: string, firstName: string, link: string) {
     await this.sendSystemEmail("ACCOUNT_ACCESS_EMAIL", to, { "links.reset": link, "recipient.firstName": firstName });
+  }
+
+  /** A new academy's first super admin: set a password on the academy's own address (§H). */
+  async sendAcademyAdminInvite(to: string, firstName: string, link: string) {
+    await this.sendSystemEmail("ACADEMY_ADMIN_INVITE", to, { "links.reset": link, "recipient.firstName": firstName });
   }
 
   async sendEmailVerificationLink(to: string, verificationLink: string) {
@@ -185,7 +214,7 @@ export class MailService {
   /** A message staff wrote themselves: formatted text, never trusted as HTML. */
   async sendDirectEmail(input: { to: string; subject: string; body: string }) {
     await this.createTransporter().sendMail({
-      from: this.from,
+      ...(await this.sender()),
       to: input.to,
       subject: input.subject,
       text: markdownToPlainText(input.body),
@@ -199,7 +228,7 @@ export class MailService {
   async sendRuleEmail(input: { to: string; subject: string; body: string }): Promise<string | null> {
     const subject = input.subject.replace(/\s+/g, " ").trim();
     const info = await this.createTransporter().sendMail({
-      from: this.from,
+      ...(await this.sender()),
       to: input.to,
       subject,
       text: markdownToPlainText(input.body),
@@ -227,7 +256,7 @@ export class MailService {
     const message = await this.renderer.render(key, variables);
 
     await transporter.sendMail({
-      from: this.from,
+      ...(await this.sender()),
       to,
       subject: message.subject,
       text: toText(message),

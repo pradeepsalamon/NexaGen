@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { BING_SITE_VERIFICATION, GOOGLE_SITE_VERIFICATION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { PLATFORM_HOSTS } from "@/lib/apiBase";
 import { AppProviders } from "../providers/AppProviders";
 import { fontVariablesCss } from "./fonts";
 import "../styles/globals.css";
@@ -33,9 +34,27 @@ export const viewport: Viewport = {
 
 // Sets the saved light/dark mode, and the last resolved fonts + text size
 // (cached by TypographyProvider), before first paint. Colours live only in globals.css.
+// The host check is lib/apiBase.ts `isPlatformHost` (same PLATFORM_HOSTS): an academy's own address gets
+// data-host="academy" (globals.css hides Nexa-only branding) and its last saved palette.
+
 const themeInitScript = `
 (() => {
   const root = document.documentElement;
+  try {
+    const hosts = ${JSON.stringify(PLATFORM_HOSTS)};
+    const h = window.location.hostname.toLowerCase();
+    const platform = h === "localhost" || h === "127.0.0.1" || h === "[::1]" || hosts.length === 0 || hosts.indexOf(h) !== -1;
+    root.dataset.host = platform ? "platform" : "academy";
+    if (!platform) {
+      const brand = JSON.parse(window.localStorage.getItem("nexa-brand") || "null");
+      if (brand && typeof brand.css === "string" && brand.css.indexOf("<") === -1) {
+        const style = document.createElement("style");
+        style.id = "tenant-palette";
+        style.textContent = brand.css;
+        document.head.appendChild(style);
+      }
+    }
+  } catch {}
   try {
     const parsed = JSON.parse(window.localStorage.getItem("nexa-chess-theme") || "{}");
     root.dataset.theme = parsed.mode === "dark" ? "dark" : "light";

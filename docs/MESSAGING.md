@@ -17,7 +17,10 @@ is a `BadRequestException` and no request goes out. **One network attempt per
 call** — retries belong to a BullMQ job, which should branch on
 `WhatsAppSendError.retryable`. `trySendText` / `trySendTemplate` / `sendTextToMany`
 return outcomes instead of throwing, for paths that must survive WhatsApp being
-down. Walkthrough below.
+down. **Per academy (SaaS §F):** the env number is Nexa's; another academy sends
+only from its own number (`whatsapp_settings`, `/admin/branding`), so
+`isConfigured()` answers for the request's academy and must be called inside it
+(`runInTenant` in jobs). Walkthrough below.
 
 ## 3.6e Admin messaging rules
 

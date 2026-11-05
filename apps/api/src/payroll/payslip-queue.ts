@@ -13,6 +13,8 @@ export const PAYSLIP_JOBS = {
 
 export type GeneratePayslipPdfJob = {
   payslipId: string;
+  /** Academy of the row, set by the producer; the worker trusts the row, not this (docs/SAAS_MULTI_TENANCY.md §E). */
+  tenantId?: string;
   /** Re-render even when a PDF already exists (an admin-forced retry). */
   force?: boolean;
 };

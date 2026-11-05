@@ -412,7 +412,7 @@ export function AdminInvoicesPanel() {
                               window.open(
                                 adminInvoicePdfUrl(invoice.id),
                                 "_blank",
-                                "noopener,noreferrer"
+                                "noopener"
                               )
                           },
                           ...(invoice.pdfStatus === "FAILED"

@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
 import {
   DEFAULT_INVOICE_SETTINGS,
+  DEFAULT_TENANT_ID,
   invoiceSettingsSchema,
   type InvoiceSettings,
   type InvoiceSettingsResponse,
@@ -9,9 +10,16 @@ import {
 } from "@nexa-chess/types";
 import type { InvoiceSettings as InvoiceSettingsRow } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { requireTenantId, singletonRowId } from "../tenancy/tenant-sql";
 
-/** The singleton row id. Every read and write upserts on this. */
-const SETTINGS_ID = "default";
+/**
+ * This academy's row (one per academy, docs/SAAS_MULTI_TENANCY.md § "Phase 3
+ * plan", slice 5): found by `tenantId`, created with its own id.
+ */
+function settingsRow() {
+  const tenantId = requireTenantId("invoiceSettings");
+  return { create: { id: singletonRowId(tenantId), tenantId }, where: { tenantId } };
+}
 
 /**
  * Admin → Settings → Billing & Invoicing (§4).
@@ -30,18 +38,18 @@ export class InvoiceSettingsService {
   /** The resolved settings an invoice is stamped with. */
   async get(): Promise<InvoiceSettings> {
     const row = await this.prisma.invoiceSettings.findUnique({
-      where: { id: SETTINGS_ID }
+      where: settingsRow().where
     });
-    return row ? this.toSettings(row) : this.envDefaults();
+    return row ? this.toSettings(row) : await this.envDefaults();
   }
 
   async getResponse(): Promise<InvoiceSettingsResponse> {
     const row = await this.prisma.invoiceSettings.findUnique({
-      where: { id: SETTINGS_ID }
+      where: settingsRow().where
     });
 
     return {
-      settings: row ? this.toSettings(row) : this.envDefaults(),
+      settings: row ? this.toSettings(row) : await this.envDefaults(),
       // `updatedAt` is null until an admin actually saves, which is how the UI
       // knows it is still looking at env-derived placeholders.
       configured: Boolean(row?.updatedAt),
@@ -61,10 +69,9 @@ export class InvoiceSettingsService {
     });
 
     await this.prisma.invoiceSettings.upsert({
-      where: { id: SETTINGS_ID },
+      where: settingsRow().where,
       create: {
-        id: SETTINGS_ID,
-        ...merged,
+        ...settingsRow().create, ...merged,
         updatedAt: new Date(),
         updatedById: actorId
       },
@@ -78,7 +85,14 @@ export class InvoiceSettingsService {
    * Pre-seed values from the environment. These are only ever a starting point:
    * once an admin saves, the row wins and the env vars are ignored.
    */
-  private envDefaults(): InvoiceSettings {
+  private async envDefaults(): Promise<InvoiceSettings> {
+    // The `PAYMENTS_SELLER_*` env (and the "NexaChess" default) is Nexa's
+    // identity: another academy starts from its own name until its admin saves.
+    const tenantId = requireTenantId("invoiceSettings");
+    if (tenantId !== DEFAULT_TENANT_ID) {
+      const tenant = await this.prisma.tenant.findUnique({ select: { name: true }, where: { id: tenantId } });
+      return invoiceSettingsSchema.parse({ ...DEFAULT_INVOICE_SETTINGS, legalName: tenant?.name ?? "Academy" });
+    }
     return invoiceSettingsSchema.parse({
       ...DEFAULT_INVOICE_SETTINGS,
       legalName:

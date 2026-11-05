@@ -2,13 +2,18 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  Optional,
   ServiceUnavailableException
 } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
+import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
+import { currentTenantId } from "../tenancy/tenant-context";
+import { WhatsAppCredentialsService } from "./whatsapp-credentials.service";
 import {
   buildMediaUrl,
   buildMessagesUrl,
-  isWhatsAppConfigured
+  isWhatsAppConfigured,
+  type WhatsAppEnv
 } from "./whatsapp.config";
 import type {
   WhatsAppApiSuccess,
@@ -55,7 +60,23 @@ export class WhatsAppService {
 
   /** False when credentials are unset — check before offering WhatsApp in a UI. */
   isConfigured(): boolean {
-    return isWhatsAppConfigured(this.env);
+    return this.activeEnv() !== null;
+  }
+
+  constructor(@Optional() private readonly credentials?: WhatsAppCredentialsService) {}
+
+  /**
+   * The credentials for the request's academy (docs/SAAS_MULTI_TENANCY.md §F
+   * "WhatsApp"): Nexa (and work outside any academy) uses the server's env
+   * number; another academy only its own connected number, else none.
+   */
+  private activeEnv(): WhatsAppEnv | null {
+    const tenantId = currentTenantId();
+    if (tenantId && tenantId !== DEFAULT_TENANT_ID) {
+      const own = this.credentials?.forTenant(tenantId);
+      return own ? { ...this.env, WHATSAPP_ACCESS_TOKEN: own.accessToken, WHATSAPP_PHONE_NUMBER_ID: own.phoneNumberId } : null;
+    }
+    return isWhatsAppConfigured(this.env) ? this.env : null;
   }
 
   /** Free-form text. Only deliverable inside the 24h customer-service window. */
@@ -157,10 +178,11 @@ export class WhatsAppService {
 
     let response: Response;
     try {
-      response = await fetch(buildMediaUrl(this.env), {
+      const env = this.activeEnv()!;
+      response = await fetch(buildMediaUrl(env), {
         method: "POST",
         // No Content-Type header: fetch sets the multipart boundary itself.
-        headers: { Authorization: `Bearer ${this.env.WHATSAPP_ACCESS_TOKEN}` },
+        headers: { Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}` },
         body: form,
         signal: AbortSignal.timeout(this.env.WHATSAPP_TIMEOUT_MS)
       });
@@ -260,10 +282,11 @@ export class WhatsAppService {
 
     let response: Response;
     try {
-      response = await fetch(buildMessagesUrl(this.env), {
+      const env = this.activeEnv()!;
+      response = await fetch(buildMessagesUrl(env), {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.env.WHATSAPP_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify(payload),

@@ -1,0 +1,61 @@
+import { getWebEnv } from "@nexa-chess/config/web";
+
+const env = getWebEnv({
+  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL
+});
+
+const ABSOLUTE_API_URL = env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "");
+
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * This deployment's own (Nexa's) web hosts, decided at build time: the site
+ * host (and its www twin), and the web host paired with the API host
+ * (`api.nexachess.in` -> `nexachess.in`, `api-dev.nexachess.in` ->
+ * `dev.nexachess.in`), so a deployment whose `NEXT_PUBLIC_SITE_URL` is left at
+ * its localhost default (staging) still knows its own address.
+ */
+export const PLATFORM_HOSTS: readonly string[] = (() => {
+  const hosts = new Set<string>();
+  const add = (host: string | null) => {
+    if (!host) return;
+    const bare = host.replace(/^www\./, "");
+    hosts.add(bare);
+    hosts.add(`www.${bare}`);
+  };
+  add(hostOf(env.NEXT_PUBLIC_SITE_URL));
+  const apiHost = hostOf(ABSOLUTE_API_URL);
+  add(apiHost ? (/^api[.-](.+\..+)$/.exec(apiHost)?.[1] ?? null) : null);
+  return [...hosts];
+})();
+
+/**
+ * Nexa's own addresses (and local development) keep calling the API host
+ * directly, exactly as before. Every other host is an academy's own address,
+ * which calls the API on itself under `/api` (docs/SAAS_MULTI_TENANCY.md §H
+ * "Routing"), so its session cookies stay host-only. `app/layout.tsx`'s
+ * pre-paint script applies the same rule from `PLATFORM_HOSTS`.
+ */
+export function isPlatformHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") return true;
+  return PLATFORM_HOSTS.length === 0 || PLATFORM_HOSTS.includes(host);
+}
+
+/** The API's base URL for this page: absolute on Nexa's hosts, same-origin `/api` elsewhere. */
+export function apiBaseUrl(): string {
+  if (typeof window === "undefined") return ABSOLUTE_API_URL;
+  return isPlatformHost(window.location.hostname) ? ABSOLUTE_API_URL : "/api";
+}
+
+/** An absolute-or-relative URL to an API path, for links (downloads, exports) and raw `fetch`. */
+export function apiUrl(path: string): string {
+  return `${apiBaseUrl()}${path}`;
+}
