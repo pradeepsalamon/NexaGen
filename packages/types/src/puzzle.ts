@@ -116,7 +116,7 @@ export const copyPuzzleTopicRequestSchema = z.object({
 export type CopyPuzzleTopicRequest = z.infer<typeof copyPuzzleTopicRequestSchema>;
 export type CopyPuzzleTopicResponse = { topic: PuzzleTopicDto; folders: number; puzzles: number };
 /** A folder deleted with its subfolders and puzzles — all in Trash, restorable together. */
-export type DeletePuzzleTopicResponse = { success: true; folders: number; puzzles: number };
+export type DeletePuzzleTopicResponse = { success: true };
 
 export type PuzzleTopicDto = {
   id: string;
