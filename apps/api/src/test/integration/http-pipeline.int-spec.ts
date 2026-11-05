@@ -30,6 +30,25 @@ describe("HTTP pipeline (real app)", () => {
     expect(JSON.stringify(res.body)).toContain("archived:");
   });
 
+  it("takes CSP reports in both browser formats, with no Origin and no session", async () => {
+    // report-uri sends application/csp-report, the Reporting API application/reports+json;
+    // neither carries a page Origin, so the route is CSRF-exempt and needs no academy.
+    const legacy = await post(
+      API_ROUTES.security.cspReport,
+      { "Content-Type": "application/csp-report" },
+      JSON.stringify({ "csp-report": { "blocked-uri": "inline", "document-uri": "https://x.example/a?t=1", "effective-directive": "script-src-elem" } })
+    );
+    expect(legacy.status).toBe(204);
+    const batch = await post(
+      API_ROUTES.security.cspReport,
+      { "Content-Type": "application/reports+json" },
+      JSON.stringify([{ body: { blockedURL: "eval", documentURL: "https://x.example/", effectiveDirective: "script-src" }, type: "csp-violation" }])
+    );
+    expect(batch.status).toBe(204);
+    const junk = await post(API_ROUTES.security.cspReport, { "Content-Type": "application/csp-report" }, JSON.stringify({ hello: 1 }));
+    expect(junk.status).toBe(204);
+  });
+
   it("does not parse urlencoded bodies (cross-site form posts)", async () => {
     const res = await post(
       API_ROUTES.auth.login,

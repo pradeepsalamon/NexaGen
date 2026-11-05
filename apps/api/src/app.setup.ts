@@ -26,7 +26,9 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
     API_ROUTES.payments.webhookRazorpay,
     API_ROUTES.payments.webhookCashfree,
     API_ROUTES.payments.webhookStripe,
-    API_ROUTES.platformBilling.webhookRazorpay
+    API_ROUTES.platformBilling.webhookRazorpay,
+    // Browsers send CSP reports without a page Origin, and with no academy.
+    API_ROUTES.security.cspReport
   ];
   // An academy's own ACTIVE domains are allowed too, for the CSRF check and
   // for CORS (docs/SAAS_MULTI_TENANCY.md §E "Sessions and cookies").
@@ -52,6 +54,12 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
   ]) {
     app.use(path, express.text({ type: "*/*", limit: "1mb" }));
   }
+  // CSP reports arrive as application/csp-report (report-uri) or
+  // application/reports+json (Reporting API), which the JSON parser skips.
+  app.use(
+    API_ROUTES.security.cspReport,
+    express.json({ limit: "64kb", type: ["application/csp-report", "application/reports+json", "application/json"] })
+  );
   // A multi-game PGN upload is bigger than the default 100kb JSON body; this
   // route alone may send up to 2mb (PGN_IMPORT_LIMITS.maxChars + JSON escaping).
   app.use(API_ROUTES.games.importPgn, express.json({ limit: "2mb" }));

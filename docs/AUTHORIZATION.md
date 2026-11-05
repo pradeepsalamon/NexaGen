@@ -152,9 +152,20 @@ can't silently switch off.
   (`common/security/security-headers.ts`); the invoice HTML routes add
   `INVOICE_HTML_CSP`. The web's headers live in `next.config.mjs`
   `securityHeaders()`: an enforced CSP of `frame-ancestors`/`object-src`/`base-uri`
-  only, plus a **report-only** full CSP whose console violations are how to
-  find origins before enforcing it — a new third-party script, iframe or fetch
-  host needs adding there.
+  only, plus a **report-only** full CSP whose violations are how to find
+  origins before enforcing it — a new third-party script, iframe or fetch host
+  needs adding there.
+- **CSP reports**: both policies send violations (`report-to csp-endpoint` +
+  `Reporting-Endpoints`, and `report-uri` for Firefox) to
+  `/api/security/csp-report` on the site's own host, which the `/api` rewrite
+  (or nginx) passes to the API's public `POST /security/csp-report`
+  (`csp-report/`). It always answers 204, stores nothing, and logs one
+  `csp-violation` warn line per distinct violation on its 1st, 10th, 100th, …
+  occurrence, with origin + path only (no query string, sample or user agent).
+  It's on the CSRF exempt list and needs no academy. To find what enforcing the
+  full CSP would break: `docker logs nexa_api 2>&1 | grep csp-violation`; once
+  only known, fixed or accepted entries are left, the report-only policy can be
+  enforced.
 
 ## Sessions and revocation
 

@@ -14,6 +14,8 @@ const PUBLIC_ROUTES = new Set([
   "auth/auth.controller.ts#verifyEmail",
   // Public by host: the academy's look before sign-in, and the domain check echo (§F, §H).
   "branding/branding.controller.ts#publicConfig",
+  // Browsers post CSP violation reports with no session; nothing is stored.
+  "csp-report/csp-report.controller.ts#report",
   "health/health.controller.ts#live",
   "health/health.controller.ts#ready",
   "live-class/live-class.controller.ts#getDemoInfo",

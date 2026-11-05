@@ -16,7 +16,9 @@ const ANONYMOUS_OK = new Set([
   "GET /health/ready",
   // The academy's look before sign-in, by host (§F).
   "GET /tenant/public-config",
-  "POST /auth/logout"
+  "POST /auth/logout",
+  // CSP violation reports: always 204, nothing stored (csp-report/).
+  "POST /security/csp-report"
 ]);
 
 

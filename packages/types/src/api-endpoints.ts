@@ -982,6 +982,12 @@ export const API_ROUTES = {
   platformBilling: {
     webhookRazorpay: "/platform-billing/webhooks/razorpay"
   },
+  security: {
+    // Public: browsers POST Content-Security-Policy violation reports here
+    // (`report-uri` and the Reporting API's `report-to`). The web points its
+    // headers at `/api` + this path (apps/web/next.config.mjs).
+    cspReport: "/security/csp-report"
+  },
   health: {
     // Public, unauthenticated, not rate limited. `live` never touches a
     // dependency; `ready` checks Postgres (required) and Redis (optional).

@@ -54,6 +54,7 @@ import { DemoClassModule } from "./demo-class/demo-class.module";
 import { LeadModule } from "./lead/lead.module";
 import { ReferralModule } from "./referral/referral.module";
 import { HealthModule } from "./health/health.module";
+import { CspReportModule } from "./csp-report/csp-report.module";
 import { RetentionModule } from "./retention/retention.module";
 import { GameAnalysisModule } from "./game-analysis/game-analysis.module";
 import { GameLibraryModule } from "./game-library/game-library.module";
@@ -138,6 +139,7 @@ import { TenancyModule } from "./tenancy/tenancy.module";
     ProgressModule,
     RevisionModule,
     HealthModule,
+    CspReportModule,
     RetentionModule
   ],
   providers: [
