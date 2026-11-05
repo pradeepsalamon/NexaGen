@@ -31,14 +31,20 @@ export function PromotionPicker({
   className?: string;
 }) {
   const firstRef = useRef<HTMLButtonElement>(null);
+  // Callers pass an inline onCancel: read it through a ref, so a parent
+  // re-render neither pulls focus back to the queen nor re-binds the listener.
+  const onCancelRef = useRef(onCancel);
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  }, [onCancel]);
   useEffect(() => {
     firstRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") onCancelRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  }, []);
 
   return (
     <div
