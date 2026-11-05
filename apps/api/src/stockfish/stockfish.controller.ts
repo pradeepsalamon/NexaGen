@@ -103,7 +103,10 @@ export class StockfishController {
     response.status(HttpStatus.OK);
     response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     response.setHeader('Cache-Control', 'no-cache, no-transform');
-    response.setHeader('Connection', 'keep-alive');
+    // Never set `Connection` here: it's hop-by-hop and Node owns it. nginx asks
+    // for `Connection: close`; answering `keep-alive` made nginx pool a
+    // connection Node was closing, and the next request on it (any user's) got
+    // a bare 400 (docs/investigations/2026-11-05-empty-400-after-engine-stream.md).
     // nginx would otherwise buffer the whole stream and defeat the point.
     response.setHeader('X-Accel-Buffering', 'no');
     response.flushHeaders();
