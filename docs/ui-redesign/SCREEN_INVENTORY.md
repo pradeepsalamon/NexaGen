@@ -1,6 +1,6 @@
 # NexaChess screen inventory
 
-Every route in `apps/web`. Audited across `dev` (`10f307b8`) and `origin/main` (`ae52644e`) on 2026-11-01, then updated for the merged branch `redesign/design-system-v2`: `/academy` is now a redirect, `/admin/class-requests` is now a redirect, and `/admin/requests` and `/coach/requests` are new. **Nothing in this document has been built.** References to `dev` or `main` describe those branches at audit time. Decision references are settled in [REDESIGN_ROADMAP.md](REDESIGN_ROADMAP.md) §2.
+Every route in `apps/web`. Audited across `dev` (`10f307b8`) and `origin/main` (`ae52644e`) on 2026-11-01, then updated for the merged branch `redesign/design-system-v2`: `/academy` is now a redirect, `/admin/class-requests` is now a redirect, and `/admin/requests` and `/coach/requests` are new. **This is the pre-redesign audit snapshot.** The redesign it fed (M1–M11, [REDESIGN_ROADMAP.md](REDESIGN_ROADMAP.md)) has since been built on `dev`, so the UX problems and recommendations below describe the screens as they were; the roadmap records what changed. Routes, components and API lines may also have moved since. References to `dev` or `main` describe those branches at audit time. Decision references are settled in [REDESIGN_ROADMAP.md](REDESIGN_ROADMAP.md) §2.
 
 ## How to read this
 

@@ -139,14 +139,20 @@ export async function login(request: APIRequestContext, role: TestRole | { email
     res = await send();
   }
   expect(res.ok(), `login ${credentials.email}: ${res.status()} ${await res.text()}`).toBeTruthy();
-  const domain = new URL(API_URL).hostname;
+  // Keep the cookie's own Domain, as a browser does: on split hosts (staging's
+  // dev. + api-dev.) the API sets `Domain=.nexachess.in` so the web's middleware
+  // sees the session too. Host-only cookies (localhost, academy hosts) stay on
+  // the API's host.
+  const apiHost = new URL(API_URL).hostname;
   return res
     .headersArray()
     .filter((header) => header.name.toLowerCase() === "set-cookie")
-    .map((header) => header.value.split(";")[0].trim())
-    .filter((pair) => pair.startsWith("nexa_"))
-    .map((pair) => {
+    .map((header) => header.value.split(";").map((part) => part.trim()))
+    .filter(([pair]) => pair.startsWith("nexa_"))
+    .map(([pair, ...attributes]) => {
       const eq = pair.indexOf("=");
+      const domainAttribute = attributes.find((a) => /^domain=/i.test(a));
+      const domain = domainAttribute ? domainAttribute.slice("domain=".length) : apiHost;
       return { name: pair.slice(0, eq), value: pair.slice(eq + 1), domain, path: "/", httpOnly: true };
     });
 }
@@ -180,7 +186,17 @@ export async function loginViaUI(page: Page, email: string, password: string) {
 
   await page.getByLabel(/email/i).fill(email);
   await page.locator('input[type="password"]').fill(password);
-  await page.getByRole("button", { name: /sign in|log in|login/i }).click();
+
+  // Same back-off as `loginContext`: /auth/login allows 5 a minute per IP and a
+  // full run logs in far more often than that.
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const [response] = await Promise.all([
+      page.waitForResponse((res) => res.url().endsWith("/auth/login") && res.request().method() === "POST"),
+      page.getByRole("button", { name: /sign in|log in|login/i }).click(),
+    ]);
+    if (response.status() !== 429) break;
+    await page.waitForTimeout(20_000);
+  }
 
   // Wait for navigation away from login page
   await page.waitForURL((url) => !url.pathname.includes("/login"), {
@@ -252,6 +268,9 @@ export async function scheduleClass(
   asAdmin: CallAs,
   body: { batchId: string; topic: string; startsAt: string; endsAt: string }
 ): Promise<string> {
+  // Every spec books the same coach at about "now", so a class an earlier spec
+  // (or an aborted run) left behind would 409 this one's approval.
+  await clearE2EClasses(asCoach, asAdmin);
   const created = await asCoach("POST", "/approvals", {
     actionType: "CLASS_EXTRA",
     payload: body,
@@ -265,6 +284,67 @@ export async function scheduleClass(
   const classId: string | null = (await approved.json()).request.classId;
   expect(classId, "approved request has no class").toBeTruthy();
   return classId as string;
+}
+
+/**
+ * Ends or cancels the coach's leftover E2E classes (topic contains "E2E"). A
+ * coach cancels directly only more than 24 h ahead (V10), so a nearer class is
+ * cancelled the real way: the coach files CLASS_CANCEL (CLASS_CANCEL_EXCEPTIONAL
+ * once its start has passed) and the admin approves it.
+ */
+export async function clearE2EClasses(asCoach: CallAs, asAdmin: CallAs): Promise<void> {
+  const seen = new Set<string>();
+  for (const path of ["/coach/classes/upcoming", "/coach/classes"]) {
+    const res = await asCoach("GET", path);
+    if (!res.ok()) continue;
+    const data = await res.json();
+    const list: Array<{ id: string; topic?: string; status?: string; startsAt?: string }> = Array.isArray(data?.classes)
+      ? data.classes
+      : Array.isArray(data)
+        ? data
+        : [];
+    for (const c of list) {
+      if (seen.has(c.id) || !/E2E/i.test(c.topic || "")) continue;
+      seen.add(c.id);
+      if (c.status === "LIVE" || c.status === "IN_PROGRESS") {
+        await asCoach("POST", `/live-class/${c.id}/end`).catch(() => undefined);
+        continue;
+      }
+      if (c.status !== "SCHEDULED") continue;
+      const direct = await asCoach("PATCH", `/coach/classes/${c.id}/cancel`);
+      if (direct.ok()) continue;
+      const started = c.startsAt ? Date.parse(c.startsAt) <= Date.now() : false;
+      const filed = await asCoach("POST", "/approvals", {
+        actionType: started ? "CLASS_CANCEL_EXCEPTIONAL" : "CLASS_CANCEL",
+        payload: { classId: c.id },
+        reason: "E2E cleanup of a leftover test class"
+      });
+      if (!filed.ok()) continue; // e.g. a cancellation already pending
+      const requestId: string = (await filed.json()).request.id;
+      await asAdmin("POST", `/admin/approvals/${requestId}/approve`, {});
+    }
+  }
+}
+
+/**
+ * Locate a row by text in a client-paginated DataTable, walking pages with the
+ * "Next" button. The shared dev DB carries hundreds of leftover E2E classes, so
+ * a freshly-created one is rarely on page 1 of a date-sorted history list.
+ * Matches a pager labelled "Next" or "Next page".
+ */
+export async function findInDataTable(page: Page, text: string, maxPages = 15) {
+  const firstRow = page.locator("tbody tr").first();
+  for (let i = 0; i < maxPages; i += 1) {
+    await firstRow.waitFor({ state: "visible" });
+    const cell = page.getByText(text).first();
+    if (await cell.isVisible().catch(() => false)) return cell;
+    const next = page.getByRole("button", { name: /^next( page)?$/i });
+    if (!(await next.isEnabled().catch(() => false))) break;
+    const before = await firstRow.innerText();
+    await next.click();
+    await expect.poll(() => firstRow.innerText()).not.toBe(before);
+  }
+  return page.getByText(text).first();
 }
 
 /**

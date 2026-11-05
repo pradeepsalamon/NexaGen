@@ -414,6 +414,7 @@ export function TrashManagementClient() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <Select
+                aria-label="Filter by item type"
                 className="w-40"
                 onChange={(event) => {
                   setEntity(event.target.value as TrashEntity | "ALL");

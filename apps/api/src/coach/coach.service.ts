@@ -413,13 +413,14 @@ export class CoachService {
       }
     });
 
-    const studentsMap = new Map<string, any>();
+    const studentsMap = new Map<string, CoachStudentsResponse["students"][number]>();
     for (const batch of batches) {
       for (const bs of batch.students) {
         if (!bs.student || bs.student.isDeleted) continue;
         const student = bs.student;
-        if (!studentsMap.has(student.id)) {
-          studentsMap.set(student.id, {
+        let entry = studentsMap.get(student.id);
+        if (!entry) {
+          entry = {
             id: student.id,
             firstName: student.firstName,
             lastName: student.lastName,
@@ -427,9 +428,10 @@ export class CoachService {
             status: student.status,
             chessRating: student.studentProfile?.chessRating ?? null,
             batches: []
-          });
+          };
+          studentsMap.set(student.id, entry);
         }
-        studentsMap.get(student.id).batches.push({ id: batch.id, name: batch.name });
+        entry.batches.push({ id: batch.id, name: batch.name });
       }
     }
 
@@ -474,7 +476,7 @@ export class CoachService {
       objectives: c.objectives,
       homework: c.homework,
       notes: c.notes,
-      status: c.status as any,
+      status: c.status as CoachClass["status"],
       startsAt: c.startsAt.toISOString(),
       endsAt: c.endsAt.toISOString(),
       meetingRoomId: c.meetingRoomId,

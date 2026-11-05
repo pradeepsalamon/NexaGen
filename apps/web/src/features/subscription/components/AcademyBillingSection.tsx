@@ -186,7 +186,8 @@ export function AcademyBillingSection({ data }: { data: AdminSubscriptionRespons
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-app border border-app-border bg-app-surface shadow-card">
+      <div className="overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card">
+        {/* The table scrolls inside its own ScrollShadow (keyboard-reachable while it overflows). */}
         <Table className="min-w-[520px]">
           <TableHeader>
             <TableRow>

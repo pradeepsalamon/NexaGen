@@ -18,9 +18,9 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { METRIC_TOOLTIPS } from "../../lib/metricTooltips";
 
 const STATE_STYLES: Record<string, string> = {
-  normal: "text-success",
+  normal: "text-success-ink",
   warning: "text-warning-ink",
-  critical: "text-app-danger",
+  critical: "text-app-danger-ink",
   unknown: "text-app-muted"
 };
 

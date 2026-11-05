@@ -262,6 +262,7 @@ export function PuzzleAssignModal({
               className="flex-1"
             />
             <Select
+              aria-label="Filter by difficulty"
               value={difficulty}
               onChange={(e) => setDifficulty(e.target.value as PuzzleDifficulty | "")}
               placeholder="Any difficulty"

@@ -232,6 +232,14 @@ Remove or adopt unused components (`nx-*`, `warm`, `navy`, `gold` were deleted b
 
 **Started 2026-11-04.** Pixel text sizes: none left in the app (102 remain only in `features/academy/components`, the legacy `/` home the owner wants untouched); 10px/11px became 12px (`text-xs`, the room's minimum applied everywhere), 13px became `text-[0.8125rem]`, and `Badge`s lost their size overrides. Unused modules: `PageContainer`, `common/UserAvatar`, `forms/FormCheckbox`, `CapturedPieces`, `MeetingExtensions` (placeholders), `lib/rating`, `stores/uiStore` deleted; `ui/Separator` and `FeatureGate` kept as documented primitives. One `components/ui/Avatar` (`soft`, `brand`) replaces the hand-built initials circles in the nav menu and coach class cards; `ParticipantAvatar` wraps it.
 
+**Accessibility pass and lint clean-up 2026-11-05.** axe-core (WCAG 2.1 A/AA) on staging: 66 routes (public, every student, coach and admin page) × light/dark × phone/desktop = 264 runs. It found 4 kinds of problem, all fixed except on the legacy `/` home:
+- unnamed filter `Select`s on `/admin/users`, `/admin/classes`, `/admin/leads`, `/admin/trash` (same pattern fixed in demo classes, the puzzle-assign modal's difficulty filter and the lead dialog's demo-class picker): `aria-label`;
+- the four hidden image inputs on `/admin/branding`: `aria-label`;
+- scrolling regions a keyboard couldn't reach (`/admin/analytics/students`, `/admin/payments`, `/admin/subscription`, `/student/revision`): `ScrollShadow` and `KpiCardRow` become a focusable, named region with the focus ring while their content overflows (`hooks/useScrollableRegion.ts`), and the subscription pages lost a second `overflow-x-auto` around a table that already scrolled;
+- low contrast in dark mode on analytics status text (low-attendance %, acquisition deltas, live-now count, storage state): `-ink` colours.
+
+Re-run on this branch's build (served in place of the staging web, against the staging API): 264 runs, no violations except `/` (legacy home, untouched by request), which still fails colour contrast in 7 places in light and 3 in dark; `/academy`, its replacement, passes. Lint: API 0 warnings (typed the LiveKit webhook and egress payloads, the attendance report's `where`s and the coach student map instead of `any`); web 1 warning, an `<img>` in the legacy home's `TestimonialsSection`. Real-device tests (iOS Safari) are still the owner's, in the release checklist.
+
 ### Sequence
 
 ```text

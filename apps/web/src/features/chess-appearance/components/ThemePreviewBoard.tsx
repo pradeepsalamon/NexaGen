@@ -38,6 +38,7 @@ export function ThemePreviewBoard({ boardThemeId, pieceSetId, className }: Theme
           className={`nexa-preview-square ${isLight ? "nexa-preview-square--light" : "nexa-preview-square--dark"}`}
         >
           {piece && (
+            // eslint-disable-next-line @next/next/no-img-element -- small static piece SVGs; next/image adds nothing here
             <img
               alt=""
               className="nexa-preview-piece"

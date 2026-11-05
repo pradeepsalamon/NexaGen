@@ -106,7 +106,7 @@ function StudentTable({
               <TableCell className="text-left py-2 font-medium text-app-text">{s.name}</TableCell>
               <TableCell
                 className={`py-2 text-right font-semibold ${
-                  danger ? "text-app-danger" : "text-app-text"
+                  danger ? "text-app-danger-ink" : "text-app-text"
                 }`}
               >
                 {formatPercent(s.attendancePercent)}

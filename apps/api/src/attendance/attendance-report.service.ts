@@ -489,7 +489,7 @@ export class AttendanceReportService {
     const limit = Math.min(Math.max(filters.limit || 20, 1), 100);
     const skip = (page - 1) * limit;
 
-    const where: any = {
+    const where: Prisma.CoachClassWhereInput = {
       status: { in: [ClassStatus.COMPLETED, ClassStatus.CANCELLED] },
     };
 
@@ -588,7 +588,7 @@ export class AttendanceReportService {
       throw new ForbiddenException("Admin access required.");
     }
 
-    const coachWhere: any = {
+    const coachWhere: Prisma.UserWhereInput = {
       role: UserRole.COACH,
       status: UserStatus.ACTIVE,
       isDeleted: false,
@@ -1099,32 +1099,20 @@ export class AttendanceReportService {
       status: queryEnum(filters.status, AttendanceStatus, "status")
     };
 
-    const where: any = {};
+    const where: Prisma.ClassAttendanceWhereInput = {};
+    const classWhere: Prisma.CoachClassWhereInput = {};
 
     const exportDateFrom = parseDateFilter(filters.dateFrom, "dateFrom");
     const exportDateTo = parseDateFilter(filters.dateTo, "dateTo");
     if (exportDateFrom || exportDateTo) {
-      where.class = {
-        startsAt: {
-          ...(exportDateFrom && { gte: exportDateFrom }),
-          ...(exportDateTo && { lte: exportDateTo }),
-        },
+      classWhere.startsAt = {
+        ...(exportDateFrom && { gte: exportDateFrom }),
+        ...(exportDateTo && { lte: exportDateTo }),
       };
     }
-
-    if (filters.batchId) {
-      where.class = {
-        ...(where.class || {}),
-        batchId: filters.batchId,
-      };
-    }
-
-    if (filters.coachId) {
-      where.class = {
-        ...(where.class || {}),
-        coachId: filters.coachId,
-      };
-    }
+    if (filters.batchId) classWhere.batchId = filters.batchId;
+    if (filters.coachId) classWhere.coachId = filters.coachId;
+    if (Object.keys(classWhere).length > 0) where.class = classWhere;
 
     if (filters.status) {
       where.status = filters.status as AttendanceStatus;

@@ -149,6 +149,7 @@ function AssetsCard({ data }: { data: TenantBrandingResponse }) {
             </div>
             <input
               accept={BRAND_ASSET_MIME_TYPES.join(",")}
+              aria-label={`${ASSET_LABELS[kind].label} file`}
               className="sr-only"
               onChange={(event) => {
                 const file = event.target.files?.[0];

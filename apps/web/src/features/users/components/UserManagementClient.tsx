@@ -385,6 +385,7 @@ export function UserManagementClient() {
                 actions={<ColumnVisibilityMenu table={table} />}
                 filters={
                   <Select
+                    aria-label="Filter by status"
                     className="w-40"
                     onChange={(event) => serverTable.setStatus(event.target.value)}
                     options={[{ label: "All status", value: "ALL" }, ...statusOptions]}
