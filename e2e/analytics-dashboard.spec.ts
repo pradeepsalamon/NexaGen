@@ -105,14 +105,7 @@ test.describe("Admin analytics dashboard UI", () => {
   });
 
   test("a student hitting /admin is redirected or blocked", async ({ page }) => {
-    await page.goto("/login");
-    await page.waitForLoadState("networkidle");
-    await page.getByLabel(/email/i).fill(STUDENT.email);
-    await page.locator('input[type="password"]').fill(STUDENT.password);
-    await page.getByRole("button", { name: /sign in|log in|login/i }).click();
-    await page.waitForURL((url) => !url.pathname.includes("/login"), {
-      timeout: 30_000
-    });
+    await loginViaUI(page, STUDENT.email, STUDENT.password);
 
     await page.goto("/admin");
     // middleware.ts sends a wrong role to its own dashboard (lib/routeAccess.ts);
