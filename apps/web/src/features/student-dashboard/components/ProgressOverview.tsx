@@ -19,6 +19,8 @@ function metricValue(metrics: ProgressMetric[] | undefined, label: string, fallb
 
 export function ProgressOverview({ chessRating, metrics }: ProgressOverviewProps) {
   const attendance = metricValue(metrics, "Attendance", "0%");
+  // A non-numeric value ("—") draws no bar rather than an invalid width.
+  const attendancePercent = Number.parseFloat(attendance);
   const hasRating = typeof chessRating === "number";
 
   return (
@@ -52,7 +54,7 @@ export function ProgressOverview({ chessRating, metrics }: ProgressOverviewProps
         <StatTile
           icon={Target}
           label="Attendance"
-          progress={Number.parseFloat(attendance)}
+          progress={Number.isFinite(attendancePercent) ? attendancePercent : undefined}
           tone="accent"
           value={attendance}
         />
