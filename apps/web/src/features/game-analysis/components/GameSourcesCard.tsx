@@ -58,7 +58,7 @@ export function GameSourcesCard() {
           <h2 className="text-base font-bold">Your games</h2>
           <p className="text-sm text-app-muted">Add games you played anywhere, then analyse them here.</p>
         </div>
-        <Button onClick={() => setUploading(true)}>
+        <Button className="self-end sm:self-auto" onClick={() => setUploading(true)}>
           <Upload className="mr-2 size-4" aria-hidden />
           Upload PGN
         </Button>

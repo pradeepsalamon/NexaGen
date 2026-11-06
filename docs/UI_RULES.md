@@ -119,6 +119,7 @@ disagree.
 | Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. |
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
 | Page title + actions | `PageHeader` | Pass `breadcrumbs` on a detail page instead of a `BackButton`. |
+| Batch card on a "My batches" page | `BatchSummaryCard` (`features/batches/components`) | Title + badges, one-line description, facts as one wrapping row, footer with people left and actions right. Student and coach pages use it. |
 | Sign-in and account pages (`/login`, `/register`, password reset, email verification) | `AuthSplitShell` + `AuthHeader` + `AuthStatus` (`features/auth/components`) | Navy brand panel (text never on the artwork) beside the form card; below `lg` the panel is a navy bar. `AuthHeader` is the card's only `h1`, the panel tagline a `<p>`. `AuthStatus` is every outcome in the card (sent, verified, incomplete link, waiting). Registration groups fields with `RegistrationFieldset` and uses full-size fields, not `density="compact"`. |
 | Analytics page | `AnalyticsPageShell` (`features/analytics/components`) | `PageHeader` with the date range, Refresh and Export as its actions; `breadcrumbs` on a detail report. The admin dashboard uses it too. Never a second hand-built analytics header. |
 | Role page frame | `PageContent` | The one ground, padding and `max-w-7xl` content width. Role layouts use it; pages don't add their own. |
@@ -136,6 +137,14 @@ disagree.
   `sm` a filter row fills the width instead (`grid grid-cols-2 … sm:flex
   sm:justify-end`, fields `w-full sm:w-44`), so half the card isn't empty.
   Content (titles, descriptions, tables) reads from the left.
+- **Buttons stay on the right on phones too** (owner, 2026-11-06): a stacked
+  `flex-col sm:flex-row` row puts its action child on `self-end sm:self-auto`;
+  button groups are `justify-end` with the **primary last** (rightmost) and
+  Cancel/Reset before it; card footers put people/meta on the left and actions
+  on the right (`BatchSummaryCard`). Dialog footers keep `DialogFooter`.
+- **Three or more filters collapse into `FilterPopover`** (one "Filters" button,
+  Apply/Clear, active ones as `FilterChips`) beside the search box, which
+  searches as you type. Examples: admin invoices, game library.
 - **Page titles** are `<h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">`
   (`PageHeader` / `FormPageShell` render this for you). One `h1` per page — the
   app header's location label is a `<p>`, not a heading.

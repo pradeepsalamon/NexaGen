@@ -47,7 +47,7 @@ function RuleRow({
           <p className="mt-1 line-clamp-2 text-sm text-app-muted">{markdownToPlainText(rule.body)}</p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
           {rule.enabled ? (
             <div className="flex items-center gap-1.5 text-app-muted">
               {rule.whatsappEnabled ? (

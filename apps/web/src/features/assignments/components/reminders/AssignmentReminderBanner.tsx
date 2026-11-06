@@ -60,7 +60,7 @@ export function AssignmentReminderBanner() {
           </div>
         </div>
 
-        <Button asChild className="self-start sm:self-center" size="sm" variant="neutral">
+        <Button asChild className="self-end sm:self-center" size="sm" variant="neutral">
           <Link href="/student/practice">
             <span>See all assignments</span>
             <ArrowRight className="size-3.5" strokeWidth={2.2} />

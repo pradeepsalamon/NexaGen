@@ -464,7 +464,10 @@ function OfflineMethodForm({
           value={label}
         />
       </div>
-      <div className="flex gap-2">
+      <div className="flex justify-end gap-2">
+        <Button onClick={onClose} type="button" variant="neutral">
+          Cancel
+        </Button>
         <Button
           disabled={!label.trim()}
           isLoading={pending}
@@ -473,9 +476,6 @@ function OfflineMethodForm({
           variant="primary"
         >
           {method ? "Save" : "Add"}
-        </Button>
-        <Button onClick={onClose} type="button" variant="neutral">
-          Cancel
         </Button>
       </div>
     </Card>

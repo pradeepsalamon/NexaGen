@@ -335,7 +335,7 @@ function GameRow({ game, timeZone }: { game: GameLibraryItem; timeZone: string }
           )}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
         <SimpleTooltip label="Download PGN">
           <Button
             variant="ghost"

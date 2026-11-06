@@ -387,7 +387,10 @@ function PriceOptionForm({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button onClick={onClose} type="button" variant="neutral">
+          Cancel
+        </Button>
         <Button
           disabled={!form.name.trim() || amountMinor <= 0}
           isLoading={pending}
@@ -396,9 +399,6 @@ function PriceOptionForm({
           variant="primary"
         >
           {plan ? "Save option" : "Add option"}
-        </Button>
-        <Button onClick={onClose} type="button" variant="neutral">
-          Cancel
         </Button>
       </div>
 

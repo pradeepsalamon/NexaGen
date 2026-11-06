@@ -345,7 +345,16 @@ export function ScheduleBuilderClient() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 border-t border-app-border pt-4">
+          <div className="flex flex-wrap justify-end gap-3 border-t border-app-border pt-4">
+            {hasBlockingConflicts && (
+              <label className="flex items-center gap-2 text-xs font-bold text-app-danger">
+                <Checkbox
+                  checked={confirmConflicts}
+                  onCheckedChange={(v) => setConfirmConflicts(Boolean(v))}
+                />
+                Create despite conflicts
+              </label>
+            )}
             <Button
               variant="outline"
               onClick={runPreview}
@@ -363,15 +372,6 @@ export function ScheduleBuilderClient() {
               <CalendarPlus className="size-4" aria-hidden="true" />
               Generate {preview ? `${preview.futureCount} classes` : "class plan"}
             </Button>
-            {hasBlockingConflicts && (
-              <label className="flex items-center gap-2 text-xs font-bold text-app-danger">
-                <Checkbox
-                  checked={confirmConflicts}
-                  onCheckedChange={(v) => setConfirmConflicts(Boolean(v))}
-                />
-                Create despite conflicts
-              </label>
-            )}
           </div>
         </Card>
 

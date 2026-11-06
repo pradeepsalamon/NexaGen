@@ -296,16 +296,16 @@ function FinishedPuzzle({
         <Fact label="Hints" value={String(item.hintsUsed ?? 0)} />
         <Fact label="Time" value={formatSeconds(item.durationSeconds)} />
       </dl>
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" onClick={onNext}>
-          {hasNext ? "Next puzzle" : "See my results"}
-        </Button>
+      <div className="flex flex-wrap justify-end gap-2">
         {canRetry ? (
           <Button type="button" variant="outline" size="sm" onClick={onRetry}>
             <RotateCcw className="mr-1.5 size-4" strokeWidth={2.5} />
             Try again
           </Button>
         ) : null}
+        <Button type="button" size="sm" onClick={onNext}>
+          {hasNext ? "Next puzzle" : "See my results"}
+        </Button>
       </div>
     </div>
   );
