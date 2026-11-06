@@ -144,7 +144,17 @@ disagree.
   on the right (`BatchSummaryCard`). Dialog footers keep `DialogFooter`.
 - **Three or more filters collapse into `FilterPopover`** (one "Filters" button,
   Apply/Clear, active ones as `FilterChips`) beside the search box, which
-  searches as you type. Examples: admin invoices, game library.
+  searches as you type. Examples: admin invoices, game library, puzzle library,
+  Lichess catalogue, activity library/history, payments, trash, completed
+  classes, analytics filters, the puzzle-set picker.
+- **Tabs never scroll sideways.** `TabsList` measures itself: when the tabs
+  don't fit on one row it becomes one button showing the selected tab that
+  opens a menu of every tab. Nothing to do per page; it needs `Tabs` from
+  `components/ui/Tabs` (the menu reads the value from its context) and
+  `TabsTrigger`s as direct children (fragments and `.map` are fine).
+- **KPI / stat tiles are two per row on phones** (`KpiCardRow`, and grids
+  holding `StatTile` start at `grid-cols-2`) — never one full-width tile per
+  number, never a sideways strip.
 - **Page titles** are `<h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">`
   (`PageHeader` / `FormPageShell` render this for you). One `h1` per page — the
   app header's location label is a `<p>`, not a heading.

@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterChips, FilterField, FilterPopover, type ActiveFilter } from "@/components/ui/FilterPopover";
 import { Input } from "@/components/ui/Input";
 import { RowActions, type RowAction } from "@/components/ui/RowActions";
 import { Select } from "@/components/ui/Select";
@@ -240,74 +241,94 @@ export function ActivityLibraryTable({
     void qc.invalidateQueries({ queryKey: queryKeys.puzzles.all });
   };
 
+  const optionLabel = (options: readonly { label: string; value: string }[], value: string) =>
+    options.find((option) => option.value === value)?.label ?? value;
+  const applyFilters = (next: { difficulty: string; status: string; subject: string; topicId: string }) => {
+    setTopicId(next.topicId);
+    setSubject(next.subject);
+    setDifficulty(next.difficulty);
+    setStatus(next.status);
+    setPage(1);
+  };
+  const current = { difficulty, status, subject, topicId };
+  const activeFilters = [
+    !folderId && topicId && { key: "folder", label: optionLabel(topicOptions, topicId), onRemove: () => applyFilters({ ...current, topicId: "" }) },
+    subject && { key: "subject", label: optionLabel(subjectOptions, subject), onRemove: () => applyFilters({ ...current, subject: "" }) },
+    difficulty && { key: "difficulty", label: optionLabel(PUZZLE_DIFFICULTY_OPTIONS, difficulty), onRemove: () => applyFilters({ ...current, difficulty: "" }) },
+    isAdmin && status && { key: "status", label: optionLabel(PUZZLE_STATUS_OPTIONS, status), onRemove: () => applyFilters({ ...current, status: "" }) },
+  ].filter((filter): filter is ActiveFilter => Boolean(filter));
+
   const hasPuzzleSelected = [...selected.values()].some((i) => i.kind === "PUZZLE");
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Input
-          aria-label="Search the library"
-          placeholder="Search…"
-          value={searchInput}
-          onChange={(e) => {
-            setSearchInput(e.target.value);
-            setPage(1);
-          }}
-          className="w-full sm:w-56"
-        />
-        {!folderId ? (
-          <Select
-            aria-label="Filter by folder"
-            value={topicId}
-            placeholder="All folders"
-            options={topicOptions}
+      <div className="grid gap-2">
+        <div className="flex items-center justify-end gap-2">
+          <Input
+            aria-label="Search the library"
+            placeholder="Search…"
+            value={searchInput}
             onChange={(e) => {
-              setTopicId(e.target.value);
+              setSearchInput(e.target.value);
               setPage(1);
             }}
-            className="w-auto max-w-56"
+            className="min-w-0 flex-1 sm:w-56 sm:flex-none"
           />
-        ) : null}
-        <Select
-          aria-label="Filter by topic"
-          value={subject}
-          placeholder="All topics"
-          options={subjectOptions}
-          onChange={(e) => {
-            setSubject(e.target.value);
-            setPage(1);
-          }}
-          className="w-auto max-w-48"
-        />
-        <Select
-          aria-label="Filter by difficulty"
-          value={difficulty}
-          placeholder="All difficulties"
-          options={PUZZLE_DIFFICULTY_OPTIONS}
-          onChange={(e) => {
-            setDifficulty(e.target.value);
-            setPage(1);
-          }}
-          className="w-auto"
-        />
-        {isAdmin ? (
-          <Select
-            aria-label="Filter by status"
-            value={status}
-            placeholder="All statuses"
-            options={PUZZLE_STATUS_OPTIONS}
-            onChange={(e) => {
-              setStatus(e.target.value);
-              setPage(1);
-            }}
-            className="w-auto"
-          />
-        ) : null}
-        {hasFilters ? (
-          <Button variant="neutral" size="sm" onClick={clearFilters}>
-            Clear
-          </Button>
-        ) : null}
+          <FilterPopover
+            activeCount={activeFilters.length}
+            emptyValue={{ difficulty: "", status: "", subject: "", topicId: "" }}
+            onApply={applyFilters}
+            value={{ difficulty, status, subject, topicId }}
+          >
+            {(draft, update) => (
+              <>
+                {!folderId ? (
+                  <FilterField htmlFor="activity-lib-folder" label="Folder">
+                    <Select
+                      id="activity-lib-folder"
+                      value={draft.topicId}
+                      placeholder="All folders"
+                      options={topicOptions}
+                      onChange={(e) => update({ topicId: e.target.value })}
+                    />
+                  </FilterField>
+                ) : null}
+                <FilterField htmlFor="activity-lib-topic" label="Topic">
+                  <Select
+                    id="activity-lib-topic"
+                    value={draft.subject}
+                    placeholder="All topics"
+                    options={subjectOptions}
+                    onChange={(e) => update({ subject: e.target.value })}
+                  />
+                </FilterField>
+                <div className={isAdmin ? "grid grid-cols-2" : "grid"}>
+                  <FilterField htmlFor="activity-lib-difficulty" label="Difficulty">
+                    <Select
+                      id="activity-lib-difficulty"
+                      value={draft.difficulty}
+                      placeholder="All difficulties"
+                      options={PUZZLE_DIFFICULTY_OPTIONS}
+                      onChange={(e) => update({ difficulty: e.target.value })}
+                    />
+                  </FilterField>
+                  {isAdmin ? (
+                    <FilterField htmlFor="activity-lib-status" label="Status">
+                      <Select
+                        id="activity-lib-status"
+                        value={draft.status}
+                        placeholder="All statuses"
+                        options={PUZZLE_STATUS_OPTIONS}
+                        onChange={(e) => update({ status: e.target.value })}
+                      />
+                    </FilterField>
+                  ) : null}
+                </div>
+              </>
+            )}
+          </FilterPopover>
+        </div>
+        <FilterChips filters={activeFilters} onClearAll={activeFilters.length > 1 ? clearFilters : undefined} />
       </div>
 
       {error ? (
