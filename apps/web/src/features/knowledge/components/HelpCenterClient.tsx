@@ -31,6 +31,7 @@ import { usePlanFeature } from "@/features/subscription/hooks/useSubscription";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useHelp } from "../hooks/useKnowledgeApi";
 import { CoachSuggestionsPanel, CoachTrendsPanel } from "./CoachHelpPanels";
+import { EmptyStateIcon } from "@/components/ui/EmptyState";
 
 export const KIND_ICON: Record<KnowledgeArticleKind, typeof FileText> = {
   ARTICLE: FileText,
@@ -204,11 +205,9 @@ function HelpBrowser() {
           </section>
         ) : (
           <Card className="flex flex-col items-center gap-4 p-6 text-center">
-            <span className="flex size-9 items-center justify-center rounded-full bg-app-soft">
-              <MessageCircleQuestion aria-hidden className="size-4 text-app-muted" strokeWidth={2.25} />
-            </span>
+            <EmptyStateIcon icon={MessageCircleQuestion} />
             <div>
-              <p className="text-sm font-semibold text-app-text">No article answers that yet.</p>
+              <p className="text-base font-semibold text-app-text">No article answers that yet.</p>
               <p className="mt-1 text-sm text-app-muted">
                 Your question has been passed to the academy team so they can write one.
               </p>

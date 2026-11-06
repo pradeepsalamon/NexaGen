@@ -30,14 +30,7 @@ export function EmptyState({
           : "px-4 py-10"
       )}
     >
-      <div
-        className={cn(
-          "flex items-center justify-center rounded-full bg-primary-soft text-primary-ink ring-8 ring-primary-soft/40 animate-pop-in",
-          variant === "page" ? "size-16" : "size-14"
-        )}
-      >
-        <Icon aria-hidden="true" className={variant === "page" ? "size-8" : "size-7"} strokeWidth={1.75} />
-      </div>
+      <EmptyStateIcon icon={Icon} size={variant === "page" ? "lg" : "md"} />
       <h3 className="mt-5 text-base font-semibold text-app-text">{title}</h3>
       {description && (
         <p className="mt-1.5 max-w-sm text-sm text-app-muted">
@@ -49,6 +42,34 @@ export function EmptyState({
           {action.label}
         </Button>
       )}
+    </div>
+  );
+}
+
+/**
+ * The empty-state icon circle on its own, for the few places that need a
+ * custom layout around it (a card with a link button, a room panel). Same look
+ * as `EmptyState`, so every "nothing here" reads the same.
+ */
+export function EmptyStateIcon({
+  className,
+  icon: Icon,
+  size = "md"
+}: {
+  className?: string;
+  icon: LucideIcon;
+  size?: "sm" | "md" | "lg";
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-ink ring-8 ring-primary-soft/40 animate-pop-in",
+        { lg: "size-16", md: "size-14", sm: "size-12" }[size],
+        className
+      )}
+    >
+      <Icon className={{ lg: "size-8", md: "size-7", sm: "size-6" }[size]} strokeWidth={1.75} />
     </div>
   );
 }

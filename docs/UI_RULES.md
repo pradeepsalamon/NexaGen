@@ -116,7 +116,7 @@ disagree.
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |
 | Bulk actions on selected rows | `BulkActionsBar` + `useBulkAction` + `BulkResultDialog` | |
 | KPIs / stat tiles | `KpiCard`, `StatTile` | Plain card with a 12px label and a 32/40 value. Numbers use the display font with `tabular-nums`, never `font-mono`. Labels are sentence case. Don't hand-roll a KPI tile. |
-| Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. |
+| Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. Where the layout must differ (a card with a link button, a room panel) use `EmptyStateIcon` for the icon circle, never a hand-built one. |
 | Loading | `Spinner` (`components/ui/Spinner`) | The one spinner: an arc on a faint track in the current colour, sized like an icon (`size-4` in a button — `Button isLoading` already uses it — `size-8` for a section). Never `Loader2` + `animate-spin`. |
 | Loading placeholder | `Skeleton` | A theme-neutral tint with a light sweep (transform only). Shape it like the content that will land (see `BatchSummaryCardSkeleton`), not one big block. |
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
