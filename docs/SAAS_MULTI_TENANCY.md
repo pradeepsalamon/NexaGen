@@ -367,7 +367,7 @@ That's required because rollback restores images and never reverses migrations.
 | D2 | Add `"tenantId" TEXT DEFAULT 'tenant_nexa'` (nullable) to every T/T\*/F table, `users` included. No backfill: on Postgres 11+ a constant default is metadata-only, so existing rows read `'tenant_nexa'` without a table rewrite | Old code still inserts without `tenantId`, and the default covers it |
 | D3 | Deploy code that always sets `tenantId` from context, with the extension in **audit mode**: it logs, doesn't throw, when context is missing | Watch logs until there are no missing-context hits |
 | D4 | Set `NOT NULL`, add `(tenantId, …)` indexes mirroring the hot indexes, add composite uniques **next to** the old global ones (`users.email`, `plans.code`, `invoices.number`, `messaging_rules.event`, …), add composite FKs on core relations | Extension switches to **enforce** mode |
-| D5 | Drop the old global uniques and the `'tenant_nexa'` default; number sequences' primary key `year` → `(tenantId, year)` | A second real academy is allowed only after this |
+| D5 | Drop the old global uniques and the `'tenant_nexa'` default; number sequences' primary key `year` → `(tenantId, year)`, and `SystemMessageTemplate`'s `key` → `(tenantId, key)` (added 2026-11-06) | A second real academy is allowed only after this |
 
 A partial unique index `WHERE "isDeleted" = false` (soft-deletable models) gains
 `tenantId` as its leading column. The trash checklist in `README.md` gains a

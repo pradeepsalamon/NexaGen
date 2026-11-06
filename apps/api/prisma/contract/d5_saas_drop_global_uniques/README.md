@@ -9,7 +9,7 @@ and only with the owner's approval.
 
 | File | What |
 |---|---|
-| `migration.sql` | The contract: 23 global uniques dropped (their per-academy twins stay), number sequences keyed by `(tenantId, year)`, four hand-written global partial uniques dropped, and the `'tenant_nexa'` default of every `tenantId` column replaced by `nexa_tenant_required()`, which raises (a row without an academy is an error, never Nexa's; keeping *a* default leaves Prisma's create types unchanged). Generated with `prisma migrate diff` from the schema patch, plus the partial indexes Prisma doesn't model. |
+| `migration.sql` | The contract: 23 global uniques dropped (their per-academy twins stay), number sequences keyed by `(tenantId, year)` and system message templates by `(tenantId, key)` (added 2026-11-06; the additive twin is migration `20261106044250`), four hand-written global partial uniques dropped, and the `'tenant_nexa'` default of every `tenantId` column replaced by `nexa_tenant_required()`, which raises (a row without an academy is an error, never Nexa's; keeping *a* default leaves Prisma's create types unchanged). Generated with `prisma migrate diff` from the schema patch, plus the partial indexes Prisma doesn't model. |
 | `schema.patch` | The matching `schema.prisma` change (`git apply` from the repo root). The API type-checks against it with no code change: every lookup by those keys already uses the `tenantId_…` compound key (Phase 3 slice 5; the seed was switched on 2026-11-05). |
 
 ## 1. Rehearse (staging box, never production)
@@ -31,6 +31,7 @@ against the rehearsal database afterwards (§J-10).
 
 | Date | Source | Result |
 |---|---|---|
+| 2026-11-06 | Same dump, re-run after adding `system_message_templates` → `(tenantId, key)` | **PASS.** Restore 5 s, `migrate deploy` 3 s, contract 1 s; counts, money totals and FKs unchanged; 4/4 tables re-keyed by `tenantId`; rollback drill matches. A second academy stored the same template key as Nexa (probe, rolled back). Staging `vps_dev_saas` (D5 already applied) got the new migration plus the three new statements by hand the same day |
 | 2026-11-05 | `vps_dev` dumped with the backup script's flags (Lichess puzzle rows excluded, 113 KB gzip). It's production-sized and at the referral migrations, without the 9 SaaS ones, so it went through the same D1–D4 steps production will | **PASS.** Restore 6 s, `migrate deploy` (all 9 SaaS migrations) 4 s, **contract under 1 s**. 178 tables, 1,148 rows; counts, money totals and FKs unchanged; 0 rows without an academy; raising default on every `tenantId`; an insert without one refused; 3/3 sequences re-keyed; sampled global uniques gone. Rollback drill: restore 6 s, migrate 3 s, counts match. Both databases dropped afterwards |
 
 Still to do before promoting: the same run on a **real production backup**

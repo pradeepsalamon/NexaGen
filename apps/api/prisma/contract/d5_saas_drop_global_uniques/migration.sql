@@ -10,7 +10,8 @@
 --     ("tenantId", …): emails, usernames, codes, numbers, gateway ids.
 --  2. Number sequences (invoice, credit note, payslip): primary key
 --     "year" -> ("tenantId", "year"); the (tenantId, year) unique it replaces
---     is dropped.
+--     is dropped. System message templates the same: "key" ->
+--     ("tenantId", "key") (added 2026-11-06).
 --  3. Replaces the 'tenant_nexa' default of every "tenantId" column with
 --     nexa_tenant_required(), which raises: a row written without an academy
 --     is an error from now on, never Nexa's. (A default is kept, rather than
@@ -93,6 +94,9 @@ DROP INDEX "payslips_documentNumber_key";
 
 -- DropIndex
 DROP INDEX "payslip_sequences_tenantId_year_key";
+
+-- DropIndex
+DROP INDEX "system_message_templates_tenantId_key_key";
 
 -- DropIndex
 DROP INDEX "chess_games_sourceKey_key";
@@ -341,7 +345,9 @@ ALTER TABLE "messaging_rules" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_re
 ALTER TABLE "message_deliveries" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
 
 -- AlterTable
-ALTER TABLE "system_message_templates" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+ALTER TABLE "system_message_templates" DROP CONSTRAINT "system_message_templates_pkey",
+ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required(),
+ADD CONSTRAINT "system_message_templates_pkey" PRIMARY KEY ("tenantId", "key");
 
 -- AlterTable
 ALTER TABLE "plans" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();

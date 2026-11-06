@@ -17,6 +17,7 @@ import type { SystemMessageTemplate, User } from "@prisma/client";
 import { MailService } from "../mail/mail.service";
 import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MessagingRuleService } from "./messaging-rule.service";
 import { maskEmail, maskPhoneNumber } from "./messaging.format";
@@ -87,11 +88,13 @@ export class SystemMessageService {
     }
 
     const data = { actionLabel, body: dto.body, subject, updatedById: admin.id };
+    // Per-academy key (§D5 makes it the primary key; `key` alone is Nexa's today).
+    const tenantId = requireTenantId("systemMessageTemplate");
     const row = await this.prisma.systemMessageTemplate.upsert({
       create: { key, ...data },
       include: WITH_EDITOR,
       update: data,
-      where: { key }
+      where: { tenantId_key: { key, tenantId } }
     });
     return this.toItem(key, row);
   }

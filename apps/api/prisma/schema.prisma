@@ -3310,6 +3310,8 @@ model SystemMessageTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Per-academy twin of the global `key` primary key; §D5 makes (tenantId, key) the primary key.
+  @@unique([tenantId, key])
   @@map("system_message_templates")
 }
 

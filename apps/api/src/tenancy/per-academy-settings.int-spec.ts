@@ -1,12 +1,14 @@
 import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
 import { UserRole } from "@prisma/client";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { InvoiceSettingsService } from "../payments/invoice-settings.service";
 import { ReferralPipelineService } from "../referral/referral-pipeline.service";
 import { ReferralSettingsService } from "../referral/referral-settings.service";
 import { createTestApp, type TestApp } from "../test/integration/app";
 import { createUser, resetDatabase } from "../test/integration/db";
 import { asPlatform, runInTenant } from "./tenant-context";
+import { requireTenantId } from "./tenant-sql";
 
 // Slice 5 (docs/SAAS_MULTI_TENANCY.md § "Phase 3 plan"): settings tables hold
 // one row per academy. Nexa's row keeps id "default"; another academy's row is
@@ -66,6 +68,30 @@ describe("per-academy settings rows (real Postgres)", () => {
     expect(first.id).toBe("default");
     expect(second.id).toBe(ACME);
     expect((await acme(() => referrals.get())).id).toBe(ACME);
+  });
+
+  it("keeps each academy's system message wording apart (same key, after §D5)", async () => {
+    // §D5 re-keys the table to (tenantId, key); done here the same way and put back after.
+    await t.prisma.$executeRawUnsafe(`ALTER TABLE "system_message_templates" DROP CONSTRAINT "system_message_templates_pkey",
+      ADD CONSTRAINT "system_message_templates_pkey" PRIMARY KEY ("tenantId", "key")`);
+    try {
+      const save = (body: string) =>
+        t.prisma.systemMessageTemplate.upsert({
+          create: { body, key: "PASSWORD_RESET" },
+          update: { body },
+          where: { tenantId_key: { key: "PASSWORD_RESET", tenantId: requireTenantId("spec") } }
+        });
+      await nexa(() => save("Nexa wording"));
+      await acme(() => save("Acme wording"));
+      await acme(() => save("Acme wording, edited"));
+      const renderer = t.app.get(SystemMessageRenderer);
+      expect((await nexa(() => renderer.render("PASSWORD_RESET", {}))).body).toBe("Nexa wording");
+      expect((await acme(() => renderer.render("PASSWORD_RESET", {}))).body).toBe("Acme wording, edited");
+    } finally {
+      await asPlatform("spec: restore the pre-D5 key", () => t.prisma.systemMessageTemplate.deleteMany({}));
+      await t.prisma.$executeRawUnsafe(`ALTER TABLE "system_message_templates" DROP CONSTRAINT "system_message_templates_pkey",
+        ADD CONSTRAINT "system_message_templates_pkey" PRIMARY KEY ("key")`);
+    }
   });
 
   it("gives another academy its own default referral stages (ids never Nexa's)", async () => {

@@ -9,6 +9,7 @@ import {
 import { BrandingService } from "../branding/branding.service";
 import { ACADEMY_NAME } from "../messaging/messaging.format";
 import { PrismaService } from "../prisma/prisma.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 export interface RenderedSystemMessage {
   subject: string;
@@ -28,7 +29,9 @@ export class SystemMessageRenderer {
   async render(key: SystemMessageKey, values: MessageVariables): Promise<RenderedSystemMessage> {
     const definition = SYSTEM_MESSAGE_DEFINITIONS[key];
     const template =
-      (await this.prisma.systemMessageTemplate.findUnique({ where: { key } })) ?? definition.defaults;
+      (await this.prisma.systemMessageTemplate.findUnique({
+        where: { tenantId_key: { key, tenantId: requireTenantId("systemMessageTemplate") } }
+      })) ?? definition.defaults;
     const academyName = this.branding ? await this.branding.nameFor() : ACADEMY_NAME;
     const variables: MessageVariables = { "academy.name": academyName, ...values };
 

@@ -142,10 +142,10 @@ else
   log "an insert without tenantId is refused"
 fi
 SEQ_PKS=$(q "$TARGET_URL" "SELECT count(*) FROM pg_constraint c JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
-  WHERE c.contype = 'p' AND c.conrelid::regclass::text IN ('invoice_sequences', 'credit_note_sequences', 'payslip_sequences')
+  WHERE c.contype = 'p' AND c.conrelid::regclass::text IN ('invoice_sequences', 'credit_note_sequences', 'payslip_sequences', 'system_message_templates')
   AND array_length(c.conkey, 1) = 2 AND a.attname = 'tenantId'")
-log "number sequences keyed by (tenantId, year): $SEQ_PKS of 3"
-[ "$SEQ_PKS" -eq 3 ] || FAILED=1
+log "tables re-keyed by tenantId (3 number sequences + system_message_templates): $SEQ_PKS of 4"
+[ "$SEQ_PKS" -eq 4 ] || FAILED=1
 GLOBAL_LEFT=$(q "$TARGET_URL" "SELECT count(*) FROM pg_indexes WHERE schemaname = 'public' AND indexname IN
   ('users_email_key', 'users_username_key', 'invoices_number_key', 'plans_code_key', 'puzzle_topics_name_key', 'referral_stages_trigger_automatic_key')")
 log "sampled global uniques left: $GLOBAL_LEFT (want 0)"
