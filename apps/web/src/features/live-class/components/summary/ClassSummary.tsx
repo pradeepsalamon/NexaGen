@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Ban, CalendarCheck, History, Loader2 } from "lucide-react";
+import { Ban, CalendarCheck, History } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Header } from "@/components/layout/Header";
@@ -22,6 +22,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { ClassEndFeedback } from "@/features/feedback/components/ClassEndFeedback";
 import { Badge } from "@/components/ui/Badge";
 import { enumLabel } from "@/lib/utils";
+import { Spinner } from "@/components/ui/Spinner";
 
 function Shell({
   badge,
@@ -82,7 +83,7 @@ export function ClassSummary({ classId }: { classId: string }) {
     return (
       <Shell topic="Live class">
         <p className="flex items-center justify-center gap-2 py-24 text-sm font-medium text-app-muted">
-          <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+          <Spinner aria-hidden="true" className="size-4" />
           Loading class summary…
         </p>
       </Shell>
@@ -123,7 +124,7 @@ export function ClassSummary({ classId }: { classId: string }) {
         <EmptyState icon={Ban} title="This class was cancelled" />
       ) : !data.finalized ? (
         <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-          <Loader2 aria-hidden="true" className="size-6 animate-spin text-app-muted" />
+          <Spinner aria-hidden="true" className="size-6 text-app-muted" />
           <p className="font-medium text-app-text">Calculating attendance…</p>
           <p className="text-sm text-app-muted">
             This usually takes a few seconds. You can return to your dashboard

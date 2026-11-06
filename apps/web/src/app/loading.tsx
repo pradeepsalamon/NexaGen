@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function Loading() {
   return (
@@ -6,10 +6,9 @@ export default function Loading() {
       aria-label="Loading"
       className="grid min-h-screen place-items-center bg-app-background px-4"
     >
-      <Loader2
+      <Spinner
         aria-hidden="true"
-        className="size-9 animate-spin text-primary-ink"
-        strokeWidth={2.5}
+        className="size-9 text-primary-ink"
       />
     </main>
   );

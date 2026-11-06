@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, MessageCircleQuestion } from "lucide-react";
+import { MessageCircleQuestion } from "lucide-react";
 import { Chess } from "@/lib/chess";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useAnswerLiveMovePoll, useLiveMovePollState, useLiveMovePollSync } from "../../../hooks/useLiveMovePoll";
 import { MovePollResults } from "./MovePollResults";
+import { Spinner } from "@/components/ui/Spinner";
 
 function sideToMove(fen: string): "white" | "black" {
   try {
@@ -105,7 +106,7 @@ function StudentMovePoll({ classId }: { classId: string }) {
               role="status"
               aria-live="polite"
             >
-              {status.tone === "wait" || answer.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              {status.tone === "wait" || answer.isPending ? <Spinner className="size-4" /> : null}
               {status.text}
             </div>
 

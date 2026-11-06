@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { CHAT_MESSAGE_MAX_LENGTH, type ChatMessageDto } from "@nexa-chess/types";
-import { AlertCircle, ArrowLeft, Loader2, RotateCw, SendHorizontal, Users } from "lucide-react";
+import { AlertCircle, ArrowLeft, RotateCw, SendHorizontal, Users } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { LinkedText } from "@/components/ui/FormattedText";
@@ -20,6 +20,7 @@ import { useConversation, useLatestMessages, useMarkConversationRead, useSendMes
 import { CHAT_TYPE_LABELS, chatDayLabel, newChatClientId } from "../lib/chatFormat";
 import { ChatMembersDialog } from "./ChatMembersDialog";
 import { ConversationAvatar } from "./ConversationList";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Pending = { body: string; clientId: string; failed: boolean };
 
@@ -219,7 +220,7 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
         {cursor && (
           <div className="flex justify-center pb-2">
             <Button disabled={loadingOlder} onClick={() => void loadOlder()} size="sm" variant="outline">
-              {loadingOlder && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+              {loadingOlder && <Spinner className="mr-1.5 size-4" />}
               Load earlier messages
             </Button>
           </div>

@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Loader2,
   RotateCw,
   XCircle,
   type LucideIcon
@@ -19,6 +18,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Tone = "success" | "pending" | "danger" | "neutral";
 
@@ -82,7 +82,7 @@ export function PaymentStatusCard({
     <Card className={cn("border p-5 sm:p-6", RING_BY_TONE[tone])}>
       <div className="flex items-start gap-3">
         {status.pending && checking ? (
-          <Loader2 aria-hidden className="mt-0.5 size-6 shrink-0 animate-spin" />
+          <Spinner aria-hidden className="mt-0.5 size-6 shrink-0" />
         ) : (
           <Icon aria-hidden className="mt-0.5 size-6 shrink-0" strokeWidth={2.5} />
         )}

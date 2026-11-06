@@ -3,7 +3,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { VideoTrack, useLocalParticipant } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { Ban, Check, ImagePlus, Loader2, ScanFace, Sparkles, VideoOff } from "lucide-react";
+import { Ban, Check, ImagePlus, ScanFace, Sparkles, VideoOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Switch } from "@/components/ui/Switch";
@@ -17,6 +17,7 @@ import {
   type VideoBackground,
 } from "../../lib/videoEffects/prefs";
 import { useVideoEffects } from "../../providers/VideoEffectsProvider";
+import { Spinner } from "@/components/ui/Spinner";
 
 function Tile({
   children,
@@ -94,7 +95,7 @@ function SelfPreview({ busy }: { busy: boolean }) {
       />
       {busy && (
         <div className="absolute inset-0 flex items-center justify-center gap-2 bg-scrim/40 text-xs font-semibold text-on-scrim">
-          <Loader2 className="size-4 animate-spin" />
+          <Spinner className="size-4" />
           Loading effects…
         </div>
       )}
@@ -189,7 +190,7 @@ export function MeetingVideoEffects() {
             />
           )}
           <Tile label="Upload an image" onClick={() => fileInput.current?.click()} selected={false}>
-            {uploading ? <Loader2 className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
+            {uploading ? <Spinner className="size-5" /> : <ImagePlus className="size-5" />}
           </Tile>
         </div>
         <input

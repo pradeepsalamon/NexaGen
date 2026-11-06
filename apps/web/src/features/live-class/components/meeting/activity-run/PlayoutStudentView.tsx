@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Flag, Lightbulb, Loader2, RotateCcw, Target, Trophy, XCircle } from "lucide-react";
+import { Flag, Lightbulb, RotateCcw, Target, Trophy, XCircle } from "lucide-react";
 import {
   PLAYOUT_END_REASON_LABELS,
   PLAYOUT_RESULT_LABELS,
@@ -19,6 +19,7 @@ import { usePlayoutActions } from "../../../hooks/useActivityRun";
 import { useCountdown } from "../../../hooks/useCountdown";
 import { PuzzleTimerBadge } from "../PuzzleSessionControls";
 import { SimulMoveList } from "../simul/SimulMoveList";
+import { Spinner } from "@/components/ui/Spinner";
 
 const ENGINE_RETRY_MS = 2_500;
 
@@ -142,7 +143,7 @@ export function PlayoutStudentView({ classId, run, playout }: { classId: string;
       <div className="flex flex-col items-center gap-3 py-10 text-center text-sm text-app-muted">
         {active ? (
           <>
-            <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+            <Spinner className="size-5" aria-hidden="true" />
             <p>Setting up your board…</p>
             {actions.start.isError ? (
               <Button
@@ -214,7 +215,7 @@ export function PlayoutStudentView({ classId, run, playout }: { classId: string;
           {inProgress ? (
             thinking ? (
               <span className="flex items-center gap-1.5 font-semibold text-app-muted">
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Computer is thinking…
+                <Spinner className="size-4" aria-hidden="true" /> Computer is thinking…
               </span>
             ) : (
               <span className="font-semibold text-success-ink">Your move</span>

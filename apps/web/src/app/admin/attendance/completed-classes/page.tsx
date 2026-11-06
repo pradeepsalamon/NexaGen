@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Loader2,
   CalendarX,
   ChevronLeft,
   ChevronRight,
@@ -29,6 +28,7 @@ import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Spinner } from "@/components/ui/Spinner";
 
 
 const CC_STATUS_OPTIONS = [
@@ -172,7 +172,7 @@ export default function AdminCompletedClassesPage() {
 
       {isLoading ? (
         <div className="flex h-[40dvh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
+          <Spinner className="h-8 w-8 text-primary-ink" />
         </div>
       ) : !data || filteredClasses.length === 0 ? (
         <EmptyState

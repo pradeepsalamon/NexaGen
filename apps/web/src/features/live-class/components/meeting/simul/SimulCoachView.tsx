@@ -9,7 +9,6 @@ import {
   Gavel,
   Handshake,
   Lightbulb,
-  Loader2,
   Swords,
   UserPlus,
   X
@@ -61,6 +60,7 @@ import { Z } from "../../../lib/meetingUi";
 import { useSimul } from "../../../providers/SimulProvider";
 import { PuzzleBoardTile } from "../PuzzleBoardTile";
 import { SimulMoveList } from "./SimulMoveList";
+import { Spinner } from "@/components/ui/Spinner";
 
 const ENGINE_LEVELS = [
   { value: "20", label: "Full strength" },
@@ -480,7 +480,7 @@ export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
                           disabled={focused.turn !== "COACH" || hintLoading}
                           onClick={() => void showHint(focused)}
                         >
-                          {hintLoading ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : <Lightbulb className="mr-1.5 size-4" />}
+                          {hintLoading ? <Spinner className="mr-1.5 size-4" /> : <Lightbulb className="mr-1.5 size-4" />}
                           Hint
                         </Button>
                         <Button

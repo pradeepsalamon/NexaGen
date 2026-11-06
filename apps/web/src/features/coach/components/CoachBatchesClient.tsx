@@ -7,14 +7,13 @@ import type { CoachBatch } from "@nexa-chess/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { AddStudentRequestDialog } from "@/features/approvals/components/BatchStudentRequestDialogs";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatRelativeDay, formatTime } from "@/lib/datetime";
 import { BatchStatusBadge } from "../../batches/components/BatchStatusBadge";
-import { BatchSummaryCard } from "../../batches/components/BatchSummaryCard";
+import { BatchSummaryCard, BatchSummaryCardSkeleton } from "../../batches/components/BatchSummaryCard";
 import { useCoachBatches } from "../hooks/useCoachApi";
 
 /** Archived and completed batches sort after the ones still being taught. */
@@ -84,7 +83,7 @@ export function CoachBatchesClient() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton className="h-56 rounded-app" key={i} />
+            <BatchSummaryCardSkeleton key={i} />
           ))}
         </div>
       ) : error ? (

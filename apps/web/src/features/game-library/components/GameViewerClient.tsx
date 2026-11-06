@@ -26,7 +26,6 @@ import {
   ChevronsRight,
   Copy,
   Download,
-  Loader2,
   RefreshCw,
   Repeat2,
   Save,
@@ -60,6 +59,7 @@ import { useGameAnalysisState } from "@/features/game-analysis/hooks/useGameAnal
 import { useAuthStore } from "@/stores/authStore";
 import { useDeleteGame, useGame, useSaveGameAnalysis } from "../hooks/useGameLibrary";
 import { downloadPgn } from "../lib/downloadPgn";
+import { Spinner } from "@/components/ui/Spinner";
 
 const DRAFT_KEY = (id: string) => `nexa-game-draft-${id}`;
 
@@ -367,7 +367,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
                 </Button>
                 {editable && (
                   <Button onClick={saveAnalysis} disabled={save.isPending}>
-                    {save.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : <Save className="mr-2 size-4" aria-hidden />}
+                    {save.isPending ? <Spinner className="mr-2 size-4" aria-hidden /> : <Save className="mr-2 size-4" aria-hidden />}
                     Save analysis
                   </Button>
                 )}

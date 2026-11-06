@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export type BatchSummaryFact = {
   icon: LucideIcon;
@@ -59,6 +60,30 @@ export function BatchSummaryCard({
           {actions ? <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div> : null}
         </div>
       ) : null}
+    </Card>
+  );
+}
+
+/** Loading placeholder shaped like `BatchSummaryCard`, so the page doesn't jump when data lands. */
+export function BatchSummaryCardSkeleton() {
+  return (
+    <Card aria-hidden="true" className="flex flex-col gap-3 p-4">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-5 w-2/5" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+        <Skeleton className="h-4 w-3/5" />
+      </div>
+      <div className="flex gap-4">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+      <div className="mt-auto flex items-center gap-3 border-t border-app-border pt-3">
+        <Skeleton className="size-7 rounded-full" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="ml-auto h-8 w-24" />
+      </div>
     </Card>
   );
 }

@@ -12,7 +12,7 @@ import {
   type GameAutoSyncRule,
   type ImportPgnSide,
 } from "@nexa-chess/types";
-import { CheckCircle2, Link2, Loader2, RefreshCw, Trash2, Upload } from "lucide-react";
+import { CheckCircle2, Link2, RefreshCw, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
@@ -38,6 +38,7 @@ import {
   useVerifyAccount,
 } from "../hooks/useGameAnalysis";
 import { AutoSyncSwitch } from "./AutoSyncSwitch";
+import { Spinner } from "@/components/ui/Spinner";
 
 const SIDE_OPTIONS = [
   { label: "Find me by name", value: "AUTO" },
@@ -175,7 +176,7 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
             Cancel
           </Button>
           <Button disabled={!pgn.trim() || tooBig || upload.isPending} onClick={submit}>
-            {upload.isPending && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
+            {upload.isPending && <Spinner className="mr-2 size-4" aria-hidden />}
             Import
           </Button>
         </DialogFooter>
@@ -293,7 +294,7 @@ function AccountRow({
               }
               variant="outline"
             >
-              {sync.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : <RefreshCw className="mr-2 size-4" aria-hidden />}
+              {sync.isPending ? <Spinner className="mr-2 size-4" aria-hidden /> : <RefreshCw className="mr-2 size-4" aria-hidden />}
               Import games
             </Button>
           )}

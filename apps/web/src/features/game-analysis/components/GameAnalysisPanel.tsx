@@ -14,7 +14,7 @@ import {
   type GameReportMove,
   type TacticalOpportunity,
 } from "@nexa-chess/types";
-import { BrainCircuit, Cpu, Loader2, Target, X } from "lucide-react";
+import { BrainCircuit, Cpu, Target, X } from "lucide-react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useAddTacticToRevision, useCancelAnalysis, useGameAnalysisState, useRequestAnalysis } from "../hooks/useGameAnalysis";
 import { CLASSIFICATION_STYLE, KEY_MOMENT_CLASSES, OUTCOME_STYLE, moveNumberLabel } from "../lib/classificationStyle";
+import { Spinner } from "@/components/ui/Spinner";
 
 const DEPTH_OPTIONS = [
   { label: "Quick (a skim, ~30 s)", value: "QUICK" },
@@ -80,7 +81,7 @@ export function GameAnalysisPanel({ gameId, viewer, currentPly, onJump }: Props)
         value={depth}
       />
       <Button disabled={request.isPending} onClick={ask}>
-        {request.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : <Cpu className="mr-2 size-4" aria-hidden />}
+        {request.isPending ? <Spinner className="mr-2 size-4" aria-hidden /> : <Cpu className="mr-2 size-4" aria-hidden />}
         Analyse game
       </Button>
     </div>

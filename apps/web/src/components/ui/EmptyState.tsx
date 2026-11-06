@@ -24,18 +24,23 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center text-center animate-in fade-in",
+        "flex flex-col items-center justify-center text-center animate-fade-in",
         variant === "page"
           ? "min-h-[300px] rounded-app border border-dashed border-app-line-strong bg-app-surface p-8"
           : "px-4 py-10"
       )}
     >
-      <div className="flex size-9 items-center justify-center rounded-full bg-app-soft">
-        <Icon aria-hidden="true" className="size-4 text-app-muted" strokeWidth={2.25} />
+      <div
+        className={cn(
+          "flex items-center justify-center rounded-full bg-primary-soft text-primary-ink ring-8 ring-primary-soft/40 animate-pop-in",
+          variant === "page" ? "size-16" : "size-14"
+        )}
+      >
+        <Icon aria-hidden="true" className={variant === "page" ? "size-8" : "size-7"} strokeWidth={1.75} />
       </div>
-      <h3 className="mt-2 text-sm font-semibold text-app-text">{title}</h3>
+      <h3 className="mt-5 text-base font-semibold text-app-text">{title}</h3>
       {description && (
-        <p className="mt-1 max-w-sm text-xs text-app-muted">
+        <p className="mt-1.5 max-w-sm text-sm text-app-muted">
           {description}
         </p>
       )}

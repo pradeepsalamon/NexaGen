@@ -117,6 +117,8 @@ disagree.
 | Bulk actions on selected rows | `BulkActionsBar` + `useBulkAction` + `BulkResultDialog` | |
 | KPIs / stat tiles | `KpiCard`, `StatTile` | Plain card with a 12px label and a 32/40 value. Numbers use the display font with `tabular-nums`, never `font-mono`. Labels are sentence case. Don't hand-roll a KPI tile. |
 | Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. |
+| Loading | `Spinner` (`components/ui/Spinner`) | The one spinner: an arc on a faint track in the current colour, sized like an icon (`size-4` in a button — `Button isLoading` already uses it — `size-8` for a section). Never `Loader2` + `animate-spin`. |
+| Loading placeholder | `Skeleton` | A theme-neutral tint with a light sweep (transform only). Shape it like the content that will land (see `BatchSummaryCardSkeleton`), not one big block. |
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
 | Page title + actions | `PageHeader` | Pass `breadcrumbs` on a detail page instead of a `BackButton`. |
 | Batch card on a "My batches" page | `BatchSummaryCard` (`features/batches/components`) | Title + badges, one-line description, facts as one wrapping row, footer with people left and actions right. Student and coach pages use it. |
@@ -152,6 +154,12 @@ disagree.
   opens a menu of every tab. Nothing to do per page; it needs `Tabs` from
   `components/ui/Tabs` (the menu reads the value from its context) and
   `TabsTrigger`s as direct children (fragments and `.map` are fine).
+- **Motion is short and cheap.** Overlays (dialog, popover, menu, tooltip)
+  use the `tailwindcss-animate` classes (`animate-in fade-in-0 zoom-in-95` …);
+  pages fade in with `animate-fade-in` (opacity only: a transform would trap
+  `position: fixed` children); buttons press to 97%. Animate `transform` and
+  `opacity`, never a page-wide `padding`/`width` (the docked nav animates only
+  its own column). `prefers-reduced-motion` turns it all off (globals.css).
 - **KPI / stat tiles are two per row on phones** (`KpiCardRow`, and grids
   holding `StatTile` start at `grid-cols-2`) — never one full-width tile per
   number, never a sideways strip.

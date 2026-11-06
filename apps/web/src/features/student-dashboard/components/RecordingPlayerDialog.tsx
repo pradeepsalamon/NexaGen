@@ -7,12 +7,13 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/Dialog";
-import { Loader2, Video } from "lucide-react";
+import { Video } from "lucide-react";
 import {
   getRecordingDownloadUrl,
   updateRecordingProgress
 } from "@/features/live-class/api/live-class";
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface RecordingPlayerDialogProps {
   classId: string | null;
@@ -112,7 +113,7 @@ export function RecordingPlayerDialog({
         <div className="flex-1 flex items-center justify-center bg-scrim pt-[60px] pb-4 px-4 w-full h-full relative">
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-on-scrim bg-scrim/60 z-10">
-              <Loader2 className="size-8 animate-spin text-accent mb-3" />
+              <Spinner className="size-8 text-accent mb-3" />
               <p className="text-xs sm:text-sm font-medium text-on-brand-muted">
                 Loading recording...
               </p>

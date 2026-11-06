@@ -7,10 +7,9 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { BatchStatusBadge } from "@/features/batches/components/BatchStatusBadge";
-import { BatchSummaryCard, type BatchSummaryFact } from "@/features/batches/components/BatchSummaryCard";
+import { BatchSummaryCard, BatchSummaryCardSkeleton, type BatchSummaryFact } from "@/features/batches/components/BatchSummaryCard";
 import { BatchTypeBadge } from "@/features/batches/components/BatchTypeBadge";
 import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { formatFullDate } from "@/lib/datetime";
@@ -43,7 +42,7 @@ export function StudentBatchesClient() {
       {isLoading ? (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[0, 1].map((i) => (
-            <Skeleton className="h-44 rounded-app" key={i} />
+            <BatchSummaryCardSkeleton key={i} />
           ))}
         </div>
       ) : error ? (

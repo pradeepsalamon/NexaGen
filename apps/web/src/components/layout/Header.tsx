@@ -1,6 +1,6 @@
 "use client";
 
-import { LifeBuoy, Loader2, LogIn, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { LifeBuoy, LogIn, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
@@ -16,6 +16,7 @@ import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { useSidebarStore } from "@/stores/sidebarStore";
 import { resolvePageTitle } from "@/lib/pageTitles";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/Spinner";
 
 export function Header({
   centerSlot,
@@ -152,7 +153,7 @@ export function Header({
               className="inline-flex size-[var(--control-h)] shrink-0 items-center justify-center text-on-brand-muted"
               role="status"
             >
-              <Loader2 aria-hidden="true" className="size-4 animate-spin" strokeWidth={2.5} />
+              <Spinner aria-hidden="true" className="size-4" />
             </div>
           ) : activeUser ? (
             <UserNavMenu user={activeUser} openLinksInNewTab={openLinksInNewTab} />

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, Inbox, Loader2, X } from "lucide-react";
+import { Check, Inbox, X } from "lucide-react";
 import type { KnowledgeSubmissionDto } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +19,7 @@ import { useToast } from "@/providers/ToastProvider";
 import { rejectKnowledge } from "../../api/knowledgeApi";
 import { useInvalidateKnowledge, useKnowledgeSubmissions } from "../../hooks/useKnowledgeApi";
 import { KnowledgeMarkdown } from "../KnowledgeMarkdown";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** Coach suggestions waiting for an admin. Publishing happens in the article editor (audience first). */
 export function SubmissionsPanel() {
@@ -107,7 +108,7 @@ function RejectDialog({ submission, onClose }: { submission: KnowledgeSubmission
             Cancel
           </Button>
           <Button disabled={busy || !note.trim()} onClick={() => void submit()} variant="destructive">
-            {busy && <Loader2 aria-hidden className="mr-2 size-4 animate-spin" />}
+            {busy && <Spinner aria-hidden className="mr-2 size-4" />}
             Decline
           </Button>
         </DialogFooter>

@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useIsMuted, type TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { Loader2, Mic, MicOff, MonitorOff, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, MonitorOff, Video, VideoOff } from "lucide-react";
 import { MODERATED_SOURCE_LABEL, type ModeratableSource } from "@nexa-chess/types";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { meetingToast } from "../../../lib/meetingToasts";
 import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider";
 import { getRole } from "./videoGrid.utils";
 import { useMemberClassId } from "../../../providers/LiveRoomContext";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Participant = TrackReferenceOrPlaceholder["participant"];
 type Pending = "microphone" | "camera" | "screen_share" | null;
@@ -116,7 +117,7 @@ function Controls({
   };
 
   const icon = size === "sm" ? "size-3" : "size-3.5";
-  const spinner = <Loader2 className={cn(icon, "animate-spin")} strokeWidth={2.5} />;
+  const spinner = <Spinner className={cn(icon,"")} />;
 
   if (screenShare) {
     return (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AlertTriangle, CheckCircle2, Download, HardDriveDownload, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, HardDriveDownload } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { formatDateTime } from "@/lib/datetime";
@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { Spinner } from "@/components/ui/Spinner";
 
 export interface BackupItem {
   key: string;
@@ -109,7 +110,7 @@ export function BackupManager() {
         </div>
         <Button onClick={handleCreateBackup} disabled={isCreating}>
           {isCreating ? (
-            <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+            <Spinner aria-hidden="true" className="size-4" />
           ) : (
             <HardDriveDownload aria-hidden="true" className="size-4" strokeWidth={2.5} />
           )}
@@ -160,7 +161,7 @@ export function BackupManager() {
               <TableRow>
                 <TableCell colSpan={5} className="h-24">
                   <div className="flex items-center justify-center text-app-muted gap-2">
-                    <Loader2 className="size-5 animate-spin" />
+                    <Spinner className="size-5" />
                     Loading backups…
                   </div>
                 </TableCell>

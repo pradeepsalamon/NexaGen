@@ -19,7 +19,7 @@ import {
   type CatalogThemeMode,
   type SolutionMove
 } from "@nexa-chess/types";
-import { Eye, FolderPlus, GraduationCap, Library, ListPlus, Loader2, Shuffle, X } from "lucide-react";
+import { Eye, FolderPlus, GraduationCap, Library, ListPlus, Shuffle, X } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -41,6 +41,7 @@ import { getCatalogPreview } from "../../api/puzzleApi";
 import { useAdoptCatalogPuzzles, useCatalogPuzzles, usePuzzleTopics } from "../../hooks/usePuzzlesApi";
 import { puzzleTopicOptions } from "../../lib/puzzleMeta";
 import { CatalogPreviewDialog } from "./CatalogPreviewDialog";
+import { Spinner } from "@/components/ui/Spinner";
 
 const GROUP_ORDER = ["motif", "mate", "phase", "goal", "length", "origin", "special"] as const;
 const THEME_OPTIONS = [...LICHESS_THEMES]
@@ -429,7 +430,7 @@ export function CatalogBrowser({
           {queueControls}
           <Button size="sm" onClick={() => void runAddToQueue()} disabled={selected.size === 0 || overLimit || addingToQueue}>
             {addingToQueue ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              <Spinner className="mr-1.5 size-4" />
             ) : (
               <ListPlus className="mr-1.5 size-4" strokeWidth={2.5} />
             )}
@@ -456,7 +457,7 @@ export function CatalogBrowser({
           />
           <Button size="sm" onClick={runAdopt} disabled={!targetFolder || adopt.isPending}>
             {adopt.isPending ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              <Spinner className="mr-1.5 size-4" />
             ) : (
               <FolderPlus className="mr-1.5 size-4" strokeWidth={2.5} />
             )}
@@ -567,7 +568,7 @@ export function CatalogBrowser({
                       onClick={() => void openHomework(puzzle)}
                     >
                       {homeworkLoading === puzzle.sourceId ? (
-                        <Loader2 className="size-4 animate-spin" />
+                        <Spinner className="size-4" />
                       ) : (
                         <GraduationCap className="size-4" strokeWidth={2.5} />
                       )}
@@ -587,7 +588,7 @@ export function CatalogBrowser({
             onClick={() => void catalog.fetchNextPage()}
             disabled={catalog.isFetchingNextPage}
           >
-            {catalog.isFetchingNextPage ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : null}
+            {catalog.isFetchingNextPage ? <Spinner className="mr-1.5 size-4" /> : null}
             Load more
           </Button>
         </div>

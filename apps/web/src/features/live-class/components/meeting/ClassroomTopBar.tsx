@@ -2,13 +2,13 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserNavMenu } from "@/components/layout/UserNavMenu";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface ClassroomTopBarProps {
   /** Class topic — the page's one `h1`. */
@@ -83,7 +83,7 @@ export function ClassroomTopBar({
           <UserNavMenu user={activeUser} openLinksInNewTab={openLinksInNewTab} />
         ) : isSessionChecked ? null : (
           <span aria-label="Checking session" className="inline-flex size-9 items-center justify-center text-app-muted" role="status">
-            <Loader2 aria-hidden="true" className="size-4 animate-spin" strokeWidth={2} />
+            <Spinner aria-hidden="true" className="size-4" />
           </span>
         )}
       </div>
