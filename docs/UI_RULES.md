@@ -185,8 +185,8 @@ disagree.
   filter with no visible label (`aria-label="Filter by status"`). A hidden
   `<input type="file">` opened by a button still gets an `aria-label`.
 - A box that scrolls on its own must be reachable by keyboard. `ScrollShadow`
-  (tables) and `KpiCardRow` do it: while their content overflows they become a
-  focusable, named region (`label` prop). A hand-built scroller uses
+  (tables) does it: while its content overflows it becomes a focusable, named
+  region (`label` prop). A hand-built scroller uses
   `useScrollableRegion(ref, label)` from `hooks/useScrollableRegion.ts`. Don't
   put a second `overflow-x-auto` around a table that already scrolls inside
   its card.
