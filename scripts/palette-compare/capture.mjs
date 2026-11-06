@@ -131,7 +131,8 @@ async function main() {
   mkdirSync(outDir, { recursive: true });
   console.log(`\n  base ${args.base}\n  palettes ${palettes.map((p) => p.id).join(", ")}\n  pages ${pages.map((p) => p.id).join(", ")}\n  out ${outDir}\n`);
 
-  const browser = await chromium.launch();
+  // CHROMIUM_PATH: use a pre-installed browser when the pinned Playwright has none.
+  const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
   const states = {};
   for (const role of new Set(pages.map((p) => p.role))) {
     process.stdout.write(`  login ${role}… `);
