@@ -10,7 +10,7 @@ import {
   type ChessGameStatus,
   type GameLibraryItem,
 } from "@nexa-chess/types";
-import { ChevronLeft, ChevronRight, Download, Eye, GitBranch, Library, Search, Upload, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Eye, GitBranch, Library, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -18,13 +18,15 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterChips, FilterField, FilterPopover, type ActiveFilter } from "@/components/ui/FilterPopover";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { formatDateTime } from "@/lib/datetime";
+import { formatDateTime, formatFullDate } from "@/lib/datetime";
 import { useCoachBatches } from "@/features/coach/hooks/useCoachApi";
 import { useAuthStore } from "@/stores/authStore";
 import { getGame } from "../api/gameLibraryApi";
@@ -35,7 +37,6 @@ import { ImportGameDialog } from "./ImportGameDialog";
 const PAGE_SIZE = 20;
 
 type Filters = {
-  q: string;
   studentId: string;
   batchId: string;
   source: "" | ChessGameSource;
@@ -45,7 +46,9 @@ type Filters = {
   to?: Date;
 };
 
-const EMPTY: Filters = { batchId: "", q: "", result: "", source: "", status: "", studentId: "" };
+const EMPTY: Filters = { batchId: "", result: "", source: "", status: "", studentId: "" };
+
+const STATUS_LABELS: Record<ChessGameStatus, string> = { COMPLETED: "Completed", IN_PROGRESS: "In progress" };
 
 /** A picked calendar day as "YYYY-MM-DD" (the picker hands back local midnight). */
 function ymd(date: Date | undefined) {
@@ -60,6 +63,7 @@ export function GameLibraryClient() {
   const timeZone = useUserTimeZone();
   const [filters, setFilters] = useState<Filters>(EMPTY);
   const [search, setSearch] = useState("");
+  const q = useDebouncedValue(search.trim());
   const [page, setPage] = useState(1);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -69,14 +73,14 @@ export function GameLibraryClient() {
       from: ymd(filters.from),
       page,
       pageSize: PAGE_SIZE,
-      q: filters.q || undefined,
+      q: q || undefined,
       result: filters.result || undefined,
       source: filters.source || undefined,
       status: filters.status || undefined,
       studentId: filters.studentId || undefined,
       to: ymd(filters.to),
     }),
-    [filters, page],
+    [filters, page, q],
   );
   const { data, isLoading, isError, isFetching, refetch } = useGameLibrary(query);
   const { data: options } = useGameFilterOptions();
@@ -89,7 +93,19 @@ export function GameLibraryClient() {
     setFilters((f) => ({ ...f, ...patch }));
     setPage(1);
   };
-  const active = JSON.stringify({ ...filters, q: "" }) !== JSON.stringify({ ...EMPTY, q: "" }) || !!filters.q;
+  const nameOf = (list: { id: string; name: string }[] | undefined, id: string) =>
+    list?.find((item) => item.id === id)?.name ?? "Selected";
+  const dayLabel = (date: Date) => formatFullDate(ymd(date), "UTC");
+  const activeFilters = [
+    filters.studentId && { key: "student", label: nameOf(options?.students, filters.studentId), onRemove: () => update({ studentId: "" }) },
+    filters.batchId && { key: "batch", label: nameOf(options?.batches, filters.batchId), onRemove: () => update({ batchId: "" }) },
+    filters.source && { key: "source", label: CHESS_GAME_SOURCE_LABELS[filters.source], onRemove: () => update({ source: "" }) },
+    filters.result && { key: "result", label: CHESS_GAME_RESULT_LABELS[filters.result], onRemove: () => update({ result: "" }) },
+    filters.status && { key: "status", label: STATUS_LABELS[filters.status], onRemove: () => update({ status: "" }) },
+    filters.from && { key: "from", label: `From ${dayLabel(filters.from)}`, onRemove: () => update({ from: undefined }) },
+    filters.to && { key: "to", label: `To ${dayLabel(filters.to)}`, onRemove: () => update({ to: undefined }) },
+  ].filter((filter): filter is ActiveFilter => Boolean(filter));
+  const active = activeFilters.length > 0 || !!q;
   const total = data?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -120,86 +136,97 @@ export function GameLibraryClient() {
       />
 
       <Card className="space-y-3 p-4">
-        <form
-          className="flex flex-col gap-2 sm:flex-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            update({ q: search.trim() });
-          }}
-        >
-          <div className="relative flex-1">
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-muted" aria-hidden />
             <Input
               aria-label="Search games"
               className="pl-9"
               placeholder="Search by title or player name"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
-          <Button type="submit" variant="outline">
-            Search
-          </Button>
-        </form>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {!isStudent && (
-            <Select
-              aria-label="Student"
-              value={filters.studentId}
-              onChange={(e) => update({ studentId: e.target.value })}
-              placeholder="All students"
-              options={[{ label: "All students", value: "" }, ...(options?.students ?? []).map((s) => ({ label: s.name, value: s.id }))]}
-            />
-          )}
-          <Select
-            aria-label="Batch"
-            value={filters.batchId}
-            onChange={(e) => update({ batchId: e.target.value })}
-            options={[{ label: "All batches", value: "" }, ...(options?.batches ?? []).map((b) => ({ label: b.name, value: b.id }))]}
-          />
-          <Select
-            aria-label="Game type"
-            value={filters.source}
-            onChange={(e) => update({ source: e.target.value as Filters["source"] })}
-            options={[
-              { label: "All game types", value: "" },
-              ...(Object.entries(CHESS_GAME_SOURCE_LABELS) as [ChessGameSource, string][]).map(([value, label]) => ({ label, value })),
-            ]}
-          />
-          <Select
-            aria-label="Result"
-            value={filters.result}
-            onChange={(e) => update({ result: e.target.value as Filters["result"] })}
-            options={[
-              { label: "Any result", value: "" },
-              ...(Object.entries(CHESS_GAME_RESULT_LABELS) as [ChessGameResult, string][]).map(([value, label]) => ({ label, value })),
-            ]}
-          />
-          <Select
-            aria-label="Status"
-            value={filters.status}
-            onChange={(e) => update({ status: e.target.value as Filters["status"] })}
-            options={[
-              { label: "Any status", value: "" },
-              { label: "In progress", value: "IN_PROGRESS" },
-              { label: "Completed", value: "COMPLETED" },
-            ]}
-          />
-          <DatePicker aria-label="From date" placeholder="From date" value={filters.from} onChange={(d) => update({ from: d })} />
-          <DatePicker aria-label="To date" placeholder="To date" value={filters.to} onChange={(d) => update({ to: d })} />
-          {active && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setSearch("");
-                update(EMPTY);
-              }}
-            >
-              <X className="mr-1.5 size-4" aria-hidden />
-              Clear filters
-            </Button>
-          )}
+          <FilterPopover
+            activeCount={activeFilters.length}
+            emptyValue={EMPTY}
+            onApply={(next) => update(next)}
+            value={filters}
+          >
+            {(draft, set) => (
+              <>
+                {!isStudent && (
+                  <FilterField htmlFor="game-filter-student" label="Student">
+                    <Select
+                      id="game-filter-student"
+                      value={draft.studentId}
+                      onChange={(e) => set({ studentId: e.target.value })}
+                      options={[{ label: "All students", value: "" }, ...(options?.students ?? []).map((s) => ({ label: s.name, value: s.id }))]}
+                    />
+                  </FilterField>
+                )}
+                <FilterField htmlFor="game-filter-batch" label="Batch">
+                  <Select
+                    id="game-filter-batch"
+                    value={draft.batchId}
+                    onChange={(e) => set({ batchId: e.target.value })}
+                    options={[{ label: "All batches", value: "" }, ...(options?.batches ?? []).map((b) => ({ label: b.name, value: b.id }))]}
+                  />
+                </FilterField>
+                <FilterField htmlFor="game-filter-source" label="Game type">
+                  <Select
+                    id="game-filter-source"
+                    value={draft.source}
+                    onChange={(e) => set({ source: e.target.value as Filters["source"] })}
+                    options={[
+                      { label: "All game types", value: "" },
+                      ...(Object.entries(CHESS_GAME_SOURCE_LABELS) as [ChessGameSource, string][]).map(([value, label]) => ({ label, value })),
+                    ]}
+                  />
+                </FilterField>
+                <div className="grid grid-cols-2">
+                  <FilterField htmlFor="game-filter-result" label="Result">
+                    <Select
+                      id="game-filter-result"
+                      value={draft.result}
+                      onChange={(e) => set({ result: e.target.value as Filters["result"] })}
+                      options={[
+                        { label: "Any result", value: "" },
+                        ...(Object.entries(CHESS_GAME_RESULT_LABELS) as [ChessGameResult, string][]).map(([value, label]) => ({ label, value })),
+                      ]}
+                    />
+                  </FilterField>
+                  <FilterField htmlFor="game-filter-status" label="Status">
+                    <Select
+                      id="game-filter-status"
+                      value={draft.status}
+                      onChange={(e) => set({ status: e.target.value as Filters["status"] })}
+                      options={[
+                        { label: "Any status", value: "" },
+                        ...(Object.entries(STATUS_LABELS) as [ChessGameStatus, string][]).map(([value, label]) => ({ label, value })),
+                      ]}
+                    />
+                  </FilterField>
+                </div>
+                <div className="grid grid-cols-2">
+                  <FilterField label="From">
+                    <DatePicker aria-label="From date" placeholder="Any" value={draft.from} onChange={(d) => set({ from: d })} />
+                  </FilterField>
+                  <FilterField label="To">
+                    <DatePicker aria-label="To date" placeholder="Any" value={draft.to} onChange={(d) => set({ to: d })} />
+                  </FilterField>
+                </div>
+              </>
+            )}
+          </FilterPopover>
         </div>
+        <FilterChips
+          filters={activeFilters}
+          onClearAll={activeFilters.length > 1 ? () => update(EMPTY) : undefined}
+        />
       </Card>
 
       {isError ? (
