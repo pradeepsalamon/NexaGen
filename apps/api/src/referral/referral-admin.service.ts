@@ -3,37 +3,43 @@ import { JwtService } from "@nestjs/jwt";
 import {
   REFERRER_ROLES,
   referralBeneficiarySchema,
+  referralBonusAudienceTarget,
   referralCreditEntryTypeSchema,
-  referralRewardRuleProblem,
-  referralWalletSchema,
-  referrerRoleSchema,
-  type AdminReferralLedgerItem,
-  type LinkReferredUserRequest,
+  referralRedemptionStatusSchema,
   referralRewardStatusSchema,
+  referralWalletSchema,
   referralWithdrawalStatusSchema,
+  referrerRoleSchema,
   type AdjustReferralCreditsRequest,
   type AdminReferralDetail,
   type AdminReferralItem,
+  type AdminReferralLedgerItem,
   type AdminReferralOverview,
   type CancelReferralRewardRequest,
-  type CreateReferralRewardRuleRequest,
+  type CreateReferralBonusRuleRequest,
   type CreateReferralStageRequest,
+  type CreateReferralVoucherRequest,
+  type LinkReferredUserRequest,
   type MoveReferralStageRequest,
   type PaginatedQuery,
   type PayReferralWithdrawalRequest,
+  type ReferralBonusRuleItem,
   type ReferralPage,
+  type ReferralRedemptionItem,
   type ReferralRewardItem,
-  type ReferralRewardRuleItem,
   type ReferralSettingsItem,
   type ReferralStageItem,
+  type ReferralVoucherItem,
   type ReferralWithdrawalItem,
   type ReferrerStatsItem,
+  type RejectReferralRedemptionRequest,
   type RejectReferralWithdrawalRequest,
-  type SendReferrerAccessLinkRequest,
   type ReorderReferralStagesRequest,
-  type UpdateReferralRewardRuleRequest,
+  type SendReferrerAccessLinkRequest,
+  type UpdateReferralBonusRuleRequest,
   type UpdateReferralSettingsRequest,
   type UpdateReferralStageRequest,
+  type UpdateReferralVoucherRequest,
   type UpdateReferrerCodeRequest
 } from "@nexa-chess/types";
 import { type Prisma, UserRole } from "@prisma/client";
@@ -46,22 +52,23 @@ import { ReferralAccessService } from "./referral-access.service";
 import { ReferralCreditsService } from "./referral-credits.service";
 import { ReferralPipelineService } from "./referral-pipeline.service";
 import { ReferralSettingsService } from "./referral-settings.service";
+import { REDEMPTION_ITEM_INCLUDE, ReferralVouchersService, toRedemptionItem } from "./referral-vouchers.service";
 import {
-  CREDIT_ENTRY_INCLUDE,
-  toCreditEntryItem,
+  BONUS_RULE_INCLUDE,
+  BONUS_RULE_WHERE,
   REFERRAL_ITEM_INCLUDE,
   REWARD_ITEM_INCLUDE,
-  RULE_ITEM_INCLUDE,
   toAdminReferralItem,
+  toBonusRuleItem,
+  toCreditEntryItem,
   toRewardItem,
-  toRuleItem,
   toStageItem,
   toWithdrawalItem,
   WITHDRAWAL_ITEM_INCLUDE
 } from "./referral.mappers";
 import { displayName, toReferrerRole } from "./referral.util";
 
-/** Admin referral board: pipeline, stages, reward rules, rewards, payouts, settings. */
+/** Admin referral board: pipeline, stages and their values, bonuses, rewards, vouchers, payouts, settings. */
 @Injectable()
 export class ReferralAdminService {
   constructor(
@@ -70,7 +77,8 @@ export class ReferralAdminService {
     private readonly settings: ReferralSettingsService,
     private readonly pipeline: ReferralPipelineService,
     private readonly credits: ReferralCreditsService,
-    private readonly access: ReferralAccessService
+    private readonly access: ReferralAccessService,
+    private readonly vouchers: ReferralVouchersService
   ) {}
 
   private async getAdmin(accessToken: string | undefined) {
@@ -87,7 +95,7 @@ export class ReferralAdminService {
 
   async overview(accessToken: string | undefined): Promise<AdminReferralOverview> {
     await this.getAdmin(accessToken);
-    const [stages, groups, referrals, visits, converted, referrers, pending, open, settings, points, joined] = await Promise.all([
+    const [stages, groups, referrals, visits, converted, referrers, pending, open, settings, points, joined, pendingRedemptions] = await Promise.all([
       this.pipeline.listStages(),
       this.prisma.referral.groupBy({ _count: true, by: ["stageId"] }),
       this.prisma.referral.count(),
@@ -102,7 +110,8 @@ export class ReferralAdminService {
       this.prisma.referralWithdrawal.aggregate({ _count: true, _sum: { amountMinor: true }, where: { status: "REQUESTED" } }),
       this.settings.get(),
       this.prisma.referralCreditEntry.aggregate({ _sum: { amountMinor: true }, where: { wallet: "POINTS" } }),
-      this.prisma.referral.count({ where: { referredUserId: { not: null } } })
+      this.prisma.referral.count({ where: { referredUserId: { not: null } } }),
+      this.prisma.referralRedemption.count({ where: { status: "PENDING" } })
     ]);
     const counts = new Map(groups.map((group) => [group.stageId, group._count]));
     return {
@@ -114,6 +123,7 @@ export class ReferralAdminService {
         openWithdrawals: open._count,
         openWithdrawalsMinor: open._sum.amountMinor ?? 0,
         pendingRewards: pending._count,
+        pendingRedemptions,
         pendingRewardsMinor: pending._sum.amountMinor ?? 0,
         pointsOutstanding: points._sum.amountMinor ?? 0,
         referrals,
@@ -233,7 +243,7 @@ export class ReferralAdminService {
 
   // ── Ledger ──
 
-  /** Every wallet movement of every user (money and points), newest first. */
+  /** Every points and money movement of every user, newest first. */
   async ledger(
     accessToken: string | undefined,
     query: PaginatedQuery & { wallet?: unknown; type?: unknown; userId?: unknown }
@@ -261,7 +271,6 @@ export class ReferralAdminService {
     const [rows, total] = await Promise.all([
       this.prisma.referralCreditEntry.findMany({
         include: {
-          ...CREDIT_ENTRY_INCLUDE,
           createdBy: { select: { firstName: true, lastName: true } },
           user: { select: { email: true, firstName: true, lastName: true, role: true } }
         },
@@ -340,8 +349,8 @@ export class ReferralAdminService {
       }),
       this.prisma.referralReward.groupBy({
         _sum: { amountMinor: true },
-        by: ["referrerId"],
-        where: { referrerId: { in: ids }, status: "CREDITED", unit: "CASH" }
+        by: ["referrerId", "unit"],
+        where: { referrerId: { in: ids }, status: "CREDITED", unit: { in: ["CASH", "POINTS"] } }
       })
     ]);
     const visitMap = new Map(visits.map((row) => [row.codeId, row._count]));
@@ -353,7 +362,10 @@ export class ReferralAdminService {
     const pointsMap = new Map(
       balances.filter((row) => row.wallet === "POINTS").map((row) => [row.userId, row._sum.amountMinor ?? 0])
     );
-    const earnedMap = new Map(earned.map((row) => [row.referrerId, row._sum.amountMinor ?? 0]));
+    const earnedMap = new Map(earned.filter((row) => row.unit === "CASH").map((row) => [row.referrerId, row._sum.amountMinor ?? 0]));
+    const pointsEarnedMap = new Map(
+      earned.filter((row) => row.unit === "POINTS").map((row) => [row.referrerId, row._sum.amountMinor ?? 0])
+    );
 
     return {
       items: users.map((user) => ({
@@ -367,6 +379,7 @@ export class ReferralAdminService {
         name: displayName(user),
         phoneNumber: user.phoneNumber,
         pointsBalance: pointsMap.get(user.id) ?? 0,
+        pointsEarned: pointsEarnedMap.get(user.id) ?? 0,
         referrals: referralMap.get(user.id) ?? 0,
         role: toReferrerRole(user.role),
         userId: user.id,
@@ -414,9 +427,13 @@ export class ReferralAdminService {
     const last = await this.prisma.referralStage.aggregate({ _max: { position: true } });
     const stage = await this.prisma.referralStage.create({
       data: {
+        coachCashMinor: body.coachCashMinor ?? 0,
         description: body.description || null,
         name: body.name,
+        newMemberPoints: body.newMemberPoints ?? 0,
         position: (last._max.position ?? 0) + 10,
+        salesCashMinor: body.salesCashMinor ?? 0,
+        studentPoints: body.studentPoints ?? 0,
         tone: body.tone,
         trigger: "MANUAL"
       }
@@ -432,7 +449,12 @@ export class ReferralAdminService {
       data: {
         ...(body.name !== undefined ? { name: body.name } : {}),
         ...(body.description !== undefined ? { description: body.description || null } : {}),
-        ...(body.tone !== undefined ? { tone: body.tone } : {})
+        ...(body.tone !== undefined ? { tone: body.tone } : {}),
+        // Values apply to referrals reaching the stage from now on; earned rewards keep theirs.
+        ...(body.studentPoints !== undefined ? { studentPoints: body.studentPoints } : {}),
+        ...(body.coachCashMinor !== undefined ? { coachCashMinor: body.coachCashMinor } : {}),
+        ...(body.salesCashMinor !== undefined ? { salesCashMinor: body.salesCashMinor } : {}),
+        ...(body.newMemberPoints !== undefined ? { newMemberPoints: body.newMemberPoints } : {})
       },
       where: { id }
     });
@@ -454,7 +476,7 @@ export class ReferralAdminService {
         throw new BadRequestException("Automatic stages cannot be deleted. Rename them instead.");
       }
       if (await tx.referralRewardRule.count({ where: { stageId: id } })) {
-        throw new ConflictException("A reward rule uses this stage. Change or delete the rule first.");
+        throw new ConflictException("A bonus uses this stage. Change or delete the bonus first.");
       }
       const fallback = stages[index - 1] ?? stages[index + 1];
       if (!fallback) throw new ConflictException("The pipeline needs at least one stage.");
@@ -490,91 +512,76 @@ export class ReferralAdminService {
     return this.listStages(accessToken);
   }
 
-  // ── Reward rules ──
+  // ── Milestone bonuses ──
 
-  async listRules(accessToken: string | undefined): Promise<ReferralRewardRuleItem[]> {
+  async listBonusRules(accessToken: string | undefined): Promise<ReferralBonusRuleItem[]> {
     await this.getAdmin(accessToken);
-    const rules = await this.prisma.referralRewardRule.findMany({ include: RULE_ITEM_INCLUDE, orderBy: { createdAt: "asc" } });
-    return rules.map(toRuleItem);
+    const rules = await this.prisma.referralRewardRule.findMany({
+      include: BONUS_RULE_INCLUDE,
+      orderBy: { createdAt: "asc" },
+      where: BONUS_RULE_WHERE
+    });
+    return rules.flatMap((rule) => toBonusRuleItem(rule) ?? []);
   }
 
-  async createRule(accessToken: string | undefined, body: CreateReferralRewardRuleRequest): Promise<ReferralRewardRuleItem> {
+  async createBonusRule(accessToken: string | undefined, body: CreateReferralBonusRuleRequest): Promise<ReferralBonusRuleItem> {
     const admin = await this.getAdmin(accessToken);
     await this.assertStageExists(body.stageId);
     const settings = await this.settings.get();
-    const isDiscount = body.unit === "DISCOUNT_PERCENT";
+    const target = referralBonusAudienceTarget(body.audience);
     const rule = await this.prisma.referralRewardRule.create({
       data: {
-        amountMinor: body.amountMinor,
+        amountMinor: body.amount,
         autoApprove: body.autoApprove,
-        beneficiary: body.beneficiary,
-        discountValidDays: isDiscount ? (body.discountValidDays ?? null) : null,
-        maxDiscountMinor: isDiscount ? (body.maxDiscountMinor ?? null) : null,
-        unit: body.unit,
+        beneficiary: "REFERRER",
         createdById: admin.id,
         currency: settings.currency,
         description: body.description || null,
         isActive: body.isActive,
-        kind: body.kind,
-        milestoneCount: body.kind === "MILESTONE" ? (body.milestoneCount ?? null) : null,
+        kind: "MILESTONE",
+        milestoneCount: body.everyCount,
         name: body.name,
-        roles: [...new Set(body.roles)],
-        stageId: body.stageId
+        roles: target.roles,
+        stageId: body.stageId,
+        unit: target.wallet
       },
-      include: RULE_ITEM_INCLUDE
+      include: BONUS_RULE_INCLUDE
     });
-    return toRuleItem(rule);
+    return toBonusRuleItem(rule)!;
   }
 
-  /** Edits apply to rewards earned from now on; earned rewards keep their amount. */
-  async updateRule(accessToken: string | undefined, id: string, body: UpdateReferralRewardRuleRequest): Promise<ReferralRewardRuleItem> {
+  /** Edits apply to bonuses earned from now on; earned rewards keep their amount. */
+  async updateBonusRule(accessToken: string | undefined, id: string, body: UpdateReferralBonusRuleRequest): Promise<ReferralBonusRuleItem> {
     await this.getAdmin(accessToken);
-    const existing = await this.prisma.referralRewardRule.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Reward rule not found.");
+    const existing = await this.prisma.referralRewardRule.findFirst({ include: BONUS_RULE_INCLUDE, where: { ...BONUS_RULE_WHERE, id } });
+    if (!existing || !toBonusRuleItem(existing)) throw new NotFoundException("Bonus not found.");
     if (body.stageId) await this.assertStageExists(body.stageId);
-    const kind = body.kind ?? existing.kind;
-    const milestoneCount = body.milestoneCount !== undefined ? body.milestoneCount : existing.milestoneCount;
-    const unit = body.unit ?? existing.unit;
-    const beneficiary = body.beneficiary ?? existing.beneficiary;
-    const amountMinor = body.amountMinor ?? existing.amountMinor;
-    const problem = referralRewardRuleProblem({ amountMinor, beneficiary, kind, milestoneCount, unit });
-    if (problem) throw new BadRequestException(problem.message);
-    const isDiscount = unit === "DISCOUNT_PERCENT";
+    const target = body.audience ? referralBonusAudienceTarget(body.audience) : null;
     const rule = await this.prisma.referralRewardRule.update({
       data: {
         ...(body.name !== undefined ? { name: body.name } : {}),
         ...(body.description !== undefined ? { description: body.description || null } : {}),
         ...(body.stageId !== undefined ? { stageId: body.stageId } : {}),
-        ...(body.amountMinor !== undefined ? { amountMinor: body.amountMinor } : {}),
-        ...(body.roles !== undefined ? { roles: [...new Set(body.roles)] } : {}),
+        ...(body.everyCount !== undefined ? { milestoneCount: body.everyCount } : {}),
+        ...(body.amount !== undefined ? { amountMinor: body.amount } : {}),
+        ...(target ? { roles: target.roles, unit: target.wallet } : {}),
         ...(body.autoApprove !== undefined ? { autoApprove: body.autoApprove } : {}),
-        ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
-        beneficiary,
-        discountValidDays: isDiscount
-          ? body.discountValidDays !== undefined
-            ? body.discountValidDays
-            : existing.discountValidDays
-          : null,
-        kind,
-        maxDiscountMinor: isDiscount
-          ? body.maxDiscountMinor !== undefined
-            ? body.maxDiscountMinor
-            : existing.maxDiscountMinor
-          : null,
-        milestoneCount: kind === "MILESTONE" ? milestoneCount : null,
-        unit
+        ...(body.isActive !== undefined ? { isActive: body.isActive } : {})
       },
-      include: RULE_ITEM_INCLUDE,
+      include: BONUS_RULE_INCLUDE,
       where: { id }
     });
-    return toRuleItem(rule);
+    return toBonusRuleItem(rule)!;
   }
 
-  /** A rule that has paid out is switched off instead: its rewards point at it. */
-  async deleteRule(accessToken: string | undefined, id: string) {
+  /** A bonus that has paid out is switched off instead: its rewards point at it. */
+  async deleteBonusRule(accessToken: string | undefined, id: string) {
     await this.getAdmin(accessToken);
-    const rule = await this.prisma.referralRewardRule.findUnique({ include: { _count: { select: { rewards: true } } }, where: { id } });
-    if (!rule) throw new NotFoundException("Reward rule not found.");
+    const rule = await this.prisma.referralRewardRule.findFirst({
+      include: { _count: { select: { rewards: true } } },
+      where: { ...BONUS_RULE_WHERE, id }
+    });
+    if (!rule) throw new NotFoundException("Bonus not found.");
     if (rule._count.rewards > 0) {
       await this.prisma.referralRewardRule.update({ data: { isActive: false }, where: { id } });
       return { deleted: false };
@@ -606,7 +613,8 @@ export class ReferralAdminService {
             OR: [
               { referrer: { firstName: { contains: search, mode: "insensitive" } } },
               { referrer: { email: { contains: search, mode: "insensitive" } } },
-              { rule: { name: { contains: search, mode: "insensitive" } } }
+              { rule: { name: { contains: search, mode: "insensitive" } } },
+              { stage: { name: { contains: search, mode: "insensitive" } } }
             ]
           }
         : {})
@@ -674,6 +682,79 @@ export class ReferralAdminService {
     const admin = await this.getAdmin(accessToken);
     const settings = await this.settings.get();
     await this.credits.adjust(admin.id, body, settings.currency);
+    return { ok: true };
+  }
+
+  // ── Vouchers ──
+
+  async listVouchers(accessToken: string | undefined): Promise<ReferralVoucherItem[]> {
+    await this.getAdmin(accessToken);
+    return this.vouchers.list((await this.settings.get()).currency);
+  }
+
+  async createVoucher(accessToken: string | undefined, body: CreateReferralVoucherRequest): Promise<ReferralVoucherItem> {
+    const admin = await this.getAdmin(accessToken);
+    return this.vouchers.create(admin.id, body, (await this.settings.get()).currency);
+  }
+
+  async updateVoucher(accessToken: string | undefined, id: string, body: UpdateReferralVoucherRequest): Promise<ReferralVoucherItem> {
+    await this.getAdmin(accessToken);
+    return this.vouchers.update(id, body, (await this.settings.get()).currency);
+  }
+
+  async deleteVoucher(accessToken: string | undefined, id: string) {
+    await this.getAdmin(accessToken);
+    return this.vouchers.remove(id);
+  }
+
+  // ── Redemptions ──
+
+  async listRedemptions(
+    accessToken: string | undefined,
+    query: PaginatedQuery & { status?: unknown; voucherId?: unknown; userId?: unknown }
+  ): Promise<ReferralPage<ReferralRedemptionItem>> {
+    await this.getAdmin(accessToken);
+    const { page, pageSize, skip, take, search } = resolvePagination(query);
+    const status = queryEnum(query.status, referralRedemptionStatusSchema.options, "status");
+    const voucherId = queryString(query.voucherId, "voucherId");
+    const userId = queryString(query.userId, "userId");
+    const where: Prisma.ReferralRedemptionWhereInput = {
+      ...(status ? { status } : {}),
+      ...(voucherId ? { voucherId } : {}),
+      ...(userId ? { userId } : {}),
+      ...(search
+        ? {
+            OR: [
+              { user: { firstName: { contains: search, mode: "insensitive" } } },
+              { user: { lastName: { contains: search, mode: "insensitive" } } },
+              { user: { email: { contains: search, mode: "insensitive" } } },
+              { voucherName: { contains: search, mode: "insensitive" } }
+            ]
+          }
+        : {})
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.referralRedemption.findMany({ include: REDEMPTION_ITEM_INCLUDE, orderBy: { createdAt: "desc" }, skip, take, where }),
+      this.prisma.referralRedemption.count({ where })
+    ]);
+    return { items: rows.map(toRedemptionItem), pagination: paginationMeta(total, page, pageSize) };
+  }
+
+  async approveRedemption(accessToken: string | undefined, id: string) {
+    const admin = await this.getAdmin(accessToken);
+    await this.vouchers.approve(admin.id, id);
+    return { ok: true };
+  }
+
+  async rejectRedemption(accessToken: string | undefined, id: string, body: RejectReferralRedemptionRequest) {
+    const admin = await this.getAdmin(accessToken);
+    await this.vouchers.reject(admin.id, id, body.adminNote);
+    return { ok: true };
+  }
+
+  async revokeRedemption(accessToken: string | undefined, id: string, body: RejectReferralRedemptionRequest) {
+    const admin = await this.getAdmin(accessToken);
+    await this.vouchers.revoke(admin.id, id, body.adminNote);
     return { ok: true };
   }
 

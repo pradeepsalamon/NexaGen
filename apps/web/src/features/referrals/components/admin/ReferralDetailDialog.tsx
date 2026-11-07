@@ -180,7 +180,7 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
                   {data.rewards.map((reward) => (
                     <li className="flex items-center justify-between gap-3 rounded-control border border-app-border p-2 text-sm" key={reward.id}>
                       <span className="min-w-0 truncate text-app-text">
-                        {reward.ruleName}
+                        {reward.sourceName}
                         <span className="block text-xs text-app-muted">
                           {reward.beneficiary === "REFERRED" ? `New member · ${reward.referrerName}` : "Referrer"}
                         </span>

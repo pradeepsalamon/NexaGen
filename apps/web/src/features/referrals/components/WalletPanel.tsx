@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRightLeft, Ban, Banknote, CreditCard, Send, Wallet } from "lucide-react";
+import { Ban, Banknote, History } from "lucide-react";
 import {
   formatReferralPoints,
   formatReferralWalletAmount,
   REFERRAL_CREDIT_ENTRY_LABELS,
   REFERRAL_WALLET_LABELS,
-  referralPointsValueMinor,
   type MyReferralSummary
 } from "@nexa-chess/types";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
@@ -20,166 +19,74 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
-import {
-  useCancelPaymentCode,
-  useCancelWithdrawal,
-  useMyReferralCredits,
-  useMyReferralPaymentCodes,
-  useMyReferralWithdrawals
-} from "../hooks/useReferrals";
-import {
-  money,
-  PAYMENT_CODE_LABEL,
-  PAYMENT_CODE_VARIANT,
-  WITHDRAWAL_STATUS_LABEL,
-  WITHDRAWAL_STATUS_VARIANT
-} from "../lib/referralFormat";
-import { ConvertPointsDialog, PaymentCodeDialog, TransferPointsDialog, WithdrawDialog } from "./WalletDialogs";
+import { useCancelWithdrawal, useMyReferralCredits, useMyReferralWithdrawals } from "../hooks/useReferrals";
+import { money, WITHDRAWAL_STATUS_LABEL, WITHDRAWAL_STATUS_VARIANT } from "../lib/referralFormat";
+import { WithdrawDialog } from "./WalletDialogs";
 
 /**
- * The wallet: money (withdraw, pay fees; never transferable) and points (send
- * to members, convert one way into money, pay fees), plus the history.
+ * The wallet: points for students (spent in the rewards store), money for
+ * coaches and sales staff (withdrawn), plus the full history of both.
  */
 export function WalletPanel({ summary }: { summary: MyReferralSummary }) {
   const timeZone = useUserTimeZone();
-  const { credits, points } = summary;
-  const [dialog, setDialog] = useState<"code" | "withdraw" | "send" | "convert" | null>(null);
-  const canPayWithPoints = points.canPayFees && points.balance > 0;
-  const canMakeCode = credits.balanceMinor > 0 || canPayWithPoints;
-  const [confirm, setConfirm] = useState<{ kind: "code" | "withdrawal"; id: string } | null>(null);
+  const { money: cash, points } = summary;
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
   const ledger = useMyReferralCredits();
-  const withdrawals = useMyReferralWithdrawals();
-  const codes = useMyReferralPaymentCodes(summary.canPayFees);
+  const withdrawals = useMyReferralWithdrawals(cash !== null);
   const cancelWithdrawal = useCancelWithdrawal();
-  const cancelCode = useCancelPaymentCode();
-
-  const confirmCancel = async () => {
-    if (!confirm) return;
-    if (confirm.kind === "withdrawal") await cancelWithdrawal.mutateAsync(confirm.id);
-    else await cancelCode.mutateAsync(confirm.id);
-    setConfirm(null);
-  };
+  const showPoints = summary.wallet === "POINTS" || points.balance !== 0 || points.earned > 0;
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 md:grid-cols-2">
-        <section className="rounded-panel border border-app-border bg-app-surface p-5 shadow-card sm:p-6">
-          <p className="text-sm text-app-muted">Money</p>
-          <p className="mt-1 text-4xl font-extrabold tabular-nums text-app-text">{money(credits.balanceMinor, credits.currency)}</p>
-          <p className="mt-2 text-sm text-app-muted">
-            {money(credits.earnedMinor, credits.currency)} earned in total
-            {credits.pendingRewardsMinor > 0 ? ` · ${money(credits.pendingRewardsMinor, credits.currency)} awaiting approval` : ""}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {summary.canWithdraw ? (
-              <Button
-                disabled={credits.balanceMinor < Math.max(1, summary.minWithdrawalMinor)}
-                onClick={() => setDialog("withdraw")}
-                variant="primary"
-              >
-                <Banknote aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                Withdraw
-              </Button>
-            ) : null}
-            {summary.canPayFees ? (
-              <Button disabled={!canMakeCode} onClick={() => setDialog("code")} variant="secondary">
-                <CreditCard aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                Pay fees
-              </Button>
-            ) : null}
-          </div>
-          {summary.canWithdraw && credits.balanceMinor < summary.minWithdrawalMinor ? (
-            <p className="mt-3 text-xs text-app-muted">
-              You can withdraw once your balance reaches {money(summary.minWithdrawalMinor, credits.currency)}.
+        {showPoints ? (
+          <section className="rounded-panel border border-app-border bg-app-surface p-5 shadow-card sm:p-6">
+            <p className="text-sm text-app-muted">Points</p>
+            <p className="mt-1 text-4xl font-extrabold tabular-nums text-app-text">{points.balance.toLocaleString("en-IN")}</p>
+            <p className="mt-2 text-sm text-app-muted">
+              {formatReferralPoints(points.earned)} earned · {formatReferralPoints(points.redeemed)} spent
+              {points.pending > 0 ? ` · ${formatReferralPoints(points.pending)} awaiting approval` : ""}
             </p>
-          ) : null}
-          <p className="mt-3 text-xs text-app-muted">Money is yours alone and cannot be sent to anyone.</p>
-        </section>
+            <p className="mt-3 text-xs text-app-muted">
+              {summary.canRedeem
+                ? "Spend points on discounts and free days in the rewards store. Points are yours alone and can't be sent or cashed out."
+                : "Points are yours alone and can't be sent or cashed out."}
+            </p>
+          </section>
+        ) : null}
 
-        <section className="rounded-panel border border-app-border bg-app-surface p-5 shadow-card sm:p-6">
-          <p className="text-sm text-app-muted">Points</p>
-          <p className="mt-1 text-4xl font-extrabold tabular-nums text-app-text">{points.balance.toLocaleString("en-IN")}</p>
-          <p className="mt-2 text-sm text-app-muted">
-            Worth {money(referralPointsValueMinor(points.balance, points), credits.currency)}
-            {points.pending > 0 ? ` · ${formatReferralPoints(points.pending)} awaiting approval` : ""}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {points.canTransfer ? (
-              <Button disabled={points.balance < points.minTransferPoints} onClick={() => setDialog("send")} variant="secondary">
-                <Send aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                Send points
-              </Button>
+        {cash ? (
+          <section className="rounded-panel border border-app-border bg-app-surface p-5 shadow-card sm:p-6">
+            <p className="text-sm text-app-muted">Money</p>
+            <p className="mt-1 text-4xl font-extrabold tabular-nums text-app-text">{money(cash.balanceMinor, summary.currency)}</p>
+            <p className="mt-2 text-sm text-app-muted">
+              {money(cash.earnedMinor, summary.currency)} earned in total
+              {cash.pendingMinor > 0 ? ` · ${money(cash.pendingMinor, summary.currency)} awaiting approval` : ""}
+            </p>
+            {summary.canWithdraw ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  disabled={cash.balanceMinor < Math.max(1, summary.minWithdrawalMinor)}
+                  onClick={() => setWithdrawing(true)}
+                  variant="primary"
+                >
+                  <Banknote aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                  Withdraw
+                </Button>
+              </div>
             ) : null}
-            {points.canConvert ? (
-              <Button disabled={points.balance < points.minConversionPoints} onClick={() => setDialog("convert")} variant="secondary">
-                <ArrowRightLeft aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                Convert to money
-              </Button>
+            {summary.canWithdraw && cash.balanceMinor < summary.minWithdrawalMinor ? (
+              <p className="mt-3 text-xs text-app-muted">
+                You can withdraw once your balance reaches {money(summary.minWithdrawalMinor, summary.currency)}.
+              </p>
             ) : null}
-          </div>
-          <p className="mt-3 text-xs text-app-muted">
-            {formatReferralPoints(points.conversionPoints)} = {money(points.conversionValueMinor, credits.currency)}.
-            {points.canTransfer ? " Points can be shared with other members." : ""}
-            {points.canConvert ? " Converting is one way." : ""}
-          </p>
-        </section>
+          </section>
+        ) : null}
       </div>
 
-      {summary.canPayFees ? (
-        <SectionCard description="One-time codes made from your money or points." title="Payment codes">
-          {codes.data?.length ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Value</TableHead>
-                  <TableHead pin="end">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {codes.data.map((code) => (
-                  <TableRow key={code.id}>
-                    <TableCell className="font-mono font-bold">{code.code}</TableCell>
-                    <TableCell>
-                      <Badge variant={PAYMENT_CODE_VARIANT[code.status]}>{PAYMENT_CODE_LABEL[code.status]}</Badge>
-                    </TableCell>
-                    <TableCell>{formatFullDate(code.createdAt, timeZone)}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {money(code.amountMinor, code.currency)}
-                      {code.points !== null ? (
-                        <span className="block text-xs text-app-muted">{formatReferralPoints(code.points)}</span>
-                      ) : null}
-                    </TableCell>
-                    <TableCell pin="end">
-                      {code.status === "ACTIVE" ? (
-                        <RowActions
-                          actions={[
-                            {
-                              icon: Ban,
-                              label: "Cancel code",
-                              onSelect: () => setConfirm({ id: code.id, kind: "code" }),
-                              tone: "danger"
-                            }
-                          ]}
-                        />
-                      ) : null}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <EmptyState description="Create one to pay a fee from your wallet." icon={CreditCard} title="No codes yet" variant="inline" />
-          )}
-        </SectionCard>
-      ) : null}
-
-      {summary.canWithdraw || (withdrawals.data?.length ?? 0) > 0 ? (
+      {cash && (summary.canWithdraw || (withdrawals.data?.length ?? 0) > 0) ? (
         <SectionCard description="Requests to pay your money out." title="Withdrawals">
           {withdrawals.data?.length ? (
             <Table>
@@ -209,12 +116,7 @@ export function WalletPanel({ summary }: { summary: MyReferralSummary }) {
                       {withdrawal.status === "REQUESTED" ? (
                         <RowActions
                           actions={[
-                            {
-                              icon: Ban,
-                              label: "Cancel withdrawal",
-                              onSelect: () => setConfirm({ id: withdrawal.id, kind: "withdrawal" }),
-                              tone: "danger"
-                            }
+                            { icon: Ban, label: "Cancel withdrawal", onSelect: () => setCancelling(withdrawal.id), tone: "danger" }
                           ]}
                         />
                       ) : null}
@@ -229,7 +131,10 @@ export function WalletPanel({ summary }: { summary: MyReferralSummary }) {
         </SectionCard>
       ) : null}
 
-      <SectionCard description="Every movement of money and points in your wallet." title="Wallet history">
+      <SectionCard
+        description={summary.wallet === "POINTS" ? "Every point you earned, spent or got back." : "Every movement in your wallet."}
+        title={summary.wallet === "POINTS" ? "Points history" : "Wallet history"}
+      >
         {ledger.data?.length ? (
           <Table>
             <TableHeader>
@@ -262,46 +167,32 @@ export function WalletPanel({ summary }: { summary: MyReferralSummary }) {
             </TableBody>
           </Table>
         ) : (
-          <EmptyState description="Credited rewards will appear here." icon={Wallet} title="Nothing here yet" variant="inline" />
+          <EmptyState description="Credited rewards will appear here." icon={History} title="Nothing here yet" variant="inline" />
         )}
       </SectionCard>
 
-
-      <WithdrawDialog
-        balanceMinor={credits.balanceMinor}
-        currency={credits.currency}
-        minWithdrawalMinor={summary.minWithdrawalMinor}
-        onOpenChange={(open) => setDialog(open ? "withdraw" : null)}
-        open={dialog === "withdraw"}
-      />
-      <PaymentCodeDialog
-        balanceMinor={credits.balanceMinor}
-        currency={credits.currency}
-        onOpenChange={(open) => setDialog(open ? "code" : null)}
-        open={dialog === "code"}
-        points={points.canPayFees ? points : null}
-      />
-      <TransferPointsDialog
-        currency={credits.currency}
-        onOpenChange={(open) => setDialog(open ? "send" : null)}
-        open={dialog === "send"}
-        points={points}
-      />
-      <ConvertPointsDialog
-        currency={credits.currency}
-        onOpenChange={(open) => setDialog(open ? "convert" : null)}
-        open={dialog === "convert"}
-        points={points}
-      />
+      {cash ? (
+        <WithdrawDialog
+          balanceMinor={cash.balanceMinor}
+          currency={summary.currency}
+          minWithdrawalMinor={summary.minWithdrawalMinor}
+          onOpenChange={setWithdrawing}
+          open={withdrawing}
+        />
+      ) : null}
       <ConfirmationModal
-        confirmLabel={confirm?.kind === "code" ? "Cancel code" : "Cancel withdrawal"}
-        isConfirming={cancelWithdrawal.isPending || cancelCode.isPending}
-        isOpen={!!confirm}
-        onCancel={() => setConfirm(null)}
-        onConfirm={() => void confirmCancel().catch(() => undefined)}
-        title={confirm?.kind === "code" ? "Cancel this payment code?" : "Cancel this withdrawal?"}
+        confirmLabel="Cancel withdrawal"
+        isConfirming={cancelWithdrawal.isPending}
+        isOpen={!!cancelling}
+        onCancel={() => setCancelling(null)}
+        onConfirm={() =>
+          void (cancelling ? cancelWithdrawal.mutateAsync(cancelling) : Promise.resolve())
+            .then(() => setCancelling(null))
+            .catch(() => undefined)
+        }
+        title="Cancel this withdrawal?"
       >
-        {confirm?.kind === "code" ? "What the code cost goes back to your wallet." : "The money goes back to your balance."}
+        The money goes back to your balance.
       </ConfirmationModal>
     </div>
   );

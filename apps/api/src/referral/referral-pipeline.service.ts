@@ -4,12 +4,15 @@ import {
   DEFAULT_REFERRAL_STAGES,
   DEFAULT_TENANT_ID,
   referralMilestonesReached,
-  referralStagesReached
+  referralStagesReached,
+  referralWalletForRole,
+  referrerStageReward
 } from "@nexa-chess/types";
 import type { ReferralBeneficiary, ReferralStage, ReferralStageTrigger, UserRole } from "@prisma/client";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 import { ReferralCreditsService } from "./referral-credits.service";
+import { ReferralSettingsService } from "./referral-settings.service";
 
 export type ReferralForMove = {
   id: string;
@@ -41,7 +44,8 @@ export class ReferralPipelineService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly credits: ReferralCreditsService
+    private readonly credits: ReferralCreditsService,
+    private readonly settings: ReferralSettingsService
   ) {}
 
   async listStages(client: PrismaTransactionClient | PrismaService = this.prisma): Promise<ReferralStage[]> {
@@ -211,9 +215,9 @@ export class ReferralPipelineService {
   }
 
   /**
-   * The new member's account was just linked: give them the benefits of every
-   * stage the referral has already reached (REFERRED rules only — the
-   * referrer's rewards were settled when the stages were reached).
+   * The new member's account was just linked: give them the points of every
+   * stage the referral has already reached (the referrer's rewards were
+   * settled when the stages were reached).
    */
   async grantReferredBenefits(tx: PrismaTransactionClient, referralId: string) {
     const referral = await tx.referral.findUnique({
@@ -230,10 +234,15 @@ export class ReferralPipelineService {
   }
 
   /**
-   * Creates the rewards the reached stages earn — for the referrer, and for
-   * the new member once their account is linked. Each reward has a dedupe key
-   * (`rule:…:ref:…` / `rule:…:user:…:n:…`), inserted with skipDuplicates, so
-   * moving back and forth — or two racing events — never pays twice.
+   * Creates the rewards the reached stages earn (docs/REFERRALS.md § Earning):
+   *
+   * - each stage's own values — points to a student referrer, money to a coach
+   *   or SALES referrer, points to the new member once their account is linked;
+   * - milestone bonuses — every N of the referrer's referrals reaching a stage.
+   *
+   * Each reward has a dedupe key (`stage:…:ref:…:referrer|referred` /
+   * `rule:…:user:…:n:…`), inserted with skipDuplicates, so moving back and
+   * forth — or two racing events — never pays twice.
    */
   private async grantRewards(
     tx: PrismaTransactionClient,
@@ -242,68 +251,112 @@ export class ReferralPipelineService {
     only?: ReferralBeneficiary
   ) {
     if (stageIds.length === 0) return;
-    const rules = await tx.referralRewardRule.findMany({
-      include: { stage: { select: { name: true } } },
-      where: { isActive: true, stageId: { in: stageIds }, ...(only ? { beneficiary: only } : {}) }
-    });
+    const [stages, settings] = await Promise.all([
+      tx.referralStage.findMany({ where: { id: { in: stageIds } } }),
+      this.settings.get()
+    ]);
+    const role = referral.referrer.role;
+    const grants: Grant[] = [];
 
-    for (const rule of rules) {
-      // `roles` is always the role of the person who shared the link.
-      if (rule.roles.length > 0 && !rule.roles.includes(referral.referrer.role)) continue;
+    for (const stage of stages) {
+      if (only !== "REFERRED") {
+        const earned = referrerStageReward(stage, role);
+        if (earned) {
+          grants.push({
+            amount: earned.amount,
+            autoApprove: earned.wallet === "POINTS" ? settings.autoApprovePoints : settings.autoApproveCash,
+            beneficiary: "REFERRER",
+            dedupeKey: `stage:${stage.id}:ref:${referral.id}:referrer`,
+            description: `A referral reached ${stage.name}`,
+            recipientId: referral.referrerId,
+            referralId: referral.id,
+            ruleId: null,
+            stageId: stage.id,
+            unit: earned.wallet
+          });
+        }
+      }
+      // The new member: points once their account is linked (never the referrer's own).
+      if (only !== "REFERRER" && stage.newMemberPoints > 0 && referral.referredUserId && referral.referredUserId !== referral.referrerId) {
+        grants.push({
+          amount: stage.newMemberPoints,
+          autoApprove: settings.autoApprovePoints,
+          beneficiary: "REFERRED",
+          dedupeKey: `stage:${stage.id}:ref:${referral.id}:referred`,
+          description: `Welcome points: joined through ${referral.referrer.firstName}'s link (${stage.name})`,
+          recipientId: referral.referredUserId,
+          referralId: referral.id,
+          ruleId: null,
+          stageId: stage.id,
+          unit: "POINTS"
+        });
+      }
+    }
 
-      const grants: { dedupeKey: string; description: string; referralId: string | null }[] = [];
-      let recipientId = referral.referrerId;
-      if (rule.beneficiary === "REFERRED") {
-        // No account yet (or the referrer themselves): granted when one is linked.
-        if (!referral.referredUserId || referral.referredUserId === referral.referrerId) continue;
-        recipientId = referral.referredUserId;
-        grants.push({
-          dedupeKey: `rule:${rule.id}:ref:${referral.id}`,
-          description: `${rule.name}: welcome benefit for joining through ${referral.referrer.firstName}'s link`,
-          referralId: referral.id
-        });
-      } else if (rule.kind === "PER_REFERRAL") {
-        grants.push({
-          dedupeKey: `rule:${rule.id}:ref:${referral.id}`,
-          description: `${rule.name}: a referral reached ${rule.stage.name}`,
-          referralId: referral.id
-        });
-      } else if (rule.milestoneCount) {
+    if (only !== "REFERRED") {
+      const rules = await tx.referralRewardRule.findMany({
+        include: { stage: { select: { name: true } } },
+        where: { beneficiary: "REFERRER", isActive: true, kind: "MILESTONE", roles: { has: role }, stageId: { in: stageIds } }
+      });
+      for (const rule of rules) {
+        // Students earn points and staff earn money — a rule paying the wrong one is skipped.
+        if (!rule.milestoneCount || rule.unit !== referralWalletForRole(role)) continue;
         const count = await tx.referralStageReach.count({
           where: { referral: { referrerId: referral.referrerId }, stageId: rule.stageId }
         });
         for (const n of referralMilestonesReached(count, rule.milestoneCount)) {
           grants.push({
+            amount: rule.amountMinor,
+            autoApprove: rule.autoApprove,
+            beneficiary: "REFERRER",
             dedupeKey: `rule:${rule.id}:user:${referral.referrerId}:n:${n}`,
             description: `${rule.name}: ${n} referrals reached ${rule.stage.name}`,
+            recipientId: referral.referrerId,
             // The referral that completed the milestone, when it is this one.
-            referralId: n === count ? referral.id : null
+            referralId: n === count ? referral.id : null,
+            ruleId: rule.id,
+            stageId: null,
+            unit: rule.unit === "POINTS" ? "POINTS" : "CASH"
           });
         }
       }
+    }
 
-      for (const grant of grants) {
-        const { count: created } = await tx.referralReward.createMany({
-          data: [
-            {
-              amountMinor: rule.amountMinor,
-              currency: rule.currency,
-              dedupeKey: grant.dedupeKey,
-              description: grant.description,
-              beneficiary: rule.beneficiary,
-              referralId: grant.referralId,
-              referrerId: recipientId,
-              ruleId: rule.id,
-              unit: rule.unit
-            }
-          ],
-          skipDuplicates: true
-        });
-        if (created === 1 && rule.autoApprove) {
-          const reward = await tx.referralReward.findUniqueOrThrow({ where: { dedupeKey: grant.dedupeKey } });
-          await this.credits.creditReward(tx, reward.id, null);
-        }
+    for (const grant of grants) {
+      const { count: created } = await tx.referralReward.createMany({
+        data: [
+          {
+            amountMinor: grant.amount,
+            beneficiary: grant.beneficiary,
+            currency: settings.currency,
+            dedupeKey: grant.dedupeKey,
+            description: grant.description,
+            referralId: grant.referralId,
+            referrerId: grant.recipientId,
+            ruleId: grant.ruleId,
+            stageId: grant.stageId,
+            unit: grant.unit
+          }
+        ],
+        skipDuplicates: true
+      });
+      if (created === 1 && grant.autoApprove) {
+        const reward = await tx.referralReward.findUniqueOrThrow({ where: { dedupeKey: grant.dedupeKey } });
+        await this.credits.creditReward(tx, reward.id, null);
       }
     }
   }
 }
+
+type Grant = {
+  amount: number;
+  autoApprove: boolean;
+  beneficiary: ReferralBeneficiary;
+  dedupeKey: string;
+  description: string;
+  recipientId: string;
+  referralId: string | null;
+  ruleId: string | null;
+  stageId: string | null;
+  unit: "CASH" | "POINTS";
+};

@@ -1,20 +1,20 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
-  type CreateReferralPaymentCodeRequest,
+  referralBonusAudienceOf,
+  referralWalletForRole,
+  referrerStageReward,
   type MyReferralSummary,
+  type MyReferralVoucherCatalogue,
   type PaginatedQuery,
+  type RedeemReferralVoucherRequest,
   type ReferralCreditEntryItem,
   type ReferralItem,
   type ReferralPage,
-  type ReferralPaymentCodeItem,
+  type ReferralRedemptionItem,
   type ReferralRewardItem,
   type ReferralWithdrawalItem,
-  type RequestReferralWithdrawalRequest,
-  type ConvertReferralPointsRequest,
-  type ConvertReferralPointsResponse,
-  type TransferReferralPointsRequest,
-  type TransferReferralPointsResponse
+  type RequestReferralWithdrawalRequest
 } from "@nexa-chess/types";
 import { type Prisma, UserRole } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
@@ -24,12 +24,12 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ReferralCreditsService } from "./referral-credits.service";
 import { ReferralPipelineService } from "./referral-pipeline.service";
 import { ReferralSettingsService } from "./referral-settings.service";
+import { ReferralVouchersService } from "./referral-vouchers.service";
 import {
-  CREDIT_ENTRY_INCLUDE,
-  toCreditEntryItem,
+  BONUS_RULE_WHERE,
   REFERRAL_ITEM_INCLUDE,
   REWARD_ITEM_INCLUDE,
-  RULE_ITEM_INCLUDE,
+  toCreditEntryItem,
   toReferralItem,
   toRewardItem,
   toStageItem,
@@ -49,7 +49,8 @@ export class ReferralService {
     private readonly prisma: PrismaService,
     private readonly settings: ReferralSettingsService,
     private readonly pipeline: ReferralPipelineService,
-    private readonly credits: ReferralCreditsService
+    private readonly credits: ReferralCreditsService,
+    private readonly vouchers: ReferralVouchersService
   ) {}
 
   private async getReferrer(accessToken: string | undefined) {
@@ -67,7 +68,7 @@ export class ReferralService {
       : await this.prisma.referralCode.findUnique({ where: { userId: user.id } });
 
     const byReferrer = { referrerId: user.id };
-    const [stages, reachGroups, currentGroups, referrals, visits, converted, balances, rewardGroups, rules, sentLast24h] =
+    const [stages, reachGroups, currentGroups, referrals, visits, converted, balances, rewardGroups, rules, redeemed] =
       await Promise.all([
         this.pipeline.listStages(),
         this.prisma.referralStageReach.groupBy({ _count: true, by: ["stageId"], where: { referral: byReferrer } }),
@@ -83,64 +84,73 @@ export class ReferralService {
           where: { ...byReferrer, status: { in: ["PENDING", "CREDITED"] }, unit: { in: ["CASH", "POINTS"] } }
         }),
         this.prisma.referralRewardRule.findMany({
-          include: RULE_ITEM_INCLUDE,
+          include: { stage: { select: { name: true } } },
           orderBy: { createdAt: "asc" },
-          where: { isActive: true, OR: [{ roles: { isEmpty: true } }, { roles: { has: user.role } }] }
+          where: { ...BONUS_RULE_WHERE, isActive: true, roles: { has: user.role } }
         }),
-        this.credits.pointsSentLast24h(user.id)
+        this.prisma.referralRedemption.aggregate({
+          _sum: { pointsCost: true },
+          where: { status: { in: ["PENDING", "FULFILLED"] }, userId: user.id }
+        })
       ]);
     const rewardSum = (unit: "CASH" | "POINTS", status: "PENDING" | "CREDITED") =>
       rewardGroups.find((group) => group.unit === unit && group.status === status)?._sum.amountMinor ?? 0;
-    const on = (roles: readonly string[]) => settings.enabled && roles.includes(user.role);
 
     const reached = new Map(reachGroups.map((group) => [group.stageId, group._count]));
     const current = new Map(currentGroups.map((group) => [group.stageId, group._count]));
+    const wallet = referralWalletForRole(user.role);
+    const isStudent = user.role === UserRole.STUDENT;
 
     return {
-      canPayFees: settings.enabled && settings.paymentUseRoles.includes(user.role),
-      canWithdraw: settings.enabled && settings.withdrawalRoles.includes(user.role),
+      bonuses: rules.flatMap((rule) =>
+        referralBonusAudienceOf(rule.roles, rule.unit) && rule.unit === wallet && rule.milestoneCount
+          ? [
+              {
+                amount: rule.amountMinor,
+                description: rule.description,
+                everyCount: rule.milestoneCount,
+                id: rule.id,
+                name: rule.name,
+                stageName: rule.stage.name
+              }
+            ]
+          : []
+      ),
+      canRedeem: this.vouchers.canRedeem(user, settings),
+      canWithdraw: settings.enabled && !isStudent && settings.withdrawalRoles.includes(user.role),
       code: code?.code ?? null,
       codeActive: Boolean(code?.isActive),
-      credits: {
-        balanceMinor: balances.cash,
-        currency: settings.currency,
-        earnedMinor: rewardSum("CASH", "CREDITED"),
-        pendingRewardsMinor: rewardSum("CASH", "PENDING")
-      },
-      points: {
-        balance: balances.points,
-        canConvert: settings.pointsConversionEnabled && on(settings.pointsConversionRoles),
-        canPayFees: settings.pointsPaymentEnabled && on(settings.paymentUseRoles),
-        canTransfer: settings.pointsTransferEnabled && on(settings.pointsTransferRoles),
-        conversionPoints: settings.conversionPoints,
-        conversionValueMinor: settings.conversionValueMinor,
-        earned: rewardSum("POINTS", "CREDITED"),
-        maxTransferPointsPerDay: settings.maxTransferPointsPerDay,
-        minConversionPoints: settings.minConversionPoints,
-        minTransferPoints: settings.minTransferPoints,
-        pending: rewardSum("POINTS", "PENDING"),
-        sentLast24h
-      },
+      currency: settings.currency,
+      earnings: stages
+        .map((stage) => ({
+          friendPoints: stage.newMemberPoints,
+          referrer: referrerStageReward(stage, user.role)?.amount ?? 0,
+          stageId: stage.id,
+          stageName: stage.name
+        }))
+        .filter((row) => row.referrer > 0 || row.friendPoints > 0),
       eligible,
       minWithdrawalMinor: settings.minWithdrawalMinor,
+      money: isStudent
+        ? null
+        : {
+            balanceMinor: balances.cash,
+            earnedMinor: rewardSum("CASH", "CREDITED"),
+            pendingMinor: rewardSum("CASH", "PENDING")
+          },
+      points: {
+        balance: balances.points,
+        earned: rewardSum("POINTS", "CREDITED"),
+        pending: rewardSum("POINTS", "PENDING"),
+        redeemed: redeemed._sum.pointsCost ?? 0
+      },
       programTerms: settings.programTerms,
-      rules: rules.map((rule) => ({
-        amountMinor: rule.amountMinor,
-        beneficiary: rule.beneficiary,
-        currency: rule.currency,
-        description: rule.description,
-        id: rule.id,
-        kind: rule.kind,
-        milestoneCount: rule.milestoneCount,
-        name: rule.name,
-        stageName: rule.stage.name,
-        unit: rule.unit
-      })),
       stages: stages.map((stage) => ({
         ...toStageItem(stage, current.get(stage.id) ?? 0),
         reached: reached.get(stage.id) ?? 0
       })),
-      totals: { converted, referrals, visits }
+      totals: { converted, referrals, visits },
+      wallet
     };
   }
 
@@ -180,16 +190,18 @@ export class ReferralService {
     return rows.map((row) => toRewardItem(row, user.role === UserRole.SALES));
   }
 
+  /** The user's points and money history (every ledger movement), newest first. */
   async listCredits(accessToken: string | undefined): Promise<ReferralCreditEntryItem[]> {
     const user = await this.getReferrer(accessToken);
     const rows = await this.prisma.referralCreditEntry.findMany({
-      include: CREDIT_ENTRY_INCLUDE,
       orderBy: { createdAt: "desc" },
-      take: 200,
+      take: 300,
       where: { userId: user.id }
     });
     return rows.map(toCreditEntryItem);
   }
+
+  // ── Withdrawals (coaches and SALES) ──
 
   async listWithdrawals(accessToken: string | undefined): Promise<ReferralWithdrawalItem[]> {
     const user = await this.getReferrer(accessToken);
@@ -214,64 +226,27 @@ export class ReferralService {
     return { ok: true };
   }
 
-  async listPaymentCodes(accessToken: string | undefined): Promise<ReferralPaymentCodeItem[]> {
+  // ── Rewards store (students) ──
+
+  async listVouchers(accessToken: string | undefined): Promise<MyReferralVoucherCatalogue> {
     const user = await this.getReferrer(accessToken);
-    const entries = await this.prisma.referralCreditEntry.findMany({
-      include: { discount: { select: { code: true, id: true, isActive: true, redemptionCount: true, value: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-      where: { discountId: { not: null }, type: "PAYMENT_CODE", userId: user.id }
-    });
-    return entries.flatMap((entry) =>
-      entry.discount
-        ? [
-            {
-              amountMinor: entry.discount.value,
-              code: entry.discount.code,
-              createdAt: entry.createdAt.toISOString(),
-              currency: entry.currency,
-              id: entry.discount.id,
-              points: entry.wallet === "POINTS" ? -entry.amountMinor : null,
-              wallet: entry.wallet,
-              status:
-                entry.discount.redemptionCount > 0 ? "USED" : entry.discount.isActive ? "ACTIVE" : "CANCELLED"
-            } satisfies ReferralPaymentCodeItem
-          ]
-        : []
-    );
+    const [settings, points] = await Promise.all([this.settings.get(), this.credits.balance(user.id, "POINTS")]);
+    return this.vouchers.catalogue(user, settings, points);
   }
 
-  async createPaymentCode(accessToken: string | undefined, body: CreateReferralPaymentCodeRequest): Promise<ReferralPaymentCodeItem> {
+  async redeemVoucher(accessToken: string | undefined, voucherId: string, body: RedeemReferralVoucherRequest): Promise<ReferralRedemptionItem> {
     const user = await this.getReferrer(accessToken);
-    const settings = await this.settings.get();
-    const discount = await this.credits.createPaymentCode(user, settings, body);
-    return {
-      amountMinor: discount.value,
-      code: discount.code,
-      createdAt: discount.createdAt.toISOString(),
-      currency: discount.currency ?? settings.currency,
-      id: discount.id,
-      points: body.wallet === "POINTS" ? body.amount : null,
-      status: "ACTIVE",
-      wallet: body.wallet
-    };
+    return this.vouchers.redeem(user, await this.settings.get(), voucherId, body);
   }
 
-  async cancelPaymentCode(accessToken: string | undefined, id: string) {
+  async listRedemptions(accessToken: string | undefined): Promise<ReferralRedemptionItem[]> {
     const user = await this.getReferrer(accessToken);
-    await this.credits.cancelPaymentCode(user.id, id);
+    return this.vouchers.listMine(user.id);
+  }
+
+  async cancelRedemption(accessToken: string | undefined, id: string) {
+    const user = await this.getReferrer(accessToken);
+    await this.vouchers.cancel(user.id, id);
     return { ok: true };
-  }
-
-  // ── Points ──
-
-  async transferPoints(accessToken: string | undefined, body: TransferReferralPointsRequest): Promise<TransferReferralPointsResponse> {
-    const user = await this.getReferrer(accessToken);
-    return this.credits.transferPoints(user, await this.settings.get(), body);
-  }
-
-  async convertPoints(accessToken: string | undefined, body: ConvertReferralPointsRequest): Promise<ConvertReferralPointsResponse> {
-    const user = await this.getReferrer(accessToken);
-    return this.credits.convertPoints(user, await this.settings.get(), body);
   }
 }

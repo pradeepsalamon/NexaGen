@@ -3,15 +3,19 @@
 Students, coaches and **SALES** accounts each get a referral link (`/r/<CODE>`).
 Every person who opens it is tracked through an admin-editable pipeline (visited
 → demo booked → demo attended → onboarded / not joined, plus any stages an admin
-adds). Admin-defined reward rules turn progress into **credits**, which a
-referrer can withdraw as money or turn into a personal discount code to pay
-fees. Plan feature: `referralProgram` (Growth and up).
+adds). Each stage carries admin-set **values**: a student referrer earns
+**points**, a coach or SALES referrer earns **money**, and the new member gets
+welcome points. **Milestone bonuses** add to that. Students spend points in the
+**rewards store** on admin-made vouchers — a percentage or fixed discount (with
+a cap and a minimum fee) or free days of access. Coaches and SALES withdraw
+money. Points never move between users and never become money. Plan feature:
+`referralProgram` (Growth and up).
 
 | Where | What |
 |---|---|
-| `apps/api/src/referral/` | `ReferralTrackerService` (visits, lead hooks), `ReferralPipelineService` (the one place a stage changes, reaches, rewards), `ReferralCreditsService` (ledger, withdrawals, payment codes), `ReferralSettingsService` (singleton settings, codes), `ReferralService` (referrer board), `ReferralAdminService` |
-| `packages/types/src/referrals.ts` | Contract, pure rules (`canAutoAdvanceReferral`, `referralStagesReached`, `referralMilestonesReached`, `maskProspectName`, `canHoldReferralLink`), `DEFAULT_REFERRAL_STAGES` |
-| `apps/web/src/features/referrals/` | Referrer board (`ReferralBoardClient`, used by `/student/referrals`, `/coach/referrals`, `/sales`), admin board (`components/admin/`, `/admin/referrals`), the `/r/[code]` landing |
+| `apps/api/src/referral/` | `ReferralTrackerService` (visits, lead hooks, landing benefits), `ReferralPipelineService` (the one place a stage changes, reaches, rewards), `ReferralCreditsService` (ledger, locks, rewards, withdrawals), `ReferralVouchersService` (vouchers, the store, redemptions), `ReferralSettingsService` (per-academy settings, codes), `ReferralService` (referrer board), `ReferralAdminService` |
+| `packages/types/src/referrals.ts` | Contract and pure rules (`canAutoAdvanceReferral`, `referralStagesReached`, `referrerStageReward`, `referralWalletForRole`, `referralBonusAudienceTarget`, `referralMilestonesReached`, `referralVoucherProblem`, `formatReferralVoucherValue`, `maskProspectName`, `canHoldReferralLink`), `DEFAULT_REFERRAL_STAGES` |
+| `apps/web/src/features/referrals/` | Referrer board (`ReferralBoardClient` — `/student/referrals`, `/coach/referrals`, `/sales`; `RewardsStore` for students), admin board (`components/admin/`, `/admin/referrals`), the `/r/[code]` landing |
 
 ## How a referral moves
 
@@ -53,94 +57,130 @@ Rules that must not break:
 most one stage (partial unique index) and can be renamed/recoloured/reordered
 but not deleted. `MANUAL` stages are added freely; deleting one moves its
 referrals to the stage before it (with a history note) and is refused while a
-reward rule uses it. If the table is ever empty (a test reset) the defaults are
+bonus rule uses it. If the table is ever empty (a test reset) the defaults are
 re-seeded from `DEFAULT_REFERRAL_STAGES`.
 
-## Rewards
+## Earning
 
-`ReferralRewardRule`: a stage, `PER_REFERRAL` or `MILESTONE` (every N referrals
-reaching the stage), an amount in **integer minor units**, the roles it applies
-to (empty = all), and `autoApprove`. A `ReferralReward` has a unique
-`dedupeKey` (`rule:<id>:ref:<id>` / `rule:<id>:user:<id>:n:<k>`), inserted with
+### Stage values
+
+Each `ReferralStage` holds what **one referral reaching it** earns
+(`studentPoints`, `coachCashMinor`, `salesCashMinor`, `newMemberPoints`), edited
+in the Stages tab. `referrerStageReward(stage, role)` is the one rule: a STUDENT
+referrer gets points, a COACH or SALES referrer gets money (minor units). The
+new member gets `newMemberPoints` once their account is linked. Editing a value
+changes only rewards earned afterwards.
+
+Rewards are `ReferralReward` rows with `stageId` (and `ruleId` null), dedupe key
+`stage:<stageId>:ref:<referralId>:referrer` / `…:referred`, inserted with
 `skipDuplicates`, so back-and-forth moves and racing events never pay twice.
+Settings `autoApprovePoints` (default on) and `autoApproveCash` (default off)
+decide whether a stage reward is credited at once or waits in the Rewards tab.
+
+### Milestone bonuses
+
+`ReferralRewardRule` rows with `kind: MILESTONE`, `beneficiary: REFERRER`: every
+`everyCount` of a referrer's referrals reaching a stage (counted from
+`ReferralStageReach`) pays `amount`, dedupe key `rule:<id>:user:<id>:n:<k>`. The
+admin picks an **audience** (`referralBonusAudienceTarget`): `STUDENTS` →
+roles `[STUDENT]` + points; `COACHES` / `SALES` / `STAFF` → those roles + money.
+A rule in any other shape (pre-rebuild) is not listed and never pays. Each bonus
+has its own `autoApprove`. A bonus that has paid is switched off instead of
+deleted.
+
 Pending rewards wait in the Rewards tab; approving credits the ledger,
 cancelling a credited reward writes a reversal (a balance can go negative).
-Editing a rule changes only rewards earned afterwards; a rule that has paid is
-switched off instead of deleted.
-
-Each rule also has a **unit** and a **beneficiary**:
-
-| | `REFERRER` (who shared the link) | `REFERRED` (the new member) |
-|---|---|---|
-| `CASH` (minor units) | yes | yes |
-| `POINTS` (whole points) | yes | yes |
-| `DISCOUNT_PERCENT` (whole %, optional cap `maxDiscountMinor`, expiry `discountValidDays`) | no | yes |
-
-`amountMinor` holds the value in the unit. A `REFERRED` rule is always
-`PER_REFERRAL`; `referralRewardRuleProblem` (`@nexa-chess/types`) is the one
-shape rule (web form, Zod schema, update path). `roles` is always the role of
-the person who shared the link — also for `REFERRED` rules ("benefits for
-people a coach referred"). A `REFERRED` reward's `referrerId` column holds the
-**recipient** (the new member). A credited discount reward issues a one-use
-`PERCENTAGE` personal `Discount` (`DiscountService.createPersonalPercentCode`,
-`ReferralReward.discountId`); cancelling it switches the code off, and is
-refused once the code was used or is on an open order.
 
 ### The new member's account (`Referral.referredUserId`)
 
-`REFERRED` rewards need an account. `ReferralTrackerService.linkSignup` runs
-on student and coach sign-up: the `nexa_referral` cookie from a link visit,
-else a referral whose lead used the same email. Admins can link/unlink by
-email in the referral dialog (`PUT /admin/referrals/:id/referred-user`).
+New-member points need an account. `ReferralTrackerService.linkSignup` runs on
+student and coach sign-up: the `nexa_referral` cookie from a link visit, else a
+referral whose lead used the same email. Admins can link/unlink by email in the
+referral dialog (`PUT /admin/referrals/:id/referred-user`).
 `ReferralPipelineService.linkReferredUser` is the one link path: one referral
 per account (unique), never the referrer's own account, unlinking refused once
-benefits were given; linking grants the benefits of every stage already
-reached (`grantReferredBenefits`, dedupe keys make it idempotent). The
-`/r/<code>` landing page lists the benefits (`ReferralVisitResponse.benefits`).
+points were given; linking grants the points of every stage already reached
+(`grantReferredBenefits`, idempotent by dedupe key). The `/r/<code>` landing
+page lists them (`ReferralVisitResponse.benefits`: stages with
+`newMemberPoints > 0`).
 
-## Wallets: money and points
+## Wallets
 
 `ReferralCreditEntry` is an **append-only ledger** with a `wallet` column:
-`CASH` (money, minor units) and `POINTS` (whole points). Each wallet's balance
-is the sum of its entries. Every debit takes
+`POINTS` (students and new members) and `CASH` (coaches and SALES). A wallet's
+balance is the sum of its entries. Every debit takes
 `pg_advisory_xact_lock(hashtext('referral-credits:<userId>'))`, re-reads the
-balance and writes the entry in the same transaction (a transfer locks both
-users, in id order).
+balance and writes the entry in the same transaction. `referralWalletForRole`
+decides which wallet a role earns into; the summary shows students no money and
+withdrawals refuse students outright.
 
-- **Money is never transferable** — there is no route that moves CASH between
-  users. Only withdrawals, payment codes, conversions-in and admin adjustments.
-- **Send points** (`POST /referrals/me/points/transfer`, by the recipient's
-  account email): settings `pointsTransferEnabled`, `pointsTransferRoles`
-  (sender and recipient), `minTransferPoints`, `maxTransferPointsPerDay`
-  (rolling 24 h per sender, 0 = none). Writes a `ReferralPointsTransfer` and a
-  `POINTS_TRANSFER_OUT` / `POINTS_TRANSFER_IN` pair.
-- **Convert points → money** (`POST /referrals/me/points/convert`), **one way
-  only**: `conversionPoints` points = `conversionValueMinor`, rounded down
-  (`referralPointsValueMinor`). `pointsConversionEnabled`,
-  `pointsConversionRoles`, `minConversionPoints`. The rate is snapshotted on
-  `ReferralPointsConversion`; `CONVERSION_OUT` (points) + `CONVERSION_IN` (money).
-- **Pay fees with points** (`pointsPaymentEnabled`, roles `paymentUseRoles`):
-  the payment-code route takes `{ wallet, amount }`; points become a FIXED
-  code worth their converted value. Cancelling returns the cost to the wallet
-  that paid.
-- The admin **Wallets** tab (`GET /admin/referrals/ledger`) lists every
-  movement of every user; admins adjust either wallet.
-
-- **Withdraw** (roles in `withdrawalRoles`, default coach + sales; minimum
-  `minWithdrawalMinor`): the amount is held immediately (`WITHDRAWAL` entry).
-  Admin pays outside the app and marks it paid with a reference, or rejects
-  (credits returned). The referrer can cancel while it is `REQUESTED`.
-- **Pay fees** (roles in `paymentUseRoles`, default students): credits become a
-  single-use FIXED `Discount` with `restrictedToUserId` (`DiscountService.createPersonalCode`).
-  Discounts stay the only thing that changes a price (docs/PAYMENTS.md);
-  `DiscountService.resolve` treats someone else's personal code as not found,
-  and the admin discount list/editor hides them. An unused code can be
-  cancelled for its credits back, unless an open (CREATED/PENDING) order uses it.
-  A code worth more than the fee makes it free; the remainder is not kept.
+- **Nothing moves between users** and **points never become money** — there is
+  no route for either.
+- **Withdraw** (COACH/SALES in `withdrawalRoles`; minimum `minWithdrawalMinor`):
+  the amount is held at once (`WITHDRAWAL` entry). An admin pays outside the
+  app and marks it paid with a reference, or rejects (money returned). The
+  referrer can cancel while it is `REQUESTED`.
+- **History**: `GET /referrals/me/credits` is the user's points/money history;
+  the admin History tab (`GET /admin/referrals/ledger`, filter by wallet, type,
+  user) lists every movement of every user; admins adjust either wallet.
 
 Financial rows (`ReferralReward`, `ReferralCreditEntry`, `ReferralWithdrawal`,
-`ReferralPointsTransfer`, `ReferralPointsConversion`, personal discounts) reference users with `onDelete: Restrict` and are in
+`ReferralRedemption`, legacy transfers/conversions, personal discounts)
+reference users with `onDelete: Restrict` and are in
 `TrashRepository.findUserIdsWithRetainedHistory`. They are never soft-deleted.
+
+## Vouchers
+
+`ReferralVoucher` (Vouchers tab): name, description, `pointsCost`, a type —
+
+| Type | Value | Extras |
+|---|---|---|
+| `PERCENT_DISCOUNT` | `percentOff` (1–100) | `maxDiscountMinor` cap, `minOrderMinor` minimum fee, `codeValidDays` |
+| `FIXED_DISCOUNT` | `amountOffMinor` | `minOrderMinor` (≥ the amount off), `codeValidDays` |
+| `FREE_DAYS` | `freeDays` (7 = a week, 30 = a month) | — |
+
+— plus `planIds` (discounts: plans the code works on; free days: plans whose
+access it extends; empty = any), `stock` (everyone), `perUserLimit`,
+`startsAt`/`endsAt`, `requiresApproval`, `isActive`, `sortOrder`.
+`referralVoucherProblem` is the one shape rule (web form, Zod schema, update
+path). A voucher someone redeemed is switched off instead of deleted.
+
+**Redeeming** (`POST /referrals/me/vouchers/:id/redeem`, students only, while
+`redemptionsEnabled`): `ReferralVouchersService.redeem` takes the voucher's
+lock (`referral-voucher:<id>`) then the user's lock, re-checks the window,
+stock, per-student limit, the academy's `maxRedemptionsPer30Days` and the
+points balance, writes a `ReferralRedemption` (the voucher's terms
+**snapshotted**) and a `REDEMPTION` debit. Stock and limits count `PENDING` +
+`FULFILLED` redemptions.
+
+- No approval: fulfilled in the same transaction (a failure spends nothing).
+- `requiresApproval`: `PENDING` with the points held. An admin approves
+  (fulfils) or rejects (`REDEMPTION_REVERSAL`); the student can cancel while
+  pending (same reversal).
+- **Fulfilment**: a discount becomes a one-use personal `Discount`
+  (`DiscountService.createPersonalVoucherCode`, `RWD…`, `restrictedToUserId`,
+  cap, minimum fee, plans, expiry) — discounts stay the only thing that changes
+  a price ([PAYMENTS.md](PAYMENTS.md)). Free days call
+  `EntitlementService.grantFreeDays`: extend the student's live time-limited
+  access to the plan by N days from its end date, or (none) grant N days from
+  now and enrol in the plan's batch; refused when they hold unlimited access.
+  The plan is the one the student picked, else their only matching live plan,
+  else the voucher's only plan.
+- **Revoke** (admin): an unused code on no open order is switched off and the
+  points returned (`REVOKED`). Free days already given cannot be revoked here.
+
+## What changed in the rebuild (2026-11-07)
+
+Migration `…_referral_points_vouchers` moved active per-referral rules into the
+stage values (summed per party), switched off every rule that is not a
+student-points or staff-money milestone, removed STUDENT from
+`withdrawalRoles`, and switched off point transfers, conversion and paying fees
+with points (those settings columns stay; nothing reads them). Their routes are
+gone. Old ledger rows (`PAYMENT_CODE`, `POINTS_TRANSFER_*`, `CONVERSION_*`) and
+rewards (including `DISCOUNT_PERCENT` welcome codes) stay readable; a pending
+legacy discount reward can still be approved or cancelled. A student's
+pre-rebuild CASH balance stays in the ledger (admins see it in History and can
+adjust it).
 
 ## The SALES role
 
@@ -167,19 +207,22 @@ contact.
 - `referral_visits` is a log table: `RETENTION_RULES` keeps 365 days (visit
   counts age out with it; referrals and their history stay).
 - The data export includes the user's code, their referrals' progress (not the
-  prospect's name or visitor id), rewards, both wallets, withdrawals, points
-  sent/received (amount and note only — not the other person) and conversions,
-  and the id of the referral that brought them in (not who referred them).
+  prospect's name or visitor id), rewards, both wallets, withdrawals, voucher
+  redemptions, legacy points sent/received (amount and note only — not the
+  other person) and conversions, and the id of the referral that brought them
+  in (not who referred them).
 
 ## Tests
 
-- `referral-rules.spec.ts`: the pure rules and that the migration seeds
+- `referral-rules.spec.ts`: the pure rules (pipeline, stage rewards by role,
+  bonus audiences, voucher shapes and wording) and that the migration seeds
   `DEFAULT_REFERRAL_STAGES`.
 - `referral.int-spec.ts` (real Postgres): visit → lead → CRM → admin move →
-  rewards (per referral, role-scoped, milestone, no double pay), payment code
-  owner-only + cancel, parallel withdrawals, the SALES fence, stage edits; new
-  member benefits (landing list, sign-up auto-link, welcome discount), points
-  send limits, one-way conversion, paying with points, parallel transfers, the
-  admin ledger.
+  stage values and bonuses (students points only, no double pay, approval
+  switch); vouchers end to end (percent code owner-only with cap, per-student
+  limit, approval/cancel/reject, stock, free days create then extend access,
+  revoke, store closed, 30-day cap, parallel redemptions never overspend,
+  history); new-member welcome points and coach money; parallel withdrawals;
+  the SALES fence; stage edits.
 - `cross-user-access.int-spec.ts`: cancelling another user's withdrawal or
-  payment code is a 404.
+  voucher redemption is a 404.

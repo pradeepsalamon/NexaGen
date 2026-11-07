@@ -1,8 +1,8 @@
 import {
   formatMoney,
   toMinorUnits,
-  type ReferralPaymentCodeItem,
-  type ReferralRewardItem,
+  type ReferralRedemptionItem,
+  type ReferralRedemptionStatus,
   type ReferralRewardStatus,
   type ReferralWithdrawalStatus
 } from "@nexa-chess/types";
@@ -48,22 +48,32 @@ export const WITHDRAWAL_STATUS_LABEL: Record<ReferralWithdrawalStatus, string> =
   REQUESTED: "Requested"
 };
 
-export const PAYMENT_CODE_VARIANT: Record<ReferralPaymentCodeItem["status"], BadgeVariant> = {
-  ACTIVE: "info",
+export const REDEMPTION_STATUS_VARIANT: Record<ReferralRedemptionStatus, BadgeVariant> = {
   CANCELLED: "secondary",
-  USED: "success"
+  FULFILLED: "success",
+  PENDING: "warning",
+  REJECTED: "destructive",
+  REVOKED: "secondary"
 };
 
-export const PAYMENT_CODE_LABEL: Record<ReferralPaymentCodeItem["status"], string> = {
-  ACTIVE: "Ready to use",
+export const REDEMPTION_STATUS_LABEL: Record<ReferralRedemptionStatus, string> = {
   CANCELLED: "Cancelled",
-  USED: "Used"
+  FULFILLED: "Ready",
+  PENDING: "Awaiting approval",
+  REJECTED: "Rejected",
+  REVOKED: "Taken back"
 };
 
-/** A welcome discount code's state, for the code chip in the rewards list. */
-export const DISCOUNT_STATUS_LABEL: Record<NonNullable<ReferralRewardItem["discountStatus"]>, string> = {
+/** A voucher code's state, for the code chip. */
+export const DISCOUNT_STATUS_LABEL: Record<NonNullable<ReferralRedemptionItem["discountStatus"]>, string> = {
   ACTIVE: "Use at checkout",
   CANCELLED: "Cancelled",
   EXPIRED: "Expired",
   USED: "Used"
 };
+
+/** "120" → 120, or null if not a whole number above zero. */
+export function parseWhole(input: string): number | null {
+  const value = Number(input.replace(/,/g, "").trim());
+  return Number.isInteger(value) && value > 0 ? value : null;
+}

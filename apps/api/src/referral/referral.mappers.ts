@@ -1,17 +1,17 @@
 import {
   maskProspectName,
+  referralBonusAudienceOf,
   referralStageToneSchema,
   type AdminReferralItem,
+  type ReferralBonusRuleItem,
   type ReferralCreditEntryItem,
   type ReferralItem,
   type ReferralRewardItem,
-  type ReferralRewardRuleItem,
   type ReferralStageItem,
   type ReferralStageTone,
-  type ReferralWithdrawalItem,
-  type ReferrerRole
+  type ReferralWithdrawalItem
 } from "@nexa-chess/types";
-import type { Prisma, ReferralStage } from "@prisma/client";
+import type { Prisma, ReferralCreditEntry, ReferralStage } from "@prisma/client";
 import { displayName, toReferrerRole } from "./referral.util";
 
 export function toTone(tone: string): ReferralStageTone {
@@ -25,7 +25,11 @@ export function toStageItem(stage: ReferralStage, referralCount = 0): ReferralSt
     id: stage.id,
     name: stage.name,
     position: stage.position,
+    coachCashMinor: stage.coachCashMinor,
+    newMemberPoints: stage.newMemberPoints,
     referralCount,
+    salesCashMinor: stage.salesCashMinor,
+    studentPoints: stage.studentPoints,
     tone: toTone(stage.tone),
     trigger: stage.trigger
   };
@@ -81,10 +85,10 @@ export function toAdminReferralItem(referral: ReferralWithItemInclude): AdminRef
 }
 
 export const REWARD_ITEM_INCLUDE = {
-  discount: { select: { code: true, endsAt: true, isActive: true, redemptionCount: true } },
   referral: { select: { prospectName: true } },
   referrer: { select: { firstName: true, lastName: true, role: true } },
-  rule: { select: { name: true } }
+  rule: { select: { name: true } },
+  stage: { select: { name: true } }
 } satisfies Prisma.ReferralRewardInclude;
 
 export function toRewardItem(
@@ -92,20 +96,9 @@ export function toRewardItem(
   fullView: boolean
 ): ReferralRewardItem {
   const name = reward.referral?.prospectName ?? null;
-  const discount = reward.discount;
   return {
     amountMinor: reward.amountMinor,
     beneficiary: reward.beneficiary,
-    discountCode: discount?.code ?? null,
-    discountStatus: discount
-      ? discount.redemptionCount > 0
-        ? "USED"
-        : !discount.isActive
-          ? "CANCELLED"
-          : discount.endsAt && discount.endsAt <= new Date()
-            ? "EXPIRED"
-            : "ACTIVE"
-      : null,
     createdAt: reward.createdAt.toISOString(),
     creditedAt: reward.creditedAt?.toISOString() ?? null,
     currency: reward.currency,
@@ -116,36 +109,37 @@ export function toRewardItem(
     referrerId: reward.referrerId,
     referrerName: displayName(reward.referrer),
     referrerRole: toReferrerRole(reward.referrer.role),
-    ruleId: reward.ruleId,
-    ruleName: reward.rule.name,
+    sourceName: reward.rule?.name ?? (reward.stage ? `Stage: ${reward.stage.name}` : "Stage reward"),
     status: reward.status,
     unit: reward.unit
   };
 }
 
-export const RULE_ITEM_INCLUDE = {
+export const BONUS_RULE_INCLUDE = {
   _count: { select: { rewards: true } },
   stage: { select: { name: true } }
 } satisfies Prisma.ReferralRewardRuleInclude;
 
-export function toRuleItem(rule: Prisma.ReferralRewardRuleGetPayload<{ include: typeof RULE_ITEM_INCLUDE }>): ReferralRewardRuleItem {
+/** Only milestone bonuses in today's shape are bonus rules; anything else is pre-rebuild history. */
+export const BONUS_RULE_WHERE = { beneficiary: "REFERRER", kind: "MILESTONE" } satisfies Prisma.ReferralRewardRuleWhereInput;
+
+export function toBonusRuleItem(
+  rule: Prisma.ReferralRewardRuleGetPayload<{ include: typeof BONUS_RULE_INCLUDE }>
+): ReferralBonusRuleItem | null {
+  const audience = referralBonusAudienceOf(rule.roles, rule.unit);
+  if (!audience || !rule.milestoneCount) return null;
   return {
-    amountMinor: rule.amountMinor,
+    amount: rule.amountMinor,
+    audience,
     autoApprove: rule.autoApprove,
-    beneficiary: rule.beneficiary,
-    discountValidDays: rule.discountValidDays,
-    maxDiscountMinor: rule.maxDiscountMinor,
-    unit: rule.unit,
     createdAt: rule.createdAt.toISOString(),
     currency: rule.currency,
     description: rule.description,
+    everyCount: rule.milestoneCount,
     id: rule.id,
     isActive: rule.isActive,
-    kind: rule.kind,
-    milestoneCount: rule.milestoneCount,
     name: rule.name,
     rewardCount: rule._count.rewards,
-    roles: rule.roles.map(toReferrerRole) as ReferrerRole[],
     stageId: rule.stageId,
     stageName: rule.stage.name
   };
@@ -174,25 +168,9 @@ export function toWithdrawalItem(
   };
 }
 
-export const CREDIT_ENTRY_INCLUDE = {
-  transfer: {
-    select: {
-      fromUser: { select: { firstName: true, lastName: true } },
-      fromUserId: true,
-      toUser: { select: { firstName: true, lastName: true } }
-    }
-  }
-} satisfies Prisma.ReferralCreditEntryInclude;
-
-export function toCreditEntryItem(
-  entry: Prisma.ReferralCreditEntryGetPayload<{ include: typeof CREDIT_ENTRY_INCLUDE }>
-): ReferralCreditEntryItem {
-  const transfer = entry.transfer;
+export function toCreditEntryItem(entry: ReferralCreditEntry): ReferralCreditEntryItem {
   return {
     amountMinor: entry.amountMinor,
-    counterpartyName: transfer
-      ? displayName(transfer.fromUserId === entry.userId ? transfer.toUser : transfer.fromUser)
-      : null,
     createdAt: entry.createdAt.toISOString(),
     currency: entry.currency,
     id: entry.id,

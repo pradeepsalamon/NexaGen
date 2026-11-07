@@ -8,10 +8,15 @@ import {
   referralCodePrefix,
   referralCodeSchema,
   formatReferralReward,
+  formatReferralVoucherValue,
+  REFERRAL_BONUS_AUDIENCES,
+  referralBonusAudienceOf,
+  referralBonusAudienceTarget,
   referralMilestonesReached,
-  referralPointsValueMinor,
-  referralRewardRuleProblem,
-  referralStagesReached
+  referralStagesReached,
+  referralVoucherProblem,
+  referralWalletForRole,
+  referrerStageReward
 } from "@nexa-chess/types";
 
 const stage = (id: string, position: number, trigger: (typeof DEFAULT_REFERRAL_STAGES)[number]["trigger"] = "MANUAL") => ({
@@ -97,23 +102,28 @@ describe("the referral_program migration", () => {
   });
 });
 
-describe("referral points and benefits", () => {
-  it("values points at the admin rate, rounding down", () => {
-    const rate = { conversionPoints: 10, conversionValueMinor: 100 };
-    expect(referralPointsValueMinor(150, rate)).toBe(1500);
-    expect(referralPointsValueMinor(7, { conversionPoints: 3, conversionValueMinor: 1 })).toBe(2);
-    expect(referralPointsValueMinor(0, rate)).toBe(0);
-    expect(referralPointsValueMinor(10, { conversionPoints: 0, conversionValueMinor: 100 })).toBe(0);
+describe("referral earning", () => {
+  const values = { coachCashMinor: 20000, salesCashMinor: 30000, studentPoints: 150 };
+
+  it("students earn points, coaches and SALES earn money", () => {
+    expect(referralWalletForRole("STUDENT")).toBe("POINTS");
+    expect(referralWalletForRole("COACH")).toBe("CASH");
+    expect(referrerStageReward(values, "STUDENT")).toEqual({ amount: 150, wallet: "POINTS" });
+    expect(referrerStageReward(values, "COACH")).toEqual({ amount: 20000, wallet: "CASH" });
+    expect(referrerStageReward(values, "SALES")).toEqual({ amount: 30000, wallet: "CASH" });
+    expect(referrerStageReward({ ...values, studentPoints: 0 }, "STUDENT")).toBeNull();
+    expect(referrerStageReward(values, "ADMIN")).toBeNull();
   });
 
-  it("refuses reward-rule shapes that make no sense", () => {
-    const base = { amountMinor: 10, beneficiary: "REFERRER", kind: "PER_REFERRAL", milestoneCount: null, unit: "CASH" } as const;
-    expect(referralRewardRuleProblem(base)).toBeNull();
-    expect(referralRewardRuleProblem({ ...base, kind: "MILESTONE" })?.path).toBe("milestoneCount");
-    expect(referralRewardRuleProblem({ ...base, unit: "DISCOUNT_PERCENT" })?.path).toBe("unit");
-    expect(referralRewardRuleProblem({ ...base, beneficiary: "REFERRED", kind: "MILESTONE", milestoneCount: 3 })?.path).toBe("kind");
-    expect(referralRewardRuleProblem({ ...base, amountMinor: 101, beneficiary: "REFERRED", unit: "DISCOUNT_PERCENT" })?.path).toBe("amountMinor");
-    expect(referralRewardRuleProblem({ ...base, beneficiary: "REFERRED", unit: "DISCOUNT_PERCENT" })).toBeNull();
+  it("a bonus audience round-trips through roles + unit, and nothing else is a bonus", () => {
+    for (const audience of REFERRAL_BONUS_AUDIENCES) {
+      const target = referralBonusAudienceTarget(audience);
+      expect(referralBonusAudienceOf(target.roles, target.wallet)).toBe(audience);
+    }
+    expect(referralBonusAudienceOf(["STUDENT"], "CASH")).toBeNull();
+    expect(referralBonusAudienceOf([], "CASH")).toBeNull();
+    expect(referralBonusAudienceOf(["STUDENT", "COACH"], "POINTS")).toBeNull();
+    expect(referralBonusAudienceOf(["SALES", "COACH"], "CASH")).toBe("STAFF");
   });
 
   it("formats each reward unit", () => {
@@ -121,5 +131,32 @@ describe("referral points and benefits", () => {
     expect(formatReferralReward(1, "POINTS", "INR")).toBe("1 point");
     expect(formatReferralReward(15, "DISCOUNT_PERCENT", "INR")).toBe("15% off");
     expect(formatReferralReward(50000, "CASH", "INR")).toContain("500");
+  });
+});
+
+describe("referral vouchers", () => {
+  const percent = { percentOff: 20, type: "PERCENT_DISCOUNT" } as const;
+
+  it("refuses voucher shapes that make no sense", () => {
+    expect(referralVoucherProblem(percent)).toBeNull();
+    expect(referralVoucherProblem({ type: "PERCENT_DISCOUNT" })?.path).toBe("percentOff");
+    expect(referralVoucherProblem({ type: "FIXED_DISCOUNT" })?.path).toBe("amountOffMinor");
+    expect(referralVoucherProblem({ type: "FREE_DAYS" })?.path).toBe("freeDays");
+    expect(referralVoucherProblem({ amountOffMinor: 500, maxDiscountMinor: 100, type: "FIXED_DISCOUNT" })?.path).toBe("maxDiscountMinor");
+    expect(referralVoucherProblem({ freeDays: 7, minOrderMinor: 100, type: "FREE_DAYS" })?.path).toBe("minOrderMinor");
+    expect(referralVoucherProblem({ amountOffMinor: 50000, minOrderMinor: 10000, type: "FIXED_DISCOUNT" })?.path).toBe("amountOffMinor");
+    expect(
+      referralVoucherProblem({ ...percent, endsAt: "2026-01-01T00:00:00.000Z", startsAt: "2026-02-01T00:00:00.000Z" })?.path
+    ).toBe("endsAt");
+  });
+
+  it("describes what a voucher gives", () => {
+    const none = { amountOffMinor: null, freeDays: null, maxDiscountMinor: null, minOrderMinor: null, percentOff: null };
+    expect(formatReferralVoucherValue({ ...none, freeDays: 30, type: "FREE_DAYS" }, "INR")).toBe("1 month free");
+    expect(formatReferralVoucherValue({ ...none, freeDays: 14, type: "FREE_DAYS" }, "INR")).toBe("2 weeks free");
+    expect(formatReferralVoucherValue({ ...none, freeDays: 3, type: "FREE_DAYS" }, "INR")).toBe("3 days free");
+    const text = formatReferralVoucherValue({ ...none, maxDiscountMinor: 50000, minOrderMinor: 100000, percentOff: 20, type: "PERCENT_DISCOUNT" }, "INR");
+    expect(text).toMatch(/^20% off \(up to .*500.*\) on fees of .*1,000.* or more$/);
+    expect(formatReferralVoucherValue({ ...none, amountOffMinor: 50000, type: "FIXED_DISCOUNT" }, "INR")).toMatch(/500.* off$/);
   });
 });

@@ -20,7 +20,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { referralAdminApi } from "../../api/referralAdminApi";
 import { useAdminReferralRewards, useReferralAdminMutation } from "../../hooks/useReferralAdmin";
-import { DISCOUNT_STATUS_LABEL, REWARD_STATUS_LABEL, REWARD_STATUS_VARIANT } from "../../lib/referralFormat";
+import { REWARD_STATUS_LABEL, REWARD_STATUS_VARIANT } from "../../lib/referralFormat";
 
 export function RewardsPanel() {
   const timeZone = useUserTimeZone();
@@ -60,19 +60,13 @@ export function RewardsPanel() {
         meta: { label: "Given to" }
       },
       {
-        accessorKey: "ruleName",
+        accessorKey: "sourceName",
         cell: ({ row }) => (
           <div className="min-w-44">
-            <p className="text-app-text">{row.original.ruleName}</p>
+            <p className="text-app-text">{row.original.sourceName}</p>
             <p className="text-xs text-app-muted">
               {row.original.beneficiary === "REFERRED" ? row.original.description : (row.original.prospectName ?? row.original.description)}
             </p>
-            {row.original.discountCode ? (
-              <p className="font-mono text-xs font-bold text-app-text">
-                {row.original.discountCode}
-                {row.original.discountStatus ? ` · ${DISCOUNT_STATUS_LABEL[row.original.discountStatus]}` : ""}
-              </p>
-            ) : null}
           </div>
         ),
         header: "Reward",

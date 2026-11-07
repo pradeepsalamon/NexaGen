@@ -4,15 +4,11 @@ import { JwtService } from "@nestjs/jwt";
 import { Throttle } from "@nestjs/throttler";
 import {
   API_ROUTES,
-  convertReferralPointsRequestSchema,
-  createReferralPaymentCodeRequestSchema,
-  transferReferralPointsRequestSchema,
-  type ConvertReferralPointsRequest,
-  type TransferReferralPointsRequest,
+  redeemReferralVoucherRequestSchema,
   referralVisitRequestSchema,
   requestReferralWithdrawalRequestSchema,
-  type CreateReferralPaymentCodeRequest,
   type PaginatedQuery,
+  type RedeemReferralVoucherRequest,
   type ReferralVisitRequest,
   type ReferralVisitResponse,
   type RequestReferralWithdrawalRequest
@@ -130,43 +126,32 @@ export class ReferralController {
     return this.referrals.cancelWithdrawal(this.getAccessToken(request), id);
   }
 
-  @Get(API_ROUTES.referrals.myPaymentCodes)
-  listPaymentCodes(@Req() request: Request) {
-    return this.referrals.listPaymentCodes(this.getAccessToken(request));
+  // ── Rewards store (students) ──
+
+  @Get(API_ROUTES.referrals.myVouchers)
+  listVouchers(@Req() request: Request) {
+    return this.referrals.listVouchers(this.getAccessToken(request));
   }
 
-  @Post(API_ROUTES.referrals.myPaymentCodes)
-  createPaymentCode(
-    @Req() request: Request,
-    @Body(new ZodBodyPipe(createReferralPaymentCodeRequestSchema)) body: CreateReferralPaymentCodeRequest
-  ) {
-    return this.referrals.createPaymentCode(this.getAccessToken(request), body);
-  }
-
-  @Post(API_ROUTES.referrals.cancelPaymentCode())
+  @Post(API_ROUTES.referrals.redeemVoucher())
   @HttpCode(200)
-  cancelPaymentCode(@Req() request: Request, @Param("id") id: string) {
-    return this.referrals.cancelPaymentCode(this.getAccessToken(request), id);
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  redeemVoucher(
+    @Req() request: Request,
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(redeemReferralVoucherRequestSchema)) body: RedeemReferralVoucherRequest
+  ) {
+    return this.referrals.redeemVoucher(this.getAccessToken(request), id, body);
   }
 
-  // ── Points ──
-
-  @Post(API_ROUTES.referrals.transferPoints)
-  @HttpCode(200)
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
-  transferPoints(
-    @Req() request: Request,
-    @Body(new ZodBodyPipe(transferReferralPointsRequestSchema)) body: TransferReferralPointsRequest
-  ) {
-    return this.referrals.transferPoints(this.getAccessToken(request), body);
+  @Get(API_ROUTES.referrals.myRedemptions)
+  listRedemptions(@Req() request: Request) {
+    return this.referrals.listRedemptions(this.getAccessToken(request));
   }
 
-  @Post(API_ROUTES.referrals.convertPoints)
+  @Post(API_ROUTES.referrals.cancelRedemption())
   @HttpCode(200)
-  convertPoints(
-    @Req() request: Request,
-    @Body(new ZodBodyPipe(convertReferralPointsRequestSchema)) body: ConvertReferralPointsRequest
-  ) {
-    return this.referrals.convertPoints(this.getAccessToken(request), body);
+  cancelRedemption(@Req() request: Request, @Param("id") id: string) {
+    return this.referrals.cancelRedemption(this.getAccessToken(request), id);
   }
 }

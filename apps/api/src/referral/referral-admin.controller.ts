@@ -3,31 +3,37 @@ import {
   API_ROUTES,
   adjustReferralCreditsRequestSchema,
   cancelReferralRewardRequestSchema,
-  createReferralRewardRuleRequestSchema,
+  createReferralBonusRuleRequestSchema,
+  createReferralVoucherRequestSchema,
   createReferralStageRequestSchema,
   linkReferredUserRequestSchema,
   moveReferralStageRequestSchema,
   payReferralWithdrawalRequestSchema,
+  rejectReferralRedemptionRequestSchema,
   rejectReferralWithdrawalRequestSchema,
   sendReferrerAccessLinkRequestSchema,
   reorderReferralStagesRequestSchema,
-  updateReferralRewardRuleRequestSchema,
+  updateReferralBonusRuleRequestSchema,
   updateReferralSettingsRequestSchema,
+  updateReferralVoucherRequestSchema,
   updateReferralStageRequestSchema,
   updateReferrerCodeRequestSchema,
   type AdjustReferralCreditsRequest,
   type CancelReferralRewardRequest,
-  type CreateReferralRewardRuleRequest,
+  type CreateReferralBonusRuleRequest,
+  type CreateReferralVoucherRequest,
   type CreateReferralStageRequest,
   type LinkReferredUserRequest,
   type MoveReferralStageRequest,
   type PaginatedQuery,
   type PayReferralWithdrawalRequest,
+  type RejectReferralRedemptionRequest,
   type RejectReferralWithdrawalRequest,
   type SendReferrerAccessLinkRequest,
   type ReorderReferralStagesRequest,
-  type UpdateReferralRewardRuleRequest,
+  type UpdateReferralBonusRuleRequest,
   type UpdateReferralSettingsRequest,
+  type UpdateReferralVoucherRequest,
   type UpdateReferralStageRequest,
   type UpdateReferrerCodeRequest
 } from "@nexa-chess/types";
@@ -121,31 +127,86 @@ export class ReferralAdminController {
     return this.admin.deleteStage(this.getAccessToken(request), id);
   }
 
-  @Get(API_ROUTES.adminReferrals.rewardRules)
-  listRules(@Req() request: Request) {
-    return this.admin.listRules(this.getAccessToken(request));
+  @Get(API_ROUTES.adminReferrals.bonusRules)
+  listBonusRules(@Req() request: Request) {
+    return this.admin.listBonusRules(this.getAccessToken(request));
   }
 
-  @Post(API_ROUTES.adminReferrals.rewardRules)
-  createRule(
+  @Post(API_ROUTES.adminReferrals.bonusRules)
+  createBonusRule(
     @Req() request: Request,
-    @Body(new ZodBodyPipe(createReferralRewardRuleRequestSchema)) body: CreateReferralRewardRuleRequest
+    @Body(new ZodBodyPipe(createReferralBonusRuleRequestSchema)) body: CreateReferralBonusRuleRequest
   ) {
-    return this.admin.createRule(this.getAccessToken(request), body);
+    return this.admin.createBonusRule(this.getAccessToken(request), body);
   }
 
-  @Patch(API_ROUTES.adminReferrals.rewardRule())
-  updateRule(
+  @Patch(API_ROUTES.adminReferrals.bonusRule())
+  updateBonusRule(
     @Req() request: Request,
     @Param("id") id: string,
-    @Body(new ZodBodyPipe(updateReferralRewardRuleRequestSchema)) body: UpdateReferralRewardRuleRequest
+    @Body(new ZodBodyPipe(updateReferralBonusRuleRequestSchema)) body: UpdateReferralBonusRuleRequest
   ) {
-    return this.admin.updateRule(this.getAccessToken(request), id, body);
+    return this.admin.updateBonusRule(this.getAccessToken(request), id, body);
   }
 
-  @Delete(API_ROUTES.adminReferrals.rewardRule())
-  deleteRule(@Req() request: Request, @Param("id") id: string) {
-    return this.admin.deleteRule(this.getAccessToken(request), id);
+  @Delete(API_ROUTES.adminReferrals.bonusRule())
+  deleteBonusRule(@Req() request: Request, @Param("id") id: string) {
+    return this.admin.deleteBonusRule(this.getAccessToken(request), id);
+  }
+
+  @Get(API_ROUTES.adminReferrals.vouchers)
+  listVouchers(@Req() request: Request) {
+    return this.admin.listVouchers(this.getAccessToken(request));
+  }
+
+  @Post(API_ROUTES.adminReferrals.vouchers)
+  createVoucher(@Req() request: Request, @Body(new ZodBodyPipe(createReferralVoucherRequestSchema)) body: CreateReferralVoucherRequest) {
+    return this.admin.createVoucher(this.getAccessToken(request), body);
+  }
+
+  @Patch(API_ROUTES.adminReferrals.voucher())
+  updateVoucher(
+    @Req() request: Request,
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(updateReferralVoucherRequestSchema)) body: UpdateReferralVoucherRequest
+  ) {
+    return this.admin.updateVoucher(this.getAccessToken(request), id, body);
+  }
+
+  @Delete(API_ROUTES.adminReferrals.voucher())
+  deleteVoucher(@Req() request: Request, @Param("id") id: string) {
+    return this.admin.deleteVoucher(this.getAccessToken(request), id);
+  }
+
+  @Get(API_ROUTES.adminReferrals.redemptions)
+  listRedemptions(@Req() request: Request, @Query() query: ListQuery & { voucherId?: unknown; userId?: unknown }) {
+    return this.admin.listRedemptions(this.getAccessToken(request), query);
+  }
+
+  @Post(API_ROUTES.adminReferrals.approveRedemption())
+  @HttpCode(200)
+  approveRedemption(@Req() request: Request, @Param("id") id: string) {
+    return this.admin.approveRedemption(this.getAccessToken(request), id);
+  }
+
+  @Post(API_ROUTES.adminReferrals.rejectRedemption())
+  @HttpCode(200)
+  rejectRedemption(
+    @Req() request: Request,
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(rejectReferralRedemptionRequestSchema)) body: RejectReferralRedemptionRequest
+  ) {
+    return this.admin.rejectRedemption(this.getAccessToken(request), id, body);
+  }
+
+  @Post(API_ROUTES.adminReferrals.revokeRedemption())
+  @HttpCode(200)
+  revokeRedemption(
+    @Req() request: Request,
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(rejectReferralRedemptionRequestSchema)) body: RejectReferralRedemptionRequest
+  ) {
+    return this.admin.revokeRedemption(this.getAccessToken(request), id, body);
   }
 
   @Get(API_ROUTES.adminReferrals.rewards)

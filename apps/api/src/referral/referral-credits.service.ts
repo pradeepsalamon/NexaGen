@@ -1,24 +1,19 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   formatMoney,
-  formatReferralPoints,
-  referralPointsValueMinor,
   type AdjustReferralCreditsRequest,
   type CancelReferralRewardRequest,
-  type ConvertReferralPointsRequest,
-  type CreateReferralPaymentCodeRequest,
   type PayReferralWithdrawalRequest,
   type RejectReferralWithdrawalRequest,
-  type RequestReferralWithdrawalRequest,
-  type TransferReferralPointsRequest
+  type RequestReferralWithdrawalRequest
 } from "@nexa-chess/types";
-import { OrderStatus, type ReferralSettings, type ReferralWallet, type User, UserStatus } from "@prisma/client";
+import { OrderStatus, type ReferralSettings, type ReferralWallet, type User, UserRole } from "@prisma/client";
 import { DiscountService } from "../payments/discount.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
-import { creditLockKey, displayName, isReferrerRole } from "./referral.util";
+import { creditLockKey, displayName, isReferrerRole, voucherLockKey } from "./referral.util";
 
 /** Orders that may still capture with a code already applied. */
-const OPEN_ORDER_STATUSES: OrderStatus[] = [OrderStatus.CREATED, OrderStatus.PENDING];
+export const OPEN_ORDER_STATUSES: OrderStatus[] = [OrderStatus.CREATED, OrderStatus.PENDING];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -26,11 +21,12 @@ export type WalletBalances = { cash: number; points: number };
 
 /**
  * The wallets: one append-only ledger (`ReferralCreditEntry`) with a `wallet`
- * column — CASH (money) and POINTS. A wallet's balance is the sum of its
+ * column — CASH (coaches and SALES: money, withdrawn) and POINTS (students and
+ * new members: spent on vouchers). A wallet's balance is the sum of its
  * entries. Every debit takes the user's transaction lock, re-reads the
  * balance and writes the entry in the same transaction, so two requests can
- * never spend the same money or points. Money never moves between users;
- * points do (transfers), and points become money one way only (conversion).
+ * never spend the same money or points. Nothing moves between users, and
+ * points never become money.
  */
 @Injectable()
 export class ReferralCreditsService {
@@ -54,23 +50,18 @@ export class ReferralCreditsService {
     return { cash: of("CASH"), points: of("POINTS") };
   }
 
-  /** Points this user sent in the last 24 hours (the daily transfer limit). */
-  async pointsSentLast24h(userId: string, client: PrismaTransactionClient | PrismaService = this.prisma): Promise<number> {
-    const result = await client.referralPointsTransfer.aggregate({
-      _sum: { points: true },
-      where: { createdAt: { gte: new Date(Date.now() - DAY_MS) }, fromUserId: userId }
-    });
-    return result._sum.points ?? 0;
-  }
-
   /** Serialises ledger writes for one user until the transaction ends. */
-  private async lock(tx: PrismaTransactionClient, userId: string) {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${creditLockKey(userId)}))`;
+  async lockUser(tx: PrismaTransactionClient, userId: string) {
+    await this.lock(tx, creditLockKey(userId));
   }
 
-  /** Two users in a fixed order, so A→B and B→A transfers never deadlock. */
-  private async lockPair(tx: PrismaTransactionClient, a: string, b: string) {
-    for (const id of [a, b].sort()) await this.lock(tx, id);
+  /** Serialises redemptions of one voucher (stock) until the transaction ends. */
+  async lockVoucher(tx: PrismaTransactionClient, voucherId: string) {
+    await this.lock(tx, voucherLockKey(voucherId));
+  }
+
+  private async lock(tx: PrismaTransactionClient, key: string) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
   }
 
   // ── Rewards ──
@@ -95,11 +86,13 @@ export class ReferralCreditsService {
     });
 
     if (reward.unit === "DISCOUNT_PERCENT") {
+      // Only a reward issued before the rebuild can still be a discount.
+      const validDays = reward.rule?.discountValidDays ?? null;
       const discount = await this.discounts.createPersonalPercentCode(tx, {
         createdById: reviewerId,
-        endsAt: reward.rule.discountValidDays ? new Date(now.getTime() + reward.rule.discountValidDays * DAY_MS) : null,
-        maxDiscountMinor: reward.rule.maxDiscountMinor,
-        name: `${reward.rule.name} — ${displayName(reward.referrer)}`,
+        endsAt: validDays ? new Date(now.getTime() + validDays * DAY_MS) : null,
+        maxDiscountMinor: reward.rule?.maxDiscountMinor ?? null,
+        name: `${reward.rule?.name ?? "Welcome discount"} — ${displayName(reward.referrer)}`,
         percent: reward.amountMinor,
         userId: reward.referrerId
       });
@@ -107,7 +100,7 @@ export class ReferralCreditsService {
       return true;
     }
 
-    await this.lock(tx, reward.referrerId);
+    await this.lockUser(tx, reward.referrerId);
     await tx.referralCreditEntry.create({
       data: {
         amountMinor: reward.amountMinor,
@@ -161,7 +154,7 @@ export class ReferralCreditsService {
         return;
       }
 
-      await this.lock(tx, reward.referrerId);
+      await this.lockUser(tx, reward.referrerId);
       await tx.referralCreditEntry.create({
         data: {
           amountMinor: -reward.amountMinor,
@@ -186,7 +179,8 @@ export class ReferralCreditsService {
   // ── Withdrawals (money only) ──
 
   async requestWithdrawal(user: Pick<User, "id" | "role">, settings: ReferralSettings, body: RequestReferralWithdrawalRequest) {
-    if (!settings.enabled || !settings.withdrawalRoles.includes(user.role)) {
+    // Students earn points, never money to withdraw (docs/REFERRALS.md).
+    if (!settings.enabled || user.role === UserRole.STUDENT || !settings.withdrawalRoles.includes(user.role)) {
       throw new ForbiddenException("Withdrawals are not available for your account.");
     }
     if (body.amountMinor < settings.minWithdrawalMinor) {
@@ -194,7 +188,7 @@ export class ReferralCreditsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      await this.lock(tx, user.id);
+      await this.lockUser(tx, user.id);
       const balance = await this.balance(user.id, "CASH", tx);
       if (body.amountMinor > balance) throw new BadRequestException("That is more than your money balance.");
       const withdrawal = await tx.referralWithdrawal.create({
@@ -270,7 +264,7 @@ export class ReferralCreditsService {
     const { count } = await tx.referralWithdrawal.updateMany({ data, where: { id: withdrawalId, status: "REQUESTED" } });
     if (count === 0) await this.throwWithdrawalState(tx, withdrawalId);
     const withdrawal = await tx.referralWithdrawal.findUniqueOrThrow({ where: { id: withdrawalId } });
-    await this.lock(tx, withdrawal.userId);
+    await this.lockUser(tx, withdrawal.userId);
     await tx.referralCreditEntry.create({
       data: {
         amountMinor: withdrawal.amountMinor,
@@ -291,211 +285,44 @@ export class ReferralCreditsService {
     throw new ConflictException(`This withdrawal is already ${withdrawal.status.toLowerCase()}.`);
   }
 
-  // ── Payment codes (money or points → fees) ──
+  // ── Voucher redemptions (points) ──
 
-  async createPaymentCode(
-    user: Pick<User, "id" | "role" | "firstName" | "lastName">,
-    settings: ReferralSettings,
-    body: CreateReferralPaymentCodeRequest
+  /** Holds/spends the points a redemption costs. Caller holds the user's lock. */
+  async debitRedemption(
+    tx: PrismaTransactionClient,
+    input: { userId: string; redemptionId: string; points: number; currency: string; note: string }
   ) {
-    if (!settings.enabled || !settings.paymentUseRoles.includes(user.role)) {
-      throw new ForbiddenException("Paying fees from your wallet is not available for your account.");
-    }
-    const wallet: ReferralWallet = body.wallet;
-    if (wallet === "POINTS" && !settings.pointsPaymentEnabled) {
-      throw new ForbiddenException("Paying fees with points is switched off.");
-    }
-    const valueMinor = wallet === "POINTS" ? referralPointsValueMinor(body.amount, settings) : body.amount;
-    if (valueMinor < 1) throw new BadRequestException("That many points is not worth anything yet. Use more points.");
-
-    return this.prisma.$transaction(async (tx) => {
-      await this.lock(tx, user.id);
-      const balance = await this.balance(user.id, wallet, tx);
-      if (body.amount > balance) {
-        throw new BadRequestException(wallet === "POINTS" ? "That is more than your points." : "That is more than your money balance.");
+    await tx.referralCreditEntry.create({
+      data: {
+        amountMinor: -input.points,
+        createdById: input.userId,
+        currency: input.currency,
+        note: input.note,
+        redemptionId: input.redemptionId,
+        type: "REDEMPTION",
+        userId: input.userId,
+        wallet: "POINTS"
       }
-      const discount = await this.discounts.createPersonalCode(tx, {
-        amountMinor: valueMinor,
-        createdById: user.id,
-        currency: settings.currency,
-        name: `Referral ${wallet === "POINTS" ? "points" : "credits"} — ${displayName(user)}`,
-        userId: user.id
-      });
-      await tx.referralCreditEntry.create({
-        data: {
-          amountMinor: -body.amount,
-          createdById: user.id,
-          currency: settings.currency,
-          discountId: discount.id,
-          note: `Payment code ${discount.code}`,
-          type: "PAYMENT_CODE",
-          userId: user.id,
-          wallet
-        }
-      });
-      return discount;
     });
   }
 
-  /** Switches off an unused code and returns what it cost to the wallet that paid. */
-  async cancelPaymentCode(userId: string, discountId: string) {
-    await this.prisma.$transaction(async (tx) => {
-      const discount = await tx.discount.findFirst({ where: { id: discountId, restrictedToUserId: userId } });
-      const issued = discount
-        ? await tx.referralCreditEntry.findFirst({ where: { discountId, type: "PAYMENT_CODE", userId } })
-        : null;
-      if (!discount || !issued) throw new NotFoundException("Payment code not found.");
-
-      // A checkout already priced with this code could still capture.
-      const openOrders = await tx.order.count({ where: { discountId, status: { in: OPEN_ORDER_STATUSES } } });
-      if (openOrders > 0) {
-        throw new ConflictException("A payment using this code is still in progress. Finish or abandon it first.");
-      }
-      const deactivated = await this.discounts.deactivateUnusedPersonalCode(tx, discountId, userId);
-      if (!deactivated) throw new ConflictException("This code was already used or cancelled.");
-
-      await this.lock(tx, userId);
-      await tx.referralCreditEntry.create({
-        data: {
-          amountMinor: -issued.amountMinor,
-          createdById: userId,
-          currency: issued.currency,
-          discountId,
-          note: `Payment code ${discount.code} cancelled.`,
-          type: "PAYMENT_CODE_REVERSAL",
-          userId,
-          wallet: issued.wallet
-        }
-      });
-    });
-  }
-
-  // ── Points ──
-
-  /**
-   * Sends points to another account (by email). Points only: money is never
-   * transferable. Both sides must be in `pointsTransferRoles`; the sender's
-   * rolling-24-hour total is capped by `maxTransferPointsPerDay`.
-   */
-  async transferPoints(
-    sender: Pick<User, "id" | "role" | "email" | "firstName" | "lastName">,
-    settings: ReferralSettings,
-    body: TransferReferralPointsRequest
+  /** Returns a redemption's points (rejected, cancelled or revoked). */
+  async refundRedemption(
+    tx: PrismaTransactionClient,
+    input: { userId: string; redemptionId: string; points: number; currency: string; note: string; actorId: string }
   ) {
-    if (!settings.enabled || !settings.pointsTransferEnabled || !settings.pointsTransferRoles.includes(sender.role)) {
-      throw new ForbiddenException("Sending points is not available for your account.");
-    }
-    if (body.points < settings.minTransferPoints) {
-      throw new BadRequestException(`Send at least ${formatReferralPoints(settings.minTransferPoints)}.`);
-    }
-    if (body.email === sender.email.toLowerCase()) throw new BadRequestException("You cannot send points to yourself.");
-
-    const recipient = await this.prisma.user.findFirst({
-      select: { firstName: true, id: true, lastName: true, role: true },
-      where: { email: { equals: body.email, mode: "insensitive" }, status: UserStatus.ACTIVE }
-    });
-    if (!recipient || !settings.pointsTransferRoles.includes(recipient.role)) {
-      throw new NotFoundException("No account with that email can receive points.");
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      await this.lockPair(tx, sender.id, recipient.id);
-      const balance = await this.balance(sender.id, "POINTS", tx);
-      if (body.points > balance) throw new BadRequestException("That is more than your points.");
-      if (settings.maxTransferPointsPerDay > 0) {
-        const sent = await this.pointsSentLast24h(sender.id, tx);
-        if (sent + body.points > settings.maxTransferPointsPerDay) {
-          const left = Math.max(0, settings.maxTransferPointsPerDay - sent);
-          throw new BadRequestException(`You can send ${formatReferralPoints(left)} more in the next 24 hours.`);
-        }
+    await this.lockUser(tx, input.userId);
+    await tx.referralCreditEntry.create({
+      data: {
+        amountMinor: input.points,
+        createdById: input.actorId,
+        currency: input.currency,
+        note: input.note,
+        redemptionId: input.redemptionId,
+        type: "REDEMPTION_REVERSAL",
+        userId: input.userId,
+        wallet: "POINTS"
       }
-
-      const note = body.note || null;
-      const transfer = await tx.referralPointsTransfer.create({
-        data: { fromUserId: sender.id, note, points: body.points, toUserId: recipient.id }
-      });
-      await tx.referralCreditEntry.createMany({
-        data: [
-          {
-            amountMinor: -body.points,
-            createdById: sender.id,
-            currency: settings.currency,
-            note: note ?? `Sent to ${displayName(recipient)}`,
-            transferId: transfer.id,
-            type: "POINTS_TRANSFER_OUT",
-            userId: sender.id,
-            wallet: "POINTS"
-          },
-          {
-            amountMinor: body.points,
-            createdById: sender.id,
-            currency: settings.currency,
-            note: note ?? `From ${displayName(sender)}`,
-            transferId: transfer.id,
-            type: "POINTS_TRANSFER_IN",
-            userId: recipient.id,
-            wallet: "POINTS"
-          }
-        ]
-      });
-      return { points: body.points, pointsBalance: balance - body.points, recipientName: displayName(recipient) };
-    });
-  }
-
-  /**
-   * Points → money at the rate in force (snapshotted on the conversion row),
-   * rounded down to a whole minor unit. One way: nothing turns money into points.
-   */
-  async convertPoints(user: Pick<User, "id" | "role">, settings: ReferralSettings, body: ConvertReferralPointsRequest) {
-    if (!settings.enabled || !settings.pointsConversionEnabled || !settings.pointsConversionRoles.includes(user.role)) {
-      throw new ForbiddenException("Converting points is not available for your account.");
-    }
-    if (body.points < settings.minConversionPoints) {
-      throw new BadRequestException(`Convert at least ${formatReferralPoints(settings.minConversionPoints)}.`);
-    }
-    const amountMinor = referralPointsValueMinor(body.points, settings);
-    if (amountMinor < 1) throw new BadRequestException("That many points is not worth anything yet. Convert more.");
-
-    return this.prisma.$transaction(async (tx) => {
-      await this.lock(tx, user.id);
-      const balance = await this.balance(user.id, "POINTS", tx);
-      if (body.points > balance) throw new BadRequestException("That is more than your points.");
-      const conversion = await tx.referralPointsConversion.create({
-        data: {
-          amountMinor,
-          currency: settings.currency,
-          points: body.points,
-          ratePoints: settings.conversionPoints,
-          rateValueMinor: settings.conversionValueMinor,
-          userId: user.id
-        }
-      });
-      const note = `${formatReferralPoints(body.points)} → ${formatMoney(amountMinor, settings.currency)}`;
-      await tx.referralCreditEntry.createMany({
-        data: [
-          {
-            amountMinor: -body.points,
-            conversionId: conversion.id,
-            createdById: user.id,
-            currency: settings.currency,
-            note,
-            type: "CONVERSION_OUT",
-            userId: user.id,
-            wallet: "POINTS"
-          },
-          {
-            amountMinor,
-            conversionId: conversion.id,
-            createdById: user.id,
-            currency: settings.currency,
-            note,
-            type: "CONVERSION_IN",
-            userId: user.id,
-            wallet: "CASH"
-          }
-        ]
-      });
-      return { amountMinor, currency: settings.currency, points: body.points };
     });
   }
 
@@ -505,7 +332,7 @@ export class ReferralCreditsService {
     const target = await this.prisma.user.findUnique({ select: { id: true, role: true }, where: { id: body.userId } });
     if (!target || !isReferrerRole(target.role)) throw new NotFoundException("Referrer not found.");
     await this.prisma.$transaction(async (tx) => {
-      await this.lock(tx, target.id);
+      await this.lockUser(tx, target.id);
       await tx.referralCreditEntry.create({
         data: {
           amountMinor: body.amountMinor,

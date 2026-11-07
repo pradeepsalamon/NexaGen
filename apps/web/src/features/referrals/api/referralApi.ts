@@ -1,15 +1,12 @@
 import {
   API_ROUTES,
-  type ConvertReferralPointsRequest,
-  type ConvertReferralPointsResponse,
-  type CreateReferralPaymentCodeRequest,
-  type TransferReferralPointsRequest,
-  type TransferReferralPointsResponse,
   type MyReferralSummary,
+  type MyReferralVoucherCatalogue,
+  type RedeemReferralVoucherRequest,
   type ReferralCreditEntryItem,
   type ReferralItem,
   type ReferralPage,
-  type ReferralPaymentCodeItem,
+  type ReferralRedemptionItem,
   type ReferralRewardItem,
   type ReferralVisitRequest,
   type ReferralVisitResponse,
@@ -39,9 +36,12 @@ export function getMyReferralRewards(): Promise<ReferralRewardItem[]> {
   return apiFetch<ReferralRewardItem[]>(API_ROUTES.referrals.myRewards);
 }
 
+/** Points and money history: every ledger movement. */
 export function getMyReferralCredits(): Promise<ReferralCreditEntryItem[]> {
   return apiFetch<ReferralCreditEntryItem[]>(API_ROUTES.referrals.myCredits);
 }
+
+// ── Withdrawals (coaches and sales) ──
 
 export function getMyReferralWithdrawals(): Promise<ReferralWithdrawalItem[]> {
   return apiFetch<ReferralWithdrawalItem[]>(API_ROUTES.referrals.myWithdrawals);
@@ -55,22 +55,20 @@ export function cancelReferralWithdrawal(id: string): Promise<{ ok: true }> {
   return apiFetch<{ ok: true }>(API_ROUTES.referrals.cancelWithdrawal(id), { method: "POST" });
 }
 
-export function getMyReferralPaymentCodes(): Promise<ReferralPaymentCodeItem[]> {
-  return apiFetch<ReferralPaymentCodeItem[]>(API_ROUTES.referrals.myPaymentCodes);
+// ── Rewards store (students) ──
+
+export function getMyReferralVouchers(): Promise<MyReferralVoucherCatalogue> {
+  return apiFetch<MyReferralVoucherCatalogue>(API_ROUTES.referrals.myVouchers);
 }
 
-export function createReferralPaymentCode(body: CreateReferralPaymentCodeRequest): Promise<ReferralPaymentCodeItem> {
-  return apiFetch<ReferralPaymentCodeItem>(API_ROUTES.referrals.myPaymentCodes, { body, method: "POST" });
+export function redeemReferralVoucher(args: { id: string; body: RedeemReferralVoucherRequest }): Promise<ReferralRedemptionItem> {
+  return apiFetch<ReferralRedemptionItem>(API_ROUTES.referrals.redeemVoucher(args.id), { body: args.body, method: "POST" });
 }
 
-export function cancelReferralPaymentCode(id: string): Promise<{ ok: true }> {
-  return apiFetch<{ ok: true }>(API_ROUTES.referrals.cancelPaymentCode(id), { method: "POST" });
+export function getMyReferralRedemptions(): Promise<ReferralRedemptionItem[]> {
+  return apiFetch<ReferralRedemptionItem[]>(API_ROUTES.referrals.myRedemptions);
 }
 
-export function transferReferralPoints(body: TransferReferralPointsRequest): Promise<TransferReferralPointsResponse> {
-  return apiFetch<TransferReferralPointsResponse>(API_ROUTES.referrals.transferPoints, { body, method: "POST" });
-}
-
-export function convertReferralPoints(body: ConvertReferralPointsRequest): Promise<ConvertReferralPointsResponse> {
-  return apiFetch<ConvertReferralPointsResponse>(API_ROUTES.referrals.convertPoints, { body, method: "POST" });
+export function cancelReferralRedemption(id: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(API_ROUTES.referrals.cancelRedemption(id), { method: "POST" });
 }

@@ -164,7 +164,7 @@ export const CROSS_USER: Case[] = [
   { name: "coach puts another coach's student in a group", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.chat.createGroup, body: (w: World) => ({ memberIds: [w.b.student.id], name: "poach" }) },
   // Referral wallet: a withdrawal or payment code is its owner's alone
   { name: "coach cancels another coach's referral withdrawal", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.referrals.cancelWithdrawal(w.b.referralWithdrawal.id) },
-  { name: "student cancels another student's referral payment code", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.referrals.cancelPaymentCode(w.b.referralPaymentCode.id) }
+  { name: "student cancels another student's voucher redemption", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.referrals.cancelRedemption(w.b.referralRedemption.id) }
 ];
 
 export const OWN_CASES: Case[] = [
@@ -237,7 +237,7 @@ export const OWN_CASES: Case[] = [
   { name: "student's chat unread count", as: (w) => w.a.student, path: () => API_ROUTES.chat.unread },
   { name: "student's own assignment reminders", as: (w) => w.a.student, path: () => API_ROUTES.assignments.reminders },
   { name: "coach cancels own referral withdrawal", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.referrals.cancelWithdrawal(w.a.referralWithdrawal.id) },
-  { name: "student cancels own referral payment code", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.referrals.cancelPaymentCode(w.a.referralPaymentCode.id) }
+  { name: "student cancels own voucher redemption", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.referrals.cancelRedemption(w.a.referralRedemption.id) }
 ];
 
 // Lists must not mention the other side's rows at all.

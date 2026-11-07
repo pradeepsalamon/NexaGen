@@ -24,4 +24,9 @@ export function creditLockKey(userId: string): string {
   return `referral-credits:${userId}`;
 }
 
+/** Advisory key for one voucher's stock (count + redeem). */
+export function voucherLockKey(voucherId: string): string {
+  return `referral-voucher:${voucherId}`;
+}
+
 export const REFERRAL_COOKIE_NAME = "nexa_referral";

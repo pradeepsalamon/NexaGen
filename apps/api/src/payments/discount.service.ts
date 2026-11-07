@@ -271,6 +271,56 @@ export class DiscountService {
   }
 
   /**
+   * A one-use personal code a student bought with referral points
+   * (docs/REFERRALS.md § Vouchers): a percentage (optional cap) or a fixed
+   * amount, with an optional minimum fee, plan scope and expiry. Same
+   * personal-code rules as `createPersonalCode`.
+   */
+  async createPersonalVoucherCode(
+    tx: PrismaTransactionClient,
+    input: {
+      userId: string;
+      type: "PERCENTAGE" | "FIXED";
+      value: number;
+      currency: string;
+      maxDiscountMinor: number | null;
+      minOrderMinor: number | null;
+      planIds: string[];
+      endsAt: Date | null;
+      name: string;
+      createdById: string | null;
+    }
+  ): Promise<Discount> {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const code = `RWD${randomCodeSuffix(8)}`;
+      try {
+        return await tx.discount.create({
+          data: {
+            code,
+            createdById: input.createdById,
+            // A fixed amount is only meaningful in its own currency.
+            currency: input.type === "FIXED" ? input.currency.toUpperCase() : null,
+            description: "Referral reward voucher. One use, by this account only.",
+            endsAt: input.endsAt,
+            maxDiscountAmount: input.type === "PERCENTAGE" ? input.maxDiscountMinor : null,
+            maxPerUser: 1,
+            maxRedemptions: 1,
+            minOrderAmount: input.minOrderMinor,
+            name: input.name,
+            planIds: input.planIds,
+            restrictedToUserId: input.userId,
+            type: input.type,
+            value: input.value
+          }
+        });
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+      }
+    }
+    throw new ConflictException("Could not create a voucher code. Try again.");
+  }
+
+  /**
    * Switches off an unused personal code. False when it was already used or
    * switched off (status-filtered claim, so a capture racing it wins).
    */

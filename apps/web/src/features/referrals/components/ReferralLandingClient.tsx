@@ -4,7 +4,7 @@ import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Crown, Gift } from "lucide-react";
-import { formatReferralReward, type ReferralBenefitItem } from "@nexa-chess/types";
+import { formatReferralPoints, type ReferralBenefitItem } from "@nexa-chess/types";
 import { recordReferralVisit } from "../api/referralApi";
 import { rememberReferralCode } from "../lib/referralStorage";
 
@@ -58,11 +58,11 @@ export function ReferralLandingClient({ code }: { code: string }) {
         {benefits.length ? (
           <ul className="mt-4 grid gap-2 text-left">
             {benefits.map((benefit) => (
-              <li className="flex items-start gap-2 rounded-control bg-accent-soft p-3 text-sm text-app-text" key={benefit.id}>
+              <li className="flex items-start gap-2 rounded-control bg-accent-soft p-3 text-sm text-app-text" key={benefit.stageId}>
                 <Gift aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-ink" strokeWidth={2.5} />
                 <span>
-                  <span className="font-bold">{formatReferralReward(benefit.amountMinor, benefit.unit, benefit.currency)}</span>{" "}
-                  {benefit.description ?? `when you reach "${benefit.stageName}"`}
+                  <span className="font-bold">{formatReferralPoints(benefit.points)}</span> when you reach &ldquo;{benefit.stageName}&rdquo;,
+                  to spend on fee discounts and free days of classes
                 </span>
               </li>
             ))}

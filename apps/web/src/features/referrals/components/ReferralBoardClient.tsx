@@ -2,7 +2,7 @@
 
 import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { formatReferralPoints } from "@nexa-chess/types";
-import { Eye, Gift, UserCheck, Users, Wallet } from "lucide-react";
+import { Eye, Gift, Star, UserCheck, Users, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionCard } from "@/components/ui/SectionCard";
@@ -18,6 +18,7 @@ import { MyReferralsTable } from "./MyReferralsTable";
 import { MyRewardsList } from "./MyRewardsList";
 import { ReferralFunnel } from "./ReferralFunnel";
 import { ReferralShareCard } from "./ReferralShareCard";
+import { RewardsStore } from "./RewardsStore";
 import { WalletPanel } from "./WalletPanel";
 
 /**
@@ -35,7 +36,9 @@ export function ReferralBoardClient() {
       description={
         isSales
           ? "Track every person you bring to the academy, from first visit to onboarding."
-          : `Invite friends to ${brandName} and earn rewards when they join.`
+          : role === "STUDENT"
+            ? `Invite friends to ${brandName}, earn points when they join, and spend them on rewards.`
+            : `Invite friends to ${brandName} and earn rewards when they join.`
       }
       title={isSales ? "Referral board" : "Refer & earn"}
     />
@@ -65,9 +68,10 @@ export function ReferralBoardClient() {
     );
   }
 
-  const hasMoney = data.credits.balanceMinor !== 0 || data.credits.earnedMinor > 0;
+  const isStudent = data.wallet === "POINTS";
+  const hasBalance = data.points.balance !== 0 || (data.money?.balanceMinor ?? 0) !== 0;
 
-  if (!data.eligible && !hasMoney) {
+  if (!data.eligible && !hasBalance && !data.canRedeem) {
     return (
       <div className="pb-10">
         {header}
@@ -90,13 +94,23 @@ export function ReferralBoardClient() {
         <StatTile context="All time" icon={Eye} label="Link visits" tone="primary" value={String(data.totals.visits)} />
         <StatTile context="Unique people" icon={Users} label="Referred" tone="secondary" value={String(data.totals.referrals)} />
         <StatTile context="Joined the academy" icon={UserCheck} label="Onboarded" tone="accent" value={String(data.totals.converted)} />
-        <StatTile
-          context={`+ ${formatReferralPoints(data.points.balance)}`}
-          icon={Wallet}
-          label="Wallet"
-          tone="reward"
-          value={money(data.credits.balanceMinor, data.credits.currency)}
-        />
+        {isStudent || !data.money ? (
+          <StatTile
+            context={`${formatReferralPoints(data.points.earned)} earned`}
+            icon={Star}
+            label="Points"
+            tone="reward"
+            value={data.points.balance.toLocaleString("en-IN")}
+          />
+        ) : (
+          <StatTile
+            context={`${money(data.money.earnedMinor, data.currency)} earned`}
+            icon={Wallet}
+            label="Wallet"
+            tone="reward"
+            value={money(data.money.balanceMinor, data.currency)}
+          />
+        )}
       </div>
 
       <SectionCard description="How many of your referrals have reached each step." title="Your pipeline">
@@ -106,17 +120,23 @@ export function ReferralBoardClient() {
         />
       </SectionCard>
 
-      <Tabs defaultValue="referrals">
+      <Tabs defaultValue={data.eligible ? "referrals" : data.canRedeem ? "store" : "wallet"}>
         <TabsList className="justify-self-end">
           <TabsTrigger value="referrals">Referrals</TabsTrigger>
-          <TabsTrigger value="rewards">Rewards</TabsTrigger>
-          <TabsTrigger value="wallet">Wallet</TabsTrigger>
+          {data.canRedeem ? <TabsTrigger value="store">Rewards store</TabsTrigger> : null}
+          <TabsTrigger value="earned">Earned</TabsTrigger>
+          <TabsTrigger value="wallet">{isStudent ? "Points" : "Wallet"}</TabsTrigger>
           <TabsTrigger value="how">How it works</TabsTrigger>
         </TabsList>
         <TabsContent value="referrals">
           <MyReferralsTable showContact={isSales} stages={data.stages} />
         </TabsContent>
-        <TabsContent value="rewards">
+        {data.canRedeem ? (
+          <TabsContent value="store">
+            <RewardsStore />
+          </TabsContent>
+        ) : null}
+        <TabsContent value="earned">
           <MyRewardsList />
         </TabsContent>
         <TabsContent value="wallet">

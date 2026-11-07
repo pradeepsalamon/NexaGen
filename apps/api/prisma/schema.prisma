@@ -481,22 +481,25 @@ model User {
   knowledgeFeedback         KnowledgeFeedback[]       @relation("KnowledgeFeedbackUser")
 
   // ── Referral program (docs/REFERRALS.md) ──
-  referralCode               ReferralCode?              @relation("ReferralCodeOwner")
-  referralsMade              Referral[]                 @relation("ReferralReferrer")
-  referralStageEvents        ReferralStageEvent[]       @relation("ReferralStageEventActor")
-  referralRewards            ReferralReward[]           @relation("ReferralRewardReferrer")
-  referralRewardsReviewed    ReferralReward[]           @relation("ReferralRewardReviewer")
-  referralRewardRulesCreated ReferralRewardRule[]       @relation("ReferralRewardRuleCreatedBy")
-  referralCreditEntries      ReferralCreditEntry[]      @relation("ReferralCreditOwner")
-  referralCreditEntriesMade  ReferralCreditEntry[]      @relation("ReferralCreditCreatedBy")
-  referralWithdrawals        ReferralWithdrawal[]       @relation("ReferralWithdrawalOwner")
-  referralWithdrawalsHandled ReferralWithdrawal[]       @relation("ReferralWithdrawalReviewer")
-  referralSettingsUpdates    ReferralSettings[]         @relation("ReferralSettingsUpdatedBy")
-  referredBy                 Referral?                  @relation("ReferralReferredUser")
-  referralPointsSent         ReferralPointsTransfer[]   @relation("ReferralPointsTransferFrom")
-  referralPointsReceived     ReferralPointsTransfer[]   @relation("ReferralPointsTransferTo")
-  referralPointsConversions  ReferralPointsConversion[] @relation("ReferralPointsConversionOwner")
-  personalDiscounts          Discount[]                 @relation("DiscountRestrictedTo")
+  referralCode                ReferralCode?              @relation("ReferralCodeOwner")
+  referralsMade               Referral[]                 @relation("ReferralReferrer")
+  referralStageEvents         ReferralStageEvent[]       @relation("ReferralStageEventActor")
+  referralRewards             ReferralReward[]           @relation("ReferralRewardReferrer")
+  referralRewardsReviewed     ReferralReward[]           @relation("ReferralRewardReviewer")
+  referralRewardRulesCreated  ReferralRewardRule[]       @relation("ReferralRewardRuleCreatedBy")
+  referralCreditEntries       ReferralCreditEntry[]      @relation("ReferralCreditOwner")
+  referralCreditEntriesMade   ReferralCreditEntry[]      @relation("ReferralCreditCreatedBy")
+  referralWithdrawals         ReferralWithdrawal[]       @relation("ReferralWithdrawalOwner")
+  referralVouchersCreated     ReferralVoucher[]          @relation("ReferralVoucherCreatedBy")
+  referralRedemptions         ReferralRedemption[]       @relation("ReferralRedemptionOwner")
+  referralRedemptionsReviewed ReferralRedemption[]       @relation("ReferralRedemptionReviewer")
+  referralWithdrawalsHandled  ReferralWithdrawal[]       @relation("ReferralWithdrawalReviewer")
+  referralSettingsUpdates     ReferralSettings[]         @relation("ReferralSettingsUpdatedBy")
+  referredBy                  Referral?                  @relation("ReferralReferredUser")
+  referralPointsSent          ReferralPointsTransfer[]   @relation("ReferralPointsTransferFrom")
+  referralPointsReceived      ReferralPointsTransfer[]   @relation("ReferralPointsTransferTo")
+  referralPointsConversions   ReferralPointsConversion[] @relation("ReferralPointsConversionOwner")
+  personalDiscounts           Discount[]                 @relation("DiscountRestrictedTo")
 
   // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
   @@unique([tenantId, email])
@@ -3607,9 +3610,10 @@ model Plan {
   /// Created lazily on first recurring checkout and cached here.
   providerPlanIds Json?
 
-  orders        Order[]
-  subscriptions Subscription[]
-  entitlements  Entitlement[]
+  orders              Order[]
+  subscriptions       Subscription[]
+  entitlements        Entitlement[]
+  referralRedemptions ReferralRedemption[] @relation("ReferralRedemptionPlan")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4284,6 +4288,9 @@ model Entitlement {
   revokedAt     DateTime?
   revokedReason String?
 
+  /// Referral free-days vouchers that created or extended this access.
+  referralRedemptions ReferralRedemption[] @relation("ReferralRedemptionEntitlement")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -4479,6 +4486,7 @@ model Discount {
   restrictedToUser      User?                 @relation("DiscountRestrictedTo", fields: [restrictedToUserId], references: [id], onDelete: Restrict)
   referralCreditEntries ReferralCreditEntry[]
   referralReward        ReferralReward?       @relation("ReferralRewardDiscount")
+  referralRedemption    ReferralRedemption?   @relation("ReferralRedemptionDiscount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -7104,10 +7112,15 @@ enum ReferralCreditEntryType {
   CONVERSION_OUT
   /// Money a conversion paid in (CASH wallet).
   CONVERSION_IN
+  /// Points spent on a voucher (held while it waits for approval).
+  REDEMPTION
+  /// Points returned: a voucher request rejected, cancelled or revoked.
+  REDEMPTION_REVERSAL
 }
 
-/// CASH is money (withdrawable, never transferable); POINTS can be sent to
-/// other users and converted one way into CASH at the admin rate.
+/// CASH is money (coaches and SALES: withdrawable, never transferable);
+/// POINTS (students and new members) are spent on reward vouchers. Nothing
+/// moves between the two.
 enum ReferralWallet {
   CASH
   POINTS
@@ -7148,11 +7161,22 @@ model ReferralStage {
   position    Int
   trigger     ReferralStageTrigger @default(MANUAL)
 
+  // ── What reaching this stage earns (docs/REFERRALS.md § Earning) ──
+  /// Points a STUDENT referrer earns per referral reaching this stage.
+  studentPoints   Int @default(0)
+  /// Money (minor units) a COACH referrer earns per referral.
+  coachCashMinor  Int @default(0)
+  /// Money (minor units) a SALES referrer earns per referral.
+  salesCashMinor  Int @default(0)
+  /// Points the new member (the linked referred account) gets.
+  newMemberPoints Int @default(0)
+
   referrals   Referral[]
   reaches     ReferralStageReach[]
   eventsFrom  ReferralStageEvent[] @relation("ReferralStageEventFrom")
   eventsTo    ReferralStageEvent[] @relation("ReferralStageEventTo")
   rewardRules ReferralRewardRule[]
+  rewards     ReferralReward[]     @relation("ReferralRewardStage")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -7330,13 +7354,17 @@ model ReferralReward {
   id           String               @id @default(cuid())
   /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
   tenantId     String               @default("tenant_nexa")
-  ruleId       String
-  rule         ReferralRewardRule   @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  /// A milestone bonus (or a legacy rule). Null = a stage value.
+  ruleId       String?
+  rule         ReferralRewardRule?  @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  /// A stage value (`ReferralStage.studentPoints` …). Null = a rule reward.
+  stageId      String?
+  stage        ReferralStage?       @relation("ReferralRewardStage", fields: [stageId], references: [id], onDelete: SetNull)
   referrerId   String
   referrer     User                 @relation("ReferralRewardReferrer", fields: [referrerId], references: [id], onDelete: Restrict)
   referralId   String?
   referral     Referral?            @relation(fields: [referralId], references: [id], onDelete: SetNull)
-  /// `rule:<id>:ref:<id>` or `rule:<id>:user:<id>:n:<k>` — one reward per fact.
+  /// `stage:<id>:ref:<id>:referrer|referred` or `rule:<id>:user:<id>:n:<k>` — one reward per fact.
   dedupeKey    String               @unique
   /// The value in `unit` (see ReferralRewardRule.amountMinor).
   amountMinor  Int
@@ -7361,6 +7389,7 @@ model ReferralReward {
 
   @@index([referrerId, createdAt])
   @@index([status])
+  @@index([stageId])
   @@map("referral_rewards")
 }
 
@@ -7386,6 +7415,8 @@ model ReferralCreditEntry {
   transfer     ReferralPointsTransfer?   @relation(fields: [transferId], references: [id], onDelete: Restrict)
   conversionId String?
   conversion   ReferralPointsConversion? @relation(fields: [conversionId], references: [id], onDelete: Restrict)
+  redemptionId String?
+  redemption   ReferralRedemption?       @relation(fields: [redemptionId], references: [id], onDelete: Restrict)
   note         String?
   createdById  String?
   createdBy    User?                     @relation("ReferralCreditCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -7397,6 +7428,7 @@ model ReferralCreditEntry {
   @@index([discountId])
   @@index([transferId])
   @@index([conversionId])
+  @@index([redemptionId])
   @@index([userId, wallet])
   @@map("referral_credit_entries")
 }
@@ -7506,10 +7538,139 @@ model ReferralSettings {
   /// Points pay fees directly (a personal code worth the converted value),
   /// for the roles in `paymentUseRoles`.
   pointsPaymentEnabled    Boolean    @default(true)
+  // The four point/money switches above are retired (docs/REFERRALS.md
+  // § "What changed in the rebuild"); the columns stay because migrations are
+  // additive. Nothing reads them.
+
+  // ── Earning and redeeming ──
+  /// Stage-value rewards in points are credited at once (off = admin approves).
+  autoApprovePoints       Boolean @default(true)
+  /// Stage-value rewards in money wait for an admin unless this is on.
+  autoApproveCash         Boolean @default(false)
+  /// Students may redeem points for vouchers.
+  redemptionsEnabled      Boolean @default(true)
+  /// Per student, rolling 30 days. 0 = no limit.
+  maxRedemptionsPer30Days Int     @default(0)
 
   updatedById String?
   updatedBy   User?    @relation("ReferralSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   updatedAt   DateTime @updatedAt
 
   @@map("referral_settings")
+}
+
+enum ReferralVoucherType {
+  /// Whole percent off one payment, with an optional cap and minimum fee.
+  PERCENT_DISCOUNT
+  /// A fixed amount off one payment, with an optional minimum fee.
+  FIXED_DISCOUNT
+  /// Days added to the student's access to a plan.
+  FREE_DAYS
+}
+
+enum ReferralRedemptionStatus {
+  /// Points held; waiting for an admin (vouchers with `requiresApproval`).
+  PENDING
+  FULFILLED
+  /// An admin said no; points returned.
+  REJECTED
+  /// The student withdrew a pending request; points returned.
+  CANCELLED
+  /// An admin took back an unused discount code; points returned.
+  REVOKED
+}
+
+/// An admin-made reward students buy with points (docs/REFERRALS.md § Vouchers).
+/// Not soft-deletable: one that was redeemed is switched off instead.
+model ReferralVoucher {
+  id               String              @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId         String              @default("tenant_nexa")
+  name             String
+  description      String?
+  type             ReferralVoucherType
+  pointsCost       Int
+  /// PERCENT_DISCOUNT: whole percent (1–100).
+  percentOff       Int?
+  /// FIXED_DISCOUNT: minor units.
+  amountOffMinor   Int?
+  /// PERCENT_DISCOUNT: the most the code takes off. Minor units; null = no cap.
+  maxDiscountMinor Int?
+  /// Discounts: the smallest fee the code applies to. Minor units; null = any.
+  minOrderMinor    Int?
+  /// FREE_DAYS: days of access added.
+  freeDays         Int?
+  /// Discounts: plans the code works on. FREE_DAYS: plans whose access it
+  /// extends. Empty = any plan.
+  planIds          String[]
+  /// Discounts: days the issued code stays valid. Null = no expiry.
+  codeValidDays    Int?
+  /// On = each redemption waits for an admin (points are held meanwhile).
+  requiresApproval Boolean             @default(false)
+  /// Redemptions across everyone. Null = unlimited.
+  stock            Int?
+  /// Redemptions per student. Null = unlimited.
+  perUserLimit     Int?                @default(1)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  isActive         Boolean             @default(true)
+  sortOrder        Int                 @default(0)
+
+  createdById String?
+  createdBy   User?   @relation("ReferralVoucherCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  redemptions ReferralRedemption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@map("referral_vouchers")
+}
+
+/// A student spending points on a voucher. The voucher's terms are
+/// snapshotted, so editing the voucher never changes an issued reward.
+/// Financial: never soft-deleted; users Restrict.
+model ReferralRedemption {
+  id               String                   @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId         String                   @default("tenant_nexa")
+  voucherId        String
+  voucher          ReferralVoucher          @relation(fields: [voucherId], references: [id], onDelete: Restrict)
+  userId           String
+  user             User                     @relation("ReferralRedemptionOwner", fields: [userId], references: [id], onDelete: Restrict)
+  status           ReferralRedemptionStatus @default(PENDING)
+  pointsCost       Int
+  voucherName      String
+  type             ReferralVoucherType
+  percentOff       Int?
+  amountOffMinor   Int?
+  maxDiscountMinor Int?
+  minOrderMinor    Int?
+  freeDays         Int?
+  currency         String
+  /// Discounts: the personal one-use code issued on fulfilment.
+  discountId       String?                  @unique
+  discount         Discount?                @relation("ReferralRedemptionDiscount", fields: [discountId], references: [id], onDelete: Restrict)
+  /// FREE_DAYS: the plan chosen, and the access it created or extended.
+  planId           String?
+  plan             Plan?                    @relation("ReferralRedemptionPlan", fields: [planId], references: [id], onDelete: SetNull)
+  entitlementId    String?
+  entitlement      Entitlement?             @relation("ReferralRedemptionEntitlement", fields: [entitlementId], references: [id], onDelete: SetNull)
+  accessEndsAt     DateTime?
+  adminNote        String?
+  reviewedById     String?
+  reviewedBy       User?                    @relation("ReferralRedemptionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?
+  fulfilledAt      DateTime?
+
+  creditEntries ReferralCreditEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([voucherId, status])
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("referral_redemptions")
 }

@@ -104,6 +104,7 @@ export class PrivacyService {
       referralPointsSent,
       referralPointsReceived,
       referralPointsConversions,
+      referralRedemptions,
       referredBy
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
@@ -218,6 +219,8 @@ export class PrivacyService {
       p.referralPointsTransfer.findMany({ select: { createdAt: true, id: true, note: true, points: true }, where: { fromUserId: id } }),
       p.referralPointsTransfer.findMany({ select: { createdAt: true, id: true, note: true, points: true }, where: { toUserId: id } }),
       p.referralPointsConversion.findMany({ where: { userId: id } }),
+      // Vouchers bought with points (the issued code's id, not its text).
+      p.referralRedemption.findMany({ omit: { reviewedById: true }, where: { userId: id } }),
       // The referral that brought this account in — not who referred them.
       p.referral.findMany({ select: { createdAt: true, id: true }, where: { referredUserId: id } })
     ]);
@@ -268,6 +271,7 @@ export class PrivacyService {
         referralPointsSent: records(referralPointsSent),
         referralPointsReceived: records(referralPointsReceived),
         referralPointsConversions: records(referralPointsConversions),
+        referralRedemptions: records(referralRedemptions),
         referredBy: records(referredBy),
         referralsMade: records(referralsMade),
         sessions: records(sessions),

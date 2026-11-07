@@ -7,22 +7,27 @@ import {
   type AdminReferralItem,
   type AdminReferralOverview,
   type CancelReferralRewardRequest,
-  type CreateReferralRewardRuleRequest,
+  type CreateReferralBonusRuleRequest,
+  type CreateReferralVoucherRequest,
   type CreateReferralStageRequest,
   type MoveReferralStageRequest,
   type PayReferralWithdrawalRequest,
   type ReferralPage,
   type ReferralRewardItem,
-  type ReferralRewardRuleItem,
+  type ReferralBonusRuleItem,
+  type ReferralRedemptionItem,
+  type ReferralVoucherItem,
   type ReferralSettingsItem,
   type ReferralStageItem,
   type ReferralWithdrawalItem,
   type ReferrerStatsItem,
+  type RejectReferralRedemptionRequest,
   type RejectReferralWithdrawalRequest,
   type SendReferrerAccessLinkRequest,
   type SendReferrerAccessLinkResponse,
-  type UpdateReferralRewardRuleRequest,
+  type UpdateReferralBonusRuleRequest,
   type UpdateReferralSettingsRequest,
+  type UpdateReferralVoucherRequest,
   type UpdateReferralStageRequest,
   type UpdateReferrerCodeRequest
 } from "@nexa-chess/types";
@@ -58,12 +63,26 @@ export const referralAdminApi = {
   reorderStages: (stageIds: string[]) =>
     apiFetch<ReferralStageItem[]>(routes.reorderStages, { body: { stageIds }, method: "POST" }),
 
-  rules: () => apiFetch<ReferralRewardRuleItem[]>(routes.rewardRules),
-  createRule: (body: CreateReferralRewardRuleRequest) =>
-    apiFetch<ReferralRewardRuleItem>(routes.rewardRules, { body, method: "POST" }),
-  updateRule: (id: string, body: UpdateReferralRewardRuleRequest) =>
-    apiFetch<ReferralRewardRuleItem>(routes.rewardRule(id), { body, method: "PATCH" }),
-  deleteRule: (id: string) => apiFetch<{ deleted: boolean }>(routes.rewardRule(id), { method: "DELETE" }),
+  bonusRules: () => apiFetch<ReferralBonusRuleItem[]>(routes.bonusRules),
+  createBonusRule: (body: CreateReferralBonusRuleRequest) =>
+    apiFetch<ReferralBonusRuleItem>(routes.bonusRules, { body, method: "POST" }),
+  updateBonusRule: (id: string, body: UpdateReferralBonusRuleRequest) =>
+    apiFetch<ReferralBonusRuleItem>(routes.bonusRule(id), { body, method: "PATCH" }),
+  deleteBonusRule: (id: string) => apiFetch<{ deleted: boolean }>(routes.bonusRule(id), { method: "DELETE" }),
+
+  vouchers: () => apiFetch<ReferralVoucherItem[]>(routes.vouchers),
+  createVoucher: (body: CreateReferralVoucherRequest) => apiFetch<ReferralVoucherItem>(routes.vouchers, { body, method: "POST" }),
+  updateVoucher: (id: string, body: UpdateReferralVoucherRequest) =>
+    apiFetch<ReferralVoucherItem>(routes.voucher(id), { body, method: "PATCH" }),
+  deleteVoucher: (id: string) => apiFetch<{ deleted: boolean }>(routes.voucher(id), { method: "DELETE" }),
+
+  redemptions: (params: ReferralListParams) =>
+    apiFetch<ReferralPage<ReferralRedemptionItem>>(withQuery(routes.redemptions, params)),
+  approveRedemption: (id: string) => apiFetch<Ok>(routes.approveRedemption(id), { method: "POST" }),
+  rejectRedemption: (id: string, body: RejectReferralRedemptionRequest) =>
+    apiFetch<Ok>(routes.rejectRedemption(id), { body, method: "POST" }),
+  revokeRedemption: (id: string, body: RejectReferralRedemptionRequest) =>
+    apiFetch<Ok>(routes.revokeRedemption(id), { body, method: "POST" }),
 
   rewards: (params: ReferralListParams) => apiFetch<ReferralPage<ReferralRewardItem>>(withQuery(routes.rewards, params)),
   approveReward: (id: string) => apiFetch<Ok>(routes.approveReward(id), { method: "POST" }),
