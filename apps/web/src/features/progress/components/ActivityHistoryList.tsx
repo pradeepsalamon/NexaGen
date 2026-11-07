@@ -173,12 +173,12 @@ export function ActivityHistoryList({
       ) : query.hasNextPage ? (
         <div className="flex justify-center">
           <Button
-            disabled={query.isFetchingNextPage}
+            isLoading={query.isFetchingNextPage}
             onClick={() => query.fetchNextPage()}
             type="button"
             variant="outline"
           >
-            {query.isFetchingNextPage ? "Loading…" : "Load more"}
+            Load more
           </Button>
         </div>
       ) : null}

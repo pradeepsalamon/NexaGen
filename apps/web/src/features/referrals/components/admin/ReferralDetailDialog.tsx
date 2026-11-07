@@ -65,7 +65,7 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
           <DialogDescription>
             {data
               ? `Referred by ${data.referrerName} (${REFERRER_ROLE_LABELS[data.referrerRole]}) · code ${data.code}`
-              : "Loading…"}
+              : <Skeleton as="span" className="h-3.5 w-64" />}
           </DialogDescription>
         </DialogHeader>
 

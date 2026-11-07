@@ -13,6 +13,7 @@ import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { formatNumber } from "../../lib/format";
+import { TableSkeletonRows } from "@/components/ui/TableSkeletonRows";
 
 export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
   const brandName = useBrandName();
@@ -119,11 +120,7 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
                   </TableRow>
                 ))}
                 {isLoading ? (
-                  <TableRow>
-                    <TableCell className="text-left py-3 text-app-muted" colSpan={4}>
-                      Loading…
-                    </TableCell>
-                  </TableRow>
+                  <TableSkeletonRows columns={4} />
                 ) : null}
               </TableBody>
             </Table>

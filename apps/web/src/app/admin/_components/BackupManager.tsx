@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { Spinner } from "@/components/ui/Spinner";
+import { TableSkeletonRows } from "@/components/ui/TableSkeletonRows";
 
 export interface BackupItem {
   key: string;
@@ -158,14 +159,7 @@ export function BackupManager() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24">
-                  <div className="flex items-center justify-center text-app-muted gap-2">
-                    <Spinner className="size-5" />
-                    Loading backups…
-                  </div>
-                </TableCell>
-              </TableRow>
+              <TableSkeletonRows columns={5} label="Loading backups…" rows={3} />
             ) : backups.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center text-app-muted">

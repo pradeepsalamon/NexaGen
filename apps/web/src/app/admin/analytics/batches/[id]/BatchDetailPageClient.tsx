@@ -18,6 +18,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export function BatchDetailPageClient({ batchId }: { batchId: string }) {
   return (
@@ -58,7 +59,7 @@ function Body({
     <div className="space-y-5">
       <div>
         <h2 className="text-lg font-bold text-app-text">
-          {isLoading ? "Loading…" : b?.name}
+          {isLoading ? <Skeleton as="span" className="h-6 w-48" /> : b?.name}
         </h2>
         {b ? (
           <p className="text-sm text-app-muted">

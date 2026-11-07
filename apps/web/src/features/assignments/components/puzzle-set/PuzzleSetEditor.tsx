@@ -353,10 +353,10 @@ export function PuzzleSetEditor({
               type="button"
               variant="outline"
               size="sm"
-              disabled={puzzles.isFetching}
+              isLoading={puzzles.isFetching}
               onClick={() => setPageSize((n) => Math.min(100, n + PAGE))}
             >
-              {puzzles.isFetching ? "Loading…" : "Show more"}
+              Show more
             </Button>
           ) : null}
           {addable.length > 1 && !full ? (
