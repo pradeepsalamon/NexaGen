@@ -23,6 +23,9 @@ describe("LeadService", () => {
   let service: LeadService;
   let jwtService: { verifyAsync: jest.Mock };
   let sendNewLeadNotification: jest.Mock;
+  let sendDemoBookingConfirmation: jest.Mock;
+  let renderSystemMessage: jest.Mock;
+  let trySendText: jest.Mock;
   let normalizeRecipient: jest.Mock;
   let prisma: {
     visitorSession: { findUnique: jest.Mock; update: jest.Mock; create: jest.Mock; count: jest.Mock };
@@ -47,6 +50,9 @@ describe("LeadService", () => {
   beforeEach(async () => {
     jwtService = { verifyAsync: jest.fn().mockResolvedValue({ sub: ADMIN_ID, type: "access" }) };
     sendNewLeadNotification = jest.fn().mockResolvedValue(undefined);
+    sendDemoBookingConfirmation = jest.fn().mockResolvedValue(undefined);
+    renderSystemMessage = jest.fn().mockResolvedValue({ body: "Thanks!" });
+    trySendText = jest.fn().mockResolvedValue({ ok: true });
     normalizeRecipient = jest.fn((phone: string) => phone);
 
     prisma = {
@@ -103,9 +109,9 @@ describe("LeadService", () => {
         NOOP_REFERRAL_TRACKER,
         { provide: JwtService, useValue: jwtService },
         { provide: PrismaService, useValue: prisma },
-        { provide: MailService, useValue: { sendNewLeadNotification } },
-        { provide: SystemMessageRenderer, useValue: {} },
-        { provide: WhatsAppService, useValue: { normalizeRecipient } }
+        { provide: MailService, useValue: { sendDemoBookingConfirmation, sendNewLeadNotification } },
+        { provide: SystemMessageRenderer, useValue: { render: renderSystemMessage } },
+        { provide: WhatsAppService, useValue: { normalizeRecipient, trySendText } }
       ]
     }).compile();
 
@@ -196,6 +202,34 @@ describe("LeadService", () => {
       expect(sendNewLeadNotification).toHaveBeenCalledWith(
         expect.objectContaining({ email: "parent@example.com" })
       );
+    });
+
+    it("confirms the booking to the parent by email when they gave one", async () => {
+      prisma.lead.create.mockImplementation(({ data }) => ({ id: "lead-6", ...data, createdAt: new Date() }));
+
+      await service.createLead({ ...requestBody, email: "parent@example.com" }, { sessionId: undefined });
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(sendDemoBookingConfirmation).toHaveBeenCalledWith({
+        parentName: "Parent Name",
+        studentName: "Kid Name",
+        to: "parent@example.com"
+      });
+      expect(trySendText).not.toHaveBeenCalled();
+    });
+
+    it("confirms by WhatsApp when the parent gave only a phone number", async () => {
+      prisma.lead.create.mockImplementation(({ data }) => ({ id: "lead-7", ...data, createdAt: new Date() }));
+
+      await service.createLead(requestBody, { sessionId: undefined });
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(renderSystemMessage).toHaveBeenCalledWith("DEMO_BOOKING_WHATSAPP", {
+        "lead.parentName": "Parent Name",
+        "lead.studentName": "Kid Name"
+      });
+      expect(trySendText).toHaveBeenCalledWith({ body: "Thanks!", to: "9876543210" });
+      expect(sendDemoBookingConfirmation).not.toHaveBeenCalled();
     });
 
     it("stores no email when the field is left blank", async () => {

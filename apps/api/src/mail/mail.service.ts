@@ -124,6 +124,14 @@ export class MailService {
    * only record of the class they'll get if they picked email as their contact
    * method instead of a phone number.
    */
+  /** The academy site's "book a free demo" form: no class yet, just "we'll be in touch". */
+  async sendDemoBookingConfirmation(input: { to: string; parentName: string; studentName: string }) {
+    await this.sendSystemEmail("DEMO_BOOKING_EMAIL", input.to, {
+      "lead.parentName": input.parentName,
+      "lead.studentName": input.studentName
+    });
+  }
+
   async sendDemoClassRegistrationConfirmation(input: {
     to: string;
     guestName: string;

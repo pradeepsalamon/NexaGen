@@ -260,6 +260,12 @@ No row means the default.
   lose a password-reset link. A WhatsApp text has no button, so it lists the link in
   `requiredVariables`, and the API refuses a body without it.
 - Saving the default wording deletes the row.
+- **Demo messages, in order:** `DEMO_BOOKING_*` confirms the academy site's "book a
+  free demo" form to the parent (`LeadService.createLead`; email if they gave one,
+  else WhatsApp — no class chosen yet); `DEMO_INVITATION_*` is the class allotment,
+  sent when staff assign the lead (or anyone) a demo class through
+  `DemoInviteService`, with a personal join link; `DEMO_REGISTRATION_*` confirms a
+  visitor who signs up for a specific demo class themselves.
 - Direct email (`/admin/email`) is exempt, since staff write it themselves.
 
 ### Formatting and links

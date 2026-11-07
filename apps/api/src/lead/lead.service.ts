@@ -28,12 +28,15 @@ import {
   resolvePagination
 } from "../common/pagination";
 import { DemoInviteService } from "../demo-class/demo-invite.service";
+import { markdownToWhatsApp } from "@nexa-chess/types";
 import { MailService } from "../mail/mail.service";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { parseUserAgent, parseVisitAttribution } from "./lead-tracking.util";
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum } from "../common/query-params";
+import { WhatsAppService } from "../whatsapp/whatsapp.service";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 
@@ -64,10 +67,36 @@ export class LeadService {
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
     private readonly demoInvites: DemoInviteService,
-    private readonly referrals: ReferralTrackerService
+    private readonly referrals: ReferralTrackerService,
+    private readonly messages: SystemMessageRenderer,
+    private readonly whatsapp: WhatsAppService
   ) {}
 
   // ── Public ──
+
+  /**
+   * "We've received your demo booking": by email when the parent gave one, else a WhatsApp
+   * text (best effort — a first-time number is outside WhatsApp's 24h window). Never throws.
+   */
+  private async sendBookingConfirmation(lead: { email: string | null; parentName: string; phone: string; studentName: string }) {
+    try {
+      if (lead.email) {
+        await this.mailService.sendDemoBookingConfirmation({
+          parentName: lead.parentName,
+          studentName: lead.studentName,
+          to: lead.email
+        });
+        return;
+      }
+      const { body } = await this.messages.render("DEMO_BOOKING_WHATSAPP", {
+        "lead.parentName": lead.parentName,
+        "lead.studentName": lead.studentName
+      });
+      await this.whatsapp.trySendText({ body: markdownToWhatsApp(body), to: lead.phone });
+    } catch {
+      // MailService and WhatsAppService log their own failures; a booking is never refused for this.
+    }
+  }
 
   /**
    * Creates a Lead from the academy "book a demo" form. Attribution
@@ -136,6 +165,8 @@ export class LeadService {
         campaign: lead.campaign
       })
       .catch(() => undefined);
+    // And the parent hears their booking arrived. Also fire-and-forget.
+    void this.sendBookingConfirmation(lead);
 
     return { lead: this.toLeadListItem(lead) };
   }

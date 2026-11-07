@@ -17,6 +17,8 @@ export const systemMessageKeySchema = z.enum([
   "ACCOUNT_DELETION_COMPLETED",
   "ACCOUNT_DELETION_DECLINED",
   "INVOICE_EMAIL",
+  "DEMO_BOOKING_EMAIL",
+  "DEMO_BOOKING_WHATSAPP",
   "DEMO_REGISTRATION_EMAIL",
   "DEMO_REGISTRATION_WHATSAPP",
   "DEMO_INVITATION_EMAIL",
@@ -64,6 +66,7 @@ export function systemMessageKeysFor(isPlatformAcademy: boolean): SystemMessageK
 }
 
 const DEMO_VARIABLES = ["academy.name", "guest.name", "demo.topic", "demo.dateTime", "links.join"];
+const DEMO_BOOKING_VARIABLES = ["academy.name", "lead.parentName", "lead.studentName"];
 
 export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageDefinition> = {
   PASSWORD_RESET: {
@@ -222,6 +225,35 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
       subject: "Your {{seller.name}} invoice {{invoice.number}}",
       body: "Hi {{customer.name}},\n\nThank you for your payment of {{invoice.amount}}.\nYour invoice {{invoice.number}} is ready. {{invoice.attachmentNote}}\n\nYou can also find it any time under Billing in your dashboard. {{invoice.downloadNote}}\n\n{{support.line}}",
       actionLabel: "Download invoice"
+    }
+  },
+  DEMO_BOOKING_EMAIL: {
+    key: "DEMO_BOOKING_EMAIL",
+    group: "DEMO",
+    channel: "EMAIL",
+    label: "Demo booking received (email)",
+    description:
+      "Confirms a booking made on the academy site's \"book a free demo\" form. No class is chosen yet; the class invitation follows once staff assign one.",
+    sentTo: "The parent who booked, when they gave an email address",
+    variables: DEMO_BOOKING_VARIABLES,
+    defaults: {
+      subject: "We've received your demo booking",
+      body: "Hi {{lead.parentName}},\n\nThank you for booking a free demo class for {{lead.studentName}} with {{academy.name}}. Our team will contact you shortly to pick a time, and you'll get the class details and a join link once it's scheduled.\n\nSee you soon!",
+      actionLabel: null
+    }
+  },
+  DEMO_BOOKING_WHATSAPP: {
+    key: "DEMO_BOOKING_WHATSAPP",
+    group: "DEMO",
+    channel: "WHATSAPP",
+    label: "Demo booking received (WhatsApp)",
+    description: "The same confirmation when the parent gave only a phone number.",
+    sentTo: "The parent who booked, when they gave no email address",
+    variables: DEMO_BOOKING_VARIABLES,
+    defaults: {
+      subject: null,
+      body: "Hi {{lead.parentName}}, thank you for booking a free demo class for {{lead.studentName}} with {{academy.name}}. We'll contact you shortly to pick a time.",
+      actionLabel: null
     }
   },
   DEMO_REGISTRATION_EMAIL: {
