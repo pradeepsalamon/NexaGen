@@ -71,9 +71,11 @@ STAGE_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && NEXT_STANDALONE=false PORT=3010 NODE
 # A pull that brought a new migration otherwise left the API querying columns the
 # database lacks (P2022 "column ... does not exist" on every login). deploy only
 # applies committed migrations; it never resets or prompts.
+# It also regenerates the Prisma client: a package install wipes it, and a turbo cache hit on
+# the API build skips "prisma generate", so the API then crashed on start ("reading 'datamodel'").
 function migrate_db() {
-    echo "=== Applying pending database migrations ==="
-    (cd "$ROOT_DIR" && npm run db:migrate:deploy)
+    echo "=== Generating the Prisma client and applying pending migrations ==="
+    (cd "$ROOT_DIR" && npm run db:generate && npm run db:migrate:deploy)
 }
 
 # (Re)launch one window, leaving the other one running.
@@ -89,6 +91,7 @@ function launch_window() {
 
 function start_dev() {
     local target=$1
+    install_deps_if_needed
     case "$target" in
         api) migrate_db; launch_window api "$DEV_API_CMD"; echo "Dev API launched on port 3011!"; return ;;
         web) launch_window web "$DEV_WEB_CMD"; echo "Dev web launched on port 3010!"; return ;;
@@ -132,9 +135,21 @@ function pull_latest() {
     fi
 }
 
+# A pull can bring new packages (package-lock.json changed): building without them failed with
+# "Cannot find module". npm stamps node_modules/.package-lock.json on every install, so a lockfile
+# newer than that stamp means an install is due. npm install (not ci) leaves node_modules in place
+# for a window that's still running.
+function install_deps_if_needed() {
+    cd "$ROOT_DIR"
+    if [ ! -f node_modules/.package-lock.json ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then
+        echo "=== package-lock.json changed: installing packages ==="
+        npm install --no-audit --no-fund
+    fi
+}
+
 function start_stage() {
     local target=$1
-    cd "$ROOT_DIR"
+    install_deps_if_needed
     if [ "$target" = "api" ] || [ "$target" = "web" ]; then
         # Stop the old window first so the rebuild doesn't swap files under it.
         tmux kill-window -t "nexa-dev:$target" 2>/dev/null || true

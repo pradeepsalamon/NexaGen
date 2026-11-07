@@ -32,6 +32,8 @@ nexa attach                              # attach to the nexa-dev tmux session
 (`git pull --ff-only`) — staging serves this checkout, so without it new pushes never
 show. It stops without rebuilding if the pull can't fast-forward (local commits, or
 uncommitted edits to files the pull touches); `NEXA_NO_PULL=1` builds the local code as is.
+Dev and stage then run `npm install` when `package-lock.json` is newer than the
+last install (`node_modules/.package-lock.json`), so new packages from a pull are there.
 
 Every dev/stage start or restart that launches the API (whole environment or
 `api`) first runs `npm run db:migrate:deploy` against `apps/api/.env`'s
