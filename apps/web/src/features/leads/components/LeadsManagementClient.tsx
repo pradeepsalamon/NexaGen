@@ -139,7 +139,7 @@ export function LeadsManagementClient() {
       />
 
       <ConfirmationModal
-        confirmLabel="Delete permanently"
+        confirmLabel="Move to trash"
         isConfirming={deleteMutation.isPending}
         isOpen={!!pendingDeleteId}
         onCancel={() => setPendingDeleteId(null)}
@@ -151,7 +151,7 @@ export function LeadsManagementClient() {
         }}
         title="Delete this lead?"
       >
-        This permanently removes the lead and its activity/notes. This action cannot be undone.
+        The lead, with its activity and notes, moves to the trash. A super admin can restore it from there for 30 days.
       </ConfirmationModal>
     </div>
   );

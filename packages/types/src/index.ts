@@ -575,7 +575,16 @@ export type TrashEntity =
   | "PuzzleTopic"
   | "LibraryActivity"
   | "Course"
-  | "CourseModule";
+  | "CourseModule"
+  | "Assignment"
+  | "Announcement"
+  | "Lead"
+  | "FeedbackForm"
+  | "KnowledgeArticle"
+  | "KnowledgeCategory"
+  | "ChessGame"
+  | "LiveClassPreset"
+  | "DemoSchedule";
 
 export type TrashDeletedBy = {
   email: string;

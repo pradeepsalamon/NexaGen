@@ -28,7 +28,8 @@ N days per coach / `ONE_TIME`) and **where** (`placements`: `CLASS_END` on
   coach rating is the mean of those. Coaches only see responses from
   `showToCoach` forms, with the student stripped (`toResponseDto(row, true)`).
 - A form with responses cannot be deleted (FK is `Restrict`) — it is
-  deactivated. None of these models are soft-deletable or Trash-registered.
+  deactivated. A form without responses is deleted to Trash (`FeedbackForm`);
+  responses and answers are not Trash entities.
 - Shared types, labels and `averageRating` live in `@nexa-chess/types`
   (`feedback.ts`).
 - What admins configure: up to 20 questions per form (star rating 1–5, written
@@ -65,7 +66,9 @@ variations/comments/NAGs round-trips via `moveTreeToPgn` /
   own / their class / their batch / played; student own games + LIVE_BOARD games
   of classes they attended (not ABSENT). Saving analysis is coach/admin, only
   once COMPLETED, same start FEN, optimistic `version` (409 on a stale one).
-  Only IMPORT games are deletable (importer or admin). Not soft-deletable.
+  Only IMPORT games are deletable (importer or admin); a delete moves the game
+  to Trash (`ChessGame`). Re-importing the same game (owner + content hash)
+  restores it from Trash instead of failing on the unique index.
 
 ## 3.6k1b Setup Position & set-up only positions
 

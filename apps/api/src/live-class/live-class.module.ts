@@ -27,10 +27,12 @@ import { WhatsAppModule } from "../whatsapp/whatsapp.module";
 import { MailModule } from "../mail/mail.module";
 import { GameLibraryModule } from "../game-library/game-library.module";
 import { ReferralModule } from "../referral/referral.module";
+import { TrashModule } from "../trash/trash.module";
 
 @Module({
   imports: [
     PrismaModule,
+    TrashModule,
     JwtModule.register({}),
     forwardRef(() => AttendanceModule),
     BackupModule,

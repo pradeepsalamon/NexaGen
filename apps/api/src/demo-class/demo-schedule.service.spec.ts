@@ -6,6 +6,7 @@ import { JobLockService } from "../prisma/job-lock.service";
 import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { DemoScheduleService, expandDemoSlots, isValidTimeZone } from "./demo-schedule.service";
+import { RECORDING_TRASH } from "../trash/trash.testing";
 
 describe("expandDemoSlots", () => {
   // Thursday 2026-10-01 12:00 UTC = 17:30 in Asia/Kolkata.
@@ -118,6 +119,7 @@ describe("DemoScheduleService", () => {
         DemoScheduleService,
         { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: prisma },
+        RECORDING_TRASH,
         {
           provide: JwtService,
           useValue: { verifyAsync: jest.fn().mockResolvedValue({ sub: "admin-1", type: "access" }) }

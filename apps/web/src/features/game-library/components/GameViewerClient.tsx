@@ -425,7 +425,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
             <div className="space-y-2">
               <AlertDialogTitle>Delete this game?</AlertDialogTitle>
               <AlertDialogDescription>
-                The imported game and its analysis are removed from the library. This cannot be undone.
+                The imported game leaves the library and moves to the trash, where a super admin can restore it for 30 days. Importing the same game again also brings it back.
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>

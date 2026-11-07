@@ -15,6 +15,7 @@ import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { NOOP_REFERRAL_TRACKER } from "../referral/referral.testing";
 import { DemoInviteService } from "../demo-class/demo-invite.service";
+import { RECORDING_TRASH } from "../trash/trash.testing";
 
 const ACCESS_TOKEN = "access-token";
 const ADMIN_ID = "admin-1";
@@ -109,6 +110,7 @@ describe("LeadService", () => {
         NOOP_REFERRAL_TRACKER,
         { provide: JwtService, useValue: jwtService },
         { provide: PrismaService, useValue: prisma },
+        RECORDING_TRASH,
         { provide: MailService, useValue: { sendDemoBookingConfirmation, sendNewLeadNotification } },
         { provide: SystemMessageRenderer, useValue: { render: renderSystemMessage } },
         { provide: WhatsAppService, useValue: { normalizeRecipient, trySendText } }

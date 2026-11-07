@@ -139,7 +139,8 @@ export class TrashRepository {
     return { entity, item };
   }
 
-  async restore(entityName: string, id: string, userId: string) {
+  /** `userId` null = the system restored it (e.g. a re-import of a trashed game). */
+  async restore(entityName: string, id: string, userId: string | null) {
     const { entity, item } = await this.findDeleted(entityName, id);
     const deleteGroupId = item.deleteGroupId ?? null;
 

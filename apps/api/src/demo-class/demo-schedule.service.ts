@@ -28,6 +28,7 @@ import { toLocalDateParts, zonedWallTimeToUtc } from "../batch-schedule/recurren
 import { assertNoSchedulingConflict } from "../coach/class-scheduling.util";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { TrashRepository } from "../trash/trash.repository";
 import { authenticateUser } from "../auth/authenticate";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -107,7 +108,8 @@ export class DemoScheduleService {
   constructor(
     private readonly jobLocks: JobLockService,
     private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly trash: TrashRepository
   ) {}
 
   async list(accessToken: string | undefined) {
@@ -189,14 +191,15 @@ export class DemoScheduleService {
   }
 
   async remove(accessToken: string | undefined, id: string) {
-    await this.getSuperAdmin(accessToken);
+    const admin = await this.getSuperAdmin(accessToken);
     const existing = await this.prisma.demoSchedule.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Demo schedule not found.");
 
     await this.prisma.demoSchedule.update({ where: { id }, data: { isActive: false } });
     await this.reconcileFutureOccurrences(id);
-    // Booked or past occurrences survive as ordinary one-off demo classes.
-    await this.prisma.demoSchedule.delete({ where: { id } });
+    // Booked or past occurrences survive as ordinary one-off demo classes. The schedule goes to
+    // the trash paused; a restored one stays paused until an admin turns it back on.
+    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "DemoSchedule", id, admin.id));
     return { ok: true };
   }
 

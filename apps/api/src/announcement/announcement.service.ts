@@ -9,6 +9,7 @@ import type { Announcement, Batch } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { MessagingRuleService } from "../messaging/messaging-rule.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { TrashRepository } from "../trash/trash.repository";
 
 type AnnouncementRow = Announcement & {
   batch?: Pick<Batch, "name"> | null;
@@ -25,7 +26,8 @@ export class AnnouncementService {
   constructor(
     private readonly dispatch: MessagingDispatchService,
     private readonly messagingRules: MessagingRuleService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly trash: TrashRepository
   ) {}
 
   async list(accessToken: string | undefined): Promise<AnnouncementListResponse> {
@@ -98,16 +100,16 @@ export class AnnouncementService {
     };
   }
 
-  /** Removes it from the dashboard feed. Messages already sent are not recalled. */
+  /** Moves it to the trash, off the dashboard feed. Messages already sent are not recalled. */
   async delete(accessToken: string | undefined, id: string): Promise<void> {
-    await this.messagingRules.assertAdmin(accessToken);
+    const admin = await this.messagingRules.assertAdmin(accessToken);
 
     const existing = await this.prisma.announcement.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException("Announcement not found.");
     }
 
-    await this.prisma.announcement.delete({ where: { id } });
+    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "Announcement", id, admin.id));
   }
 
   private toItem(row: AnnouncementRow): AnnouncementItem {

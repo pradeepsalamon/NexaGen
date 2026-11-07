@@ -4,6 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import { LiveClassPresetService } from "./live-class-preset.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { RECORDING_TRASH } from "../trash/trash.testing";
 
 const TOKEN = "access-token";
 
@@ -62,6 +63,7 @@ describe("LiveClassPresetService authorization", () => {
       providers: [
         LiveClassPresetService,
         { provide: PrismaService, useValue: prisma },
+        RECORDING_TRASH,
         { provide: JwtService, useValue: jwt },
       ],
     }).compile();

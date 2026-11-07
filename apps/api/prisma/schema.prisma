@@ -344,6 +344,15 @@ model User {
   mcqAttempts                     LiveClassMcqAttempt[]            @relation("StudentMcqAttempts")
   playoutGames                    LiveClassPlayoutGame[]           @relation("StudentPlayoutGames")
   deletedPuzzles                  Puzzle[]                         @relation("PuzzleDeletedBy")
+  deletedAssignments              Assignment[]                     @relation("AssignmentDeletedBy")
+  deletedAnnouncements            Announcement[]                   @relation("AnnouncementDeletedBy")
+  deletedLeads                    Lead[]                           @relation("LeadDeletedBy")
+  deletedFeedbackForms            FeedbackForm[]                   @relation("FeedbackFormDeletedBy")
+  deletedKnowledgeArticles        KnowledgeArticle[]               @relation("KnowledgeArticleDeletedBy")
+  deletedKnowledgeCategories      KnowledgeCategory[]              @relation("KnowledgeCategoryDeletedBy")
+  deletedChessGames               ChessGame[]                      @relation("ChessGameDeletedBy")
+  deletedLiveClassPresets         LiveClassPreset[]                @relation("LiveClassPresetDeletedBy")
+  deletedDemoSchedules            DemoSchedule[]                   @relation("DemoScheduleDeletedBy")
   studentPuzzleAttempts           PuzzleAttempt[]                  @relation("StudentPuzzleAttempts")
   classChangeRequests             ClassChangeRequest[]             @relation("ClassChangeRequestCoach")
   reviewedClassChangeRequests     ClassChangeRequest[]             @relation("ClassChangeRequestReviewer")
@@ -1097,7 +1106,19 @@ model DemoSchedule {
   classes CoachClass[]
 
   // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("DemoScheduleDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
   @@unique([tenantId, slug])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([isActive])
   @@map("demo_schedules")
 }
@@ -1241,6 +1262,17 @@ model Lead {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("LeadDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([status])
   @@index([createdAt])
   @@index([visitorSessionId])
@@ -1828,6 +1860,17 @@ model LiveClassPreset {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("LiveClassPresetDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([ownerId])
   @@index([scope])
   @@map("live_class_presets")
@@ -2120,6 +2163,17 @@ model Assignment {
   sourceTopicId String?
   sourceTopic   PuzzleTopic?       @relation("AssignmentSourceTopic", fields: [sourceTopicId], references: [id], onDelete: SetNull)
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("AssignmentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([createdById])
   @@index([sourceTopicId])
   @@index([isLibrary])
@@ -2324,6 +2378,17 @@ model Announcement {
 
   createdAt DateTime @default(now())
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("AnnouncementDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([audience])
   @@index([batchId])
   @@index([createdAt])
@@ -4926,6 +4991,17 @@ model FeedbackForm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("FeedbackFormDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([isActive])
   @@map("feedback_forms")
 }
@@ -5344,10 +5420,21 @@ model ChessGame {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("ChessGameDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
   @@unique([ownerId, contentHash])
   @@unique([ownerId, externalProvider, externalId])
   // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
   @@unique([tenantId, sourceKey])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([ownerId, startedAt])
   @@index([externalAccountId])
   @@index([classId])
@@ -6727,7 +6814,19 @@ model KnowledgeCategory {
   updatedAt   DateTime           @updatedAt
 
   // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("KnowledgeCategoryDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
   @@unique([tenantId, name])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("knowledge_categories")
 }
 
@@ -6770,7 +6869,19 @@ model KnowledgeArticle {
   updatedAt           DateTime                  @updatedAt
 
   // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("KnowledgeArticleDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
   @@unique([tenantId, slug])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([status])
   @@index([categoryId])
   @@index([translationGroupId])

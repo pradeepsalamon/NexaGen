@@ -309,8 +309,8 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
 
   const remove = async () => {
     if (!article) return;
-    // undo: intentionally excluded — permanent delete (super admin); archive is the reversible option.
-    const ok = await act("delete the article", () => api.deleteKnowledgeArticle(article.id), "Article deleted permanently.");
+    // undo: intentionally excluded — the article goes to the trash, which is where it is restored.
+    const ok = await act("delete the article", () => api.deleteKnowledgeArticle(article.id), "Article moved to the trash.");
     if (ok) router.replace("/admin/knowledge");
   };
 
@@ -386,9 +386,9 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
                 </SimpleTooltip>
               )}
               {role === "SUPER_ADMIN" && (
-                <SimpleTooltip label="Delete permanently">
+                <SimpleTooltip label="Move to trash">
                   <Button
-                    aria-label="Delete permanently"
+                    aria-label="Move to trash"
                     className="bg-app-danger text-on-danger hover:bg-app-danger/85"
                     onClick={() => setDeleteOpen(true)}
                     size="icon"
@@ -604,15 +604,15 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
       <AlertDialog onOpenChange={setDeleteOpen} open={deleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this article permanently?</AlertDialogTitle>
+            <AlertDialogTitle>Move this article to the trash?</AlertDialogTitle>
             <AlertDialogDescription>
-              Every version, its change log and its votes are removed and can&apos;t be recovered. Archive it instead to hide it but keep the history.
+              It disappears from the help centre now, and can be restored from the trash for 30 days, with every version, its change log and its votes. After that it&apos;s gone for good. Archive it instead to hide it indefinitely.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-app-danger hover:bg-app-danger/85" onClick={() => void remove()}>
-              Delete permanently
+              Move to trash
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

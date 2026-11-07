@@ -7,9 +7,10 @@ import { WhatsAppModule } from "../whatsapp/whatsapp.module";
 import { DemoInviteService } from "./demo-invite.service";
 import { DemoScheduleController } from "./demo-schedule.controller";
 import { DemoScheduleService } from "./demo-schedule.service";
+import { TrashModule } from "../trash/trash.module";
 
 @Module({
-  imports: [JwtModule.register({}), PrismaModule, MailModule, ReferralModule, WhatsAppModule],
+  imports: [JwtModule.register({}), PrismaModule, MailModule, ReferralModule, TrashModule, WhatsAppModule],
   controllers: [DemoScheduleController],
   providers: [DemoInviteService, DemoScheduleService],
   exports: [DemoInviteService]

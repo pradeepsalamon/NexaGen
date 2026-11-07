@@ -6,12 +6,13 @@ import { KnowledgeAdminService } from "./knowledge-admin.service";
 import { KnowledgeController } from "./knowledge.controller";
 import { KnowledgeService } from "./knowledge.service";
 import { KnowledgeToolsProvider } from "./knowledge.tools";
+import { TrashModule } from "../trash/trash.module";
 
 // Knowledge base / help centre (docs/KNOWLEDGE_BASE.md).
 @Module({
   controllers: [KnowledgeController, KnowledgeAdminController],
   exports: [KnowledgeService, KnowledgeToolsProvider],
-  imports: [JwtModule.register({}), PrismaModule],
+  imports: [JwtModule.register({}), PrismaModule, TrashModule],
   providers: [KnowledgeAdminService, KnowledgeService, KnowledgeToolsProvider],
 })
 export class KnowledgeModule {}

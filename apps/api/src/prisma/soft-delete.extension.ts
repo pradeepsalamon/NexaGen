@@ -37,7 +37,16 @@ export const softDeleteModels = [
   "PuzzleTopic",
   "LibraryActivity",
   "Course",
-  "CourseModule"
+  "CourseModule",
+  "Assignment",
+  "Announcement",
+  "Lead",
+  "FeedbackForm",
+  "KnowledgeArticle",
+  "KnowledgeCategory",
+  "ChessGame",
+  "LiveClassPreset",
+  "DemoSchedule"
 ] as const;
 
 export type SoftDeleteModel = (typeof softDeleteModels)[number];
@@ -113,6 +122,60 @@ export const trashEntities = [
     label: "CourseModule",
     searchFields: ["title"],
     titleField: "title"
+  },
+  {
+    delegate: "assignment",
+    label: "Assignment",
+    searchFields: ["title", "description"],
+    titleField: "title"
+  },
+  {
+    delegate: "announcement",
+    label: "Announcement",
+    searchFields: ["title"],
+    titleField: "title"
+  },
+  {
+    delegate: "lead",
+    label: "Lead",
+    searchFields: ["studentName", "parentName", "email", "phone"],
+    titleField: "studentName"
+  },
+  {
+    delegate: "feedbackForm",
+    label: "FeedbackForm",
+    searchFields: ["title"],
+    titleField: "title"
+  },
+  {
+    delegate: "knowledgeArticle",
+    label: "KnowledgeArticle",
+    searchFields: ["slug"],
+    titleField: "slug"
+  },
+  {
+    delegate: "knowledgeCategory",
+    label: "KnowledgeCategory",
+    searchFields: ["name"],
+    titleField: "name"
+  },
+  {
+    delegate: "chessGame",
+    label: "ChessGame",
+    searchFields: ["title"],
+    titleField: "title"
+  },
+  {
+    delegate: "liveClassPreset",
+    label: "LiveClassPreset",
+    searchFields: ["name"],
+    titleField: "name"
+  },
+  {
+    delegate: "demoSchedule",
+    label: "DemoSchedule",
+    searchFields: ["topic", "slug"],
+    titleField: "topic"
   }
 ] as const;
 
@@ -168,6 +231,16 @@ const filterableRelationNames = new Set([
   "students"
 ]);
 
+/**
+ * Rows hidden because their parent is in the trash, though they have no `isDeleted` of their
+ * own: an assignment's deployments and each student's copy go with it (`Assignment` cascades
+ * to both, so this matches what a permanent delete removes).
+ */
+const parentScopedWhere: Record<string, Record<string, unknown>> = {
+  AssignmentBatch: { assignment: { isDeleted: false } },
+  StudentAssignment: { assignmentBatch: { assignment: { isDeleted: false } } }
+};
+
 /** The extension's work on one query's args (mutates and returns them). */
 export function applySoftDeleteArgs<T>(model: string, operation: string, args: T): T {
   const queryArgs = args as QueryArgs | undefined;
@@ -177,12 +250,16 @@ export function applySoftDeleteArgs<T>(model: string, operation: string, args: T
     delete queryArgs.includeDeleted;
   }
 
-  if (
-    !includeDeleted &&
-    readOperations.has(operation) &&
-    trashableModelNames.has(model)
-  ) {
-    applySoftDeleteFilter(queryArgs);
+  if (!includeDeleted && readOperations.has(operation) && trashableModelNames.has(model)) {
+    applySoftDeleteFilter(model, queryArgs);
+  }
+
+  const parentScope = parentScopedWhere[model];
+  if (!includeDeleted && readOperations.has(operation) && parentScope && queryArgs) {
+    // Appended to AND, so a findUnique keeps its unique key at the top level.
+    const where = queryArgs.where ?? {};
+    const existingAnd = where.AND === undefined ? [] : Array.isArray(where.AND) ? where.AND : [where.AND];
+    queryArgs.where = { ...where, AND: [...existingAnd, parentScope] };
   }
 
   return args;
@@ -209,29 +286,56 @@ export function getTrashEntityByDelegate(delegate: string) {
   return delegateToModel.get(delegate);
 }
 
-function applySoftDeleteFilter(args: QueryArgs | undefined) {
+function applySoftDeleteFilter(model: string, args: QueryArgs | undefined) {
   if (!args) {
     return;
   }
 
   args.where = addIsDeletedFalse(args.where);
-  addRelationFilters(args.include);
-  addRelationFilters(args.select);
+  addRelationFilters(model, args.include);
+  addRelationFilters(model, args.select);
 }
 
-function addRelationFilters(record: Record<string, unknown> | undefined) {
+/**
+ * Prisma's own schema: `Model.field` → the related model, for list relations only. A relation
+ * name alone is ambiguous (`PuzzleTopic.puzzles` is Puzzle, `Assignment.puzzles` is
+ * AssignmentPuzzle, which has no `isDeleted`), so a nested filter checks the real target.
+ */
+const listRelationTargets = new Map<string, string>(
+  Prisma.dmmf.datamodel.models.flatMap((dmmfModel) =>
+    dmmfModel.fields
+      .filter((field) => field.kind === "object" && field.isList)
+      .map((field) => [`${dmmfModel.name}.${field.name}`, field.type] as [string, string])
+  )
+);
+
+/** Trash models added after the name-based list: every list relation to one of them is filtered. */
+const filterAnyListRelationTo = new Set<string>([
+  "Assignment",
+  "Announcement",
+  "Lead",
+  "FeedbackForm",
+  "KnowledgeArticle",
+  "KnowledgeCategory",
+  "ChessGame",
+  "LiveClassPreset",
+  "DemoSchedule"
+]);
+
+function addRelationFilters(model: string, record: Record<string, unknown> | undefined) {
   if (!record) {
     return;
   }
 
   for (const [relationName, relationValue] of Object.entries(record)) {
-    const relationModel = relationToModel[relationName];
+    const target = listRelationTargets.get(`${model}.${relationName}`);
+    const relationModel = target && trashableModelNames.has(target) ? target : undefined;
+    const filterable =
+      relationModel !== undefined &&
+      (filterAnyListRelationTo.has(relationModel) ||
+        (filterableRelationNames.has(relationName) && relationToModel[relationName] === relationModel));
 
-    if (
-      !relationModel ||
-      !filterableRelationNames.has(relationName) ||
-      relationValue === false
-    ) {
+    if (!relationModel || !filterable || relationValue === false) {
       continue;
     }
 
@@ -248,8 +352,8 @@ function addRelationFilters(record: Record<string, unknown> | undefined) {
 
     const relationArgs = relationValue as QueryArgs;
     relationArgs.where = addIsDeletedFalse(relationArgs.where);
-    addRelationFilters(relationArgs.include);
-    addRelationFilters(relationArgs.select);
+    addRelationFilters(relationModel, relationArgs.include);
+    addRelationFilters(relationModel, relationArgs.select);
   }
 }
 

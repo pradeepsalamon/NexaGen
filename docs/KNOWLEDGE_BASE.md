@@ -49,8 +49,12 @@ Owner decisions (2026-10-27, DECISIONS.md §4):
 - `KnowledgeCategory`: admin-defined, archivable; can't be deleted while it
   has articles.
 
-None of these are soft-deletable: archive is the reversible "delete";
-permanent delete cascades versions, events, votes and batch scope.
+`KnowledgeArticle` and `KnowledgeCategory` are Trash entities: a super
+admin's delete moves the article to Trash (hidden everywhere, including the
+search SQL, which checks `isDeleted`), restorable for 30 days; purging it
+cascades versions, events, votes and batch scope. Archive is still the way to
+hide one indefinitely. A coach withdrawing their own new-article suggestion
+is a real delete.
 
 ## 3. Visibility (the rule you must not break)
 

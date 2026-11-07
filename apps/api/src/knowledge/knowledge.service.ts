@@ -469,7 +469,7 @@ export class KnowledgeService {
                setweight(to_tsvector('english', v."body" || ' ' || coalesce(v."pgn", '')), 'C') AS tsv
           FROM "knowledge_articles" a
           JOIN "knowledge_article_versions" v ON v."id" = a."publishedVersionId"
-         WHERE ${tenantFilter("a")} AND a."id" = ANY(${ids}::text[])
+         WHERE ${tenantFilter("a")} AND a."id" = ANY(${ids}::text[]) AND a."isDeleted" = false
       )
       SELECT doc."id"
         FROM doc, websearch_to_tsquery('english', ${q}) query

@@ -32,6 +32,7 @@ import { markdownToWhatsApp } from "@nexa-chess/types";
 import { MailService } from "../mail/mail.service";
 import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { TrashRepository } from "../trash/trash.repository";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { parseUserAgent, parseVisitAttribution } from "./lead-tracking.util";
 import { authenticateUser } from "../auth/authenticate";
@@ -69,7 +70,8 @@ export class LeadService {
     private readonly demoInvites: DemoInviteService,
     private readonly referrals: ReferralTrackerService,
     private readonly messages: SystemMessageRenderer,
-    private readonly whatsapp: WhatsAppService
+    private readonly whatsapp: WhatsAppService,
+    private readonly trash: TrashRepository
   ) {}
 
   // ── Public ──
@@ -431,14 +433,14 @@ export class LeadService {
   }
 
   async delete(accessToken: string | undefined, id: string) {
-    await this.getAuthorizedAdmin(accessToken);
+    const user = await this.getAuthorizedAdmin(accessToken);
 
     const lead = await this.prisma.lead.findUnique({ where: { id } });
     if (!lead) {
       throw new NotFoundException("Lead not found.");
     }
 
-    await this.prisma.lead.delete({ where: { id } });
+    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "Lead", id, user.id));
     return { ok: true };
   }
 

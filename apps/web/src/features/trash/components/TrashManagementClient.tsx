@@ -57,7 +57,16 @@ const entityOptions = [
   { label: "Puzzle topics", value: "PuzzleTopic" },
   { label: "MCQs and Playouts", value: "LibraryActivity" },
   { label: "Courses", value: "Course" },
-  { label: "Course modules", value: "CourseModule" }
+  { label: "Course modules", value: "CourseModule" },
+  { label: "Homework (assignments)", value: "Assignment" },
+  { label: "Announcements", value: "Announcement" },
+  { label: "Leads", value: "Lead" },
+  { label: "Feedback forms", value: "FeedbackForm" },
+  { label: "Help articles", value: "KnowledgeArticle" },
+  { label: "Help categories", value: "KnowledgeCategory" },
+  { label: "Games", value: "ChessGame" },
+  { label: "Live-class presets", value: "LiveClassPreset" },
+  { label: "Demo schedules", value: "DemoSchedule" }
 ];
 
 export function TrashManagementClient() {

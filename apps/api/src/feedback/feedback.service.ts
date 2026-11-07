@@ -39,6 +39,7 @@ import {
 } from "@prisma/client";
 import { paginationMeta, resolvePagination } from "../common/pagination";
 import { PrismaService } from "../prisma/prisma.service";
+import { TrashRepository } from "../trash/trash.repository";
 import {
   computePendingFeedback,
   responseKey,
@@ -70,7 +71,8 @@ export class FeedbackService {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly trash: TrashRepository
   ) {}
 
   // ── Admin: forms ──
@@ -118,7 +120,8 @@ export class FeedbackService {
   }
 
   async deleteForm(accessToken: string | undefined, id: string): Promise<{ success: true }> {
-    this.assertAdmin(await this.getAuthenticatedUser(accessToken));
+    const admin = await this.getAuthenticatedUser(accessToken);
+    this.assertAdmin(admin);
     await this.getFormOrThrow(id);
 
     const responses = await this.prisma.feedbackResponse.count({ where: { formId: id } });
@@ -128,7 +131,7 @@ export class FeedbackService {
       );
     }
 
-    await this.prisma.feedbackForm.delete({ where: { id } });
+    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "FeedbackForm", id, admin.id));
     return { success: true };
   }
 
