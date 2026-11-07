@@ -67,6 +67,17 @@ the editors; a new placeholder needs an entry (a spec checks).
   onto `message_deliveries` and the worker sends it as a WhatsApp document.
 - `APPROVAL_REQUESTED` / `APPROVAL_DECIDED` ship **enabled, in-app only** (admin approvals, [PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md](PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md) §2.7). `ApprovalService` dispatches REQUESTED after a request commits — to every ACTIVE user in the action's catalogue `reviewerRoles`, never the requester (audience `ADMINS`, the only admin-side audience) — and DECIDED to the requester after an approval, rejection or expiry. Everything shown is read back from the request row.
 - `CLASS_SUBSTITUTE_ASSIGNED` ships **enabled, in-app only**: sent after commit to the coach who now owns a class, once an admin approves a `CLASS_SUBSTITUTE_COACH` request. The audience is coaches only; the batch isn't told by this event.
+- **Registration messages** ship **enabled, email + in-app** (WhatsApp off until an
+  admin turns it on): `ACCOUNT_WELCOME` ("Registration received") goes to a
+  student or coach right after `AuthService.register`/`registerCoach`;
+  `ACCOUNT_APPROVED` when an admin approves a pending student or coach (or
+  restores an account); `ACCOUNT_DECLINED` (email only — they can't sign in) when
+  a pending registration is declined (`AdminService.updateStudentStatus` /
+  `updateCoachStatus`, only on a real change). `REGISTRATION_PENDING_ADMIN` is
+  in-app to whoever can approve it — admins and super admins for a student,
+  super admins only for a coach, never platform support — linking to
+  `/admin/approvals`. Migration `…_account_registration_messages` switched the
+  two older rules on only where no admin had edited them.
 - `ASSIGNMENT_OVERDUE_COACH` ships **enabled, in-app only**: the hourly
   `assignmentDueReminders` cron (same job lock as due-soon) finds deployments
   whose `dueDate` passed in the last 48h with someone unfinished and dispatches

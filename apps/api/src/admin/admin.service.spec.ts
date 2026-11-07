@@ -70,19 +70,47 @@ describe('AdminService', () => {
       expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ event: 'ACCOUNT_APPROVED', userId: 'stu-1' });
     });
 
-    it('archives a declined student without messaging', async () => {
+    it('archives a declined student and sends the declined message', async () => {
       prisma.user.updateMany.mockResolvedValueOnce({ count: 1 });
 
       await service.updateStudentStatus('stu-1', { status: 'ARCHIVED' });
 
       expect(prisma.user.updateMany.mock.calls[0][0].data).toEqual({ status: 'ARCHIVED' });
-      expect(messaging.dispatchInBackground).not.toHaveBeenCalled();
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ event: 'ACCOUNT_DECLINED', userId: 'stu-1' });
     });
 
     it('rejects a student that is not pending', async () => {
       prisma.user.updateMany.mockResolvedValueOnce({ count: 0 });
 
       await expect(service.updateStudentStatus('stu-1', { status: 'ACTIVE' })).rejects.toThrow(NotFoundException);
+      expect(messaging.dispatchInBackground).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateCoachStatus', () => {
+    const coach = (status: string) => ({ coachProfile: { userId: 'coach-1' }, id: 'coach-1', role: 'COACH', status });
+
+    it('sends the approval message when a pending coach is approved', async () => {
+      (prisma.user as unknown as { findUnique: jest.Mock }).findUnique.mockResolvedValueOnce(coach('PENDING'));
+
+      await service.updateCoachStatus('admin-1', 'coach-1', { status: 'ACTIVE' });
+
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ event: 'ACCOUNT_APPROVED', userId: 'coach-1' });
+    });
+
+    it('sends the declined message when a pending coach is declined', async () => {
+      (prisma.user as unknown as { findUnique: jest.Mock }).findUnique.mockResolvedValueOnce(coach('PENDING'));
+
+      await service.updateCoachStatus('admin-1', 'coach-1', { status: 'ARCHIVED' });
+
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ event: 'ACCOUNT_DECLINED', userId: 'coach-1' });
+    });
+
+    it('says nothing when the status does not really change', async () => {
+      (prisma.user as unknown as { findUnique: jest.Mock }).findUnique.mockResolvedValueOnce(coach('ACTIVE'));
+
+      await service.updateCoachStatus('admin-1', 'coach-1', { status: 'ACTIVE' });
+
       expect(messaging.dispatchInBackground).not.toHaveBeenCalled();
     });
   });

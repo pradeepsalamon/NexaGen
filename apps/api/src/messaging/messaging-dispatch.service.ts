@@ -80,7 +80,9 @@ export type DispatchRequest =
   /** Students with a revision item due; each hears at most once per send day. */
   | { event: "REVISION_DUE"; studentIds: string[] }
   | { event: "ANNOUNCEMENT"; announcementId: string }
-  | { event: "ACCOUNT_WELCOME" | "ACCOUNT_APPROVED"; userId: string }
+  | { event: "ACCOUNT_WELCOME" | "ACCOUNT_APPROVED" | "ACCOUNT_DECLINED"; userId: string }
+  /** The admins who can review a self-registration (coaches: super admins only), told it is waiting. */
+  | { event: "REGISTRATION_PENDING_ADMIN"; userId: string }
   /**
    * Payment outcomes. The caller passes the payment id only — every figure in
    * the message is read back from the row, so a message can never claim an
@@ -366,7 +368,10 @@ export class MessagingDispatchService {
         return this.announcementRecipients(request.announcementId);
       case "ACCOUNT_WELCOME":
       case "ACCOUNT_APPROVED":
+      case "ACCOUNT_DECLINED":
         return this.accountRecipients(request.event, request.userId, rule.audience);
+      case "REGISTRATION_PENDING_ADMIN":
+        return this.registrationReviewerRecipients(request.userId);
       case "PAYMENT_RECEIVED":
       case "PAYMENT_FAILED":
       case "REFUND_PROCESSED":
@@ -712,6 +717,34 @@ export class MessagingDispatchService {
   }
 
   /**
+   * Who can approve this applicant: admins and super admins for a student, super admins only
+   * for a coach (`admin.controller.ts`). The name and role are read back from the account.
+   */
+  private async registrationReviewerRecipients(userId: string): Promise<Recipient[]> {
+    const applicant = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!applicant || applicant.isDeleted || applicant.status !== UserStatus.PENDING) return [];
+    if (applicant.role !== UserRole.STUDENT && applicant.role !== UserRole.COACH) return [];
+
+    const reviewerRoles =
+      applicant.role === UserRole.COACH ? [UserRole.SUPER_ADMIN] : [UserRole.ADMIN, UserRole.SUPER_ADMIN];
+    const reviewers = await this.prisma.user.findMany({
+      where: { isDeleted: false, isPlatformSupport: false, role: { in: reviewerRoles }, status: UserStatus.ACTIVE }
+    });
+    const variables = {
+      "applicant.name": this.fullName(applicant.firstName, applicant.lastName),
+      "applicant.role": applicant.role === UserRole.COACH ? "coach" : "student"
+    };
+    return reviewers.map((reviewer) =>
+      this.toRecipient(reviewer, {
+        variables,
+        linkPath: "/admin/approvals",
+        linkVariable: "links.approvals",
+        dedupeKey: `REGISTRATION_PENDING_ADMIN:${applicant.id}:${reviewer.id}`
+      })
+    );
+  }
+
+  /**
    * The payer, with every figure read back from the payment row. `payment.
    * amount` is formatted from the stored minor units — the caller never gets to
    * assert what was charged.
@@ -931,7 +964,8 @@ export class MessagingDispatchService {
         | "links.invoice"
         | "links.earnings"
         | "links.revision"
-        | "links.approval";
+        | "links.approval"
+        | "links.approvals";
       dedupeKey: string | null;
     }
   ): Recipient {

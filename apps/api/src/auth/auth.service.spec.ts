@@ -22,6 +22,7 @@ import type { LoginOutcome } from "./auth.service";
 import { MfaService } from "./mfa/mfa.service";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { MailService } from "../mail/mail.service";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 type MockPrismaService = {
@@ -78,6 +79,7 @@ describe("AuthService", () => {
   let prismaService: MockPrismaService;
   let analyticsEvents: { record: jest.Mock };
   let mfaService: { loginChallenge: jest.Mock };
+  let messaging: { dispatchInBackground: jest.Mock };
   let emailVerification: {
     blocksSignIn: jest.Mock;
     policy: jest.Mock;
@@ -100,6 +102,7 @@ describe("AuthService", () => {
 
     analyticsEvents = { record: jest.fn().mockResolvedValue(undefined) };
     mfaService = { loginChallenge: jest.fn().mockResolvedValue(null) };
+    messaging = { dispatchInBackground: jest.fn() };
     emailVerification = {
       blocksSignIn: jest.fn().mockResolvedValue(false),
       policy: jest.fn().mockResolvedValue("OFF"),
@@ -163,6 +166,7 @@ describe("AuthService", () => {
         { provide: AnalyticsEventService, useValue: analyticsEvents },
         { provide: MfaService, useValue: mfaService },
         { provide: EmailVerificationService, useValue: emailVerification },
+        { provide: MessagingDispatchService, useValue: messaging },
         NOOP_REFERRAL_TRACKER
       ]
     }).compile();
@@ -254,6 +258,12 @@ describe("AuthService", () => {
       // The server's own version of the terms, with the time they were accepted.
       expect(createCall.data.termsVersion).toBe(LEGAL_TERMS_VERSION);
       expect(createCall.data.termsAcceptedAt).toBeInstanceOf(Date);
+      // "Registration received" to the applicant, "to review" to the admins.
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ event: "ACCOUNT_WELCOME", userId: expect.any(String) });
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({
+        event: "REGISTRATION_PENDING_ADMIN",
+        userId: expect.any(String)
+      });
 
       expect(prismaService.authSession.create).not.toHaveBeenCalled();
       expect(result).toEqual({
@@ -641,6 +651,12 @@ describe("AuthService", () => {
       );
       expect(createCall.data.termsVersion).toBe(LEGAL_TERMS_VERSION);
       expect(createCall.data.termsAcceptedAt).toBeInstanceOf(Date);
+      // "Registration received" to the applicant, "to review" to the admins.
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ event: "ACCOUNT_WELCOME", userId: expect.any(String) });
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({
+        event: "REGISTRATION_PENDING_ADMIN",
+        userId: expect.any(String)
+      });
 
       // No session may be created — the coach cannot be logged in yet.
       expect(prismaService.authSession.create).not.toHaveBeenCalled();

@@ -40,6 +40,7 @@ import { isParentContactChange, LEGAL_TERMS_VERSION } from "@nexa-chess/types";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { MailService } from "../mail/mail.service";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { isProfileImageUrl } from "../upload/upload.service";
 import type {
@@ -147,7 +148,8 @@ export class AuthService {
     private readonly analyticsEvents: AnalyticsEventService,
     private readonly mfa: MfaService,
     private readonly emailVerification: EmailVerificationService,
-    private readonly referralTracker: ReferralTrackerService
+    private readonly referralTracker: ReferralTrackerService,
+    private readonly messaging: MessagingDispatchService
   ) {}
 
   getCookieMaxAges() {
@@ -223,6 +225,7 @@ export class AuthService {
     if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
     // Joined through a referral link (or booked a demo with this email)?
     await this.referralTracker.linkSignup({ email: user.email, referralId, userId: user.id });
+    this.announceRegistration(user.id);
 
     return {
       email: user.email,
@@ -291,11 +294,18 @@ export class AuthService {
     if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
     // Joined through a referral link (or booked a demo with this email)?
     await this.referralTracker.linkSignup({ email: user.email, referralId, userId: user.id });
+    this.announceRegistration(user.id);
 
     return {
       email: user.email,
       status: "PENDING_APPROVAL"
     };
+  }
+
+  /** "Registration received" to the applicant and "to review" to the admins who can approve it. Never throws. */
+  private announceRegistration(userId: string) {
+    this.messaging.dispatchInBackground({ event: "ACCOUNT_WELCOME", userId });
+    this.messaging.dispatchInBackground({ event: "REGISTRATION_PENDING_ADMIN", userId });
   }
 
   async login(

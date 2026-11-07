@@ -20,6 +20,8 @@ export const messagingEventSchema = z.enum([
   "ANNOUNCEMENT",
   "ACCOUNT_WELCOME",
   "ACCOUNT_APPROVED",
+  "ACCOUNT_DECLINED",
+  "REGISTRATION_PENDING_ADMIN",
   "PAYMENT_RECEIVED",
   "PAYMENT_FAILED",
   "REFUND_PROCESSED",
@@ -297,8 +299,9 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
   },
   ACCOUNT_WELCOME: {
     event: "ACCOUNT_WELCOME",
-    label: "Welcome message",
-    description: "Sent to a new account right after it registers.",
+    label: "Registration received",
+    description:
+      "Sent to a student or coach right after they register on the sign-up page, while their account waits for an admin's approval.",
     variables: [...RECIPIENT_VARIABLES, "links.login"],
     audiences: ["STUDENTS", "COACHES", "STUDENTS_AND_COACHES"],
     supportsLeadTime: false
@@ -307,9 +310,27 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     event: "ACCOUNT_APPROVED",
     label: "Account approved",
     description:
-      "Sent when an admin activates a pending account (a coach approval, for example).",
+      "Sent when an admin approves a pending student or coach registration, or reactivates an account.",
     variables: [...RECIPIENT_VARIABLES, "links.login"],
     audiences: ["STUDENTS", "COACHES", "STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
+  },
+  ACCOUNT_DECLINED: {
+    event: "ACCOUNT_DECLINED",
+    label: "Registration declined",
+    description:
+      "Sent when an admin declines a pending student or coach registration. They can't sign in, so in-app is no use here: email or WhatsApp.",
+    variables: [...RECIPIENT_VARIABLES],
+    audiences: ["STUDENTS", "COACHES", "STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
+  },
+  REGISTRATION_PENDING_ADMIN: {
+    event: "REGISTRATION_PENDING_ADMIN",
+    label: "New registration to review",
+    description:
+      "Sent to every admin when a student or coach registers on the sign-up page and waits for approval.",
+    variables: [...RECIPIENT_VARIABLES, "applicant.name", "applicant.role", "links.approvals"],
+    audiences: ["ADMINS"],
     supportsLeadTime: false
   },
   PAYMENT_RECEIVED: {
@@ -501,6 +522,9 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "approval.decision": { label: "Outcome (approved / rejected / expired)", sample: "approved" },
   "approval.note": { label: "The admin's note or rejection reason (may be empty)", sample: "Note: we'll schedule a make-up class." },
   "links.approval": { label: "Link to the request", sample: "https://nexa.test/admin/requests" },
+  "applicant.name": { label: "Applicant's full name", sample: "Ravi Kumar" },
+  "applicant.role": { label: "Student or coach", sample: "coach" },
+  "links.approvals": { label: "Link to pending registrations", sample: "https://nexa.test/admin/approvals" },
   // System messages (./system-messages)
   "links.reset": { label: "Password reset link", sample: "https://nexa.test/reset-password?token=sample" },
   "links.verify": { label: "Email verification link", sample: "https://nexa.test/verify-email?token=sample" },
@@ -614,6 +638,8 @@ export interface MessagingRuleDefaults {
    * regression for every academy on upgrade.
    */
   enabled: boolean;
+  /** Omitted = off. Email is opt-in per rule (docs/MESSAGING.md "Email channel"). */
+  emailEnabled?: boolean;
   whatsappEnabled: boolean;
   inAppEnabled: boolean;
   audience: MessagingAudience;
@@ -734,23 +760,48 @@ export const DEFAULT_MESSAGING_RULES: Record<
     title: "{{announcement.title}}",
     body: "{{announcement.title}}\n\n{{announcement.body}}"
   },
+  // Account rules ship ENABLED with email + in-app: a pending applicant can't sign in, so
+  // email is how they hear back. WhatsApp stays off until an admin turns it on (it needs an
+  // approved template outside the 24h window).
   ACCOUNT_WELCOME: {
-    enabled: false,
-    whatsappEnabled: true,
+    enabled: true,
+    emailEnabled: true,
+    whatsappEnabled: false,
     inAppEnabled: true,
     audience: "STUDENTS_AND_COACHES",
     leadTimeMinutes: null,
-    title: "Welcome to {{academy.name}}",
-    body: "Welcome to {{academy.name}}, {{recipient.firstName}}! Sign in any time at {{links.login}}."
+    title: "We've received your registration",
+    body: "Hi {{recipient.firstName}}, thank you for registering with {{academy.name}}. Our team reviews every new account, and we'll let you know as soon as yours is approved."
   },
   ACCOUNT_APPROVED: {
-    enabled: false,
-    whatsappEnabled: true,
+    enabled: true,
+    emailEnabled: true,
+    whatsappEnabled: false,
     inAppEnabled: true,
     audience: "STUDENTS_AND_COACHES",
     leadTimeMinutes: null,
     title: "Your account is ready",
     body: "Hi {{recipient.firstName}}, your {{academy.name}} account has been approved. Sign in at {{links.login}}."
+  },
+  ACCOUNT_DECLINED: {
+    enabled: true,
+    emailEnabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: false,
+    audience: "STUDENTS_AND_COACHES",
+    leadTimeMinutes: null,
+    title: "About your {{academy.name}} registration",
+    body: "Hi {{recipient.firstName}}, thank you for your interest in {{academy.name}}. We're unable to approve your registration at this time. If you think this is a mistake, please get in touch with us."
+  },
+  // In-app only, like APPROVAL_REQUESTED: an application nobody sees waits forever.
+  REGISTRATION_PENDING_ADMIN: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "ADMINS",
+    leadTimeMinutes: null,
+    title: "New {{applicant.role}} registration",
+    body: "{{applicant.name}} registered as a {{applicant.role}} and is waiting for approval. Review it at {{links.approvals}}."
   },
   // Payment rules ship ENABLED and in-app only. A receipt is transactional, not
   // marketing: the member must be told their money arrived. WhatsApp stays off

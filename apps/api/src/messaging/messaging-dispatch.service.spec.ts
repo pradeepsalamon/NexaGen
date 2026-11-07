@@ -486,6 +486,70 @@ describe("MessagingDispatchService", () => {
     });
   });
 
+  describe("REGISTRATION_PENDING_ADMIN", () => {
+    const person = (id: string, role: string, status = "ACTIVE") => ({
+      id,
+      firstName: id,
+      lastName: null,
+      phoneNumber: null,
+      isEmailVerified: true,
+      role,
+      status,
+      isDeleted: false,
+      timezone: "UTC"
+    });
+    const withApplicant = async (applicant: ReturnType<typeof person>) => {
+      await setup(
+        makeRule({
+          audience: "ADMINS",
+          body: "{{applicant.name}}|{{applicant.role}}|{{links.approvals}}",
+          event: "REGISTRATION_PENDING_ADMIN",
+          inAppEnabled: true,
+          whatsappEnabled: false
+        })
+      );
+      const extra = prisma as unknown as { user: { findMany: jest.Mock; findUnique: jest.Mock } };
+      extra.user = {
+        findMany: jest.fn().mockResolvedValue([person("super_1", "SUPER_ADMIN")]),
+        findUnique: jest.fn().mockResolvedValue(applicant)
+      };
+      return extra;
+    };
+
+    it("tells only super admins about a coach application, with a link to the approvals page", async () => {
+      const extra = await withApplicant(person("ravi", "COACH", "PENDING"));
+
+      await service.dispatch({ event: "REGISTRATION_PENDING_ADMIN", userId: "ravi" });
+
+      expect(extra.user.findMany.mock.calls[0][0].where).toMatchObject({
+        isPlatformSupport: false,
+        role: { in: ["SUPER_ADMIN"] },
+        status: "ACTIVE"
+      });
+      const rows = queuedRows(prisma.messageDelivery.create);
+      expect(rows.map((r) => r.dedupeKey)).toEqual(["REGISTRATION_PENDING_ADMIN:ravi:super_1"]);
+      expect(rows[0]).toMatchObject({ linkPath: "/admin/approvals" });
+      expect(rows[0].body).toContain("ravi|coach|");
+    });
+
+    it("lets admins review a student application too", async () => {
+      const extra = await withApplicant(person("asha", "STUDENT", "PENDING"));
+
+      await service.dispatch({ event: "REGISTRATION_PENDING_ADMIN", userId: "asha" });
+
+      expect(extra.user.findMany.mock.calls[0][0].where.role).toEqual({ in: ["ADMIN", "SUPER_ADMIN"] });
+    });
+
+    it("says nothing once the account is no longer pending", async () => {
+      const extra = await withApplicant(person("asha", "STUDENT", "ACTIVE"));
+
+      await service.dispatch({ event: "REGISTRATION_PENDING_ADMIN", userId: "asha" });
+
+      expect(extra.user.findMany).not.toHaveBeenCalled();
+      expect(prisma.messageDelivery.create).not.toHaveBeenCalled();
+    });
+  });
+
   it("never lets a dispatch failure reach the calling feature", async () => {
     await setup();
     getRule.mockRejectedValue(new Error("database is down"));

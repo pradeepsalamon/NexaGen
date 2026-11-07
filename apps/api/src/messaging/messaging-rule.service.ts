@@ -321,6 +321,7 @@ export class MessagingRuleService {
         data: {
           event,
           enabled: defaults.enabled,
+          emailEnabled: defaults.emailEnabled ?? false,
           whatsappEnabled: defaults.whatsappEnabled,
           inAppEnabled: defaults.inAppEnabled,
           audience: defaults.audience,
@@ -355,6 +356,7 @@ export class MessagingRuleService {
       data: missing.map((event) => ({
         event,
         enabled: DEFAULT_MESSAGING_RULES[event].enabled,
+        emailEnabled: DEFAULT_MESSAGING_RULES[event].emailEnabled ?? false,
         whatsappEnabled: DEFAULT_MESSAGING_RULES[event].whatsappEnabled,
         inAppEnabled: DEFAULT_MESSAGING_RULES[event].inAppEnabled,
         audience: DEFAULT_MESSAGING_RULES[event].audience,
