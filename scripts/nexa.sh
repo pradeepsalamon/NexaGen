@@ -64,6 +64,15 @@ DEV_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -
 STAGE_API_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production TENANT_SCOPE_MODE=${STAGE_TENANT_SCOPE_MODE:-enforce} node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
 STAGE_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
 
+# Apply pending migrations to apps/api/.env's DATABASE_URL before any API launch.
+# A pull that brought a new migration otherwise left the API querying columns the
+# database lacks (P2022 "column ... does not exist" on every login). deploy only
+# applies committed migrations; it never resets or prompts.
+function migrate_db() {
+    echo "=== Applying pending database migrations ==="
+    (cd "$ROOT_DIR" && npm run db:migrate:deploy)
+}
+
 # (Re)launch one window, leaving the other one running.
 function launch_window() {
     local name=$1 cmd=$2
@@ -78,12 +87,13 @@ function launch_window() {
 function start_dev() {
     local target=$1
     case "$target" in
-        api) launch_window api "$DEV_API_CMD"; echo "Dev API launched on port 3011!"; return ;;
+        api) migrate_db; launch_window api "$DEV_API_CMD"; echo "Dev API launched on port 3011!"; return ;;
         web) launch_window web "$DEV_WEB_CMD"; echo "Dev web launched on port 3010!"; return ;;
     esac
 
     echo "Stopping any existing dev/staging processes..."
     stop_session
+    migrate_db
 
     launch_window api "$DEV_API_CMD"
     launch_window web "$DEV_WEB_CMD"
@@ -103,6 +113,7 @@ function start_stage() {
             # The shared packages first, so the API never builds against stale outputs.
             npx turbo run build --filter=@nexa-chess/api^...
             npm run build:prod -w apps/api
+            migrate_db
             launch_window api "$STAGE_API_CMD"
             echo "Production-mode Dev API launched on port 3011!"
         else
@@ -119,6 +130,7 @@ function start_stage() {
     echo "=== Building Apps in Production Mode for DEV Testing ==="
     cd "$ROOT_DIR"
     npm run build
+    migrate_db
 
     echo "=== Launching Production-Optimized DEV Servers on Ports 3010 / 3011 ==="
     launch_window api "$STAGE_API_CMD"

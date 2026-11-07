@@ -25,5 +25,10 @@ nexa attach                              # attach to the nexa-dev tmux session
   the deploy workflow instead (CLAUDE.md §6); never run this from an agent
   ([.agents/SAFETY.md](../.agents/SAFETY.md)).
 
+Every dev/stage start or restart that launches the API (whole environment or
+`api`) first runs `npm run db:migrate:deploy` against `apps/api/.env`'s
+`DATABASE_URL`, so a pull that brings a new migration can't leave the API
+querying missing columns. A failed migration stops the launch.
+
 `stop` only kills the tmux session or window it started; anything else on
 3010/3011 is reported, never killed.
