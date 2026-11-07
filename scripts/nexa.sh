@@ -106,6 +106,32 @@ function start_dev() {
     echo "Web listening on: http://127.0.0.1:3010"
 }
 
+# Staging serves this checkout, so a restart without a pull rebuilt old code and new pushes
+# never showed. Fast-forward to the branch's upstream first (never merges or rebases), and
+# re-run the pulled script so a changed nexa.sh isn't half-read. NEXA_NO_PULL=1 skips it, e.g.
+# to test unpushed local work.
+function pull_latest() {
+    [ "${NEXA_NO_PULL:-}" = "1" ] && return
+    cd "$ROOT_DIR"
+    local branch upstream before
+    branch=$(git symbolic-ref --short -q HEAD) || { echo "Detached HEAD: not pulling."; return; }
+    upstream=$(git rev-parse --abbrev-ref -q "$branch@{upstream}" 2>/dev/null) || {
+        echo "Branch $branch has no upstream: not pulling, building the local code."; return; }
+    echo "=== Pulling $upstream into $branch (fast-forward only) ==="
+    before=$(git rev-parse HEAD)
+    if ! git pull --ff-only; then
+        echo ""
+        echo "Error: could not fast-forward $branch to $upstream (local commits, or uncommitted"
+        echo "changes to files the pull touches; see git status). Staging was NOT rebuilt."
+        echo "Fix the checkout, or rerun with NEXA_NO_PULL=1 to build the local code as it is."
+        exit 1
+    fi
+    if [ "$(git rev-parse HEAD)" != "$before" ]; then
+        git --no-pager log --oneline "$before..HEAD" | head -20
+        NEXA_NO_PULL=1 exec bash "$SCRIPTS_DIR/nexa.sh" "$COMMAND" "$ENV" $TARGET
+    fi
+}
+
 function start_stage() {
     local target=$1
     cd "$ROOT_DIR"
@@ -240,6 +266,7 @@ case "$COMMAND" in
             echo "Starting prod environment (Docker)..."
             docker compose up -d --build
         elif [[ "$ENV" == "stage" ]]; then
+            pull_latest
             start_stage "$TARGET"
         elif [[ "$ENV" == "dev" ]]; then
             start_dev "$TARGET"
@@ -277,6 +304,7 @@ case "$COMMAND" in
             docker compose up -d --build
         elif [[ "$ENV" == "stage" ]]; then
             echo "Restarting stage environment (Tmux)..."
+            pull_latest
             start_stage "$TARGET"
         elif [[ "$ENV" == "dev" ]]; then
             echo "Restarting dev environment (Tmux)..."
