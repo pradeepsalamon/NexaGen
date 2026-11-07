@@ -131,11 +131,14 @@ code on 2026-10-31.
   payout integration, no multi-currency, no rate CSV import/export.
 - **Chat push:** a websocket only if the 4 s poll proves too slow or costly.
   There is no evidence of that yet.
-- **Referrals** ([REFERRALS.md](REFERRALS.md), shipped 2026-11-02): no
-  notifications yet (a stage move, reward or points received could be a
-  `MessagingEvent`), no bulk payout export. Sign-up links the new member's
-  account automatically, but onboarding is still an admin move. Accounts an
-  admin creates (Users page) are only linked by hand.
+- **Referrals** ([REFERRALS.md](REFERRALS.md), shipped 2026-11-02, rebuilt
+  2026-11-07 as points + vouchers for students, money for staff): no
+  notifications yet (a stage move, reward, voucher approval could be a
+  `MessagingEvent`), no bulk payout export, no points expiry. Sign-up links the
+  new member's account automatically, but onboarding is still an admin move.
+  Accounts an admin creates (Users page) are only linked by hand. Free days
+  given by a voucher can't be taken back from the referral board (adjust the
+  access in Payments).
 
 ### Needs someone with `vps_dev` / production access
 

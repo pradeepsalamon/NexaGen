@@ -659,6 +659,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.referralCreditEntry;
   }
 
+  get referralRedemption() {
+    return this.client.referralRedemption;
+  }
+
   get referralRewardRule() {
     return this.client.referralRewardRule;
   }
@@ -697,6 +701,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get referralWithdrawal() {
     return this.client.referralWithdrawal;
+  }
+
+  get referralVoucher() {
+    return this.client.referralVoucher;
   }
 
   get lead() {

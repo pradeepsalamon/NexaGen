@@ -76,7 +76,7 @@ describe("cross-user access (real app, real Postgres)", () => {
     expect(await t.prisma.assignmentBatch.count({ where: { batchId: b.batch.id } })).toBe(2);
     expect(await t.prisma.puzzleAttempt.count({ where: { studentAssignmentId: { not: null } } })).toBe(0);
     expect((await t.prisma.referralWithdrawal.findUniqueOrThrow({ where: { id: b.referralWithdrawal.id } })).status).toBe("REQUESTED");
-    expect((await t.prisma.discount.findUniqueOrThrow({ where: { id: b.referralPaymentCode.id } })).isActive).toBe(true);
+    expect((await t.prisma.referralRedemption.findUniqueOrThrow({ where: { id: b.referralRedemption.id } })).status).toBe("PENDING");
     expect(await t.prisma.liveSession.findUnique({ where: { classId: b.liveClass.id } })).toMatchObject({
       recordingStatus: null,
       status: "LIVE"

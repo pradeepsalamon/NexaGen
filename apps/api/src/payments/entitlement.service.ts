@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import type { EntitlementItem } from "@nexa-chess/types";
 import {
@@ -30,7 +30,8 @@ const ENTITLEMENT_INCLUDE = {
  * Payment provider → verification → payment → order → ENTITLEMENT → user
  * access. Nothing else in the codebase may enrol a student off the back of a
  * payment, and nothing here runs on a frontend success callback: `grant` is
- * only ever called from a verified payment capture.
+ * only ever called from a verified payment capture. The one non-payment grant
+ * is `grantFreeDays`, a referral voucher the student paid for in points.
  */
 @Injectable()
 export class EntitlementService {
@@ -100,6 +101,60 @@ export class EntitlementService {
     }
 
     return entitlement;
+  }
+
+  /**
+   * Free days of access bought with referral points (docs/REFERRALS.md §
+   * Vouchers) — the one grant that does not come from a payment. Extends the
+   * student's current time-limited access to the plan by `days` (from its end
+   * date), or, with none, grants `days` from now and enrols them in the plan's
+   * batch. Refused when they already hold unlimited access to it. Runs inside
+   * the caller's transaction, beside the redemption it fulfils.
+   */
+  async grantFreeDays(
+    tx: PrismaTransactionClient,
+    input: { userId: string; planId: string; days: number; now?: Date }
+  ): Promise<{ entitlement: Entitlement; created: boolean }> {
+    const plan = await tx.plan.findUnique({ where: { id: input.planId } });
+    if (!plan) throw new NotFoundException("That plan no longer exists.");
+    const now = input.now ?? new Date();
+    const live = {
+      status: EntitlementStatus.ACTIVE,
+      startsAt: { lte: now },
+      planId: plan.id,
+      userId: input.userId
+    } satisfies Prisma.EntitlementWhereInput;
+    const unlimited = await tx.entitlement.count({ where: { ...live, endsAt: null } });
+    if (unlimited > 0) throw new ConflictException(`You already have unlimited access to ${plan.name}.`);
+
+    const addMs = input.days * 24 * 60 * 60 * 1000;
+    const current = await tx.entitlement.findFirst({
+      orderBy: { endsAt: "desc" },
+      where: { ...live, endsAt: { gt: now } }
+    });
+    if (current?.endsAt) {
+      // Claim on the end date read, so two extensions racing both count.
+      const endsAt = new Date(current.endsAt.getTime() + addMs);
+      const { count } = await tx.entitlement.updateMany({
+        data: { endsAt },
+        where: { endsAt: current.endsAt, id: current.id, status: EntitlementStatus.ACTIVE }
+      });
+      if (count === 0) throw new ConflictException("Your access just changed. Try again.");
+      return { created: false, entitlement: { ...current, endsAt } };
+    }
+
+    const entitlement = await tx.entitlement.create({
+      data: {
+        batchId: plan.batchId,
+        endsAt: new Date(now.getTime() + addMs),
+        planId: plan.id,
+        startsAt: now,
+        status: EntitlementStatus.ACTIVE,
+        userId: input.userId
+      }
+    });
+    if (plan.batchId) await this.enrol(tx, input.userId, plan.batchId);
+    return { created: true, entitlement };
   }
 
   /**

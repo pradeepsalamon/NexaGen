@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { ReferralBenefitItem, ReferralVisitResponse } from "@nexa-chess/types";
-import { type LeadStatus, type ReferralStageTrigger, type UserRole, UserStatus } from "@prisma/client";
+import { type LeadStatus, type ReferralStageTrigger, UserStatus } from "@prisma/client";
 import { parseUserAgent } from "../lead/lead-tracking.util";
 import { isUniqueViolation } from "../payments/payments.util";
 import { EntitlementService } from "../platform/entitlement.service";
@@ -66,7 +66,7 @@ export class ReferralTrackerService {
 
     const base = {
       attributionDays: code.settings.attributionDays,
-      benefits: await this.benefitsFor(code.user.role),
+      benefits: await this.benefits(),
       referrerFirstName: code.user.firstName,
       valid: true
     };
@@ -86,26 +86,14 @@ export class ReferralTrackerService {
     return { ...base, referralId };
   }
 
-  /** What a new member gets for joining through a link held by `referrerRole`. */
-  async benefitsFor(referrerRole: UserRole): Promise<ReferralBenefitItem[]> {
-    const rules = await this.prisma.referralRewardRule.findMany({
-      include: { stage: { select: { name: true, position: true } } },
-      orderBy: { createdAt: "asc" },
-      where: {
-        beneficiary: "REFERRED",
-        isActive: true,
-        OR: [{ roles: { isEmpty: true } }, { roles: { has: referrerRole } }]
-      }
+  /** The points a new member gets at each stage for joining through a link. */
+  async benefits(): Promise<ReferralBenefitItem[]> {
+    const stages = await this.prisma.referralStage.findMany({
+      orderBy: { position: "asc" },
+      select: { id: true, name: true, newMemberPoints: true },
+      where: { newMemberPoints: { gt: 0 } }
     });
-    return rules.map((rule) => ({
-      amountMinor: rule.amountMinor,
-      currency: rule.currency,
-      description: rule.description,
-      id: rule.id,
-      name: rule.name,
-      stageName: rule.stage.name,
-      unit: rule.unit
-    }));
+    return stages.map((stage) => ({ points: stage.newMemberPoints, stageId: stage.id, stageName: stage.name }));
   }
 
   /**

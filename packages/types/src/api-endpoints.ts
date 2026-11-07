@@ -783,12 +783,11 @@ export const API_ROUTES = {
     myCredits: "/referrals/me/credits",
     myWithdrawals: "/referrals/me/withdrawals",
     cancelWithdrawal: (id: string = ":id") => `/referrals/me/withdrawals/${id}/cancel`,
-    myPaymentCodes: "/referrals/me/payment-codes",
-    cancelPaymentCode: (id: string = ":id") => `/referrals/me/payment-codes/${id}/cancel`,
-    /** Send points to another user (points only — money is never transferable). */
-    transferPoints: "/referrals/me/points/transfer",
-    /** Points → money at the admin rate (one way). */
-    convertPoints: "/referrals/me/points/convert"
+    /** Students: the rewards store (vouchers bought with points). */
+    myVouchers: "/referrals/me/vouchers",
+    redeemVoucher: (id: string = ":id") => `/referrals/me/vouchers/${id}/redeem`,
+    myRedemptions: "/referrals/me/redemptions",
+    cancelRedemption: (id: string = ":id") => `/referrals/me/redemptions/${id}/cancel`
   },
   adminReferrals: {
     overview: "/admin/referrals/overview",
@@ -804,8 +803,15 @@ export const API_ROUTES = {
     stages: "/admin/referrals/stages",
     stage: (id: string = ":id") => `/admin/referrals/stages/${id}`,
     reorderStages: "/admin/referrals/stages/reorder",
-    rewardRules: "/admin/referrals/reward-rules",
-    rewardRule: (id: string = ":id") => `/admin/referrals/reward-rules/${id}`,
+    /** Milestone bonuses (stage values live on the stages). */
+    bonusRules: "/admin/referrals/bonus-rules",
+    bonusRule: (id: string = ":id") => `/admin/referrals/bonus-rules/${id}`,
+    vouchers: "/admin/referrals/vouchers",
+    voucher: (id: string = ":id") => `/admin/referrals/vouchers/${id}`,
+    redemptions: "/admin/referrals/redemptions",
+    approveRedemption: (id: string = ":id") => `/admin/referrals/redemptions/${id}/approve`,
+    rejectRedemption: (id: string = ":id") => `/admin/referrals/redemptions/${id}/reject`,
+    revokeRedemption: (id: string = ":id") => `/admin/referrals/redemptions/${id}/revoke`,
     rewards: "/admin/referrals/rewards",
     approveReward: (id: string = ":id") => `/admin/referrals/rewards/${id}/approve`,
     cancelReward: (id: string = ":id") => `/admin/referrals/rewards/${id}/cancel`,

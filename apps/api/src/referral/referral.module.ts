@@ -11,6 +11,7 @@ import { ReferralCreditsService } from "./referral-credits.service";
 import { ReferralPipelineService } from "./referral-pipeline.service";
 import { ReferralSettingsService } from "./referral-settings.service";
 import { ReferralTrackerService } from "./referral-tracker.service";
+import { ReferralVouchersService } from "./referral-vouchers.service";
 import { ReferralController } from "./referral.controller";
 import { ReferralService } from "./referral.service";
 
@@ -26,7 +27,8 @@ import { ReferralService } from "./referral.service";
     ReferralPipelineService,
     ReferralService,
     ReferralSettingsService,
-    ReferralTrackerService
+    ReferralTrackerService,
+    ReferralVouchersService
   ]
 })
 export class ReferralModule {}

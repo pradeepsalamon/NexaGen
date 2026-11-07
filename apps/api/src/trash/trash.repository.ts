@@ -401,6 +401,7 @@ export class TrashRepository {
       referralRewards,
       referralCredits,
       referralWithdrawals,
+      referralRedemptions,
       personalDiscounts
     ] =
       await Promise.all([
@@ -418,13 +419,14 @@ export class TrashRepository {
         this.prisma.coachCompensationProfile.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach }),
         this.prisma.coachCompensationRate.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach }),
         this.prisma.coachPayrollRecord.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach }),
-        // Referral money (docs/REFERRALS.md): rewards, the credits ledger, payouts
-        // and personal payment codes are financial history. Points transfers and
+        // Referral money and points (docs/REFERRALS.md): rewards, the ledger,
+        // payouts, voucher redemptions and personal codes are financial history. Points transfers and
         // conversions always write ledger entries for both sides, so the ledger
         // query covers them.
         this.prisma.referralReward.findMany({ distinct: ["referrerId"], select: { referrerId: true }, where: { referrerId: { in: userIds } } }),
         this.prisma.referralCreditEntry.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
         this.prisma.referralWithdrawal.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
+        this.prisma.referralRedemption.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
         this.prisma.discount.findMany({
           distinct: ["restrictedToUserId"],
           select: { restrictedToUserId: true },
@@ -437,7 +439,7 @@ export class TrashRepository {
       ...manualRecords.map((row) => row.recordedByUserId),
       ...[profiles, rates, payrollRecords].flat().map((row) => row.coachId),
       ...referralRewards.map((row) => row.referrerId),
-      ...[referralCredits, referralWithdrawals].flat().map((row) => row.userId),
+      ...[referralCredits, referralWithdrawals, referralRedemptions].flat().map((row) => row.userId),
       ...personalDiscounts.flatMap((row) => (row.restrictedToUserId ? [row.restrictedToUserId] : []))
     ]);
   }

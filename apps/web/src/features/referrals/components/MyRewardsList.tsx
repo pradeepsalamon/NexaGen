@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { useMyReferralRewards } from "../hooks/useReferrals";
-import { DISCOUNT_STATUS_LABEL, REWARD_STATUS_LABEL, REWARD_STATUS_VARIANT } from "../lib/referralFormat";
+import { REWARD_STATUS_LABEL, REWARD_STATUS_VARIANT } from "../lib/referralFormat";
 
 export function MyRewardsList() {
   const timeZone = useUserTimeZone();
@@ -20,7 +20,7 @@ export function MyRewardsList() {
   if (!data?.length) {
     return (
       <EmptyState
-        description="Rewards appear here when your referrals reach a stage the academy rewards — and welcome benefits if you joined through someone's link."
+        description="Rewards appear here when your referrals reach a stage the academy rewards — and welcome points if you joined through someone's link."
         icon={Gift}
         title="No rewards yet"
       />
@@ -43,20 +43,12 @@ export function MyRewardsList() {
             <TableRow key={reward.id}>
               <TableCell>
                 <p className="flex flex-wrap items-center gap-2 font-bold text-app-text">
-                  {reward.ruleName}
-                  {reward.beneficiary === "REFERRED" ? <Badge variant="accent">Welcome benefit</Badge> : null}
+                  {reward.sourceName}
+                  {reward.beneficiary === "REFERRED" ? <Badge variant="accent">Welcome points</Badge> : null}
                 </p>
                 <p className="text-xs text-app-muted">
                   {reward.beneficiary === "REFERRED" ? reward.description : (reward.prospectName ?? reward.description)}
                 </p>
-                {reward.discountCode ? (
-                  <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                    <span className="font-mono font-bold text-app-text">{reward.discountCode}</span>
-                    <Badge variant={reward.discountStatus === "ACTIVE" ? "info" : "secondary"}>
-                      {DISCOUNT_STATUS_LABEL[reward.discountStatus ?? "ACTIVE"]}
-                    </Badge>
-                  </p>
-                ) : null}
               </TableCell>
               <TableCell>
                 <Badge variant={REWARD_STATUS_VARIANT[reward.status]}>{REWARD_STATUS_LABEL[reward.status]}</Badge>

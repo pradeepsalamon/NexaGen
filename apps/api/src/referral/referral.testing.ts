@@ -5,7 +5,7 @@ export const NOOP_REFERRAL_TRACKER = {
   provide: ReferralTrackerService,
   useValue: {
     attachLead: async () => undefined,
-    benefitsFor: async () => [],
+    benefits: async () => [],
     linkSignup: async () => undefined,
     onLeadEvent: async () => undefined,
     onLeadStatus: async () => undefined

@@ -36,8 +36,20 @@ export function useReferralStages() {
   return useQuery({ queryFn: referralAdminApi.stages, queryKey: queryKeys.referrals.adminStages });
 }
 
-export function useReferralRules() {
-  return useQuery({ queryFn: referralAdminApi.rules, queryKey: queryKeys.referrals.adminRules });
+export function useReferralBonusRules() {
+  return useQuery({ queryFn: referralAdminApi.bonusRules, queryKey: queryKeys.referrals.adminBonusRules });
+}
+
+export function useReferralVouchers() {
+  return useQuery({ queryFn: referralAdminApi.vouchers, queryKey: queryKeys.referrals.adminVouchers });
+}
+
+export function useAdminReferralRedemptions(params: ReferralListParams) {
+  return useQuery({
+    placeholderData: keepPreviousData,
+    queryFn: () => referralAdminApi.redemptions(params),
+    queryKey: queryKeys.referrals.adminRedemptions(params)
+  });
 }
 
 export function useAdminReferralRewards(params: ReferralListParams) {

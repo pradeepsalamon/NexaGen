@@ -1,25 +1,19 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  ConvertReferralPointsRequest,
-  CreateReferralPaymentCodeRequest,
-  RequestReferralWithdrawalRequest,
-  TransferReferralPointsRequest
-} from "@nexa-chess/types";
+import type { RequestReferralWithdrawalRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
 import {
-  cancelReferralPaymentCode,
+  cancelReferralRedemption,
   cancelReferralWithdrawal,
-  convertReferralPoints,
-  createReferralPaymentCode,
   getMyReferralCredits,
-  getMyReferralPaymentCodes,
+  getMyReferralRedemptions,
   getMyReferralRewards,
   getMyReferrals,
   getMyReferralSummary,
+  getMyReferralVouchers,
   getMyReferralWithdrawals,
-  requestReferralWithdrawal,
-  transferReferralPoints
+  redeemReferralVoucher,
+  requestReferralWithdrawal
 } from "../api/referralApi";
 import type { ReferralListParams } from "../lib/referralQuery";
 
@@ -43,12 +37,16 @@ export function useMyReferralCredits() {
   return useQuery({ queryFn: getMyReferralCredits, queryKey: queryKeys.referrals.myCredits });
 }
 
-export function useMyReferralWithdrawals() {
-  return useQuery({ queryFn: getMyReferralWithdrawals, queryKey: queryKeys.referrals.myWithdrawals });
+export function useMyReferralWithdrawals(enabled = true) {
+  return useQuery({ enabled, queryFn: getMyReferralWithdrawals, queryKey: queryKeys.referrals.myWithdrawals });
 }
 
-export function useMyReferralPaymentCodes(enabled: boolean) {
-  return useQuery({ enabled, queryFn: getMyReferralPaymentCodes, queryKey: queryKeys.referrals.myPaymentCodes });
+export function useMyReferralVouchers(enabled = true) {
+  return useQuery({ enabled, queryFn: getMyReferralVouchers, queryKey: queryKeys.referrals.myVouchers });
+}
+
+export function useMyReferralRedemptions(enabled = true) {
+  return useQuery({ enabled, queryFn: getMyReferralRedemptions, queryKey: queryKeys.referrals.myRedemptions });
 }
 
 /** Wallet writes: toast, then refresh everything under `referrals.me`. */
@@ -77,22 +75,10 @@ export function useCancelWithdrawal() {
   return useWalletMutation((id: string) => cancelReferralWithdrawal(id), "Withdrawal cancelled", "Could not cancel");
 }
 
-export function useCreatePaymentCode() {
-  return useWalletMutation(
-    (body: CreateReferralPaymentCodeRequest) => createReferralPaymentCode(body),
-    "Payment code created",
-    "Could not create the code"
-  );
+export function useRedeemVoucher() {
+  return useWalletMutation(redeemReferralVoucher, "Voucher redeemed", "Could not redeem the voucher");
 }
 
-export function useCancelPaymentCode() {
-  return useWalletMutation((id: string) => cancelReferralPaymentCode(id), "Code cancelled, balance returned", "Could not cancel the code");
-}
-
-export function useTransferPoints() {
-  return useWalletMutation((body: TransferReferralPointsRequest) => transferReferralPoints(body), "Points sent", "Could not send the points");
-}
-
-export function useConvertPoints() {
-  return useWalletMutation((body: ConvertReferralPointsRequest) => convertReferralPoints(body), "Points converted to money", "Could not convert");
+export function useCancelRedemption() {
+  return useWalletMutation((id: string) => cancelReferralRedemption(id), "Request cancelled, points returned", "Could not cancel");
 }

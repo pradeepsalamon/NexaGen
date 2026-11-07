@@ -1,65 +1,76 @@
-import { Gift, ListChecks } from "lucide-react";
-import { formatReferralReward, type MyReferralSummary } from "@nexa-chess/types";
+import { Gift, ListChecks, Trophy } from "lucide-react";
+import { formatReferralPoints, type MyReferralSummary } from "@nexa-chess/types";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormattedText } from "@/components/ui/FormattedText";
 import { SectionCard } from "@/components/ui/SectionCard";
+import { money } from "../lib/referralFormat";
 
-type Rule = MyReferralSummary["rules"][number];
-
-function RuleList({ rules }: { rules: Rule[] }) {
-  return (
-    <ul className="grid gap-3">
-      {rules.map((rule) => (
-        <li className="flex items-start gap-3 rounded-control border border-app-border bg-app-soft p-3" key={rule.id}>
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
-            <Gift aria-hidden="true" className="size-4" strokeWidth={2.5} />
-          </span>
-          <div className="min-w-0">
-            <p className="font-bold text-app-text">
-              {formatReferralReward(rule.amountMinor, rule.unit, rule.currency)}{" "}
-              <span className="font-normal text-app-muted">
-                {rule.beneficiary === "REFERRED"
-                  ? `${rule.unit === "DISCOUNT_PERCENT" ? "one payment" : ""} when they reach "${rule.stageName}"`.trim()
-                  : rule.kind === "MILESTONE"
-                    ? `for every ${rule.milestoneCount} referrals that reach "${rule.stageName}"`
-                    : `for each referral that reaches "${rule.stageName}"`}
-              </span>
-            </p>
-            <p className="text-sm text-app-muted">{rule.description ?? rule.name}</p>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** The reward rules this referrer can earn from, what their friend gets, and the terms. */
+/** What this referrer earns at each stage, the bonuses, what their friend gets, and the terms. */
 export function HowItWorks({ summary }: { summary: MyReferralSummary }) {
-  const referrerRules = summary.rules.filter((rule) => rule.beneficiary === "REFERRER");
-  const friendRules = summary.rules.filter((rule) => rule.beneficiary === "REFERRED");
+  const amount = (value: number) => (summary.wallet === "POINTS" ? formatReferralPoints(value) : money(value, summary.currency));
+  const mine = summary.earnings.filter((row) => row.referrer > 0);
+  const friend = summary.earnings.filter((row) => row.friendPoints > 0);
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
       <div className="grid gap-5">
-        <SectionCard description="What the academy gives you for each step." title="How you earn">
-          {referrerRules.length ? (
-            <RuleList rules={referrerRules} />
+        <SectionCard description="What the academy gives you for each referral, step by step." title="How you earn">
+          {mine.length || summary.bonuses.length ? (
+            <ul className="grid gap-3">
+              {mine.map((row) => (
+                <li className="flex items-start gap-3 rounded-control border border-app-border bg-app-soft p-3" key={row.stageId}>
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
+                    <Gift aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                  </span>
+                  <p className="min-w-0 font-bold text-app-text">
+                    {amount(row.referrer)}{" "}
+                    <span className="font-normal text-app-muted">for each referral that reaches &ldquo;{row.stageName}&rdquo;</span>
+                  </p>
+                </li>
+              ))}
+              {summary.bonuses.map((bonus) => (
+                <li className="flex items-start gap-3 rounded-control border border-app-border bg-app-soft p-3" key={bonus.id}>
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
+                    <Trophy aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-bold text-app-text">
+                      {amount(bonus.amount)}{" "}
+                      <span className="font-normal text-app-muted">
+                        bonus every {bonus.everyCount} referrals that reach &ldquo;{bonus.stageName}&rdquo;
+                      </span>
+                    </p>
+                    <p className="text-sm text-app-muted">{bonus.description ?? bonus.name}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           ) : (
             <EmptyState description="The academy hasn't set up rewards yet." icon={Gift} title="No rewards yet" variant="inline" />
           )}
         </SectionCard>
-        {friendRules.length ? (
+        {friend.length ? (
           <SectionCard description="Tell them — it helps them say yes." title="What your friend gets">
-            <RuleList rules={friendRules} />
+            <ul className="grid gap-2 text-sm text-app-text">
+              {friend.map((row) => (
+                <li key={row.stageId}>
+                  <span className="font-bold">{formatReferralPoints(row.friendPoints)}</span> when they reach &ldquo;{row.stageName}&rdquo;
+                </li>
+              ))}
+            </ul>
           </SectionCard>
         ) : null}
       </div>
 
       <SectionCard title="Steps">
         <ol className="grid gap-3 text-sm text-app-text">
-          <li>1. Share your link or code with someone who’d enjoy chess classes.</li>
+          <li>1. Share your link or code with someone who&rsquo;d enjoy chess classes.</li>
           <li>2. They open it and book a free demo class. You see each step on your board.</li>
           <li>3. When they join the academy, the academy marks them as onboarded.</li>
-          <li>4. Rewards land in your wallet as money or points. Points can be sent to other members or converted to money.</li>
+          <li>
+            {summary.wallet === "POINTS"
+              ? "4. You earn points at each step. Spend them in the rewards store on fee discounts or free days."
+              : "4. You earn money at each step, and can withdraw it once it reaches the minimum."}
+          </li>
         </ol>
         {summary.programTerms ? (
           <div className="mt-4 border-t border-app-border pt-4">
