@@ -3382,6 +3382,12 @@ model SystemMessageTemplate {
   /// WhatsApp-only wording. Null = WhatsApp sends `body`.
   whatsappBody String?
 
+  /// Approved WhatsApp template sent instead of free text (as on MessagingRule). Null name =
+  /// free text. Params are the {{1}}, {{2}}… values, each a short text with placeholders.
+  whatsappTemplateName     String?
+  whatsappTemplateLanguage String?
+  whatsappTemplateParams   String[] @default([])
+
   /// Channel switches. Null = the message's default for that channel.
   emailEnabled    Boolean?
   whatsappEnabled Boolean?

@@ -1,8 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   effectiveSystemChannels,
   findMissingRequiredVariables,
   markdownToWhatsApp,
+  normalizeWhatsAppTemplate,
+  whatsappTemplateIssues,
+  type ResolvedWhatsAppTemplate,
+  type WhatsAppTemplateSettings,
   sampleVariables,
   DEFAULT_TENANT_ID,
   SYSTEM_MESSAGE_DEFINITIONS,
@@ -34,6 +38,8 @@ type SavedTemplate = SystemMessageTemplate & {
 /** Admin rewording of the fixed system messages. Sending goes through SystemMessageRenderer. */
 @Injectable()
 export class SystemMessageService {
+  private readonly logger = new Logger(SystemMessageService.name);
+
   constructor(
     private readonly mail: MailService,
     private readonly notifications: NotificationService,
@@ -86,8 +92,14 @@ export class SystemMessageService {
       throw new BadRequestException("Keep at least one channel on, or nobody receives this message.");
     }
     // Null = the standard WhatsApp text (the default's own, else the message body).
-    const typed = definition.channels.includes("WHATSAPP") ? dto.whatsappBody : null;
+    const supportsWhatsApp = definition.channels.includes("WHATSAPP");
+    const typed = supportsWhatsApp ? dto.whatsappBody : null;
     const whatsappBody = typed === defaults.whatsappBody ? null : typed;
+
+    // Per-academy key (§D5 makes it the primary key; `key` alone is Nexa's today).
+    const tenantId = requireTenantId("systemMessageTemplate");
+    const saved = await this.prisma.systemMessageTemplate.findUnique({ where: { tenantId_key: { key, tenantId } } });
+    const template = this.templateFor(definition.channels, dto, saved, definition.variables);
 
     const sameChannels =
       channels.size === definition.defaultChannels.length &&
@@ -97,6 +109,7 @@ export class SystemMessageService {
       dto.body === defaults.body &&
       actionLabel === defaults.actionLabel &&
       whatsappBody === null &&
+      !template.name &&
       sameChannels
     ) {
       await this.prisma.systemMessageTemplate.deleteMany({ where: { key } });
@@ -114,10 +127,11 @@ export class SystemMessageService {
       subject: dto.subject,
       updatedById: admin.id,
       whatsappBody,
-      whatsappEnabled: switchFor("WHATSAPP")
+      whatsappEnabled: switchFor("WHATSAPP"),
+      whatsappTemplateLanguage: template.language,
+      whatsappTemplateName: template.name,
+      whatsappTemplateParams: [...template.params]
     };
-    // Per-academy key (§D5 makes it the primary key; `key` alone is Nexa's today).
-    const tenantId = requireTenantId("systemMessageTemplate");
     const row = await this.prisma.systemMessageTemplate.upsert({
       create: { key, ...data },
       include: WITH_EDITOR,
@@ -144,7 +158,7 @@ export class SystemMessageService {
     }
     const rendered = await this.renderer.renderAll(key, sampleVariables(definition.variables));
 
-    if (dto.channel === "WHATSAPP") return this.testWhatsApp(admin, dto, rendered.whatsapp);
+    if (dto.channel === "WHATSAPP") return this.testWhatsApp(key, admin, dto, rendered.whatsapp, rendered.whatsappTemplate);
     if (dto.channel === "IN_APP") {
       await this.notifications.notify({
         body: rendered.body,
@@ -157,6 +171,30 @@ export class SystemMessageService {
       return { error: null, preview: rendered.body, sent: true, to: "your in-app inbox" };
     }
     return this.testEmail(key, admin, rendered.body);
+  }
+
+  /**
+   * The template to save: a field the request omits keeps its saved value (an older client
+   * can't clear it); a message without WhatsApp can't have one. Refuses an invalid template.
+   */
+  private templateFor(
+    channels: readonly SystemMessageChannel[],
+    dto: UpdateSystemMessageRequest,
+    saved: SystemMessageTemplate | null,
+    variables: readonly string[]
+  ): WhatsAppTemplateSettings {
+    const template = normalizeWhatsAppTemplate({
+      language: dto.whatsappTemplateLanguage === undefined ? saved?.whatsappTemplateLanguage : dto.whatsappTemplateLanguage,
+      name: dto.whatsappTemplateName === undefined ? saved?.whatsappTemplateName : dto.whatsappTemplateName,
+      params: dto.whatsappTemplateParams ?? saved?.whatsappTemplateParams ?? []
+    });
+    if (!channels.includes("WHATSAPP")) {
+      if (template.name) throw new BadRequestException("This message isn't sent by WhatsApp, so it can't use a WhatsApp template.");
+      return { language: null, name: null, params: [] };
+    }
+    const issues = whatsappTemplateIssues(template, variables);
+    if (issues.length > 0) throw new BadRequestException(issues.join(" "));
+    return template;
   }
 
   /** A platform-only message (e.g. the integrity alert) is Nexa's: another academy's admins never see it. */
@@ -184,9 +222,11 @@ export class SystemMessageService {
   }
 
   private async testWhatsApp(
+    key: SystemMessageKey,
     admin: User,
     dto: TestSystemMessageRequest,
-    preview: string
+    preview: string,
+    template: ResolvedWhatsAppTemplate | null
   ): Promise<TestMessagingRuleResponse> {
     if (!this.whatsapp.isConfigured()) {
       return {
@@ -207,9 +247,13 @@ export class SystemMessageService {
         to: null
       };
     }
-    const outcome = await this.whatsapp.trySendText({ body: markdownToWhatsApp(preview), to });
+    // The saved template when there is one, so the test proves Meta accepts it with these values.
+    const outcome = await this.whatsapp.trySendMessage({ template, text: markdownToWhatsApp(preview), to });
+    if (!outcome.ok && template) {
+      this.logger.warn(`Test of ${key} with WhatsApp template "${template.name}" failed: ${outcome.error.message}`);
+    }
     return {
-      error: outcome.ok ? null : outcome.error.message,
+      error: outcome.ok ? null : template ? `Template "${template.name}": ${outcome.error.message}` : outcome.error.message,
       preview,
       sent: outcome.ok,
       to: maskPhoneNumber(to)
@@ -230,6 +274,9 @@ export class SystemMessageService {
       key,
       subject: row?.subject ?? defaults.subject,
       whatsappBody: row?.whatsappBody ?? null,
+      whatsappTemplateLanguage: row?.whatsappTemplateLanguage ?? null,
+      whatsappTemplateName: row?.whatsappTemplateName ?? null,
+      whatsappTemplateParams: row?.whatsappTemplateParams ?? [],
       updatedAt: row ? row.updatedAt.toISOString() : null,
       updatedByName: row?.updatedBy
         ? `${row.updatedBy.firstName} ${row.updatedBy.lastName ?? ""}`.trim()

@@ -4,6 +4,7 @@ import { MailService } from "../mail/mail.service";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import type { WhatsAppOutboundMessage } from "../whatsapp/whatsapp.types";
 import { MessagingDeliveryWorker } from "./messaging-delivery.worker";
 import { computeScheduledFor, nextAttemptAt, zonedTimeToUtc } from "./messaging.schedule";
 
@@ -50,6 +51,7 @@ describe("MessagingDeliveryWorker", () => {
     trySendText: jest.Mock;
     trySendTemplate: jest.Mock;
     trySendDocument: jest.Mock;
+    trySendMessage: (message: WhatsAppOutboundMessage) => Promise<unknown>;
   };
   let notifications: { notify: jest.Mock };
 
@@ -73,7 +75,11 @@ describe("MessagingDeliveryWorker", () => {
         .mockResolvedValue({ ok: true, result: { messageId: "wamid.2" } }),
       trySendDocument: jest
         .fn()
-        .mockResolvedValue({ ok: true, result: { messageId: "wamid.3" } })
+        .mockResolvedValue({ ok: true, result: { messageId: "wamid.3" } }),
+      // The real choice of template / document / text, over the mocked sends above.
+      trySendMessage(message: WhatsAppOutboundMessage) {
+        return WhatsAppService.prototype.trySendMessage.call(this as unknown as WhatsAppService, message);
+      }
     };
     notifications = { notify: jest.fn().mockResolvedValue(undefined) };
 

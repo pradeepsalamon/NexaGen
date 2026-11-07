@@ -20,6 +20,7 @@ import type {
   WhatsAppDocumentMessage,
   WhatsAppFailure,
   WhatsAppMediaUploadResult,
+  WhatsAppOutboundMessage,
   WhatsAppSendOutcome,
   WhatsAppSendResult,
   WhatsAppTemplateMessage,
@@ -113,6 +114,25 @@ export class WhatsAppService {
   /** Best-effort text send for paths that must not fail because WhatsApp did. */
   async trySendText(message: WhatsAppTextMessage): Promise<WhatsAppSendOutcome> {
     return this.attempt(() => this.sendText(message));
+  }
+
+  /**
+   * Best-effort send of one message in whichever form it takes (see WhatsAppOutboundMessage):
+   * the messaging outbox, system messages and the admins' test sends all go through here.
+   */
+  async trySendMessage(message: WhatsAppOutboundMessage): Promise<WhatsAppSendOutcome> {
+    const { document, template, text, to } = message;
+    if (template) {
+      return this.trySendTemplate({
+        bodyParams: template.bodyParams,
+        headerDocument: document ?? undefined,
+        language: template.language,
+        name: template.name,
+        to
+      });
+    }
+    if (document) return this.trySendDocument({ ...document, caption: text, to });
+    return this.trySendText({ body: text, to });
   }
 
   /** Best-effort template send. See {@link trySendText}. */

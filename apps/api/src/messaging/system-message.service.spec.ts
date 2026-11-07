@@ -14,9 +14,10 @@ const ADMIN = { id: "admin_1", email: "admin@example.com", phoneNumber: "+919876
 describe("SystemMessageService", () => {
   let service: SystemMessageService;
   let assertAdmin: jest.Mock;
-  let templates: { deleteMany: jest.Mock; findMany: jest.Mock; upsert: jest.Mock };
+  let templates: { deleteMany: jest.Mock; findMany: jest.Mock; findUnique: jest.Mock; upsert: jest.Mock };
   let mail: { isConfigured: jest.Mock; sendSystemMessageSample: jest.Mock };
-  let whatsapp: { isConfigured: jest.Mock; normalizeRecipient: jest.Mock; trySendText: jest.Mock };
+  let whatsapp: { isConfigured: jest.Mock; normalizeRecipient: jest.Mock; trySendMessage: jest.Mock };
+  let renderAll: jest.Mock;
   let notify: jest.Mock;
 
   beforeEach(async () => {
@@ -24,6 +25,7 @@ describe("SystemMessageService", () => {
     templates = {
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue(null),
       upsert: jest.fn().mockImplementation(({ create }) =>
         Promise.resolve({ ...create, updatedAt: new Date(), updatedBy: null })
       )
@@ -33,10 +35,13 @@ describe("SystemMessageService", () => {
       sendSystemMessageSample: jest.fn().mockResolvedValue(undefined)
     };
     notify = jest.fn().mockResolvedValue(undefined);
+    renderAll = jest
+      .fn()
+      .mockResolvedValue({ body: "Rendered", subject: "Subject", whatsapp: "Rendered for WhatsApp", whatsappTemplate: null });
     whatsapp = {
       isConfigured: jest.fn().mockReturnValue(true),
       normalizeRecipient: jest.fn().mockReturnValue("919876543210"),
-      trySendText: jest.fn().mockResolvedValue({ ok: true, result: { messageId: "wamid.1" } })
+      trySendMessage: jest.fn().mockResolvedValue({ ok: true, result: { messageId: "wamid.1" } })
     };
 
     const module = await Test.createTestingModule({
@@ -46,9 +51,7 @@ describe("SystemMessageService", () => {
         { provide: PrismaService, useValue: { systemMessageTemplate: templates } },
         {
           provide: SystemMessageRenderer,
-          useValue: {
-            renderAll: jest.fn().mockResolvedValue({ body: "Rendered", subject: "Subject", whatsapp: "Rendered for WhatsApp" })
-          }
+          useValue: { renderAll }
         },
         { provide: NotificationService, useValue: { notify } },
         { provide: MessagingRuleService, useValue: { assertAdmin } },
@@ -161,7 +164,7 @@ describe("SystemMessageService", () => {
   it("sends a WhatsApp test as the WhatsApp text", async () => {
     const result = await service.test("token", "DEMO_REGISTRATION", { channel: "WHATSAPP" });
 
-    expect(whatsapp.trySendText).toHaveBeenCalledWith({ body: "Rendered for WhatsApp", to: "919876543210" });
+    expect(whatsapp.trySendMessage).toHaveBeenCalledWith({ template: null, text: "Rendered for WhatsApp", to: "919876543210" });
     expect(mail.sendSystemMessageSample).not.toHaveBeenCalled();
     expect(result.sent).toBe(true);
   });
@@ -177,5 +180,74 @@ describe("SystemMessageService", () => {
 
   it("refuses to test a channel the message doesn't support", async () => {
     await expect(service.test("token", "DEMO_BOOKING", { channel: "IN_APP" })).rejects.toThrow(BadRequestException);
+  });
+
+  describe("approved WhatsApp templates", () => {
+    const TEMPLATE = {
+      whatsappTemplateLanguage: "en",
+      whatsappTemplateName: "demo_invite",
+      whatsappTemplateParams: ["{{guest.name}}", "{{links.join}}"]
+    };
+
+    it("saves a template, trimmed, and returns it", async () => {
+      const saved = await save("DEMO_INVITATION", {
+        ...TEMPLATE,
+        whatsappTemplateName: " demo_invite ",
+        whatsappTemplateParams: [" {{guest.name}} ", "", "{{links.join}}"]
+      });
+
+      expect(templates.upsert.mock.calls[0][0].create).toMatchObject(TEMPLATE);
+      expect(saved).toMatchObject({ ...TEMPLATE, isCustomized: true });
+    });
+
+    it("keeps the saved template when an older client saves without the template fields", async () => {
+      templates.findUnique.mockResolvedValue({ key: "DEMO_INVITATION", ...TEMPLATE });
+
+      await save("DEMO_INVITATION", { subject: "Changed" });
+
+      expect(templates.upsert.mock.calls[0][0].update).toMatchObject(TEMPLATE);
+    });
+
+    it("clears it with a null name, and then the defaults clear the row", async () => {
+      templates.findUnique.mockResolvedValue({ key: "DEMO_INVITATION", ...TEMPLATE });
+
+      const saved = await save("DEMO_INVITATION", { whatsappTemplateLanguage: null, whatsappTemplateName: null, whatsappTemplateParams: [] });
+
+      expect(templates.upsert).not.toHaveBeenCalled();
+      expect(templates.deleteMany).toHaveBeenCalled();
+      expect(saved.whatsappTemplateName).toBeNull();
+    });
+
+    it("a template alone keeps the row, even on default wording", async () => {
+      await save("DEMO_INVITATION", TEMPLATE);
+      expect(templates.upsert).toHaveBeenCalled();
+      expect(templates.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses an invalid template, with the reason", async () => {
+      await expect(save("DEMO_INVITATION", { whatsappTemplateName: "Demo Invite" })).rejects.toThrow(/lower-case letters/);
+      await expect(
+        save("DEMO_INVITATION", { whatsappTemplateName: "demo_invite", whatsappTemplateParams: ["{{payment.amount}}"] })
+      ).rejects.toThrow(/can't fill \{\{payment.amount\}\}/);
+      await expect(save("DEMO_INVITATION", { whatsappTemplateLanguage: "en" })).rejects.toThrow(/Add the template's name/);
+      expect(templates.upsert).not.toHaveBeenCalled();
+    });
+
+    it("refuses a template on a message that isn't sent by WhatsApp", async () => {
+      await expect(save("EMAIL_VERIFICATION", { whatsappTemplateName: "verify" })).rejects.toThrow(
+        /isn't sent by WhatsApp/
+      );
+    });
+
+    it("tests WhatsApp through the saved template, and says which template failed", async () => {
+      const template = { bodyParams: ["Asha", "https://nexa.test/demo/x"], language: "en", name: "demo_invite" };
+      renderAll.mockResolvedValue({ body: "Rendered", subject: "Subject", whatsapp: "Rendered for WhatsApp", whatsappTemplate: template });
+      whatsapp.trySendMessage.mockResolvedValue({ error: { message: "Template name does not exist" }, ok: false });
+
+      const result = await service.test("token", "DEMO_INVITATION", { channel: "WHATSAPP" });
+
+      expect(whatsapp.trySendMessage).toHaveBeenCalledWith({ template, text: "Rendered for WhatsApp", to: "919876543210" });
+      expect(result).toMatchObject({ error: 'Template "demo_invite": Template name does not exist', sent: false });
+    });
   });
 });

@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -11,9 +12,12 @@ import {
   MESSAGING_EVENTS,
   MESSAGING_EVENT_DEFINITIONS,
   markdownToWhatsApp,
+  normalizeWhatsAppTemplate,
   renderFormattedTemplate,
   renderMessageTemplate,
+  resolveWhatsAppTemplate,
   sampleVariablesFor,
+  whatsappTemplateIssues,
   type MessageDeliveryItem,
   type MessageDeliveryListResponse,
   type MessageDeliveryQuery,
@@ -45,6 +49,7 @@ import { requireTenantId } from "../tenancy/tenant-sql";
  */
 @Injectable()
 export class MessagingRuleService {
+  private readonly logger = new Logger(MessagingRuleService.name);
 
   constructor(
     private readonly jwtService: JwtService,
@@ -78,7 +83,7 @@ export class MessagingRuleService {
     dto: UpdateMessagingRuleRequest
   ): Promise<MessagingRuleItem> {
     const admin = await this.assertAdmin(accessToken);
-    await this.getRule(event);
+    const current = await this.getRule(event);
 
     const definition = MESSAGING_EVENT_DEFINITIONS[event];
     if (dto.audience && !definition.audiences.includes(dto.audience)) {
@@ -90,6 +95,22 @@ export class MessagingRuleService {
       throw new BadRequestException(
         `"${definition.label}" already has its own email under System messages.`
       );
+    }
+    // Only when the template is part of this save; an omitted field keeps the saved value.
+    const touchesTemplate =
+      dto.whatsappTemplateName !== undefined ||
+      dto.whatsappTemplateLanguage !== undefined ||
+      dto.whatsappTemplateParams !== undefined;
+    const template = touchesTemplate
+      ? normalizeWhatsAppTemplate({
+          language: dto.whatsappTemplateLanguage === undefined ? current.whatsappTemplateLanguage : dto.whatsappTemplateLanguage,
+          name: dto.whatsappTemplateName === undefined ? current.whatsappTemplateName : dto.whatsappTemplateName,
+          params: dto.whatsappTemplateParams ?? current.whatsappTemplateParams
+        })
+      : null;
+    if (template) {
+      const issues = whatsappTemplateIssues(template, definition.variables);
+      if (issues.length > 0) throw new BadRequestException(issues.join(" "));
     }
 
     const row = await this.prisma.messagingRule.update({
@@ -122,15 +143,13 @@ export class MessagingRuleService {
         ...(dto.weekdaysOnly === undefined ? {} : { weekdaysOnly: dto.weekdaysOnly }),
         ...(dto.title === undefined ? {} : { title: dto.title }),
         ...(dto.body === undefined ? {} : { body: dto.body }),
-        ...(dto.whatsappTemplateName === undefined
-          ? {}
-          : { whatsappTemplateName: dto.whatsappTemplateName || null }),
-        ...(dto.whatsappTemplateLanguage === undefined
-          ? {}
-          : { whatsappTemplateLanguage: dto.whatsappTemplateLanguage || null }),
-        ...(dto.whatsappTemplateParams === undefined
-          ? {}
-          : { whatsappTemplateParams: dto.whatsappTemplateParams }),
+        ...(template
+          ? {
+              whatsappTemplateLanguage: template.language,
+              whatsappTemplateName: template.name,
+              whatsappTemplateParams: [...template.params]
+            }
+          : {}),
         updatedById: admin.id
       },
       include: { updatedBy: { select: { firstName: true, lastName: true } } }
@@ -176,7 +195,15 @@ export class MessagingRuleService {
       };
     }
 
-    const outcome = await this.whatsapp.trySendText({ to, body: markdownToWhatsApp(preview) });
+    // The rule's approved template when it has one, so the test proves the template works.
+    const template = resolveWhatsAppTemplate(
+      { language: rule.whatsappTemplateLanguage, name: rule.whatsappTemplateName, params: rule.whatsappTemplateParams },
+      sampleVariablesFor(event)
+    );
+    const outcome = await this.whatsapp.trySendMessage({ template, text: markdownToWhatsApp(preview), to });
+    if (!outcome.ok && template) {
+      this.logger.warn(`Test of ${event} with WhatsApp template "${template.name}" failed: ${outcome.error.message}`);
+    }
 
     await this.prisma.messageDelivery.create({
       data: {
@@ -186,6 +213,7 @@ export class MessagingRuleService {
         recipientId: admin.id,
         recipientPhone: to,
         body: preview,
+        templateName: template?.name ?? null,
         providerMessageId: outcome.ok ? outcome.result.messageId : null,
         error: outcome.ok ? null : outcome.error.message
       }

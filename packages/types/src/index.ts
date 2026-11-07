@@ -2655,6 +2655,7 @@ export * from "./legal";
 export * from "./markdown";
 export * from "./messaging";
 export * from "./system-messages";
+export * from "./whatsapp-template";
 
 // ──────────────────────────────────────────────
 // Payments: provider-agnostic checkout, refunds, subscriptions, invoices

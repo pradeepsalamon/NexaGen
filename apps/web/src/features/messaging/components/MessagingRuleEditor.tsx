@@ -6,8 +6,10 @@ import {
   MESSAGING_EVENT_DEFINITIONS,
   describeSchedule,
   findUnknownTemplateVariables,
+  parseWhatsAppTemplateParams,
   renderFormattedTemplate,
   sampleVariablesFor,
+  whatsappTemplateIssues,
   type MessagingAudience,
   type MessagingRuleItem,
   type MessagingScheduleMode
@@ -26,9 +28,14 @@ import { FormattedText } from "@/components/ui/FormattedText";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { TextEditor } from "@/components/ui/TextEditor";
-import { Textarea } from "@/components/ui/Textarea";
 import { useTestMessagingRule, useUpdateMessagingRule } from "../hooks/useMessagingApi";
 import { PlaceholderPicker, useTemplateInsert } from "./PlaceholderPicker";
+import {
+  WhatsAppTemplateFields,
+  templateDraftFrom,
+  templateFieldsFrom,
+  type WhatsAppTemplateDraft
+} from "./WhatsAppTemplateFields";
 import { TimePicker } from "@/components/ui/TimePicker";
 import { Switch } from "@/components/ui/Switch";
 
@@ -81,19 +88,27 @@ export function MessagingRuleEditor({
   const test = useTestMessagingRule();
 
   const [draft, setDraft] = useState(rule);
-  // The textarea's own text: parsed into whatsappTemplateParams only on save,
-  // so typing Enter or a trailing space isn't stripped as you type.
-  const [paramsText, setParamsText] = useState(rule.whatsappTemplateParams.join("\n"));
+  // Shared with system messages (WhatsAppTemplateFields); values parsed only on save.
+  const [template, setTemplate] = useState<WhatsAppTemplateDraft>(() => templateDraftFrom(savedTemplate(rule)));
   const [testNumber, setTestNumber] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setDraft(rule);
-      setParamsText(rule.whatsappTemplateParams.join("\n"));
+      setTemplate(templateDraftFrom(savedTemplate(rule)));
       setTestResult(null);
     }
   }, [open, rule]);
+
+  const templateIssues = useMemo(
+    () =>
+      whatsappTemplateIssues(
+        { language: template.language, name: template.name, params: parseWhatsAppTemplateParams(template.paramsText) },
+        definition.variables
+      ),
+    [definition.variables, template]
+  );
 
   const preview = useMemo(
     () => renderFormattedTemplate(draft.body, sampleVariablesFor(rule.event)),
@@ -153,12 +168,7 @@ export function MessagingRuleEditor({
           weekdaysOnly: draft.weekdaysOnly,
           title: draft.title,
           body: draft.body,
-          whatsappTemplateName: draft.whatsappTemplateName,
-          whatsappTemplateLanguage: draft.whatsappTemplateLanguage,
-          whatsappTemplateParams: paramsText
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean)
+          ...templateFieldsFrom(template)
         }
       },
       { onSuccess: () => onOpenChange(false) }
@@ -420,57 +430,13 @@ export function MessagingRuleEditor({
             <FormattedText className="mt-2 text-sm text-app-text" source={preview} />
           </div>
 
-          <details className="rounded-app border border-app-border p-4">
-            <summary className="cursor-pointer text-sm font-semibold text-app-text">
-              Approved WhatsApp template (optional)
-            </summary>
-            <p className="mt-2 text-xs text-app-muted">
-              WhatsApp only delivers free-form text within 24 hours of a member&apos;s last
-              message. For anything that may fall outside that window, name a template you
-              approved in WhatsApp Manager — its {"{{1}}, {{2}}"} slots are filled from the
-              list below, in order.
-            </p>
-            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField id={`${rule.event}-tpl`} label="Template name">
-                <Input
-                  id={`${rule.event}-tpl`}
-                  onChange={(e) =>
-                    setDraft((current) => ({
-                      ...current,
-                      whatsappTemplateName: e.target.value || null
-                    }))
-                  }
-                  placeholder="class_reminder"
-                  value={draft.whatsappTemplateName ?? ""}
-                />
-              </FormField>
-              <FormField id={`${rule.event}-lang`} label="Language code">
-                <Input
-                  id={`${rule.event}-lang`}
-                  onChange={(e) =>
-                    setDraft((current) => ({
-                      ...current,
-                      whatsappTemplateLanguage: e.target.value || null
-                    }))
-                  }
-                  placeholder="en_US"
-                  value={draft.whatsappTemplateLanguage ?? ""}
-                />
-              </FormField>
-            </div>
-            <FormField
-              id={`${rule.event}-params`}
-              label="Template values, one per line"
-            >
-              <Textarea
-                id={`${rule.event}-params`}
-                onChange={(e) => setParamsText(e.target.value)}
-                placeholder={"{{recipient.firstName}}\n{{class.time}}"}
-                rows={3}
-                value={paramsText}
-              />
-            </FormField>
-          </details>
+          <WhatsAppTemplateFields
+            draft={template}
+            idPrefix={rule.event}
+            issues={templateIssues}
+            onChange={setTemplate}
+            samples={sampleVariablesFor(rule.event)}
+          />
 
           <div className="rounded-app border border-app-border p-4">
             <p className="text-sm font-semibold text-app-text">Send a test</p>
@@ -517,11 +483,15 @@ export function MessagingRuleEditor({
           <Button onClick={() => onOpenChange(false)} type="button" variant="neutral">
             Cancel
           </Button>
-          <Button disabled={update.isPending} onClick={save} type="button">
+          <Button disabled={update.isPending || templateIssues.length > 0} onClick={save} type="button">
             {update.isPending ? "Saving…" : "Save rule"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
+}
+
+function savedTemplate(rule: MessagingRuleItem) {
+  return { language: rule.whatsappTemplateLanguage, name: rule.whatsappTemplateName, params: rule.whatsappTemplateParams };
 }

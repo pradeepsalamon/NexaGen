@@ -222,8 +222,35 @@ Things worth knowing before you touch it:
   minutes), so a second API container takes different rows instead of the same
   ones.
 - **Outside WhatsApp's 24-hour window**, free-form text is rejected by Meta
-  (error `131047`). A rule can name an approved template instead, with its
-  positional values written as mini-templates.
+  (error `131047`). A rule or a system message can name an approved template
+  instead (next section).
+
+## WhatsApp templates
+
+Messaging rules and system messages (where WhatsApp is a channel) can each name a
+template approved in WhatsApp Manager. When one is set it is sent **instead of** the
+free text, so it reaches people outside the 24-hour window; with no name the text is
+sent as before. Saved as `whatsappTemplateName` / `whatsappTemplateLanguage` /
+`whatsappTemplateParams` on `messaging_rules` and `system_message_templates`.
+
+- **One set of rules, `@nexa-chess/types` `whatsapp-template.ts`:**
+  `whatsappTemplateIssues` validates before a save (API 400 and the editor, live) —
+  name as in WhatsApp Manager (`[a-z0-9_]`), language like `en` / `en_US` (empty =
+  `en_US`), at most 10 values of 500 characters, and only placeholders the message can
+  fill. A language or values without a name is refused. `resolveWhatsAppTemplate`
+  renders the values for one recipient as plain text (`renderMessageTemplate`; values
+  are never markdown). Meta checks the rest (the template exists, is approved, has as
+  many slots as values) only when it sends.
+- **One send path: `WhatsAppService.trySendMessage`** chooses template, document
+  (text as caption) or text. The outbox worker (rules), `SystemNotifier` (system
+  messages) and both editors' "Send test" use it, so a test proves the template works.
+  A templated rule row with a document sends it as the template's DOCUMENT header.
+- **Backward compatible:** a save that omits the template fields keeps the saved
+  template (rules and system messages); existing rows have none and keep sending text.
+- **Logging:** a failed templated send names the template (`template "x": <Meta
+  error>`) in the delivery log / `SystemNotifier` result and the API log.
+- Editor: `features/messaging/components/WhatsAppTemplateFields.tsx`, shared by both
+  editors, with a preview of each slot's value.
 
 ## Email channel
 

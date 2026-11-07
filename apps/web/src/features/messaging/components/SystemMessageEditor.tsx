@@ -9,9 +9,11 @@ import {
   composeWhatsAppText,
   findMissingRequiredVariables,
   findUnknownSystemMessageVariables,
+  parseWhatsAppTemplateParams,
   renderFormattedTemplate,
   renderMessageTemplate,
   sampleVariables,
+  whatsappTemplateIssues,
   type SystemMessageChannel,
   type SystemMessageItem
 } from "@nexa-chess/types";
@@ -33,6 +35,18 @@ import { Switch } from "@/components/ui/Switch";
 import { TextEditor } from "@/components/ui/TextEditor";
 import { useTestSystemMessage, useUpdateSystemMessage } from "../hooks/useMessagingApi";
 import { PlaceholderPicker, useTemplateInsert } from "./PlaceholderPicker";
+import {
+  WhatsAppTemplateFields,
+  templateDraftFrom,
+  templateFieldsFrom,
+  type WhatsAppTemplateDraft
+} from "./WhatsAppTemplateFields";
+
+const savedTemplate = (message: SystemMessageItem) => ({
+  language: message.whatsappTemplateLanguage,
+  name: message.whatsappTemplateName,
+  params: message.whatsappTemplateParams
+});
 
 type Props = {
   emailConfigured: boolean;
@@ -59,6 +73,7 @@ export function SystemMessageEditor({ emailConfigured, message, onOpenChange, op
   const [whatsappBody, setWhatsappBody] = useState(message.whatsappBody ?? "");
   const [actionLabel, setActionLabel] = useState(message.actionLabel ?? "");
   const [channels, setChannels] = useState<SystemMessageChannel[]>(message.channels);
+  const [template, setTemplate] = useState<WhatsAppTemplateDraft>(() => templateDraftFrom(savedTemplate(message)));
   const [testChannel, setTestChannel] = useState<SystemMessageChannel>(definition.channels[0]);
   const [testNumber, setTestNumber] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -70,6 +85,7 @@ export function SystemMessageEditor({ emailConfigured, message, onOpenChange, op
       setWhatsappBody(message.whatsappBody ?? "");
       setActionLabel(message.actionLabel ?? "");
       setChannels(message.channels);
+      setTemplate(templateDraftFrom(savedTemplate(message)));
       setTestChannel(definition.channels[0]);
       setTestResult(null);
     }
@@ -83,7 +99,18 @@ export function SystemMessageEditor({ emailConfigured, message, onOpenChange, op
   const samples = useMemo(() => sampleVariables(definition.variables), [definition.variables]);
   const unknown = findUnknownSystemMessageVariables(message.key, `${subject} ${body} ${whatsappBody}`);
   const missing = findMissingRequiredVariables(message.key, body);
+  const templateIssues = useMemo(
+    () =>
+      supportsWhatsApp
+        ? whatsappTemplateIssues(
+            { language: template.language, name: template.name, params: parseWhatsAppTemplateParams(template.paramsText) },
+            definition.variables
+          )
+        : [],
+    [definition.variables, supportsWhatsApp, template]
+  );
   const incomplete =
+    templateIssues.length > 0 ||
     !body.trim() ||
     !subject.trim() ||
     channels.length === 0 ||
@@ -109,6 +136,7 @@ export function SystemMessageEditor({ emailConfigured, message, onOpenChange, op
     setWhatsappBody("");
     setActionLabel(definition.defaults.actionLabel ?? "");
     setChannels([...definition.defaultChannels]);
+    setTemplate(templateDraftFrom({ language: null, name: null, params: [] }));
   };
 
   const save = () => {
@@ -119,7 +147,8 @@ export function SystemMessageEditor({ emailConfigured, message, onOpenChange, op
           body,
           channels,
           subject,
-          whatsappBody: supportsWhatsApp && whatsappBody.trim() ? whatsappBody : null
+          whatsappBody: supportsWhatsApp && whatsappBody.trim() ? whatsappBody : null,
+          ...(supportsWhatsApp ? templateFieldsFrom(template) : {})
         },
         key: message.key
       },
@@ -189,10 +218,10 @@ export function SystemMessageEditor({ emailConfigured, message, onOpenChange, op
                 WhatsApp is not configured on this server, so nothing will be sent on that channel.
               </p>
             ) : null}
-            {channels.includes("WHATSAPP") ? (
+            {channels.includes("WHATSAPP") && !template.name.trim() ? (
               <p className="text-xs text-app-muted">
-                WhatsApp texts someone who hasn&apos;t messaged the academy in the last 24 hours may not arrive
-                without an approved template.
+                WhatsApp texts someone who hasn&apos;t messaged the academy in the last 24 hours may not arrive. Name
+                an approved template below to reach them.
               </p>
             ) : null}
           </div>
@@ -254,6 +283,16 @@ export function SystemMessageEditor({ emailConfigured, message, onOpenChange, op
                 value={whatsappBody}
               />
             </FormField>
+          ) : null}
+
+          {supportsWhatsApp ? (
+            <WhatsAppTemplateFields
+              draft={template}
+              idPrefix={message.key}
+              issues={templateIssues}
+              onChange={setTemplate}
+              samples={samples}
+            />
           ) : null}
 
           <PlaceholderPicker onInsert={insert} variables={definition.variables} />

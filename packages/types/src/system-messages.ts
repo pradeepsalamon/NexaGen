@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { extractTemplateVariables } from "./messaging";
+import { WHATSAPP_TEMPLATE_LIMITS } from "./whatsapp-template";
 
 // The fixed messages the platform sends outside the rules: sign-in emails,
 // receipts, demo-class invites and notices to staff. Each can be reworded by an
@@ -430,6 +431,10 @@ export interface SystemMessageItem {
   actionLabel: string | null;
   /** The channels switched on now (saved switches, else the defaults). */
   channels: SystemMessageChannel[];
+  /** Approved WhatsApp template sent instead of free text (whatsapp-template.ts). Null name = free text. */
+  whatsappTemplateName: string | null;
+  whatsappTemplateLanguage: string | null;
+  whatsappTemplateParams: string[];
   /** False while the default wording is in use. */
   isCustomized: boolean;
   updatedAt: string | null;
@@ -449,7 +454,17 @@ export const updateSystemMessageRequestSchema = z.object({
   whatsappBody: z.string().trim().min(1).max(4096).nullable(),
   actionLabel: z.string().trim().min(1).max(60).nullable(),
   /** The channels to switch on; any the message doesn't support are refused. */
-  channels: z.array(systemMessageChannelSchema).max(3)
+  channels: z.array(systemMessageChannelSchema).max(3),
+  /**
+   * Approved WhatsApp template (whatsapp-template.ts). Omitted = keep what is saved, so a client
+   * that doesn't know these fields can't clear them; null / [] = no template, send free text.
+   */
+  whatsappTemplateName: z.string().trim().max(WHATSAPP_TEMPLATE_LIMITS.maxNameLength).nullable().optional(),
+  whatsappTemplateLanguage: z.string().trim().max(20).nullable().optional(),
+  whatsappTemplateParams: z
+    .array(z.string().max(WHATSAPP_TEMPLATE_LIMITS.maxParamLength))
+    .max(WHATSAPP_TEMPLATE_LIMITS.maxParams)
+    .optional()
 });
 export type UpdateSystemMessageRequest = z.infer<typeof updateSystemMessageRequestSchema>;
 

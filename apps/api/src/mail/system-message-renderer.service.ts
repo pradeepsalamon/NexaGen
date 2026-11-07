@@ -4,8 +4,10 @@ import {
   effectiveSystemChannels,
   renderFormattedTemplate,
   renderMessageTemplate,
+  resolveWhatsAppTemplate,
   SYSTEM_MESSAGE_DEFINITIONS,
   type MessageVariables,
+  type ResolvedWhatsAppTemplate,
   type SystemMessageChannel,
   type SystemMessageKey
 } from "@nexa-chess/types";
@@ -26,6 +28,8 @@ export interface RenderedSystemMessageAllChannels extends RenderedSystemMessage 
   whatsapp: string;
   /** The channels switched on (saved switches, else the defaults). */
   channels: SystemMessageChannel[];
+  /** The academy's approved template with its values rendered, sent instead of `whatsapp`; null = free text. */
+  whatsappTemplate: ResolvedWhatsAppTemplate | null;
 }
 
 /** A system message in the admin's saved wording, or the default when there is none. */
@@ -37,7 +41,10 @@ export class SystemMessageRenderer {
   ) {}
 
   async render(key: SystemMessageKey, values: MessageVariables): Promise<RenderedSystemMessage> {
-    const { channels: _channels, whatsapp: _whatsapp, ...email } = await this.renderAll(key, values);
+    const { channels: _channels, whatsapp: _whatsapp, whatsappTemplate: _template, ...email } = await this.renderAll(
+      key,
+      values
+    );
     return email;
   }
 
@@ -66,7 +73,20 @@ export class SystemMessageRenderer {
         WHATSAPP: saved?.whatsappEnabled ?? null
       }),
       subject: renderMessageTemplate(subject, variables).replace(/\s+/g, " ").trim(),
-      whatsapp: composeWhatsAppText(this.formatted(whatsappBody, variables), action)
+      whatsapp: composeWhatsAppText(this.formatted(whatsappBody, variables), action),
+      // Only where WhatsApp is a channel of this message; values see the same variables as the text.
+      whatsappTemplate: definition.channels.includes("WHATSAPP")
+        ? resolveWhatsAppTemplate(
+            saved
+              ? {
+                  language: saved.whatsappTemplateLanguage,
+                  name: saved.whatsappTemplateName,
+                  params: saved.whatsappTemplateParams
+                }
+              : null,
+            variables
+          )
+        : null
     };
   }
 

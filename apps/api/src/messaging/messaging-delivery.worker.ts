@@ -147,25 +147,21 @@ export class MessagingDeliveryWorker {
             }
           : null;
 
-      const outcome = delivery.templateName
-        ? await this.whatsapp.trySendTemplate({
-            to,
-            name: delivery.templateName,
-            language: delivery.templateLanguage ?? undefined,
-            bodyParams: delivery.templateParams,
-            // The template must be approved with a DOCUMENT header for this to
-            // be accepted; without one Meta rejects it as a payload mismatch.
-            headerDocument: document ?? undefined
-          })
-        : document
-          ? await this.whatsapp.trySendDocument({
-              to,
-              ...document,
-              // The rendered body rides along as the caption, so the recipient
-              // gets the words and the file in a single chat bubble.
-              caption: markdownToWhatsApp(delivery.body)
-            })
-          : await this.whatsapp.trySendText({ to, body: markdownToWhatsApp(delivery.body) });
+      // Template, document or text: WhatsAppService.trySendMessage makes the choice for every caller.
+      // A templated row with a document sends it as the template's DOCUMENT header, so the
+      // template must be approved with one or Meta rejects the payload.
+      const outcome = await this.whatsapp.trySendMessage({
+        document,
+        template: delivery.templateName
+          ? {
+              bodyParams: delivery.templateParams,
+              language: delivery.templateLanguage ?? undefined,
+              name: delivery.templateName
+            }
+          : null,
+        text: markdownToWhatsApp(delivery.body),
+        to
+      });
 
       if (outcome.ok) {
         await this.markSent(delivery.id, attempts, outcome.result.messageId);

@@ -96,9 +96,19 @@ export class SystemNotifier {
       }
 
       if (channels.includes("WHATSAPP") && recipient.phone) {
-        // Free text: outside WhatsApp's 24h window it may not deliver (an approved template is the fix).
-        const outcome = await this.whatsapp.trySendText({ body: markdownToWhatsApp(message.whatsapp), to: recipient.phone });
-        record("WHATSAPP", outcome.ok, outcome.ok ? undefined : outcome.error.message);
+        // The academy's approved template when it set one (delivers outside the 24h window),
+        // else free text. One code path for every WhatsApp send: WhatsAppService.trySendMessage.
+        const template = message.whatsappTemplate;
+        const outcome = await this.whatsapp.trySendMessage({
+          template,
+          text: markdownToWhatsApp(message.whatsapp),
+          to: recipient.phone
+        });
+        record(
+          "WHATSAPP",
+          outcome.ok,
+          outcome.ok ? undefined : template ? `template "${template.name}": ${outcome.error.message}` : outcome.error.message
+        );
       }
 
       if (channels.includes("IN_APP") && recipient.userId) {

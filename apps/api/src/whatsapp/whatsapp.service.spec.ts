@@ -449,4 +449,48 @@ describe("WhatsAppService", () => {
     expect(service.normalizeRecipient("nope")).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  describe("trySendMessage (one path for every outbound message)", () => {
+    const sent = () => JSON.parse(fetchMock.mock.calls[0][1].body as string);
+
+    it("sends the approved template, with its values and language, when one is named", async () => {
+      const service = await setupService();
+
+      const outcome = await service.trySendMessage({
+        template: { bodyParams: ["Asha", "Rook Endgames"], language: "en", name: "demo_registered" },
+        text: "free text that must not be sent",
+        to: "+919876543210"
+      });
+
+      expect(outcome.ok).toBe(true);
+      expect(sent()).toMatchObject({ template: { language: { code: "en" }, name: "demo_registered" }, type: "template" });
+      expect(JSON.stringify(sent())).not.toContain("free text");
+      const body = sent().template.components.find((c: { type: string }) => c.type === "body");
+      expect(body.parameters).toEqual([
+        { text: "Asha", type: "text" },
+        { text: "Rook Endgames", type: "text" }
+      ]);
+    });
+
+    it("sends free text without a template, and a document with the text as caption", async () => {
+      const service = await setupService();
+
+      await service.trySendMessage({ text: "Hello", to: "+919876543210" });
+      expect(sent()).toMatchObject({ text: { body: "Hello" }, type: "text" });
+
+      fetchMock.mockClear();
+      await service.trySendMessage({ document: { mediaId: "media_1" }, text: "Your invoice", to: "+919876543210" });
+      expect(sent()).toMatchObject({ document: { caption: "Your invoice", id: "media_1" }, type: "document" });
+    });
+
+    it("never throws: a rejected template comes back as a failed outcome", async () => {
+      fetchMock.mockResolvedValue(jsonResponse(400, { error: { code: 132001, message: "Template name does not exist" } }));
+      const service = await setupService();
+
+      const outcome = await service.trySendMessage({ template: { name: "missing" }, text: "x", to: "+919876543210" });
+
+      expect(outcome.ok).toBe(false);
+      if (!outcome.ok) expect(outcome.error.message).toContain("Template name does not exist");
+    });
+  });
 });

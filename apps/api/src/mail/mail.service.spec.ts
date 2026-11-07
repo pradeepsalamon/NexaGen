@@ -236,6 +236,35 @@ describe("MailService", () => {
       expect(html).toContain('<a href="https://nexa.test/a_b"');
     });
 
+    it("resolves an academy's saved WhatsApp template with the message's own values", async () => {
+      findTemplate.mockResolvedValue({
+        whatsappTemplateLanguage: null,
+        whatsappTemplateName: "demo_invite",
+        whatsappTemplateParams: ["{{guest.name}}", "{{academy.name}}: {{links.join}}"]
+      });
+
+      const rendered = await renderer.renderAll("DEMO_INVITATION", {
+        "guest.name": "Asha",
+        "links.join": "https://nexa.test/demo/1?invite=t"
+      });
+
+      expect(rendered.whatsappTemplate).toEqual({
+        bodyParams: ["Asha", "Nexa Chess: https://nexa.test/demo/1?invite=t"],
+        language: "en_US",
+        name: "demo_invite"
+      });
+      // The free-text fallback is still rendered, from the default wording.
+      expect(rendered.whatsapp).toContain("https://nexa.test/demo/1?invite=t");
+    });
+
+    it("never resolves a template for a message that isn't sent by WhatsApp", async () => {
+      findTemplate.mockResolvedValue({ whatsappTemplateName: "verify", whatsappTemplateParams: [] });
+
+      const rendered = await renderer.renderAll("EMAIL_VERIFICATION", { "links.verify": "https://nexa.test/v" });
+
+      expect(rendered.whatsappTemplate).toBeNull();
+    });
+
     it("leaves no gap where an empty optional value was", async () => {
       await sendSystem("ACCOUNT_DELETION_DECLINED", "a@example.com", { "request.noteLine": "" });
 

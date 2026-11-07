@@ -7,6 +7,7 @@ import {
   PAYMENT_STATUS_LABELS,
   renderFormattedTemplate,
   renderMessageTemplate,
+  resolveWhatsAppTemplate,
   type MessageVariables,
   type MessagingAudience,
   type MessagingDispatchSummary,
@@ -267,6 +268,15 @@ export class MessagingDispatchService {
       return "no-phone";
     }
 
+    // Values rendered now, for this recipient (whatsapp-template.ts, shared with system messages).
+    const template = resolveWhatsAppTemplate(
+      {
+        language: rule.whatsappTemplateLanguage,
+        name: rule.whatsappTemplateName,
+        params: rule.whatsappTemplateParams
+      },
+      recipient.variables
+    );
     const queued = await this.queue({
       rule,
       recipient,
@@ -275,13 +285,12 @@ export class MessagingDispatchService {
       phone: to,
       scheduledFor,
       document: recipient.document,
-      ...(rule.whatsappTemplateName
+      ...(template
         ? {
-            templateName: rule.whatsappTemplateName,
-            templateLanguage: rule.whatsappTemplateLanguage,
-            templateParams: rule.whatsappTemplateParams.map((param) =>
-              renderMessageTemplate(param, recipient.variables)
-            )
+            // The saved language (null = Meta's default), exactly as before this was shared.
+            templateLanguage: rule.whatsappTemplateLanguage?.trim() || null,
+            templateName: template.name,
+            templateParams: template.bodyParams
           }
         : {})
     });

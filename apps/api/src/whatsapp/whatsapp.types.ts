@@ -88,6 +88,20 @@ export interface WhatsAppSendResult {
 }
 
 /** Outcome of a best-effort send that must never throw into a request path. */
+/**
+ * One outbound message, whichever form it takes: an approved template when one is named
+ * (works outside the 24h window), else the document with the text as its caption, else the
+ * text. `WhatsAppService.trySendMessage` is the one place that makes that choice.
+ */
+export interface WhatsAppOutboundMessage {
+  to: string;
+  /** Already in WhatsApp's format (`markdownToWhatsApp`). */
+  text: string;
+  template?: { name: string; language?: string; bodyParams?: string[] } | null;
+  /** With a template it becomes the template's DOCUMENT header (the template must have one). */
+  document?: WhatsAppDocumentRef | null;
+}
+
 export type WhatsAppSendOutcome =
   | { ok: true; result: WhatsAppSendResult }
   | { ok: false; error: WhatsAppFailure };
