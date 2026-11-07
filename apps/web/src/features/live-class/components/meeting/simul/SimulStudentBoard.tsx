@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Flag, Handshake, Loader2 } from "lucide-react";
+import { Flag, Handshake } from "lucide-react";
 import { SIMUL_END_REASON_LABELS, type LiveSimulGame } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
@@ -11,6 +11,7 @@ import { useLiveSimulAction, useLiveSimulMove } from "../../../hooks/useLiveSimu
 import { useSimul } from "../../../providers/SimulProvider";
 import { InlineStage } from "../classroom/InlineStage";
 import { SimulMoveList } from "./SimulMoveList";
+import { Spinner } from "@/components/ui/Spinner";
 
 function statusLine(game: LiveSimulGame, simulActive: boolean): { text: string; tone: "turn" | "wait" | "done" } {
   if (game.status === "FINISHED") {
@@ -60,7 +61,7 @@ export function SimulStudentBoard({ stageSwitch }: { stageSwitch?: ReactNode } =
         role="status"
         aria-live="polite"
       >
-        {status.tone === "wait" ? <Loader2 className="size-4 animate-spin" /> : null}
+        {status.tone === "wait" ? <Spinner className="size-4" /> : null}
         {status.text}
         <span className="ml-auto text-xs font-medium text-app-muted">
           You play {myColor === "white" ? "White" : "Black"}

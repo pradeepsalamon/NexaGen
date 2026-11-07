@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  startTransition,
   type ReactNode,
   useCallback,
   useContext,
@@ -34,6 +35,9 @@ function getStoredMode(): ThemeMode {
 
 // Swaps the palette in one paint: otherwise every `transition-colors` element
 // animates the change on its own, repainting the whole page for ~300ms.
+// The freeze rule stays until the new theme has painted (two frames): removing
+// it in the same task forced a second whole-page style pass before the first
+// paint, which is what made the toggle feel laggy on phones.
 function applyMode(mode: ThemeMode) {
   const root = document.documentElement;
   if (root.dataset.theme === mode) return;
@@ -42,8 +46,7 @@ function applyMode(mode: ThemeMode) {
     "*:not([data-theme-keep-transition]),*::before,*::after{transition:none!important}";
   document.head.appendChild(freeze);
   root.dataset.theme = mode;
-  void window.getComputedStyle(document.body).backgroundColor;
-  window.setTimeout(() => freeze.remove(), 1);
+  window.requestAnimationFrame(() => window.requestAnimationFrame(() => freeze.remove()));
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -88,8 +91,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [isHydrated, mode]);
 
+  // The page repaints from the click itself; React's own update (toggle icon
+  // state, toasts, charts) follows at low priority so it never delays that paint.
   const toggleMode = useCallback(() => {
-    setMode((currentMode) => (currentMode === "light" ? "dark" : "light"));
+    const next: ThemeMode = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    applyMode(next);
+    startTransition(() => setMode(next));
   }, []);
 
   const value = useMemo(() => ({ isHydrated, mode, toggleMode }), [isHydrated, mode, toggleMode]);

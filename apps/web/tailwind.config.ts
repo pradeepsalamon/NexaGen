@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 import plugin from "tailwindcss/plugin";
 
 const config: Config = {
@@ -19,7 +20,10 @@ const config: Config = {
     },
     extend: {
       animation: {
-        "fade-in": "fadeIn 480ms ease both",
+        // Opacity only: a transform here would trap position:fixed children of the page.
+        "fade-in": "fadeIn 260ms ease-out both",
+        "pop-in": "popIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both",
+        shimmer: "shimmer 1.6s ease-in-out infinite",
         "slide-up": "slideUp 420ms ease both",
         // Tab and stage switches. `backwards`, not `both`: no transform is left on the panel afterwards
         // (a lingering one would trap its `position: fixed` children).
@@ -157,6 +161,14 @@ const config: Config = {
           from: { opacity: "0" },
           to: { opacity: "1" }
         },
+        popIn: {
+          from: { opacity: "0", transform: "scale(0.96)" },
+          to: { opacity: "1", transform: "scale(1)" }
+        },
+        shimmer: {
+          from: { transform: "translateX(-100%)" },
+          to: { transform: "translateX(100%)" }
+        },
         fadeOut: {
           from: { opacity: "1" },
           to: { opacity: "0" }
@@ -193,6 +205,9 @@ const config: Config = {
     }
   },
   plugins: [
+    // The shadcn-style `animate-in` / `fade-in-0` / `zoom-in-95` / `slide-in-from-*` classes on
+    // dialogs, popovers, menus and tooltips: without it they never animated.
+    animate,
     // Tailwind drops its built-in max-* variants when a screen is an object, as `room` is.
     plugin(({ addVariant }) => {
       for (const [name, width] of Object.entries({ sm: "640px", md: "768px", lg: "1024px", xl: "1280px" })) {

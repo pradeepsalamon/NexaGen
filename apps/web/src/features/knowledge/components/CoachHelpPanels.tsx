@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Lightbulb, Loader2, Pencil, Trash2, TrendingUp } from "lucide-react";
+import { Lightbulb, Pencil, Trash2, TrendingUp } from "lucide-react";
 import type { KnowledgeArticleKind, KnowledgeSubmissionDto, KnowledgeVersionStatus } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -20,6 +20,7 @@ import { useToast } from "@/providers/ToastProvider";
 import { suggestArticle, updateSuggestion, withdrawSuggestion } from "../api/knowledgeApi";
 import { useCoachTrends, useInvalidateKnowledge, useMySuggestions } from "../hooks/useKnowledgeApi";
 import { ContentEditor, EMPTY_CONTENT, contentPayload, type ContentDraft } from "./ContentEditor";
+import { Spinner } from "@/components/ui/Spinner";
 
 const STATUS_BADGE: Record<KnowledgeVersionStatus, { label: string; variant: "info" | "success" | "destructive" | "secondary" }> = {
   DRAFT: { label: "Draft", variant: "secondary" },
@@ -199,7 +200,7 @@ export function SuggestionDialog({
             Cancel
           </Button>
           <Button disabled={saving} onClick={() => void submit()}>
-            {saving && <Loader2 aria-hidden className="mr-2 size-4 animate-spin" />}
+            {saving && <Spinner aria-hidden className="mr-2 size-4" />}
             {suggestion ? "Save" : "Send suggestion"}
           </Button>
         </DialogFooter>

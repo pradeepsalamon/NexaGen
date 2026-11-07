@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Download, FileUp, Loader2 } from "lucide-react";
+import { Download, FileUp } from "lucide-react";
 import {
   KNOWLEDGE_IMPORT_MAX,
   type KnowledgeExportFile,
@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/Card";
 import { useInvalidateKnowledge } from "../../hooks/useKnowledgeApi";
 import { exportKnowledge, importKnowledge } from "../../api/knowledgeApi";
 import { useToast } from "@/providers/ToastProvider";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** A Markdown file becomes one draft: the first "# " line is the title, the rest the body. */
 export function markdownFileToItem(name: string, text: string): KnowledgeImportItem {
@@ -91,7 +92,7 @@ export function ImportExportPanel() {
           Batch scopes aren&apos;t included.
         </p>
         <Button disabled={busy !== null} onClick={() => void doExport()} variant="outline">
-          {busy === "export" ? <Loader2 aria-hidden className="mr-2 size-4 animate-spin" /> : <Download aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
+          {busy === "export" ? <Spinner aria-hidden className="mr-2 size-4" /> : <Download aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
           Download export
         </Button>
       </Card>
@@ -111,7 +112,7 @@ export function ImportExportPanel() {
           type="file"
         />
         <Button disabled={busy !== null} onClick={() => input.current?.click()}>
-          {busy === "import" ? <Loader2 aria-hidden className="mr-2 size-4 animate-spin" /> : <FileUp aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
+          {busy === "import" ? <Spinner aria-hidden className="mr-2 size-4" /> : <FileUp aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
           Choose files
         </Button>
       </Card>

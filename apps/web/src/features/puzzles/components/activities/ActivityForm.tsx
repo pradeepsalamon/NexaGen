@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import {
   createLibraryActivityRequestSchema,
   isSystemPuzzleFolder,
@@ -26,6 +25,7 @@ import { usePuzzleTopics } from "../../hooks/usePuzzlesApi";
 import { PUZZLE_DIFFICULTY_OPTIONS, puzzleTopicOptions } from "../../lib/puzzleMeta";
 import { emptyMcqConfig, McqEditor } from "./McqEditor";
 import { emptyPlayoutConfig, PlayoutEditor } from "./PlayoutEditor";
+import { Spinner } from "@/components/ui/Spinner";
 
 const KIND_NAMES: Record<LibraryActivityKind, string> = { MCQ: "MCQ", PLAYOUT: "Playout" };
 
@@ -110,7 +110,7 @@ export function ActivityForm({
           </Button>
           {activity?.status !== "PUBLISHED" ? (
             <Button type="button" size="sm" disabled={saving} onClick={() => void save(true)}>
-              {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+              {saving ? <Spinner className="size-4" /> : null}
               Publish
             </Button>
           ) : null}

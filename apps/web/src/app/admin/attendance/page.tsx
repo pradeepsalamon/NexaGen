@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ChevronRight, ClipboardCheck, Download, Loader2, Presentation, Radio, Timer, Users, XCircle, type LucideIcon } from "lucide-react";
+import { CheckCircle2, ChevronRight, ClipboardCheck, Download, Presentation, Radio, Timer, Users, XCircle, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { SectionCard } from "@/components/ui/SectionCard";
@@ -19,6 +19,7 @@ import { pageTitle } from "@/lib/pageTitles";
 import type { Tone } from "@/lib/tone";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDate } from "@/lib/datetime";
+import { Spinner } from "@/components/ui/Spinner";
 
 
 const MORE_REPORTS = [
@@ -76,7 +77,7 @@ export default function AdminAttendanceDashboardPage() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center min-h-[50dvh]">
-        <Loader2 aria-label="Loading attendance reports" className="size-8 animate-spin text-primary-ink" />
+        <Spinner aria-label="Loading attendance reports" className="size-8 text-primary-ink" />
       </div>
     );
   }

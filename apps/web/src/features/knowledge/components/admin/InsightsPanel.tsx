@@ -38,7 +38,7 @@ export function InsightsPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         <StatTile context={`Last ${d.days} days`} icon={Search} label="Help searches" tone="primary" value={String(d.totals.searches)} />
         <StatTile context={`Last ${d.days} days`} icon={SearchX} label="Found nothing" tone="secondary" value={String(d.totals.unanswered)} />
       </div>

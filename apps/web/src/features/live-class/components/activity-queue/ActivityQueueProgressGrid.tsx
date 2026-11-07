@@ -1,12 +1,12 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { ACTIVITY_RESPONSE_LABELS, type ActivityQueue } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useActivityQueueProgress } from "../../hooks/useActivityQueue";
 import { ActivityKindIcon, ResponseLegend, ResponseStateIcon } from "./activityQueueUi";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * Coach view: one row per student, one column per puzzle / question the class
@@ -20,7 +20,7 @@ export function ActivityQueueProgressGrid({ classId, queue }: { classId: string;
   if (progress.isLoading) {
     return (
       <p className="flex items-center gap-2 py-3 text-xs text-app-muted">
-        <Loader2 className="size-3.5 animate-spin" /> Loading responses…
+        <Spinner className="size-3.5" /> Loading responses…
       </p>
     );
   }

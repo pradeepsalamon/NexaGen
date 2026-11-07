@@ -8,7 +8,6 @@ import {
   ArrowUp,
   BookPlus,
   FolderInput,
-  Loader2,
   MessageCircleQuestion,
   MoreVertical,
   Pencil,
@@ -56,6 +55,7 @@ import {
 import { loadPuzzleCursor } from "../../../../lib/puzzleCursor";
 import { SharePositionDialog, type SharePositionPreset } from "../../SharePositionDialog";
 import { SidebarListHeader, SidebarSearch } from "./SidebarParts";
+import { Spinner } from "@/components/ui/Spinner";
 
 type PendingLoad = { chapter: LiveClassChapter; reason: "dirty-chapter" | "unsaved-board" };
 
@@ -273,7 +273,7 @@ export function ChaptersPanel({ classId, activePuzzleId }: { classId: string; ac
       <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 py-1.5" role="list">
         {chapters.isLoading ? (
           <p className="flex items-center justify-center gap-2 py-6 text-xs text-app-muted">
-            <Loader2 className="size-3.5 animate-spin" /> Loading chapters…
+            <Spinner className="size-3.5" /> Loading chapters…
           </p>
         ) : chapters.isError ? (
           <div className="flex flex-col items-center gap-2 py-6 text-center text-xs text-app-muted">

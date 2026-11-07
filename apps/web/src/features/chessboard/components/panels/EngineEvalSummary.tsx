@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { formatEvaluation, moveNumberAt, type Evaluation } from "@nexa-chess/types";
 import { Switch } from "@/components/ui/Switch";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useBoardStore } from "../../context/BoardProvider";
 import { useEngineAnalysis, whiteEvaluation } from "../../hooks/useEngineAnalysis";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * Compact, Lichess-style Stockfish read-out for the board on screen: an on/off
@@ -70,7 +71,7 @@ export function EngineEvalSummary({ className }: { className?: string }) {
             {status}
           </p>
         </div>
-        {running && isAnalyzing ? <Loader2 className="size-3.5 shrink-0 animate-spin text-app-muted" aria-label="Analysing" /> : null}
+        {running && isAnalyzing ? <Spinner className="size-3.5 shrink-0 text-app-muted" aria-label="Analysing" /> : null}
       </div>
 
       {setupOnly ? (

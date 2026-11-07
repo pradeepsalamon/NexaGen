@@ -86,14 +86,7 @@ export function PuzzleScoringDefaultsClient() {
             <PuzzleLeaderboardFields idPrefix="defaults-lb" value={leaderboard} onChange={setLeaderboard} />
           </Card>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              isLoading={save.isPending}
-              onClick={() => save.mutate({ leaderboard, scoring })}
-            >
-              Save defaults
-            </Button>
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
               variant="outline"
@@ -104,6 +97,13 @@ export function PuzzleScoringDefaultsClient() {
             >
               <RotateCcw className="size-4" strokeWidth={2.5} />
               Reset to Nexa defaults
+            </Button>
+            <Button
+              type="button"
+              isLoading={save.isPending}
+              onClick={() => save.mutate({ leaderboard, scoring })}
+            >
+              Save defaults
             </Button>
           </div>
         </>

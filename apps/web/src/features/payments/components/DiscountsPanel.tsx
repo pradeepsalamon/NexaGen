@@ -555,7 +555,10 @@ function DiscountForm({
         Active
       </label>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button onClick={onClose} type="button" variant="neutral">
+          Cancel
+        </Button>
         <Button
           disabled={
             Boolean(issue) ||
@@ -569,9 +572,6 @@ function DiscountForm({
           variant="primary"
         >
           {discount ? "Save code" : "Create code"}
-        </Button>
-        <Button onClick={onClose} type="button" variant="neutral">
-          Cancel
         </Button>
       </div>
     </Card>

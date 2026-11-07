@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 
 export interface ChartColors {
   primary: string;
@@ -51,16 +51,24 @@ export function useChartColors(): ChartColors {
   useEffect(() => {
     const refresh = () => setColors(read());
     refresh();
-    const observer = new MutationObserver(refresh);
+    // Re-read after the new theme has painted: reading styles inside the
+    // mutation callback forced a whole-page style pass before that paint.
+    let frame = 0;
+    const refreshLater = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => window.setTimeout(() => startTransition(refresh), 0));
+    };
+    const observer = new MutationObserver(refreshLater);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["data-theme", "style"]
     });
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    media.addEventListener("change", refresh);
+    media.addEventListener("change", refreshLater);
     return () => {
+      window.cancelAnimationFrame(frame);
       observer.disconnect();
-      media.removeEventListener("change", refresh);
+      media.removeEventListener("change", refreshLater);
     };
   }, []);
 

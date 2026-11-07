@@ -42,7 +42,7 @@ export function KpiCard({
   const body = (
     <div
       className={cn(
-        "group flex h-full flex-col justify-between gap-3 rounded-app border border-app-border bg-app-surface p-4 shadow-card transition-colors",
+        "group flex h-full flex-col justify-between gap-2 rounded-app border border-app-border bg-app-surface p-3 shadow-card sm:gap-3 sm:p-4 transition-colors",
         href && "hover:border-primary"
       )}
     >
@@ -84,7 +84,7 @@ export function KpiCard({
         <Skeleton className="h-8 w-20" />
       ) : (
         <div className="flex items-end justify-between gap-2">
-          <span className="font-display text-2xl font-bold tracking-tight tabular-nums text-app-text sm:text-[2rem] sm:leading-10">
+          <span className="font-display text-xl font-bold tracking-tight tabular-nums text-app-text sm:text-[2rem] sm:leading-10">
             {formatValue(kpi?.value ?? null, unit)}
           </span>
           <DeltaChip kpi={kpi} invert={invertDelta} />

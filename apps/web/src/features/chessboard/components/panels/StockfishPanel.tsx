@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useBoardStore as usePersistedStore } from "../../context/BoardProvider";
 import { useEngineAnalysis } from "../../hooks/useEngineAnalysis";
 import type { StockfishAnalysisResult } from '../../api/stockfishApi';
-import { Loader2, Pause, Play } from 'lucide-react';
+import { Pause, Play } from 'lucide-react';
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** The engine scores for the side to move; the panel shows White's view. */
 function whitePerspective(fen: string, result: StockfishAnalysisResult) {
@@ -83,7 +84,7 @@ export function StockfishPanel() {
   if (!analysis) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-sm text-app-muted p-4 text-center">
-        <Loader2 aria-hidden="true" className="mb-4 size-6 animate-spin" />
+        <Spinner aria-hidden="true" className="mb-4 size-6" />
         <p>Waiting for analysis…</p>
       </div>
     );
@@ -104,7 +105,7 @@ export function StockfishPanel() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {isAnalyzing && <Loader2 aria-label="Analysing" className="size-5 animate-spin text-app-muted" />}
+          {isAnalyzing && <Spinner aria-label="Analysing" className="size-5 text-app-muted" />}
           <SimpleTooltip label="Pause analysis">
             <Button
               aria-label="Pause analysis"

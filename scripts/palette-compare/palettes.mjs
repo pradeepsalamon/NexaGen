@@ -20,6 +20,12 @@ export const PALETTES = [
     current: true,
   },
   {
+    id: "0b-current-black",
+    name: "Current colours, black dark",
+    source: "live theme + black dark body",
+    swatches: { sidebar: "#0F1E3A", primary: "#2F5FD0", accent: "#E9BE72", background: "#F8FAFC" },
+  },
+  {
     id: "1-royal-emerald",
     name: "Royal Emerald",
     source: "ChatGPT 01",
@@ -66,6 +72,42 @@ export const PALETTES = [
     name: "Navy + Board Teal",
     source: "Claude D",
     swatches: { sidebar: "#0F1E3A", primary: "#0F766E", accent: "#E9BE72", background: "#F8FAFC" },
+  },
+  {
+    id: "8-graphite-violet",
+    name: "Graphite + Violet",
+    source: "new",
+    swatches: { sidebar: "#18181B", primary: "#6D5BD0", accent: "#C9A86A", background: "#FAFAFA" },
+  },
+  {
+    id: "9-ocean-blurple",
+    name: "Deep Ocean + Blurple",
+    source: "new",
+    swatches: { sidebar: "#0A2540", primary: "#635BFF", accent: "#F5B83D", background: "#F6F9FC" },
+  },
+  {
+    id: "10-ink-electric-blue",
+    name: "Ink + Electric Blue",
+    source: "new",
+    swatches: { sidebar: "#0B0B0F", primary: "#2563EB", accent: "#E9BE72", background: "#FFFFFF" },
+  },
+  {
+    id: "11-charcoal-emerald",
+    name: "Charcoal + Emerald",
+    source: "new",
+    swatches: { sidebar: "#111315", primary: "#047857", accent: "#D4AF37", background: "#F7F7F5" },
+  },
+  {
+    id: "12-burgundy-rose-gold",
+    name: "Burgundy & Rose Gold",
+    source: "new (title from ChatGPT 06)",
+    swatches: { sidebar: "#2A0F17", primary: "#7A1F3D", accent: "#C99A86", background: "#FBF7F5" },
+  },
+  {
+    id: "13-slate-cyan",
+    name: "Slate + Cyan",
+    source: "new",
+    swatches: { sidebar: "#0F172A", primary: "#0E7490", accent: "#E9BE72", background: "#F8FAFC" },
   },
 ];
 
@@ -139,18 +181,20 @@ export function lightTokens(p) {
 export function darkTokens(p) {
   const { sidebar, primary, accent, background } = p.swatches;
   const o = p.dark ?? {};
-  const bg = mix(sidebar, BLACK, 0.35);
-  const text = mix(background, WHITE, 0.3);
+  // Dark body is neutral black for every set (owner, 2026-11-06); only the
+  // sidebar/header keep the set's own dark tint.
+  const bg = "#0A0A0A";
+  const text = "#F5F5F5";
   const darkPrimary = o.primary ?? (luminance(primary) < 0.3 ? mix(primary, WHITE, 0.45) : primary);
   const t = {
     background: bg,
-    surface: mix(sidebar, BLACK, 0.12),
-    surfaceSoft: mix(sidebar, BLACK, 0.22),
-    border: mix(sidebar, WHITE, 0.1),
-    lineStrong: mix(sidebar, WHITE, 0.38),
+    surface: "#141414",
+    surfaceSoft: "#0F0F0F",
+    border: "#262626",
+    lineStrong: "#525252",
     text,
-    textMuted: mix(text, bg, 0.3),
-    textSubtle: mix(text, bg, 0.42),
+    textMuted: "#A3A3A3",
+    textSubtle: "#8A8A8A",
     brand900: mix(sidebar, BLACK, 0.5),
     brand800: mix(sidebar, WHITE, 0.05),
     brand700: mix(sidebar, WHITE, 0.13),

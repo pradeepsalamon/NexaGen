@@ -105,7 +105,7 @@ function OrgPresetsSection() {
             Reusable class setups every coach can pick from when starting a class.
           </p>
         </div>
-        <Button type="button" onClick={() => setCreating(true)}>
+        <Button className="self-end sm:self-auto" type="button" onClick={() => setCreating(true)}>
           <Plus className="mr-1.5 size-4" strokeWidth={2.5} />
           New organisation preset
         </Button>

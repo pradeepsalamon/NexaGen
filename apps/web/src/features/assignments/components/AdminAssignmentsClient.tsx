@@ -102,7 +102,7 @@ export function AdminAssignmentsClient() {
                         {item.deploymentCount} deployment{item.deploymentCount === 1 ? "" : "s"}
                       </span>
                     </div>
-                    <div className="mt-auto flex items-center gap-2 pt-1">
+                    <div className="mt-auto flex items-center justify-end gap-2 pt-1">
                       <Button
                         aria-label="Preview"
                         variant="neutral"

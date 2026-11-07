@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Square, Timer } from "lucide-react";
+import { Square, Timer } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { formatClock, useCountdown } from "../../hooks/useCountdown";
 import { useEndLivePuzzle } from "../../hooks/useLivePuzzle";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** At or under this many seconds the badge turns amber. */
 const LOW_TIME_SECONDS = 60;
@@ -91,7 +92,7 @@ export function EndPuzzleButton({
         onClick={() => setConfirmOpen(true)}
       >
         {endPuzzle.isPending ? (
-          <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+          <Spinner className="mr-1.5 size-3.5" />
         ) : (
           <Square className="mr-1.5 size-3.5 fill-current" strokeWidth={2.5} />
         )}

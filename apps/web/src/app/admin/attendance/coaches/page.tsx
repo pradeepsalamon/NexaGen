@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarCheck, CalendarX, Clock, Loader2, Users } from "lucide-react";
+import { CalendarCheck, CalendarX, Clock, Users } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatTile } from "@/components/ui/StatTile";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -19,6 +19,7 @@ import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function AdminCoachTeachingPage() {
   const [data, setData] = useState<AdminCoachTeachingReport | null>(null);
@@ -118,7 +119,7 @@ export default function AdminCoachTeachingPage() {
             </div>
             <Button onClick={loadReport} disabled={isLoading}>
               {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Spinner className="h-4 w-4 mr-2" />
               ) : null}
               Generate report
             </Button>
@@ -128,7 +129,7 @@ export default function AdminCoachTeachingPage() {
 
       {isLoading && !data ? (
         <div className="flex h-[40dvh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
+          <Spinner className="h-8 w-8 text-primary-ink" />
         </div>
       ) : coaches.length === 0 ? (
         <EmptyState

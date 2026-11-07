@@ -17,7 +17,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="fixed bottom-0 left-0 top-16 z-20 hidden w-[var(--app-nav-w,0px)] bg-app-drawer xl:block"
       />
       <RoleSidebar />
-      <div className="xl:pl-[var(--app-nav-w,0px)] motion-safe:transition-[padding] motion-safe:duration-200">
+      {/* The offset jumps; only the nav column animates. Animating this padding re-laid out
+          the whole page every frame, which is what made collapsing the nav stutter. */}
+      <div className="xl:pl-[var(--app-nav-w,0px)]">
         <SupportVisitBanner />
         <RouteFeatureGate>{children}</RouteFeatureGate>
       </div>

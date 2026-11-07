@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * Lightweight loading state for the classroom. Renders a calm skeleton of the
@@ -18,7 +18,7 @@ export function LoadingMeeting({ message = "Loading class…" }: { message?: str
         ))}
       </div>
       <p className="flex items-center gap-2 text-sm font-medium text-app-muted">
-        <Loader2 className="size-4 animate-spin" />
+        <Spinner className="size-4" />
         {message}
       </p>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Play, Video } from "lucide-react";
+import { Play, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getClassStartAvailability, type CoachClass } from "@nexa-chess/types";
@@ -11,6 +11,7 @@ import { useNow } from "@/hooks/useNow";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime, formatRelativeDay, formatTime } from "@/lib/datetime";
 import { useStartLiveClass } from "@/features/live-class/hooks/useLiveClassApi";
+import { Spinner } from "@/components/ui/Spinner";
 
 // Starting opens the LiveKit room and tells students the class is live, so a
 // start well ahead of time gets a confirmation. Inside this window it is one
@@ -94,7 +95,7 @@ export function StartClassButton({ classItem, compact = false, quiet = false }: 
         variant={quiet ? "outline" : "primary"}
       >
         {start.isPending ? (
-          <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+          <Spinner aria-hidden="true" className="size-4" />
         ) : (
           <Play aria-hidden="true" className={compact ? "size-3.5 fill-current" : "size-4 fill-current"} strokeWidth={2.5} />
         )}

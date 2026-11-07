@@ -53,7 +53,7 @@ export function FormPageShell({
             ) : null}
           </div>
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2 sm:justify-end">{actions}</div> : null}
+        {actions ? <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div> : null}
       </header>
 
       <div className={cn(aside && "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start")}>
