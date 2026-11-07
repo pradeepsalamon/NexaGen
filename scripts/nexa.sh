@@ -62,7 +62,11 @@ DEV_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -
 # Staging runs SaaS isolation enforced (docs/SAAS_MULTI_TENANCY.md Phase 3); STAGE_TENANT_SCOPE_MODE=audit overrides.
 # Set here, not in apps/api/.env: Prisma loads that file into unit tests too, which run without an academy.
 STAGE_API_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production TENANT_SCOPE_MODE=${STAGE_TENANT_SCOPE_MODE:-enforce} node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
-STAGE_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
+# output: "standalone" (next.config.mjs) can't be served by "next start"; run its server.js
+# like the Dockerfile does. next build doesn't copy static/ or public/ into it, so link them.
+STAGE_WEB_DIR="$ROOT_DIR/apps/web"
+STAGE_WEB_STANDALONE="$STAGE_WEB_DIR/.next-build/standalone/apps/web"
+STAGE_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && ln -sfn \"$STAGE_WEB_DIR/.next-build/static\" \"$STAGE_WEB_STANDALONE/.next-build/static\" && ln -sfn \"$STAGE_WEB_DIR/public\" \"$STAGE_WEB_STANDALONE/public\" && PORT=3010 HOSTNAME=0.0.0.0 NODE_ENV=production node \"$STAGE_WEB_STANDALONE/server.js\" 2>&1 | tee web-prod.log'"
 
 # Apply pending migrations to apps/api/.env's DATABASE_URL before any API launch.
 # A pull that brought a new migration otherwise left the API querying columns the
