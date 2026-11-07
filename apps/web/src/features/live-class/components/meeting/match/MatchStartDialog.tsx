@@ -18,6 +18,7 @@ import { getPullRoster } from "../../../api/live-class";
 import { useStartLiveMatch } from "../../../hooks/useLiveMatch";
 import { useMatch } from "../../../providers/MatchProvider";
 import { MatchPairBuilder } from "./MatchPairBuilder";
+import { Spinner } from "@/components/ui/Spinner";
 
 const MODES: { value: MatchPairingMode; label: string; hint: string }[] = [
   { value: "AUTO", label: "Auto pair", hint: "Students are paired at random; colours are drawn." },
@@ -133,7 +134,10 @@ export function MatchStartDialog() {
           </section>
 
           {roster.isLoading ? (
-            <p className="text-sm text-app-muted">Loading students…</p>
+            <p className="flex items-center gap-2 text-sm text-app-muted" role="status">
+              <Spinner />
+              Loading students…
+            </p>
           ) : inClass.length < 2 ? (
             <p className="rounded-app border border-warning/40 bg-warning/10 p-3 text-xs text-warning-ink">
               At least two students need to be in class to play each other.

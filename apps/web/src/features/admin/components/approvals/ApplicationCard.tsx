@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 type ApplicationCardProps = {
   details: ReactNode[];
@@ -47,9 +48,19 @@ export function ApplicationCard({ details, footnote, name, onApprove, onDecline 
 
 export function ApplicationListSkeleton() {
   return (
-    <div className="flex animate-pulse flex-col gap-4">
-      <div className="h-24 w-full rounded-panel border border-app-border bg-app-surface" />
-      <div className="h-24 w-full rounded-panel border border-app-border bg-app-surface" />
+    <div aria-hidden="true" className="flex flex-col gap-4">
+      {[0, 1].map((i) => (
+        <div className="flex items-center justify-between gap-4 rounded-panel border border-app-border bg-app-surface p-5 shadow-card" key={i}>
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-3.5 w-2/3" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

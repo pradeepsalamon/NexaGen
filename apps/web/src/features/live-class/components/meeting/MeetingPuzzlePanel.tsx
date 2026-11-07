@@ -44,6 +44,7 @@ import { ParticipantAvatar } from "./ParticipantAvatar";
 import { Switch } from "@/components/ui/Switch";
 import { useDemoGuestToken, useMemberClassId } from "../../providers/LiveRoomContext";
 import { EmptyStateIcon } from "@/components/ui/EmptyState";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** Coach-only: manual +/- points for one student on the puzzle board. */
 function AdjustPointsPopover({
@@ -385,7 +386,12 @@ function ClassLeaderboardSection({ classId, isCoach }: { classId: string; isCoac
   const data = board.data;
 
   if (!data) {
-    return <p className="py-6 text-center text-xs text-app-muted">Loading standings…</p>;
+    return (
+      <p className="flex items-center justify-center gap-2 py-6 text-center text-xs text-app-muted" role="status">
+        <Spinner className="size-3.5" />
+        Loading standings…
+      </p>
+    );
   }
 
   return (
@@ -479,7 +485,12 @@ export function SidebarClassLeaderboard({ classId, isCoach }: { classId: string;
     );
   }
   if (!data) {
-    return <p className="py-6 text-center text-xs text-app-muted">Loading standings…</p>;
+    return (
+      <p className="flex items-center justify-center gap-2 py-6 text-center text-xs text-app-muted" role="status">
+        <Spinner className="size-3.5" />
+        Loading standings…
+      </p>
+    );
   }
 
   return (

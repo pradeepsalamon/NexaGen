@@ -12,11 +12,18 @@ import { Maximize2, Minimize2, PanelRightClose, PanelRightOpen, Upload } from "l
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { Textarea } from "@/components/ui/Textarea";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/Spinner";
 
 // The PDF import (recognizer, piece templates, pdf.js) loads only when the tab is opened.
 const ClassBoardDiagramImport = dynamic(
   () => import("@/features/diagram-import/components/ClassBoardDiagramImport").then((m) => m.ClassBoardDiagramImport),
-  { ssr: false, loading: () => <p className="py-8 text-center text-sm text-app-muted">Loading the PDF importer…</p> },
+  { ssr: false, loading: () => (
+      <p className="flex items-center justify-center gap-2 py-8 text-center text-sm text-app-muted" role="status">
+        <Spinner />
+        Loading the PDF importer…
+      </p>
+    ),
+  },
 );
 
 type Tab = "setup" | "game" | "pdf";

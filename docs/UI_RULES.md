@@ -119,6 +119,8 @@ disagree.
 | Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. Where the layout must differ (a card with a link button, a room panel) use `EmptyStateIcon` for the icon circle, never a hand-built one. |
 | Loading | `Spinner` (`components/ui/Spinner`) | The one spinner: an arc on a faint track in the current colour, sized like an icon (`size-4` in a button — `Button isLoading` already uses it — `size-8` for a section). Never `Loader2` + `animate-spin`. |
 | Loading placeholder | `Skeleton` | A theme-neutral tint with a light sweep (transform only). Shape it like the content that will land (see `BatchSummaryCardSkeleton`), not one big block. |
+| Table loading | `DataTable isLoading` / `TableSkeletonRows` | `DataTable` draws skeleton rows (and cards on a phone) by itself, keeping `loadingText` for screen readers. A hand-built `<Table>` uses `<TableSkeletonRows columns={n} />`. Never a single "Loading…" text row. |
+| Page loading | `PageLoading` (`components/layout/PageLoading`) | A route's `loading.tsx` and a page's `<Suspense fallback>`. Never plain "Loading…" text. A small area inside a panel or dialog: `Spinner` beside short text. |
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
 | Page title + actions | `PageHeader` | Pass `breadcrumbs` on a detail page instead of a `BackButton`. |
 | Batch card on a "My batches" page | `BatchSummaryCard` (`features/batches/components`) | Title + badges, one-line description, facts as one wrapping row, footer with people left and actions right. Student and coach pages use it. |

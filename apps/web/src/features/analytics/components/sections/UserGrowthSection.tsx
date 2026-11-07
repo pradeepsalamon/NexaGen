@@ -5,6 +5,7 @@ import { AreaChartCard, DonutChartCard } from "@/components/charts/Charts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
 import { Button } from "@/components/ui/Button";
 import { SectionCard } from "@/components/ui/SectionCard";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/utils";
 import { formatDayMonth } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -137,9 +138,14 @@ export function UserGrowthSection({
                   </span>
                 </li>
               ))}
-              {isLoading ? (
-                <li className="text-sm text-app-muted">Loading…</li>
-              ) : null}
+              {isLoading
+                ? [0, 1, 2].map((i) => (
+                    <li aria-hidden="true" className="flex items-center justify-between gap-4" key={i}>
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-16" />
+                    </li>
+                  ))
+                : null}
             </ul>
           </div>
         </div>
