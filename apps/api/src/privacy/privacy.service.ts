@@ -47,6 +47,8 @@ export class PrivacyService {
         phoneNumber: true,
         role: true,
         status: true,
+        termsAcceptedAt: true,
+        termsVersion: true,
         timezone: true,
         updatedAt: true,
         username: true

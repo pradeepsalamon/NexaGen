@@ -1,4 +1,4 @@
-import { API_ROUTES, DEFAULT_TENANT_ID, type AdminReferralDetail, type MyReferralSummary, type ReferralItem, type ReferralPage } from "@nexa-chess/types";
+import { API_ROUTES, DEFAULT_TENANT_ID, LEGAL_TERMS_VERSION, type AdminReferralDetail, type MyReferralSummary, type ReferralItem, type ReferralPage } from "@nexa-chess/types";
 import { UserRole, UserStatus, type User } from "@prisma/client";
 import { TEST_ORIGIN } from "../test/integration/app-env";
 import { createTestApp, type TestApp } from "../test/integration/app";
@@ -183,6 +183,7 @@ describe("referral programme (real app, real Postgres)", () => {
 
     // Signing up from the same browser links the account (referral cookie) and pays the welcome points.
     const signup = await visitor("POST", API_ROUTES.auth.register, {
+      acceptedTerms: true,
       confirmPassword: "Test@12345",
       contactNumber: "9555512345",
       email: "rohan.new@example.com",
@@ -193,6 +194,9 @@ describe("referral programme (real app, real Postgres)", () => {
     });
     expect(signup.status).toBe(201);
     const rohan = await t.prisma.user.update({ data: { status: UserStatus.ACTIVE }, where: { tenantId_email: { email: "rohan.new@example.com", tenantId: DEFAULT_TENANT_ID } } });
+    // The sign-up checkbox is stored with the server's version of the terms.
+    expect(rohan.termsVersion).toBe(LEGAL_TERMS_VERSION);
+    expect(rohan.termsAcceptedAt).toBeInstanceOf(Date);
     const referral = await t.prisma.referral.findFirstOrThrow({ where: { referredUserId: rohan.id } });
     expect(referral.referrerId).toBe(coach.id);
     expect((await summary(rohan)).points.balance).toBe(200);

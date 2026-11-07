@@ -93,6 +93,7 @@ describe("AuthController", () => {
   describe("register", () => {
     it("calls authService.register without setting cookies", async () => {
       const dto: RegisterRequest = {
+        acceptedTerms: true,
         confirmPassword: "password123",
         contactNumber: "1234567890",
         email: "test@example.com",

@@ -36,7 +36,7 @@ import type {
   SupportVisitInfo,
   UpdateProfileRequest
 } from "@nexa-chess/types";
-import { isParentContactChange } from "@nexa-chess/types";
+import { isParentContactChange, LEGAL_TERMS_VERSION } from "@nexa-chess/types";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { MailService } from "../mail/mail.service";
@@ -206,6 +206,9 @@ export class AuthService {
         timezone: "Asia/Kolkata",
         isEmailVerified: !verifyEmail,
         emailVerifiedAt: verifyEmail ? null : new Date(),
+        // The DTO refused the request unless the checkbox was ticked; record our version, not the client's.
+        termsAcceptedAt: new Date(),
+        termsVersion: LEGAL_TERMS_VERSION,
         ...acquisition,
         studentProfile: {
           create: {
@@ -269,6 +272,9 @@ export class AuthService {
         timezone: "Asia/Kolkata",
         isEmailVerified: !verifyEmail,
         emailVerifiedAt: verifyEmail ? null : new Date(),
+        // The DTO refused the request unless the checkbox was ticked; record our version, not the client's.
+        termsAcceptedAt: new Date(),
+        termsVersion: LEGAL_TERMS_VERSION,
         ...acquisition,
         coachProfile: {
           create: {

@@ -378,6 +378,16 @@ stores new personal data or adds a processor updates it**. Sections with
 `pending` are placeholders for reviewed legal wording; while `LEGAL_DRAFT` is
 true the pages show a draft banner and are `noindex`.
 
+**Terms acceptance at sign-up.** Both self-registration forms (student and
+coach, `features/auth/components/RegistrationConsent.tsx`) have a required
+"I agree to the Terms of Service and Privacy Policy" checkbox; the request
+carries `acceptedTerms: true` (`acceptedTermsSchema`, DTO `@Equals(true)` — a
+missing or false value is a 400). The API stores `users.termsAcceptedAt` and
+`users.termsVersion = LEGAL_TERMS_VERSION` (`@nexa-chess/types` `legal.ts`),
+never a version from the client; both are in the data export. **Bump
+`LEGAL_TERMS_VERSION` whenever the wording in `content.ts` changes.** Accounts
+an admin creates, and accounts from before 2026-11-07, have both null.
+
 ## SEO & AI search (GEO)
 
 The public home page `/` is the academy marketing site; everything signed-in

@@ -28,7 +28,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: "what-we-collect",
     items: [
       {
-        detail: "Name, email, username, phone number, profile picture, time zone and your role (student, coach or admin).",
+        detail: "Name, email, username, phone number, profile picture, time zone and your role (student, coach or admin). If you registered yourself, when you accepted these terms and this policy, and which version.",
         label: "Your account"
       },
       {

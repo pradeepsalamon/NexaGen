@@ -3,7 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { AtSign, CalendarDays, Lock, Phone, ShieldCheck, UserRound } from "lucide-react";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
@@ -15,6 +15,7 @@ import { register } from "../api/authApi";
 import type { RegisterFormValues } from "../types/auth";
 import { AcquisitionSourceSelect } from "./AcquisitionSourceSelect";
 import { AuthStatus } from "./AuthStatus";
+import { LoginPrompt, TERMS_REQUIRED_MESSAGE, TermsConsent } from "./RegistrationConsent";
 import { RegistrationFieldset } from "./RegistrationFieldset";
 
 const initialValues: RegisterFormValues = {
@@ -34,6 +35,9 @@ export function RegisterForm() {
 
   const [values, setValues] = useState<RegisterFormValues>(initialValues);
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsError, setTermsError] = useState<string | undefined>();
+  const termsRef = useRef<HTMLButtonElement>(null);
 
   const registerMutation = useMutation({
     mutationFn: register,
@@ -78,10 +82,17 @@ export function RegisterForm() {
       return;
     }
 
+    if (!acceptedTerms) {
+      setTermsError(TERMS_REQUIRED_MESSAGE);
+      termsRef.current?.focus();
+      return;
+    }
+
     const { acquisitionDetail, ...rest } = values;
     registerMutation.mutate({
       ...rest,
       ...getStoredAcquisition(),
+      acceptedTerms: true,
       acquisitionSource: values.acquisitionSource,
       acquisitionDetail: acquisitionDetail.trim() || undefined
     });
@@ -231,6 +242,17 @@ export function RegisterForm() {
         </FormField>
       </RegistrationFieldset>
 
+      <TermsConsent
+        checked={acceptedTerms}
+        error={termsError}
+        id="student-accept-terms"
+        onCheckedChange={(checked) => {
+          setAcceptedTerms(checked);
+          if (checked) setTermsError(undefined);
+        }}
+        ref={termsRef}
+      />
+
       <div className="grid gap-3">
         <Button fullWidth isLoading={registerMutation.isPending} size="lg" type="submit">
           {registerMutation.isPending ? "Submitting…" : "Complete registration"}
@@ -243,6 +265,7 @@ export function RegisterForm() {
           />
           Our team reviews every registration. You can sign in once it is approved.
         </p>
+        <LoginPrompt />
       </div>
     </form>
   );

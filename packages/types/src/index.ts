@@ -6,6 +6,7 @@ import {
   partialWithoutDefaults,
   solutionMoveSchema
 } from "./core-schemas";
+import { acceptedTermsSchema } from "./legal";
 import { batchTypeSchema, type BatchType, type BatchTypeSource } from "./batch-type";
 import {
   MAX_ASSIGNMENT_PUZZLES,
@@ -201,6 +202,7 @@ export const passwordSchema = z
 
 export const registerRequestSchema = z
   .object({
+    acceptedTerms: acceptedTermsSchema,
     confirmPassword: z.string().min(8, "Confirm your password."),
     contactNumber: z.string().min(1, "Contact number is required.").max(30),
     email: z.string().email("Enter a valid email address.").max(255),
@@ -630,6 +632,7 @@ export type EmptyTrashResponse = TrashActionResponse & {
 
 export const registerCoachRequestSchema = z
   .object({
+    acceptedTerms: acceptedTermsSchema,
     confirmPassword: z.string().min(8, "Confirm your password."),
     contactNumber: z.string().min(1, "Contact number is required.").max(30),
     email: z.string().email("Enter a valid email address.").max(255),
@@ -2634,6 +2637,7 @@ export * from "./puzzle-activity";
 // ──────────────────────────────────────────────
 export * from "./course";
 export * from "./assignment-puzzle-set";
+export * from "./legal";
 
 // ──────────────────────────────────────────────
 // Admin messaging rules + announcements (kept in its own module)

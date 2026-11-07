@@ -274,6 +274,10 @@ model User {
   isEmailVerified Boolean @default(false)
 
   emailVerifiedAt     DateTime?
+  // Self-registration's Terms of Service + Privacy Policy checkbox: when it was ticked and which
+  // version (`LEGAL_TERMS_VERSION`). Null for accounts an admin created or made before it existed.
+  termsAcceptedAt     DateTime?
+  termsVersion        String?
   lastLoginAt         DateTime?
   // Wrong passwords since the last sign-in; the Nth sets loginLockedUntil.
   failedLoginAttempts Int       @default(0)

@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { RegisterCoachRequest, RegisterRequest } from "@nexa-chess/types";
+import { LEGAL_TERMS_VERSION } from "@nexa-chess/types";
 import {
   ReferralSource,
   UserRole,
@@ -174,6 +175,7 @@ describe("AuthService", () => {
   });
 
   const registerPayload: RegisterRequest = {
+    acceptedTerms: true,
     confirmPassword: "password123",
     contactNumber: "1234567890",
     email: "Test@Example.com",
@@ -249,6 +251,9 @@ describe("AuthService", () => {
       expect(createCall.data.studentProfile.create.referralSource).toBe(
         ReferralSource.ADS
       );
+      // The server's own version of the terms, with the time they were accepted.
+      expect(createCall.data.termsVersion).toBe(LEGAL_TERMS_VERSION);
+      expect(createCall.data.termsAcceptedAt).toBeInstanceOf(Date);
 
       expect(prismaService.authSession.create).not.toHaveBeenCalled();
       expect(result).toEqual({
@@ -609,6 +614,7 @@ describe("AuthService", () => {
 
   describe("registerCoach", () => {
     const registerCoachPayload: RegisterCoachRequest = {
+      acceptedTerms: true,
       coachName: "Ada Coach",
       confirmPassword: "password123",
       contactNumber: "1234567890",
@@ -633,6 +639,8 @@ describe("AuthService", () => {
       expect(createCall.data.coachProfile.create.approvalStatus).toBe(
         UserStatus.PENDING
       );
+      expect(createCall.data.termsVersion).toBe(LEGAL_TERMS_VERSION);
+      expect(createCall.data.termsAcceptedAt).toBeInstanceOf(Date);
 
       // No session may be created — the coach cannot be logged in yet.
       expect(prismaService.authSession.create).not.toHaveBeenCalled();
