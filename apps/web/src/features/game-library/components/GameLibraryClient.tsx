@@ -46,7 +46,8 @@ type Filters = {
   to?: Date;
 };
 
-const EMPTY: Filters = { batchId: "", result: "", source: "", status: "", studentId: "" };
+// from/to are listed so Clear (merged in by update) resets the date range too.
+const EMPTY: Filters = { batchId: "", from: undefined, result: "", source: "", status: "", studentId: "", to: undefined };
 
 const STATUS_LABELS: Record<ChessGameStatus, string> = { COMPLETED: "Completed", IN_PROGRESS: "In progress" };
 
