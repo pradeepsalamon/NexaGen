@@ -21,8 +21,9 @@ nexa attach                              # attach to the nexa-dev tmux session
 - **dev** — `npm run dev:api` + `npm run dev -w apps/web` in watch mode.
 - **stage** — production builds (`build:prod` / `next build`) run with
   `NODE_ENV=production` in tmux; tests a production build without Docker.
-  The web runs the standalone `server.js` (like the Dockerfile), not `next start`,
-  with `.next-build/static` and `public/` symlinked next to it at launch.
+  The web is built with `NEXT_STANDALONE=false` (no `output: "standalone"`; Docker
+  keeps it) and served by `next start`. The standalone `server.js` ignores the Host
+  header behind nginx, which broke middleware cookie checks and redirects.
 - **prod** — `docker compose up -d --build` / `down`. On the production box use
   the deploy workflow instead (CLAUDE.md §6); never run this from an agent
   ([.agents/SAFETY.md](../.agents/SAFETY.md)).

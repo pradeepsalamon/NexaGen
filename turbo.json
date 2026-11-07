@@ -3,7 +3,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "env": ["SENTRY_ORG", "SENTRY_PROJECT", "SENTRY_RELEASE"],
+      "env": ["NEXT_STANDALONE", "SENTRY_ORG", "SENTRY_PROJECT", "SENTRY_RELEASE"],
       "passThroughEnv": ["CI", "SENTRY_AUTH_TOKEN"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**", ".next-build/**", "!.next-build/cache/**", "public/vendor/pdfjs/**", "public/vendor/tesseract/**"]
     },

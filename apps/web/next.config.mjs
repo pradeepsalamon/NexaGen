@@ -144,7 +144,10 @@ const nextConfig = (phase) => ({
   async redirects() {
     return [...canonicalHostRedirects()];
   },
-  output: "standalone",
+  // Docker serves the standalone server.js. Staging (scripts/nexa.sh) builds with
+  // NEXT_STANDALONE=false and runs "next start", which warns on a standalone build and,
+  // unlike the standalone server, keeps the request's own host behind nginx.
+  output: process.env.NEXT_STANDALONE === "false" ? undefined : "standalone",
   poweredByHeader: false,
   webpack(config, { dev }) {
     if (dev) {
