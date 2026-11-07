@@ -318,8 +318,12 @@ export function ClassroomLayout({ isCoach, toolbar }: { isCoach: boolean; toolba
   return (
     <StagePresentationProvider value={presentation}>
     <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden room:flex-row">
-      {/* The stage column: the control bar floats over its bottom, never over the panel. */}
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" data-classroom-stage>
+      {/* The stage column: the control bar floats over its bottom, never over the panel.
+          The stage view is its first child and mounts fresh on a switch, so it cross-fades in. */}
+      <div
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col motion-safe:[&>*:first-child]:animate-stage-in"
+        data-classroom-stage
+      >
       {stage === "puzzle" ? (
         <PuzzleStage stageSwitch={stageSwitch} className="px-3 pb-24 pt-3 room:px-6" />
       ) : stage === "boards" ? (

@@ -12,6 +12,8 @@ type Role = "student" | "coach";
 
 export function RegisterPageClient() {
   const [role, setRole] = useState<Role>("student");
+  // Coach is the right-hand tab: its form slides in from the right, Student's from the left.
+  const slide = role === "coach" ? "motion-safe:data-[state=active]:animate-tab-in-right" : "motion-safe:data-[state=active]:animate-tab-in-left";
 
   return (
     <AuthSplitShell variant={role === "student" ? "student-register" : "coach-register"} wide>
@@ -32,10 +34,10 @@ export function RegisterPageClient() {
           <TabsTrigger value="student">Student</TabsTrigger>
           <TabsTrigger value="coach">Coach</TabsTrigger>
         </TabsList>
-        <TabsContent value="student">
+        <TabsContent className={slide} value="student">
           <RegisterForm />
         </TabsContent>
-        <TabsContent value="coach">
+        <TabsContent className={slide} value="coach">
           <CoachRegisterForm />
         </TabsContent>
       </Tabs>

@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { useSlidingIndicator } from "@/hooks/useSlidingIndicator";
 import { cn } from "@/lib/utils";
 
 export interface RoomTabItem<T extends string = string> {
@@ -84,6 +85,8 @@ export function RoomTabs<T extends string>({
   className?: string;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
+  // The blue chip slides between tabs; until it is measured the selected chip keeps its own fill.
+  const indicator = useSlidingIndicator(trackRef, '[role="tab"][aria-selected="true"]');
   const slots = Math.max(1, Math.min(items.length, maxVisible));
   let visible = items.slice(0, slots);
   const selected = items.find((item) => item.id === value);
@@ -110,11 +113,21 @@ export function RoomTabs<T extends string>({
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
       className={cn(
-        "inline-flex h-9 max-w-full shrink-0 items-center gap-0.5 rounded-control bg-app-soft p-1",
+        "relative inline-flex h-9 max-w-full shrink-0 items-center gap-0.5 rounded-control bg-app-soft p-1",
         fill && "flex h-11 w-full",
         className,
       )}
     >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute left-0 top-0 rounded-chip bg-primary shadow-card",
+          !indicator.ready && "hidden",
+          !indicator.instant &&
+            "motion-safe:transition-[transform,width,height] motion-safe:duration-300 motion-safe:ease-emphasized"
+        )}
+        style={indicator.style}
+      />
       {visible.map((item) => {
         const isSelected = item.id === value;
         const showLabel = !iconOnly || isSelected || !item.icon;
@@ -132,7 +145,9 @@ export function RoomTabs<T extends string>({
               CHIP,
               fill && "h-9 flex-1 justify-center",
               isSelected
-                ? "bg-primary text-on-primary shadow-card"
+                ? indicator.ready
+                  ? "text-on-primary"
+                  : "bg-primary text-on-primary shadow-card"
                 : "text-app-muted hover:bg-app-surface hover:text-app-text",
             )}
           >

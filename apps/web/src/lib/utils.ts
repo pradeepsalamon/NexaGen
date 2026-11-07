@@ -1,8 +1,27 @@
 import { type ClassValue, clsx } from "clsx";
 import { extendTailwindMerge } from "tailwind-merge";
 
-// The custom radius tokens, so a caller's `rounded-*` replaces a component's instead of racing it in the CSS.
-const twMerge = extendTailwindMerge({ extend: { theme: { radius: ["app", "control", "panel"] } } });
+// The custom radius and animation tokens (tailwind.config.ts), so a caller's `rounded-*` / `animate-*`
+// replaces a component's instead of racing it in the CSS.
+const twMerge = extendTailwindMerge({
+  extend: {
+    theme: {
+      animate: [
+        "drawer-in",
+        "drawer-out",
+        "fade-in",
+        "overlay-in",
+        "overlay-out",
+        "slide-up",
+        "stage-in",
+        "tab-in-left",
+        "tab-in-right",
+        "tab-panel-in"
+      ],
+      radius: ["app", "control", "panel"]
+    }
+  }
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

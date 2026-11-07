@@ -43,7 +43,7 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
   return (
     <div
       ref={stageRef}
-      className="relative flex min-h-0 w-full flex-1 flex-col gap-2 px-2 pt-2 pb-28 sm:px-4 sm:pt-3 sm:pb-24"
+      className="relative flex min-h-0 w-full flex-1 flex-col gap-2 px-2 pt-2 pb-28 motion-safe:animate-stage-in sm:px-4 sm:pt-3 sm:pb-24"
     >
       <div className="flex shrink-0 items-center gap-1.5">
         <div className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-app-text sm:flex">

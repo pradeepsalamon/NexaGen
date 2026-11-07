@@ -24,6 +24,7 @@ import { BoardStage } from "./video-grid/BoardStage";
 import { PuzzleStage } from "./PuzzleStage";
 import { FlipBoardButton } from "./video-grid/FlipBoardButton";
 import { PuzzleGridTile } from "./video-grid/PuzzleGridTile";
+import { cn } from "@/lib/utils";
 
 /** Matches the `gap-3` on the grid; the layout maths needs it as a number. */
 const GRID_GAP = 12;
@@ -165,7 +166,7 @@ export function MeetingVideoGrid({
     return (
       <>
         {phoneSwitch}
-        <PuzzleStage className="px-2 pt-2 pb-28 sm:px-4 sm:pt-3 sm:pb-24" />
+        <PuzzleStage className="px-2 pt-2 pb-28 motion-safe:animate-stage-in sm:px-4 sm:pt-3 sm:pb-24" />
         {participantFocus}
       </>
     );
@@ -213,7 +214,11 @@ export function MeetingVideoGrid({
           div is the scroller; min-h-full keeps the grid centred without
           clipping its top when the tiles do overflow. */}
       <div
-        className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 pt-3 pb-28 sm:px-4 sm:pt-4 sm:pb-32"
+        className={cn(
+          "relative flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 pt-3 pb-28 sm:px-4 sm:pt-4 sm:pb-32",
+          // Phones switch Board / Video / Puzzle in place: fade the grid in like the other two.
+          phoneSwitch && "motion-safe:animate-stage-in"
+        )}
         ref={containerRef}
       >
         <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">

@@ -21,8 +21,12 @@ const config: Config = {
       animation: {
         "fade-in": "fadeIn 480ms ease both",
         "slide-up": "slideUp 420ms ease both",
-        "tab-in-left": "tabInLeft 320ms cubic-bezier(0.22, 1, 0.36, 1) both",
-        "tab-in-right": "tabInRight 320ms cubic-bezier(0.22, 1, 0.36, 1) both",
+        // Tab and stage switches. `backwards`, not `both`: no transform is left on the panel afterwards
+        // (a lingering one would trap its `position: fixed` children).
+        "stage-in": "fadeIn 240ms ease-out backwards",
+        "tab-in-left": "tabInLeft 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards",
+        "tab-in-right": "tabInRight 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards",
+        "tab-panel-in": "tabPanelIn 220ms cubic-bezier(0.22, 1, 0.36, 1) backwards",
         "overlay-in": "fadeIn 220ms ease both",
         "overlay-out": "fadeOut 180ms ease both",
         "drawer-in": "slideInRight 300ms cubic-bezier(0.32, 0.72, 0, 1) both",
@@ -165,6 +169,10 @@ const config: Config = {
           from: { opacity: "0", transform: "translateX(-16px)" },
           to: { opacity: "1", transform: "translateX(0)" }
         },
+        tabPanelIn: {
+          from: { opacity: "0", transform: "translateY(4px)" },
+          to: { opacity: "1", transform: "translateY(0)" }
+        },
         tabInRight: {
           from: { opacity: "0", transform: "translateX(16px)" },
           to: { opacity: "1", transform: "translateX(0)" }
@@ -177,6 +185,10 @@ const config: Config = {
           from: { transform: "translateX(0)" },
           to: { transform: "translateX(100%)" }
         }
+      },
+      // The sliding tab highlight (`useSlidingIndicator`).
+      transitionTimingFunction: {
+        emphasized: "cubic-bezier(0.22, 1, 0.36, 1)"
       }
     }
   },

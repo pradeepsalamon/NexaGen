@@ -1,11 +1,12 @@
 "use client";
 
-import { lazy, Suspense, memo } from "react";
+import { lazy, Suspense, memo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, MessageSquareText, Users, Settings, Puzzle, Loader2 } from "lucide-react";
 import { useLiveClassState, type SidebarTab } from "../../providers/LiveClassProvider";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { useReducedMotion } from "../../lib/meetingUi";
+import { useSlidingIndicator } from "@/hooks/useSlidingIndicator";
 import { cn } from "@/lib/utils";
 
 // Lazy-load sidebar panel contents for code splitting
@@ -65,8 +66,21 @@ const SidebarTabs = memo(function SidebarTabs({
   unreadChatCount: number;
   onTabChange: (tab: PanelTab) => void;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const indicator = useSlidingIndicator(listRef, '[role="tab"][aria-selected="true"]');
+
   return (
-    <div className="flex items-center gap-0.5" role="tablist">
+    <div className="relative flex items-center gap-0.5" ref={listRef} role="tablist">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute left-0 top-0 rounded-control bg-primary",
+          !indicator.ready && "hidden",
+          !indicator.instant &&
+            "motion-safe:transition-[transform,width,height] motion-safe:duration-300 motion-safe:ease-emphasized"
+        )}
+        style={indicator.style}
+      />
       {sidebarPanels.map((panel) => (
         <button
           key={panel.id}
@@ -80,7 +94,7 @@ const SidebarTabs = memo(function SidebarTabs({
           className={cn(
             "relative flex min-h-11 items-center gap-1.5 rounded-control px-3 text-[0.8125rem] font-medium transition-colors sm:min-h-9",
             active === panel.id
-              ? "bg-primary text-on-primary"
+              ? cn("text-on-primary", !indicator.ready && "bg-primary")
               : "text-app-muted hover:bg-app-soft hover:text-app-text",
           )}
         >
@@ -141,7 +155,7 @@ export function MeetingSidebar({ inlinePanels = false }: { inlinePanels?: boolea
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-hidden motion-safe:[&>*]:animate-tab-panel-in">
             <SidebarContent tab={activeSidebar} />
           </div>
         </motion.aside>

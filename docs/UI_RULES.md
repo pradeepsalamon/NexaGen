@@ -110,7 +110,7 @@ disagree.
 | Formatted text (messages, announcements, help articles) | `TextEditor`; show the result with `FormattedText` | Toolbar over a `Textarea`, stores readable text, never HTML. Only where the output is displayed through `FormattedText`, `markdownToPlainText`/`markdownToWhatsApp` or the email renderer, or readers see raw `**`. Everything else stays `Textarea`. |
 | Showing text someone typed | `LinkedText` (`components/ui/FormattedText.tsx`) | Chat, feedback, notes: addresses become underlined links and nothing else changes. `onColour` on a coloured surface like your own chat bubble. Never `dangerouslySetInnerHTML` or a local URL regex. |
 | Dates and times | `DatePicker`, `DateStringPicker` (for `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` state), `TimePicker`, `DateRangePicker` | Never `type="date|time|datetime-local"`. |
-| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: sunken `bg-app-soft` track, active tab is a solid primary chip. |
+| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: sunken `bg-app-soft` track, active tab is a solid primary chip that slides between tabs (`useSlidingIndicator`); `TabsContent` fades up (`animate-tab-panel-in`). A two-way switch may slide its content sideways instead (`animate-tab-in-left`/`-right`, register page). |
 | Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Soft fill + `-ink` text. Correct `role`/`aria-live` built in. Toasts use the same colours. |
 | Confirm before acting | `ConfirmationModal` (+ optional `icon`) | Never `window.confirm`. Undo policy: `lib/undo/README.md`. |
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |
@@ -179,6 +179,11 @@ disagree.
 - Animations use `transition-colors` / `transition-transform` for what actually
   changes — not `transition-all` — and respect `motion-safe:` for anything
   continuous (pulses).
+- Tab and view switches animate: a hand-built tab row uses
+  `useSlidingIndicator` for its selected chip (as `TabsList`, `RoomTabs` and the
+  meeting sidebar do); a switched panel fades up with `animate-tab-panel-in`, a
+  swapped main stage cross-fades with `animate-stage-in`. Both use `backwards`
+  fill so no transform stays on the panel, and are `motion-safe:`.
 - Dates/times: `lib/datetime.ts` + `useUserTimeZone()`; never `toLocale*` in a
   component (see CLAUDE.md §3.6).
 

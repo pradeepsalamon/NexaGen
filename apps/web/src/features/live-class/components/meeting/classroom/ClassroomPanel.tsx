@@ -192,7 +192,8 @@ export function ClassroomPanel({
           />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden" role="tabpanel">
+        {/* Each tab mounts fresh, so its content fades up on a switch. */}
+        <div className="min-h-0 flex-1 overflow-hidden motion-safe:[&>*]:animate-tab-panel-in" role="tabpanel">
           {activeTab === "moves" ? (
             // Lichess-style: engine header → its lines → the move list, one continuous column.
             <div className="custom-scrollbar flex h-full flex-col overflow-y-auto">

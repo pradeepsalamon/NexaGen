@@ -103,7 +103,7 @@ export function ClassroomSidebar({ classId, width }: { classId: string; width: n
             { count: members.length, id: "members", label: "Members" }
           ]}
         />
-        <div className="min-h-0 flex-1" role="tabpanel">
+        <div className="min-h-0 flex-1 motion-safe:[&>*]:animate-tab-panel-in" role="tabpanel">
           {tabs.top === "chapters" ? (
             <ChaptersPanel classId={classId} activePuzzleId={activePuzzle?.puzzleId ?? null} />
           ) : (
@@ -125,7 +125,7 @@ export function ClassroomSidebar({ classId, width }: { classId: string; width: n
             { badge: tabs.bottom === "chat" ? 0 : unreadCount, id: "chat", label: "Chat" }
           ]}
         />
-        <div className="min-h-0 flex-1 overflow-hidden" role="tabpanel">
+        <div className="min-h-0 flex-1 overflow-hidden motion-safe:[&>*]:animate-tab-panel-in" role="tabpanel">
           {tabs.bottom === "leaderboard" ? <SidebarClassLeaderboard classId={classId} isCoach /> : <MeetingChat />}
         </div>
       </section>
