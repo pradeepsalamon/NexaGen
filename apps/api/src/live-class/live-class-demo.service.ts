@@ -14,7 +14,6 @@ import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types
 import {
   deriveLiveKitGrants,
   liveClassSettingsSchema,
-  markdownToWhatsApp,
   type DemoClassPublicInfo,
   type GuestJoinDemoRequest,
   type GuestJoinDemoResponse,
@@ -28,8 +27,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
-import { MailService } from "../mail/mail.service";
-import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { formatDemoTime } from "../messaging/messaging.format";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { signDemoGuestToken } from "./demo-guest-token";
@@ -46,8 +44,7 @@ export class LiveClassDemoService {
     private readonly prisma: PrismaService,
     private readonly livekit: LiveKitService,
     private readonly whatsapp: WhatsAppService,
-    private readonly mail: MailService,
-    private readonly messages: SystemMessageRenderer,
+    private readonly notifier: SystemNotifier,
     private readonly waitingRoom: LiveClassWaitingRoomService,
     private readonly jwtService: JwtService,
     private readonly referrals: ReferralTrackerService
@@ -359,26 +356,18 @@ export class LiveClassDemoService {
   ) {
     const joinUrl = `${getFrontendUrl(this.env)}/demo/${classId}`;
     try {
-      if (registration.contactMethod === DemoRegistrationContactMethod.EMAIL && registration.email) {
-        await this.mail.sendDemoClassRegistrationConfirmation({
-          to: registration.email,
-          guestName: registration.name,
-          classTopic: topic,
-          startsAt,
-          joinUrl
-        });
-      } else if (registration.phoneNumber) {
-        // A first-time visitor is outside WhatsApp's 24h customer-service
-        // window, so this free-form text may simply not deliver — attempted
-        // anyway, best effort, and never awaited by the caller's response.
-        const { body } = await this.messages.render("DEMO_REGISTRATION_WHATSAPP", {
+      // Every switched-on channel the guest gave a contact for (a first-time WhatsApp number is
+      // outside the 24h window, so that text may not deliver). Never awaited by the response.
+      await this.notifier.send(
+        "DEMO_REGISTRATION",
+        { email: registration.email, phone: registration.phoneNumber },
+        {
           "demo.dateTime": formatDemoTime(startsAt),
           "demo.topic": topic,
           "guest.name": registration.name,
           "links.join": joinUrl
-        });
-        await this.whatsapp.trySendText({ to: registration.phoneNumber, body: markdownToWhatsApp(body) });
-      }
+        }
+      );
     } catch (error) {
       this.logger.warn(
         `Demo registration confirmation for class ${classId} failed: ${(error as Error).message}`

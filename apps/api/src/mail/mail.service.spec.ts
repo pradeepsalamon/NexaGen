@@ -6,11 +6,16 @@ import { ServiceUnavailableException } from "@nestjs/common";
 import * as nodemailer from "nodemailer";
 import * as configModule from "@nexa-chess/config/api";
 import type { ApiEnv } from "@nexa-chess/config/api";
+import type { SystemMessageKey } from "@nexa-chess/types";
 
 jest.mock("nodemailer");
 
 describe("MailService", () => {
   let service: MailService;
+  let renderer: SystemMessageRenderer;
+  /** Render a system message (saved wording or default) and send it by email, as SystemNotifier does. */
+  const sendSystem = async (key: SystemMessageKey, to: string, values: Record<string, string>) =>
+    service.sendRenderedSystemEmail(to, await renderer.render(key, values));
   let mockSendMail: jest.Mock;
   let findTemplate: jest.Mock;
 
@@ -117,6 +122,7 @@ describe("MailService", () => {
       ],
     }).compile();
 
+    renderer = module.get(SystemMessageRenderer);
     return module.get<MailService>(MailService);
   };
 
@@ -143,7 +149,7 @@ describe("MailService", () => {
     });
 
     it("should send a password reset email successfully", async () => {
-      await service.sendPasswordResetLink("user@example.com", "https://reset.link");
+      await sendSystem("PASSWORD_RESET", "user@example.com", { "links.reset": "https://reset.link" });
 
       expect(nodemailer.createTransport).toHaveBeenCalledWith({
         auth: {
@@ -174,7 +180,7 @@ describe("MailService", () => {
         subject: "Password help"
       });
 
-      await service.sendPasswordResetLink("user@example.com", "https://reset.link");
+      await sendSystem("PASSWORD_RESET", "user@example.com", { "links.reset": "https://reset.link" });
 
       const callArgs = mockSendMail.mock.calls[0][0];
       expect(callArgs.subject).toBe("Password help");
@@ -190,7 +196,7 @@ describe("MailService", () => {
         subject: "Changed"
       });
 
-      await service.sendEmailChangedNotice("old@example.com", "<script>x</script>@example.com");
+      await sendSystem("EMAIL_CHANGED", "old@example.com", { "email.new": "<script>x</script>@example.com" });
 
       const { html } = mockSendMail.mock.calls[0][0];
       expect(html).not.toContain("<script>");
@@ -205,7 +211,7 @@ describe("MailService", () => {
         subject: "Changed"
       });
 
-      await service.sendEmailChangedNotice("old@example.com", "[Pay](https://evil.test)_a_@example.com");
+      await sendSystem("EMAIL_CHANGED", "old@example.com", { "email.new": "[Pay](https://evil.test)_a_@example.com" });
 
       const { html, text } = mockSendMail.mock.calls[0][0];
       expect(html).toContain("<strong>Reset</strong>");
@@ -216,7 +222,7 @@ describe("MailService", () => {
     });
 
     it("keeps a reset link's token intact through the escaping", async () => {
-      await service.sendPasswordResetLink("user@example.com", "https://nexa.test/reset?token=a_b*c_d");
+      await sendSystem("PASSWORD_RESET", "user@example.com", { "links.reset": "https://nexa.test/reset?token=a_b*c_d" });
 
       const { html, text } = mockSendMail.mock.calls[0][0];
       expect(html).toContain('href="https://nexa.test/reset?token=a_b*c_d"');
@@ -231,7 +237,7 @@ describe("MailService", () => {
     });
 
     it("leaves no gap where an empty optional value was", async () => {
-      await service.sendAccountDeletionResolved({ completed: false, email: "a@example.com", note: null });
+      await sendSystem("ACCOUNT_DELETION_DECLINED", "a@example.com", { "request.noteLine": "" });
 
       expect(mockSendMail.mock.calls[0][0].text).toBe(
         "Your request to delete your Nexa Chess account was not completed."
@@ -259,7 +265,7 @@ describe("MailService", () => {
     it("should throw a ServiceUnavailableException", async () => {
       service = await setupService({ SMTP_HOST: undefined });
 
-      await expect(service.sendPasswordResetLink("user@example.com", "https://reset.link"))
+      await expect(sendSystem("PASSWORD_RESET", "user@example.com", { "links.reset": "https://reset.link" }))
         .rejects
         .toThrow(ServiceUnavailableException);
         

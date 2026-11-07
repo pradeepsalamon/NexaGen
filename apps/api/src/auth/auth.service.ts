@@ -39,7 +39,7 @@ import type {
 import { isParentContactChange, LEGAL_TERMS_VERSION } from "@nexa-chess/types";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
-import { MailService } from "../mail/mail.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { isProfileImageUrl } from "../upload/upload.service";
@@ -143,13 +143,13 @@ export class AuthService {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly mailService: MailService,
     private readonly prisma: PrismaService,
     private readonly analyticsEvents: AnalyticsEventService,
     private readonly mfa: MfaService,
     private readonly emailVerification: EmailVerificationService,
     private readonly referralTracker: ReferralTrackerService,
-    private readonly messaging: MessagingDispatchService
+    private readonly messaging: MessagingDispatchService,
+    private readonly notifier: SystemNotifier
   ) {}
 
   getCookieMaxAges() {
@@ -784,23 +784,23 @@ export class AuthService {
     });
 
     if (parentContactChanged && user.studentProfile) {
+      // To the previous parent contact (email and phone), and in-app to the student's own inbox.
       const previous = user.studentProfile;
-      if (previous.parentEmail) {
-        const studentName = `${user.firstName} ${user.lastName ?? ""}`.trim();
-        this.mailService
-          .sendParentContactChangedNotice(previous.parentEmail, studentName)
-          .catch((error: unknown) => {
-            this.logger.warn(`Could not send parent-contact notice for user ${user.id}: ${String(error)}`);
-          });
-      }
+      void this.notifier.send(
+        "PARENT_CONTACT_CHANGED",
+        { email: previous.parentEmail, phone: previous.parentPhone, userId: user.id },
+        { "student.fullName": `${user.firstName} ${user.lastName ?? ""}`.trim() }
+      );
     }
 
     if (emailChanged) {
       await this.revokeOtherSessions(user.id, tokenPayload.sessionId);
-      // Best effort: a missing SMTP config must not undo a saved change.
-      this.mailService.sendEmailChangedNotice(user.email, email).catch((error: unknown) => {
-        this.logger.warn(`Could not send email-change notice to user ${user.id}: ${String(error)}`);
-      });
+      // Best effort (never throws): to the OLD address, the account's phone and its inbox.
+      void this.notifier.send(
+        "EMAIL_CHANGED",
+        { email: user.email, phone: user.phoneNumber, userId: user.id },
+        { "email.new": email }
+      );
       if (reverifyEmail) void this.emailVerification.sendLinkBestEffort(updatedUser);
     }
 
@@ -867,11 +867,12 @@ export class AuthService {
     const resetLink = new URL("/reset-password", this.frontendUrl);
     resetLink.searchParams.set("token", resetToken);
 
-    void this.mailService
-      .sendPasswordResetLink(user.email, resetLink.toString())
-      .catch((error) => {
-        this.logger.error("Failed to send password reset link", error);
-      });
+    // Never throws, and the response doesn't wait on it (same timing for unknown emails).
+    void this.notifier.send(
+      "PASSWORD_RESET",
+      { email: user.email, phone: user.phoneNumber, userId: user.id },
+      { "links.reset": resetLink.toString() }
+    );
 
     await this.waitForPasswordResetResponseDelay(startedAt);
 

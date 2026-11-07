@@ -23,6 +23,7 @@ import { MfaService } from "./mfa/mfa.service";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { MailService } from "../mail/mail.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 type MockPrismaService = {
@@ -80,6 +81,7 @@ describe("AuthService", () => {
   let analyticsEvents: { record: jest.Mock };
   let mfaService: { loginChallenge: jest.Mock };
   let messaging: { dispatchInBackground: jest.Mock };
+  let notifierSend: jest.Mock;
   let emailVerification: {
     blocksSignIn: jest.Mock;
     policy: jest.Mock;
@@ -103,6 +105,7 @@ describe("AuthService", () => {
     analyticsEvents = { record: jest.fn().mockResolvedValue(undefined) };
     mfaService = { loginChallenge: jest.fn().mockResolvedValue(null) };
     messaging = { dispatchInBackground: jest.fn() };
+    notifierSend = jest.fn().mockResolvedValue(undefined);
     emailVerification = {
       blocksSignIn: jest.fn().mockResolvedValue(false),
       policy: jest.fn().mockResolvedValue("OFF"),
@@ -167,6 +170,7 @@ describe("AuthService", () => {
         { provide: MfaService, useValue: mfaService },
         { provide: EmailVerificationService, useValue: emailVerification },
         { provide: MessagingDispatchService, useValue: messaging },
+        { provide: SystemNotifier, useValue: { send: notifierSend } },
         NOOP_REFERRAL_TRACKER
       ]
     }).compile();
@@ -795,7 +799,7 @@ describe("AuthService", () => {
 
       expect(prismaService.user.update).toHaveBeenCalled();
       expect(prismaService.authSession.updateMany).not.toHaveBeenCalled();
-      expect(mailService.sendEmailChangedNotice).not.toHaveBeenCalled();
+      expect(notifierSend).not.toHaveBeenCalledWith("EMAIL_CHANGED", expect.anything(), expect.anything());
     });
 
     it("refuses an email change without the current password", async () => {
@@ -834,9 +838,11 @@ describe("AuthService", () => {
           NOT: { OR: [{ id: "fam-1" }, { familyId: "fam-1" }] }
         }
       });
-      expect(mailService.sendEmailChangedNotice).toHaveBeenCalledWith(
-        "test@example.com",
-        "new@example.com"
+      // To the OLD address (and the account's phone and inbox, as switched on).
+      expect(notifierSend).toHaveBeenCalledWith(
+        "EMAIL_CHANGED",
+        expect.objectContaining({ email: "test@example.com" }),
+        { "email.new": "new@example.com" }
       );
     });
 
@@ -870,7 +876,7 @@ describe("AuthService", () => {
           })
         ).rejects.toThrow("Enter your current password to change the parent contact.");
         expect(prismaService.user.update).not.toHaveBeenCalled();
-        expect(mailService.sendParentContactChangedNotice).not.toHaveBeenCalled();
+        expect(notifierSend).not.toHaveBeenCalledWith("PARENT_CONTACT_CHANGED", expect.anything(), expect.anything());
       });
 
       it("refuses a phone-only change with the wrong password", async () => {
@@ -894,7 +900,11 @@ describe("AuthService", () => {
         expect(prismaService.studentProfile.update).toHaveBeenCalledWith(
           expect.objectContaining({ data: expect.objectContaining({ parentEmail: "dad@example.com" }) })
         );
-        expect(mailService.sendParentContactChangedNotice).toHaveBeenCalledWith("mum@example.com", "John Doe");
+        expect(notifierSend).toHaveBeenCalledWith(
+          "PARENT_CONTACT_CHANGED",
+          expect.objectContaining({ email: "mum@example.com" }),
+          { "student.fullName": "John Doe" }
+        );
         expect(prismaService.trashAuditLog.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
             action: "PARENT_CONTACT_CHANGE",
@@ -914,7 +924,7 @@ describe("AuthService", () => {
             studentProfile: { ...keepRest, parentEmail: "dad@example.com", parentPhone: "111" }
           })
         ).rejects.toThrow("audit down");
-        expect(mailService.sendParentContactChangedNotice).not.toHaveBeenCalled();
+        expect(notifierSend).not.toHaveBeenCalledWith("PARENT_CONTACT_CHANGED", expect.anything(), expect.anything());
       });
 
       it("needs no password when the contact is unchanged (case and spacing ignored)", async () => {
@@ -924,7 +934,7 @@ describe("AuthService", () => {
         });
 
         expect(prismaService.studentProfile.update).toHaveBeenCalled();
-        expect(mailService.sendParentContactChangedNotice).not.toHaveBeenCalled();
+        expect(notifierSend).not.toHaveBeenCalledWith("PARENT_CONTACT_CHANGED", expect.anything(), expect.anything());
         expect(prismaService.trashAuditLog.create).not.toHaveBeenCalled();
       });
     });

@@ -1,5 +1,5 @@
 import { Injectable, Logger, Optional, ServiceUnavailableException } from "@nestjs/common";
-import { getAdminNotificationEmails, getApiEnv } from "@nexa-chess/config/api";
+import { getApiEnv } from "@nexa-chess/config/api";
 import {
   markdownToPlainText,
   sampleVariables,
@@ -10,11 +10,11 @@ import {
 import nodemailer from "nodemailer";
 import { BrandingService } from "../branding/branding.service";
 import { currentTenantId } from "../tenancy/tenant-context";
-import { formatDemoTime } from "../messaging/messaging.format";
 import { EMAIL_LINK_STYLE, escapeHtml, messageToEmailHtml } from "./message-html";
 import { SystemMessageRenderer, type RenderedSystemMessage } from "./system-message-renderer.service";
 
-type Attachment = { filename: string; content: Buffer };
+export type MailAttachment = { filename: string; content: Buffer };
+type Attachment = MailAttachment;
 
 @Injectable()
 export class MailService {
@@ -51,37 +51,8 @@ export class MailService {
     }
   }
 
-  async sendPasswordResetLink(to: string, resetLink: string) {
-    await this.sendSystemEmail("PASSWORD_RESET", to, { "links.reset": resetLink });
-  }
-
-  /** An admin sends a sales account its sign-in (set-password) link. */
-  async sendAccountAccessLink(to: string, firstName: string, link: string) {
-    await this.sendSystemEmail("ACCOUNT_ACCESS_EMAIL", to, { "links.reset": link, "recipient.firstName": firstName });
-  }
-
-  /** A new academy's first super admin: set a password on the academy's own address (§H). */
-  async sendAcademyAdminInvite(to: string, firstName: string, link: string) {
-    await this.sendSystemEmail("ACADEMY_ADMIN_INVITE", to, { "links.reset": link, "recipient.firstName": firstName });
-  }
-
   async sendEmailVerificationLink(to: string, verificationLink: string) {
     await this.sendSystemEmail("EMAIL_VERIFICATION", to, { "links.verify": verificationLink });
-  }
-
-  /** Sent to the OLD address, so a hijacked account's real owner finds out. */
-  async sendEmailChangedNotice(to: string, newEmail: string) {
-    await this.sendSystemEmail("EMAIL_CHANGED", to, { "email.new": newEmail });
-  }
-
-  /**
-   * Sent to the PREVIOUS parent/guardian email when a student changes the
-   * parent contact on their own profile (V7,
-   * docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md). Deliberately does not
-   * reveal the new contact details. Wording is editable at /admin/messaging.
-   */
-  async sendParentContactChangedNotice(to: string, studentName: string) {
-    await this.sendSystemEmail("PARENT_CONTACT_CHANGED", to, { "student.fullName": studentName });
   }
 
   /**
@@ -117,131 +88,6 @@ export class MailService {
       },
       input.attachment
     );
-  }
-
-  /**
-   * Confirms a demo class registration for a visitor who has no account — the
-   * only record of the class they'll get if they picked email as their contact
-   * method instead of a phone number.
-   */
-  /** The academy site's "book a free demo" form: no class yet, just "we'll be in touch". */
-  async sendDemoBookingConfirmation(input: { to: string; parentName: string; studentName: string }) {
-    await this.sendSystemEmail("DEMO_BOOKING_EMAIL", input.to, {
-      "lead.parentName": input.parentName,
-      "lead.studentName": input.studentName
-    });
-  }
-
-  async sendDemoClassRegistrationConfirmation(input: {
-    to: string;
-    guestName: string;
-    classTopic: string;
-    startsAt: Date;
-    joinUrl: string;
-  }) {
-    await this.sendSystemEmail("DEMO_REGISTRATION_EMAIL", input.to, {
-      "demo.dateTime": formatDemoTime(input.startsAt),
-      "demo.topic": input.classTopic,
-      "guest.name": input.guestName,
-      "links.join": input.joinUrl
-    });
-  }
-
-  async sendDemoClassInvitation(input: {
-    to: string;
-    guestName: string;
-    classTopic: string;
-    startsAt: Date;
-    joinUrl: string;
-  }) {
-    await this.sendSystemEmail("DEMO_INVITATION_EMAIL", input.to, {
-      "demo.dateTime": formatDemoTime(input.startsAt),
-      "demo.topic": input.classTopic,
-      "guest.email": input.to,
-      "guest.name": input.guestName,
-      "links.join": input.joinUrl
-    });
-  }
-
-  /**
-   * Notifies staff of a new academy "book a demo" lead. Skips silently (no
-   * throw) when either SMTP or `ADMIN_EMAILS` is unset — callers treat this
-   * as fire-and-forget and must never fail lead creation on it.
-   */
-  async sendNewLeadNotification(input: {
-    studentName: string;
-    parentName: string;
-    studentAge: number;
-    experienceLevel: string;
-    phone: string;
-    email: string | null;
-    source: string | null;
-    campaign: string | null;
-  }) {
-    const recipients = getAdminNotificationEmails(this.env);
-    if (recipients.length === 0) {
-      this.logger.warn("Skipped new-lead notification: ADMIN_EMAILS is unset.");
-      return;
-    }
-
-    await this.sendSystemEmail("NEW_LEAD_ADMIN", recipients.join(","), {
-      "lead.campaign": input.campaign ?? "-",
-      "lead.email": input.email ?? "-",
-      "lead.experience": input.experienceLevel,
-      "lead.parentName": input.parentName,
-      "lead.phone": input.phone,
-      "lead.source": input.source ?? "Unknown",
-      "lead.studentAge": String(input.studentAge),
-      "lead.studentName": input.studentName
-    });
-  }
-
-  async sendAccountDeletionRequested(input: { email: string; name: string; reason: string | null; role: string }) {
-    const recipients = getAdminNotificationEmails(this.env);
-    if (recipients.length === 0) {
-      this.logger.warn("Skipped account-deletion notification: ADMIN_EMAILS is unset.");
-      return;
-    }
-
-    await this.sendSystemEmail("ACCOUNT_DELETION_REQUESTED_ADMIN", recipients.join(","), {
-      "request.reason": input.reason || "-",
-      "requester.email": input.email,
-      "requester.name": input.name,
-      "requester.role": input.role
-    });
-  }
-
-  async sendAccountDeletionResolved(input: { completed: boolean; email: string; note: string | null }) {
-    await this.sendSystemEmail(
-      input.completed ? "ACCOUNT_DELETION_COMPLETED" : "ACCOUNT_DELETION_DECLINED",
-      input.email,
-      { "request.noteLine": input.note ? `Note from the academy: ${input.note}` : "" }
-    );
-  }
-
-  /** A message staff wrote themselves: formatted text, never trusted as HTML. */
-  /**
-   * The nightly tenant integrity check found something (platform operators
-   * only; docs/SAAS_MULTI_TENANCY.md "Tenant integrity monitoring"). Rendered
-   * in Nexa's academy, whose catalogue holds the platform-only wording.
-   */
-  async sendTenantIntegrityAlert(input: {
-    to: string[];
-    linksChecked: number;
-    violationCount: number;
-    summary: string;
-    link: string;
-  }) {
-    if (input.to.length === 0) {
-      this.logger.warn("Skipped tenant integrity alert: no platform operator has an email address.");
-      return;
-    }
-    await this.sendSystemEmail("TENANT_INTEGRITY_ALERT", input.to.join(","), {
-      "integrity.linksChecked": String(input.linksChecked),
-      "integrity.summary": input.summary,
-      "integrity.violationCount": String(input.violationCount),
-      "links.integrity": input.link
-    });
   }
 
   async sendDirectEmail(input: { to: string; subject: string; body: string }) {
@@ -284,8 +130,12 @@ export class MailService {
     variables: MessageVariables,
     attachment: Attachment | null = null
   ) {
+    await this.sendRenderedSystemEmail(to, await this.renderer.render(key, variables), attachment);
+  }
+
+  /** A system message already rendered (SystemNotifier's email channel). Throws when SMTP fails. */
+  async sendRenderedSystemEmail(to: string, message: RenderedSystemMessage, attachment: Attachment | null = null) {
     const transporter = this.createTransporter();
-    const message = await this.renderer.render(key, variables);
 
     await transporter.sendMail({
       ...(await this.sender()),

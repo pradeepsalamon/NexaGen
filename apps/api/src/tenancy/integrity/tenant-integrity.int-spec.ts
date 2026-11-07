@@ -1,5 +1,6 @@
 import {
   API_ROUTES,
+  markdownToPlainText,
   type PlatformTenantResponse,
   type SystemMessageListResponse,
   type TenantIntegrityRunsResponse,
@@ -149,10 +150,9 @@ describe("tenant integrity monitoring (real app, real Postgres)", () => {
     );
   });
 
-  it("stores the run, emails the operators and shows it in the console only to them", async () => {
+  it("stores the run, alerts the operators and shows it in the console only to them", async () => {
     const mail = t.app.get(MailService);
-    jest.spyOn(mail, "isConfigured").mockReturnValue(true);
-    const send = jest.spyOn(mail, "sendTenantIntegrityAlert").mockResolvedValue(undefined);
+    const send = jest.spyOn(mail, "sendRenderedSystemEmail").mockResolvedValue(undefined);
 
     const res = await t.call(operator, "POST", API_ROUTES.platform.integrityRuns);
     expect(res.status).toBe(200);
@@ -160,13 +160,18 @@ describe("tenant integrity monitoring (real app, real Postgres)", () => {
     expect(run).toMatchObject({ status: "VIOLATIONS", trigger: "manual", violationCount: 2 });
     expect(run.finishedAt).not.toBeNull();
 
-    expect(send).toHaveBeenCalledTimes(1);
-    const alert = send.mock.calls[0][0];
-    expect(alert.to).toContain(operator.email);
-    expect(alert.violationCount).toBe(2);
-    expect(alert.summary).toContain("notifications.userId → users: 2 rows");
-    expect(alert.summary).toContain(rookId);
-    expect(alert.link).toMatch(/\/admin\/platform\?tab=integrity$/);
+    // Email (on by default) to each operator, with the findings in the body and the report as the button.
+    const toOperator = send.mock.calls.find(([to]) => to === operator.email);
+    expect(toOperator).toBeDefined();
+    const [, message] = toOperator!;
+    expect(message.subject).toContain("2 cross-academy rows");
+    // The body is formatted source (ids escaped for markdown); compare what a reader sees.
+    expect(markdownToPlainText(message.body)).toContain("notifications.userId → users: 2 rows");
+    expect(markdownToPlainText(message.body)).toContain(rookId);
+    expect(message.action?.url).toMatch(/\/admin\/platform\?tab=integrity$/);
+    // And in-app (on by default), opening the report.
+    const inbox = await t.prisma.notification.findFirst({ where: { type: "SYSTEM_MESSAGE", userId: operator.id } });
+    expect(inbox).toMatchObject({ linkPath: "/admin/platform?tab=integrity" });
 
     const listed = await t.call(operator, "GET", API_ROUTES.platform.integrityRuns);
     expect((listed.body as TenantIntegrityRunsResponse).runs[0]).toMatchObject({ id: run.id, status: "VIOLATIONS" });
@@ -200,7 +205,7 @@ describe("tenant integrity monitoring (real app, real Postgres)", () => {
       knightOwner,
       "PUT",
       API_ROUTES.messaging.systemMessage("TENANT_INTEGRITY_ALERT"),
-      { actionLabel: "Open", body: "{{integrity.summary}}", subject: "x" },
+      { actionLabel: "Open", body: "{{integrity.summary}}", channels: ["EMAIL"], subject: "x", whatsappBody: null },
       knightOrigin
     );
     expect(edit.status).toBe(404);

@@ -13,7 +13,7 @@ import {
 } from "@nexa-chess/types";
 import { Prisma, TenantIntegrityRunStatus, UserRole, UserStatus, type TenantIntegrityRun } from "@prisma/client";
 import { authenticateUser } from "../../auth/authenticate";
-import { MailService } from "../../mail/mail.service";
+import { SystemNotifier } from "../../mail/system-notifier.service";
 import { assertPlatformOperator } from "../../platform/platform-operator";
 import { JOB_LOCKS, JobLockService } from "../../prisma/job-lock.service";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -45,7 +45,7 @@ export class TenantIntegrityService {
     private readonly prisma: PrismaService,
     private readonly jobLocks: JobLockService,
     private readonly jwtService: JwtService,
-    @Optional() private readonly mail?: MailService
+    @Optional() private readonly notifier?: SystemNotifier
   ) {}
 
   @Cron(TENANT_INTEGRITY_CRON, { timeZone: "UTC" })
@@ -164,28 +164,33 @@ export class TenantIntegrityService {
     );
   }
 
-  /** Email to Nexa's platform operators. Never throws: the stored run is the record. */
+  /** To Nexa's platform operators (email, WhatsApp, in-app as switched on). Never throws: the stored run is the record. */
   private async alert(run: TenantIntegrityRunSummary): Promise<void> {
-    if (!this.mail?.isConfigured()) {
-      this.logger.warn("Tenant integrity alert not emailed: SMTP is not configured (the run is stored).");
-      return;
-    }
+    if (!this.notifier) return;
     try {
       await runInTenant(DEFAULT_TENANT_ID, "tenant integrity: alert", async () => {
         const operators = await this.prisma.user.findMany({
-          select: { email: true },
+          select: { email: true, id: true, phoneNumber: true },
           where: { role: UserRole.SUPER_ADMIN, status: UserStatus.ACTIVE }
         });
-        await this.mail!.sendTenantIntegrityAlert({
-          link: `${getFrontendUrl(getApiEnv())}/admin/platform?tab=integrity`,
-          linksChecked: run.linksChecked,
-          summary: summarizeFindings(run.violations, run.errors),
-          to: operators.map((operator) => operator.email).filter(Boolean),
-          violationCount: run.violationCount
-        });
+        if (operators.length === 0) {
+          this.logger.warn("Tenant integrity alert not sent: no active platform operator.");
+          return;
+        }
+        await this.notifier!.send(
+          "TENANT_INTEGRITY_ALERT",
+          operators.map((operator) => ({ email: operator.email, phone: operator.phoneNumber, userId: operator.id })),
+          {
+            "integrity.linksChecked": String(run.linksChecked),
+            "integrity.summary": summarizeFindings(run.violations, run.errors),
+            "integrity.violationCount": String(run.violationCount),
+            "links.integrity": `${getFrontendUrl(getApiEnv())}/admin/platform?tab=integrity`
+          },
+          { dedupeKey: run.id }
+        );
       });
     } catch (error) {
-      this.logger.error(`Tenant integrity alert email failed: ${(error as Error).message}`);
+      this.logger.error(`Tenant integrity alert failed: ${(error as Error).message}`);
     }
   }
 }

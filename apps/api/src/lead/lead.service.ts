@@ -28,16 +28,13 @@ import {
   resolvePagination
 } from "../common/pagination";
 import { DemoInviteService } from "../demo-class/demo-invite.service";
-import { markdownToWhatsApp } from "@nexa-chess/types";
-import { MailService } from "../mail/mail.service";
-import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { parseUserAgent, parseVisitAttribution } from "./lead-tracking.util";
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum } from "../common/query-params";
-import { WhatsAppService } from "../whatsapp/whatsapp.service";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 
@@ -66,39 +63,13 @@ export class LeadService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly mailService: MailService,
     private readonly demoInvites: DemoInviteService,
     private readonly referrals: ReferralTrackerService,
-    private readonly messages: SystemMessageRenderer,
-    private readonly whatsapp: WhatsAppService,
+    private readonly notifier: SystemNotifier,
     private readonly trash: TrashRepository
   ) {}
 
   // ── Public ──
-
-  /**
-   * "We've received your demo booking": by email when the parent gave one, else a WhatsApp
-   * text (best effort — a first-time number is outside WhatsApp's 24h window). Never throws.
-   */
-  private async sendBookingConfirmation(lead: { email: string | null; parentName: string; phone: string; studentName: string }) {
-    try {
-      if (lead.email) {
-        await this.mailService.sendDemoBookingConfirmation({
-          parentName: lead.parentName,
-          studentName: lead.studentName,
-          to: lead.email
-        });
-        return;
-      }
-      const { body } = await this.messages.render("DEMO_BOOKING_WHATSAPP", {
-        "lead.parentName": lead.parentName,
-        "lead.studentName": lead.studentName
-      });
-      await this.whatsapp.trySendText({ body: markdownToWhatsApp(body), to: lead.phone });
-    } catch {
-      // MailService and WhatsAppService log their own failures; a booking is never refused for this.
-    }
-  }
 
   /**
    * Creates a Lead from the academy "book a demo" form. Attribution
@@ -153,22 +124,25 @@ export class LeadService {
       });
     }
 
-    // Fire-and-forget — a notification failure must never fail the public
-    // form submission. MailService logs its own failures.
-    this.mailService
-      .sendNewLeadNotification({
-        studentName: lead.studentName,
-        parentName: lead.parentName,
-        studentAge: lead.studentAge,
-        experienceLevel: lead.experienceLevel,
-        phone: lead.phone,
-        email: lead.email,
-        source: lead.source,
-        campaign: lead.campaign
-      })
-      .catch(() => undefined);
-    // And the parent hears their booking arrived. Also fire-and-forget.
-    void this.sendBookingConfirmation(lead);
+    // Fire-and-forget (the notifier never throws): staff hear of the booking — ADMIN_EMAILS by
+    // email, the academy's admins by WhatsApp / in-app — and the parent gets a confirmation.
+    void this.notifier.adminAlertRecipients().then((recipients) =>
+      this.notifier.send("NEW_LEAD_ADMIN", recipients, {
+        "lead.campaign": lead.campaign ?? "-",
+        "lead.email": lead.email ?? "-",
+        "lead.experience": lead.experienceLevel,
+        "lead.parentName": lead.parentName,
+        "lead.phone": lead.phone,
+        "lead.source": lead.source ?? "Unknown",
+        "lead.studentAge": String(lead.studentAge),
+        "lead.studentName": lead.studentName
+      }, { dedupeKey: lead.id })
+    ).catch(() => undefined);
+    void this.notifier.send(
+      "DEMO_BOOKING",
+      { email: lead.email, phone: lead.phone },
+      { "lead.parentName": lead.parentName, "lead.studentName": lead.studentName }
+    );
 
     return { lead: this.toLeadListItem(lead) };
   }

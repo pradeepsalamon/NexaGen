@@ -247,25 +247,47 @@ it through `MailService.sendRuleEmail`.
 
 ## System messages
 
-The fixed messages outside the rules can be reworded at `/admin/messaging` →
-System messages: sign-in and account emails, the invoice email, demo-class emails
-and WhatsApp texts, and the notices sent to `ADMIN_EMAILS`. Catalogue and defaults:
-`@nexa-chess/types` `system-messages.ts`. Saved wording: `system_message_templates`.
-No row means the default.
+The fixed messages outside the rules can be reworded, and each one's **email,
+WhatsApp and in-app** channels switched on or off, at `/admin/messaging` → System
+messages: sign-in and account messages, the invoice email, demo-class messages, and
+the notices to admins. Catalogue and defaults: `@nexa-chess/types` `system-messages.ts`
+(`channels` = what a message supports, `defaultChannels` = what is on until an admin
+changes it). Saved wording and switches: `system_message_templates`; a null column
+means that part's default, and no row means all defaults.
 
-- **Send through `SystemMessageRenderer.render`, never hardcoded text.** A new fixed
-  message needs a `SYSTEM_MESSAGE_DEFINITIONS` entry.
-- **Admins change the words only**, not when a message goes out or who gets it.
-- **The code adds an email's button and link** (`actionVariable`), so an edit can't
-  lose a password-reset link. A WhatsApp text has no button, so it lists the link in
-  `requiredVariables`, and the API refuses a body without it.
-- Saving the default wording deletes the row.
-- **Demo messages, in order:** `DEMO_BOOKING_*` confirms the academy site's "book a
-  free demo" form to the parent (`LeadService.createLead`; email if they gave one,
-  else WhatsApp — no class chosen yet); `DEMO_INVITATION_*` is the class allotment,
-  sent when staff assign the lead (or anyone) a demo class through
-  `DemoInviteService`, with a personal join link; `DEMO_REGISTRATION_*` confirms a
-  visitor who signs up for a specific demo class themselves.
+- **Send through `SystemNotifier.send(key, recipients, variables)`** (`mail/system-notifier.service.ts`),
+  never hardcoded text and never `MailService`/`WhatsAppService` directly. It renders once
+  and sends on every channel that is on and that the recipient has a contact for:
+  `{ email, phone, userId }`, each used only by its channel. It never throws; it returns
+  each channel's outcome. A caller that lets a person pick channels (the sales sign-in
+  link) passes `channels`, still limited to what the message supports. Only the two
+  email-only messages (verification, invoice) keep their `MailService` methods.
+- **One wording per message.** `subject` is the email subject and the in-app title; the
+  body is converted per channel. WhatsApp may have its own shorter `whatsappBody`
+  (null = the catalogue's WhatsApp default, else the body). The old `_EMAIL`/`_WHATSAPP`
+  pairs were merged into one key each (migration `…_system_message_channels`).
+- **Every message supports all three channels unless its `channelNote` says why not**
+  (a spec checks): email verification is email only (the link proves the address);
+  password reset, the sales sign-in link and the new-academy invite carry a one-time
+  sign-in link, which is never stored in an in-app inbox; demo guests and a deleted
+  account have no inbox; invoice in-app/WhatsApp are the `INVOICE_ISSUED` rule. At least
+  one channel must stay on.
+- **Admin alerts** (`NEW_LEAD_ADMIN`, `ACCOUNT_DELETION_REQUESTED_ADMIN`) email the
+  `ADMIN_EMAILS` list as before and reach the academy's admin and super-admin accounts
+  by WhatsApp and in-app (`SystemNotifier.adminAlertRecipients`).
+- In-app system messages are `Notification` rows of type `SYSTEM_MESSAGE`; they open the
+  action link's path, else the definition's `inAppLink`.
+- **Admins change the words and the channels**, not when a message goes out or who gets it.
+- **The code adds the action link** (`actionVariable`) so an edit can't lose it: a button
+  under the email, a "label: link" line under the WhatsApp text (unless the text already
+  has the link), the in-app notification's link.
+- Saving the default wording and channels deletes the row.
+- **Demo messages, in order:** `DEMO_BOOKING` confirms the academy site's "book a
+  free demo" form to the parent (`LeadService.createLead`; their email if given, and
+  their phone — no class chosen yet); `DEMO_INVITATION` is the class allotment, sent
+  when staff assign the lead (or anyone) a demo class through `DemoInviteService`,
+  with a personal join link; `DEMO_REGISTRATION` confirms a visitor who signs up for a
+  specific demo class themselves.
 - Direct email (`/admin/email`) is exempt, since staff write it themselves.
 
 ### Formatting and links

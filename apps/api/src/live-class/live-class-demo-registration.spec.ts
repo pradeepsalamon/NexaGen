@@ -14,7 +14,7 @@ import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
-import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { JobLockService } from "../prisma/job-lock.service";
 import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
@@ -29,7 +29,7 @@ describe("LiveClassDemoService.joinDemoClass", () => {
   let generateAccessToken: jest.Mock;
   let normalizeRecipient: jest.Mock;
   let trySendText: jest.Mock;
-  let sendDemoClassRegistrationConfirmation: jest.Mock;
+  let notifierSend: jest.Mock;
   let broadcastData: jest.Mock;
   let leadUpdateMany: jest.Mock;
 
@@ -67,7 +67,7 @@ describe("LiveClassDemoService.joinDemoClass", () => {
     generateAccessToken = jest.fn().mockResolvedValue("livekit-token");
     normalizeRecipient = jest.fn().mockImplementation((raw: string) => raw || null);
     trySendText = jest.fn().mockResolvedValue({ ok: true });
-    sendDemoClassRegistrationConfirmation = jest.fn().mockResolvedValue(undefined);
+    notifierSend = jest.fn().mockResolvedValue(undefined);
     broadcastData = jest.fn().mockResolvedValue(undefined);
     leadUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
 
@@ -96,8 +96,8 @@ describe("LiveClassDemoService.joinDemoClass", () => {
         { provide: LiveClassSettingsService, useValue: {} },
         { provide: AnalyticsEventService, useValue: {} },
         { provide: WhatsAppService, useValue: { normalizeRecipient, trySendText } },
-        { provide: MailService, useValue: { sendDemoClassRegistrationConfirmation } },
-        { provide: SystemMessageRenderer, useValue: { render: jest.fn().mockResolvedValue({ body: "Registered" }) } }
+        { provide: MailService, useValue: {} },
+        { provide: SystemNotifier, useValue: { send: notifierSend } }
       ]
     }).compile();
 
@@ -134,11 +134,15 @@ describe("LiveClassDemoService.joinDemoClass", () => {
     });
     // Best-effort confirmation is fired for a first-time registration.
     await new Promise(setImmediate);
-    expect(trySendText).toHaveBeenCalledTimes(1);
-    expect(sendDemoClassRegistrationConfirmation).not.toHaveBeenCalled();
+    expect(notifierSend).toHaveBeenCalledTimes(1);
+    expect(notifierSend).toHaveBeenCalledWith(
+      "DEMO_REGISTRATION",
+      expect.objectContaining({ phone: "+919876543210" }),
+      expect.objectContaining({ "guest.name": "Asha" })
+    );
   });
 
-  it("registers an email guest and sends the confirmation by email instead of WhatsApp", async () => {
+  it("registers an email guest and sends the confirmation to that address", async () => {
     await service.joinDemoClass("class-1", emailRequest);
     await Promise.resolve();
 
@@ -146,8 +150,12 @@ describe("LiveClassDemoService.joinDemoClass", () => {
       contactMethod: DemoRegistrationContactMethod.EMAIL,
       email: "ravi@example.com"
     });
-    expect(sendDemoClassRegistrationConfirmation).toHaveBeenCalledTimes(1);
-    expect(trySendText).not.toHaveBeenCalled();
+    await new Promise(setImmediate);
+    expect(notifierSend).toHaveBeenCalledWith(
+      "DEMO_REGISTRATION",
+      expect.objectContaining({ email: "ravi@example.com" }),
+      expect.anything()
+    );
   });
 
   it("reuses an existing registration for the same class+contact instead of creating a duplicate or re-sending the confirmation", async () => {
@@ -166,7 +174,7 @@ describe("LiveClassDemoService.joinDemoClass", () => {
     await Promise.resolve();
 
     expect(registrationCreate).not.toHaveBeenCalled();
-    expect(trySendText).not.toHaveBeenCalled();
+    expect(notifierSend).not.toHaveBeenCalled();
   });
 
   it("mints a LiveKit token and marks the registration joined once the class is live", async () => {
@@ -252,7 +260,7 @@ describe("LiveClassDemoService.joinDemoClass", () => {
       expect(broadcastData).toHaveBeenCalledTimes(1);
       // No confirmation goes out for a request the coach hasn't accepted.
       await Promise.resolve();
-      expect(trySendText).not.toHaveBeenCalled();
+      expect(notifierSend).not.toHaveBeenCalled();
     });
 
     it("does not re-announce a pending guest who is polling", async () => {

@@ -2388,8 +2388,9 @@ export type StockfishStreamEvent =
 
 // The in-app bell is one channel of the admin-configured messaging rules, so
 // its type catalogue IS the event catalogue — see ./messaging.
-export const notificationTypeSchema = messagingEventSchema;
-export type NotificationType = MessagingEvent;
+/** A rule's event, or a fixed system message shown in-app (system-messages.ts). */
+export const notificationTypeSchema = z.enum([...messagingEventSchema.options, "SYSTEM_MESSAGE"]);
+export type NotificationType = MessagingEvent | "SYSTEM_MESSAGE";
 
 export type NotificationItem = {
   id: string;

@@ -3,6 +3,7 @@ import { Test } from "@nestjs/testing";
 import { SYSTEM_MESSAGE_DEFINITIONS, SYSTEM_MESSAGE_KEYS } from "@nexa-chess/types";
 import { MailService } from "../mail/mail.service";
 import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MessagingRuleService } from "./messaging-rule.service";
@@ -16,6 +17,7 @@ describe("SystemMessageService", () => {
   let templates: { deleteMany: jest.Mock; findMany: jest.Mock; upsert: jest.Mock };
   let mail: { isConfigured: jest.Mock; sendSystemMessageSample: jest.Mock };
   let whatsapp: { isConfigured: jest.Mock; normalizeRecipient: jest.Mock; trySendText: jest.Mock };
+  let notify: jest.Mock;
 
   beforeEach(async () => {
     assertAdmin = jest.fn().mockResolvedValue(ADMIN);
@@ -30,6 +32,7 @@ describe("SystemMessageService", () => {
       isConfigured: jest.fn().mockReturnValue(true),
       sendSystemMessageSample: jest.fn().mockResolvedValue(undefined)
     };
+    notify = jest.fn().mockResolvedValue(undefined);
     whatsapp = {
       isConfigured: jest.fn().mockReturnValue(true),
       normalizeRecipient: jest.fn().mockReturnValue("919876543210"),
@@ -41,7 +44,13 @@ describe("SystemMessageService", () => {
         SystemMessageService,
         { provide: MailService, useValue: mail },
         { provide: PrismaService, useValue: { systemMessageTemplate: templates } },
-        { provide: SystemMessageRenderer, useValue: { render: jest.fn().mockResolvedValue({ body: "Rendered" }) } },
+        {
+          provide: SystemMessageRenderer,
+          useValue: {
+            renderAll: jest.fn().mockResolvedValue({ body: "Rendered", subject: "Subject", whatsapp: "Rendered for WhatsApp" })
+          }
+        },
+        { provide: NotificationService, useValue: { notify } },
         { provide: MessagingRuleService, useValue: { assertAdmin } },
         { provide: WhatsAppService, useValue: whatsapp }
       ]
@@ -50,11 +59,30 @@ describe("SystemMessageService", () => {
     service = module.get(SystemMessageService);
   });
 
-  it("lists every message, on its default wording until someone edits it", async () => {
+  const save = (key: keyof typeof SYSTEM_MESSAGE_DEFINITIONS, overrides: Record<string, unknown> = {}) => {
+    const definition = SYSTEM_MESSAGE_DEFINITIONS[key];
+    return service.update("token", key, {
+      ...definition.defaults,
+      channels: [...definition.defaultChannels],
+      whatsappBody: null,
+      ...overrides
+    });
+  };
+
+  it("lists every message, on its default wording and channels until someone edits it", async () => {
     const { messages } = await service.list("token");
 
     expect(messages.map((message) => message.key)).toEqual(SYSTEM_MESSAGE_KEYS);
     expect(messages.every((message) => !message.isCustomized)).toBe(true);
+    expect(messages.find((message) => message.key === "NEW_LEAD_ADMIN")?.channels).toEqual(["EMAIL", "IN_APP"]);
+  });
+
+  it("every message supports email, WhatsApp and in-app unless its note says why not", () => {
+    for (const definition of Object.values(SYSTEM_MESSAGE_DEFINITIONS)) {
+      if (definition.channels.length < 3) expect(definition.channelNote).toBeTruthy();
+      expect(definition.defaultChannels.every((channel) => definition.channels.includes(channel))).toBe(true);
+      expect(definition.defaultChannels.length).toBeGreaterThan(0);
+    }
   });
 
   it("hides platform-only messages from another academy's admins and refuses to edit them", async () => {
@@ -62,51 +90,61 @@ describe("SystemMessageService", () => {
     const { messages } = await service.list("token");
     expect(messages.map((message) => message.key)).not.toContain("TENANT_INTEGRITY_ALERT");
     expect(messages.map((message) => message.key)).toContain("NEW_LEAD_ADMIN");
-    await expect(
-      service.update("token", "TENANT_INTEGRITY_ALERT", { actionLabel: "Open", body: "{{integrity.summary}}", subject: "s" })
-    ).rejects.toThrow("Message not found.");
+    await expect(save("TENANT_INTEGRITY_ALERT")).rejects.toThrow("Message not found.");
   });
 
   it("saves new wording", async () => {
-    const saved = await service.update("token", "PASSWORD_RESET", {
-      actionLabel: "New password",
-      body: "Choose a new password.",
-      subject: "Password help"
-    });
+    const saved = await save("PASSWORD_RESET", { body: "Choose a new password.", subject: "Password help" });
 
     expect(templates.upsert).toHaveBeenCalled();
     expect(saved).toMatchObject({ isCustomized: true, subject: "Password help" });
   });
 
-  it("clears the row when the wording goes back to the default", async () => {
-    const { defaults } = SYSTEM_MESSAGE_DEFINITIONS.PASSWORD_RESET;
+  it("saves the channel switches, one per supported channel", async () => {
+    const saved = await save("NEW_LEAD_ADMIN", { channels: ["WHATSAPP", "IN_APP"] });
 
-    const saved = await service.update("token", "PASSWORD_RESET", defaults);
+    expect(templates.upsert.mock.calls[0][0].create).toMatchObject({
+      emailEnabled: false,
+      inAppEnabled: true,
+      whatsappEnabled: true
+    });
+    expect(saved.channels).toEqual(["WHATSAPP", "IN_APP"]);
+  });
+
+  it("refuses a channel the message can't use, and switching every channel off", async () => {
+    await expect(save("EMAIL_VERIFICATION", { channels: ["EMAIL", "WHATSAPP"] })).rejects.toThrow(
+      /proves the person owns/
+    );
+    await expect(save("NEW_LEAD_ADMIN", { channels: [] })).rejects.toThrow(/at least one channel/);
+    expect(templates.upsert).not.toHaveBeenCalled();
+  });
+
+  it("clears the row when wording and channels go back to the default", async () => {
+    const saved = await save("PASSWORD_RESET");
 
     expect(templates.upsert).not.toHaveBeenCalled();
     expect(templates.deleteMany).toHaveBeenCalledWith({ where: { key: "PASSWORD_RESET" } });
     expect(saved.isCustomized).toBe(false);
   });
 
-  it("refuses a WhatsApp invitation that drops its join link", async () => {
-    await expect(
-      service.update("token", "DEMO_INVITATION_WHATSAPP", {
-        actionLabel: null,
-        body: "You're invited!",
-        subject: null
-      })
-    ).rejects.toThrow(BadRequestException);
+  it("keeps the academy's own WhatsApp wording, and stores the standard one as null", async () => {
+    await save("DEMO_INVITATION", { whatsappBody: "Hi {{guest.name}}, join here: {{links.join}}" });
+    expect(templates.upsert.mock.calls[0][0].create.whatsappBody).toBe("Hi {{guest.name}}, join here: {{links.join}}");
+
+    await save("DEMO_INVITATION", {
+      subject: "Changed",
+      whatsappBody: SYSTEM_MESSAGE_DEFINITIONS.DEMO_INVITATION.defaults.whatsappBody
+    });
+    expect(templates.upsert.mock.calls[1][0].create.whatsappBody).toBeNull();
+  });
+
+  it("refuses a message that drops a placeholder it must keep", async () => {
+    await expect(save("TENANT_INTEGRITY_ALERT", { body: "Something happened." })).rejects.toThrow(BadRequestException);
     expect(templates.upsert).not.toHaveBeenCalled();
   });
 
-  it("refuses an email without a subject", async () => {
-    await expect(
-      service.update("token", "EMAIL_CHANGED", { actionLabel: null, body: "Changed.", subject: null })
-    ).rejects.toThrow(BadRequestException);
-  });
-
   it("sends an email test only to the admin's own account", async () => {
-    const result = await service.test("token", "PASSWORD_RESET", { phoneNumber: "+15550000000" });
+    const result = await service.test("token", "PASSWORD_RESET", { channel: "EMAIL", phoneNumber: "+15550000000" });
 
     expect(mail.sendSystemMessageSample).toHaveBeenCalledWith("PASSWORD_RESET", "admin@example.com");
     expect(result).toMatchObject({ sent: true, to: "a•••@example.com" });
@@ -115,16 +153,29 @@ describe("SystemMessageService", () => {
   it("reports a failed email test instead of throwing", async () => {
     mail.sendSystemMessageSample.mockRejectedValue(new Error("SMTP down"));
 
-    const result = await service.test("token", "PASSWORD_RESET", {});
+    const result = await service.test("token", "PASSWORD_RESET", { channel: "EMAIL" });
 
     expect(result).toMatchObject({ error: "SMTP down", sent: false });
   });
 
-  it("sends a WhatsApp test as text", async () => {
-    const result = await service.test("token", "DEMO_REGISTRATION_WHATSAPP", {});
+  it("sends a WhatsApp test as the WhatsApp text", async () => {
+    const result = await service.test("token", "DEMO_REGISTRATION", { channel: "WHATSAPP" });
 
-    expect(whatsapp.trySendText).toHaveBeenCalledWith({ body: "Rendered", to: "919876543210" });
+    expect(whatsapp.trySendText).toHaveBeenCalledWith({ body: "Rendered for WhatsApp", to: "919876543210" });
     expect(mail.sendSystemMessageSample).not.toHaveBeenCalled();
     expect(result.sent).toBe(true);
+  });
+
+  it("sends an in-app test to the admin's own inbox", async () => {
+    const result = await service.test("token", "NEW_LEAD_ADMIN", { channel: "IN_APP" });
+
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({ linkPath: "/admin/leads", title: "Subject", type: "SYSTEM_MESSAGE", userId: "admin_1" })
+    );
+    expect(result.sent).toBe(true);
+  });
+
+  it("refuses to test a channel the message doesn't support", async () => {
+    await expect(service.test("token", "DEMO_BOOKING", { channel: "IN_APP" })).rejects.toThrow(BadRequestException);
   });
 });

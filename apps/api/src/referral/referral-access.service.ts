@@ -1,14 +1,9 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
-import {
-  markdownToWhatsApp,
-  type SendReferrerAccessLinkRequest,
-  type SendReferrerAccessLinkResponse
-} from "@nexa-chess/types";
+import type { SendReferrerAccessLinkRequest, SendReferrerAccessLinkResponse } from "@nexa-chess/types";
 import { UserRole, UserStatus } from "@prisma/client";
 import { createOpaqueToken, hashOpaqueToken } from "../auth/auth.utils";
-import { MailService } from "../mail/mail.service";
-import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 
@@ -26,8 +21,7 @@ export class ReferralAccessService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mail: MailService,
-    private readonly messages: SystemMessageRenderer,
+    private readonly notifier: SystemNotifier,
     private readonly whatsapp: WhatsAppService
   ) {}
 
@@ -54,30 +48,21 @@ export class ReferralAccessService {
     const link = new URL("/reset-password", getFrontendUrl(getApiEnv()));
     link.searchParams.set("token", token);
 
-    const result: SendReferrerAccessLinkResponse = { email: "SKIPPED", whatsapp: "SKIPPED", whatsappError: null };
-
-    if (body.channels.includes("EMAIL")) {
-      try {
-        await this.mail.sendAccountAccessLink(user.email, user.firstName, link.toString());
-        result.email = "SENT";
-      } catch (error) {
-        this.logger.warn(`Sign-in link email to user ${user.id} failed: ${(error as Error).message}`);
-        result.email = "FAILED";
-      }
+    // The admin picked the channels for this send; the message's own switches don't apply.
+    const sent = await this.notifier.send(
+      "ACCOUNT_ACCESS",
+      { email: user.email, phone: wantsWhatsApp ? phone : null },
+      { "links.reset": link.toString(), "recipient.firstName": user.firstName },
+      { channels: body.channels }
+    );
+    if (sent.outcomes.EMAIL === "FAILED") {
+      this.logger.warn(`Sign-in link email to user ${user.id} failed: ${sent.errors.EMAIL}`);
     }
-
-    if (wantsWhatsApp && phone) {
-      const { body: text } = await this.messages.render("ACCOUNT_ACCESS_WHATSAPP", {
-        "links.reset": link.toString(),
-        "recipient.firstName": user.firstName
-      });
-      const outcome = await this.whatsapp.trySendText({ body: markdownToWhatsApp(text), to: phone });
-      if (outcome.ok) result.whatsapp = "SENT";
-      else {
-        result.whatsapp = "FAILED";
-        result.whatsappError = outcome.error.message;
-      }
-    }
+    const result: SendReferrerAccessLinkResponse = {
+      email: sent.outcomes.EMAIL,
+      whatsapp: sent.outcomes.WHATSAPP,
+      whatsappError: sent.errors.WHATSAPP ?? null
+    };
     return result;
   }
 }

@@ -110,7 +110,7 @@ Per feature in `apps/web/src/features/<feature>/`: `api/<x>Api.ts` (thin `apiFet
 
 ### 3.6e Admin messaging rules
 
-`messaging/`, page `/admin/messaging`; catalogue/defaults/renderer in `@nexa-chess/types` `messaging.ts`. **`MessagingDispatchService.dispatchInBackground(request)` is the only entry point**; a new trigger extends `DispatchRequest` + `resolveRecipients`; a new event = `MessagingEvent` + `NotificationType`. Fixed emails/texts outside the rules go through `SystemMessageRenderer` (catalogue `system-messages.ts`), never hardcoded. A new placeholder gets a `MESSAGE_VARIABLE_DOCS` entry. [docs/MESSAGING.md](docs/MESSAGING.md).
+`messaging/`, page `/admin/messaging`; catalogue/defaults/renderer in `@nexa-chess/types` `messaging.ts`. **`MessagingDispatchService.dispatchInBackground(request)` is the only entry point**; a new trigger extends `DispatchRequest` + `resolveRecipients`; a new event = `MessagingEvent` + `NotificationType`. Fixed messages outside the rules go through `SystemNotifier.send` (catalogue `system-messages.ts`; email, WhatsApp and in-app, switchable per message), never hardcoded. A new placeholder gets a `MESSAGE_VARIABLE_DOCS` entry. [docs/MESSAGING.md](docs/MESSAGING.md).
 
 ### 3.6e2 Admin email
 

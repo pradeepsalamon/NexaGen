@@ -2316,6 +2316,8 @@ enum NotificationType {
   PAYROLL_PAID
   APPROVAL_REQUESTED
   APPROVAL_DECIDED
+  /// A fixed system message sent in-app (SystemNotifier), not a messaging rule.
+  SYSTEM_MESSAGE
 }
 
 model Notification {
@@ -3373,9 +3375,17 @@ model SystemMessageTemplate {
   /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
   tenantId String @default("tenant_nexa")
 
-  subject     String?
-  body        String
-  actionLabel String?
+  /// Null = the catalogue default (system-messages.ts) for that part.
+  subject      String?
+  body         String?
+  actionLabel  String?
+  /// WhatsApp-only wording. Null = WhatsApp sends `body`.
+  whatsappBody String?
+
+  /// Channel switches. Null = the message's default for that channel.
+  emailEnabled    Boolean?
+  whatsappEnabled Boolean?
+  inAppEnabled    Boolean?
 
   updatedById String?
   updatedBy   User?   @relation("SystemMessageTemplateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)

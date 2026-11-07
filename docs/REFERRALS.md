@@ -151,7 +151,7 @@ account with a throwaway password and sends its sign-in link straight away.
 "Send sign-in link" (Referrers row, SALES only) emails and/or WhatsApps a
 one-use set-password link (`ReferralAccessService`: an ordinary
 `PasswordResetToken`, 24 h instead of 30 min, `/reset-password`), using the
-`ACCOUNT_ACCESS_EMAIL` / `ACCOUNT_ACCESS_WHATSAPP` system messages; the admin
+`ACCOUNT_ACCESS` system message on the channels the admin picks; the admin
 never sees the password. A phone number given for WhatsApp is saved on the
 account. **`authenticateUser` refuses SALES (403) unless the caller passes
 `{ allowSales: true }`**, which only these do: the referral board, `/auth/*` and

@@ -30,7 +30,7 @@ import {
 } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
 import { createOpaqueToken, hashOpaqueToken, hashSecret } from "../auth/auth.utils";
-import { MailService } from "../mail/mail.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { isUniqueViolation } from "../payments/payments.util";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { normalizeHostname } from "../tenancy/hostname";
@@ -66,7 +66,7 @@ export class PlatformTenantsService {
   constructor(
     private readonly entitlements: EntitlementService,
     private readonly jwtService: JwtService,
-    private readonly mail: MailService,
+    private readonly notifier: SystemNotifier,
     private readonly prisma: PrismaService,
     private readonly resolver: TenantResolverService,
     private readonly domainCheck: DomainCheckService
@@ -255,9 +255,15 @@ export class PlatformTenantsService {
     this.entitlements.invalidate(tenantId);
     const link = new URL("/reset-password", this.academyOrigin(hostname));
     link.searchParams.set("token", inviteToken);
-    void runInTenant(tenantId, "platform:invite", () =>
-      this.mail.sendAcademyAdminInvite(body.superAdmin.email, body.superAdmin.firstName, link.toString())
-    ).catch((error: unknown) => this.logger.error(`Invite email for ${tenantId} failed`, error as Error));
+    // No phone is collected for the first super admin, so in practice this is the email.
+    void runInTenant(tenantId, "platform:invite", async () => {
+      const sent = await this.notifier.send(
+        "ACADEMY_ADMIN_INVITE",
+        { email: body.superAdmin.email },
+        { "links.reset": link.toString(), "recipient.firstName": body.superAdmin.firstName }
+      );
+      if (sent.outcomes.EMAIL === "FAILED") this.logger.error(`Invite email for ${tenantId} failed: ${sent.errors.EMAIL}`);
+    }).catch((error: unknown) => this.logger.error(`Invite for ${tenantId} failed`, error as Error));
     return { tenant: await this.detail(tenantId) };
   }
 

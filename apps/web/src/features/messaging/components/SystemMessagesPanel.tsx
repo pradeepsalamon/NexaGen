@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Pencil } from "lucide-react";
 import {
+  SYSTEM_MESSAGE_CHANNEL_LABELS,
   SYSTEM_MESSAGE_DEFINITIONS,
   SYSTEM_MESSAGE_GROUP_LABELS,
   markdownToPlainText,
@@ -20,7 +21,15 @@ import { SystemMessageEditor } from "./SystemMessageEditor";
 
 const GROUPS: SystemMessageGroup[] = ["ACCOUNT", "BILLING", "DEMO", "ADMIN"];
 
-function MessageRow({ message }: { message: SystemMessageItem }) {
+function MessageRow({
+  emailConfigured,
+  message,
+  whatsappConfigured
+}: {
+  emailConfigured: boolean;
+  message: SystemMessageItem;
+  whatsappConfigured: boolean;
+}) {
   const definition = SYSTEM_MESSAGE_DEFINITIONS[message.key];
   const [editing, setEditing] = useState(false);
 
@@ -30,7 +39,11 @@ function MessageRow({ message }: { message: SystemMessageItem }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold text-app-text">{definition.label}</p>
-            <Badge variant="outline">{definition.channel === "EMAIL" ? "Email" : "WhatsApp"}</Badge>
+            {message.channels.map((channel) => (
+              <Badge key={channel} variant="outline">
+                {SYSTEM_MESSAGE_CHANNEL_LABELS[channel]}
+              </Badge>
+            ))}
             {message.isCustomized ? <Badge variant="info">Edited</Badge> : null}
           </div>
           <p className="mt-1 text-xs text-app-muted">To: {definition.sentTo}</p>
@@ -51,7 +64,13 @@ function MessageRow({ message }: { message: SystemMessageItem }) {
         </SimpleTooltip>
       </div>
 
-      <SystemMessageEditor message={message} onOpenChange={setEditing} open={editing} />
+      <SystemMessageEditor
+        emailConfigured={emailConfigured}
+        message={message}
+        onOpenChange={setEditing}
+        open={editing}
+        whatsappConfigured={whatsappConfigured}
+      />
     </>
   );
 }
@@ -67,13 +86,13 @@ export function SystemMessagesPanel() {
   return (
     <div className="space-y-6">
       <p className="text-sm text-app-muted">
-        Messages the platform always sends. You can change the wording here, but not when they go out or
-        who receives them.
+        Messages the platform always sends. You can change the wording and switch each one&apos;s email,
+        WhatsApp and in-app channels on or off, but not when they go out or who receives them.
       </p>
 
       {!data.emailConfigured ? (
         <Card className="border-warning/40 bg-warning/5 p-4 text-sm text-app-text">
-          Email is not configured on this server, so these emails can&apos;t be sent until the{" "}
+          Email is not configured on this server, so the email channel can&apos;t send until the{" "}
           <code className="text-xs">SMTP_*</code> variables are set.
         </Card>
       ) : null}
@@ -85,7 +104,12 @@ export function SystemMessagesPanel() {
             {data.messages
               .filter((message) => SYSTEM_MESSAGE_DEFINITIONS[message.key].group === group)
               .map((message) => (
-                <MessageRow key={message.key} message={message} />
+                <MessageRow
+                  emailConfigured={data.emailConfigured}
+                  key={message.key}
+                  message={message}
+                  whatsappConfigured={data.whatsappConfigured}
+                />
               ))}
           </Card>
         </section>
