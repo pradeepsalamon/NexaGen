@@ -6,7 +6,7 @@ import {
   sanitizeDiagramFileName,
   type DiagramRect,
 } from "@nexa-chess/types";
-import { Crop, FileText, Loader2, RefreshCw, ScanSearch, Upload, X } from "lucide-react";
+import { Crop, FileText, RefreshCw, ScanSearch, Upload, X } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -25,6 +25,7 @@ import {
 import { DOCUMENT_LIMITS, DocumentReadError, openDocument, type OpenedDocument, type RenderedPage } from "@/lib/document-reader";
 import { DiagramReviewPanel } from "./DiagramReviewPanel";
 import { statusBadgeVariant } from "./statusBadge";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** Everything an action needs about a confirmed position. */
 export type ConfirmedDiagram = {
@@ -238,7 +239,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
           }}
         >
           {opening ? (
-            <Loader2 className="size-8 animate-spin text-app-muted" strokeWidth={2.25} />
+            <Spinner className="size-8 text-app-muted" />
           ) : (
             <Upload className="size-8 text-app-muted" strokeWidth={2.25} />
           )}
@@ -325,7 +326,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
             </Button>
           ) : null}
           <Button data-testid="diagram-scan" disabled={!!scan || range.tooMany} onClick={onScan}>
-            {scan ? <Loader2 className="size-4 animate-spin" /> : <ScanSearch className="size-4" strokeWidth={2.5} />}
+            {scan ? <Spinner className="size-4" /> : <ScanSearch className="size-4" strokeWidth={2.5} />}
             {scan ? `Scanning page ${scan.current} of ${scan.total}…` : "Scan for diagrams"}
           </Button>
         </div>
@@ -555,7 +556,7 @@ function ManualSelection({
             />
           </label>
           <Button disabled={!sel || loading} onClick={() => void use()}>
-            {loading ? <Loader2 className="size-4 animate-spin" /> : <Crop className="size-4" strokeWidth={2.5} />}
+            {loading ? <Spinner className="size-4" /> : <Crop className="size-4" strokeWidth={2.5} />}
             Read selected board
           </Button>
         </div>
@@ -591,7 +592,7 @@ function ManualSelection({
         </div>
       ) : (
         <div className="flex min-h-[200px] items-center justify-center text-sm text-app-muted">
-          {loading ? <Loader2 className="size-5 animate-spin" /> : "Choose a page."}
+          {loading ? <Spinner className="size-5" /> : "Choose a page."}
         </div>
       )}
     </div>

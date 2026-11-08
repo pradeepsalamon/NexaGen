@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { describeDiagramSource, type PuzzleSummary } from "@nexa-chess/types";
-import { BookmarkPlus, Loader2, MonitorPlay } from "lucide-react";
+import { BookmarkPlus, MonitorPlay } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +22,7 @@ import { useToast } from "@/providers/ToastProvider";
 import { PDF_IMPORT_TAG, storePuzzlePrefill } from "../lib/handoff";
 import { suggestSolutionLine } from "../lib/solution";
 import type { ConfirmedDiagram } from "./DiagramImportWorkbench";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** Positions already sent to the analysis board in this session: id → game. */
 const openedGames = new Map<string, string>();
@@ -141,12 +142,12 @@ export function DiagramPositionActions({ analysis = true, children, confirmed, l
       {children}
       {analysis ? (
         <Button disabled={importGame.isPending} onClick={openAnalysis} variant="outline">
-          {importGame.isPending ? <Loader2 className="size-4 animate-spin" /> : <MonitorPlay className="size-4" strokeWidth={2.5} />}
+          {importGame.isPending ? <Spinner className="size-4" /> : <MonitorPlay className="size-4" strokeWidth={2.5} />}
           Open on analysis board
         </Button>
       ) : null}
       <Button data-testid="diagram-save-library" disabled={checking} onClick={() => void saveToLibrary()} variant="outline">
-        {checking ? <Loader2 className="size-4 animate-spin" /> : <BookmarkPlus className="size-4" strokeWidth={2.5} />}
+        {checking ? <Spinner className="size-4" /> : <BookmarkPlus className="size-4" strokeWidth={2.5} />}
         Save to puzzle library…
       </Button>
 

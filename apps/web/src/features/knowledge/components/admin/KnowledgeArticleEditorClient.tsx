@@ -8,7 +8,6 @@ import {
   ArchiveRestore,
   EyeOff,
   History,
-  Loader2,
   RotateCcw,
   Save,
   Send,
@@ -76,6 +75,7 @@ import { KIND_LABEL } from "../HelpCenterClient";
 import { KnowledgeMarkdown } from "../KnowledgeMarkdown";
 import { AUDIENCE_LABEL, StatusBadge } from "./KnowledgeAdminClient";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
+import { Spinner } from "@/components/ui/Spinner";
 
 type SettingsDraft = {
   kind: KnowledgeArticleKind;
@@ -345,7 +345,7 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
         <div className="flex flex-wrap gap-2">
           {!article ? (
             <Button disabled={busy !== null} onClick={() => void create()}>
-              {busy ? <Loader2 aria-hidden className="mr-2 size-4 animate-spin" /> : <Save aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
+              {busy ? <Spinner aria-hidden className="mr-2 size-4" /> : <Save aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
               Create draft
             </Button>
           ) : (
@@ -362,7 +362,7 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
                 Save draft
               </Button>
               <Button disabled={busy !== null || (!article.draft && !contentDirty && !settingsDirty && article.status === "PUBLISHED")} onClick={() => void publish()}>
-                {busy === "publish" ? <Loader2 aria-hidden className="mr-2 size-4 animate-spin" /> : <Send aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
+                {busy === "publish" ? <Spinner aria-hidden className="mr-2 size-4" /> : <Send aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
                 {article.status === "DRAFT" && article.published && !article.draft && !contentDirty ? "Republish" : "Publish"}
               </Button>
               {article.status === "PUBLISHED" && (

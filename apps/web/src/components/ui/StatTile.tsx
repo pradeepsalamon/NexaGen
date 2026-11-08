@@ -31,8 +31,8 @@ export function StatTile({
   const hasRing = typeof progress === "number" && Number.isFinite(progress);
 
   return (
-    <article className="rounded-app border border-app-border bg-app-surface p-4 shadow-card">
-      <div className="mb-3 flex items-center justify-between gap-2">
+    <article className="min-w-0 rounded-app border border-app-border bg-app-surface p-3 shadow-card sm:p-4">
+      <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3">
         {hasRing ? (
           <span aria-hidden="true" className="relative flex size-9 items-center justify-center">
             <svg className="absolute inset-0 -rotate-90" viewBox="0 0 48 48">
@@ -83,11 +83,11 @@ export function StatTile({
             {trend}
           </span>
         ) : context ? (
-          <span className="shrink-0 text-xs font-medium text-app-muted">{context}</span>
+          <span className="min-w-0 truncate text-xs font-medium text-app-muted">{context}</span>
         ) : null}
       </div>
 
-      <p className="font-display text-2xl font-bold tracking-tight tabular-nums text-app-text sm:text-[2rem] sm:leading-10">
+      <p className="font-display text-xl font-bold tracking-tight tabular-nums text-app-text sm:text-[2rem] sm:leading-10">
         {value}
       </p>
       <p className="mt-1 text-xs font-medium text-app-muted">{label}</p>

@@ -86,7 +86,7 @@ export function PuzzleQuickPreviewDialog({
           <DialogDescription>
             {puzzle
               ? `${puzzle.sideToMove === "white" ? "White" : "Black"} to move · ${puzzle.solutionLength}-move solution`
-              : "Loading the puzzle…"}
+              : <Skeleton as="span" className="h-3.5 w-48" />}
           </DialogDescription>
         </DialogHeader>
 

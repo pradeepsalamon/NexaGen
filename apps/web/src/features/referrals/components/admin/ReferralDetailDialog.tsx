@@ -65,7 +65,7 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
           <DialogDescription>
             {data
               ? `Referred by ${data.referrerName} (${REFERRER_ROLE_LABELS[data.referrerRole]}) · code ${data.code}`
-              : "Loading…"}
+              : <Skeleton as="span" className="h-3.5 w-64" />}
           </DialogDescription>
         </DialogHeader>
 
@@ -112,7 +112,7 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
                     <p className="break-all text-app-muted">{data.referredUser.email}</p>
                   </div>
                   <Button
-                    className="shrink-0"
+                    className="shrink-0 self-end sm:self-auto"
                     isLoading={link.isPending}
                     onClick={() => link.mutate({ email: null, id: data.id })}
                     variant="neutral"
@@ -201,7 +201,7 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
 
             <section className="flex flex-col gap-2 rounded-app border border-app-danger/30 p-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-app-muted">Spam, a duplicate or a test? Delete it. One with rewards keeps them: cancel those first.</p>
-              <Button className="shrink-0" onClick={() => setConfirmDelete(true)} variant="danger-soft">
+              <Button className="shrink-0 self-end sm:self-auto" onClick={() => setConfirmDelete(true)} variant="danger-soft">
                 <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
                 Delete referral
               </Button>

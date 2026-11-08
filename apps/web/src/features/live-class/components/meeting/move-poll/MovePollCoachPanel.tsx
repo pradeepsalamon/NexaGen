@@ -20,6 +20,7 @@ import {
 import { MovePollResults } from "./MovePollResults";
 import { useRoster } from "@/features/live-class/hooks/useRoster";
 import { useMemberClassId } from "../../../providers/LiveRoomContext";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** Placement + side to move; move counters don't make it a different question. */
 const positionKey = (fen: string) => fen.split(" ").slice(0, 2).join(" ");
@@ -89,7 +90,14 @@ export function MovePollCoachPanel() {
     return students.filter((s) => !answered.has(s.userId));
   }, [poll, students]);
 
-  if (isLoading) return <p className="p-4 text-sm text-app-muted">Loading…</p>;
+  if (isLoading) {
+    return (
+      <p className="flex items-center gap-2 p-4 text-sm text-app-muted" role="status">
+        <Spinner />
+        Loading…
+      </p>
+    );
+  }
 
   if (!poll) {
     return (

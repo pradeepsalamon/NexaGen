@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CHAT_GROUP_NAME_MAX_LENGTH, type ChatContact } from "@nexa-chess/types";
-import { Loader2, MessageCirclePlus, Search } from "lucide-react";
+import { MessageCirclePlus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useChatContacts, useCreateChatGroup, useStartDirectChat } from "../hooks/useChat";
 import { initialsOf } from "../lib/chatFormat";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Props = {
   /** Coaches may make groups; students only ever message a coach. */
@@ -96,7 +97,7 @@ export function NewChatDialog({ canCreateGroup, onOpenChange, onOpened, open }: 
       <ul className="max-h-[50dvh] space-y-1 overflow-y-auto">
         {contacts.isLoading && (
           <li className="flex items-center gap-2 px-2 py-3 text-sm text-app-muted">
-            <Loader2 className="size-4 animate-spin" /> Loading…
+            <Spinner className="size-4" /> Loading…
           </li>
         )}
         {!contacts.isLoading && list.length === 0 && (
@@ -121,7 +122,7 @@ export function NewChatDialog({ canCreateGroup, onOpenChange, onOpened, open }: 
                   {c.batchNames.length ? c.batchNames.join(", ") : c.role === "COACH" ? "Coach" : "Student"}
                 </span>
               </span>
-              {startDirect.isPending && startDirect.variables === c.id && <Loader2 className="size-4 animate-spin text-app-muted" />}
+              {startDirect.isPending && startDirect.variables === c.id && <Spinner className="size-4 text-app-muted" />}
             </button>
           </li>
         ))}
@@ -205,7 +206,7 @@ export function NewChatDialog({ canCreateGroup, onOpenChange, onOpened, open }: 
                   disabled={!groupName.trim() || members.size === 0 || createGroup.isPending}
                   onClick={submitGroup}
                 >
-                  {createGroup.isPending && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+                  {createGroup.isPending && <Spinner className="mr-1.5 size-4" />}
                   Create group
                 </Button>
               </DialogFooter>

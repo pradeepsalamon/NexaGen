@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Loader2,
   CalendarX,
   ChevronLeft,
   ChevronRight,
@@ -12,10 +11,11 @@ import {
 import { Card, CardContent } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
+import { FilterChips, FilterField, FilterPopover, type ActiveFilter } from "@/components/ui/FilterPopover";
 import { Select } from "@/components/ui/Select";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { apiFetch } from "@/lib/api";
-import { formatDate, formatDuration, formatTime } from "@/lib/datetime";
+import { formatDate, formatDuration, formatFullDate, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import {
   API_ROUTES,
@@ -28,7 +28,14 @@ import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Spinner } from "@/components/ui/Spinner";
 
+
+const CC_STATUS_OPTIONS = [
+  { label: "All", value: "all" },
+  { label: "Completed", value: "completed" },
+  { label: "Cancelled", value: "cancelled" },
+];
 export default function AdminCompletedClassesPage() {
   const router = useRouter();
   const tz = useUserTimeZone();
@@ -81,6 +88,19 @@ export default function AdminCompletedClassesPage() {
     }
   });
 
+  const ccFilters = [
+    statusFilter !== "all" && {
+      key: "status",
+      label: CC_STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? statusFilter,
+      onRemove: () => {
+        setStatusFilter("all");
+        setPage(1);
+      }
+    },
+    dateFrom && { key: "from", label: `From ${formatFullDate(dateFrom, "UTC")}`, onRemove: () => { setDateFrom(""); setPage(1); } },
+    dateTo && { key: "to", label: `To ${formatFullDate(dateTo, "UTC")}`, onRemove: () => { setDateTo(""); setPage(1); } },
+  ].filter((filter): filter is ActiveFilter => Boolean(filter));
+
   return (
     <div className="animate-fade-in space-y-6 pb-10">
       <PageHeader
@@ -90,75 +110,69 @@ export default function AdminCompletedClassesPage() {
       />
 
       {/* Filters */}
-      <Card className="border-app-border bg-app-surface shadow-card">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-2 items-end gap-4 sm:flex sm:flex-wrap sm:justify-end">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted" htmlFor="cc-from">
-                From
-              </label>
-              <DateStringPicker
-                id="cc-from"
-                value={dateFrom}
-                onChange={(value) => {
-                  setDateFrom(value);
+      <div className="grid gap-2">
+        <div className="flex justify-end">
+          <FilterPopover
+            activeCount={ccFilters.length}
+            emptyValue={{ dateFrom: "", dateTo: "", statusFilter: "all" }}
+            onApply={(next) => {
+              setDateFrom(next.dateFrom);
+              setDateTo(next.dateTo);
+              setStatusFilter(next.statusFilter);
+              setPage(1);
+            }}
+            value={{ dateFrom, dateTo, statusFilter }}
+          >
+            {(draft, update) => (
+              <>
+                <FilterField htmlFor="cc-status" label="Status">
+                  <Select
+                    id="cc-status"
+                    onChange={(e) => update({ statusFilter: e.target.value })}
+                    options={CC_STATUS_OPTIONS}
+                    value={draft.statusFilter}
+                  />
+                </FilterField>
+                <div className="grid grid-cols-2">
+                  <FilterField label="From">
+                    <DateStringPicker
+                      aria-label="From date"
+                      onChange={(value) => update({ dateFrom: value })}
+                      placeholder="Any date"
+                      value={draft.dateFrom}
+                    />
+                  </FilterField>
+                  <FilterField label="To">
+                    <DateStringPicker
+                      aria-label="To date"
+                      onChange={(value) => update({ dateTo: value })}
+                      placeholder="Any date"
+                      value={draft.dateTo}
+                    />
+                  </FilterField>
+                </div>
+              </>
+            )}
+          </FilterPopover>
+        </div>
+        <FilterChips
+          filters={ccFilters}
+          onClearAll={
+            ccFilters.length > 1
+              ? () => {
+                  setDateFrom("");
+                  setDateTo("");
+                  setStatusFilter("all");
                   setPage(1);
-                }}
-                className="w-full sm:w-44" placeholder="Any date"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted" htmlFor="cc-to">
-                To
-              </label>
-              <DateStringPicker
-                id="cc-to"
-                value={dateTo}
-                onChange={(value) => {
-                  setDateTo(value);
-                  setPage(1);
-                }}
-                className="w-full sm:w-44" placeholder="Any date"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted" htmlFor="cc-status">
-                Status
-              </label>
-              <Select
-                id="cc-status"
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPage(1);
-                }}
-                options={[
-                  { label: "All", value: "all" },
-                  { label: "Completed", value: "completed" },
-                  { label: "Cancelled", value: "cancelled" },
-                ]}
-                className="w-full sm:w-40"
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setDateFrom("");
-                setDateTo("");
-                setStatusFilter("all");
-                setPage(1);
-              }}
-            >
-              Clear filters
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+                }
+              : undefined
+          }
+        />
+      </div>
 
       {isLoading ? (
         <div className="flex h-[40dvh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
+          <Spinner className="h-8 w-8 text-primary-ink" />
         </div>
       ) : !data || filteredClasses.length === 0 ? (
         <EmptyState

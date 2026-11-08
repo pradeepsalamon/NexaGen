@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { GameAutoSyncPolicy } from "@nexa-chess/types";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Alert } from "@/components/ui/Alert";
@@ -13,6 +12,7 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useGameSources, useSetAutoSyncPolicy } from "../hooks/useGameAnalysis";
+import { Spinner } from "@/components/ui/Spinner";
 
 const POLICY_OPTIONS: { label: string; value: GameAutoSyncPolicy }[] = [
   { label: "Off", value: "OFF" },
@@ -77,7 +77,7 @@ export function AdminGameSyncClient() {
                 })
               }
             >
-              {save.isPending && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
+              {save.isPending && <Spinner className="mr-2 size-4" aria-hidden />}
               Save
             </Button>
           </div>

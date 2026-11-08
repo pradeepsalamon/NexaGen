@@ -16,6 +16,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { METRIC_TOOLTIPS } from "../../lib/metricTooltips";
 import { RankBarList } from "../RankBarList";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { TableSkeletonRows } from "@/components/ui/TableSkeletonRows";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 
@@ -131,7 +132,7 @@ export function CoachAnalyticsSection({
                     </TableRow>
                   ))}
                   {isLoading ? (
-                    <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={6}>Loading…</TableCell></TableRow>
+                    <TableSkeletonRows columns={6} />
                   ) : null}
                   {!isLoading && (data?.leaderboard.length ?? 0) === 0 ? (
                     <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={6}>No coach activity for this period.</TableCell></TableRow>

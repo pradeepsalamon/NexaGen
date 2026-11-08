@@ -6,6 +6,7 @@ import { ChartContainer } from "@/components/charts/ChartContainer";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { KpiCardRow } from "@/components/ui/KpiCardRow";
 import { SectionCard } from "@/components/ui/SectionCard";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { cn } from "@/lib/utils";
 import {
@@ -64,7 +65,10 @@ export function RecordingStorageSection({
         <div className="rounded-app border border-app-border bg-app-soft p-4">
           <p className="text-sm font-bold text-app-text">Disk usage</p>
           {storage.isLoading ? (
-            <p className="mt-2 text-sm text-app-muted">Loading…</p>
+            <div aria-label="Loading disk usage" className="mt-2 space-y-2" role="status">
+              <Skeleton className="h-2.5 w-full rounded-full" />
+              <Skeleton className="h-3.5 w-1/2" />
+            </div>
           ) : !s?.available ? (
             <p className="mt-2 text-sm text-app-muted">
               Data unavailable — the recordings directory could not be read.

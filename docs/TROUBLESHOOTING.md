@@ -8,6 +8,8 @@
 
 | Symptom | Start here |
 |---|---|
+| Theme toggle or docked-nav collapse feels laggy (worse on phones) | `ThemeProvider.applyMode` must keep its freeze `<style>` until after the new theme paints (two rAFs) and run React's update in `startTransition`; `useChartColors` re-reads after paint. `AppShell` must not animate its `padding` (every frame re-lays out the page). Measure at 4× CPU: theme worst frame went 217–300 ms → 67–83 ms (2026-11-06) |
+| Dialogs/popovers/menus snap open with no animation | `tailwindcss-animate` must stay in `tailwind.config.ts` plugins — the `animate-in`/`fade-in-0`/`zoom-in-95` classes do nothing without it |
 | `tsc --noEmit` in `apps/api` dies with "JavaScript heap out of memory" (exit 134) | Happens on a **cold** run (no `tsconfig.tsbuildinfo`, e.g. a fresh worktree): the Prisma client types need ~2.5–2.9 GB, above Node's default heap on the 11 GB box. Run once with `NODE_OPTIONS=--max-old-space-size=6144`; later incremental runs need ~1.2 GB |
 | Dev/staging login or refresh 500s with P2022 "The column `users.<x>` does not exist in the current database" | The pulled code has migrations the dev/staging DB hasn't applied. `nexa.sh` now runs `db:migrate:deploy` before each API launch, so `nexa restart stage api` fixes it; check with `npm run db:migrate:status` |
 | `scripts/nexa.sh restart stage` (or `npx turbo build --force`) fails in `@nexa-chess/api#build` with "JavaScript heap out of memory" (exit 134) | Same cause in `nest build` on a cold build. `nexa.sh` now sets `NODE_OPTIONS=--max-old-space-size=6144` unless you set your own; for a hand-run build, prefix it yourself. An aborted build can leave `apps/web/.next-build` half-written while staging still serves it, so rebuild and restart straight away |

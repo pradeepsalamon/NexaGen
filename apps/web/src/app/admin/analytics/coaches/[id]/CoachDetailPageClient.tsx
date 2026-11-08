@@ -20,6 +20,7 @@ import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { enumLabel } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export function CoachDetailPageClient({ coachId }: { coachId: string }) {
   return (
@@ -57,7 +58,7 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
 
       <div>
         <h2 className="text-lg font-bold text-app-text">
-          {isLoading ? "Loading…" : c?.name}
+          {isLoading ? <Skeleton as="span" className="h-6 w-48" /> : c?.name}
         </h2>
         {c ? <p className="text-sm text-app-muted">{c.email}</p> : null}
       </div>

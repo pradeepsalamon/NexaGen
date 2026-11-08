@@ -1,12 +1,11 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
-import { useScrollableRegion } from "@/hooks/useScrollableRegion";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * KPI card layout: a horizontal snap-scroll strip on mobile, a wrapping grid on
- * larger screens. Children are `<KpiCard>`s.
+ * KPI card layout: two per row on phones (never a sideways-scrolling strip,
+ * owner 2026-11-06), more columns on larger screens. Children are `<KpiCard>`s.
  */
 export function KpiCardRow({
   children,
@@ -17,29 +16,20 @@ export function KpiCardRow({
   children: ReactNode;
   className?: string;
   columns?: 3 | 4 | 5;
-  /** The strip's accessible name while it scrolls (phones). */
+  /** Accessible name of the group. */
   label?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  // A scroll strip only on phones; from `sm` it wraps and adds no Tab stop.
-  const region = useScrollableRegion(ref, label);
   const grid = {
-    3: "sm:grid-cols-2 lg:grid-cols-3",
-    4: "sm:grid-cols-2 lg:grid-cols-4",
-    5: "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+    3: "lg:grid-cols-3",
+    4: "lg:grid-cols-4",
+    5: "lg:grid-cols-3 xl:grid-cols-5"
   }[columns];
 
   return (
     <div
-      className={cn(
-        "grid auto-cols-[75%] grid-flow-col gap-3 overflow-x-auto pb-2 snap-x snap-mandatory",
-        "sm:auto-cols-auto sm:grid-flow-row sm:overflow-visible sm:pb-0",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
-        grid,
-        className
-      )}
-      ref={ref}
-      {...region}
+      aria-label={label}
+      className={cn("grid grid-cols-2 gap-3 sm:gap-4", grid, className)}
+      role="group"
     >
       {children}
     </div>

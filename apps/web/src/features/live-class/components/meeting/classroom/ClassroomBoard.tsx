@@ -5,7 +5,6 @@ import {
   ArrowDownToLine,
   Crosshair,
   FolderOpen,
-  Loader2,
   Puzzle as PuzzleIcon,
   StepBack,
   StepForward
@@ -44,6 +43,7 @@ import { ROOM_ROW_QUERY } from "./roomLayout";
 import { ClassroomSidebar } from "./sidebar/ClassroomSidebar";
 import { StageHeader } from "./StageHeader";
 import { useMemberClassId } from "../../../providers/LiveRoomContext";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** Board shortcuts plus Space = engine move and S = setup position (also offered to the toolbar). */
 function CoachBoardShortcuts() {
@@ -225,7 +225,7 @@ export function ClassroomBoard({
               {waiting ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-app-background/60 backdrop-blur-[2px]">
                   <span className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-4 py-2 text-sm font-semibold text-app-muted shadow-card">
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner className="size-4" />
                     Waiting for your coach&apos;s board…
                   </span>
                 </div>
@@ -407,7 +407,7 @@ function CoachPuzzleButtons() {
         label="Share puzzle"
         tone="info"
         disabled={loading}
-        icon={loading ? <Loader2 className="size-4 animate-spin" /> : <PuzzleIcon className="size-4" strokeWidth={2.5} />}
+        icon={loading ? <Spinner className="size-4" /> : <PuzzleIcon className="size-4" strokeWidth={2.5} />}
         items={[
           {
             label: "Share previous",

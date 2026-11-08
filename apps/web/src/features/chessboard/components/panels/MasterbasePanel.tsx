@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useBoardStore } from "../../context/BoardProvider";
-import { Loader2 } from "lucide-react";
 import { formatNumber } from "@/features/analytics/lib/format";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface MasterbaseMove {
   san: string;
@@ -87,7 +87,7 @@ export function MasterbasePanel() {
   if (isLoading && !data) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-sm text-app-muted p-4 text-center">
-        <Loader2 className="animate-spin mb-4" size={24} />
+        <Spinner className="mb-4 size-6" />
         <p>Searching master games…</p>
       </div>
     );

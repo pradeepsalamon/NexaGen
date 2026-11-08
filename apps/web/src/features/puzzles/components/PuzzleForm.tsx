@@ -13,7 +13,7 @@ import type {
   UpdatePuzzleRequest
 } from "@nexa-chess/types";
 import { isSystemPuzzleFolder, resolvePuzzleScoring } from "@nexa-chess/types";
-import { CheckCircle2, Eye, Loader2, X, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, X, XCircle } from "lucide-react";
 import { FormPageShell } from "@/components/layout/FormPageShell";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -44,6 +44,7 @@ import {
 import { PuzzleSolver } from "./solver/PuzzleSolver";
 import { sideToMove } from "./solver/puzzleSolverEngine";
 import { Switch } from "@/components/ui/Switch";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface Props {
   mode: "create" | "edit";
@@ -238,7 +239,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
             Save draft
           </Button>
           <Button type="button" size="sm" onClick={() => save(true)} disabled={saving}>
-            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+            {saving ? <Spinner className="size-4" /> : null}
             Publish
           </Button>
         </>
@@ -390,7 +391,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={runValidate} disabled={validating}>
             {validating ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              <Spinner className="mr-1.5 size-4" />
             ) : (
               <CheckCircle2 className="mr-1.5 size-4" strokeWidth={2.5} />
             )}

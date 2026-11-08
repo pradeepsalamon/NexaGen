@@ -231,7 +231,7 @@ export function NavDrawer({
       <NavRailContext.Provider value={rail}>
         <aside
           aria-label={`${title} navigation`}
-          className="surface-brand fixed bottom-0 left-0 top-16 z-30 flex w-[var(--app-nav-w)] flex-col overflow-hidden border-r border-app-drawer-border bg-app-drawer text-on-brand motion-safe:transition-[width] motion-safe:duration-200"
+          className="surface-brand fixed bottom-0 left-0 top-16 z-30 flex w-[var(--app-nav-w)] flex-col overflow-hidden border-r border-app-drawer-border bg-app-drawer text-on-brand [contain:layout_paint] motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out"
           id="nav-drawer"
           ref={panelRef}
         >
@@ -265,7 +265,7 @@ export function NavDrawer({
       {open ? (
         <button
           aria-label="Close menu"
-          className="fixed inset-0 z-[45] cursor-default bg-scrim/45 backdrop-blur-[1px] transition-opacity duration-200"
+          className="fixed inset-0 z-[45] cursor-default bg-scrim/45 transition-opacity duration-200"
           onClick={close}
           type="button"
         />

@@ -17,6 +17,7 @@ import { useDemoGuestToken } from "../../providers/LiveRoomContext";
 import { InRoomPuzzleSolver } from "./InRoomPuzzleSolver";
 import { EndPuzzleButton, PuzzleTimerBadge } from "./PuzzleSessionControls";
 import { useRoomClassId } from "../../providers/LiveRoomContext";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * The coach's own copy of the class puzzle, to check it plays as intended.
@@ -31,8 +32,15 @@ function CoachPuzzlePreview({ puzzleId }: { puzzleId: string }) {
   const puzzle = detail.data;
   if (!puzzle) {
     return (
-      <p className="py-10 text-center text-sm text-app-muted">
-        {detail.isError ? "Couldn't load the puzzle." : "Loading…"}
+      <p className="flex items-center justify-center gap-2 py-10 text-center text-sm text-app-muted" role={detail.isError ? undefined : "status"}>
+        {detail.isError ? (
+          "Couldn't load the puzzle."
+        ) : (
+          <>
+            <Spinner />
+            Loading…
+          </>
+        )}
       </p>
     );
   }
@@ -70,7 +78,12 @@ function GuestPuzzlePractice({ classId, guestToken, assignmentId }: { classId: s
         </div>
       );
     }
-    return <p className="py-10 text-center text-sm text-app-muted">Loading…</p>;
+    return (
+      <p className="flex items-center justify-center gap-2 py-10 text-center text-sm text-app-muted" role="status">
+        <Spinner />
+        Loading…
+      </p>
+    );
   }
   return (
     <div className="mx-auto w-full max-w-3xl space-y-2 overflow-y-auto">

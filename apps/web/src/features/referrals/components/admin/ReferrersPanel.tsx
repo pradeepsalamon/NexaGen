@@ -156,7 +156,7 @@ export function ReferrersPanel({ onViewReferrals }: { onViewReferrals: (referrer
           Everyone who has opened their referral board, plus every sales account. Students and coaches get a code the first
           time they open &ldquo;Refer &amp; earn&rdquo;.
         </p>
-        <Button className="shrink-0" onClick={() => setDialog({ kind: "new-sales" })}>
+        <Button className="shrink-0 self-end sm:self-auto" onClick={() => setDialog({ kind: "new-sales" })}>
           <UserPlus aria-hidden="true" className="size-4" strokeWidth={2.5} />
           New sales account
         </Button>

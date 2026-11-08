@@ -9,6 +9,7 @@ import { useLivePuzzleBoards } from "../../hooks/useLivePuzzle";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { PuzzleBoardTile } from "./PuzzleBoardTile";
 import { EndPuzzleButton, PuzzleTimerBadge } from "./PuzzleSessionControls";
+import { Spinner } from "@/components/ui/Spinner";
 
 const STATUS_LABEL: Record<LivePuzzleBoardStatus, string> = {
   NOT_STARTED: "Not started",
@@ -43,8 +44,15 @@ export function PuzzleLiveBoardsGrid({ classId, enabled = true }: { classId: str
 
   if (!data || data.boards.length === 0) {
     return (
-      <p className="text-sm text-app-muted">
-        {boards.isLoading ? "Loading…" : "No students to show yet."}
+      <p className="flex items-center gap-2 text-sm text-app-muted" role={boards.isLoading ? "status" : undefined}>
+        {boards.isLoading ? (
+          <>
+            <Spinner />
+            Loading…
+          </>
+        ) : (
+          "No students to show yet."
+        )}
       </p>
     );
   }

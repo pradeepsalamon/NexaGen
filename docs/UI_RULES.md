@@ -116,9 +116,14 @@ disagree.
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |
 | Bulk actions on selected rows | `BulkActionsBar` + `useBulkAction` + `BulkResultDialog` | |
 | KPIs / stat tiles | `KpiCard`, `StatTile` | Plain card with a 12px label and a 32/40 value. Numbers use the display font with `tabular-nums`, never `font-mono`. Labels are sentence case. Don't hand-roll a KPI tile. |
-| Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. |
+| Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. Where the layout must differ (a card with a link button, a room panel) use `EmptyStateIcon` for the icon circle, never a hand-built one. |
+| Loading | `Spinner` (`components/ui/Spinner`) | The one spinner: an arc on a faint track in the current colour, sized like an icon (`size-4` in a button — `Button isLoading` already uses it — `size-8` for a section). Never `Loader2` + `animate-spin`. |
+| Loading placeholder | `Skeleton` | A theme-neutral tint with a light sweep (transform only). Shape it like the content that will land (see `BatchSummaryCardSkeleton`), not one big block. |
+| Table loading | `DataTable isLoading` / `TableSkeletonRows` | `DataTable` draws skeleton rows (and cards on a phone) by itself, keeping `loadingText` for screen readers. A hand-built `<Table>` uses `<TableSkeletonRows columns={n} />`. Never a single "Loading…" text row. |
+| Page loading | `PageLoading` (`components/layout/PageLoading`) | A route's `loading.tsx` and a page's `<Suspense fallback>`. Never plain "Loading…" text. A small area inside a panel or dialog: `Spinner` beside short text. |
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
 | Page title + actions | `PageHeader` | Pass `breadcrumbs` on a detail page instead of a `BackButton`. |
+| Batch card on a "My batches" page | `BatchSummaryCard` (`features/batches/components`) | Title + badges, one-line description, facts as one wrapping row, footer with people left and actions right. Student and coach pages use it. |
 | Sign-in and account pages (`/login`, `/register`, password reset, email verification) | `AuthSplitShell` + `AuthHeader` + `AuthStatus` (`features/auth/components`) | Navy brand panel (text never on the artwork) beside the form card; below `lg` the panel is a navy bar. `AuthHeader` is the card's only `h1`, the panel tagline a `<p>`. `AuthStatus` is every outcome in the card (sent, verified, incomplete link, waiting). Registration groups fields with `RegistrationFieldset` and uses full-size fields, not `density="compact"`. |
 | Analytics page | `AnalyticsPageShell` (`features/analytics/components`) | `PageHeader` with the date range, Refresh and Export as its actions; `breadcrumbs` on a detail report. The admin dashboard uses it too. Never a second hand-built analytics header. |
 | Role page frame | `PageContent` | The one ground, padding and `max-w-7xl` content width. Role layouts use it; pages don't add their own. |
@@ -136,6 +141,30 @@ disagree.
   `sm` a filter row fills the width instead (`grid grid-cols-2 … sm:flex
   sm:justify-end`, fields `w-full sm:w-44`), so half the card isn't empty.
   Content (titles, descriptions, tables) reads from the left.
+- **Buttons stay on the right on phones too** (owner, 2026-11-06): a stacked
+  `flex-col sm:flex-row` row puts its action child on `self-end sm:self-auto`;
+  button groups are `justify-end` with the **primary last** (rightmost) and
+  Cancel/Reset before it; card footers put people/meta on the left and actions
+  on the right (`BatchSummaryCard`). Dialog footers keep `DialogFooter`.
+- **Three or more filters collapse into `FilterPopover`** (one "Filters" button,
+  Apply/Clear, active ones as `FilterChips`) beside the search box, which
+  searches as you type. Examples: admin invoices, game library, puzzle library,
+  Lichess catalogue, activity library/history, payments, trash, completed
+  classes, analytics filters, the puzzle-set picker.
+- **Tabs never scroll sideways.** `TabsList` measures itself: when the tabs
+  don't fit on one row it becomes one button showing the selected tab that
+  opens a menu of every tab. Nothing to do per page; it needs `Tabs` from
+  `components/ui/Tabs` (the menu reads the value from its context) and
+  `TabsTrigger`s as direct children (fragments and `.map` are fine).
+- **Motion is short and cheap.** Overlays (dialog, popover, menu, tooltip)
+  use the `tailwindcss-animate` classes (`animate-in fade-in-0 zoom-in-95` …);
+  pages fade in with `animate-fade-in` (opacity only: a transform would trap
+  `position: fixed` children); buttons press to 97%. Animate `transform` and
+  `opacity`, never a page-wide `padding`/`width` (the docked nav animates only
+  its own column). `prefers-reduced-motion` turns it all off (globals.css).
+- **KPI / stat tiles are two per row on phones** (`KpiCardRow`, and grids
+  holding `StatTile` start at `grid-cols-2`) — never one full-width tile per
+  number, never a sideways strip.
 - **Page titles** are `<h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">`
   (`PageHeader` / `FormPageShell` render this for you). One `h1` per page — the
   app header's location label is a `<p>`, not a heading.
@@ -166,8 +195,8 @@ disagree.
   filter with no visible label (`aria-label="Filter by status"`). A hidden
   `<input type="file">` opened by a button still gets an `aria-label`.
 - A box that scrolls on its own must be reachable by keyboard. `ScrollShadow`
-  (tables) and `KpiCardRow` do it: while their content overflows they become a
-  focusable, named region (`label` prop). A hand-built scroller uses
+  (tables) does it: while its content overflows it becomes a focusable, named
+  region (`label` prop). A hand-built scroller uses
   `useScrollableRegion(ref, label)` from `hooks/useScrollableRegion.ts`. Don't
   put a second `overflow-x-auto` around a table that already scrolls inside
   its card.

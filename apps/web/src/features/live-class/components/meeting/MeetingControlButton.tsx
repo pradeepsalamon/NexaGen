@@ -1,13 +1,14 @@
 "use client";
 
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Loader2, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * - `default`: a control that is on or neutral.
@@ -95,7 +96,7 @@ export const MeetingControlButton = forwardRef<
           onClick={locked ? (event) => event.preventDefault() : onClick}
           {...props}
         >
-          {loading ? <Loader2 className="size-5 animate-spin" strokeWidth={1.75} /> : icon}
+          {loading ? <Spinner className="size-5" /> : icon}
           {locked ? (
             <span
               aria-hidden="true"

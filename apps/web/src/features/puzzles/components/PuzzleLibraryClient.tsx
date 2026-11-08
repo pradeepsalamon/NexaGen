@@ -47,6 +47,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/DropdownMenu";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterChips, FilterField, FilterPopover, type ActiveFilter } from "@/components/ui/FilterPopover";
 import { Input } from "@/components/ui/Input";
 import { RowActions, type RowAction } from "@/components/ui/RowActions";
 import { Select } from "@/components/ui/Select";
@@ -105,6 +106,10 @@ type ScopeConfig = { scope?: PuzzleListQuery["scope"]; visibility?: PuzzleVisibi
  * (whose assignment is a shared library item) global ones only — the same
  * rule the API enforces on save.
  */
+
+type PuzzleFilters = { difficulty: string; puzzleType: string; status: string; topicId: string };
+const EMPTY_PUZZLE_FILTERS: PuzzleFilters = { difficulty: "", puzzleType: "", status: "", topicId: "" };
+
 function assignBlocker(p: PuzzleSummary, role: Props["role"]): string | null {
   if (p.status !== "PUBLISHED") return "Publish this puzzle to assign it";
   if (role === "admin" && p.visibility !== "GLOBAL") return "Shared assignments use admin-library puzzles only";
@@ -556,6 +561,22 @@ function PuzzleTable({
     searchInput || topicId || puzzleType || difficulty || status
   );
 
+  const optionLabel = (options: readonly { label: string; value: string }[], value: string) =>
+    options.find((option) => option.value === value)?.label ?? value;
+  const applyFilters = (next: PuzzleFilters) => {
+    setTopicId(next.topicId);
+    setPuzzleType(next.puzzleType);
+    setDifficulty(next.difficulty);
+    setStatus(next.status);
+    setPage(1);
+  };
+  const activeFilters = [
+    topicId && { key: "folder", label: optionLabel(topicOptions, topicId), onRemove: () => applyFilters({ difficulty, puzzleType, status, topicId: "" }) },
+    puzzleType && { key: "type", label: optionLabel(PUZZLE_TYPE_OPTIONS, puzzleType), onRemove: () => applyFilters({ difficulty, puzzleType: "", status, topicId }) },
+    difficulty && { key: "difficulty", label: optionLabel(PUZZLE_DIFFICULTY_OPTIONS, difficulty), onRemove: () => applyFilters({ difficulty: "", puzzleType, status, topicId }) },
+    status && { key: "status", label: optionLabel(PUZZLE_STATUS_OPTIONS, status), onRemove: () => applyFilters({ difficulty, puzzleType, status: "", topicId }) },
+  ].filter((filter): filter is ActiveFilter => Boolean(filter));
+
   const clearFilters = () => {
     setSearchInput("");
     setTopicId("");
@@ -567,68 +588,71 @@ function PuzzleTable({
 
   return (
     <Card className="grid gap-4 p-4">
-      <div className="flex flex-wrap justify-end gap-2">
-        <div className="w-full sm:w-56">
-          <Input
-            aria-label="Search puzzles"
-            leadingIcon={<Search aria-hidden="true" className="size-4" strokeWidth={2.25} />}
-            onChange={(e) => {
-              setSearchInput(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search puzzles"
-            value={searchInput}
-          />
+      <div className="grid gap-2">
+        <div className="flex items-center justify-end gap-2">
+          <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
+            <Input
+              aria-label="Search puzzles"
+              leadingIcon={<Search aria-hidden="true" className="size-4" strokeWidth={2.25} />}
+              onChange={(e) => {
+                setSearchInput(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search puzzles"
+              value={searchInput}
+            />
+          </div>
+          <FilterPopover
+            activeCount={activeFilters.length}
+            emptyValue={EMPTY_PUZZLE_FILTERS}
+            onApply={applyFilters}
+            value={{ difficulty, puzzleType, status, topicId }}
+          >
+            {(draft, update) => (
+              <>
+                <FilterField htmlFor="puzzle-filter-folder" label="Folder">
+                  <Select
+                    id="puzzle-filter-folder"
+                    onChange={(e) => update({ topicId: e.target.value })}
+                    options={topicOptions}
+                    placeholder="All folders"
+                    value={draft.topicId}
+                  />
+                </FilterField>
+                <FilterField htmlFor="puzzle-filter-type" label="Type">
+                  <Select
+                    id="puzzle-filter-type"
+                    onChange={(e) => update({ puzzleType: e.target.value })}
+                    options={PUZZLE_TYPE_OPTIONS}
+                    placeholder="All types"
+                    value={draft.puzzleType}
+                  />
+                </FilterField>
+                <div className="grid grid-cols-2">
+                  <FilterField htmlFor="puzzle-filter-difficulty" label="Difficulty">
+                    <Select
+                      id="puzzle-filter-difficulty"
+                      onChange={(e) => update({ difficulty: e.target.value })}
+                      options={PUZZLE_DIFFICULTY_OPTIONS}
+                      placeholder="All difficulties"
+                      value={draft.difficulty}
+                    />
+                  </FilterField>
+                  <FilterField htmlFor="puzzle-filter-status" label="Status">
+                    <Select
+                      id="puzzle-filter-status"
+                      onChange={(e) => update({ status: e.target.value })}
+                      options={PUZZLE_STATUS_OPTIONS}
+                      placeholder="All statuses"
+                      value={draft.status}
+                    />
+                  </FilterField>
+                </div>
+              </>
+            )}
+          </FilterPopover>
         </div>
-        <Select
-          aria-label="Filter by folder"
-          value={topicId}
-          placeholder="All folders"
-          options={topicOptions}
-          onChange={(e) => {
-            setTopicId(e.target.value);
-            setPage(1);
-          }}
-          className="w-auto max-w-56"
-        />
-        <Select
-          aria-label="Filter by type"
-          value={puzzleType}
-          placeholder="All types"
-          options={PUZZLE_TYPE_OPTIONS}
-          onChange={(e) => {
-            setPuzzleType(e.target.value);
-            setPage(1);
-          }}
-          className="w-auto"
-        />
-        <Select
-          aria-label="Filter by difficulty"
-          value={difficulty}
-          placeholder="All difficulties"
-          options={PUZZLE_DIFFICULTY_OPTIONS}
-          onChange={(e) => {
-            setDifficulty(e.target.value);
-            setPage(1);
-          }}
-          className="w-auto"
-        />
-        <Select
-          aria-label="Filter by status"
-          value={status}
-          placeholder="All statuses"
-          options={PUZZLE_STATUS_OPTIONS}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(1);
-          }}
-          className="w-auto"
-        />
-        {hasFilters && (
-          <Button variant="neutral" size="sm" onClick={clearFilters}>
-            Clear
-          </Button>
-        )}
+        <FilterChips filters={activeFilters} onClearAll={activeFilters.length > 1 ? clearFilters : undefined} />
       </div>
 
       {isLoading ? (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { API_ROUTES, type AttendancePolicy, type UpdateAttendancePolicy } from "@nexa-chess/types";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function AttendancePolicyPage() {
   const [, setPolicy] = useState<AttendancePolicy | null>(null);
@@ -79,7 +80,7 @@ export default function AttendancePolicyPage() {
   if (isLoading) {
     return (
       <div className="flex h-[50dvh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
+        <Spinner className="h-8 w-8 text-primary-ink" />
       </div>
     );
   }
@@ -212,7 +213,7 @@ export default function AttendancePolicyPage() {
 
       <div className="flex justify-end pt-4">
         <Button onClick={handleSave} disabled={isSaving} className="min-w-[120px]">
-          {isSaving ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : <Save aria-hidden="true" className="size-4" strokeWidth={2.5} />}
+          {isSaving ? <Spinner aria-hidden="true" className="size-4" /> : <Save aria-hidden="true" className="size-4" strokeWidth={2.5} />}
           {isSaving ? "Saving…" : "Save policy"}
         </Button>
       </div>

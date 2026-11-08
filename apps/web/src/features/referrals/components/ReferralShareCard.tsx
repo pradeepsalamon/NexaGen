@@ -62,14 +62,10 @@ export function ReferralShareCard({ active, code }: Props) {
 
       <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <Input aria-label="Referral link" className="font-mono" onFocus={(event) => event.target.select()} readOnly value={link} />
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => void copy("link")} variant="primary">
-            {copied === "link" ? (
-              <Check aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            ) : (
-              <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            )}
-            {copied === "link" ? "Copied" : "Copy link"}
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button onClick={() => void share()} variant="neutral">
+            <Share2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
+            Share
           </Button>
           <Button asChild variant="outline">
             <a href={`https://wa.me/?text=${encodeURIComponent(message)}`} rel="noopener noreferrer" target="_blank">
@@ -77,9 +73,13 @@ export function ReferralShareCard({ active, code }: Props) {
               WhatsApp
             </a>
           </Button>
-          <Button onClick={() => void share()} variant="neutral">
-            <Share2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            Share
+          <Button onClick={() => void copy("link")} variant="primary">
+            {copied === "link" ? (
+              <Check aria-hidden="true" className="size-4" strokeWidth={2.5} />
+            ) : (
+              <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
+            )}
+            {copied === "link" ? "Copied" : "Copy link"}
           </Button>
         </div>
       </div>

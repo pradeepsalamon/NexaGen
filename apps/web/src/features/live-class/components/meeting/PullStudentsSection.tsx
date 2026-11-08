@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/ToastProvider";
 import { cancelPull, getPullRoster, pullStudent } from "../../api/live-class";
 import { ParticipantAvatar } from "./ParticipantAvatar";
+import { Spinner } from "@/components/ui/Spinner";
 
 function lastSeenLabel(iso: string | null): string {
   if (!iso) return "Offline";
@@ -211,7 +212,14 @@ export function PullStudentsSection({ classId }: { classId: string }) {
   }, [absent, query, searching, search.data]);
   const onlineIdle = absent.filter((s) => s.online && !s.needsApproval && s.pull?.status !== "PENDING");
 
-  if (!roster.data) return null;
+  if (!roster.data) {
+    return roster.isError ? null : (
+      <p className="flex items-center gap-2 py-3 text-sm text-app-muted" role="status">
+        <Spinner />
+        Loading students…
+      </p>
+    );
+  }
 
   const busyId = pull.isPending ? pull.variables?.studentId : cancel.isPending ? cancel.variables?.studentId : null;
 

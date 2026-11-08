@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, CalendarX } from "lucide-react";
+import { CalendarX } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -15,6 +15,7 @@ import { ClassSummaryCards } from "@/features/attendance/components/class-detail
 import { CoachAttendanceCard } from "@/features/attendance/components/class-detail/CoachAttendanceCard";
 import { ClassStudentTable } from "@/features/attendance/components/class-detail/ClassStudentTable";
 import { StudentAttendanceDialog } from "@/features/attendance/components/StudentAttendanceDialog";
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function ClassDetailPage() {
   const params = useParams();
@@ -50,7 +51,7 @@ export default function ClassDetailPage() {
   if (isLoading) {
     return (
       <div className="flex h-[60dvh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
+        <Spinner className="h-8 w-8 text-primary-ink" />
       </div>
     );
   }

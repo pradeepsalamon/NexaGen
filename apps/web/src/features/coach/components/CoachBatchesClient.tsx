@@ -6,15 +6,14 @@ import Link from "next/link";
 import type { CoachBatch } from "@nexa-chess/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { AddStudentRequestDialog } from "@/features/approvals/components/BatchStudentRequestDialogs";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatRelativeDay, formatTime } from "@/lib/datetime";
 import { BatchStatusBadge } from "../../batches/components/BatchStatusBadge";
+import { BatchSummaryCard, BatchSummaryCardSkeleton } from "../../batches/components/BatchSummaryCard";
 import { useCoachBatches } from "../hooks/useCoachApi";
 
 /** Archived and completed batches sort after the ones still being taught. */
@@ -30,50 +29,14 @@ function BatchCard({ batch, onAddStudent }: { batch: CoachBatch; onAddStudent: (
     : "Not scheduled";
 
   return (
-    <Card className="flex flex-col p-4 sm:p-6" data-testid={`coach-batch-card-${batch.id}`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="min-w-0 break-words text-lg font-semibold leading-tight text-app-text">{batch.name}</h2>
-        {batch.status !== "ACTIVE" ? <BatchStatusBadge status={batch.status} /> : null}
-      </div>
-
-      <ul className="mt-4 space-y-1.5 text-sm">
-        <li className="flex items-start gap-2 text-app-text">
-          <Users aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-app-muted" strokeWidth={2.25} />
-          {batch.studentCount} {batch.studentCount === 1 ? "student" : "students"}
-        </li>
-        <li className="flex items-start gap-2 text-app-text">
-          <CalendarDays aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-app-muted" strokeWidth={2.25} />
-          <span>
-            <span className="text-app-muted">Next class: </span>
-            {nextClass}
-          </span>
-        </li>
-        {batch.scheduleNotes ? (
-          <li className="flex items-start gap-2 text-app-text">
-            <Clock aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-app-muted" strokeWidth={2.25} />
-            <span className="min-w-0 break-words">{batch.scheduleNotes}</span>
-          </li>
-        ) : null}
-      </ul>
-
-      <div className="mt-auto pt-5">
-        <div className="flex flex-wrap items-center gap-2 border-t border-app-border pt-4">
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/coach/students?batchId=${batch.id}`}>
-              <Users aria-hidden="true" className="size-4" strokeWidth={2.5} />
-              View students
-            </Link>
-          </Button>
-          {closed ? null : (
-            <Button asChild size="sm" variant="ghost">
-              <Link href="/coach/schedule">Schedule</Link>
-            </Button>
-          )}
+    <BatchSummaryCard
+      actions={
+        <>
           {batch.status === "ARCHIVED" ? null : (
             <SimpleTooltip label="Ask to add a student">
               <Button
                 aria-label={`Ask to add a student to ${batch.name}`}
-                className="ml-auto size-8"
+                className="size-8"
                 onClick={() => onAddStudent(batch)}
                 size="icon"
                 type="button"
@@ -83,9 +46,28 @@ function BatchCard({ batch, onAddStudent }: { batch: CoachBatch; onAddStudent: (
               </Button>
             </SimpleTooltip>
           )}
-        </div>
-      </div>
-    </Card>
+          {closed ? null : (
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/coach/schedule">Schedule</Link>
+            </Button>
+          )}
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/coach/students?batchId=${batch.id}`}>
+              <Users aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              Students
+            </Link>
+          </Button>
+        </>
+      }
+      badges={batch.status !== "ACTIVE" ? <BatchStatusBadge status={batch.status} /> : null}
+      facts={[
+        { icon: Users, key: "students", label: `${batch.studentCount} ${batch.studentCount === 1 ? "student" : "students"}` },
+        { icon: CalendarDays, key: "next", label: `Next: ${nextClass}` },
+        ...(batch.scheduleNotes ? [{ icon: Clock, key: "schedule", label: batch.scheduleNotes }] : []),
+      ]}
+      testId={`coach-batch-card-${batch.id}`}
+      title={batch.name}
+    />
   );
 }
 
@@ -101,7 +83,7 @@ export function CoachBatchesClient() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton className="h-56 rounded-app" key={i} />
+            <BatchSummaryCardSkeleton key={i} />
           ))}
         </div>
       ) : error ? (

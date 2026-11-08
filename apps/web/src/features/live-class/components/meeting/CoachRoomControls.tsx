@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Loader2, MicOff, UserCog, VideoOff, type LucideIcon } from "lucide-react";
+import { ChevronDown, MicOff, UserCog, VideoOff, type LucideIcon } from "lucide-react";
 import type { LiveClassSettingsOverride } from "@nexa-chess/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { Switch } from "@/components/ui/Switch";
@@ -13,6 +13,7 @@ import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { setAtPath } from "../../settings/fields";
 import { useClassLiveSettings, useUpdateLiveSettingsMidClass } from "../../settings/hooks";
 import { CONTROL_BUTTON_BASE, CONTROL_BUTTON_VARIANTS } from "./MeetingControlButton";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Source = "microphone" | "camera";
 
@@ -190,7 +191,7 @@ function ActionButton({
         )}
       >
         {busy ? (
-          <Loader2 aria-hidden="true" className="size-4 animate-spin" strokeWidth={2} />
+          <Spinner aria-hidden="true" className="size-4" />
         ) : (
           <Icon aria-hidden="true" className="size-4" strokeWidth={2} />
         )}

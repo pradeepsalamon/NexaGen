@@ -14,6 +14,7 @@ import {
   formatRelativeDay,
   formatTime
 } from "@/lib/datetime";
+import { EmptyStateIcon } from "@/components/ui/EmptyState";
 
 type FeaturedClass = {
   coachName?: string;
@@ -95,9 +96,7 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
     return (
       <section className={PANEL}>
         <div className="flex items-start gap-4 sm:items-center">
-          <span className="flex size-14 shrink-0 items-center justify-center rounded-app bg-app-soft text-app-muted">
-            <CalendarX2 aria-hidden="true" className="size-6" strokeWidth={2.25} />
-          </span>
+          <EmptyStateIcon icon={CalendarX2} />
 
           <div className="min-w-0">
             <h2 className="text-xl font-bold leading-tight tracking-tight">

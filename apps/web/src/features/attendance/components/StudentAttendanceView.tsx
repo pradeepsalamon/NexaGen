@@ -27,6 +27,7 @@ import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Input } from "@/components/ui/Input";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 /** Seconds → whole minutes, floored (matches `formatDuration`). */
 const toMinutes = (seconds: number | null | undefined) => Math.floor((seconds || 0) / 60);
@@ -216,30 +217,27 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
 
         {/* Table Content */}
         {filteredHistory.length === 0 ? (
-          <div className="p-12 text-center flex flex-col items-center justify-center">
-            <div className="w-12 h-12 rounded-full bg-app-soft flex items-center justify-center mb-3 text-app-muted">
-              <FilterX className="size-6" />
-            </div>
-            <h3 className="text-base font-semibold text-app-text">No records found</h3>
-            <p className="text-sm text-app-muted mt-1 max-w-sm">
-              {history.length === 0
+          <EmptyState
+            action={
+              statusFilter !== "ALL" || searchQuery
+                ? {
+                    label: "Reset filters",
+                    onClick: () => {
+                      setStatusFilter("ALL");
+                      setSearchQuery("");
+                    }
+                  }
+                : undefined
+            }
+            description={
+              history.length === 0
                 ? "No attendance records available yet."
-                : "No class records match your selected filter or search terms."}
-            </p>
-            {(statusFilter !== "ALL" || searchQuery) && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4 text-xs"
-                onClick={() => {
-                  setStatusFilter("ALL");
-                  setSearchQuery("");
-                }}
-              >
-                Reset filters
-              </Button>
-            )}
-          </div>
+                : "No class records match your selected filter or search terms."
+            }
+            icon={FilterX}
+            title="No records found"
+            variant="inline"
+          />
         ) : (
           <div className="overflow-x-auto">
             <Table className="w-full text-left border-collapse">

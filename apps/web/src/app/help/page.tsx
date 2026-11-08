@@ -3,6 +3,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { PageContent } from "@/components/layout/PageContent";
 import { HelpCenterClient } from "@/features/knowledge/components/HelpCenterClient";
 import { pageTitle } from "@/lib/pageTitles";
+import { PageLoading } from "@/components/layout/PageLoading";
 
 export const metadata = {
   title: pageTitle("/help"),
@@ -13,7 +14,7 @@ export default function HelpPage() {
     <AppShell>
       <PageContent>
         {/* useSearchParams (?from=, ?q=, ?tab=) needs a Suspense boundary to prerender. */}
-        <Suspense fallback={null}>
+        <Suspense fallback={<PageLoading />}>
           <HelpCenterClient />
         </Suspense>
       </PageContent>

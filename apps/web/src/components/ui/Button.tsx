@@ -1,11 +1,11 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import { Loader2 } from "lucide-react";
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/Spinner";
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-control border text-sm font-medium transition-colors disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-app-border disabled:bg-app-soft disabled:text-app-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-control border text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform] duration-150 motion-safe:active:scale-[0.97] disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-app-border disabled:bg-app-soft disabled:text-app-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
   {
     variants: {
       variant: {
@@ -82,10 +82,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       ) : (
         <>
           {isLoading ? (
-            <Loader2
+            <Spinner
               aria-hidden="true"
-              className="size-4 shrink-0 animate-spin"
-              strokeWidth={2.5}
+              className="size-4 shrink-0"
             />
           ) : null}
           {children}

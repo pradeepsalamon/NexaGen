@@ -2,7 +2,7 @@
 
 import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useEffect, type ReactNode } from "react";
-import { Calendar, CalendarX, Clock, Loader2, Video } from "lucide-react";
+import { Calendar, CalendarX, Clock, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -26,6 +26,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate, formatTime } from "@/lib/datetime";
 import { useClassDetail } from "../hooks/useCoachApi";
 import { describeOpensAt } from "./upcoming/StartClassButton";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * `/classes/:id` for the owning coach (and admins, read + join/end). Start
@@ -149,7 +150,7 @@ export function StaffClassDetailsClient({ classId, isCoach }: { classId: string;
             });
           }}
         >
-          {startLiveClassMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {startLiveClassMutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
           {startLiveClassMutation.isPending ? "Starting Live Class..." : "Start Live Class"}
         </Button>
       </>

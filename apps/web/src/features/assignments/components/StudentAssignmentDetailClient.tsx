@@ -200,7 +200,18 @@ function ReplayActivity({
           placeholder="Anything you struggled with?"
           disabled={isDone}
         />
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {assignment.pgnUrl && (
+            <a
+              href={assignment.pgnUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-ink hover:underline"
+            >
+              <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              Download PGN
+            </a>
+          )}
           <Button
             disabled={isDone || statusMutation.isPending}
             onClick={() =>
@@ -214,17 +225,6 @@ function ReplayActivity({
             <CheckCircle2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
             {isDone ? "Completed" : "Mark as complete"}
           </Button>
-          {assignment.pgnUrl && (
-            <a
-              href={assignment.pgnUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-ink hover:underline"
-            >
-              <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
-              Download PGN
-            </a>
-          )}
         </div>
       </Card>
     </>
@@ -286,7 +286,7 @@ function EvaluatedShell({
           <Stat label="Attempts" value={String(assignment.attemptCount)} />
         </div>
         {canRetry || canPracticeAgain ? (
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
             <Button onClick={() => setPracticing(true)}>
               <Play aria-hidden="true" className="size-4" strokeWidth={2.5} />
               {assignment.status === "COMPLETED" ? "Practice again" : "Continue"}

@@ -13,6 +13,7 @@ import { McqMonitorPanel } from "./McqMonitorPanel";
 import { McqStudentView } from "./McqStudentView";
 import { PlayoutMonitorGallery } from "./PlayoutMonitorGallery";
 import { PlayoutStudentView } from "./PlayoutStudentView";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** The coach's controls are the activity's, never a student's: end it, reveal the answer. */
 function ManagerActions({ classId }: { classId: string }) {
@@ -55,7 +56,14 @@ function ManagerBody() {
   const { classId, run } = useActivityRun();
   const monitor = useActivityRunMonitor(classId, run?.id ?? null);
   if (!monitor.data || monitor.data.run.id !== run?.id) {
-    return <p className="py-10 text-center text-sm text-app-muted">{monitor.isError ? "Couldn't load the results." : "Loading…"}</p>;
+    return monitor.isError ? (
+      <p className="py-10 text-center text-sm text-app-muted">Couldn&apos;t load the results.</p>
+    ) : (
+      <p className="flex items-center justify-center gap-2 py-10 text-center text-sm text-app-muted" role="status">
+        <Spinner />
+        Loading…
+      </p>
+    );
   }
   return monitor.data.kind === "PLAYOUT" ? (
     <PlayoutMonitorGallery classId={classId} monitor={monitor.data} />

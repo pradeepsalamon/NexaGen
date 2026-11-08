@@ -43,6 +43,8 @@ import { PuzzleLiveBoardsPanel } from "./PuzzleLiveBoardsPanel";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { Switch } from "@/components/ui/Switch";
 import { useDemoGuestToken, useMemberClassId } from "../../providers/LiveRoomContext";
+import { EmptyStateIcon } from "@/components/ui/EmptyState";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** Coach-only: manual +/- points for one student on the puzzle board. */
 function AdjustPointsPopover({
@@ -367,9 +369,9 @@ function LeaderboardSection({
           </TableBody>
         </Table>
         {data.entries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-1.5 py-8 text-app-muted">
-            <Inbox aria-hidden="true" className="size-8 opacity-50" strokeWidth={1.75} />
-            <span className="text-xs">No data yet</span>
+          <div className="flex flex-col items-center justify-center gap-3 py-8">
+            <EmptyStateIcon icon={Inbox} size="sm" />
+            <span className="text-sm font-medium text-app-muted">No data yet</span>
           </div>
         ) : null}
       </div>
@@ -384,7 +386,12 @@ function ClassLeaderboardSection({ classId, isCoach }: { classId: string; isCoac
   const data = board.data;
 
   if (!data) {
-    return <p className="py-6 text-center text-xs text-app-muted">Loading standings…</p>;
+    return (
+      <p className="flex items-center justify-center gap-2 py-6 text-center text-xs text-app-muted" role="status">
+        <Spinner className="size-3.5" />
+        Loading standings…
+      </p>
+    );
   }
 
   return (
@@ -445,9 +452,9 @@ function ClassLeaderboardSection({ classId, isCoach }: { classId: string; isCoac
           </TableBody>
         </Table>
         {data.entries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-1.5 py-8 text-app-muted">
-            <Inbox aria-hidden="true" className="size-8 opacity-50" strokeWidth={1.75} />
-            <span className="text-xs">No students yet</span>
+          <div className="flex flex-col items-center justify-center gap-3 py-8">
+            <EmptyStateIcon icon={Inbox} size="sm" />
+            <span className="text-sm font-medium text-app-muted">No students yet</span>
           </div>
         ) : null}
       </div>
@@ -478,7 +485,12 @@ export function SidebarClassLeaderboard({ classId, isCoach }: { classId: string;
     );
   }
   if (!data) {
-    return <p className="py-6 text-center text-xs text-app-muted">Loading standings…</p>;
+    return (
+      <p className="flex items-center justify-center gap-2 py-6 text-center text-xs text-app-muted" role="status">
+        <Spinner className="size-3.5" />
+        Loading standings…
+      </p>
+    );
   }
 
   return (
@@ -553,9 +565,9 @@ export function SidebarClassLeaderboard({ classId, isCoach }: { classId: string;
           </TableBody>
         </Table>
         {data.entries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-1.5 py-8 text-app-muted">
-            <Inbox aria-hidden="true" className="size-8 opacity-50" strokeWidth={1.75} />
-            <span className="text-xs">No students yet</span>
+          <div className="flex flex-col items-center justify-center gap-3 py-8">
+            <EmptyStateIcon icon={Inbox} size="sm" />
+            <span className="text-sm font-medium text-app-muted">No students yet</span>
           </div>
         ) : null}
       </div>

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleAlert, DoorClosed, Loader2, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
+import { CircleAlert, DoorClosed, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { getRoleDashboardHref, isStaffRole, useAuthStore } from "@/stores/authStore";
 import { getLiveClass, requestWaitingRoomAdmission, startLiveClass } from "../../api/live-class";
 import { EndClassButton } from "../EndClassButton";
+import { Spinner } from "@/components/ui/Spinner";
 
 const COACH_JOIN_POLL_INTERVAL_MS = 5000;
 const WAITING_FOR_ADMIT_POLL_INTERVAL_MS = 5000;
@@ -189,7 +190,7 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
 
   return (
     <StateLayout
-      icon={<Loader2 className="size-7 animate-spin" strokeWidth={2.25} />}
+      icon={<Spinner className="size-7" />}
       title="Waiting room"
       message="Waiting for the coach to start the class. You'll join automatically once it begins."
     >
@@ -258,7 +259,7 @@ export function WaitingForAdmit({
 
   return (
     <StateLayout
-      icon={<Loader2 className="size-7 animate-spin" strokeWidth={2.25} />}
+      icon={<Spinner className="size-7" />}
       title="Waiting to be let in"
       message="Your coach needs to admit you before you can join. You'll be connected automatically as soon as they do."
     >

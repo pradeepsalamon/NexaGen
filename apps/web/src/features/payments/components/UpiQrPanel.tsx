@@ -1,11 +1,12 @@
 "use client";
 
-import { Loader2, X } from "lucide-react";
+import { X } from "lucide-react";
 import { formatMoney, type CheckoutHandoff } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { usePaymentStatus } from "../hooks/usePaymentsApi";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Props = {
   handoff: CheckoutHandoff;
@@ -96,7 +97,7 @@ export function UpiQrPanel({
           status?.message
         ) : (
           <>
-            <Loader2 aria-hidden className="size-4 animate-spin" />
+            <Spinner aria-hidden className="size-4" />
             Waiting for payment…
           </>
         )}

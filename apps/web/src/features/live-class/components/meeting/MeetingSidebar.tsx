@@ -2,12 +2,13 @@
 
 import { lazy, Suspense, memo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, MessageSquareText, Users, Settings, Puzzle, Loader2 } from "lucide-react";
+import { X, MessageSquareText, Users, Settings, Puzzle } from "lucide-react";
 import { useLiveClassState, type SidebarTab } from "../../providers/LiveClassProvider";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { useReducedMotion } from "../../lib/meetingUi";
 import { useSlidingIndicator } from "@/hooks/useSlidingIndicator";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/Spinner";
 
 // Lazy-load sidebar panel contents for code splitting
 const MeetingChat = lazy(() =>
@@ -41,7 +42,7 @@ const sidebarPanels: SidebarPanelConfig[] = [
 function PanelLoading() {
   return (
     <div className="flex h-full items-center justify-center">
-      <Loader2 className="size-6 animate-spin text-primary-ink" />
+      <Spinner className="size-6 text-primary-ink" />
     </div>
   );
 }

@@ -34,7 +34,13 @@ export const useSidebarStore = create<SidebarState>()(
       setCollapsed: (collapsed) => set({ collapsed }),
       show: () => set({ open: true }),
       toggle: () => set((state) => ({ open: !state.open })),
-      toggleCollapsed: () => set((state) => ({ collapsed: !state.collapsed }))
+      toggleCollapsed: () =>
+        set((state) => {
+          const collapsed = !state.collapsed;
+          // Start the column's width animation with the click, not after React re-renders the nav.
+          if (typeof document !== "undefined") document.documentElement.dataset.nav = collapsed ? "collapsed" : "expanded";
+          return { collapsed };
+        })
     }),
     {
       name: SIDEBAR_STORAGE_KEY,
