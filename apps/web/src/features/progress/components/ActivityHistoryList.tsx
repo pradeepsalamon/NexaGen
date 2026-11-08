@@ -8,7 +8,6 @@ import {
   type StudentActivityScope,
   type StudentActivityStatusFilter
 } from "@nexa-chess/types";
-import { History } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -151,7 +150,7 @@ export function ActivityHistoryList({
             ? "Nothing matches these filters. Try a longer period or clear a filter."
             : "Puzzles, class questions and assignments will appear here once they're attempted."
         }
-        icon={History}
+        illustration={hasFilters ? "search-results" : "activity"}
         title={hasFilters ? "No matching activity" : "No activity yet"}
       />
     );

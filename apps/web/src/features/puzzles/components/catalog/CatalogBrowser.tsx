@@ -19,7 +19,7 @@ import {
   type CatalogThemeMode,
   type SolutionMove
 } from "@nexa-chess/types";
-import { Eye, FolderPlus, GraduationCap, Library, ListPlus, Shuffle, X } from "lucide-react";
+import { Eye, FolderPlus, GraduationCap, ListPlus, Shuffle, X } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -485,7 +485,7 @@ export function CatalogBrowser({
         <Alert variant="error">{(catalog.error as Error).message}</Alert>
       ) : puzzles.length === 0 && !windowInvalid && !timedOut ? (
         <EmptyState
-          icon={Library}
+          illustration="search-results"
           title="No catalogue puzzles match"
           description="Widen the rating range or remove a theme. If nothing ever appears, the catalogue hasn't been loaded on this server yet."
           action={hasFilters ? { label: "Reset filters", onClick: clearFilters } : undefined}

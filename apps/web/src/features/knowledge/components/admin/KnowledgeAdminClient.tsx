@@ -238,6 +238,7 @@ function ArticlesPanel() {
         <EmptyState
           action={{ label: "Write the first article", onClick: () => router.push("/admin/knowledge/new") }}
           description="Nothing ships pre-loaded: add platform how-tos, navigation help, FAQs, course notes and games here."
+          illustration={filter === "all" && !debounced && !status && !audience ? undefined : "search-results"}
           icon={FileText}
           title={filter === "all" && !debounced && !status && !audience ? "The knowledge base is empty" : "No articles match"}
         />

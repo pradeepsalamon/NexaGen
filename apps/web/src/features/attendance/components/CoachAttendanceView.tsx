@@ -97,7 +97,7 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
         </header>
         {history.length === 0 ? (
           <EmptyState
-            icon={History}
+            illustration="attendance"
             title="No recent classes"
             variant="inline"
           />

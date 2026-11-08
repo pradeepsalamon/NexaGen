@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="bishop-blue" x1="36" y1="30" x2="84" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="50%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#0B1F3B"/>
+    </linearGradient>
+    <linearGradient id="bishop-gold" x1="40" y1="24" x2="80" y2="130" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="100%" stop-color="#E8B85E"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="60" cy="148" rx="33" ry="5" fill="#0B1F3B" opacity="0.18"/>
+  <!-- Orb Finial -->
+  <circle cx="60" cy="30" r="4.5" fill="url(#bishop-gold)"/>
+  <!-- Mitre Head with Classical Cut -->
+  <path d="M60 35C44 42 40 58 44 70H76C80 58 76 42 60 35Z" fill="url(#bishop-blue)"/>
+  <path d="M66 45L55 56" stroke="url(#bishop-gold)" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Collar -->
+  <rect x="42" y="70" width="36" height="4" rx="2" fill="url(#bishop-gold)"/>
+  <rect x="40" y="74" width="40" height="4" rx="2" fill="#DBEAFE"/>
+  <!-- Stem -->
+  <path d="M46 78H74L80 122H40L46 78Z" fill="url(#bishop-blue)"/>
+  <path d="M49 78H53L49 122H44L49 78Z" fill="#FFFFFF" opacity="0.16"/>
+  <!-- Base -->
+  <rect x="37" y="122" width="46" height="4" rx="2" fill="url(#bishop-gold)"/>
+  <path d="M34 131C34 127.5 37.5 126 41 126H79C82.5 126 86 127.5 86 131V137H34V131Z" fill="#DBEAFE"/>
+  <rect x="31" y="137" width="58" height="9" rx="4" fill="#0B1F3B"/>
+</svg>

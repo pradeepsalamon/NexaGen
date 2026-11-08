@@ -127,7 +127,7 @@ export function AdminCoursesClient() {
           </div>
         ) : courses.length === 0 ? (
           <EmptyState variant="inline"
-            icon={Plus}
+            illustration={hasFilters ? "search-results" : "courses"}
             title={hasFilters ? "No courses match your filters" : "No courses yet"}
             description={
               hasFilters

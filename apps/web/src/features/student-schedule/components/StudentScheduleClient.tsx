@@ -202,7 +202,7 @@ export function StudentScheduleClient() {
             ) : upcomingClasses.length === 0 ? (
               <EmptyState
                 description={selectedBatchId ? "Try all your batches instead." : undefined}
-                icon={CalendarDays}
+                illustration="schedule"
                 title={selectedBatchId ? "No upcoming classes in this batch" : "Nothing scheduled yet"}
                 variant="inline"
               />

@@ -71,6 +71,7 @@ export function GameInsightsPanel({ studentId }: { studentId: string | null }) {
             ? "No analysed games yet. Games appear here once they have been analysed from the Game Library."
             : "Analyse a few of your games from the Game Library — upload a PGN or open a class game and press “Analyse game”."
         }
+        illustration="reports"
         title="No analysed games yet"
       />
     );

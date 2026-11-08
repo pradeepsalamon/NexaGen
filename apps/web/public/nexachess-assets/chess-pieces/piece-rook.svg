@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="rook-blue" x1="35" y1="36" x2="85" y2="142" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="55%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#0B1F3B"/>
+    </linearGradient>
+    <linearGradient id="rook-gold" x1="36" y1="60" x2="84" y2="132" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="100%" stop-color="#E8B85E"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="60" cy="148" rx="34" ry="5" fill="#0B1F3B" opacity="0.18"/>
+  <!-- Battlement Turret -->
+  <path d="M36 42H46V50H54V42H66V50H74V42H84V64C84 67.3 81.3 70 78 70H42C38.7 70 36 67.3 36 64V42Z" fill="url(#rook-blue)"/>
+  <rect x="40" y="70" width="40" height="4" rx="2" fill="url(#rook-gold)"/>
+  <!-- Column Shaft -->
+  <path d="M44 74H76L81 122H39L44 74Z" fill="url(#rook-blue)"/>
+  <path d="M47 74H52L48 122H42L47 74Z" fill="#FFFFFF" opacity="0.16"/>
+  <!-- Base -->
+  <rect x="36" y="122" width="48" height="4" rx="2" fill="url(#rook-gold)"/>
+  <path d="M33 131C33 127.5 36.5 126 40 126H80C83.5 126 87 127.5 87 131V137H33V131Z" fill="#DBEAFE"/>
+  <rect x="30" y="137" width="60" height="9" rx="4" fill="#0B1F3B"/>
+</svg>

@@ -120,7 +120,7 @@ export function StudentTrainingClient() {
 
       {!data.enabled ? (
         <EmptyState
-          icon={Puzzle}
+          illustration="puzzles"
           title="Puzzle training isn't on for your batch yet"
           description="Ask your coach to switch it on. Your assignments and course puzzles still count towards your rating."
         />

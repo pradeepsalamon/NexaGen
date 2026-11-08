@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" width="100%" height="100%" fill="none">
+  <ellipse cx="120" cy="174" rx="80" ry="8" fill="#0B1F3B" opacity="0.07"/>
+  <!-- Open Learning Book -->
+  <path d="M40 60C68 54 96 58 116 68V152C96 142 68 138 40 144V60Z" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.75"/>
+  <path d="M192 60C164 54 136 58 116 68V152C136 142 164 138 192 144V60Z" fill="#F4F7FC" stroke="#2563EB" stroke-width="1.75"/>
+  <!-- Book Chapters Lines -->
+  <path d="M56 80H98M56 94H98M56 108H84" stroke="#DBEAFE" stroke-width="3" stroke-linecap="round"/>
+  <path d="M134 80H174M134 94H162" stroke="#DBEAFE" stroke-width="3" stroke-linecap="round"/>
+  <!-- Gold Bookmark Ribbon -->
+  <path d="M116 68V162L124 155L132 162V68" fill="#E8B85E"/>
+  <!-- Staunton Rook (Right Foreground) -->
+  <path d="M150 76H158V82H164V76H172V82H178V76H186V92C186 95 184 97 181 97H155C152 97 150 95 150 92V76Z" fill="#1E40AF"/>
+  <rect x="153" y="97" width="30" height="4" rx="2" fill="#E8B85E"/>
+  <path d="M156 101H180L184 146H152L156 101Z" fill="#2563EB"/>
+  <rect x="148" y="146" width="40" height="4" rx="2" fill="#E8B85E"/>
+  <rect x="145" y="150" width="46" height="8" rx="4" fill="#0B1F3B"/>
+</svg>

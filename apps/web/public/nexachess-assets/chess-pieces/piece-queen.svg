@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="queen-blue" x1="32" y1="28" x2="88" y2="144" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="50%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#0B1F3B"/>
+    </linearGradient>
+    <linearGradient id="queen-gold" x1="35" y1="24" x2="85" y2="138" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="50%" stop-color="#E8B85E"/>
+      <stop offset="100%" stop-color="#B48228"/>
+    </linearGradient>
+    <linearGradient id="queen-silver" x1="34" y1="60" x2="86" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#DBEAFE"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="60" cy="148" rx="35" ry="5" fill="#0B1F3B" opacity="0.18"/>
+  <!-- Coronet Pearls -->
+  <circle cx="38" cy="36" r="3" fill="url(#queen-gold)"/>
+  <circle cx="49" cy="31" r="3" fill="url(#queen-gold)"/>
+  <circle cx="60" cy="28" r="3.5" fill="url(#queen-gold)"/>
+  <circle cx="71" cy="31" r="3" fill="url(#queen-gold)"/>
+  <circle cx="82" cy="36" r="3" fill="url(#queen-gold)"/>
+  <!-- Diadem Crown -->
+  <path d="M38 40L49 50L60 35L71 50L82 40L76 64H44L38 40Z" fill="url(#queen-blue)"/>
+  <!-- Collar -->
+  <rect x="42" y="64" width="36" height="4" rx="2" fill="url(#queen-gold)"/>
+  <rect x="39" y="68" width="42" height="5" rx="2.5" fill="url(#queen-silver)"/>
+  <!-- Graceful Waist -->
+  <path d="M45 73C47 90 47 104 39 122H81C73 104 73 90 75 73H45Z" fill="url(#queen-blue)"/>
+  <path d="M48 73C49 90 49 104 43 122H48C53 104 53 90 52 73H48Z" fill="#FFFFFF" opacity="0.18"/>
+  <!-- Base -->
+  <rect x="36" y="122" width="48" height="4" rx="2" fill="url(#queen-gold)"/>
+  <path d="M33 132C33 127.5 37 126 41 126H79C83 126 87 127.5 87 132V137H33V132Z" fill="url(#queen-silver)"/>
+  <rect x="29" y="137" width="62" height="9" rx="4" fill="#0B1F3B"/>
+</svg>

@@ -241,6 +241,7 @@ export function GameLibraryClient() {
       ) : !data || data.items.length === 0 ? (
         <Card className="p-6 sm:p-10">
           <EmptyState variant="inline"
+            illustration={active ? "search-results" : undefined}
             icon={Library}
             title={active ? "No games match these filters" : "No games yet"}
             description={

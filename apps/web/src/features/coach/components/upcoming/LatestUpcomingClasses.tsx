@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CalendarClock } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -52,7 +52,7 @@ export function LatestUpcomingClasses() {
           <EmptyState variant="inline"
             action={{ label: "View schedule", onClick: () => router.push("/coach/schedule") }}
             description="Classes the academy schedules for you will show up here."
-            icon={CalendarClock}
+            illustration="schedule"
             title="No upcoming classes"
           />
         </Card>
