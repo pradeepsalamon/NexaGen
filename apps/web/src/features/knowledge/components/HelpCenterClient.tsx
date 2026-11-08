@@ -220,7 +220,7 @@ function HelpBrowser() {
           </Card>
         )
       ) : data.articles.length === 0 ? (
-        <EmptyState
+        <EmptyState illustration="empty"
           description="The academy hasn't published any help for you yet. Check back soon."
           icon={BookOpen}
           title="Nothing here yet"

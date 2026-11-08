@@ -66,6 +66,7 @@ export function GameInsightsPanel({ studentId }: { studentId: string | null }) {
   if (data.gamesAnalysed === 0) {
     return (
       <EmptyState
+        illustration="puzzles"
         description={
           studentId
             ? "No analysed games yet. Games appear here once they have been analysed from the Game Library."

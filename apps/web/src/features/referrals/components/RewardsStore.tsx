@@ -54,7 +54,7 @@ export function RewardsStore() {
             ))}
           </ul>
         ) : (
-          <EmptyState description="Check back soon — the academy adds rewards here." icon={Gift} title="No rewards yet" variant="inline" />
+          <EmptyState illustration="achievement" description="Check back soon — the academy adds rewards here." icon={Gift} title="No rewards yet" variant="inline" />
         )}
       </SectionCard>
 
@@ -284,7 +284,7 @@ function MyRedemptions() {
           </TableBody>
         </Table>
       ) : (
-        <EmptyState description="Rewards you redeem will appear here." icon={Ticket} title="Nothing redeemed yet" variant="inline" />
+        <EmptyState illustration="achievement" description="Rewards you redeem will appear here." icon={Ticket} title="Nothing redeemed yet" variant="inline" />
       )}
       <ConfirmationModal
         confirmLabel="Cancel request"

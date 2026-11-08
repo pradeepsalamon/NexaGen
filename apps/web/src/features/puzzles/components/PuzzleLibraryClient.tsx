@@ -662,7 +662,7 @@ function PuzzleTable({
           ))}
         </div>
       ) : puzzles.length === 0 ? (
-        <EmptyState
+        <EmptyState illustration="puzzles"
           icon={Puzzle}
           title={hasFilters ? "No puzzles match your filters" : "No puzzles yet"}
           variant="inline"

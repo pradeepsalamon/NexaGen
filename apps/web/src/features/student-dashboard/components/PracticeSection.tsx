@@ -60,6 +60,7 @@ export function PracticeSection({ practices = [] }: PracticeSectionProps) {
         <EmptyState
           description="New work from your coach lands here."
           icon={ClipboardList}
+          illustration="success"
           title="You're all caught up"
           variant="inline"
         />

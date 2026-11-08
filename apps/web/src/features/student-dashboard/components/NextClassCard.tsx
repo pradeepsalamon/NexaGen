@@ -14,6 +14,7 @@ import {
   formatRelativeDay,
   formatTime
 } from "@/lib/datetime";
+import { Illustration } from "@/components/illustrations/Illustration";
 import { EmptyStateIcon } from "@/components/ui/EmptyState";
 
 type FeaturedClass = {
@@ -96,7 +97,8 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
     return (
       <section className={PANEL}>
         <div className="flex items-start gap-4 sm:items-center">
-          <EmptyStateIcon icon={CalendarX2} />
+          <Illustration className="hidden w-28 xs:block" name="schedule" />
+          <EmptyStateIcon className="xs:hidden" icon={CalendarX2} />
 
           <div className="min-w-0">
             <h2 className="text-xl font-bold leading-tight tracking-tight">

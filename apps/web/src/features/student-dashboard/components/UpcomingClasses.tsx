@@ -28,7 +28,7 @@ export function UpcomingClasses({ classes = [] }: UpcomingClassesProps) {
       title="Upcoming classes"
     >
       {classes.length === 0 ? (
-        <EmptyState icon={Calendar} title="Nothing scheduled yet" variant="inline" />
+        <EmptyState icon={Calendar} illustration="schedule" title="Nothing scheduled yet" variant="inline" />
       ) : (
         <ClassRowList>
           {classes.map((cls) => (

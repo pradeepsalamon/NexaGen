@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleAlert, DoorClosed, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
 import { toast } from "sonner";
+import { Illustration, type IllustrationName } from "@/components/illustrations/Illustration";
 import { Button } from "@/components/ui/Button";
 import { getRoleDashboardHref, isStaffRole, useAuthStore } from "@/stores/authStore";
 import { getLiveClass, requestWaitingRoomAdmission, startLiveClass } from "../../api/live-class";
@@ -12,6 +13,8 @@ const WAITING_FOR_ADMIT_POLL_INTERVAL_MS = 5000;
 
 interface StateLayoutProps {
   icon: React.ReactNode;
+  /** Shared NexaChess artwork in place of the icon, for the calm screens (not progress spinners). */
+  illustration?: IllustrationName;
   /** `warning` for a screen that stops you (removed, refused, lost connection). */
   tone?: "neutral" | "warning";
   title: string;
@@ -21,18 +24,22 @@ interface StateLayoutProps {
 
 /** Bare content block — the surrounding full-height chrome comes from
  *  `ClassroomStateShell`, so this only lays out the icon / copy / actions. */
-function StateLayout({ icon, tone = "neutral", title, message, children }: StateLayoutProps) {
+function StateLayout({ icon, illustration, tone = "neutral", title, message, children }: StateLayoutProps) {
   return (
     <div className="mx-auto flex w-full max-w-md flex-col items-center py-12 text-center">
-      <div
-        aria-hidden="true"
-        className={
-          "mb-5 flex size-14 items-center justify-center rounded-full " +
-          (tone === "warning" ? "bg-warning-soft text-warning-ink" : "bg-primary/10 text-primary-ink")
-        }
-      >
-        {icon}
-      </div>
+      {illustration ? (
+        <Illustration className="mb-4 w-44 motion-safe:animate-pop-in" name={illustration} />
+      ) : (
+        <div
+          aria-hidden="true"
+          className={
+            "mb-5 flex size-14 items-center justify-center rounded-full " +
+            (tone === "warning" ? "bg-warning-soft text-warning-ink" : "bg-primary/10 text-primary-ink")
+          }
+        >
+          {icon}
+        </div>
+      )}
       <h2 className="mb-2 text-2xl font-extrabold leading-tight tracking-tight text-app-text">{title}</h2>
       <p className="mb-7 text-sm leading-relaxed text-app-muted">{message}</p>
       {children && <div className="flex flex-wrap items-center justify-center gap-3">{children}</div>}
@@ -68,6 +75,7 @@ export function ConnectionLost({
   return (
     <StateLayout
       icon={<WifiOff className="size-7" strokeWidth={2.25} />}
+      illustration="error"
       tone="warning"
       title={title}
       message={message}
@@ -123,6 +131,7 @@ export function RoomEnded() {
   return (
     <StateLayout
       icon={<CircleAlert className="size-7" strokeWidth={2.25} />}
+      illustration="success"
       title="Class ended"
       message="This live class has concluded. Thank you for participating."
     >
@@ -178,6 +187,7 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
     return (
       <StateLayout
         icon={<Rocket className="size-7" strokeWidth={2.25} />}
+        illustration="liveClass"
         title="Ready to begin?"
         message="Students are waiting in the waiting room. Start the class when you're ready."
       >
@@ -225,6 +235,7 @@ export function WaitingForCoach({
   return (
     <StateLayout
       icon={<PlugZap className="size-7" strokeWidth={2.25} />}
+      illustration="liveClass"
       title="Waiting for your coach"
       message="The class is live, but your coach hasn't joined the room yet. You'll be connected automatically the moment they do — no need to refresh."
     >

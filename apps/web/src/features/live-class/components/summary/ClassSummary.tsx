@@ -93,7 +93,7 @@ export function ClassSummary({ classId }: { classId: string }) {
   if (isError || !data) {
     return (
       <Shell topic="Live class">
-        <EmptyState
+        <EmptyState illustration="success"
           description="This live class has concluded. Thank you for participating."
           icon={CalendarCheck}
           title="Class ended"

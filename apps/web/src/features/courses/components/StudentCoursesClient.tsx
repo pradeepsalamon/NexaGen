@@ -29,6 +29,7 @@ export function StudentCoursesClient() {
       ) : courses.length === 0 ? (
         <EmptyState
           icon={GraduationCap}
+          illustration="courses"
           title="No courses yet"
           description="Your coaches haven't published any courses yet — check back soon."
         />

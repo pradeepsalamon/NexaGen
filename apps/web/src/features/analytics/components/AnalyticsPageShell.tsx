@@ -4,6 +4,7 @@ import type { AnalyticsRangeQuery } from "@nexa-chess/types";
 import type { ReactNode } from "react";
 import { Download, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { HeroBanner } from "@/components/ui/HeroBanner";
 import { Button } from "@/components/ui/Button";
 import type { Crumb } from "@/components/ui/Breadcrumbs";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
@@ -20,7 +21,9 @@ import { useAnalyticsRange } from "../hooks/useAnalyticsRange";
 export type AnalyticsExport = { report: string; label: string };
 
 interface Props {
-  title: string;
+  title: ReactNode;
+  /** The dashboard's navy welcome banner (with this line above the title) instead of the plain header. */
+  heroEyebrow?: string;
   description?: string;
   /** Where a detail page sits; the last crumb is the current page. */
   breadcrumbs?: Crumb[];
@@ -36,6 +39,7 @@ interface Props {
 /** The analytics template: page header, date range, refresh and CSV export. */
 export function AnalyticsPageShell({
   title,
+  heroEyebrow,
   description,
   breadcrumbs,
   exports = [],
@@ -46,12 +50,21 @@ export function AnalyticsPageShell({
 
   return (
     <div className="animate-fade-in pb-10">
-      <PageHeader
-        actions={<AnalyticsToolbar exports={exports} query={query} update={update} />}
-        breadcrumbs={breadcrumbs}
-        description={description}
-        title={title}
-      />
+      {heroEyebrow ? (
+        <HeroBanner
+          actions={<AnalyticsToolbar exports={exports} query={query} update={update} />}
+          description={description}
+          eyebrow={heroEyebrow}
+          title={title}
+        />
+      ) : (
+        <PageHeader
+          actions={<AnalyticsToolbar exports={exports} query={query} update={update} />}
+          breadcrumbs={breadcrumbs}
+          description={description}
+          title={title}
+        />
+      )}
       <div className="space-y-5">
         {showFilters}
         {children(query, update)}

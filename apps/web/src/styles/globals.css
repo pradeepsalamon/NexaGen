@@ -253,6 +253,42 @@ tr:has(> td [role="checkbox"][data-state="checked"]) > td:first-child {
   border-color: rgb(var(--rgb-primary) / 0.6);
 }
 
+/* Visual enrichment (docs/UI_RULES.md § "Visual enrichment"): chess-inspired
+   backgrounds built from tokens, so they follow the theme. Decorative only;
+   never put body text over a pattern without a solid surface. */
+
+/* Navy hero ground: brand navy into the royal-blue dark with a soft glow.
+   Pair with `surface-brand` so the content reads the dark palette. */
+.bg-hero-brand {
+  background-color: rgb(var(--rgb-brand-900));
+  background-image:
+    radial-gradient(120% 90% at 85% 15%, rgb(var(--rgb-primary) / 0.35), transparent 60%),
+    linear-gradient(125deg, rgb(var(--rgb-brand-900)) 0%, rgb(var(--rgb-brand-800)) 55%, rgb(var(--rgb-primary-dark)) 130%);
+}
+
+/* A checkerboard in the current hue (set --pattern-rgb / --pattern-alpha to
+   tune it), faded out by a mask so it never sits hard behind text. */
+.pattern-chess {
+  --pattern-rgb: var(--rgb-primary);
+  --pattern-alpha: 0.06;
+  --pattern-size: 28px;
+  background-image: conic-gradient(
+    rgb(var(--pattern-rgb) / var(--pattern-alpha)) 25%,
+    transparent 0 50%,
+    rgb(var(--pattern-rgb) / var(--pattern-alpha)) 0 75%,
+    transparent 0
+  );
+  background-size: var(--pattern-size) var(--pattern-size);
+}
+.pattern-fade-r {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 70%);
+  mask-image: linear-gradient(to right, transparent, black 70%);
+}
+.pattern-fade-radial {
+  -webkit-mask-image: radial-gradient(closest-side, black, transparent);
+  mask-image: radial-gradient(closest-side, black, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *:not(.animate-spin),
   *::before,

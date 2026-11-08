@@ -111,7 +111,7 @@ export function CoachAssignmentsClient() {
           {libraryLoading ? (
             <RowSkeletons />
           ) : library.length === 0 ? (
-            <EmptyState
+            <EmptyState illustration="empty"
               action={{ label: "New assignment", onClick: openCreate }}
               description="Create your first PGN assignment, or wait for an admin to add shared ones."
               icon={BookOpen}

@@ -5,6 +5,7 @@ import {
   type Table as ReactTable
 } from "@tanstack/react-table";
 import { type ReactNode } from "react";
+import { Illustration } from "@/components/illustrations/Illustration";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/utils";
 import {
@@ -104,7 +105,7 @@ export function DataTable<TData>({
                   className="h-28 text-center font-semibold text-app-muted"
                   colSpan={columnsLength}
                 >
-                  {noDataText}
+                  <NoData text={noDataText} />
                 </TableCell>
               </TableRow>
             )}
@@ -127,8 +128,8 @@ export function DataTable<TData>({
               ))}
             </ul>
           ) : !rows.length ? (
-            <div className="rounded-app border border-app-border bg-app-surface px-4 py-10 text-center text-sm font-semibold text-app-muted shadow-card">
-              {noDataText}
+            <div className="rounded-app border border-app-border bg-app-surface px-4 py-8 text-center text-sm font-semibold text-app-muted shadow-card">
+              <NoData text={noDataText} />
             </div>
           ) : (
             <ul className="flex flex-col gap-3">
@@ -196,5 +197,16 @@ function StackedRow<TData>({ cells, selected }: { cells: Cell<TData, unknown>[];
         <div className="mt-3 flex justify-end border-t border-app-border pt-3">{renderCell(actions)}</div>
       ) : null}
     </li>
+  );
+}
+
+/** The empty row: a small "nothing found" picture above plain text; custom nodes render as given. */
+function NoData({ text }: { text: ReactNode }) {
+  if (typeof text !== "string") return <>{text}</>;
+  return (
+    <span className="flex flex-col items-center gap-1 py-2">
+      <Illustration className="w-24" name="noResults" />
+      <span>{text}</span>
+    </span>
   );
 }

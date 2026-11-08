@@ -209,6 +209,27 @@ disagree.
 - Every screen must work at **320px** with no horizontal page scroll; wide
   tables scroll inside their own box. See `docs/RESPONSIVE.md`.
 
+## 4b. Visual enrichment
+
+Visual identity comes from a small shared set, never from one-off decoration
+in a feature. Every piece is drawn from theme tokens, so it reads in light and
+dark without a second asset. Each element must carry meaning; a plain list
+stays plain.
+
+| Need | Use | Notes |
+|---|---|---|
+| Dashboard welcome | `HeroBanner` (`components/ui/HeroBanner.tsx`) | Navy (`surface-brand` + `bg-hero-brand`) in both themes, chess pattern faded on the right, `HeroChessArt` (hidden below `sm`). It renders the page's `h1` in place of `PageHeader`; one per page, dashboards only (coach, student, admin via `AnalyticsPageShell heroEyebrow`). `stats` are real figures only — `value: undefined` draws a placeholder while loading, never a made-up number. |
+| Dashboard shortcuts | `QuickActionGrid` | Tinted link tiles, two per row on phones, four from `lg`. Hue from `lib/tone.ts` by meaning (classes blue, assignments amber, attendance green). Don't repeat the hero's own action. |
+| Spot illustration | `Illustration name="…"` (`components/illustrations/`) | One family: soft disc, isometric board, a piece and one accent. Scenes: `empty`, `noResults`, `success`, `error`, `schedule`, `liveClass`, `puzzles`, `courses`, `students`, `achievement`, `welcome`. Add a scene there rather than drawing an SVG in a feature. Decorative unless given `title`. |
+| Empty state with artwork | `EmptyState illustration="…"` | For moments that deserve it (no search results, nothing scheduled, all caught up, class ended). Every `page` empty state also gets a faint board behind its icon automatically. `DataTable`'s default empty row shows the small `noResults` picture. |
+| Live-class pre-join / end screens | `StateLayout illustration` (`live-class/components/states/ErrorStates.tsx`) | Calm screens only (ready to begin, waiting for coach, class ended, connection lost); spinners stay spinners. Nothing decorative is added inside the running room. |
+| Section with a subject | `SectionCard icon={…}` | A leading icon chip where it names the section's subject, not on every card. |
+| Chess pieces in artwork | `Piece` / `PIECE_PATHS` (`components/illustrations/pieces.tsx`) | Original silhouettes for illustrations only; real boards use the user's piece set (`PieceIcon`). |
+| Backgrounds | `.pattern-chess` (+ `.pattern-fade-r` / `.pattern-fade-radial`), `.bg-hero-brand` (globals.css) | Tune with `--pattern-rgb`, `--pattern-alpha`, `--pattern-size`. Never behind body text without a solid surface; never a second gradient on the same screen. |
+
+Raster artwork (marketing heroes, academy pages) stays WebP in `public/<area>/`
+with `_light` / `_dark` pairs; logos are never redrawn.
+
 ## 5. Interaction and accessibility
 
 - Icon-only buttons need an `aria-label` **and** a visible label via

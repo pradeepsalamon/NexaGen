@@ -98,6 +98,7 @@ Per feature in `apps/web/src/features/<feature>/`: `api/<x>Api.ts` (thin `apiFet
 - Icon-only buttons: `aria-label` + **`SimpleTooltip`** (`components/ui/Tooltip.tsx`), not `title=` (except non-interactive nodes / existing Radix `asChild` triggers).
 - **Formatted text: `TextEditor` + `FormattedText`** (stored as readable text, never HTML); typed text with links: `LinkedText`. Message bodies are built with `renderFormattedTemplate` and sent through a channel converter ([docs/MESSAGING.md](docs/MESSAGING.md)).
 - **Never `window.confirm`.** Undo via `useUndoableMutation` (`lib/undo/`; `immediate` vs `defer`; exclusions in `lib/undo/README.md`). Toasts: `useToast()`.
+- **Visual enrichment** (UI_RULES §4b): dashboards open with `HeroBanner` (real stats only) + `QuickActionGrid`; artwork is `Illustration` / `EmptyState illustration` from `components/illustrations/` (token colours, both themes) — never a one-off SVG in a feature.
 - **Dates: never `toLocale*()` in a component** — `lib/datetime.ts` formatters + `useUserTimeZone()`; analytics uses `features/analytics/lib/format.ts` with that zone; date-only values format in `"UTC"`.
 
 ### 3.6b–3.6d2 Jobs, rate limiting, WhatsApp, Sentry

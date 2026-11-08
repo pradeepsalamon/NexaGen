@@ -1,9 +1,10 @@
 "use client";
 
-import { TrendingUp } from "lucide-react";
+import { CalendarDays, ClipboardList, Puzzle, TrendingUp, Video } from "lucide-react";
 import Link from "next/link";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { HeroBanner } from "@/components/ui/HeroBanner";
+import { type QuickAction, QuickActionGrid } from "@/components/ui/QuickActionGrid";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { AssignmentReminderBanner } from "@/features/assignments/components/reminders/AssignmentReminderBanner";
@@ -20,6 +21,13 @@ import { PracticeSection } from "./PracticeSection";
 import { ProgressOverview } from "./ProgressOverview";
 import { UpcomingClasses } from "./UpcomingClasses";
 
+const QUICK_ACTIONS: QuickAction[] = [
+  { description: "Classes this week", href: "/student/schedule", icon: CalendarDays, label: "Schedule", tone: "primary" },
+  { description: "Join when it starts", href: "/student/live-classes", icon: Video, label: "Live classes", tone: "primary" },
+  { description: "Homework from your coach", href: "/student/practice", icon: ClipboardList, label: "Assignments", tone: "secondary" },
+  { description: "Sharpen your tactics", href: "/student/training", icon: Puzzle, label: "Puzzle training", tone: "warm" }
+];
+
 export function StudentDashboardClient() {
   const { user } = useAuthStore();
   const { data, error, isLoading, refetch } = useStudentDashboard();
@@ -27,9 +35,9 @@ export function StudentDashboardClient() {
   const firstName = user?.firstName?.trim();
 
   const header = (
-    <PageHeader
+    <HeroBanner
       actions={
-        <Button asChild variant="outline">
+        <Button asChild variant="primary">
           <Link href="/student/progress">
             <TrendingUp aria-hidden="true" className="size-4" strokeWidth={2.5} />
             My progress
@@ -40,6 +48,7 @@ export function StudentDashboardClient() {
         data?.batchName ||
         "Keep learning, keep improving. Chess is a journey, and you're on the right track!"
       }
+      eyebrow="Student dashboard"
       title={firstName ? `Welcome back, ${firstName}!` : "Welcome back!"}
     />
   );
@@ -96,6 +105,8 @@ export function StudentDashboardClient() {
           chessRating={data?.chessRating}
           metrics={data?.progressMetrics}
         />
+
+        <QuickActionGrid actions={QUICK_ACTIONS} />
 
         <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="space-y-5">

@@ -250,7 +250,7 @@ function NothingDue({ summary }: { summary: RevisionSummary }) {
   const tz = useUserTimeZone();
   if (summary.activeItems === 0) {
     return (
-      <EmptyState
+      <EmptyState illustration="puzzles"
         description="Puzzles you get wrong — in class, in homework or in training — and ones your coach recommends will appear here to revise."
         icon={Brain}
         title="Nothing to revise yet"

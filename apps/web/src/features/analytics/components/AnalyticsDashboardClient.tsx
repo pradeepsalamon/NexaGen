@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuthStore } from "@/stores/authStore";
 import { AnalyticsFilters } from "./AnalyticsFilters";
 import { AnalyticsPageShell } from "./AnalyticsPageShell";
 import { AnalyticsReportLinks } from "./AnalyticsReportLinks";
@@ -18,11 +19,14 @@ const EXPORTS = [
 ] as const;
 
 export function AnalyticsDashboardClient() {
+  const firstName = useAuthStore((state) => state.user?.firstName?.trim());
+
   return (
     <AnalyticsPageShell
       description="Headline numbers for the selected period, today's operations, and the full reports."
       exports={EXPORTS}
-      title="Dashboard"
+      heroEyebrow="Academy dashboard"
+      title={firstName ? `Welcome back, ${firstName}!` : "Dashboard"}
     >
       {(query, update) => (
         <>

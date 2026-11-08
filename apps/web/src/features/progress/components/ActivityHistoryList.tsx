@@ -152,6 +152,7 @@ export function ActivityHistoryList({
             : "Puzzles, class questions and assignments will appear here once they're attempted."
         }
         icon={History}
+        illustration={hasFilters ? "noResults" : "empty"}
         title={hasFilters ? "No matching activity" : "No activity yet"}
       />
     );

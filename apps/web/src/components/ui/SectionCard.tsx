@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { ChevronDown, RefreshCw } from "lucide-react";
+import { ChevronDown, type LucideIcon, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,8 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 interface SectionCardProps {
   title: string;
   description?: string;
+  /** Leading icon chip beside the title; use it where it names the section's subject. */
+  icon?: LucideIcon;
   /** ISO string; rendered as "Updated …" */
   updatedAt?: string;
   onRefresh?: () => void;
@@ -36,6 +38,7 @@ function relative(iso: string | undefined, timeZone: string): string | null {
 export function SectionCard({
   title,
   description,
+  icon: Icon,
   updatedAt,
   onRefresh,
   actions,
@@ -58,6 +61,14 @@ export function SectionCard({
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border p-4">
         <div className="min-w-0 flex-1 basis-36">
           <div className="flex items-center gap-2">
+            {Icon ? (
+              <span
+                aria-hidden="true"
+                className="flex size-8 shrink-0 items-center justify-center rounded-control bg-primary-soft text-primary-ink"
+              >
+                <Icon className="size-4" strokeWidth={2.25} />
+              </span>
+            ) : null}
             <h2 className="text-base font-semibold text-app-text">
               {title}
             </h2>

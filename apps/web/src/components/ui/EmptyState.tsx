@@ -1,4 +1,5 @@
 import { type LucideIcon, Inbox } from "lucide-react";
+import { Illustration, type IllustrationName } from "@/components/illustrations/Illustration";
 import { cn } from "@/lib/utils";
 import { Button } from "./Button";
 
@@ -10,6 +11,11 @@ interface EmptyStateProps {
     label: string;
     onClick: () => void;
   };
+  /**
+   * A NexaChess spot illustration in place of the icon, for the moments that
+   * deserve one (no search results, nothing scheduled, all done). Plain lists keep the icon.
+   */
+  illustration?: IllustrationName;
   /** `inline` drops the dashed frame for use inside a card that already has one. */
   variant?: "page" | "inline";
 }
@@ -19,19 +25,34 @@ export function EmptyState({
   title,
   description,
   action,
+  illustration,
   variant = "page"
 }: EmptyStateProps) {
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center text-center animate-fade-in",
+        "relative flex flex-col items-center justify-center text-center animate-fade-in",
         variant === "page"
-          ? "min-h-[300px] rounded-app border border-dashed border-app-line-strong bg-app-surface p-8"
+          ? "isolate min-h-[300px] overflow-hidden rounded-app border border-dashed border-app-line-strong bg-app-surface p-8"
           : "px-4 py-10"
       )}
     >
-      <EmptyStateIcon icon={Icon} size={variant === "page" ? "lg" : "md"} />
-      <h3 className="mt-5 text-base font-semibold text-app-text">{title}</h3>
+      {variant === "page" ? (
+        // A faint board behind the artwork: the one chess note every empty page shares.
+        <div
+          aria-hidden="true"
+          className="pattern-chess pattern-fade-radial pointer-events-none absolute left-1/2 top-2 -z-10 size-72 -translate-x-1/2"
+        />
+      ) : null}
+      {illustration ? (
+        <Illustration
+          className={cn("motion-safe:animate-pop-in", variant === "page" ? "w-44" : "w-32")}
+          name={illustration}
+        />
+      ) : (
+        <EmptyStateIcon icon={Icon} size={variant === "page" ? "lg" : "md"} />
+      )}
+      <h3 className={cn("text-base font-semibold text-app-text", illustration ? "mt-3" : "mt-5")}>{title}</h3>
       {description && (
         <p className="mt-1.5 max-w-sm text-sm text-app-muted">
           {description}

@@ -52,7 +52,7 @@ export function StudentBatchesClient() {
         />
       ) : batches.length === 0 ? (
         <Card className="p-6">
-          <EmptyState
+          <EmptyState illustration="students"
             description="Your academy will add you to a batch. It will show up here."
             icon={Layers3}
             title="You're not in a batch yet"

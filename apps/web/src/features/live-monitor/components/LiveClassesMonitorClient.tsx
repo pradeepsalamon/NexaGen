@@ -129,7 +129,7 @@ export function LiveClassesMonitorClient() {
           ))}
         </div>
       ) : classes.length === 0 ? (
-        <EmptyState
+        <EmptyState illustration="liveClass"
           description="When a coach starts a class it shows up here within a few seconds."
           icon={Radio}
           title="No classes are live right now"

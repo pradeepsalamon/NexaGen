@@ -172,7 +172,7 @@ export function StudentScheduleClient() {
               <div className="min-w-0 lg:col-span-5">
                 <SectionCard title={formatLongDate(selectedDay, "UTC")}>
                   {selectedClasses.length === 0 ? (
-                    <EmptyState icon={CalendarDays} title="No classes on this day" variant="inline" />
+                    <EmptyState illustration="schedule" icon={CalendarDays} title="No classes on this day" variant="inline" />
                   ) : (
                     <ClassRowList>
                       {selectedClasses.map((cls) => (
@@ -200,7 +200,7 @@ export function StudentScheduleClient() {
                 onRetry={() => upcoming.refetch()}
               />
             ) : upcomingClasses.length === 0 ? (
-              <EmptyState
+              <EmptyState illustration="schedule"
                 description={selectedBatchId ? "Try all your batches instead." : undefined}
                 icon={CalendarDays}
                 title={selectedBatchId ? "No upcoming classes in this batch" : "Nothing scheduled yet"}

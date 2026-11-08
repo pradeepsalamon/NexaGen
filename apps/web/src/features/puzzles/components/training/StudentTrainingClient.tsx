@@ -125,7 +125,7 @@ export function StudentTrainingClient() {
           description="Ask your coach to switch it on. Your assignments and course puzzles still count towards your rating."
         />
       ) : next.isError ? (
-        <EmptyState
+        <EmptyState illustration="puzzles"
           icon={Puzzle}
           title="No puzzle right now"
           description={(next.error as Error).message}
