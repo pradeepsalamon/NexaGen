@@ -86,6 +86,10 @@ const TabsList = React.forwardRef<
   // One primary chip slides to the selected tab; the tab's own fill is the fallback until it is measured.
   const indicator = useSlidingIndicator(listRef, '[role="tab"][data-state="active"]');
   const [collapsed, setCollapsed] = React.useState(false);
+  // False until the first measure. The server can't know the width, so its HTML (and a phone's
+  // first paint before hydration) would show the full strip running off-screen and then snap
+  // into the menu; until measured the strip keeps its space but isn't drawn.
+  const [measured, setMeasured] = React.useState(false);
   // Bumped when the available width changes: show the full strip again, re-measure.
   const [measure, setMeasure] = React.useState(0);
 
@@ -97,6 +101,7 @@ const TabsList = React.forwardRef<
     const tabs = Array.from(list.querySelectorAll<HTMLElement>('[role="tab"]'));
     const wraps = tabs.some((tab) => tab.offsetTop !== tabs[0]?.offsetTop);
     if (wraps || list.scrollWidth > list.clientWidth + 1) setCollapsed(true);
+    setMeasured(true);
   }, [canCollapse, collapsed, measure, triggers.length]);
 
   React.useEffect(() => {
@@ -150,7 +155,7 @@ const TabsList = React.forwardRef<
 
   return (
     <TabsPrimitive.List
-      className={cn(base, className)}
+      className={cn(base, className, canCollapse && !measured && "invisible")}
       data-indicator={indicator.ready ? "" : undefined}
       ref={setRefs}
       {...props}
