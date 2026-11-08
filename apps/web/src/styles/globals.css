@@ -456,7 +456,10 @@
  * the compact `text-sm`. Outside @layer so it beats the utility.
  */
 @media (pointer: coarse) {
-  :root {
+  /* `[data-theme]` matches the light block's `:root[data-theme="light"]`; with
+     plain `:root` light mode kept the 36px desktop sizes and only dark grew. */
+  :root,
+  :root[data-theme] {
     --control-h: 2.75rem;
     --control-h-sm: 2.5rem;
     --control-h-lg: 3rem;

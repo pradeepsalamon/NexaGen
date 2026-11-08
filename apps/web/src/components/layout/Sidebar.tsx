@@ -261,11 +261,11 @@ export function NavDrawer({
 
   return (
     <>
-      {/* Backdrop when opened; a hover peek leaves the page undimmed */}
+      {/* Backdrop when opened (fades in as it mounts, as on main); a hover peek leaves the page undimmed */}
       {open ? (
         <button
           aria-label="Close menu"
-          className="fixed inset-0 z-[45] cursor-default bg-scrim/45 transition-opacity duration-200"
+          className="fixed inset-0 z-[45] cursor-default bg-scrim/45 motion-safe:animate-overlay-in"
           onClick={close}
           type="button"
         />
