@@ -24,6 +24,16 @@ there is a component or token for it. If there genuinely isn't, add one to
 Tokens live in `src/styles/globals.css` (`:root` + `:root[data-theme="dark"]`)
 and are mapped in `tailwind.config.ts`.
 
+- **Page body is plain neutral** in both themes (owner, 2026-11-08): white
+  page and cards in light; `#0A0A0A` page and `#171717` cards in dark; grey
+  borders and text with no blue tint. Navy stays only on the header and nav
+  (`surface-brand`).
+- **Filled buttons and the active tab look the same in both themes**: royal
+  blue with white text, from the `button` / `on-button` tokens (not
+  redefined under dark). `primary` still lightens in dark, because
+  `text-primary` icons and links need it to stay readable; outline and ghost
+  buttons keep `text-primary-ink`.
+
 | Need | Use | Never |
 |---|---|---|
 | Page / card / soft backgrounds | `bg-app-background`, `bg-app-surface`, `bg-app-soft` | `bg-white`, `bg-gray-50`, `bg-slate-900` |
@@ -105,7 +115,7 @@ disagree.
 | Pick one of several cards (themes, piece sets, sounds, payment method) | `ChoiceTile` / `choiceTileClass(selected)` (`components/ui/ChoiceTile.tsx`) | 1px border; chosen = blue border, soft blue fill, inset ring, `aria-pressed`. Never hand-build a `border-2` selection card. |
 | Chessboards | `BoardFrame` (`features/chessboard/components/board/BoardFrame.tsx`) around the board; promotion via `PromotionPicker` (`PromotionDialog` for the board store) | The caller sizes the frame; real pieces in the user's set (`PieceIcon`). Grid tiles (live boards, puzzle tiles) keep their tile frame. |
 | On/off setting | `Switch` | "Lock …", "Enabled", "Send WhatsApp", preferences. |
-| Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". |
+| Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". 16px box, 12px tick; the label (`label` prop) gives the 40px tap row. |
 | Text / number fields | `Input`, `Textarea`, `PasswordInput`, `Select`, `Combobox` | Never raw `<input>` / `<textarea>` / `<select>` (file, colour, range and radio inputs are the exceptions). They share one look (`fieldClasses()`: surface fill, `line-strong` border, blue border + ring on focus, red border on error); change it there, not per form. `leadingIcon` puts an icon inside; `density="compact"` (Input, PasswordInput, Select) is the dense field of multi-column forms such as registration. |
 | Formatted text (messages, announcements, help articles) | `TextEditor`; show the result with `FormattedText` | Toolbar over a `Textarea`, stores readable text, never HTML. Only where the output is displayed through `FormattedText`, `markdownToPlainText`/`markdownToWhatsApp` or the email renderer, or readers see raw `**`. Everything else stays `Textarea`. |
 | Showing text someone typed | `LinkedText` (`components/ui/FormattedText.tsx`) | Chat, feedback, notes: addresses become underlined links and nothing else changes. `onColour` on a coloured surface like your own chat bubble. Never `dangerouslySetInnerHTML` or a local URL regex. |
@@ -135,11 +145,19 @@ disagree.
 
 ## 4. Layout
 
-- **Controls go on the right.** Page-level tabs, CTAs, filters and search sit
-  right-aligned: `PageHeader` actions, `justify-self-end` on a standalone
-  `TabsList`, `justify-end` on filter/search rows, `DataTableToolbar`. Below
-  `sm` a filter row fills the width instead (`grid grid-cols-2 … sm:flex
-  sm:justify-end`, fields `w-full sm:w-44`), so half the card isn't empty.
+- **Controls go on the right** (owner rule, all screen sizes). Page-level
+  tabs, CTAs, primary actions, filters and search sit right-aligned:
+  `PageHeader` actions; `TabsList` is `justify-self-end` by default (never
+  give a page strip `w-full` — that left empty track on the right; only tabs
+  that must fill a dialog or panel set `w-full`/`justify-self-start`);
+  `justify-end` on filter/search rows; a lone CTA beside a wrapping text gets
+  `ml-auto`. **`DataTableToolbar`** below `sm` is a 2-column grid: search full
+  width on top, filters stretching to fill the next row, actions (View) at its
+  end; from `sm` one right-aligned row at the callers' widths.
+  **`DataTablePagination`** controls are on the right; below `sm` Previous/Next
+  are arrow buttons so the row fits. Below `sm` a plain filter row fills the
+  width instead (`grid grid-cols-2 … sm:flex sm:justify-end`, fields
+  `w-full sm:w-44`), so half the card isn't empty.
   Content (titles, descriptions, tables) reads from the left.
 - **Buttons stay on the right on phones too** (owner, 2026-11-06): a stacked
   `flex-col sm:flex-row` row puts its action child on `self-end sm:self-auto`;

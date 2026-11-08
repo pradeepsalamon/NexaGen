@@ -346,7 +346,7 @@ export function BatchManagementClient() {
         >
           <PageHeader
             actions={
-            <TabsList aria-label="Batches view" className="w-full justify-start overflow-x-auto sm:w-fit">
+            <TabsList aria-label="Batches view">
               <TabsTrigger value="all">
                 <UsersRound aria-hidden="true" className="size-4" />
                 All batches

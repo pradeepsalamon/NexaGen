@@ -22,7 +22,9 @@ export default function ProfilePage() {
                 Your account details, sign-in security, text size and data.
               </p>
             </div>
-            <LogoutButton />
+            <div className="ml-auto">
+              <LogoutButton />
+            </div>
           </div>
           <ProfileForm />
         </section>

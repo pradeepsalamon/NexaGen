@@ -356,7 +356,7 @@ export function UserManagementClient() {
         >
           <PageHeader
             actions={
-            <TabsList aria-label="Users view" className="w-full justify-start overflow-x-auto sm:w-fit">
+            <TabsList aria-label="Users view">
               <TabsTrigger value="all">
                 <UsersRound aria-hidden="true" className="size-4" />
                 All users

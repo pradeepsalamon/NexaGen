@@ -117,7 +117,7 @@ export default function AdminCoachTeachingPage() {
                 className="w-full sm:w-44" placeholder="Any date"
               />
             </div>
-            <Button onClick={loadReport} disabled={isLoading}>
+            <Button className="col-span-2 justify-self-end" onClick={loadReport} disabled={isLoading}>
               {isLoading ? (
                 <Spinner className="h-4 w-4 mr-2" />
               ) : null}

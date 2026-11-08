@@ -53,7 +53,7 @@ export function FeedbackFormsPanel() {
         <p className="text-sm text-app-muted">
           Build the questions, then choose when and where students are asked.
         </p>
-        <Button onClick={() => openEditor(null)} type="button">
+        <Button className="ml-auto" onClick={() => openEditor(null)} type="button">
           <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
           New form
         </Button>

@@ -222,7 +222,7 @@ function ArticlesPanel() {
           value={audience}
         />
       </div>
-      <div aria-label="Quick filters" className="flex flex-wrap gap-2" role="group">
+      <div aria-label="Quick filters" className="flex flex-wrap justify-end gap-2" role="group">
         {filterChip("all", "All")}
         {filterChip("needsReview", "Review due", counts?.needsReview)}
         {filterChip("flagged", "Flagged", counts?.flagged)}

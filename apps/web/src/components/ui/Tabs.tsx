@@ -86,6 +86,10 @@ const TabsList = React.forwardRef<
   // One primary chip slides to the selected tab; the tab's own fill is the fallback until it is measured.
   const indicator = useSlidingIndicator(listRef, '[role="tab"][data-state="active"]');
   const [collapsed, setCollapsed] = React.useState(false);
+  // False until the first measure. The server can't know the width, so its HTML (and a phone's
+  // first paint before hydration) would show the full strip running off-screen and then snap
+  // into the menu; until measured the strip keeps its space but isn't drawn.
+  const [measured, setMeasured] = React.useState(false);
   // Bumped when the available width changes: show the full strip again, re-measure.
   const [measure, setMeasure] = React.useState(0);
 
@@ -97,6 +101,7 @@ const TabsList = React.forwardRef<
     const tabs = Array.from(list.querySelectorAll<HTMLElement>('[role="tab"]'));
     const wraps = tabs.some((tab) => tab.offsetTop !== tabs[0]?.offsetTop);
     if (wraps || list.scrollWidth > list.clientWidth + 1) setCollapsed(true);
+    setMeasured(true);
   }, [canCollapse, collapsed, measure, triggers.length]);
 
   React.useEffect(() => {
@@ -113,8 +118,10 @@ const TabsList = React.forwardRef<
     return () => observer.disconnect();
   }, [canCollapse]);
 
+  // Page tabs sit on the right like every page control (UI_RULES §4); a caller's `w-full` or
+  // `justify-self-start` still wins.
   const base =
-    "group/tabs relative inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-control bg-app-soft p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+    "group/tabs relative inline-flex w-fit max-w-full justify-self-end items-center gap-1 overflow-x-auto rounded-control bg-app-soft p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
   if (canCollapse && collapsed && context) {
     const active = triggers.find((t) => t.value === context.value) ?? triggers[0];
@@ -123,7 +130,7 @@ const TabsList = React.forwardRef<
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Choose a tab"
-            className="inline-flex min-h-[var(--control-h-sm)] w-full items-center justify-between gap-2 rounded-md bg-primary px-4 text-sm font-medium text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+            className="inline-flex min-h-[var(--control-h-sm)] w-full items-center justify-between gap-2 rounded-md bg-button px-4 text-sm font-medium text-on-button focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
           >
             <span className="flex min-w-0 items-center gap-2 truncate">{active.label}</span>
             <ChevronDown aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.5} />
@@ -150,7 +157,7 @@ const TabsList = React.forwardRef<
 
   return (
     <TabsPrimitive.List
-      className={cn(base, className)}
+      className={cn(base, className, canCollapse && !measured && "invisible")}
       data-indicator={indicator.ready ? "" : undefined}
       ref={setRefs}
       {...props}
@@ -158,7 +165,7 @@ const TabsList = React.forwardRef<
       <span
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute left-0 top-0 rounded-md bg-primary",
+          "pointer-events-none absolute left-0 top-0 rounded-md bg-button",
           !indicator.ready && "hidden",
           !indicator.instant &&
             "motion-safe:transition-[transform,width,height] motion-safe:duration-300 motion-safe:ease-emphasized"
@@ -177,7 +184,7 @@ const TabsTrigger = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Trigger
     className={cn(
-      "group relative inline-flex min-h-[var(--control-h-sm)] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-medium text-app-muted transition-colors duration-200 hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:hover:text-on-primary group-data-[indicator]/tabs:data-[state=active]:bg-transparent",
+      "group relative inline-flex min-h-[var(--control-h-sm)] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-medium text-app-muted transition-colors duration-200 hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-button data-[state=active]:text-on-button data-[state=active]:hover:text-on-button group-data-[indicator]/tabs:data-[state=active]:bg-transparent",
       className
     )}
     ref={ref}

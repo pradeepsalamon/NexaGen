@@ -18,9 +18,9 @@ const buttonVariants = cva(
         neutral:
           "border-app-line-strong bg-app-surface text-app-text hover:bg-app-soft",
         outline:
-          "border-primary bg-app-surface text-primary-ink hover:bg-primary-soft",
+          "border-button bg-app-surface text-primary-ink hover:bg-primary-soft",
         primary:
-          "border-transparent bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-dark",
+          "border-transparent bg-button text-on-button hover:bg-button-hover active:bg-button-dark",
         secondary:
           "border-transparent bg-accent text-on-accent hover:bg-accent-hover"
       },

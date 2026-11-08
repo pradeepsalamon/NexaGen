@@ -123,7 +123,7 @@ export function StudentScheduleClient() {
 
       <Tabs onValueChange={(next) => setChosenView(next as ScheduleView)} value={view}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList aria-label="Schedule view">
+          <TabsList aria-label="Schedule view" className="self-end sm:self-auto">
             <TabsTrigger value="calendar">
               <Calendar aria-hidden="true" className="size-4" strokeWidth={2.25} />
               Calendar
