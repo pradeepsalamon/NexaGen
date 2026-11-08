@@ -179,7 +179,7 @@ export function AdminInvoicesPanel() {
       ) : null}
 
       <Card className="space-y-3 p-4">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="relative min-w-48 flex-1">
             <Search
               aria-hidden="true"

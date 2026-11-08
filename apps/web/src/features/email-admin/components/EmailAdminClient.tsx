@@ -87,7 +87,7 @@ export function EmailAdminClient() {
         title="Email"
       />
       <Tabs defaultValue="verification">
-        <TabsList className="w-full justify-start overflow-x-auto sm:w-fit">
+        <TabsList>
           <TabsTrigger value="verification">
             <ShieldCheck aria-hidden="true" className="size-4" />
             Verification

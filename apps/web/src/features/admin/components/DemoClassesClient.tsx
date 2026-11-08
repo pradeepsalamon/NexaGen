@@ -138,7 +138,7 @@ export function DemoClassesClient() {
         >
           <PageHeader
             actions={
-            <TabsList aria-label="Demo classes view" className="w-full justify-start overflow-x-auto sm:w-fit">
+            <TabsList aria-label="Demo classes view">
               <TabsTrigger value="all">
                 <CalendarDays aria-hidden="true" className="size-4" />
                 All classes

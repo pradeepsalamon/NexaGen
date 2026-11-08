@@ -48,7 +48,7 @@ export function ApprovalsClient() {
       />
 
       <Tabs onValueChange={setTab} value={tab}>
-        <TabsList className="w-full justify-start overflow-x-auto sm:w-fit sm:justify-self-end">
+        <TabsList>
           <TabsTrigger value="students">
             <UserRoundCheck aria-hidden="true" className="size-4" />
             Students

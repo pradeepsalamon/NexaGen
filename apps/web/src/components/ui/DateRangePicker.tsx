@@ -95,11 +95,13 @@ export function DateRangePicker({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    // Phone: range and comparison share one full-width row (the page's other actions wrap
+    // under it on the right). From `sm`: inline, right-aligned.
+    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
       <Popover onOpenChange={handleOpenChange} open={open}>
         <PopoverTrigger asChild>
           <Button
-            className="justify-between gap-2 sm:min-w-[12rem]"
+            className="w-full min-w-0 justify-between gap-2 sm:w-auto sm:min-w-[12rem]"
             size="sm"
             variant="outline"
           >
@@ -159,7 +161,7 @@ export function DateRangePicker({
 
       <Select
         aria-label="Comparison period"
-        className="w-auto"
+        className="w-full min-w-0 sm:w-auto"
         onChange={(event) =>
           onChange({ ...value, compare: event.target.value as AnalyticsCompare })
         }

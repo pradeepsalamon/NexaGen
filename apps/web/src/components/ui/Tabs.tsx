@@ -118,8 +118,10 @@ const TabsList = React.forwardRef<
     return () => observer.disconnect();
   }, [canCollapse]);
 
+  // Page tabs sit on the right like every page control (UI_RULES §4); a caller's `w-full` or
+  // `justify-self-start` still wins.
   const base =
-    "group/tabs relative inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-control bg-app-soft p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+    "group/tabs relative inline-flex w-fit max-w-full justify-self-end items-center gap-1 overflow-x-auto rounded-control bg-app-soft p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
   if (canCollapse && collapsed && context) {
     const active = triggers.find((t) => t.value === context.value) ?? triggers[0];
