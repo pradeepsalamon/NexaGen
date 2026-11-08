@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowLeftRight, Search, TrendingUp, Users } from "lucide-react";
+import { ArrowLeftRight, Search, TrendingUp } from "lucide-react";
 import type { CoachStudent } from "@nexa-chess/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -188,7 +188,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
               ? "Try another name or all batches."
               : "Students appear here once an admin adds them to one of your batches."
           }
-          icon={Users}
+          illustration={search || selectedBatch !== "ALL" ? "search-results" : "students"}
           title={search || selectedBatch !== "ALL" ? "No students match" : "No students yet"}
         />
       ) : (

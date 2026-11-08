@@ -9,7 +9,6 @@ import {
   Info,
   CheckCircle2,
   Clock,
-  FilterX,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -234,7 +233,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                 ? "No attendance records available yet."
                 : "No class records match your selected filter or search terms."
             }
-            icon={FilterX}
+            illustration={history.length === 0 ? "attendance" : "search-results"}
             title="No records found"
             variant="inline"
           />

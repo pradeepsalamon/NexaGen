@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CalendarX } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { apiFetch } from "@/lib/api";
@@ -93,7 +92,7 @@ export default function StudentAttendancePage() {
       <div className="mx-auto max-w-7xl pb-10">
         <EmptyState
           description="Join a live class and your attendance shows up here."
-          icon={CalendarX}
+          illustration="attendance"
           title="No attendance yet"
         />
       </div>

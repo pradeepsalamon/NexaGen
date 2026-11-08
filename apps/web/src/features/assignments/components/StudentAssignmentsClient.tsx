@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { StudentAssignmentItem, StudentPuzzleSetProgress } from "@nexa-chess/types";
-import { ArrowRight, CircleCheck, Target } from "lucide-react";
+import { ArrowRight, CircleCheck } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -45,7 +45,7 @@ export function StudentAssignmentsClient() {
       ) : assignments.length === 0 ? (
         <EmptyState
           description="When your coach gives you work, it shows up here."
-          icon={Target}
+          illustration="assignments"
           title="No assignments yet"
         />
       ) : (

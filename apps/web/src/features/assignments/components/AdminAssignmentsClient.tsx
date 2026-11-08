@@ -78,7 +78,7 @@ export function AdminAssignmentsClient() {
             ) : library.length === 0 ? (
               <Card>
                 <EmptyState variant="inline"
-                  icon={Plus}
+                  illustration="assignments"
                   title="No shared assignments yet"
                   description="Create a PGN assignment for coaches to hand out."
                   action={{ label: "New assignment", onClick: openCreate }}

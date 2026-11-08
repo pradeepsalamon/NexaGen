@@ -23,7 +23,6 @@ import {
   ListChecks,
   Pencil,
   Plus,
-  Puzzle,
   ScanSearch,
   Search,
   Send,
@@ -663,7 +662,7 @@ function PuzzleTable({
         </div>
       ) : puzzles.length === 0 ? (
         <EmptyState
-          icon={Puzzle}
+          illustration={hasFilters ? "search-results" : "puzzles"}
           title={hasFilters ? "No puzzles match your filters" : "No puzzles yet"}
           variant="inline"
           description={

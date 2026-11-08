@@ -2,8 +2,21 @@ import { type LucideIcon, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./Button";
 
+/** Artwork in `public/nexachess-assets/empty-states/` (see its README). */
+export type EmptyIllustration =
+  | "activity"
+  | "assignments"
+  | "attendance"
+  | "courses"
+  | "notifications"
+  | "puzzles"
+  | "search-results"
+  | "students";
+
 interface EmptyStateProps {
   icon?: LucideIcon;
+  /** Replaces the icon circle with a NexaChess illustration. */
+  illustration?: EmptyIllustration;
   title: string;
   description?: string;
   action?: {
@@ -19,6 +32,7 @@ export function EmptyState({
   title,
   description,
   action,
+  illustration,
   variant = "page"
 }: EmptyStateProps) {
   return (
@@ -30,7 +44,11 @@ export function EmptyState({
           : "px-4 py-10"
       )}
     >
-      <EmptyStateIcon icon={Icon} size={variant === "page" ? "lg" : "md"} />
+      {illustration ? (
+        <EmptyStateIllustration name={illustration} size={variant === "page" ? "lg" : "md"} />
+      ) : (
+        <EmptyStateIcon icon={Icon} size={variant === "page" ? "lg" : "md"} />
+      )}
       <h3 className="mt-5 text-base font-semibold text-app-text">{title}</h3>
       {description && (
         <p className="mt-1.5 max-w-sm text-sm text-app-muted">
@@ -72,4 +90,37 @@ export function EmptyStateIcon({
       <Icon className={{ lg: "size-8", md: "size-7", sm: "size-6" }[size]} strokeWidth={1.75} />
     </div>
   );
+}
+
+/**
+ * A NexaChess empty-state illustration on its own, for custom layouts (a
+ * popover, a card with a link button). Decorative: the headline beside it
+ * carries the meaning.
+ */
+export function EmptyStateIllustration({
+  className,
+  name,
+  size = "md"
+}: {
+  className?: string;
+  name: EmptyIllustration;
+  size?: "sm" | "md" | "lg";
+}) {
+  const classes = cn(
+    "w-auto shrink-0 select-none animate-pop-in",
+    { lg: "h-40", md: "h-32", sm: "h-24" }[size],
+    className
+  );
+  const src = `/nexachess-assets/empty-states/empty-${name}`;
+  // Fixed-colour artwork can't follow the theme tokens, so each illustration
+  // ships a `-dark` variant and the theme picks one. Static SVGs from public/:
+  // next/image adds nothing here.
+  /* eslint-disable @next/next/no-img-element */
+  return (
+    <>
+      <img alt="" aria-hidden="true" className={cn(classes, "dark:hidden")} decoding="async" draggable={false} loading="lazy" src={`${src}.svg`} />
+      <img alt="" aria-hidden="true" className={cn(classes, "hidden dark:block")} decoding="async" draggable={false} loading="lazy" src={`${src}-dark.svg`} />
+    </>
+  );
+  /* eslint-enable @next/next/no-img-element */
 }

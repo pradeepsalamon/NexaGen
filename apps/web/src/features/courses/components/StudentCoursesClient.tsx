@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { GraduationCap, PlayCircle } from "lucide-react";
+import { PlayCircle } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -28,7 +28,7 @@ export function StudentCoursesClient() {
         <WidgetError message="Couldn't load your courses." onRetry={() => void refetch()} />
       ) : courses.length === 0 ? (
         <EmptyState
-          icon={GraduationCap}
+          illustration="courses"
           title="No courses yet"
           description="Your coaches haven't published any courses yet — check back soon."
         />

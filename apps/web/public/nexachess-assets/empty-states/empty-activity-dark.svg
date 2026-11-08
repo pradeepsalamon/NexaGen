@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" width="100%" height="100%" fill="none">
+  <ellipse cx="120" cy="174" rx="78" ry="8" fill="#000000" opacity="0.3"/>
+  <!-- Isometric Chessboard Base -->
+  <path d="M120 86L196 124L120 162L44 124L120 86Z" fill="#0B1F3B" stroke="#3B82F6" stroke-width="2"/>
+  <path d="M120 96L158 115L120 134L82 115L120 96Z" fill="#132D50"/>
+  <!-- Precision Chess Clock Symbol -->
+  <circle cx="120" cy="76" r="36" fill="#132D50" stroke="#3B82F6" stroke-width="3"/>
+  <circle cx="120" cy="76" r="30" stroke="#1E40AF" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <rect x="114" y="34" width="12" height="5" rx="2.5" fill="#E8B85E"/>
+  <path d="M120 56V76L134 84" stroke="#DBEAFE" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="120" cy="76" r="3.5" fill="#E8B85E"/>
+</svg>

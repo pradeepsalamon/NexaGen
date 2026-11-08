@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { AssignmentDeployment, AssignmentLibraryItem } from "@nexa-chess/types";
-import { BookOpen, Eye, Pencil, Plus, Send, Trash2, Users } from "lucide-react";
+import { Eye, Pencil, Plus, Send, Trash2, Users } from "lucide-react";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -114,7 +114,7 @@ export function CoachAssignmentsClient() {
             <EmptyState
               action={{ label: "New assignment", onClick: openCreate }}
               description="Create your first PGN assignment, or wait for an admin to add shared ones."
-              icon={BookOpen}
+              illustration="assignments"
               title="No assignments yet"
             />
           ) : (
@@ -191,7 +191,7 @@ export function CoachAssignmentsClient() {
           ) : deployments.length === 0 ? (
             <EmptyState
               description="Pick an assignment from the Library tab and send it to a batch."
-              icon={Send}
+              illustration="assignments"
               title="Nothing assigned yet"
             />
           ) : (

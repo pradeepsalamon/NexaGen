@@ -161,7 +161,7 @@ export function FolderPuzzlesPanel({
         <WidgetError message="Could not load this folder's puzzles." onRetry={() => void refetch()} />
       ) : puzzles.length === 0 ? (
         <EmptyState
-          icon={Folder}
+          illustration="puzzles"
           title="No puzzles in this folder"
           description={
             subfolderCount

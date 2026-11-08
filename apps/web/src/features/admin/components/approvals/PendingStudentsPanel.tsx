@@ -1,6 +1,5 @@
 "use client";
 
-import { UserRoundCheck } from "lucide-react";
 import type { PendingStudent, PendingStudentsResponse, UpdateStudentStatusRequest } from "@nexa-chess/types";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { WidgetError } from "@/components/ui/WidgetError";
@@ -52,7 +51,7 @@ export function PendingStudentsPanel({
     return (
       <EmptyState
         description="Students who register themselves can sign in only after you approve them."
-        icon={UserRoundCheck}
+        illustration="students"
         title="No pending student registrations"
       />
     );

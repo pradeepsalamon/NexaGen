@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { Bell, CheckCheck } from "lucide-react";
 import type { NotificationItem } from "@nexa-chess/types";
+import { EmptyStateIllustration } from "@/components/ui/EmptyState";
 import { FormattedText } from "@/components/ui/FormattedText";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { HEADER_ICON_BUTTON } from "@/components/layout/headerStyles";
@@ -87,9 +88,10 @@ export function NotificationBell({
 
         <div className="max-h-[22rem] overflow-y-auto">
           {notifications.length === 0 ? (
-            <p className="px-3 py-8 text-center text-sm text-app-muted">
-              You&apos;re all caught up.
-            </p>
+            <div className="flex flex-col items-center px-3 py-6 text-center">
+              <EmptyStateIllustration name="notifications" size="sm" />
+              <p className="mt-2 text-sm text-app-muted">You&apos;re all caught up.</p>
+            </div>
           ) : (
             <ul className="divide-y divide-app-border/60">
               {notifications.map((item) => (
