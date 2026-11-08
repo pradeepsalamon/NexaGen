@@ -216,6 +216,17 @@
   --color-focus: rgb(var(--rgb-primary));
 }
 
+/* Solid status fills that look the same in both themes (BulkActionsBar):
+   the light theme's deep colours with white text. */
+.solid-status {
+  --rgb-success: 21 128 61;
+  --rgb-warning: 180 83 9;
+  --rgb-info: 3 105 161;
+  --rgb-on-success: 255 255 255;
+  --rgb-on-warning: 255 255 255;
+  --rgb-on-info: 255 255 255;
+}
+
 /* A scrolling panel with rounded corners: clip its scrollbar to the corners
    (Chrome draws the bar square across them otherwise). Clips the shadow too,
    which the dimmed overlay behind a dialog makes up for. */
