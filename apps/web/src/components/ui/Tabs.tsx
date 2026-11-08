@@ -130,7 +130,7 @@ const TabsList = React.forwardRef<
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Choose a tab"
-            className="inline-flex min-h-[var(--control-h-sm)] w-full items-center justify-between gap-2 rounded-md bg-primary px-4 text-sm font-medium text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+            className="inline-flex min-h-[var(--control-h-sm)] w-full items-center justify-between gap-2 rounded-md bg-button px-4 text-sm font-medium text-on-button focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
           >
             <span className="flex min-w-0 items-center gap-2 truncate">{active.label}</span>
             <ChevronDown aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.5} />
@@ -165,7 +165,7 @@ const TabsList = React.forwardRef<
       <span
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute left-0 top-0 rounded-md bg-primary",
+          "pointer-events-none absolute left-0 top-0 rounded-md bg-button",
           !indicator.ready && "hidden",
           !indicator.instant &&
             "motion-safe:transition-[transform,width,height] motion-safe:duration-300 motion-safe:ease-emphasized"
@@ -184,7 +184,7 @@ const TabsTrigger = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Trigger
     className={cn(
-      "group relative inline-flex min-h-[var(--control-h-sm)] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-medium text-app-muted transition-colors duration-200 hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:hover:text-on-primary group-data-[indicator]/tabs:data-[state=active]:bg-transparent",
+      "group relative inline-flex min-h-[var(--control-h-sm)] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-medium text-app-muted transition-colors duration-200 hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-button data-[state=active]:text-on-button data-[state=active]:hover:text-on-button group-data-[indicator]/tabs:data-[state=active]:bg-transparent",
       className
     )}
     ref={ref}

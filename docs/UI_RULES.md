@@ -24,6 +24,16 @@ there is a component or token for it. If there genuinely isn't, add one to
 Tokens live in `src/styles/globals.css` (`:root` + `:root[data-theme="dark"]`)
 and are mapped in `tailwind.config.ts`.
 
+- **Page body is plain neutral** in both themes (owner, 2026-11-08): white
+  page and cards in light; `#0A0A0A` page and `#171717` cards in dark; grey
+  borders and text with no blue tint. Navy stays only on the header and nav
+  (`surface-brand`).
+- **Filled buttons and the active tab look the same in both themes**: royal
+  blue with white text, from the `button` / `on-button` tokens (not
+  redefined under dark). `primary` still lightens in dark, because
+  `text-primary` icons and links need it to stay readable; outline and ghost
+  buttons keep `text-primary-ink`.
+
 | Need | Use | Never |
 |---|---|---|
 | Page / card / soft backgrounds | `bg-app-background`, `bg-app-surface`, `bg-app-soft` | `bg-white`, `bg-gray-50`, `bg-slate-900` |

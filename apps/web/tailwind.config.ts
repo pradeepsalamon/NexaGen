@@ -100,6 +100,13 @@ const config: Config = {
           hover: "rgb(var(--rgb-surface-soft) / <alpha-value>)"
         },
         "on-primary": "rgb(var(--rgb-on-primary) / <alpha-value>)",
+        // Filled-button fill, identical in light and dark (globals.css).
+        button: {
+          DEFAULT: "rgb(var(--rgb-button) / <alpha-value>)",
+          dark: "rgb(var(--rgb-button-dark) / <alpha-value>)",
+          hover: "rgb(var(--rgb-button-hover) / <alpha-value>)"
+        },
+        "on-button": "rgb(var(--rgb-on-button) / <alpha-value>)",
         primary: {
           DEFAULT: "rgb(var(--rgb-primary) / <alpha-value>)",
           dark: "rgb(var(--rgb-primary-dark) / <alpha-value>)",

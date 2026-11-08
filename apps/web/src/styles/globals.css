@@ -6,15 +6,17 @@
    line-strong and ink-subtle are corrected from v2 to meet WCAG (docs/ui-redesign). */
 :root,
 :root[data-theme="light"] {
-  --rgb-background: 248 250 252;
+  /* Page body is plain neutral in both themes, no brand tint (owner, 2026-11-08).
+     Text on white: 17.9 / 7.8 / 5.0:1; line-strong 3.4:1 for control borders. */
+  --rgb-background: 255 255 255;
   --rgb-surface: 255 255 255;
-  --rgb-surface-soft: 241 245 249;
-  --rgb-surface-hover: 241 245 249;
-  --rgb-border: 226 232 240;
-  --rgb-line-strong: 132 146 166;
-  --rgb-text: 17 24 39;
-  --rgb-text-muted: 71 85 105;
-  --rgb-text-subtle: 95 111 134;
+  --rgb-surface-soft: 245 245 245;
+  --rgb-surface-hover: 245 245 245;
+  --rgb-border: 229 229 229;
+  --rgb-line-strong: 138 138 138;
+  --rgb-text: 23 23 23;
+  --rgb-text-muted: 82 82 82;
+  --rgb-text-subtle: 112 112 112;
 
   --rgb-brand-900: 7 20 42;
   --rgb-brand-800: 15 30 58;
@@ -28,6 +30,13 @@
   --rgb-primary-soft: 238 243 253;
   --rgb-on-primary: 255 255 255;
   --color-primary-ink: #1E3F94;
+  /* Filled buttons: the same royal blue and white text in both themes (owner, 2026-11-08).
+     Deliberately not redefined under dark: `--rgb-primary` lightens there because 241
+     `text-primary` icons/links need it to stay readable on navy, but buttons don't. */
+  --rgb-button: 47 95 208;
+  --rgb-button-hover: 38 79 176;
+  --rgb-button-dark: 30 63 148;
+  --rgb-on-button: 255 255 255;
 
   --rgb-accent: 233 190 114;
   --rgb-accent-hover: 221 170 82;
@@ -103,9 +112,9 @@
   --color-chart-3: rgb(var(--rgb-chart-3));
   --color-chart-4: rgb(var(--rgb-chart-4));
 
-  --shadow-card: 0 1px 2px #0F1E3A0F, 0 1px 3px #0F1E3A14;
-  --shadow-lift: 0 4px 12px #0F1E3A14, 0 2px 4px #0F1E3A0F;
-  --shadow-soft: 0 16px 40px -4px #0F1E3A29, 0 4px 12px #0F1E3A14;
+  --shadow-card: 0 1px 2px #0000000F, 0 1px 3px #00000014;
+  --shadow-lift: 0 4px 12px #00000014, 0 2px 4px #0000000F;
+  --shadow-soft: 0 16px 40px -4px #00000029, 0 4px 12px #00000014;
   /* Focus ring of every text field (components/ui/fieldStyles.ts). */
   --shadow-focus: 0 0 0 3px rgb(var(--rgb-primary) / 0.25);
   --color-scroll-shade: rgb(var(--rgb-text) / 0.16);
@@ -128,15 +137,17 @@
 }
 
 :root[data-theme="dark"] {
-  --rgb-background: 11 18 32;
-  --rgb-surface: 17 26 46;
-  --rgb-surface-soft: 14 22 40;
-  --rgb-surface-hover: 14 22 40;
-  --rgb-border: 31 42 68;
-  --rgb-line-strong: 95 111 144;
-  --rgb-text: 241 245 249;
-  --rgb-text-muted: 169 180 198;
-  --rgb-text-subtle: 133 146 168;
+  /* Plain neutral dark body (owner, 2026-11-08). Text on the #171717 cards:
+     16.0 / 7.4 / 5.4:1; line-strong 3.6:1. */
+  --rgb-background: 10 10 10;
+  --rgb-surface: 23 23 23;
+  --rgb-surface-soft: 18 18 18;
+  --rgb-surface-hover: 31 31 31;
+  --rgb-border: 38 38 38;
+  --rgb-line-strong: 115 115 115;
+  --rgb-text: 245 245 245;
+  --rgb-text-muted: 163 163 163;
+  --rgb-text-subtle: 140 140 140;
 
   --rgb-brand-900: 5 13 28;
   --rgb-brand-800: 19 37 74;
