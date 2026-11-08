@@ -13,7 +13,7 @@ const Table = forwardRef<
   TableHTMLAttributes<HTMLTableElement>
 >(function Table({ className, ...props }, ref) {
   return (
-    <ScrollShadow className="rounded-app">
+    <ScrollShadow className="rounded-app bg-app-surface">
       <table
         className={cn("w-full caption-bottom text-sm", className)}
         ref={ref}
@@ -76,7 +76,7 @@ const TableRow = forwardRef<
   return (
     <tr
       className={cn(
-        "border-b border-app-border transition-colors hover:bg-primary-soft data-[state=selected]:bg-primary-soft",
+        "border-b border-app-border transition-colors hover:bg-app-soft",
         className
       )}
       ref={ref}
@@ -90,7 +90,7 @@ TableRow.displayName = "TableRow";
 // rest of a wide table scrolls under it.
 const PIN_END = "max-lg:sticky max-lg:right-0 max-lg:z-[1] max-lg:shadow-[-12px_0_12px_-12px_var(--color-scroll-shade)]";
 const PIN_END_CELL =
-  "max-lg:bg-app-surface max-lg:[tr:hover>&]:bg-primary-soft max-lg:[tr[data-state=selected]>&]:bg-primary-soft";
+  "max-lg:bg-app-surface max-lg:[tr:hover>&]:bg-app-soft";
 
 type PinProps = { pin?: "end" };
 

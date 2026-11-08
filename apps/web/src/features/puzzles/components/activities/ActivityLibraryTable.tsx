@@ -476,10 +476,10 @@ export function ActivityLibraryTable({
             noun="activity"
             onClear={() => setSelected(new Map())}
             actions={[
-              { icon: Send, label: "Publish", onSelect: () => void runBulk("PUBLISH") },
-              { icon: Archive, label: "Archive", onSelect: () => void runBulk("ARCHIVE") },
-              ...(hasPuzzleSelected ? [] : [{ icon: FolderInput, label: "Move", onSelect: () => setMoving(true) }]),
-              { icon: Trash2, label: "Delete", onSelect: () => setBulkConfirm(true) }
+              { icon: Send, label: "Publish", onSelect: () => void runBulk("PUBLISH"), tone: "success" },
+              { icon: Archive, label: "Archive", onSelect: () => void runBulk("ARCHIVE"), tone: "warning" },
+              ...(hasPuzzleSelected ? [] : [{ icon: FolderInput, label: "Move", onSelect: () => setMoving(true), tone: "info" as const }]),
+              { icon: Trash2, label: "Delete", onSelect: () => setBulkConfirm(true), tone: "danger" }
             ]}
           />
           <ConfirmationModal

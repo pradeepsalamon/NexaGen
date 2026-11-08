@@ -34,6 +34,8 @@ and are mapped in `tailwind.config.ts`.
   not redefined under dark, so buttons, active tabs, switches, chips and the
   active nav item never change shade. Only `primary-soft` (tint) and
   `primary-ink` (coloured text, kept readable) switch with the theme.
+- **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
+  scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
 - **Role nav** (`components/layout/Sidebar.tsx`): from `xl` a full-height navy
   card with the logo and a collapse button on top and the user (name + role)
   at the foot; the header starts beside it. The active link is a solid
@@ -130,7 +132,7 @@ disagree.
 | Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Soft fill + `-ink` text. Correct `role`/`aria-live` built in. Toasts use the same colours. |
 | Confirm before acting | `ConfirmationModal` (+ optional `icon`) | Never `window.confirm`. Undo policy: `lib/undo/README.md`. |
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |
-| Bulk actions on selected rows | `BulkActionsBar` + `useBulkAction` + `BulkResultDialog` | |
+| Bulk actions on selected rows | `BulkActionsBar` + `useBulkAction` + `BulkResultDialog` | A neutral floating bar with a blue count chip; give every action a `tone` so it is coloured by meaning: `danger` delete, `success` publish/activate, `warning` archive, `info` move/email. Selected rows and `DataTable` cards highlight themselves (globals.css: `data-state="selected"` or a ticked row checkbox), stronger than hover and with a blue leading edge. |
 | KPIs / stat tiles | `KpiCard`, `StatTile` | Plain card with a 12px label and a 32/40 value. Numbers use the display font with `tabular-nums`, never `font-mono`. Labels are sentence case. Don't hand-roll a KPI tile. |
 | Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. Where the layout must differ (a card with a link button, a room panel) use `EmptyStateIcon` for the icon circle, never a hand-built one. |
 | Loading | `Spinner` (`components/ui/Spinner`) | The one spinner: an arc on a faint track in the current colour, sized like an icon (`size-4` in a button — `Button isLoading` already uses it — `size-8` for a section). Never `Loader2` + `animate-spin`. |

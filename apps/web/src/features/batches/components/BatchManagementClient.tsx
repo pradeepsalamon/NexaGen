@@ -409,7 +409,7 @@ export function BatchManagementClient() {
 
               <BulkActionsBar
                 actions={[
-                  { disabled: bulk.isPending, icon: Archive, label: "Archive", onSelect: () => setBulkConfirm("archive") },
+                  { disabled: bulk.isPending, icon: Archive, label: "Archive", onSelect: () => setBulkConfirm("archive"), tone: "warning" },
                   { disabled: bulk.isPending, icon: Trash2, label: "Delete", onSelect: () => setBulkConfirm("delete"), tone: "danger" }
                 ]}
                 count={selectedRows.length}

@@ -155,6 +155,8 @@
   --rgb-on-brand-muted: 143 160 188;
 
   --rgb-emphasis: var(--rgb-text);
+  /* Selected rows/cards need a stronger tint to show on dark surfaces. */
+  --select-mix: 26%;
   --color-toggle-sun: transparent;
   --color-toggle-sun-ink: rgb(var(--rgb-text-subtle));
   --color-toggle-sun-hover: rgb(var(--rgb-text));
@@ -214,7 +216,30 @@
   --color-focus: rgb(var(--rgb-primary));
 }
 
-@layer components {
+/* A scrolling panel with rounded corners: clip its scrollbar to the corners
+   (Chrome draws the bar square across them otherwise). Clips the shadow too,
+   which the dimmed overlay behind a dialog makes up for. */
+.scroll-clip-panel {
+  clip-path: inset(0 round var(--radius-panel));
+}
+
+/* Selected rows and cards: a stronger blue than hover, opaque so a pinned
+   actions cell stays covered, with a blue rule on the leading edge. A row is
+   selected when marked `data-state="selected"` or when its own row checkbox
+   is ticked, so every table gets it without opting in. */
+tr[data-state="selected"] > td,
+tr:has(> td [role="checkbox"][data-state="checked"]) > td,
+.selectable-card[data-state="selected"],
+.selectable-card:has([role="checkbox"][data-state="checked"]) {
+  background-color: color-mix(in srgb, rgb(var(--rgb-primary)) var(--select-mix, 14%), rgb(var(--rgb-surface)));
+}
+tr[data-state="selected"] > td:first-child,
+tr:has(> td [role="checkbox"][data-state="checked"]) > td:first-child {
+  box-shadow: inset 3px 0 0 rgb(var(--rgb-primary));
+}
+.selectable-card[data-state="selected"],
+.selectable-card:has([role="checkbox"][data-state="checked"]) {
+  border-color: rgb(var(--rgb-primary) / 0.6);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -232,7 +257,7 @@
   * {
     @apply box-border;
     scrollbar-width: thin;
-    scrollbar-color: var(--color-primary) rgb(var(--rgb-primary) / 0.08);
+    scrollbar-color: var(--color-primary) transparent;
   }
 
   /* Webkit custom scrollbar */
@@ -241,7 +266,7 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: rgb(var(--rgb-primary) / 0.08);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
     background-color: var(--color-primary);
