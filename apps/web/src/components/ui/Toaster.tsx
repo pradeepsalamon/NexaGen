@@ -6,20 +6,21 @@ import { useTheme } from "@/providers/ThemeProvider";
 
 type ToasterProps = ComponentProps<typeof Sonner>;
 
-// Same soft fill and ink as Alert. A neutral toast inverts the page, like a tooltip.
+// Solid fills, the same as the bulk-action bar: deep colours with white text in
+// both themes (`.solid-status`), gold for warnings. A neutral toast inverts the page.
 const toastColorVars = {
-  "--error-bg": "rgb(var(--rgb-danger-soft))",
-  "--error-border": "rgb(var(--rgb-danger) / 0.3)",
-  "--error-text": "var(--color-danger-ink)",
-  "--success-bg": "rgb(var(--rgb-success-soft))",
-  "--success-border": "rgb(var(--rgb-success) / 0.3)",
-  "--success-text": "var(--color-success-ink)",
-  "--warning-bg": "rgb(var(--rgb-warning-soft))",
-  "--warning-border": "rgb(var(--rgb-warning) / 0.3)",
-  "--warning-text": "var(--color-warning-ink)",
-  "--info-bg": "rgb(var(--rgb-info-soft))",
-  "--info-border": "rgb(var(--rgb-info) / 0.3)",
-  "--info-text": "var(--color-info-ink)",
+  "--error-bg": "rgb(var(--rgb-danger))",
+  "--error-border": "rgb(var(--rgb-danger))",
+  "--error-text": "rgb(var(--rgb-on-danger))",
+  "--success-bg": "rgb(var(--rgb-success))",
+  "--success-border": "rgb(var(--rgb-success))",
+  "--success-text": "rgb(var(--rgb-on-success))",
+  "--warning-bg": "rgb(var(--rgb-accent))",
+  "--warning-border": "rgb(var(--rgb-accent))",
+  "--warning-text": "rgb(var(--rgb-on-accent))",
+  "--info-bg": "rgb(var(--rgb-info))",
+  "--info-border": "rgb(var(--rgb-info))",
+  "--info-text": "rgb(var(--rgb-on-info))",
   "--normal-bg": "rgb(var(--rgb-text))",
   "--normal-border": "rgb(var(--rgb-text-muted))",
   "--normal-text": "rgb(var(--rgb-surface))"
@@ -30,7 +31,7 @@ export function Toaster({ ...props }: ToasterProps) {
 
   return (
     <Sonner
-      className="toaster group"
+      className="toaster solid-status group"
       closeButton
       position="top-right"
       richColors

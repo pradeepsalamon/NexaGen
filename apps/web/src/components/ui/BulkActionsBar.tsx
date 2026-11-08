@@ -9,7 +9,7 @@ export type BulkAction = {
   icon: LucideIcon;
   label: string;
   onSelect: () => void;
-  /** Colours the action: danger = delete, success = publish/activate, warning = archive, info = move/email. */
+  /** Colours the action: danger = delete, success = publish/activate, warning = archive (gold), info = move/email. */
   tone?: "danger" | "default" | "info" | "success" | "warning";
 };
 
@@ -18,7 +18,7 @@ const TONE: Record<NonNullable<BulkAction["tone"]>, string> = {
   default: "bg-brand-800 text-on-brand hover:bg-brand-700",
   info: "bg-info text-on-info hover:opacity-90",
   success: "bg-success text-on-success hover:opacity-90",
-  warning: "bg-warning text-on-warning hover:opacity-90"
+  warning: "bg-accent text-on-accent hover:bg-accent-hover"
 };
 
 /** Floating bar shown while table rows are selected. Renders nothing at zero. */
