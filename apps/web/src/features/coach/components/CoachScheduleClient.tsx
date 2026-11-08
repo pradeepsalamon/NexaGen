@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarClock, CalendarDays, CalendarPlus, CalendarRange, List } from "lucide-react";
+import { CalendarDays, CalendarPlus, CalendarRange, List } from "lucide-react";
 import type { CoachClass } from "@nexa-chess/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -107,7 +107,7 @@ export function CoachScheduleClient() {
               ) : upcomingClasses.length === 0 ? (
                 <EmptyState
                   description="Classes appear here once the academy schedules them for your batches."
-                  icon={CalendarClock}
+                  illustration="schedule"
                   title="No upcoming classes"
                   variant="inline"
                 />

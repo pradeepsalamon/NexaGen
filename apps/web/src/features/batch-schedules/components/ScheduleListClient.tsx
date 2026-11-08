@@ -52,7 +52,7 @@ export function ScheduleListClient() {
       ) : schedules.length === 0 ? (
         <EmptyState
           description="Create a recurring weekly schedule to auto-generate a batch's classes."
-          icon={CalendarRange}
+          illustration="schedule"
           title="No schedules yet"
         />
       ) : (
