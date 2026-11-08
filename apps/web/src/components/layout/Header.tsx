@@ -1,6 +1,6 @@
 "use client";
 
-import { LifeBuoy, LogIn, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { HelpCircle, LogIn, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
@@ -52,7 +52,13 @@ export function Header({
   const homeHref = activeUser ? dashboardHref : "/";
 
   return (
-    <header className="surface-brand fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-brand-800 px-3 text-on-brand sm:px-4 md:px-6 lg:px-8">
+    <header
+      className={cn(
+        "fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-app-surface px-3 text-app-text sm:px-4 md:px-6 lg:px-8",
+        // Docked, the nav card runs full height on the left and the header starts beside it.
+        hasSidebar && navDocked && "left-[var(--app-nav-w,0px)] motion-safe:transition-[left] motion-safe:duration-200 motion-safe:ease-out"
+      )}
+    >
       {/* Docked nav: the menu button and logo sit over the nav column, not in the centred page width. */}
       <div
         className={cn(
@@ -72,11 +78,7 @@ export function Header({
                 onClick={toggleNavCollapsed}
                 type="button"
               >
-                {navCollapsed ? (
-                  <PanelLeftOpen aria-hidden="true" className="size-5" strokeWidth={2.25} />
-                ) : (
-                  <PanelLeftClose aria-hidden="true" className="size-5" strokeWidth={2.25} />
-                )}
+                <Menu aria-hidden="true" className="size-5" strokeWidth={2.25} />
               </button>
             </SimpleTooltip>
           ) : hasSidebar ? (
@@ -104,7 +106,7 @@ export function Header({
               ? { target: "_blank", rel: "noopener noreferrer" }
               : {})}
           >
-            <Logo iconOnlyOnMobile onDark size={36} />
+            <Logo iconOnlyOnMobile size={32} />
           </Link>
 
           {leftSlot}
@@ -115,7 +117,7 @@ export function Header({
         {centerSlot ? (
           <div className="hidden min-w-0 truncate md:block">{centerSlot}</div>
         ) : (
-          <p className="hidden min-w-0 truncate text-center font-display text-base font-bold text-on-brand lg:block">
+          <p className="hidden min-w-0 truncate text-center font-display text-base font-bold text-app-text lg:block">
             {activeUser ? pageTitle : null}
           </p>
         )}
@@ -134,7 +136,7 @@ export function Header({
                   href={`/help?from=${encodeURIComponent(pathname)}`}
                   {...(openLinksInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 >
-                  <LifeBuoy aria-hidden="true" className="size-5" strokeWidth={2.25} />
+                  <HelpCircle aria-hidden="true" className="size-5" strokeWidth={2.25} />
                 </Link>
               </SimpleTooltip>
             </span>
@@ -150,7 +152,7 @@ export function Header({
           {isAuthPending ? (
             <div
               aria-label="Checking session"
-              className="inline-flex size-[var(--control-h)] shrink-0 items-center justify-center text-on-brand-muted"
+              className="inline-flex size-[var(--control-h)] shrink-0 items-center justify-center text-app-muted"
               role="status"
             >
               <Spinner aria-hidden="true" className="size-4" />

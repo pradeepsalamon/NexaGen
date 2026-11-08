@@ -14,13 +14,14 @@ import {
   type ReactElement,
   type ReactNode
 } from "react";
+import { Logo } from "@/components/Logo";
 import type { NavItem } from "@/components/layout/navItems";
 import { Avatar } from "@/components/ui/Avatar";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useAuthStore } from "@/stores/authStore";
 import { useSidebarStore } from "@/stores/sidebarStore";
-import { cn } from "@/lib/utils";
+import { cn, enumLabel } from "@/lib/utils";
 
 /** From here the nav is docked beside the page instead of an off-canvas drawer. */
 export const NAV_DOCKED_QUERY = "(min-width: 1280px)";
@@ -54,22 +55,16 @@ function NavDrawerUser() {
     <RailTooltip label={name}>
     <Link
       className={cn(
-        "flex items-center gap-3 rounded-control p-2 transition-colors duration-150",
-        "text-on-brand hover:bg-brand-800",
-        rail && "justify-center px-0"
+        "flex items-center gap-3 rounded-app border border-app-drawer-border bg-brand-800 p-2 text-on-brand transition-colors duration-150 hover:bg-brand-700",
+        rail && "justify-center border-transparent bg-transparent px-0"
       )}
       href="/profile"
     >
       <Avatar className="font-bold" imageUrl={user.avatarUrl} name={name} size="sm" />
       <span className={cn("min-w-0 flex-1", rail && "sr-only")}>
         <span className="block truncate text-sm font-semibold">{name}</span>
-        <span
-          className={cn(
-            "block truncate text-xs",
-            "text-on-brand-muted"
-          )}
-        >
-          {user.email}
+        <span className="block truncate text-xs text-on-brand-muted">
+          {enumLabel(user.role)}
         </span>
       </span>
     </Link>
@@ -98,6 +93,7 @@ export function NavDrawer({
   const toggle = useSidebarStore((state) => state.toggle);
   const setAvailable = useSidebarStore((state) => state.setAvailable);
   const collapsed = useSidebarStore((state) => state.collapsed);
+  const toggleCollapsed = useSidebarStore((state) => state.toggleCollapsed);
   const docked = useMediaQuery(NAV_DOCKED_QUERY);
   const rail = docked && collapsed;
 
@@ -229,32 +225,55 @@ export function NavDrawer({
   if (docked) {
     return (
       <NavRailContext.Provider value={rail}>
-        <aside
-          aria-label={`${title} navigation`}
-          className="surface-brand fixed bottom-0 left-0 top-16 z-30 flex w-[var(--app-nav-w)] flex-col overflow-hidden border-r border-app-drawer-border bg-app-drawer text-on-brand [contain:layout_paint] motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out"
-          id="nav-drawer"
-          ref={panelRef}
-        >
-          {/* The header's logo sits right above: docked, only the role is named here. */}
-          {rail || !subtitle ? null : (
-            <div className="shrink-0 px-4 pt-4">
-              <span className="inline-block max-w-full truncate rounded-full border border-app-drawer-border px-2.5 py-0.5 text-xs font-medium text-on-brand-muted">
-                {subtitle}
-              </span>
-            </div>
-          )}
-          <nav
-            className={cn(
-              "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain [contain:content] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0",
-              rail ? "p-2" : "p-3"
-            )}
+        {/* Full-height navy card left of the header: logo and collapse control on top, user at the foot. */}
+        <div className="fixed inset-y-0 left-0 z-30 w-[var(--app-nav-w)] py-2 pl-2 motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out">
+          <aside
+            aria-label={`${title} navigation`}
+            className="surface-brand flex h-full flex-col overflow-hidden rounded-panel bg-app-drawer text-on-brand shadow-lift [contain:layout_paint]"
+            id="nav-drawer"
+            ref={panelRef}
           >
-            {children}
-          </nav>
-          <div className="flex shrink-0 flex-col gap-2 border-t border-app-drawer-border p-2">
-            {footer ?? <NavDrawerUser />}
-          </div>
-        </aside>
+            <div
+              className={cn(
+                "flex h-14 shrink-0 items-center gap-2",
+                rail ? "justify-center" : "justify-between pl-4 pr-3"
+              )}
+            >
+              {rail ? null : (
+                <span className="min-w-0 overflow-hidden">
+                  <Logo compact onDark size={30} />
+                </span>
+              )}
+              <SimpleTooltip label={rail ? "Expand menu" : "Collapse menu"} side="right">
+                <button
+                  aria-controls="nav-drawer"
+                  aria-expanded={!collapsed}
+                  aria-label={rail ? "Expand menu" : "Collapse menu"}
+                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-control border border-app-drawer-border text-on-brand-muted transition-colors hover:bg-brand-800 hover:text-on-brand"
+                  onClick={toggleCollapsed}
+                  type="button"
+                >
+                  <ChevronLeft
+                    aria-hidden="true"
+                    className={cn("size-4 transition-transform duration-200", rail && "rotate-180")}
+                    strokeWidth={2.5}
+                  />
+                </button>
+              </SimpleTooltip>
+            </div>
+            <nav
+              className={cn(
+                "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain [contain:content] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0",
+                rail ? "p-2" : "px-3 py-2"
+              )}
+            >
+              {children}
+            </nav>
+            <div className={cn("flex shrink-0 flex-col gap-2", rail ? "p-2" : "p-3")}>
+              {footer ?? <NavDrawerUser />}
+            </div>
+          </aside>
+        </div>
       </NavRailContext.Provider>
     );
   }
@@ -307,9 +326,7 @@ export function NavDrawer({
               "border-app-drawer-border"
             )}
           >
-            <span className="font-display text-base font-bold tracking-tight">
-              {title}
-            </span>
+            <Logo compact onDark size={30} />
             {subtitle ? (
               <span
                 className={cn(
@@ -359,16 +376,14 @@ export function NavDrawer({
           </button>
         ) : null}
 
-        {/* Gold tab on the drawer's edge. Closed on a phone it fits inside the page gutter, so it covers no content. */}
+        {/* Gold tab riding the drawer's edge (as on main) — the only part visible while closed. */}
         <button
           aria-controls="nav-drawer"
           aria-expanded={open}
           aria-label={open ? "Close menu" : "Open menu"}
           className={cn(
-            "absolute left-full top-1/2 flex h-14 -translate-y-1/2 items-center justify-center bg-accent text-on-accent shadow-lift transition-[width,margin,border-radius] duration-300 cursor-pointer",
-            open
-              ? "ml-2 w-7 rounded-control"
-              : "w-2.5 touch-none rounded-r-control md:w-5 md:hover:w-6"
+            "absolute left-full top-1/2 flex h-14 -translate-y-1/2 items-center justify-center bg-accent text-on-accent shadow-lift transition-[width,margin,border-radius] duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
+            open ? "ml-2 w-7 rounded-app" : "w-5 touch-none rounded-r-app hover:w-6"
           )}
           onClick={unlessDragged(toggle)}
           onPointerEnter={(event) => {
@@ -379,10 +394,7 @@ export function NavDrawer({
         >
           <ChevronLeft
             aria-hidden="true"
-            className={cn(
-              "size-3.5 transition-transform duration-300",
-              open ? "" : "rotate-180 max-md:hidden"
-            )}
+            className={cn("size-3.5 transition-transform duration-300", open ? "" : "rotate-180")}
             strokeWidth={2.75}
           />
         </button>
@@ -466,7 +478,7 @@ export function NavDrawerLink({
       className={cn(
         "flex h-10 w-full items-center gap-3 rounded-control px-3 text-sm font-medium transition-colors duration-150",
         active
-          ? "bg-brand-700 font-semibold text-on-brand shadow-[inset_3px_0_0_rgb(var(--rgb-accent))]"
+          ? "bg-primary font-semibold text-on-primary shadow-card"
           : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand",
         rail && "justify-center px-0"
       )}
@@ -517,7 +529,7 @@ export function NavDrawerAccordion({
           className={cn(
             "flex h-10 w-full items-center justify-center rounded-control transition-colors duration-150",
             holdsRoute
-              ? "bg-brand-700 text-on-brand shadow-[inset_3px_0_0_rgb(var(--rgb-accent))]"
+              ? "bg-primary text-on-primary shadow-card"
               : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
           )}
           onClick={() => {
@@ -582,7 +594,7 @@ export function NavDrawerAccordion({
                 className={cn(
                   "flex h-9 items-center gap-2 rounded-control px-2.5 text-sm transition-colors duration-150",
                   active
-                    ? "bg-brand-700 font-semibold text-on-brand shadow-[inset_3px_0_0_rgb(var(--rgb-accent))]"
+                    ? "bg-primary font-semibold text-on-primary shadow-card"
                     : "font-medium text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
                 )}
                 href={item.href}

@@ -169,7 +169,7 @@ function StackedRow<TData>({ cells, selected }: { cells: Cell<TData, unknown>[];
 
   return (
     <li
-      className="rounded-app border border-app-border bg-app-surface p-4 text-sm shadow-card data-[state=selected]:border-primary/50 data-[state=selected]:bg-primary-soft"
+      className="selectable-card rounded-app border border-app-border bg-app-surface p-4 text-sm shadow-card"
       data-state={selected ? "selected" : undefined}
     >
       {primary ? (

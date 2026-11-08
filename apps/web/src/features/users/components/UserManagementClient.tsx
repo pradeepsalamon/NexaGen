@@ -419,8 +419,8 @@ export function UserManagementClient() {
 
               <BulkActionsBar
                 actions={[
-                  { icon: Mail, label: "Email", onSelect: () => setEmailing(selectedRows.map(toEmailRecipient)) },
-                  { disabled: bulk.isPending, icon: Archive, label: "Archive", onSelect: () => setBulkConfirm("archive") },
+                  { icon: Mail, label: "Email", onSelect: () => setEmailing(selectedRows.map(toEmailRecipient)), tone: "info" },
+                  { disabled: bulk.isPending, icon: Archive, label: "Archive", onSelect: () => setBulkConfirm("archive"), tone: "warning" },
                   { disabled: bulk.isPending, icon: Trash2, label: "Delete", onSelect: () => setBulkConfirm("delete"), tone: "danger" }
                 ]}
                 count={selectedRows.length}

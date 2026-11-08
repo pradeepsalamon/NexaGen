@@ -26,13 +26,21 @@ and are mapped in `tailwind.config.ts`.
 
 - **Page body is plain neutral** in both themes (owner, 2026-11-08): white
   page and cards in light; `#0A0A0A` page and `#171717` cards in dark; grey
-  borders and text with no blue tint. Navy stays only on the header and nav
-  (`surface-brand`).
-- **Filled buttons and the active tab look the same in both themes**: royal
-  blue with white text, from the `button` / `on-button` tokens (not
-  redefined under dark). `primary` still lightens in dark, because
-  `text-primary` icons and links need it to stay readable; outline and ghost
-  buttons keep `text-primary-ink`.
+  borders and text with no blue tint. Navy stays only on the role nav
+  (`surface-brand`); the app header is a plain surface (white in light), as
+  in the owner's 2026-11-08 layout mock.
+- **Every blue fill is the light theme's royal blue in both themes**
+  (owner, 2026-11-08): `primary` / `button` fills and `on-primary` text are
+  not redefined under dark, so buttons, active tabs, switches, chips and the
+  active nav item never change shade. Only `primary-soft` (tint) and
+  `primary-ink` (coloured text, kept readable) switch with the theme.
+- **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
+  scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
+- **Role nav** (`components/layout/Sidebar.tsx`): from `xl` a full-height navy
+  card with the logo and a collapse button on top and the user (name + role)
+  at the foot; the header starts beside it. The active link is a solid
+  `bg-primary` fill. Below `xl` it is the off-canvas drawer with main's gold
+  edge tab.
 
 | Need | Use | Never |
 |---|---|---|
@@ -46,7 +54,7 @@ and are mapped in `tailwind.config.ts`.
 | Tints | the `-soft` tokens, or alpha on a token: `bg-primary/10`, `border-success/40` | a separate pale palette colour |
 | Input borders, unchecked controls | `border-app-line-strong` | `border-app-border`, which is too faint at 3:1 |
 | Over video, the board or a dimmed page | `bg-scrim/60`, `text-on-scrim`, `border-on-scrim/10`, `text-on-scrim-danger` (fixed in both themes) | `bg-black/60 text-white` |
-| Inside the navy header or drawer | Put `surface-brand` on the navy container: everything inside reads the dark palette in both themes, so `text-app-text`, `Button` and `Badge` just work | Hand-picking `text-white` for each child |
+| Inside the navy nav drawer | Put `surface-brand` on the navy container: everything inside reads the dark palette in both themes, so `text-app-text`, `Button` and `Badge` just work | Hand-picking `text-white` for each child |
 | Must stay white (QR code, switch thumb) | `bg-paper` | `bg-white` |
 | Chess sides and draws (swatches, result bars) | `bg-side-white`, `bg-side-black`, `bg-side-draw` | `bg-white`, `bg-neutral-900` |
 | Charts | `useChartColors()`; extra hues are `--color-chart-1` to `-4` | hex in a chart |
@@ -121,10 +129,10 @@ disagree.
 | Showing text someone typed | `LinkedText` (`components/ui/FormattedText.tsx`) | Chat, feedback, notes: addresses become underlined links and nothing else changes. `onColour` on a coloured surface like your own chat bubble. Never `dangerouslySetInnerHTML` or a local URL regex. |
 | Dates and times | `DatePicker`, `DateStringPicker` (for `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` state), `TimePicker`, `DateRangePicker` | Never `type="date|time|datetime-local"`. |
 | Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: sunken `bg-app-soft` track, active tab is a solid primary chip that slides between tabs (`useSlidingIndicator`); `TabsContent` fades up (`animate-tab-panel-in`). A two-way switch may slide its content sideways instead (`animate-tab-in-left`/`-right`, register page). |
-| Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Soft fill + `-ink` text. Correct `role`/`aria-live` built in. Toasts use the same colours. |
+| Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Soft fill + `-ink` text. Correct `role`/`aria-live` built in. Toasts are solid fills instead (see Bulk actions). |
 | Confirm before acting | `ConfirmationModal` (+ optional `icon`) | Never `window.confirm`. Undo policy: `lib/undo/README.md`. |
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |
-| Bulk actions on selected rows | `BulkActionsBar` + `useBulkAction` + `BulkResultDialog` | |
+| Bulk actions on selected rows | `BulkActionsBar` + `useBulkAction` + `BulkResultDialog` | A neutral floating bar with a blue count chip; give every action a `tone` so it is a solid fill (white text, the same deep colours in both themes via `.solid-status`) coloured by meaning: `danger` delete, `success` publish/activate, `warning` archive (the gold accent), `info` move/email. Toasts use the same solid fills (`Toaster`, warning = gold). Selected rows and `DataTable` cards highlight themselves (globals.css: `data-state="selected"` or a ticked row checkbox), stronger than hover and with a blue leading edge. |
 | KPIs / stat tiles | `KpiCard`, `StatTile` | Plain card with a 12px label and a 32/40 value. Numbers use the display font with `tabular-nums`, never `font-mono`. Labels are sentence case. Don't hand-roll a KPI tile. |
 | Nothing to show | `EmptyState` | Icon, one headline, one line of next step. Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. Where the layout must differ (a card with a link button, a room panel) use `EmptyStateIcon` for the icon circle, never a hand-built one. |
 | Loading | `Spinner` (`components/ui/Spinner`) | The one spinner: an arc on a faint track in the current colour, sized like an icon (`size-4` in a button — `Button isLoading` already uses it — `size-8` for a section). Never `Loader2` + `animate-spin`. |
