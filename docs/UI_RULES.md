@@ -26,13 +26,19 @@ and are mapped in `tailwind.config.ts`.
 
 - **Page body is plain neutral** in both themes (owner, 2026-11-08): white
   page and cards in light; `#0A0A0A` page and `#171717` cards in dark; grey
-  borders and text with no blue tint. Navy stays only on the header and nav
-  (`surface-brand`).
-- **Filled buttons and the active tab look the same in both themes**: royal
-  blue with white text, from the `button` / `on-button` tokens (not
-  redefined under dark). `primary` still lightens in dark, because
-  `text-primary` icons and links need it to stay readable; outline and ghost
-  buttons keep `text-primary-ink`.
+  borders and text with no blue tint. Navy stays only on the role nav
+  (`surface-brand`); the app header is a plain surface (white in light), as
+  in the owner's 2026-11-08 layout mock.
+- **Every blue fill is the light theme's royal blue in both themes**
+  (owner, 2026-11-08): `primary` / `button` fills and `on-primary` text are
+  not redefined under dark, so buttons, active tabs, switches, chips and the
+  active nav item never change shade. Only `primary-soft` (tint) and
+  `primary-ink` (coloured text, kept readable) switch with the theme.
+- **Role nav** (`components/layout/Sidebar.tsx`): from `xl` a full-height navy
+  card with the logo and a collapse button on top and the user (name + role)
+  at the foot; the header starts beside it. The active link is a solid
+  `bg-primary` fill. Below `xl` it is the off-canvas drawer with main's gold
+  edge tab.
 
 | Need | Use | Never |
 |---|---|---|
@@ -46,7 +52,7 @@ and are mapped in `tailwind.config.ts`.
 | Tints | the `-soft` tokens, or alpha on a token: `bg-primary/10`, `border-success/40` | a separate pale palette colour |
 | Input borders, unchecked controls | `border-app-line-strong` | `border-app-border`, which is too faint at 3:1 |
 | Over video, the board or a dimmed page | `bg-scrim/60`, `text-on-scrim`, `border-on-scrim/10`, `text-on-scrim-danger` (fixed in both themes) | `bg-black/60 text-white` |
-| Inside the navy header or drawer | Put `surface-brand` on the navy container: everything inside reads the dark palette in both themes, so `text-app-text`, `Button` and `Badge` just work | Hand-picking `text-white` for each child |
+| Inside the navy nav drawer | Put `surface-brand` on the navy container: everything inside reads the dark palette in both themes, so `text-app-text`, `Button` and `Badge` just work | Hand-picking `text-white` for each child |
 | Must stay white (QR code, switch thumb) | `bg-paper` | `bg-white` |
 | Chess sides and draws (swatches, result bars) | `bg-side-white`, `bg-side-black`, `bg-side-draw` | `bg-white`, `bg-neutral-900` |
 | Charts | `useChartColors()`; extra hues are `--color-chart-1` to `-4` | hex in a chart |

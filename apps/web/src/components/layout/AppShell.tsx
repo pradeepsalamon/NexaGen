@@ -14,8 +14,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* The column's navy ground from first paint; the nav itself mounts over it. */}
       <div
         aria-hidden="true"
-        className="fixed bottom-0 left-0 top-16 z-20 hidden w-[var(--app-nav-w,0px)] bg-app-drawer xl:block"
-      />
+        className="fixed inset-y-0 left-0 z-20 hidden w-[var(--app-nav-w,0px)] py-2 pl-2 xl:block"
+      >
+        <div className="h-full rounded-panel bg-app-drawer" />
+      </div>
       <RoleSidebar />
       {/* The offset jumps; only the nav column animates. Animating this padding re-laid out
           the whole page every frame, which is what made collapsing the nav stutter. */}

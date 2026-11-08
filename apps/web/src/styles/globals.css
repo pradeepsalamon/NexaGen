@@ -31,8 +31,7 @@
   --rgb-on-primary: 255 255 255;
   --color-primary-ink: #1E3F94;
   /* Filled buttons: the same royal blue and white text in both themes (owner, 2026-11-08).
-     Deliberately not redefined under dark: `--rgb-primary` lightens there because 241
-     `text-primary` icons/links need it to stay readable on navy, but buttons don't. */
+     Not redefined under dark; `--rgb-primary` isn't either, so every blue fill matches. */
   --rgb-button: 47 95 208;
   --rgb-button-hover: 38 79 176;
   --rgb-button-dark: 30 63 148;
@@ -174,11 +173,9 @@
 
 :root[data-theme="dark"],
 .surface-brand {
-  --rgb-primary: 107 147 234;
-  --rgb-primary-hover: 132 166 238;
-  --rgb-primary-dark: 79 123 224;
+  /* Primary fills keep the light theme's royal blue (owner, 2026-11-08): only the
+     soft tint and the `-ink` text colour change, so text stays readable on dark. */
   --rgb-primary-soft: 23 42 85;
-  --rgb-on-primary: 7 20 42;
   --color-primary-ink: #A9C1F5;
 
   --rgb-accent-hover: 240 205 142;

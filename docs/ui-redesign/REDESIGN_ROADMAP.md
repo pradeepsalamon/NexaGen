@@ -85,7 +85,7 @@ See [M0_REPORT.md](M0_REPORT.md) for detail and recommendations.
 | **N1** | Resolved in M5: the drawer's Chess Rating card stays gone on `dev`; students see their rating as a dashboard tile when they have one | Done |
 | **N2** | `Lead.email` is a schema and API change that reaches `main` through this branch | Merge to `main` |
 | **N3** | The owner's 16/24 body text differs from v2's 14/20 default UI text. The owner's decision is applied, so v2's type tokens need remapping | M1 |
-| **N4** | Header colour: v2 specifies a navy app header, the Patterns board shows white. **Owner decided navy, 2026-11-02** | Nothing |
+| **N4** | Header colour: v2 specifies a navy app header, the Patterns board shows white. **Owner decided navy, 2026-11-02; changed to a white header beside a full-height navy nav, 2026-11-08** | Nothing |
 | **N5** | Logo and brand files: only raster logos exist in the repo, and v2's asset groups are empty. **Owner skipped SVG logos, 2026-11-02: the app keeps the existing PNGs.** Traced drafts were rejected as not faithful enough | Nothing. A proper vector redraw can replace the PNGs later |
 
 ### Colour tokens before M3 (2026-11-02)
