@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="knight-blue" x1="34" y1="32" x2="88" y2="136" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="50%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#0B1F3B"/>
+    </linearGradient>
+    <linearGradient id="knight-gold" x1="38" y1="32" x2="84" y2="130" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="100%" stop-color="#E8B85E"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="60" cy="148" rx="34" ry="5" fill="#0B1F3B" opacity="0.18"/>
+  <!-- Carved Staunton Horse Profile -->
+  <path d="M40 122L44 88C44 88 34 86 32 76C30 66 42 50 48 44L46 33L55 40C68 41 82 54 84 76C85 92 78 108 80 122H40Z" fill="url(#knight-blue)"/>
+  <!-- Metallic Mane Crest -->
+  <path d="M55 40C68 41 82 54 84 76C85 90 80 106 80 122H75C75 106 79 90 78 76C76 58 65 46 55 40Z" fill="url(#knight-gold)"/>
+  <!-- Eye Detail -->
+  <circle cx="48" cy="56" r="2" fill="#E8B85E"/>
+  <!-- Pedestal Base -->
+  <rect x="36" y="122" width="48" height="4" rx="2" fill="url(#knight-gold)"/>
+  <path d="M33 131C33 127.5 36.5 126 40 126H80C83.5 126 87 127.5 87 131V137H33V131Z" fill="#DBEAFE"/>
+  <rect x="30" y="137" width="60" height="9" rx="4" fill="#0B1F3B"/>
+</svg>
