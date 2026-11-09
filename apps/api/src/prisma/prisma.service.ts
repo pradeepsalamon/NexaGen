@@ -663,6 +663,26 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.referralRedemption;
   }
 
+  get tournament() {
+    return this.client.tournament;
+  }
+
+  get tournamentHost() {
+    return this.client.tournamentHost;
+  }
+
+  get tournamentPlayer() {
+    return this.client.tournamentPlayer;
+  }
+
+  get tournamentSettings() {
+    return this.client.tournamentSettings;
+  }
+
+  get tournamentAuditLog() {
+    return this.client.tournamentAuditLog;
+  }
+
   get referralRewardRule() {
     return this.client.referralRewardRule;
   }

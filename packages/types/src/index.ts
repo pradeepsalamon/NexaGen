@@ -589,7 +589,8 @@ export type TrashEntity =
   | "KnowledgeCategory"
   | "ChessGame"
   | "LiveClassPreset"
-  | "DemoSchedule";
+  | "DemoSchedule"
+  | "Tournament";
 
 export type TrashDeletedBy = {
   email: string;
@@ -2832,3 +2833,8 @@ export * from "./retention";
 // Admin email: verification policy + direct email (docs/EMAIL_ADMIN.md).
 // ──────────────────────────────────────────────
 export * from "./email-admin";
+
+// ──────────────────────────────────────────────
+// Tournaments (docs/TOURNAMENTS.md).
+// ──────────────────────────────────────────────
+export * from "./tournaments";

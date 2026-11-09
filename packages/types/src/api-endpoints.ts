@@ -789,6 +789,10 @@ export const API_ROUTES = {
     myRedemptions: "/referrals/me/redemptions",
     cancelRedemption: (id: string = ":id") => `/referrals/me/redemptions/${id}/cancel`
   },
+  // Tournaments (docs/TOURNAMENTS.md). Phase 1: the academy's tournament settings (admins).
+  tournaments: {
+    adminSettings: "/admin/tournaments/settings"
+  },
   adminReferrals: {
     overview: "/admin/referrals/overview",
     list: "/admin/referrals",

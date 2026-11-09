@@ -105,7 +105,10 @@ export class PrivacyService {
       referralPointsReceived,
       referralPointsConversions,
       referralRedemptions,
-      referredBy
+      referredBy,
+      tournamentEntries,
+      tournamentHostRoles,
+      tournamentAuditActions
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -222,7 +225,20 @@ export class PrivacyService {
       // Vouchers bought with points (the issued code's id, not its text).
       p.referralRedemption.findMany({ omit: { reviewedById: true }, where: { userId: id } }),
       // The referral that brought this account in — not who referred them.
-      p.referral.findMany({ select: { createdAt: true, id: true }, where: { referredUserId: id } })
+      p.referral.findMany({ select: { createdAt: true, id: true }, where: { referredUserId: id } }),
+      // Tournaments (docs/TOURNAMENTS.md), trashed tournaments included. Who
+      // registered or decided an entry is someone else's account, so only the fact.
+      p.withDeleted.tournamentPlayer.findMany({
+        omit: { decidedById: true, registeredById: true },
+        where: { userId: id }
+      }),
+      p.withDeleted.tournamentHost.findMany({ omit: { grantedById: true }, where: { userId: id } }),
+      // Actions this account took. Before/after values can hold other people's
+      // data (a correction, a registration), so only what was done and when.
+      p.tournamentAuditLog.findMany({
+        select: { action: true, createdAt: true, id: true, reason: true, targetType: true, tournamentId: true },
+        where: { actorId: id }
+      })
     ]);
 
     return {
@@ -275,6 +291,9 @@ export class PrivacyService {
         referredBy: records(referredBy),
         referralsMade: records(referralsMade),
         sessions: records(sessions),
+        tournamentAuditActions: records(tournamentAuditActions),
+        tournamentEntries: records(tournamentEntries),
+        tournamentHostRoles: records(tournamentHostRoles),
         studentProfile: records(studentProfile),
         subscriptions: records(subscriptions),
         typography: records(typography),

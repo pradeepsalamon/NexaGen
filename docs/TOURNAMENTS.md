@@ -72,10 +72,11 @@ ever involved. Arena points are plain integers.
 
 - **`Tournament`**: `slug`, `name`, `description`, `bannerUrl`, `logoUrl`,
   `format` (SWISS | ARENA | ROUND_ROBIN | KNOCKOUT), `status` (DRAFT →
-  SCHEDULED → REGISTRATION_OPEN → REGISTRATION_CLOSED → LIVE ⇄ PAUSED →
-  COMPLETED | CANCELLED), `visibility` (PUBLIC | PRIVATE | INVITATION_ONLY),
+  PUBLISHED → LIVE ⇄ PAUSED → COMPLETED | CANCELLED; whether registration is
+  open is **derived** from the registration window by a shared resolver, never
+  stored, so no cron flips a status), `visibility` (PUBLIC | PRIVATE | INVITATION_ONLY),
   `startsAt`, `registrationOpensAt`, `registrationClosesAt`,
-  `lateRegistrationUntilRound`, `minPlayers`, `maxPlayers`, `eligibilityJson`
+  `lateRegistrationRounds`, `minPlayers`, `maxPlayers`, `eligibilityJson`
   (Zod: age-group set + cutoff date, rating range, experience levels, batch
   ids), `rulesText`, `prizesText` (no fee columns in v1, decision 5),
   `clockInitialMs`, `clockIncrementMs`, `startFen`, `rounds`, `roundBreakSec`,
@@ -529,8 +530,8 @@ added here as they come up.
 | Phase | Scope | Done when / tests |
 |---|---|---|
 | **0. Engine extraction** | `common/chess/game-engine.ts` pulled out of `LiveClassMatchService`. No behaviour change. | The existing match spec is green; new engine spec covers every end reason, clocks, increment, flag with insufficient material. |
-| **1. Domain, DB, permissions** | Models + migration + getters (incl. `TournamentSettings`, certificate tables), `tournaments.ts` contract, `API_ROUTES`, module skeleton, `assertCan*` / visibility (§3.2), `TOURNAMENT_PUBLISH` approval handler, feature key + Enterprise migration, audit log, soft delete (Trash checklist), privacy export, tenant ownership rules (§3.8). | Unit specs for every permission row; access suites; `route-auth.spec`; tenant spec; `npm run typecheck` / `lint` / `test`. |
-| **2. Create, discover, register** | CRUD + versioned edits, banner/logo upload, publish flow (direct or approval), discovery list (paged), details, `RegistrationGate` chain (eligibility: age group by cutoff date, rating, level, batch; capacity; approval; same-academy check), self + admin + coach-own-batch registration, invitations, withdraw-before-deadline, approve/reject, wizard UI, discovery and details UI. | Eligibility table tests; duplicate-registration race (int-spec); coach cannot add a non-own-batch student; cross-user rows; shots of the screens. |
+| **1. Domain, DB, permissions** | Models + migration + getters (incl. `TournamentSettings`, certificate tables), `tournaments.ts` contract, `API_ROUTES`, module skeleton, `assertCan*` / visibility (§3.2), feature key + Enterprise migration, audit log, soft delete (Trash checklist), privacy export, tenant ownership rules (§3.8). | Unit specs for every permission row; access suites; `route-auth.spec`; tenant spec; `npm run typecheck` / `lint` / `test`. |
+| **2. Create, discover, register** | Format-config and eligibility schemas, the registration-phase resolver, CRUD + versioned edits, banner/logo upload, publish flow (direct, or the `TOURNAMENT_PUBLISH` approval handler — moved here from Phase 1 so it ships with the publish route that files it), discovery list (paged), details, `RegistrationGate` chain (eligibility: age group by cutoff date, rating, level, batch; capacity; approval; same-academy check), self + admin + coach-own-batch registration, invitations, withdraw-before-deadline, approve/reject, wizard UI, discovery and details UI. | Eligibility table tests; duplicate-registration race (int-spec); coach cannot add a non-own-batch student; cross-user rows; shots of the screens. |
 | **3. Pairing engines** | Swiss, round robin, knockout, arena pool, tiebreaks: pure modules. Round generation service (transaction + lock). Seeding through `TournamentRatingProvider`. | Fixtures + property tests (§5); concurrent "next round" int-spec gives one round. |
 | **4. Live games + results** | Tournament game routes on the Phase 0 engine, first-move timer, flag sweeper cron, opponent-gone claim, result funnel (§3.4), Game Library `TOURNAMENT` source, play screen. | Specs for every outcome; concurrent completion int-spec (idempotent); reconnect = snapshot refetch (Playwright, two simulated players). |
 | **5. Standings + management** | Standings cache + recompute, filters (age group, rating band, batch), host dashboard (start, pause, resume, next round, forfeits, result correction with reason, disqualify, end, publish results, audit view), **academy admin dashboard `/admin/tournaments`** (§3.7). | Cached = recomputed (property test); correction re-ranks; audit row on every action; admin dashboard only shows own-academy rows. |
@@ -555,7 +556,8 @@ place. A screen without its enforced API behaviour does not count.
 | Phase | Status |
 |---|---|
 | 0 | **Done** (2026-11-09): `common/chess/game-engine.ts` + spec (37 tests); `LiveClassMatchService` delegates to it. The match spec ran unchanged: the student-match, simul and common/chess suites went from 5 suites and 187 tests to 6 and 224, all passing; the full API unit run had 207 suites and 2994 tests passing, with 2 suites skipped because they need a real Stockfish binary. |
-| 1–9 | Not started |
+| 1 | **Done** (2026-11-09), see "Phase 1 as built" below. |
+| 2–9 | Not started |
 
 ### Phase 0 — exact scope (confirmed before starting)
 
@@ -584,3 +586,54 @@ same rules. **No behaviour change.**
   tests, passed before the change), plus the new engine spec.
 - `npm run typecheck -w apps/api` and `npm run lint -w apps/api`.
 - The full API unit run.
+
+### Phase 1 — as built (2026-11-09)
+
+**Scope decisions made while building.**
+- **Each phase adds its own tables.** Phase 1 adds only `Tournament`,
+  `TournamentHost`, `TournamentPlayer`, `TournamentSettings` and
+  `TournamentAuditLog` (migration `20261109102638_tournament_domain`, additive).
+  Rounds and games (Phases 3–4), commentary (6) and certificates (8) arrive with
+  the phases that use them, so no table sits unused or gets redesigned later.
+- **Stored statuses are DRAFT, PUBLISHED, LIVE, PAUSED, COMPLETED and
+  CANCELLED.** Registration open/closed is derived (Phase 2 resolver).
+- **The publish approval handler moved to Phase 2**, with the publish route that
+  files it. Phase 1 has the policy that decides when one is needed
+  (`tournamentPublishPath`).
+- **Format-config and eligibility schemas moved to Phase 2**, with creation.
+- **Plan tier.** `tournaments` is on Enterprise only, so Nexa's academy has it.
+  Offering it on Business or Growth is a pricing decision: one more
+  `array_append` migration plus the `DEFAULT_PLATFORM_PLANS` list.
+- **Spectator delay defaults to 15 s**, for the academy and per tournament
+  (safe by default; 0 is allowed).
+
+**What exists.**
+
+| Piece | Where |
+|---|---|
+| Schema | 9 enums, 5 models, `PrismaService` getters. CHECK constraints refuse untimed clocks, fewer than 2 players, a cap below the minimum, an inverted registration window, and negative delays or round counts. Unique `(tenantId, slug)` and `(tournamentId, userId)` for both hosts and players. |
+| Contract | `packages/types/src/tournaments.ts`: enums, labels, `formatPublicPlayerName` (never the full last name), the settings request/response, `TournamentPublishPath`. `API_ROUTES.tournaments.adminSettings`. Plan feature `tournaments`. |
+| Permission policy | `apps/api/src/tournament/tournament-policy.ts`: `canCreateTournament`, `canManageTournament`, `tournamentPublishPath`, `canBroadcast`, `canModerateTournament`, `canViewTournament`, `getTournamentVisibilityWhere`, `canHoldHostRole`, `playerAcademyAllowed`. Every row of §3.2 that Phase 1 can decide. |
+| Settings | `GET/PUT /admin/tournaments/settings` (admins, `@RequireFeature("tournaments")`). One row per academy. The update runs under a per-academy advisory transaction lock and writes a `SETTINGS_UPDATED` audit row holding only the changed fields, before and after. |
+| Audit | `TournamentAuditService.record(tx, …)`, always inside the caller's transaction. |
+| Trash | `Tournament` is a Trash entity. Its hosts and players are hidden with it (`parentScopedWhere`) and come back on restore. The web Trash filter lists it. |
+| Privacy | The export gains `tournamentEntries` and `tournamentHostRoles` (trashed included; other people's ids omitted) and `tournamentAuditActions` (no before/after values). The legal page lists tournament entries. |
+
+**Tests.**
+- Unit:
+  - `tournament-policy.spec.ts` (20): every rule, plus a check that the list
+    filter agrees with `canViewTournament` across every combination of role ×
+    status × visibility × host role × player status. Mutation-checked:
+    removing the hosts clause fails it.
+  - `tournament-enums.spec.ts` (18): shared enums equal the Prisma enums, and
+    the public-name formats.
+  - `tournament-settings.service.spec.ts` (7).
+- Integration: `tournament-domain.int-spec.ts` (22):
+  - the HTTP rules (admin only, 400 on bad bodies, 401/403, 402 without the
+    plan feature)
+  - the audit row and two concurrent saves
+  - per-academy rows and academy separation
+  - the duplicate-registration refusal and each CHECK constraint
+  - Trash hide/restore of players and hosts, and the Trash list
+  - the privacy export
+  - no cross-academy player rows

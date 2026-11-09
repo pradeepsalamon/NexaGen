@@ -40,6 +40,7 @@ export const PLAN_FEATURE_KEYS = [
   "referralProgram",
   "smartRevision",
   "studentPayments",
+  "tournaments",
   "whiteLabel"
 ] as const;
 
@@ -169,6 +170,12 @@ export const PLAN_FEATURES: Record<PlanFeatureKey, PlanFeatureDefinition> = {
     description: "Sell plans to students: online payments, invoices, credit notes and manual payments.",
     key: "studentPayments",
     label: "Student payments & invoices"
+  },
+  tournaments: {
+    category: "Learning",
+    description: "Swiss, arena, round-robin and knockout tournaments with live games, host commentary, spectators and certificates.",
+    key: "tournaments",
+    label: "Tournaments"
   },
   whiteLabel: {
     category: "Growth",

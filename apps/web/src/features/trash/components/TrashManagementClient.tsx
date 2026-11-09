@@ -66,7 +66,8 @@ const entityOptions = [
   { label: "Help categories", value: "KnowledgeCategory" },
   { label: "Games", value: "ChessGame" },
   { label: "Live-class presets", value: "LiveClassPreset" },
-  { label: "Demo schedules", value: "DemoSchedule" }
+  { label: "Demo schedules", value: "DemoSchedule" },
+  { label: "Tournaments", value: "Tournament" }
 ];
 
 export function TrashManagementClient() {

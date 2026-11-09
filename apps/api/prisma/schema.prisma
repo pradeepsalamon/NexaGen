@@ -501,6 +501,17 @@ model User {
   referralPointsConversions   ReferralPointsConversion[] @relation("ReferralPointsConversionOwner")
   personalDiscounts           Discount[]                 @relation("DiscountRestrictedTo")
 
+  // Tournaments (docs/TOURNAMENTS.md)
+  tournamentsCreated        Tournament[]         @relation("TournamentCreatedBy")
+  deletedTournaments        Tournament[]         @relation("TournamentDeletedBy")
+  tournamentHostRoles       TournamentHost[]     @relation("TournamentHostUser")
+  tournamentHostGrants      TournamentHost[]     @relation("TournamentHostGrantedBy")
+  tournamentEntries         TournamentPlayer[]   @relation("TournamentPlayerUser")
+  tournamentEntriesAdded    TournamentPlayer[]   @relation("TournamentPlayerRegisteredBy")
+  tournamentEntriesDecided  TournamentPlayer[]   @relation("TournamentPlayerDecidedBy")
+  tournamentSettingsUpdates TournamentSettings[] @relation("TournamentSettingsUpdatedBy")
+  tournamentAuditActions    TournamentAuditLog[] @relation("TournamentAuditActor")
+
   // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
   @@unique([tenantId, email])
   @@unique([tenantId, username])
@@ -7673,4 +7684,270 @@ model ReferralRedemption {
   @@index([userId, createdAt])
   @@index([status])
   @@map("referral_redemptions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tournaments (docs/TOURNAMENTS.md). Phase 1: the tournament, its hosts, its
+// players, the academy's tournament settings and the audit log. Rounds and
+// games (Phases 3–4), commentary (Phase 6) and certificates (Phase 8) are
+// added by the phases that use them.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TournamentFormat {
+  SWISS
+  ARENA
+  ROUND_ROBIN
+  KNOCKOUT
+}
+
+/// Stored lifecycle. Whether registration is open is derived from the
+/// registration window, never stored (no cron flips a status).
+enum TournamentStatus {
+  DRAFT
+  PUBLISHED
+  LIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentVisibility {
+  PUBLIC
+  PRIVATE
+  INVITATION_ONLY
+}
+
+enum TournamentTiebreak {
+  BUCHHOLZ
+  BUCHHOLZ_CUT1
+  MEDIAN_BUCHHOLZ
+  SONNEBORN_BERGER
+  DIRECT_ENCOUNTER
+  WINS
+  PROGRESSIVE
+  PERFORMANCE
+}
+
+enum TournamentHostRole {
+  HOST
+  CO_HOST
+  COMMENTATOR
+}
+
+enum TournamentPlayerStatus {
+  INVITED
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  DISQUALIFIED
+}
+
+/// Where a player's seed rating came from; a future tournament rating adds a value.
+enum TournamentRatingSource {
+  PROFILE
+  UNRATED
+}
+
+/// How a player's name is shown to anonymous spectators.
+enum TournamentPublicNameFormat {
+  FIRST_NAME_LAST_INITIAL
+  FIRST_NAME_ONLY
+  INITIALS
+}
+
+/// Every sensitive tournament action. Later phases add values (additive).
+enum TournamentAuditAction {
+  SETTINGS_UPDATED
+}
+
+/// A tournament, owned by the organizing academy (`tenantId`). Soft-deletable
+/// (Trash). Format-specific configuration is JSON validated by the shared
+/// schemas in `@nexa-chess/types` `tournaments.ts`.
+model Tournament {
+  id       String @id @default(cuid())
+  /// The organizing academy (Tenant.id).
+  tenantId String @default("tenant_nexa")
+
+  slug        String
+  name        String
+  description String?
+  bannerUrl   String?
+  logoUrl     String?
+
+  format     TournamentFormat
+  status     TournamentStatus     @default(DRAFT)
+  visibility TournamentVisibility @default(PUBLIC)
+
+  startsAt               DateTime
+  registrationOpensAt    DateTime?
+  registrationClosesAt   DateTime?
+  /// Rounds a late registrant may still join before (0 = none).
+  lateRegistrationRounds Int       @default(0)
+  minPlayers             Int       @default(2)
+  /// null = no cap.
+  maxPlayers             Int?
+  /// `tournamentEligibilitySchema`.
+  eligibilityJson        Json      @default("{}")
+  rulesText              String?
+  prizesText             String?
+
+  clockInitialMs     Int
+  clockIncrementMs   Int                  @default(0)
+  /// null = the standard starting position.
+  startFen           String?
+  /// Swiss / round robin / knockout; null for arena.
+  rounds             Int?
+  roundBreakSec      Int                  @default(60)
+  arenaDurationMin   Int?
+  /// `tournamentArenaConfigSchema`.
+  arenaConfigJson    Json?
+  /// `tournamentKnockoutConfigSchema`.
+  knockoutConfigJson Json?
+  tiebreaks          TournamentTiebreak[]
+  /// Moves are shown to non-players this long after they are played.
+  spectatorDelaySec  Int                  @default(15)
+
+  publishedAt        DateTime?
+  startedAt          DateTime?
+  endedAt            DateTime?
+  resultsPublishedAt DateTime?
+  cancelledAt        DateTime?
+  cancelReason       String?
+
+  createdById String?
+  createdBy   User?   @relation("TournamentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  /// Optimistic concurrency for edits.
+  version Int @default(1)
+
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("TournamentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  hosts     TournamentHost[]
+  players   TournamentPlayer[]
+  auditLogs TournamentAuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status, startsAt])
+  @@index([createdById])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
+  @@map("tournaments")
+}
+
+/// A per-tournament grant: who may run it (HOST, CO_HOST) or broadcast on it
+/// (COMMENTATOR). Admins need no row. Only staff accounts hold one.
+model TournamentHost {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User               @relation("TournamentHostUser", fields: [userId], references: [id], onDelete: Cascade)
+  role         TournamentHostRole
+
+  grantedById String?
+  grantedBy   User?   @relation("TournamentHostGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, userId])
+  @@index([userId])
+  @@map("tournament_hosts")
+}
+
+/// A registration and the player's place in the tournament. `tenantId` is the
+/// PLAYER's academy (docs/TOURNAMENTS.md §3.8); in v1 it must equal the
+/// tournament's. One row per (tournament, user).
+model TournamentPlayer {
+  id       String @id @default(cuid())
+  /// The player's academy (Tenant.id).
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament             @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                   @relation("TournamentPlayerUser", fields: [userId], references: [id], onDelete: Cascade)
+  status       TournamentPlayerStatus
+
+  /// Snapshot taken at registration (seeding never re-reads the profile).
+  seedRating       Int?
+  seedRatingSource TournamentRatingSource @default(UNRATED)
+  seedNumber       Int?
+  /// Age-group label at the tournament's cutoff date, snapshotted.
+  ageGroup         String?
+
+  /// Who registered or invited them (themselves for a self-registration).
+  registeredById String?
+  registeredBy   User?     @relation("TournamentPlayerRegisteredBy", fields: [registeredById], references: [id], onDelete: SetNull)
+  decidedById    String?
+  decidedBy      User?     @relation("TournamentPlayerDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt      DateTime?
+  withdrawnAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId, status])
+  @@index([userId])
+  @@map("tournament_players")
+}
+
+/// One row per academy (`singletonRowId`); look it up by `tenantId`.
+model TournamentSettings {
+  id       String @id @default("default")
+  tenantId String @unique @default("tenant_nexa")
+
+  coachesMayCreate         Boolean                    @default(false)
+  coachesMayPublishPublic  Boolean                    @default(false)
+  allowAnonymousSpectating Boolean                    @default(false)
+  publicNameFormat         TournamentPublicNameFormat @default(FIRST_NAME_LAST_INITIAL)
+  defaultSpectatorDelaySec Int                        @default(15)
+
+  updatedById String?
+  updatedBy   User?   @relation("TournamentSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tournament_settings")
+}
+
+/// Append-only record of sensitive tournament actions. `tournamentId` is null
+/// for academy-level actions (settings). Never edited; kept as history (no
+/// retention rule, like the invoice audit log).
+model TournamentAuditLog {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String?
+  tournament   Tournament?           @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  action       TournamentAuditAction
+  /// Null for an automated action (cron, worker).
+  actorId      String?
+  actor        User?                 @relation("TournamentAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  targetType   String?
+  targetId     String?
+  reason       String?
+  beforeJson   Json?
+  afterJson    Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([tournamentId, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([actorId])
+  @@map("tournament_audit_logs")
 }
