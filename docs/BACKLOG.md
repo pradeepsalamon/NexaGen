@@ -92,6 +92,11 @@ code on 2026-10-31.
 
 ### P3 — feature follow-ups (net-new, each needs a product yes)
 
+- **Tournament platform (logged 2026-11-09, assessment only).** Swiss, Arena,
+  Round Robin and Knockout tournaments with live games, host commentary,
+  spectators and history. Audit, design and a 10-phase plan are in
+  [TOURNAMENTS.md](TOURNAMENTS.md); §9 there lists the owner decisions
+  needed before Phase 1.
 - **Instant feedback on in-app navigation (logged 2026-11-04, from another
   project; build, then test on a throttled network).** On a slow link a click
   shows nothing until the next page's server render arrives. To build and test:
