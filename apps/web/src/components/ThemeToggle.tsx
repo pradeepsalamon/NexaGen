@@ -10,9 +10,6 @@ import { useTheme } from "@/providers/ThemeProvider";
  * (the provider swaps `data-theme` straight from the click) and there is no
  * flash before hydration. `data-theme-keep-transition` lets the knob animate
  * through the provider's transition freeze.
- *
- * Sized from `--control-h` (36 px, 44 px on touch) so it matches every other
- * header control; the knob is the inner height and slides exactly one height.
  */
 export function ThemeToggle() {
   const { mode, toggleMode } = useTheme();
@@ -24,19 +21,19 @@ export function ThemeToggle() {
       <button
         aria-label={label}
         aria-pressed={isDark}
-        className="relative inline-flex h-[var(--control-h)] w-[calc(var(--control-h)*2)] shrink-0 cursor-pointer items-center rounded-full border-2 border-app-border bg-app-soft shadow-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+        className="relative inline-flex h-9 w-[72px] shrink-0 cursor-pointer items-center rounded-full border-2 border-app-border bg-app-soft shadow-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
         onClick={toggleMode}
         type="button"
       >
-        <span aria-hidden="true" className="absolute left-1 top-1/2 flex size-[calc(var(--control-h)_-_12px)] -translate-y-1/2 items-center justify-center text-app-muted">
+        <span aria-hidden="true" className="absolute left-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center text-app-muted">
           <Sun className="size-3.5" strokeWidth={2.5} />
         </span>
-        <span aria-hidden="true" className="absolute right-1 top-1/2 flex size-[calc(var(--control-h)_-_12px)] -translate-y-1/2 items-center justify-center text-app-muted">
+        <span aria-hidden="true" className="absolute right-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center text-app-muted">
           <Moon className="size-3.5" strokeWidth={2.5} />
         </span>
         <span
           aria-hidden="true"
-          className="absolute left-1 top-1/2 z-10 flex size-[calc(var(--control-h)_-_12px)] -translate-y-1/2 translate-x-0 items-center justify-center rounded-full bg-primary text-on-primary shadow-card motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out dark:translate-x-[var(--control-h)]"
+          className="absolute left-1 top-1/2 z-10 flex size-6 -translate-y-1/2 translate-x-0 items-center justify-center rounded-full bg-primary text-on-primary shadow-card motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out dark:translate-x-9"
           data-theme-keep-transition=""
         >
           <Sun className="size-3.5 dark:hidden" strokeWidth={2.5} />
