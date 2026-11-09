@@ -102,9 +102,9 @@ export function UserNavMenu({
           <button
             type="button"
             aria-label="User navigation menu"
-            className="group inline-flex min-h-[var(--control-h)] min-w-[var(--control-h)] cursor-pointer items-center justify-center gap-2 rounded-control px-1 text-sm sm:px-1.5 font-medium text-app-text transition-colors hover:bg-app-soft"
+            className="group inline-flex min-h-[var(--control-h)] min-w-[var(--control-h)] cursor-pointer items-center justify-center gap-2 rounded-full pr-0 text-sm sm:pr-2 font-medium text-app-text transition-colors hover:bg-app-soft"
           >
-            <Avatar name={[user.firstName, user.lastName].filter(Boolean).join(" ")} imageUrl={user.avatarUrl} className="size-7 text-xs" />
+            <Avatar name={[user.firstName, user.lastName].filter(Boolean).join(" ")} imageUrl={user.avatarUrl} className="size-[var(--control-h)] text-sm" />
             <span className="hidden max-w-[110px] truncate sm:inline-block">
               {user.firstName}
             </span>
