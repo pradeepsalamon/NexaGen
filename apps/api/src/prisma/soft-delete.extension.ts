@@ -46,7 +46,8 @@ export const softDeleteModels = [
   "KnowledgeCategory",
   "ChessGame",
   "LiveClassPreset",
-  "DemoSchedule"
+  "DemoSchedule",
+  "Tournament"
 ] as const;
 
 export type SoftDeleteModel = (typeof softDeleteModels)[number];
@@ -176,6 +177,12 @@ export const trashEntities = [
     label: "DemoSchedule",
     searchFields: ["topic", "slug"],
     titleField: "topic"
+  },
+  {
+    delegate: "tournament",
+    label: "Tournament",
+    searchFields: ["name", "slug"],
+    titleField: "name"
   }
 ] as const;
 
@@ -238,7 +245,10 @@ const filterableRelationNames = new Set([
  */
 const parentScopedWhere: Record<string, Record<string, unknown>> = {
   AssignmentBatch: { assignment: { isDeleted: false } },
-  StudentAssignment: { assignmentBatch: { assignment: { isDeleted: false } } }
+  StudentAssignment: { assignmentBatch: { assignment: { isDeleted: false } } },
+  // A trashed tournament's hosts and players go with it (Tournament cascades to both).
+  TournamentHost: { tournament: { isDeleted: false } },
+  TournamentPlayer: { tournament: { isDeleted: false } }
 };
 
 /** The extension's work on one query's args (mutates and returns them). */
@@ -319,7 +329,8 @@ const filterAnyListRelationTo = new Set<string>([
   "KnowledgeCategory",
   "ChessGame",
   "LiveClassPreset",
-  "DemoSchedule"
+  "DemoSchedule",
+  "Tournament"
 ]);
 
 function addRelationFilters(model: string, record: Record<string, unknown> | undefined) {

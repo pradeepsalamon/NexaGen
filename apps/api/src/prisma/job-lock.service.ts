@@ -30,6 +30,7 @@ export const JOB_LOCKS = {
   retentionSweep: "retention.sweep",
   tenantIntegrity: "platform.tenant-integrity",
   tenantUsageSnapshot: "platform.tenant-usage",
+  tournamentTick: "tournaments.tick",
   trashCleanup: "trash.cleanup"
 } as const;
 

@@ -39,6 +39,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [FEATURES.md](FEATURES.md) | Feedback, Game Library, chat, reminders, revision, analysis, PDF import, SEO, privacy |
 | [GAME_ANALYSIS.md](GAME_ANALYSIS.md) | Engine evaluation, move classification, accuracy, tactics |
 | [GAME_SOURCES.md](GAME_SOURCES.md) | Importing a student's own games |
+| [TOURNAMENTS.md](TOURNAMENTS.md) | Tournament platform (Swiss, Arena, Round Robin, Knockout): assessment and phased plan — not built yet |
 | [APPEARANCE.md](APPEARANCE.md) | Board appearance and typography resolvers |
 | [PAYMENTS.md](PAYMENTS.md) | Payments, invoices, credit notes — read before touching `payments/` |
 | [REFERRALS.md](REFERRALS.md) | Referral links, pipeline stages and their rewards, milestone bonuses, points and the vouchers students buy with them, staff payouts and the SALES role |

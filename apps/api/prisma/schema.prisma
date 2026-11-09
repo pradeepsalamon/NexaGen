@@ -501,6 +501,22 @@ model User {
   referralPointsConversions   ReferralPointsConversion[] @relation("ReferralPointsConversionOwner")
   personalDiscounts           Discount[]                 @relation("DiscountRestrictedTo")
 
+  // Tournaments (docs/TOURNAMENTS.md)
+  tournamentsCreated            Tournament[]            @relation("TournamentCreatedBy")
+  deletedTournaments            Tournament[]            @relation("TournamentDeletedBy")
+  tournamentHostRoles           TournamentHost[]        @relation("TournamentHostUser")
+  tournamentHostGrants          TournamentHost[]        @relation("TournamentHostGrantedBy")
+  tournamentEntries             TournamentPlayer[]      @relation("TournamentPlayerUser")
+  tournamentEntriesAdded        TournamentPlayer[]      @relation("TournamentPlayerRegisteredBy")
+  tournamentEntriesDecided      TournamentPlayer[]      @relation("TournamentPlayerDecidedBy")
+  tournamentSettingsUpdates     TournamentSettings[]    @relation("TournamentSettingsUpdatedBy")
+  tournamentAuditActions        TournamentAuditLog[]    @relation("TournamentAuditActor")
+  tournamentCommentary          TournamentCommentary[]  @relation("TournamentCommentaryAuthor")
+  tournamentCommentaryHidden    TournamentCommentary[]  @relation("TournamentCommentaryHiddenBy")
+  certificateTemplatesCreated   CertificateTemplate[]   @relation("CertificateTemplateCreatedBy")
+  tournamentCertificates        TournamentCertificate[] @relation("TournamentCertificateUser")
+  tournamentCertificatesRevoked TournamentCertificate[] @relation("TournamentCertificateRevokedBy")
+
   // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
   @@unique([tenantId, email])
   @@unique([tenantId, username])
@@ -5361,6 +5377,8 @@ enum ChessGameSource {
   MATCH
   /// A PGN a coach or admin imported into the library.
   IMPORT
+  /// A tournament game (docs/TOURNAMENTS.md), recorded when it finishes.
+  TOURNAMENT
 }
 
 enum ChessGameStatus {
@@ -5383,7 +5401,7 @@ model ChessGame {
   tenantId String @default("tenant_nexa")
 
   source         ChessGameSource
-  /// "match:<id>", "simul:<id>", "board:<liveSessionId>:<boardGameId>"; null for IMPORT.
+  /// "match:<id>", "simul:<id>", "board:<liveSessionId>:<boardGameId>", "tournament:<gameId>"; null for IMPORT.
   sourceKey      String?         @unique
   sourceRevision BigInt          @default(0)
 
@@ -7673,4 +7691,690 @@ model ReferralRedemption {
   @@index([userId, createdAt])
   @@index([status])
   @@map("referral_redemptions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tournaments (docs/TOURNAMENTS.md). Phase 1: the tournament, its hosts, its
+// players, the academy's tournament settings and the audit log. Rounds and
+// games (Phases 3–4), commentary (Phase 6) and certificates (Phase 8) are
+// added by the phases that use them.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TournamentFormat {
+  SWISS
+  ARENA
+  ROUND_ROBIN
+  KNOCKOUT
+}
+
+/// Stored lifecycle. Whether registration is open is derived from the
+/// registration window, never stored (no cron flips a status).
+enum TournamentStatus {
+  DRAFT
+  PUBLISHED
+  LIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentVisibility {
+  PUBLIC
+  PRIVATE
+  INVITATION_ONLY
+}
+
+enum TournamentTiebreak {
+  BUCHHOLZ
+  BUCHHOLZ_CUT1
+  MEDIAN_BUCHHOLZ
+  SONNEBORN_BERGER
+  DIRECT_ENCOUNTER
+  WINS
+  PROGRESSIVE
+  PERFORMANCE
+}
+
+enum TournamentHostRole {
+  HOST
+  CO_HOST
+  COMMENTATOR
+}
+
+enum TournamentPlayerStatus {
+  INVITED
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  DISQUALIFIED
+}
+
+/// Where a player's seed rating came from; a future tournament rating adds a value.
+enum TournamentRatingSource {
+  PROFILE
+  UNRATED
+}
+
+/// How a player's name is shown to anonymous spectators.
+enum TournamentPublicNameFormat {
+  FIRST_NAME_LAST_INITIAL
+  FIRST_NAME_ONLY
+  INITIALS
+}
+
+/// Every sensitive tournament action. Later phases add values (additive).
+enum TournamentAuditAction {
+  SETTINGS_UPDATED
+  CREATED
+  UPDATED
+  DELETED
+  PUBLISH_REQUESTED
+  PUBLISHED
+  CANCELLED
+  HOSTS_CHANGED
+  IMAGE_CHANGED
+  PLAYER_ADDED
+  PLAYER_INVITED
+  PLAYER_APPROVED
+  PLAYER_REJECTED
+  PLAYER_DISQUALIFIED
+  STARTED
+  PAUSED
+  RESUMED
+  ROUND_STARTED
+  ROUND_COMPLETED
+  GAME_FORFEITED
+  GAME_ADJUDICATED
+  RESULT_CORRECTED
+  PLAYER_WITHDRAWN_BY_HOST
+  COMPLETED
+  RESULTS_PUBLISHED
+  STANDINGS_RECOMPUTED
+  COMMENTARY_HIDDEN
+  CERTIFICATE_RULES_CHANGED
+  CERTIFICATES_ISSUED
+  CERTIFICATE_REVOKED
+}
+
+enum CertificateOrientation {
+  LANDSCAPE
+  PORTRAIT
+}
+
+enum CertificateBorderStyle {
+  CLASSIC
+  MODERN
+  MINIMAL
+}
+
+enum TournamentCertificateKind {
+  /// The top N of the final standings.
+  PLACEMENT
+  /// The top N of each age group.
+  AGE_GROUP_PLACEMENT
+  /// Everyone who played at least `minGames` games.
+  PARTICIPATION
+}
+
+enum TournamentCommentaryType {
+  GENERAL
+  GAME
+  MOVE
+  PLAYER
+  ROUND
+  ANNOUNCEMENT
+  FEATURED
+  EMERGENCY
+}
+
+enum TournamentRoundStatus {
+  ONGOING
+  COMPLETED
+}
+
+enum TournamentGameStatus {
+  ONGOING
+  FINISHED
+}
+
+enum TournamentGameResult {
+  WHITE_WON
+  BLACK_WON
+  DRAW
+  /// Neither side scores (both forfeited, or the host voided the game).
+  NO_RESULT
+}
+
+enum TournamentEndReason {
+  CHECKMATE
+  STALEMATE
+  INSUFFICIENT_MATERIAL
+  THREEFOLD_REPETITION
+  FIFTY_MOVE_RULE
+  RESIGNATION
+  DRAW_AGREED
+  TIMEOUT
+  /// A side didn't make its first move in time.
+  NO_SHOW
+  /// The opponent left and the remaining player claimed the game.
+  ABANDONED
+  FORFEIT
+  BYE
+  ADJUDICATED
+  /// The arena's clock ran out while the game was being played and it was ended there.
+  ARENA_ENDED
+}
+
+/// How a game's result was decided (engine = from the moves and clocks).
+enum TournamentResultSource {
+  ENGINE
+  BYE
+  FORFEIT
+  HOST
+  CORRECTION
+}
+
+enum TournamentByeKind {
+  FULL
+  HALF
+  ZERO
+}
+
+enum TournamentKnockoutMatchStatus {
+  PENDING
+  ONGOING
+  DECIDED
+}
+
+enum TournamentKnockoutDecision {
+  GAMES
+  SEED
+  BYE
+  FORFEIT
+}
+
+/// A tournament, owned by the organizing academy (`tenantId`). Soft-deletable
+/// (Trash). Format-specific configuration is JSON validated by the shared
+/// schemas in `@nexa-chess/types` `tournaments.ts`.
+model Tournament {
+  id       String @id @default(cuid())
+  /// The organizing academy (Tenant.id).
+  tenantId String @default("tenant_nexa")
+
+  slug        String
+  name        String
+  description String?
+  bannerUrl   String?
+  logoUrl     String?
+
+  format     TournamentFormat
+  status     TournamentStatus     @default(DRAFT)
+  visibility TournamentVisibility @default(PUBLIC)
+
+  startsAt                     DateTime
+  registrationOpensAt          DateTime?
+  registrationClosesAt         DateTime?
+  /// Rounds a late registrant may still join before (0 = none).
+  lateRegistrationRounds       Int       @default(0)
+  minPlayers                   Int       @default(2)
+  /// null = no cap.
+  maxPlayers                   Int?
+  /// `tournamentEligibilitySchema`.
+  eligibilityJson              Json      @default("{}")
+  /// Self-registrations wait for a host's approval (PENDING) instead of entering directly.
+  registrationRequiresApproval Boolean   @default(false)
+  rulesText                    String?
+  prizesText                   String?
+
+  clockInitialMs     Int
+  clockIncrementMs   Int                  @default(0)
+  /// null = the standard starting position.
+  startFen           String?
+  /// Swiss / round robin / knockout; null for arena.
+  rounds             Int?
+  roundBreakSec      Int                  @default(60)
+  arenaDurationMin   Int?
+  /// `tournamentArenaConfigSchema`.
+  arenaConfigJson    Json?
+  /// `tournamentKnockoutConfigSchema`.
+  knockoutConfigJson Json?
+  tiebreaks          TournamentTiebreak[]
+  /// Moves are shown to non-players this long after they are played.
+  spectatorDelaySec  Int                  @default(15)
+
+  publishedAt        DateTime?
+  startedAt          DateTime?
+  endedAt            DateTime?
+  resultsPublishedAt DateTime?
+  cancelledAt        DateTime?
+  cancelReason       String?
+
+  createdById String?
+  createdBy   User?   @relation("TournamentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  /// Optimistic concurrency for edits.
+  version Int @default(1)
+
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("TournamentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  /// Rounds paired so far (Swiss, round robin, knockout).
+  currentRound Int       @default(0)
+  /// When the arena stops pairing (startedAt + arenaDurationMin).
+  arenaEndsAt  DateTime?
+  pausedAt     DateTime?
+
+  /// Broadcast: the game and player the host is featuring (ids of this tournament's rows).
+  featuredGameId   String?
+  featuredPlayerId String?
+  featuredAt       DateTime?
+
+  /// Claim-first notification markers: the tick claims the row, then sends (never twice).
+  startingSoonNotifiedAt DateTime?
+  completedNotifiedAt    DateTime?
+
+  hosts            TournamentHost[]
+  players          TournamentPlayer[]
+  auditLogs        TournamentAuditLog[]
+  roundsList       TournamentRound[]
+  games            TournamentGame[]
+  knockoutMatches  TournamentKnockoutMatch[]
+  commentary       TournamentCommentary[]
+  certificateRules TournamentCertificateRule[]
+  certificates     TournamentCertificate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status, startsAt])
+  @@index([createdById])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
+  @@map("tournaments")
+}
+
+/// A per-tournament grant: who may run it (HOST, CO_HOST) or broadcast on it
+/// (COMMENTATOR). Admins need no row. Only staff accounts hold one.
+model TournamentHost {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User               @relation("TournamentHostUser", fields: [userId], references: [id], onDelete: Cascade)
+  role         TournamentHostRole
+
+  grantedById String?
+  grantedBy   User?   @relation("TournamentHostGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, userId])
+  @@index([userId])
+  @@map("tournament_hosts")
+}
+
+/// A registration and the player's place in the tournament. `tenantId` is the
+/// PLAYER's academy (docs/TOURNAMENTS.md §3.8); in v1 it must equal the
+/// tournament's. One row per (tournament, user).
+model TournamentPlayer {
+  id       String @id @default(cuid())
+  /// The player's academy (Tenant.id).
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament             @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                   @relation("TournamentPlayerUser", fields: [userId], references: [id], onDelete: Cascade)
+  status       TournamentPlayerStatus
+
+  /// Snapshot taken at registration (seeding never re-reads the profile).
+  seedRating       Int?
+  seedRatingSource TournamentRatingSource @default(UNRATED)
+  seedNumber       Int?
+  /// Age-group label at the tournament's cutoff date, snapshotted.
+  ageGroup         String?
+
+  /// Who registered or invited them (themselves for a self-registration).
+  registeredById String?
+  registeredBy   User?     @relation("TournamentPlayerRegisteredBy", fields: [registeredById], references: [id], onDelete: SetNull)
+  decidedById    String?
+  decidedBy      User?     @relation("TournamentPlayerDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt      DateTime?
+  withdrawnAt    DateTime?
+
+  /// The game this player is in right now. A player is never in two live games: a
+  /// game is only created by claiming both players where this is null.
+  currentGameId String?
+  /// Arena: not paired again until they rejoin.
+  arenaPausedAt DateTime?
+
+  /// Standings cache, rewritten in the same transaction as every result
+  /// (always recomputable from the games: `computeStandings`).
+  points        Int     @default(0)
+  rank          Int?
+  played        Int     @default(0)
+  wins          Int     @default(0)
+  draws         Int     @default(0)
+  losses        Int     @default(0)
+  streak        Int     @default(0)
+  onFire        Boolean @default(false)
+  tiebreaksJson Json?
+  performance   Int?
+
+  whiteGames   TournamentGame[]        @relation("TournamentGameWhite")
+  blackGames   TournamentGame[]        @relation("TournamentGameBlack")
+  commentary   TournamentCommentary[]
+  certificates TournamentCertificate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId, status])
+  @@index([userId])
+  @@index([currentGameId])
+  @@map("tournament_players")
+}
+
+/// One row per academy (`singletonRowId`); look it up by `tenantId`.
+model TournamentSettings {
+  id       String @id @default("default")
+  tenantId String @unique @default("tenant_nexa")
+
+  coachesMayCreate         Boolean                    @default(false)
+  coachesMayPublishPublic  Boolean                    @default(false)
+  allowAnonymousSpectating Boolean                    @default(false)
+  publicNameFormat         TournamentPublicNameFormat @default(FIRST_NAME_LAST_INITIAL)
+  defaultSpectatorDelaySec Int                        @default(15)
+
+  updatedById String?
+  updatedBy   User?   @relation("TournamentSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tournament_settings")
+}
+
+/// Append-only record of sensitive tournament actions. `tournamentId` is null
+/// for academy-level actions (settings). Never edited; kept as history (no
+/// retention rule, like the invoice audit log).
+model TournamentAuditLog {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String?
+  tournament   Tournament?           @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  action       TournamentAuditAction
+  /// Null for an automated action (cron, worker).
+  actorId      String?
+  actor        User?                 @relation("TournamentAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  targetType   String?
+  targetId     String?
+  reason       String?
+  beforeJson   Json?
+  afterJson    Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([tournamentId, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([actorId])
+  @@map("tournament_audit_logs")
+}
+
+/// A paired round (Swiss, round robin) or a bracket round (knockout). Arenas have none.
+model TournamentRound {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament            @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  number       Int
+  status       TournamentRoundStatus @default(ONGOING)
+  startedAt    DateTime              @default(now())
+  completedAt  DateTime?
+  /// Players were told the round finished (claim-first).
+  notifiedAt   DateTime?
+
+  games TournamentGame[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([tournamentId, number])
+  @@map("tournament_rounds")
+}
+
+/// One knockout match (best of N games) in the bracket. Side A is the higher seed.
+model TournamentKnockoutMatch {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament                    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  bracketRound Int
+  slot         Int
+  /// TournamentPlayer ids; null = not decided yet (or a bye in round 1).
+  playerAId    String?
+  playerBId    String?
+  status       TournamentKnockoutMatchStatus @default(PENDING)
+  winnerId     String?
+  decidedBy    TournamentKnockoutDecision?
+  decidedAt    DateTime?
+
+  games TournamentGame[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, bracketRound, slot])
+  @@map("tournament_knockout_matches")
+}
+
+/// A tournament game, or a bye (black null). Moves are server-validated; every
+/// state change is claimed on `ply` + status (409 on a lost race), like
+/// live-class matches (both use common/chess/game-engine.ts).
+model TournamentGame {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId    String
+  tournament      Tournament               @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  roundId         String?
+  round           TournamentRound?         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  knockoutMatchId String?
+  knockoutMatch   TournamentKnockoutMatch? @relation(fields: [knockoutMatchId], references: [id], onDelete: Cascade)
+  /// Round number (0 for arena games); game number inside a knockout match.
+  roundNumber     Int
+  gameNumber      Int                      @default(1)
+  boardNumber     Int
+
+  whitePlayerId String
+  whitePlayer   TournamentPlayer   @relation("TournamentGameWhite", fields: [whitePlayerId], references: [id], onDelete: Cascade)
+  blackPlayerId String?
+  blackPlayer   TournamentPlayer?  @relation("TournamentGameBlack", fields: [blackPlayerId], references: [id], onDelete: Cascade)
+  byeKind       TournamentByeKind?
+
+  startFen          String
+  fen               String
+  /// MatchMove[] (san, uci).
+  movesJson         Json        @default("[]")
+  /// Server time (epoch ms) of each half-move: drives the spectator delay and fair-play stats.
+  moveTimesJson     Json        @default("[]")
+  ply               Int         @default(0)
+  whiteClockMs      Int
+  blackClockMs      Int
+  turnSince         DateTime    @default(now())
+  drawOfferedBy     MatchColor?
+  whiteBerserk      Boolean     @default(false)
+  blackBerserk      Boolean     @default(false)
+  /// The side to move loses (or the game is void) if it hasn't moved by then (first moves only).
+  firstMoveDeadline DateTime?
+
+  status          TournamentGameStatus    @default(ONGOING)
+  result          TournamentGameResult?
+  endReason       TournamentEndReason?
+  resultSource    TournamentResultSource?
+  /// Points scored, in half-points (2 win, 1 draw, 0 loss). Null while ongoing.
+  whiteHalfPoints Int?
+  blackHalfPoints Int?
+  startedAt       DateTime                @default(now())
+  finishedAt      DateTime?
+  /// Bumped by every host decision or correction (optimistic concurrency).
+  commentary      TournamentCommentary[]
+  version         Int                     @default(1)
+  /// The two players were told about this pairing (claim-first).
+  notifiedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundId, whitePlayerId])
+  @@unique([roundId, blackPlayerId])
+  @@unique([knockoutMatchId, gameNumber])
+  @@index([tournamentId, status])
+  @@index([tournamentId, roundNumber])
+  @@index([status, turnSince])
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
+  @@map("tournament_games")
+}
+
+/// Host commentary and announcements (docs/TOURNAMENTS.md §3.5). `releaseAt`
+/// keeps commentary about a position from reaching spectators before the
+/// position does. Moderation hides an item (never Trash); a resend with the
+/// same (author, clientId) is the same item.
+model TournamentCommentary {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament               @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  type         TournamentCommentaryType
+  body         String
+  authorId     String?
+  author       User?                    @relation("TournamentCommentaryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  clientId     String
+
+  gameId        String?
+  game          TournamentGame?   @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  playerId      String?
+  player        TournamentPlayer? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  /// The half-move it is about (move commentary).
+  ply           Int?
+  fen           String?
+  /// `tournamentHighlightSchema`: squares and arrows.
+  highlightJson Json?
+
+  releaseAt    DateTime
+  pinnedAt     DateTime?
+  hiddenAt     DateTime?
+  hiddenById   String?
+  hiddenBy     User?     @relation("TournamentCommentaryHiddenBy", fields: [hiddenById], references: [id], onDelete: SetNull)
+  hiddenReason String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([authorId, clientId])
+  @@index([tournamentId, createdAt])
+  @@index([tournamentId, pinnedAt])
+  @@index([gameId])
+  @@map("tournament_commentary")
+}
+
+/// An academy's certificate design (docs/TOURNAMENTS.md §3.6). Archived, never
+/// deleted: issued certificates keep a frozen copy of the wording they used.
+model CertificateTemplate {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  name                 String
+  title                String
+  /// Readable text with placeholders (`CERTIFICATE_PLACEHOLDERS`).
+  body                 String
+  orientation          CertificateOrientation @default(LANDSCAPE)
+  borderStyle          CertificateBorderStyle @default(CLASSIC)
+  /// #RRGGBB, checked with `brandColorIssue`.
+  accentColor          String
+  signatoryName        String?
+  signatoryTitle       String?
+  secondSignatoryName  String?
+  secondSignatoryTitle String?
+  archivedAt           DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("CertificateTemplateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  rules        TournamentCertificateRule[]
+  certificates TournamentCertificate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, archivedAt])
+  @@map("certificate_templates")
+}
+
+/// Who in one tournament gets a certificate, and on which template.
+model TournamentCertificateRule {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  templateId   String
+  template     CertificateTemplate       @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  kind         TournamentCertificateKind
+  topN         Int?
+  minGames     Int?
+
+  certificates TournamentCertificate[]
+
+  createdAt DateTime @default(now())
+
+  @@index([tournamentId])
+  @@map("tournament_certificate_rules")
+}
+
+/// An issued certificate: a frozen snapshot (names, placement, score, the
+/// template's wording), never edited. A correction revokes and reissues.
+model TournamentCertificate {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  ruleId       String
+  rule         TournamentCertificateRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  templateId   String
+  template     CertificateTemplate       @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  playerId     String
+  player       TournamentPlayer          @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                      @relation("TournamentCertificateUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  snapshotJson     Json
+  serialNumber     String
+  /// Random, for the public verification page.
+  verificationCode String    @unique
+  issuedAt         DateTime  @default(now())
+  revokedAt        DateTime?
+  revokedReason    String?
+  revokedById      String?
+  revokedBy        User?     @relation("TournamentCertificateRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@unique([tournamentId, userId, ruleId])
+  @@unique([tenantId, serialNumber])
+  @@index([userId])
+  @@map("tournament_certificates")
 }

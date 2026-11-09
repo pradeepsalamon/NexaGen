@@ -53,6 +53,7 @@ import { RevisionModule } from "./revision/revision.module";
 import { DemoClassModule } from "./demo-class/demo-class.module";
 import { LeadModule } from "./lead/lead.module";
 import { ReferralModule } from "./referral/referral.module";
+import { TournamentModule } from "./tournament/tournament.module";
 import { HealthModule } from "./health/health.module";
 import { CspReportModule } from "./csp-report/csp-report.module";
 import { RetentionModule } from "./retention/retention.module";
@@ -133,6 +134,7 @@ import { TenancyModule } from "./tenancy/tenancy.module";
     DemoClassModule,
     LeadModule,
     ReferralModule,
+    TournamentModule,
     FeedbackModule,
     ApprovalModule,
     PrivacyModule,

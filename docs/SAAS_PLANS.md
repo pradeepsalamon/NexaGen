@@ -55,6 +55,7 @@ attendance, assignments, the puzzle library, announcements, notifications.
 | `referralProgram` | the `referrals.*` and `adminReferrals.*` routes; with it off, links and typed codes attribute nothing |
 | `messagingAutomation` | `MessagingController` |
 | `smartRevision` | `RevisionController` |
+| `tournaments` | `TournamentAdminController` (academy tournament settings); every tournament controller added by later phases (docs/TOURNAMENTS.md). Enterprise only for now |
 | `studentPayments` | payments, invoices, admin payments/invoices, manual payments (never the provider webhooks) |
 | `whiteLabel` | `PUT /admin/branding/white-label`; with it, "Powered by NexaChess" is hidden unless the academy shows it |
 

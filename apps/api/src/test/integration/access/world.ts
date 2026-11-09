@@ -320,8 +320,77 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     data: { amountMinor: -100, currency: "INR", redemptionId: referralRedemption.id, type: "REDEMPTION", userId: student.id, wallet: "POINTS" }
   });
 
+  // A published PRIVATE tournament the coach hosts, with the student entered
+  // (docs/TOURNAMENTS.md): its players and management are this side's only.
+  const tournament = await prisma.tournament.create({
+    data: {
+      clockInitialMs: 300_000,
+      format: "SWISS",
+      name: `Tournament ${label}`,
+      publishedAt: new Date(),
+      rounds: 3,
+      slug: `tournament-${label.toLowerCase()}`,
+      startsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      status: "PUBLISHED",
+      visibility: "PRIVATE"
+    }
+  });
+  await prisma.tournamentHost.create({ data: { role: "HOST", tournamentId: tournament.id, userId: coach.id } });
+  const tournamentPlayer = await prisma.tournamentPlayer.create({
+    data: { status: "APPROVED", tournamentId: tournament.id, userId: student.id }
+  });
+  const tournamentOpponent = await activeUser(prisma, UserRole.STUDENT);
+  const opponentPlayer = await prisma.tournamentPlayer.create({
+    data: { status: "APPROVED", tournamentId: tournament.id, userId: tournamentOpponent.id }
+  });
+  const tournamentGame = await prisma.tournamentGame.create({
+    data: {
+      blackClockMs: 300_000,
+      blackPlayerId: opponentPlayer.id,
+      boardNumber: 1,
+      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      roundNumber: 1,
+      startFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      tournamentId: tournament.id,
+      whiteClockMs: 300_000,
+      whitePlayerId: tournamentPlayer.id
+    }
+  });
+
+  const certificateTemplate = await prisma.certificateTemplate.create({
+    data: { accentColor: "#1F4FA8", body: "{{player.name}} took part.", name: `Template ${label}`, title: "Certificate" }
+  });
+  const certificateRule = await prisma.tournamentCertificateRule.create({
+    data: { kind: "PARTICIPATION", minGames: 0, templateId: certificateTemplate.id, tournamentId: tournament.id }
+  });
+  const certificate = await prisma.tournamentCertificate.create({
+    data: {
+      playerId: tournamentPlayer.id,
+      ruleId: certificateRule.id,
+      serialNumber: `2026-${label}`,
+      snapshotJson: {
+        academyName: "Academy",
+        ageGroup: null,
+        date: "2026-11-09",
+        placement: "Participant",
+        playerName: `Student ${label}`,
+        points: "1",
+        template: { accentColor: "#1F4FA8", body: "{{player.name}} took part.", borderStyle: "CLASSIC", orientation: "LANDSCAPE", title: "Certificate" },
+        tournamentName: `Tournament ${label}`
+      },
+      templateId: certificateTemplate.id,
+      tournamentId: tournament.id,
+      userId: student.id,
+      verificationCode: `${label.toLowerCase().padEnd(16, "0").slice(0, 16)}`
+    }
+  });
+
   return {
     externalAccount,
+    certificate,
+    tournament,
+    tournamentGame,
+    tournamentPlayer,
     activityQueue,
     assignment,
     attempt,

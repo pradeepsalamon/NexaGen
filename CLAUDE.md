@@ -165,6 +165,10 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 `platform-billing/` (academy → owner: checkout, pay link, owner's Razorpay webhook, GST invoices, usage) never touches `PaymentService`; only a provider read settles a `PlatformCheckout` (status-filtered claim). Student gateways per academy: adapters read keys only via `GatewayCredentialsService.envFor`; another academy never falls back to Nexa's env keys. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 6 as built"
 
+### 3.6m5 Tournaments
+
+`tournament/` (API), contract `@nexa-chess/types` `tournaments.ts`, feature `tournaments`. **Every permission decision goes through `tournament/tournament-policy.ts`** (pure; host rows count only on staff; its list filter is spec-checked against `canViewTournament`); sensitive actions write `TournamentAuditLog` in the same transaction. `TournamentPlayer.tenantId` is the player's academy (v1: must equal the organizer's). Game rules come from `common/chess/game-engine.ts`, shared with live-class matches. Web: `features/tournaments/` (`/tournaments/**`, `/admin/tournaments`, public `/watch/**` and `/certificates/[code]`). [docs/TOURNAMENTS.md](docs/TOURNAMENTS.md)
+
 ### 3.6n AI runtime (mock only)
 
 NestJS `apps/api/src/ai/` is the only caller of stateless Python `services/ai-runtime/`; contract in `@nexa-chess/types` `ai-runtime-contract.ts`, exported by `node scripts/ai/export-contract.mjs` (commit output; `--check` in CI). The runtime never sees a user or DB: NestJS authorizes, then signs a 30 s HS256 token (`AI_RUNTIME_SHARED_SECRET`, never a JWT secret). Runtime 4xx → 502. Off unless `AI_ENABLED=true` via `compose.ai.yml` only. RAG PoC (`app/rag/`, `eval/rag_poc/`) never runs on the production box. [docs/ai/architecture/ROADMAP.md](docs/ai/architecture/ROADMAP.md), [RAG_POC](docs/ai/architecture/RAG_POC.md)

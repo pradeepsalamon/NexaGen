@@ -561,7 +561,21 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
     label: "What was found (tables, ids, academies)",
     sample: "batch_students.studentId → users: 3 rows (e.g. row id=bs_1 in tenant_rook points at cus_9 in tenant_nexa)"
   },
-  "links.integrity": { label: "Platform console link (integrity tab)", sample: "https://nexa.test/admin/platform?tab=integrity" }
+  "links.integrity": { label: "Platform console link (integrity tab)", sample: "https://nexa.test/admin/platform?tab=integrity" },
+  "tournament.name": { label: "Tournament name", sample: "Winter Swiss" },
+  "tournament.startsIn": { label: "When the tournament starts", sample: "in 15 minutes" },
+  "links.tournament": { label: "Link to the tournament", sample: "https://nexa.test/tournaments/sample" },
+  "links.game": { label: "Link to the game", sample: "https://nexa.test/tournaments/sample/games/sample" },
+  "registration.statusLine": {
+    label: "Whether the entry is confirmed or waiting for the host",
+    sample: "you're entered in Winter Swiss. Good luck!"
+  },
+  "game.opponent": { label: "Opponent's name", sample: "Rahul K." },
+  "game.color": { label: "The player's colour", sample: "White" },
+  "game.round": { label: "Round (or 'New game' in an arena)", sample: "Round 2" },
+  "round.number": { label: "Round number", sample: "2" },
+  "standing.line": { label: "The player's place and points", sample: "You are 3rd with 2 points." },
+  "certificate.line": { label: "About the player's certificate (empty if none)", sample: "Your certificate is ready to download." }
 };
 
 /** Example values for a set of placeholders, for previews and test sends — never real member data. */

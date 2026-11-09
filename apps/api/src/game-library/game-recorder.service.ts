@@ -21,7 +21,8 @@ import { requireTenantId } from "../tenancy/tenant-sql";
 type StoredMove = { san: string; uci: string };
 
 type ClassContext = {
-  id: string;
+  /** Null for a game played outside a class (a tournament game). */
+  id: string | null;
   title: string | null;
   topic: string | null;
   batchId: string | null;
@@ -131,6 +132,47 @@ export class GameRecorderService {
       title: `${whiteName} vs ${blackName}`,
       whiteName,
       whitePlayerId: game.whiteId,
+    });
+  }
+
+  recordTournamentGameInBackground(gameId: string) {
+    void this.recordTournamentGame(gameId).catch((err) => this.warn(`tournament game ${gameId}`, err));
+  }
+
+  /** A finished tournament game (docs/TOURNAMENTS.md). Byes and games nobody moved in are not games. */
+  async recordTournamentGame(gameId: string): Promise<void> {
+    const game = await this.prisma.tournamentGame.findUnique({
+      include: {
+        blackPlayer: { select: { user: { select: { firstName: true, id: true, lastName: true } } } },
+        tournament: { select: { format: true, name: true } },
+        whitePlayer: { select: { user: { select: { firstName: true, id: true, lastName: true } } } },
+      },
+      where: { id: gameId },
+    });
+    if (!game || !game.blackPlayer || game.ply === 0 || game.status !== "FINISHED") return;
+    const result: ChessGameResult =
+      game.result === "WHITE_WON" ? "1-0" : game.result === "BLACK_WON" ? "0-1" : game.result === "DRAW" ? "1/2-1/2" : "*";
+    const whiteName = nameOf(game.whitePlayer.user, "White");
+    const blackName = nameOf(game.blackPlayer.user, "Black");
+    const round = game.roundNumber > 0 ? `, round ${game.roundNumber}` : "";
+    await this.upsert({
+      blackName,
+      blackPlayerId: game.blackPlayer.user.id,
+      classCtx: { batch: null, batchId: null, id: null, title: null, topic: null },
+      endedAt: game.finishedAt,
+      event: `${game.tournament.name}${round}`,
+      moves: this.movesOf(game.movesJson),
+      result,
+      revision: BigInt(game.ply * 2 + 1),
+      source: ChessGameSource.TOURNAMENT,
+      sourceKey: `tournament:${game.id}`,
+      startFen: game.startFen,
+      startedAt: game.startedAt,
+      status: ChessGameStatus.COMPLETED,
+      termination: humanize(game.endReason),
+      title: `${whiteName} vs ${blackName}`,
+      whiteName,
+      whitePlayerId: game.whitePlayer.user.id,
     });
   }
 
@@ -276,6 +318,8 @@ export class GameRecorderService {
   }
 
   private async upsert(input: {
+    /** The PGN Event header when it isn't the class (a tournament's name and round). */
+    event?: string;
     source: ChessGameSource;
     sourceKey: string;
     revision: bigint;
@@ -299,7 +343,7 @@ export class GameRecorderService {
     const headers: PgnHeaders = {
       Black: input.blackName,
       Date: pgnDate(input.startedAt),
-      Event: input.classCtx.title || input.classCtx.topic || `${site} class`,
+      Event: input.event ?? (input.classCtx.title || input.classCtx.topic || `${site} class`),
       Result: input.result,
       Site: site,
       White: input.whiteName,
