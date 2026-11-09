@@ -73,6 +73,7 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
     why: "catalogue read, SET LOCAL timeout, cross-academy sample + count per FK (read-only)"
   },
   "tenancy/tenant-sql.ts": { calls: 2, kind: "infra", why: "doc comment" },
+  "tournament/tournament-engine.service.ts": { calls: 1, kind: "id-keyed", why: "FOR UPDATE on one tournament by id (pairing, results)" },
   "tournament/tournament-registration.service.ts": { calls: 1, kind: "id-keyed", why: "FOR UPDATE on one tournament by id (capacity)" },
   "tournament/tournament-settings.service.ts": { calls: 1, kind: "infra", why: "advisory lock keyed by the academy" },
   "trash/trash.service.ts": { calls: 2, kind: "id-keyed", why: "one user's avatar by id (+ its type)" }

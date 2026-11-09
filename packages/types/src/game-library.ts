@@ -4,7 +4,7 @@ import { z } from "zod";
 // and PGN imports. The PGN is the whole move tree: variations and comments
 // round-trip through `moveTreeToPgn` / `parsePgnToMoveTree` (move-tree.ts).
 
-export const CHESS_GAME_SOURCES = ["LIVE_BOARD", "SIMUL", "MATCH", "IMPORT"] as const;
+export const CHESS_GAME_SOURCES = ["LIVE_BOARD", "SIMUL", "MATCH", "IMPORT", "TOURNAMENT"] as const;
 export const chessGameSourceSchema = z.enum(CHESS_GAME_SOURCES);
 export type ChessGameSource = z.infer<typeof chessGameSourceSchema>;
 
@@ -20,6 +20,7 @@ export const CHESS_GAME_SOURCE_LABELS: Record<ChessGameSource, string> = {
   IMPORT: "Imported",
   LIVE_BOARD: "Class board",
   MATCH: "Student match",
+  TOURNAMENT: "Tournament",
   SIMUL: "Simul vs coach",
 };
 

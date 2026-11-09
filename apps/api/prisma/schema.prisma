@@ -5372,6 +5372,8 @@ enum ChessGameSource {
   MATCH
   /// A PGN a coach or admin imported into the library.
   IMPORT
+  /// A tournament game (docs/TOURNAMENTS.md), recorded when it finishes.
+  TOURNAMENT
 }
 
 enum ChessGameStatus {
@@ -5394,7 +5396,7 @@ model ChessGame {
   tenantId String @default("tenant_nexa")
 
   source         ChessGameSource
-  /// "match:<id>", "simul:<id>", "board:<liveSessionId>:<boardGameId>"; null for IMPORT.
+  /// "match:<id>", "simul:<id>", "board:<liveSessionId>:<boardGameId>", "tournament:<gameId>"; null for IMPORT.
   sourceKey      String?         @unique
   sourceRevision BigInt          @default(0)
 
@@ -7772,6 +7774,84 @@ enum TournamentAuditAction {
   PLAYER_APPROVED
   PLAYER_REJECTED
   PLAYER_DISQUALIFIED
+  STARTED
+  PAUSED
+  RESUMED
+  ROUND_STARTED
+  ROUND_COMPLETED
+  GAME_FORFEITED
+  GAME_ADJUDICATED
+  RESULT_CORRECTED
+  PLAYER_WITHDRAWN_BY_HOST
+  COMPLETED
+  RESULTS_PUBLISHED
+  STANDINGS_RECOMPUTED
+}
+
+enum TournamentRoundStatus {
+  ONGOING
+  COMPLETED
+}
+
+enum TournamentGameStatus {
+  ONGOING
+  FINISHED
+}
+
+enum TournamentGameResult {
+  WHITE_WON
+  BLACK_WON
+  DRAW
+  /// Neither side scores (both forfeited, or the host voided the game).
+  NO_RESULT
+}
+
+enum TournamentEndReason {
+  CHECKMATE
+  STALEMATE
+  INSUFFICIENT_MATERIAL
+  THREEFOLD_REPETITION
+  FIFTY_MOVE_RULE
+  RESIGNATION
+  DRAW_AGREED
+  TIMEOUT
+  /// A side didn't make its first move in time.
+  NO_SHOW
+  /// The opponent left and the remaining player claimed the game.
+  ABANDONED
+  FORFEIT
+  BYE
+  ADJUDICATED
+  /// The arena's clock ran out while the game was being played and it was ended there.
+  ARENA_ENDED
+}
+
+/// How a game's result was decided (engine = from the moves and clocks).
+enum TournamentResultSource {
+  ENGINE
+  BYE
+  FORFEIT
+  HOST
+  CORRECTION
+}
+
+enum TournamentByeKind {
+  FULL
+  HALF
+  ZERO
+}
+
+enum TournamentKnockoutMatchStatus {
+  PENDING
+  ONGOING
+  DECIDED
+}
+
+enum TournamentKnockoutDecision {
+  GAMES
+  SEED
+  BYE
+  FORFEIT
 }
 
 /// A tournament, owned by the organizing academy (`tenantId`). Soft-deletable
@@ -7842,9 +7922,18 @@ model Tournament {
   deletedBy     User?     @relation("TournamentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
   deleteGroupId String?
 
-  hosts     TournamentHost[]
-  players   TournamentPlayer[]
-  auditLogs TournamentAuditLog[]
+  /// Rounds paired so far (Swiss, round robin, knockout).
+  currentRound Int       @default(0)
+  /// When the arena stops pairing (startedAt + arenaDurationMin).
+  arenaEndsAt  DateTime?
+  pausedAt     DateTime?
+
+  hosts           TournamentHost[]
+  players         TournamentPlayer[]
+  auditLogs       TournamentAuditLog[]
+  roundsList      TournamentRound[]
+  games           TournamentGame[]
+  knockoutMatches TournamentKnockoutMatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -7911,12 +8000,35 @@ model TournamentPlayer {
   decidedAt      DateTime?
   withdrawnAt    DateTime?
 
+  /// The game this player is in right now. A player is never in two live games: a
+  /// game is only created by claiming both players where this is null.
+  currentGameId String?
+  /// Arena: not paired again until they rejoin.
+  arenaPausedAt DateTime?
+
+  /// Standings cache, rewritten in the same transaction as every result
+  /// (always recomputable from the games: `computeStandings`).
+  points        Int     @default(0)
+  rank          Int?
+  played        Int     @default(0)
+  wins          Int     @default(0)
+  draws         Int     @default(0)
+  losses        Int     @default(0)
+  streak        Int     @default(0)
+  onFire        Boolean @default(false)
+  tiebreaksJson Json?
+  performance   Int?
+
+  whiteGames TournamentGame[] @relation("TournamentGameWhite")
+  blackGames TournamentGame[] @relation("TournamentGameBlack")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([tournamentId, userId])
   @@index([tournamentId, status])
   @@index([userId])
+  @@index([currentGameId])
   @@map("tournament_players")
 }
 
@@ -7965,4 +8077,116 @@ model TournamentAuditLog {
   @@index([tenantId, createdAt])
   @@index([actorId])
   @@map("tournament_audit_logs")
+}
+
+/// A paired round (Swiss, round robin) or a bracket round (knockout). Arenas have none.
+model TournamentRound {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament            @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  number       Int
+  status       TournamentRoundStatus @default(ONGOING)
+  startedAt    DateTime              @default(now())
+  completedAt  DateTime?
+
+  games TournamentGame[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([tournamentId, number])
+  @@map("tournament_rounds")
+}
+
+/// One knockout match (best of N games) in the bracket. Side A is the higher seed.
+model TournamentKnockoutMatch {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament                    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  bracketRound Int
+  slot         Int
+  /// TournamentPlayer ids; null = not decided yet (or a bye in round 1).
+  playerAId    String?
+  playerBId    String?
+  status       TournamentKnockoutMatchStatus @default(PENDING)
+  winnerId     String?
+  decidedBy    TournamentKnockoutDecision?
+  decidedAt    DateTime?
+
+  games TournamentGame[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, bracketRound, slot])
+  @@map("tournament_knockout_matches")
+}
+
+/// A tournament game, or a bye (black null). Moves are server-validated; every
+/// state change is claimed on `ply` + status (409 on a lost race), like
+/// live-class matches (both use common/chess/game-engine.ts).
+model TournamentGame {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId    String
+  tournament      Tournament               @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  roundId         String?
+  round           TournamentRound?         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  knockoutMatchId String?
+  knockoutMatch   TournamentKnockoutMatch? @relation(fields: [knockoutMatchId], references: [id], onDelete: Cascade)
+  /// Round number (0 for arena games); game number inside a knockout match.
+  roundNumber     Int
+  gameNumber      Int                      @default(1)
+  boardNumber     Int
+
+  whitePlayerId String
+  whitePlayer   TournamentPlayer   @relation("TournamentGameWhite", fields: [whitePlayerId], references: [id], onDelete: Cascade)
+  blackPlayerId String?
+  blackPlayer   TournamentPlayer?  @relation("TournamentGameBlack", fields: [blackPlayerId], references: [id], onDelete: Cascade)
+  byeKind       TournamentByeKind?
+
+  startFen          String
+  fen               String
+  /// MatchMove[] (san, uci).
+  movesJson         Json        @default("[]")
+  /// Server time (epoch ms) of each half-move: drives the spectator delay and fair-play stats.
+  moveTimesJson     Json        @default("[]")
+  ply               Int         @default(0)
+  whiteClockMs      Int
+  blackClockMs      Int
+  turnSince         DateTime    @default(now())
+  drawOfferedBy     MatchColor?
+  whiteBerserk      Boolean     @default(false)
+  blackBerserk      Boolean     @default(false)
+  /// The side to move loses (or the game is void) if it hasn't moved by then (first moves only).
+  firstMoveDeadline DateTime?
+
+  status          TournamentGameStatus    @default(ONGOING)
+  result          TournamentGameResult?
+  endReason       TournamentEndReason?
+  resultSource    TournamentResultSource?
+  /// Points scored, in half-points (2 win, 1 draw, 0 loss). Null while ongoing.
+  whiteHalfPoints Int?
+  blackHalfPoints Int?
+  startedAt       DateTime                @default(now())
+  finishedAt      DateTime?
+  /// Bumped by every host decision or correction (optimistic concurrency).
+  version         Int                     @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundId, whitePlayerId])
+  @@unique([roundId, blackPlayerId])
+  @@unique([knockoutMatchId, gameNumber])
+  @@index([tournamentId, status])
+  @@index([tournamentId, roundNumber])
+  @@index([status, turnSince])
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
+  @@map("tournament_games")
 }

@@ -339,10 +339,28 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
   const tournamentPlayer = await prisma.tournamentPlayer.create({
     data: { status: "APPROVED", tournamentId: tournament.id, userId: student.id }
   });
+  const tournamentOpponent = await activeUser(prisma, UserRole.STUDENT);
+  const opponentPlayer = await prisma.tournamentPlayer.create({
+    data: { status: "APPROVED", tournamentId: tournament.id, userId: tournamentOpponent.id }
+  });
+  const tournamentGame = await prisma.tournamentGame.create({
+    data: {
+      blackClockMs: 300_000,
+      blackPlayerId: opponentPlayer.id,
+      boardNumber: 1,
+      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      roundNumber: 1,
+      startFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      tournamentId: tournament.id,
+      whiteClockMs: 300_000,
+      whitePlayerId: tournamentPlayer.id
+    }
+  });
 
   return {
     externalAccount,
     tournament,
+    tournamentGame,
     tournamentPlayer,
     activityQueue,
     assignment,

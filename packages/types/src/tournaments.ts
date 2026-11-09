@@ -594,3 +594,416 @@ export const TOURNAMENT_IMAGE_KINDS = ["banner", "logo"] as const;
 export const tournamentImageKindSchema = z.enum(TOURNAMENT_IMAGE_KINDS);
 export type TournamentImageKind = z.infer<typeof tournamentImageKindSchema>;
 export const TOURNAMENT_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phases 3–4: rounds, games, results.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Clocks start once both sides have made their first move (as in live-class matches). */
+export const TOURNAMENT_CLOCK_START_PLY = 2;
+/** A side that hasn't made its first move by then loses the game (or both no-show: no result). */
+export const TOURNAMENT_FIRST_MOVE_SECONDS = 60;
+
+export const TOURNAMENT_GAME_RESULTS = ["WHITE_WON", "BLACK_WON", "DRAW", "NO_RESULT"] as const;
+export const tournamentGameResultSchema = z.enum(TOURNAMENT_GAME_RESULTS);
+export type TournamentGameResult = z.infer<typeof tournamentGameResultSchema>;
+
+export const TOURNAMENT_END_REASONS = [
+  "CHECKMATE",
+  "STALEMATE",
+  "INSUFFICIENT_MATERIAL",
+  "THREEFOLD_REPETITION",
+  "FIFTY_MOVE_RULE",
+  "RESIGNATION",
+  "DRAW_AGREED",
+  "TIMEOUT",
+  "NO_SHOW",
+  "ABANDONED",
+  "FORFEIT",
+  "BYE",
+  "ADJUDICATED",
+  "ARENA_ENDED"
+] as const;
+export type TournamentEndReason = (typeof TOURNAMENT_END_REASONS)[number];
+
+export const TOURNAMENT_END_REASON_LABELS: Record<TournamentEndReason, string> = {
+  ABANDONED: "Opponent left",
+  ADJUDICATED: "Decided by the host",
+  ARENA_ENDED: "Arena ended",
+  BYE: "Bye",
+  CHECKMATE: "Checkmate",
+  DRAW_AGREED: "Draw agreed",
+  FIFTY_MOVE_RULE: "Fifty-move rule",
+  FORFEIT: "Forfeit",
+  INSUFFICIENT_MATERIAL: "Insufficient material",
+  NO_SHOW: "Didn't start",
+  RESIGNATION: "Resignation",
+  STALEMATE: "Stalemate",
+  THREEFOLD_REPETITION: "Threefold repetition",
+  TIMEOUT: "Time out"
+};
+
+export const TOURNAMENT_RESULT_SOURCES = ["ENGINE", "BYE", "FORFEIT", "HOST", "CORRECTION"] as const;
+export type TournamentResultSource = (typeof TOURNAMENT_RESULT_SOURCES)[number];
+
+export type TournamentGamePlayerRef = {
+  playerId: string;
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  rating: number | null;
+};
+
+export type TournamentGameDto = {
+  id: string;
+  tournamentId: string;
+  roundNumber: number;
+  gameNumber: number;
+  board: number;
+  knockoutMatchId: string | null;
+  white: TournamentGamePlayerRef;
+  /** Null for a bye. */
+  black: TournamentGamePlayerRef | null;
+  byeKind: "FULL" | "HALF" | "ZERO" | null;
+  startFen: string;
+  fen: string;
+  moves: { san: string; uci: string }[];
+  ply: number;
+  clock: {
+    initialMs: number;
+    incrementMs: number;
+    whiteMs: number;
+    blackMs: number;
+    /** When the side to move's clock was last stopped; it runs from here. */
+    turnSince: string;
+    /** Null before the clocks start and once the game is over. */
+    running: "white" | "black" | null;
+    serverNow: string;
+  };
+  firstMoveDeadline: string | null;
+  drawOfferedBy: "white" | "black" | null;
+  berserk: { white: boolean; black: boolean };
+  status: "ONGOING" | "FINISHED";
+  result: TournamentGameResult | null;
+  endReason: TournamentEndReason | null;
+  resultSource: TournamentResultSource | null;
+  /** Points scored in half-points (2 win, 1 draw, 0 loss); null while ongoing. */
+  whiteHalfPoints: number | null;
+  blackHalfPoints: number | null;
+  startedAt: string;
+  finishedAt: string | null;
+  version: number;
+  /** The viewer's colour in this game, if they play it. */
+  viewerColor: "white" | "black" | null;
+  /** Spectators see moves only after the tournament's delay: true when `moves` stops short. */
+  delayed: boolean;
+};
+
+export type TournamentGameResponse = { game: TournamentGameDto };
+
+export const tournamentMoveRequestSchema = z
+  .object({
+    ply: z.number().int().min(0).max(2000),
+    uci: z.string().regex(/^[a-h][1-8][a-h][1-8][qrbn]?$/, "Not a move.")
+  })
+  .strict();
+export type TournamentMoveRequest = z.infer<typeof tournamentMoveRequestSchema>;
+
+export const TOURNAMENT_GAME_ACTIONS = ["RESIGN", "OFFER_DRAW", "ACCEPT_DRAW", "DECLINE_DRAW", "CLAIM_TIMEOUT", "BERSERK"] as const;
+export const tournamentGameActionRequestSchema = z.object({ action: z.enum(TOURNAMENT_GAME_ACTIONS) }).strict();
+export type TournamentGameActionRequest = z.infer<typeof tournamentGameActionRequestSchema>;
+
+/** Host decisions on one game: forfeit/adjudicate an ongoing game, or correct a finished one. */
+export const tournamentGameDecisionRequestSchema = z
+  .object({
+    result: tournamentGameResultSchema,
+    reason: z.string().trim().min(3, "Give the reason (it goes in the audit log).").max(500),
+    /** The game's `version` the host saw (corrections only). */
+    version: z.number().int().min(1).optional()
+  })
+  .strict();
+export type TournamentGameDecisionRequest = z.infer<typeof tournamentGameDecisionRequestSchema>;
+
+export type TournamentGameSummaryDto = Pick<
+  TournamentGameDto,
+  "id" | "roundNumber" | "gameNumber" | "board" | "knockoutMatchId" | "white" | "black" | "byeKind" | "status" | "result" | "endReason" | "whiteHalfPoints" | "blackHalfPoints" | "startedAt" | "finishedAt"
+> & { ply: number };
+
+export type TournamentRoundDto = {
+  number: number;
+  status: "ONGOING" | "COMPLETED";
+  startedAt: string;
+  completedAt: string | null;
+  games: TournamentGameSummaryDto[];
+};
+
+export type TournamentRoundsResponse = { rounds: TournamentRoundDto[]; totalRounds: number | null };
+
+export type TournamentKnockoutMatchDto = {
+  id: string;
+  bracketRound: number;
+  slot: number;
+  a: TournamentGamePlayerRef | null;
+  b: TournamentGamePlayerRef | null;
+  status: "PENDING" | "ONGOING" | "DECIDED";
+  winnerPlayerId: string | null;
+  decidedBy: "GAMES" | "SEED" | "BYE" | "FORFEIT" | null;
+  /** A's and B's half-points over the match. */
+  score: { a: number; b: number };
+  gameIds: string[];
+};
+
+export type TournamentBracketResponse = { rounds: number; matches: TournamentKnockoutMatchDto[] };
+
+export type TournamentGamesResponse = { games: TournamentGameSummaryDto[] };
+
+// ── Phase 5: standings, live snapshot, management ──
+
+export type TournamentStandingDto = {
+  playerId: string;
+  /** Overall rank (shared on a full tie). */
+  rank: number | null;
+  /** Rank inside the current filter (age group, rating band, batch); equals `rank` without a filter. */
+  filteredRank: number | null;
+  player: TournamentGamePlayerRef;
+  status: TournamentPlayerStatus;
+  ageGroup: string | null;
+  /** Half-points for round formats, arena points for an arena. */
+  points: number;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  streak: number;
+  onFire: boolean;
+  tiebreaks: Partial<Record<TournamentTiebreak, number>>;
+  performance: number | null;
+};
+
+export const tournamentStandingsQuerySchema = z
+  .object({
+    ageGroup: z.string().max(10).optional(),
+    batchId: z.string().max(64).optional(),
+    maxRating: z.coerce.number().int().min(0).max(3500).optional(),
+    minRating: z.coerce.number().int().min(0).max(3500).optional()
+  })
+  .strict();
+export type TournamentStandingsQuery = z.infer<typeof tournamentStandingsQuerySchema>;
+
+export type TournamentStandingsResponse = {
+  /** "half-points" for round formats (2 = 1 point), "arena-points" for an arena. */
+  pointsUnit: "half-points" | "arena-points";
+  tiebreaks: TournamentTiebreak[];
+  standings: TournamentStandingDto[];
+};
+
+/** The live dashboard's one poll (docs/TOURNAMENTS.md §4): refetch when `version` changes. */
+export type TournamentLiveDto = {
+  version: number;
+  tournament: TournamentSummaryDto & { arenaEndsAt: string | null; startedAt: string | null; endedAt: string | null; spectatorDelaySec: number };
+  currentRound: number;
+  totalRounds: number | null;
+  /** When the next round starts on its own (round break), if one is due. */
+  nextRoundAt: string | null;
+  ongoingGames: TournamentGameSummaryDto[];
+  /** The top of the standings (the full table is its own route). */
+  leaders: TournamentStandingDto[];
+  me: { playerId: string; status: TournamentPlayerStatus; currentGameId: string | null; arenaPaused: boolean } | null;
+  serverNow: string;
+};
+
+export const removeTournamentPlayerRequestSchema = z
+  .object({
+    status: z.enum(["WITHDRAWN", "DISQUALIFIED"]),
+    reason: z.string().trim().min(3).max(500)
+  })
+  .strict();
+export type RemoveTournamentPlayerRequest = z.infer<typeof removeTournamentPlayerRequestSchema>;
+
+export type TournamentAuditEntryDto = {
+  id: string;
+  action: string;
+  actor: TournamentPersonRef | null;
+  targetType: string | null;
+  targetId: string | null;
+  reason: string | null;
+  before: unknown;
+  after: unknown;
+  createdAt: string;
+};
+export type TournamentAuditResponse = {
+  entries: TournamentAuditEntryDto[];
+  pagination: { total: number; page: number; pageSize: number; totalPages: number };
+};
+
+// ── Phase 6: commentary, broadcasting, real time ──
+
+export const TOURNAMENT_COMMENTARY_TYPES = [
+  "GENERAL",
+  "GAME",
+  "MOVE",
+  "PLAYER",
+  "ROUND",
+  "ANNOUNCEMENT",
+  "FEATURED",
+  "EMERGENCY"
+] as const;
+export const tournamentCommentaryTypeSchema = z.enum(TOURNAMENT_COMMENTARY_TYPES);
+export type TournamentCommentaryType = z.infer<typeof tournamentCommentaryTypeSchema>;
+
+export const TOURNAMENT_COMMENTARY_TYPE_LABELS: Record<TournamentCommentaryType, string> = {
+  ANNOUNCEMENT: "Announcement",
+  EMERGENCY: "Important",
+  FEATURED: "Featured",
+  GAME: "Game",
+  GENERAL: "Commentary",
+  MOVE: "Move",
+  PLAYER: "Player",
+  ROUND: "Round"
+};
+
+const square = z.string().regex(/^[a-h][1-8]$/, "Not a square.");
+export const tournamentHighlightToneSchema = z.enum(["primary", "accent", "danger", "success"]);
+/** Squares and arrows drawn on the board for a position highlight. */
+export const tournamentHighlightSchema = z
+  .object({
+    arrows: z.array(z.object({ from: square, to: square, tone: tournamentHighlightToneSchema }).strict()).max(12).default([]),
+    squares: z.array(z.object({ square, tone: tournamentHighlightToneSchema }).strict()).max(24).default([])
+  })
+  .strict();
+export type TournamentHighlight = z.infer<typeof tournamentHighlightSchema>;
+
+export const TOURNAMENT_COMMENTARY_MAX = 2000;
+
+export const createTournamentCommentaryRequestSchema = z
+  .object({
+    body: z.string().trim().min(1, "Write something.").max(TOURNAMENT_COMMENTARY_MAX),
+    /** Client-made id: a resend (flaky network) never posts twice. */
+    clientId: z.string().trim().min(8).max(64),
+    fen: z.string().trim().max(100).nullable().optional(),
+    gameId: z.string().max(64).nullable().optional(),
+    highlight: tournamentHighlightSchema.nullable().optional(),
+    pinned: z.boolean().optional(),
+    playerId: z.string().max(64).nullable().optional(),
+    /** The half-move the commentary is about (0 = the start position). */
+    ply: z.number().int().min(0).max(2000).nullable().optional(),
+    type: tournamentCommentaryTypeSchema
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    if ((v.type === "GAME" || v.type === "MOVE" || v.type === "FEATURED") && !v.gameId) {
+      ctx.addIssue({ code: "custom", message: "Pick the game.", path: ["gameId"] });
+    }
+    if (v.type === "MOVE" && (v.ply === undefined || v.ply === null)) ctx.addIssue({ code: "custom", message: "Pick the move.", path: ["ply"] });
+    if (v.type === "PLAYER" && !v.playerId) ctx.addIssue({ code: "custom", message: "Pick the player.", path: ["playerId"] });
+  });
+export type CreateTournamentCommentaryRequest = z.input<typeof createTournamentCommentaryRequestSchema>;
+
+export const hideTournamentCommentaryRequestSchema = z.object({ reason: z.string().trim().min(3).max(300) }).strict();
+export type HideTournamentCommentaryRequest = z.infer<typeof hideTournamentCommentaryRequestSchema>;
+
+export const pinTournamentCommentaryRequestSchema = z.object({ pinned: z.boolean() }).strict();
+
+export const setTournamentFeaturedRequestSchema = z
+  .object({ gameId: z.string().max(64).nullable().optional(), playerId: z.string().max(64).nullable().optional() })
+  .strict();
+export type SetTournamentFeaturedRequest = z.infer<typeof setTournamentFeaturedRequestSchema>;
+
+export type TournamentCommentaryDto = {
+  id: string;
+  type: TournamentCommentaryType;
+  body: string;
+  author: TournamentPersonRef | null;
+  game: { id: string; label: string } | null;
+  player: { id: string; name: string } | null;
+  ply: number | null;
+  fen: string | null;
+  highlight: TournamentHighlight | null;
+  pinned: boolean;
+  /** Hosts only: hidden by moderation (everyone else never receives it). */
+  hidden: boolean;
+  /** When spectators can read it; hosts see it before. */
+  releaseAt: string;
+  released: boolean;
+  createdAt: string;
+};
+
+export type TournamentCommentaryResponse = { item: TournamentCommentaryDto };
+
+export type TournamentCommentaryListResponse = {
+  items: TournamentCommentaryDto[];
+  pinned: TournamentCommentaryDto[];
+  nextCursor: string | null;
+  featured: { gameId: string | null; playerId: string | null };
+};
+
+/** LiveKit data topics of a tournament room (server-injected nudges only). */
+export const TOURNAMENT_REALTIME_TOPICS = {
+  commentary: "tournament_commentary",
+  game: "tournament_game",
+  spectate: "tournament_spectate",
+  state: "tournament_state"
+} as const;
+
+export type TournamentRealtimeMessage =
+  | { type: "state"; version: number }
+  | { type: "commentary"; id: string; version: number }
+  /** To the two players only: their game moved. */
+  | { type: "game"; gameId: string; ply: number }
+  /** To everyone: refetch this game at or after `visibleAt` (the delay is applied by the server). */
+  | { type: "spectate"; gameId: string; visibleAt: string; finished: boolean };
+
+export type TournamentRealtimeTokenResponse =
+  | { enabled: false }
+  | { enabled: true; room: string; token: string };
+
+// ── Phase 7: the anonymous public projection (docs/TOURNAMENTS.md §4.1) ──
+// No user id, avatar, date of birth, batch or contact data ever: a player is
+// a per-tournament number, a public display name and a rating.
+
+export type PublicTournamentPlayer = { number: number | null; name: string; rating: number | null };
+
+export type PublicTournamentDto = Pick<
+  TournamentSummaryDto,
+  "id" | "slug" | "name" | "format" | "status" | "phase" | "startsAt" | "timeControl" | "rounds" | "arenaDurationMin" | "bannerUrl" | "logoUrl" | "playerCount" | "maxPlayers"
+> & {
+  description: string | null;
+  rulesText: string | null;
+  prizesText: string | null;
+  spectatorDelaySec: number;
+  arenaEndsAt: string | null;
+  hosts: { name: string; role: TournamentHostRole }[];
+};
+
+export type PublicTournamentGameDto = Omit<TournamentGameDto, "white" | "black" | "viewerColor" | "tournamentId"> & {
+  white: PublicTournamentPlayer;
+  black: PublicTournamentPlayer | null;
+};
+
+export type PublicTournamentGameSummaryDto = Omit<TournamentGameSummaryDto, "white" | "black"> & {
+  white: PublicTournamentPlayer;
+  black: PublicTournamentPlayer | null;
+};
+
+export type PublicTournamentStandingDto = Omit<TournamentStandingDto, "player" | "playerId" | "performance"> & {
+  player: PublicTournamentPlayer;
+};
+
+export type PublicTournamentLiveDto = {
+  version: number;
+  tournament: PublicTournamentDto;
+  currentRound: number;
+  totalRounds: number | null;
+  nextRoundAt: string | null;
+  ongoingGames: PublicTournamentGameSummaryDto[];
+  leaders: PublicTournamentStandingDto[];
+  featuredGameId: string | null;
+  serverNow: string;
+};
+
+export type PublicTournamentCommentaryDto = Omit<TournamentCommentaryDto, "author" | "player" | "hidden"> & {
+  author: { name: string } | null;
+  player: { name: string } | null;
+};
+
+export type PublicTournamentListResponse = { items: PublicTournamentDto[]; pagination: TournamentListResponse["pagination"] };

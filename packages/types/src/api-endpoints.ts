@@ -789,6 +789,17 @@ export const API_ROUTES = {
     myRedemptions: "/referrals/me/redemptions",
     cancelRedemption: (id: string = ":id") => `/referrals/me/redemptions/${id}/cancel`
   },
+  // Public, anonymous tournament spectating (docs/TOURNAMENTS.md §4.1): PUBLIC
+  // tournaments of an academy that allows it, through the public projection.
+  publicTournaments: {
+    list: "/public/tournaments",
+    get: (id: string = ":id") => `/public/tournaments/${id}`,
+    live: (id: string = ":id") => `/public/tournaments/${id}/live`,
+    standings: (id: string = ":id") => `/public/tournaments/${id}/standings`,
+    game: (id: string = ":id", gameId: string = ":gameId") => `/public/tournaments/${id}/games/${gameId}`,
+    commentary: (id: string = ":id") => `/public/tournaments/${id}/commentary`,
+    realtimeToken: (id: string = ":id") => `/public/tournaments/${id}/realtime-token`
+  },
   // Tournaments (docs/TOURNAMENTS.md). Phase 1: the academy's tournament settings (admins).
   tournaments: {
     adminSettings: "/admin/tournaments/settings",
@@ -808,7 +819,35 @@ export const API_ROUTES = {
     candidates: (id: string = ":id") => `/tournaments/${id}/candidates`,
     registration: (id: string = ":id") => `/tournaments/${id}/registration`,
     invitationAccept: (id: string = ":id") => `/tournaments/${id}/invitation/accept`,
-    invitationDecline: (id: string = ":id") => `/tournaments/${id}/invitation/decline`
+    invitationDecline: (id: string = ":id") => `/tournaments/${id}/invitation/decline`,
+    // Phases 3–5: running the tournament (hosts), rounds, games.
+    start: (id: string = ":id") => `/tournaments/${id}/start`,
+    pause: (id: string = ":id") => `/tournaments/${id}/pause`,
+    resume: (id: string = ":id") => `/tournaments/${id}/resume`,
+    nextRound: (id: string = ":id") => `/tournaments/${id}/rounds/next`,
+    finish: (id: string = ":id") => `/tournaments/${id}/finish`,
+    publishResults: (id: string = ":id") => `/tournaments/${id}/results/publish`,
+    rounds: (id: string = ":id") => `/tournaments/${id}/rounds`,
+    bracket: (id: string = ":id") => `/tournaments/${id}/bracket`,
+    games: (id: string = ":id") => `/tournaments/${id}/games`,
+    game: (id: string = ":id", gameId: string = ":gameId") => `/tournaments/${id}/games/${gameId}`,
+    gameMove: (id: string = ":id", gameId: string = ":gameId") => `/tournaments/${id}/games/${gameId}/move`,
+    gameAction: (id: string = ":id", gameId: string = ":gameId") => `/tournaments/${id}/games/${gameId}/action`,
+    gameDecision: (id: string = ":id", gameId: string = ":gameId") => `/tournaments/${id}/games/${gameId}/decision`,
+    myGame: (id: string = ":id") => `/tournaments/${id}/my-game`,
+    arenaJoin: (id: string = ":id") => `/tournaments/${id}/arena/join`,
+    arenaLeave: (id: string = ":id") => `/tournaments/${id}/arena/leave`,
+    standings: (id: string = ":id") => `/tournaments/${id}/standings`,
+    live: (id: string = ":id") => `/tournaments/${id}/live`,
+    withdrawPlayer: (id: string = ":id", playerId: string = ":playerId") => `/tournaments/${id}/players/${playerId}/withdraw`,
+    recomputeStandings: (id: string = ":id") => `/tournaments/${id}/standings/recompute`,
+    audit: (id: string = ":id") => `/tournaments/${id}/audit`,
+    // Phase 6: commentary, featured, real time.
+    commentary: (id: string = ":id") => `/tournaments/${id}/commentary`,
+    commentaryPin: (id: string = ":id", itemId: string = ":itemId") => `/tournaments/${id}/commentary/${itemId}/pin`,
+    commentaryHide: (id: string = ":id", itemId: string = ":itemId") => `/tournaments/${id}/commentary/${itemId}/hide`,
+    featured: (id: string = ":id") => `/tournaments/${id}/featured`,
+    realtimeToken: (id: string = ":id") => `/tournaments/${id}/realtime-token`
   },
   adminReferrals: {
     overview: "/admin/referrals/overview",

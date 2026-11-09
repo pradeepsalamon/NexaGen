@@ -273,6 +273,9 @@ export class TournamentRegistrationService {
     await this.access.loadForManager(user, id);
     const player = await this.prisma.$transaction(async (tx) => {
       const tournament = await this.lock(tx, id);
+      if (tournament.status !== TournamentStatus.DRAFT && tournament.status !== TournamentStatus.PUBLISHED) {
+        throw new ConflictException("The tournament has started: withdraw or disqualify the player from the running tournament instead.");
+      }
       const row = await tx.tournamentPlayer.findFirst({ where: { id: playerId, tournamentId: id } });
       if (!row) throw new NotFoundException("Player not found.");
       const from: TournamentPlayerStatus[] =

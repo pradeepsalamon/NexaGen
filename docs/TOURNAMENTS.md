@@ -558,7 +558,10 @@ place. A screen without its enforced API behaviour does not count.
 | 0 | **Done** (2026-11-09): `common/chess/game-engine.ts` + spec (37 tests); `LiveClassMatchService` delegates to it. The match spec ran unchanged: the student-match, simul and common/chess suites went from 5 suites and 187 tests to 6 and 224, all passing; the full API unit run had 207 suites and 2994 tests passing, with 2 suites skipped because they need a real Stockfish binary. |
 | 1 | **Done** (2026-11-09), see "Phase 1 as built" below. |
 | 2 | **API done** (2026-11-09): create, edit, publish (direct or `TOURNAMENT_PUBLISH` approval), cancel, delete, images, hosts, discovery, registration. Screens follow with the other phases' screens (see "Build order"). |
-| 3–9 | Not started |
+| 3 | **Done** (2026-11-09): pure engines (`apps/api/src/tournament/pairing/`) and their database orchestration (`TournamentEngineService`). |
+| 4 | **API done** (2026-11-09): moves, actions, the clock sweeper, the result funnel, Game Library archive. |
+| 5 | **API done** (2026-11-09): standings (cached, recomputable, filterable), host controls, live snapshot, audit. Admin dashboard screens with the web pass. |
+| 6–9 | Not started |
 
 **Build order (2026-11-09).** The owner asked for the whole feature. The API of
 Phases 2–8 is built first, one committed phase at a time, each with its own
@@ -691,3 +694,76 @@ same rules. **No behaviour change.**
     and an edit voiding a pending approval.
   - 10 cross-user rows and 3 own-data twins in the access suites, which the
     cross-academy suite also replays.
+
+### Phases 3–5 — as built (API, 2026-11-09)
+
+**Engines** (`apps/api/src/tournament/pairing/`, pure, 37 tests):
+- `blossom.ts`: maximum-weight matching, a port of the public-domain
+  mwmatching reference, checked against brute force on 600 random graphs.
+- `swiss.ts`: repeat-free whenever possible (proved by running the matcher
+  without repeat edges first), byes to the lowest ranked player without one,
+  colour needs, Dutch-style top v bottom half.
+- `round-robin.ts`: Berger tables, colour difference at most 1.
+- `knockout.ts`: seeded power-of-two bracket, byes to the top seeds, best of
+  N, sudden death (at most 3 games), then the higher seed.
+- `arena.ts`: pool pairing and 2/1/0 scoring with streaks, no points for
+  quick draws, and a berserk bonus.
+- `standings.ts`: all tiebreaks, shared ranks on a full tie, performance.
+
+**Schema** (migrations `…_tournament_games`, `…_tournament_game_library`):
+- `TournamentRound`, `TournamentGame` (byes are games with no Black),
+  `TournamentKnockoutMatch`.
+- Standings cache columns on `TournamentPlayer`, which `computeStandings` can
+  always recompute.
+- `currentGameId` on the player: a game is created only by claiming both
+  players where it is null, so nobody is ever in two live games. A unique
+  index can't express this, because both players hold the same id.
+- CHECKs: two different players per game, clocks never negative.
+- `ChessGameSource.TOURNAMENT`.
+
+**Rules as built:**
+- **Lock order:** any transaction that can finish a game locks the tournament
+  row first, then claims the game. A move that doesn't end the game only claims
+  the game row (`ply` + status). So a player's move and a host's forfeit never
+  deadlock.
+- **Result funnel** (`TournamentEngineService.finishGame`): claim → free both
+  players → arena no-show leaves the pool → the next knockout game or the match
+  decision (a withdrawn or disqualified side loses by forfeit) → round
+  completion (which completes the tournament after the last round) →
+  standings recompute.
+- **Clocks:** they start after both first moves. The first move is due within
+  60 s, or that side loses by NO_SHOW; an arena no-show is void and the absent
+  player is paused. The flag sweeper (`TournamentScheduler`, every 5 s, job
+  lock, once per academy) finishes flags and no-shows, pairs the arena pool,
+  ends arenas, starts the next round after `roundBreakSec`, and auto-starts at
+  `startsAt` when enough players are approved.
+- **Pause** stops new rounds and pairings; games in play keep their clocks.
+- **Withdraw / disqualify after the start:** the game in play is forfeited
+  to the opponent, a knockout match goes to the opponent, and the player is
+  never paired again. Their results stay in the table.
+- **Corrections:** reason required, guarded by the game's `version`, audited
+  with before and after values. Refused for a knockout match that has moved on.
+- **Spectator delay:**
+  - Each stored move carries its server time and the mover's clock.
+  - Non-players (who aren't hosts) get the position, the moves and the clocks
+    as they stood `spectatorDelaySec` ago; the result is held back until the
+    delay passes too.
+  - Players and hosts see everything live.
+- **Game Library:** every finished game is archived through
+  `GameRecorderService.recordTournamentGame` from an after-commit event
+  (idempotent on `tournament:<gameId>`).
+- **Events:** `TournamentEventsService` is the after-commit hook (the live
+  `version`, archiving, and the Phase 6 real-time nudges).
+
+**Tests:**
+- `tournament-play.int-spec.ts` (14): whole Swiss, round-robin, knockout and
+  arena events played over HTTP, plus:
+  - concurrent completion of a round (it completes exactly once)
+  - two hosts asking for the next round at once (one round)
+  - a ply race (one move wins)
+  - a checkmate through the engine
+  - spectator delay vs live views
+  - no-show and flag through the sweeper
+  - mid-event withdrawal, correction with a stale version, and cached
+    standings = recomputed standings
+- 10 more cross-user rows and 4 own-data twins.
