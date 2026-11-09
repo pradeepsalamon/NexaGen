@@ -320,8 +320,30 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     data: { amountMinor: -100, currency: "INR", redemptionId: referralRedemption.id, type: "REDEMPTION", userId: student.id, wallet: "POINTS" }
   });
 
+  // A published PRIVATE tournament the coach hosts, with the student entered
+  // (docs/TOURNAMENTS.md): its players and management are this side's only.
+  const tournament = await prisma.tournament.create({
+    data: {
+      clockInitialMs: 300_000,
+      format: "SWISS",
+      name: `Tournament ${label}`,
+      publishedAt: new Date(),
+      rounds: 3,
+      slug: `tournament-${label.toLowerCase()}`,
+      startsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      status: "PUBLISHED",
+      visibility: "PRIVATE"
+    }
+  });
+  await prisma.tournamentHost.create({ data: { role: "HOST", tournamentId: tournament.id, userId: coach.id } });
+  const tournamentPlayer = await prisma.tournamentPlayer.create({
+    data: { status: "APPROVED", tournamentId: tournament.id, userId: student.id }
+  });
+
   return {
     externalAccount,
+    tournament,
+    tournamentPlayer,
     activityQueue,
     assignment,
     attempt,

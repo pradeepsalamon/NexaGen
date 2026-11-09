@@ -120,7 +120,14 @@ export const APPROVAL_ACTIONS = {
     reviewerRoles: ADMINS,
     defaultTtlHours: 72,
   },
-  CLASS_SUBSTITUTE_COACH: {
+  TOURNAMENT_PUBLISH: {
+    category: "COACHING",
+    label: "Publish a public tournament",
+    requesterRoles: ["COACH"],
+    reviewerRoles: ADMINS,
+    defaultTtlHours: 168,
+  },
+    CLASS_SUBSTITUTE_COACH: {
     category: "COACHING",
     label: "Have another coach take a class",
     requesterRoles: ["COACH"],

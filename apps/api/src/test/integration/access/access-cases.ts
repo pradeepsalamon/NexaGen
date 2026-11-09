@@ -164,10 +164,24 @@ export const CROSS_USER: Case[] = [
   { name: "coach puts another coach's student in a group", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.chat.createGroup, body: (w: World) => ({ memberIds: [w.b.student.id], name: "poach" }) },
   // Referral wallet: a withdrawal or payment code is its owner's alone
   { name: "coach cancels another coach's referral withdrawal", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.referrals.cancelWithdrawal(w.b.referralWithdrawal.id) },
-  { name: "student cancels another student's voucher redemption", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.referrals.cancelRedemption(w.b.referralRedemption.id) }
+  { name: "student cancels another student's voucher redemption", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.referrals.cancelRedemption(w.b.referralRedemption.id) },
+  // Tournaments: a private tournament is its players' and hosts' only; managing it is its hosts' only
+  { name: "student reads another side's private tournament", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.get(w.b.tournament.id) },
+  { name: "student lists another side's tournament players", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.players(w.b.tournament.id) },
+  { name: "coach edits another coach's tournament", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.tournaments.update(w.b.tournament.id), body: { name: "Taken over", version: 1 } },
+  { name: "coach adds own student to another coach's tournament", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.tournaments.players(w.b.tournament.id), body: (w: World) => ({ userIds: [w.a.student.id] }) },
+  { name: "coach disqualifies a player in another coach's tournament", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.tournaments.player(w.b.tournament.id, w.b.tournamentPlayer.id), body: { status: "DISQUALIFIED" } },
+  { name: "coach decides another tournament's player through own tournament", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.tournaments.player(w.a.tournament.id, w.b.tournamentPlayer.id), body: { status: "DISQUALIFIED" } },
+  { name: "coach searches candidates for another coach's tournament", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.candidates(w.b.tournament.id) },
+  { name: "coach changes another coach's tournament hosts", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.tournaments.hosts(w.b.tournament.id), body: (w: World) => ({ hosts: [{ role: "HOST", userId: w.a.coach.id }] }) },
+  { name: "coach cancels another coach's tournament", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.tournaments.cancel(w.b.tournament.id), body: { reason: "Not mine" } },
+  { name: "student withdraws another student from a tournament", as: (w) => w.a.student, method: "DELETE", path: (w) => API_ROUTES.tournaments.registration(w.b.tournament.id) }
 ];
 
 export const OWN_CASES: Case[] = [
+  { name: "student reads own private tournament", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.get(w.a.tournament.id) },
+  { name: "student lists own tournament's players", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.players(w.a.tournament.id) },
+  { name: "coach searches candidates for own tournament", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.candidates(w.a.tournament.id) },
   { name: "coach lists substitutes for own class", as: (w) => w.a.coach, path: (w) => API_ROUTES.approvals.substituteOptions(w.a.class.id) },
   { name: "student reads own class's running activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRun(w.a.liveClass.id) },
   { name: "coach monitors own class's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.a.liveClass.id, w.a.playoutRun.id) },

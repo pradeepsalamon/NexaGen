@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { Prisma, TournamentAuditAction } from "@prisma/client";
-import { PrismaService } from "../prisma/prisma.service";
+import type { PrismaTransactionClient } from "../prisma/prisma.service";
 
-type PrismaTx = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
+type PrismaTx = PrismaTransactionClient;
 
 export type TournamentAuditEntry = {
   action: TournamentAuditAction;

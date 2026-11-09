@@ -557,7 +557,15 @@ place. A screen without its enforced API behaviour does not count.
 |---|---|
 | 0 | **Done** (2026-11-09): `common/chess/game-engine.ts` + spec (37 tests); `LiveClassMatchService` delegates to it. The match spec ran unchanged: the student-match, simul and common/chess suites went from 5 suites and 187 tests to 6 and 224, all passing; the full API unit run had 207 suites and 2994 tests passing, with 2 suites skipped because they need a real Stockfish binary. |
 | 1 | **Done** (2026-11-09), see "Phase 1 as built" below. |
-| 2–9 | Not started |
+| 2 | **API done** (2026-11-09): create, edit, publish (direct or `TOURNAMENT_PUBLISH` approval), cancel, delete, images, hosts, discovery, registration. Screens follow with the other phases' screens (see "Build order"). |
+| 3–9 | Not started |
+
+**Build order (2026-11-09).** The owner asked for the whole feature. The API of
+Phases 2–8 is built first, one committed phase at a time, each with its own
+unit and integration tests. The screens come after, in one pass, because most
+of them combine several phases (the live dashboard shows pairings, standings,
+games and commentary). Phase 9 then runs the responsive screenshots and the
+multi-player end-to-end tests.
 
 ### Phase 0 — exact scope (confirmed before starting)
 
@@ -637,3 +645,49 @@ same rules. **No behaviour change.**
   - Trash hide/restore of players and hosts, and the Trash list
   - the privacy export
   - no cross-academy player rows
+
+### Phase 2 — as built (API, 2026-11-09)
+
+- **Contract** (`tournaments.ts`): config schemas (time control, eligibility,
+  arena, knockout), `tournamentConfigIssues` (the
+  cross-field rules shared by create and the merged result of an update),
+  `resolveTournamentPhase` (registration phase derived from the window),
+  `tournamentEligibilityIssue` (the one eligibility rule: age on the cutoff
+  date, rating band and unrated players, experience level, batches),
+  `ageOn` / `tournamentAgeGroup`, and the DTOs. **Update schemas never apply
+  create defaults** (zod 4 applies `.default()` under `.optional()`), so an edit
+  never silently resets a field.
+- **Services** (`apps/api/src/tournament/`):
+  - `TournamentAccessService` loads a tournament with the viewer's host and
+    player rows through scoped queries; anything the viewer may not see is a 404.
+  - `TournamentService`: create (a coach creator becomes HOST), edit (needs the
+    current `version`; after publishing the format is fixed, and after the start
+    only the texts and the delay may change), publish, cancel (with a reason),
+    delete (Trash, drafts and cancelled only, HOST or admin), banner and logo
+    (magic-byte check, the shared `common/sniff-image.ts`), hosts (active staff
+    only; a coach HOST can't remove themselves), list by tab (live, upcoming,
+    completed, cancelled, mine, hosting, drafts; paged, searchable) and detail
+    with the viewer's permissions and registration state.
+  - `TournamentRegistrationService`: the registration gate (window → role →
+    academy → eligibility → capacity → approval).
+    - Capacity is checked under `SELECT … FOR UPDATE` on the tournament row,
+      and a second entry hits the unique key.
+    - Self-registration is for PUBLIC tournaments only. PRIVATE tournaments are
+      host-entered. INVITATION_ONLY entry is invite, then accept or decline.
+    - A coach host only reaches students of their own live batches; admins
+      reach any academy student.
+    - Approval-required tournaments take entries as PENDING.
+    - Withdrawal is possible while the tournament is still PUBLISHED. A
+      withdrawn player may re-enter; rejected and disqualified players may not.
+    - Seed rating and age group are snapshotted at entry.
+  - `approval/handlers/tournament-publish.handler.ts`: snapshot = the
+    tournament `version`. Approval re-checks that it is still a draft, still
+    unedited, not yet started, and that the requester is still the HOST on an
+    active staff account.
+- **Tests**:
+  - `tournament-rules.spec.ts` (28 tests).
+  - `tournament-lifecycle.int-spec.ts` (21 tests), including a five-way race
+    for the last two places (exactly two succeed), the full approval round trip,
+    and an edit voiding a pending approval.
+  - 10 cross-user rows and 3 own-data twins in the access suites, which the
+    cross-academy suite also replays.

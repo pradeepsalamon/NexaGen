@@ -97,6 +97,27 @@ export class UploadService {
     });
   }
 
+  /** A tournament's banner or logo: public by nature (shown on the discovery page). */
+  uploadTournamentImage(file: Express.Multer.File, name: string): Promise<UploadApiResponse> {
+    assertUploadsConfigured();
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+          folder: `${tenantStorageRoot()}/tournaments`,
+          public_id: `${name}_${Date.now()}`,
+          use_filename: false,
+        },
+        (error, result) => {
+          if (error) return reject(new BadRequestException(error.message));
+          resolve(result as UploadApiResponse);
+        },
+      );
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+
   uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
     assertUploadsConfigured();
     return new Promise((resolve, reject) => {

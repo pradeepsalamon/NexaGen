@@ -7759,6 +7759,19 @@ enum TournamentPublicNameFormat {
 /// Every sensitive tournament action. Later phases add values (additive).
 enum TournamentAuditAction {
   SETTINGS_UPDATED
+  CREATED
+  UPDATED
+  DELETED
+  PUBLISH_REQUESTED
+  PUBLISHED
+  CANCELLED
+  HOSTS_CHANGED
+  IMAGE_CHANGED
+  PLAYER_ADDED
+  PLAYER_INVITED
+  PLAYER_APPROVED
+  PLAYER_REJECTED
+  PLAYER_DISQUALIFIED
 }
 
 /// A tournament, owned by the organizing academy (`tenantId`). Soft-deletable
@@ -7779,18 +7792,20 @@ model Tournament {
   status     TournamentStatus     @default(DRAFT)
   visibility TournamentVisibility @default(PUBLIC)
 
-  startsAt               DateTime
-  registrationOpensAt    DateTime?
-  registrationClosesAt   DateTime?
+  startsAt                     DateTime
+  registrationOpensAt          DateTime?
+  registrationClosesAt         DateTime?
   /// Rounds a late registrant may still join before (0 = none).
-  lateRegistrationRounds Int       @default(0)
-  minPlayers             Int       @default(2)
+  lateRegistrationRounds       Int       @default(0)
+  minPlayers                   Int       @default(2)
   /// null = no cap.
-  maxPlayers             Int?
+  maxPlayers                   Int?
   /// `tournamentEligibilitySchema`.
-  eligibilityJson        Json      @default("{}")
-  rulesText              String?
-  prizesText             String?
+  eligibilityJson              Json      @default("{}")
+  /// Self-registrations wait for a host's approval (PENDING) instead of entering directly.
+  registrationRequiresApproval Boolean   @default(false)
+  rulesText                    String?
+  prizesText                   String?
 
   clockInitialMs     Int
   clockIncrementMs   Int                  @default(0)

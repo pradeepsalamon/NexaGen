@@ -791,7 +791,24 @@ export const API_ROUTES = {
   },
   // Tournaments (docs/TOURNAMENTS.md). Phase 1: the academy's tournament settings (admins).
   tournaments: {
-    adminSettings: "/admin/tournaments/settings"
+    adminSettings: "/admin/tournaments/settings",
+    // Phase 2: CRUD, publish, discovery, hosts, registration.
+    list: "/tournaments",
+    create: "/tournaments",
+    capabilities: "/tournaments/capabilities",
+    get: (id: string = ":id") => `/tournaments/${id}`,
+    update: (id: string = ":id") => `/tournaments/${id}`,
+    delete: (id: string = ":id") => `/tournaments/${id}`,
+    publish: (id: string = ":id") => `/tournaments/${id}/publish`,
+    cancel: (id: string = ":id") => `/tournaments/${id}/cancel`,
+    image: (id: string = ":id", kind: string = ":kind") => `/tournaments/${id}/images/${kind}`,
+    hosts: (id: string = ":id") => `/tournaments/${id}/hosts`,
+    players: (id: string = ":id") => `/tournaments/${id}/players`,
+    player: (id: string = ":id", playerId: string = ":playerId") => `/tournaments/${id}/players/${playerId}`,
+    candidates: (id: string = ":id") => `/tournaments/${id}/candidates`,
+    registration: (id: string = ":id") => `/tournaments/${id}/registration`,
+    invitationAccept: (id: string = ":id") => `/tournaments/${id}/invitation/accept`,
+    invitationDecline: (id: string = ":id") => `/tournaments/${id}/invitation/decline`
   },
   adminReferrals: {
     overview: "/admin/referrals/overview",
