@@ -1,6 +1,6 @@
 # Tournaments — implementation assessment and plan
 
-Status: **plan approved 2026-11-09; Phase 0 in progress** (see §11 for the
+Status: **plan approved 2026-11-09; Phase 0 done, Phase 1 next** (see §11 for the
 per-phase status). Branch: `claude/nexachess-tournament-platform-sjutfe`.
 
 ## 0. Owner decisions (2026-11-09)
@@ -554,7 +554,7 @@ place. A screen without its enforced API behaviour does not count.
 
 | Phase | Status |
 |---|---|
-| 0 | In progress |
+| 0 | **Done** (2026-11-09): `common/chess/game-engine.ts` + spec (37 tests); `LiveClassMatchService` delegates to it. The match spec ran unchanged: the student-match, simul and common/chess suites went from 5 suites and 187 tests to 6 and 224, all passing; the full API unit run had 207 suites and 2994 tests passing, with 2 suites skipped because they need a real Stockfish binary. |
 | 1–9 | Not started |
 
 ### Phase 0 — exact scope (confirmed before starting)
