@@ -62,6 +62,7 @@ export const config = {
     "/messages/:path*",
     "/plans",
     "/profile",
+    "/tournaments/:path*",
     "/login",
     "/signup"
   ]

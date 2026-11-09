@@ -14,6 +14,7 @@ import {
   type PublishTournamentResponse,
   type SetTournamentHostsRequest,
   type TournamentCapabilitiesResponse,
+  type TournamentHostCandidatesResponse,
   type TournamentImageKind,
   type TournamentListResponse,
   type TournamentListTab,
@@ -28,6 +29,7 @@ import {
   TournamentFormat,
   TournamentHostRole,
   TournamentStatus,
+  UserRole,
   UserStatus,
   type Tournament
 } from "@prisma/client";
@@ -43,7 +45,7 @@ import { UploadService } from "../upload/upload.service";
 import { ApprovalService } from "../approval/approval.service";
 import { TournamentAccessService, type LoadedTournament, type TournamentViewer } from "./tournament-access.service";
 import { TournamentAuditService } from "./tournament-audit.service";
-import { summaryInclude, toDetail, toSummary } from "./tournament-mapper";
+import { personSelect, summaryInclude, toDetail, toPerson, toSummary } from "./tournament-mapper";
 import {
   canBroadcast,
   canCreateTournament,
@@ -259,6 +261,27 @@ export class TournamentService {
   }
 
   // ── hosts ──
+
+  /** Active coaches and admins of the academy, for the host picker (moderators only). */
+  async hostCandidates(accessToken: string | undefined, id: string, search: string | undefined): Promise<TournamentHostCandidatesResponse> {
+    const user = await this.access.authenticate(accessToken);
+    await this.access.loadForModerator(user, id);
+    const term = search?.trim();
+    const rows = await this.prisma.user.findMany({
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      select: { ...personSelect, role: true },
+      take: 50,
+      where: {
+        AND: [
+          { role: { in: [UserRole.COACH, UserRole.ADMIN, UserRole.SUPER_ADMIN] }, status: UserStatus.ACTIVE },
+          term
+            ? { OR: [{ firstName: { contains: term, mode: "insensitive" } }, { lastName: { contains: term, mode: "insensitive" } }, { email: { contains: term, mode: "insensitive" } }] }
+            : {}
+        ]
+      }
+    });
+    return { candidates: rows.map((row) => ({ ...toPerson(row), role: row.role as "COACH" | "ADMIN" | "SUPER_ADMIN" })) };
+  }
 
   /** Replaces the host list. A coach HOST editing it must stay HOST (no locking yourself out). */
   async setHosts(accessToken: string | undefined, id: string, dto: SetTournamentHostsRequest): Promise<TournamentResponse> {

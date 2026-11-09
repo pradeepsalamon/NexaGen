@@ -43,6 +43,10 @@ export interface PracticeBoardProps {
    * Needs `playerColor` and `interactive`.
    */
   premove?: boolean;
+  /** Extra highlight shapes drawn on top (squares and arrows; e.g. a commentator's highlight). */
+  shapes?: { orig: string; dest?: string; brush: "green" | "red" | "blue" | "yellow" }[];
+  /** Called with the arrows/circles the user drew (right-click), e.g. to send them as a highlight. */
+  onShapesChange?: (shapes: { orig: string; dest?: string; brush: string }[]) => void;
   className?: string;
 }
 
@@ -72,12 +76,16 @@ export function PracticeBoard({
   onMove,
   resetKey,
   premove = false,
+  shapes: extraShapes,
+  onShapesChange,
   className
 }: PracticeBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
+  const onShapesChangeRef = useRef(onShapesChange);
+  onShapesChangeRef.current = onShapesChange;
   const {
     currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled, highlightSettings,
     hasCustomPieceColors
@@ -146,7 +154,12 @@ export function PracticeBoard({
       coordinates: showCoordinates,
       // Right-click (or Shift + click) arrows and circles, the same gesture and
       // colours as the live-class board. Local only; a move clears them.
-      drawable: { enabled: true, eraseOnClick: true, brushes: arrowBrushes() },
+      drawable: {
+        enabled: true,
+        eraseOnClick: true,
+        brushes: arrowBrushes(),
+        onChange: (drawn) => onShapesChangeRef.current?.(drawn.map((d) => ({ brush: d.brush ?? "green", dest: d.dest, orig: d.orig })))
+      },
       animation: { enabled: animationEnabled, duration: 150 },
       highlight: {
         lastMove: highlightSettings.highlightEnabled,
@@ -271,8 +284,11 @@ export function PracticeBoard({
         shapes.push({ orig: hintSquares.from as Key, dest: hintSquares.to as Key, brush: "green" });
       }
     }
+    for (const extra of extraShapes ?? []) {
+      shapes.push({ brush: extra.brush === "green" ? "primaryGreen" : extra.brush, dest: extra.dest as Key | undefined, orig: extra.orig as Key });
+    }
     apiRef.current?.setAutoShapes(shapes);
-  }, [hintSquares, fen]);
+  }, [hintSquares, fen, extraShapes]);
 
   return (
     <div className={cn("relative w-full max-w-[440px]", className)}>

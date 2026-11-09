@@ -173,6 +173,7 @@ export const CROSS_USER: Case[] = [
   { name: "coach disqualifies a player in another coach's tournament", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.tournaments.player(w.b.tournament.id, w.b.tournamentPlayer.id), body: { status: "DISQUALIFIED" } },
   { name: "coach decides another tournament's player through own tournament", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.tournaments.player(w.a.tournament.id, w.b.tournamentPlayer.id), body: { status: "DISQUALIFIED" } },
   { name: "coach searches candidates for another coach's tournament", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.candidates(w.b.tournament.id) },
+  { name: "coach lists host candidates for another coach's tournament", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.hostCandidates(w.b.tournament.id) },
   { name: "coach changes another coach's tournament hosts", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.tournaments.hosts(w.b.tournament.id), body: (w: World) => ({ hosts: [{ role: "HOST", userId: w.a.coach.id }] }) },
   { name: "coach cancels another coach's tournament", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.tournaments.cancel(w.b.tournament.id), body: { reason: "Not mine" } },
   { name: "student withdraws another student from a tournament", as: (w) => w.a.student, method: "DELETE", path: (w) => API_ROUTES.tournaments.registration(w.b.tournament.id) },
@@ -199,6 +200,7 @@ export const CROSS_USER: Case[] = [
 export const OWN_CASES: Case[] = [
   { name: "student reads own private tournament", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.get(w.a.tournament.id) },
   { name: "student lists own tournament's players", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.players(w.a.tournament.id) },
+  { name: "coach lists host candidates for own tournament", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.hostCandidates(w.a.tournament.id) },
   { name: "coach searches candidates for own tournament", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.candidates(w.a.tournament.id) },
   { name: "student reads own tournament game", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.game(w.a.tournament.id, w.a.tournamentGame.id) },
   { name: "coach reads own tournament audit", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.audit(w.a.tournament.id) },

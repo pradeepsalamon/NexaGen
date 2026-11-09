@@ -118,6 +118,11 @@ export class TournamentController {
     return this.tournaments.removeImage(this.getAccessToken(request), id, parseOrBadRequest(tournamentImageKindSchema, kind, "kind"));
   }
 
+  @Get(API_ROUTES.tournaments.hostCandidates())
+  hostCandidates(@Req() request: Request, @Param("id") id: string, @Query("search") search: unknown) {
+    return this.tournaments.hostCandidates(this.getAccessToken(request), id, optionalQueryString(search, "search"));
+  }
+
   @Put(API_ROUTES.tournaments.hosts())
   setHosts(@Req() request: Request, @Param("id") id: string, @Body(new ZodBodyPipe(setTournamentHostsRequestSchema)) body: SetTournamentHostsRequest) {
     return this.tournaments.setHosts(this.getAccessToken(request), id, body);

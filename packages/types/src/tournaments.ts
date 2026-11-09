@@ -590,6 +590,9 @@ export type TournamentCandidateDto = TournamentPersonRef & {
 };
 export type TournamentCandidatesResponse = { candidates: TournamentCandidateDto[] };
 
+/** Staff who can be given a host role (active coaches and admins of the academy). */
+export type TournamentHostCandidatesResponse = { candidates: (TournamentPersonRef & { role: "COACH" | "ADMIN" | "SUPER_ADMIN" })[] };
+
 export const TOURNAMENT_IMAGE_KINDS = ["banner", "logo"] as const;
 export const tournamentImageKindSchema = z.enum(TOURNAMENT_IMAGE_KINDS);
 export type TournamentImageKind = z.infer<typeof tournamentImageKindSchema>;

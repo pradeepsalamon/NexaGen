@@ -816,6 +816,7 @@ export const API_ROUTES = {
     cancel: (id: string = ":id") => `/tournaments/${id}/cancel`,
     image: (id: string = ":id", kind: string = ":kind") => `/tournaments/${id}/images/${kind}`,
     hosts: (id: string = ":id") => `/tournaments/${id}/hosts`,
+    hostCandidates: (id: string = ":id") => `/tournaments/${id}/host-candidates`,
     players: (id: string = ":id") => `/tournaments/${id}/players`,
     player: (id: string = ":id", playerId: string = ":playerId") => `/tournaments/${id}/players/${playerId}`,
     candidates: (id: string = ":id") => `/tournaments/${id}/candidates`,

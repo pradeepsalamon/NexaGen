@@ -44,7 +44,9 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/help", roles: null },
   { prefix: "/messages", roles: null },
   { prefix: "/plans", roles: null },
-  { prefix: "/profile", roles: null }
+  { prefix: "/profile", roles: null },
+  // Tournaments: every role; the API decides what each one may see and do.
+  { prefix: "/tournaments", roles: null }
 ];
 
 function matchRule(pathname: string): RouteRule | undefined {
@@ -56,6 +58,8 @@ function matchRule(pathname: string): RouteRule | undefined {
 // Pages an anonymous visitor routinely lands on: no session probe, no "session expired" toast.
 const PUBLIC_PREFIXES = [
   "/academy",
+  // Certificate verification links printed on tournament certificates.
+  "/certificates",
   "/demo",
   "/forgot-password",
   "/login",
@@ -68,7 +72,9 @@ const PUBLIC_PREFIXES = [
   // A platform support visit's one-time link (§I): signs in on the academy's host.
   "/support",
   "/terms",
-  "/verify-email"
+  "/verify-email",
+  // Public tournament spectating (docs/TOURNAMENTS.md §4.1).
+  "/watch"
 ] as const;
 
 export function isPublicPath(pathname: string): boolean {
