@@ -1,7 +1,22 @@
 # Tournaments — implementation assessment and plan
 
-Status: **assessment only — nothing below is built yet** (2026-11-09).
-Branch: `claude/nexachess-tournament-platform-sjutfe`.
+Status: **plan approved 2026-11-09; Phase 0 in progress** (see §11 for the
+per-phase status). Branch: `claude/nexachess-tournament-platform-sjutfe`.
+
+## 0. Owner decisions (2026-11-09)
+
+| # | Decision | What it means for the build |
+|---|---|---|
+| 1 | **Admins and authorized coaches create tournaments.** A coach creates and manages tournaments they host; publishing a PUBLIC tournament needs admin approval or the academy permission. Admins have full control. | Per-academy `TournamentSettings`: `coachesMayCreate`, `coachesMayPublishPublic`. A coach publishing PUBLIC without that permission files an approval request (`TOURNAMENT_PUBLISH` handler; revalidated at approval). A coach's PRIVATE / INVITATION_ONLY tournament publishes directly, but the coach only invites or adds students from their own batches. §3.2. |
+| 2 | **Single academy in v1**, with an explicit owner so inter-academy events come later without a redesign. | `Tournament.tenantId` = organizing academy. Every child row (`TournamentPlayer`, games, commentary, …) also carries its own `tenantId`, and `TournamentPlayer.tenantId` is the **player's** academy. In v1 that is checked to equal the organizer's. Nothing joins through an implicit "same academy" assumption. §3.1, §3.8. |
+| 3 | **No gender field.** | Standings filters are age group, rating band and batch only. No new personal-data field. |
+| 4 | **Seed from the profile rating**, rating system extensible. | `TournamentPlayer.seedRating` + `seedRatingSource` (`PROFILE` \| `UNRATED`; a future `TOURNAMENT_RATING` adds a value). Seeding reads ratings through one `TournamentRatingProvider` service, so a Glicko-style rating later replaces one class. |
+| 5 | **No payment collection in v1**, extensible. | No fee columns in v1. Registration acceptance goes through one `RegistrationGate` chain (eligibility → capacity → approval), so a later payment gate plugs in as a step that hands back an `Entitlement`. `prizesText` stays as display text. |
+| 6 | **Public tournaments viewable without sign-in**, with privacy safeguards. Private tournaments need sign-in and permission. **Spectator delay enforced on the server.** | A public, anonymous-safe projection (§4.1). The academy turns it on (`allowAnonymousSpectating`, default off). Anonymous viewers get only that projection, rate-limited by IP and cached. The delay applies to every non-player, signed in or not. |
+| 7 | **Certificates in v1**, with templates and eligibility configured by admins. | `CertificateTemplate` per academy, eligibility rules per tournament, frozen `TournamentCertificate` rows with a verification code. PDFs use the existing `pdfmake` stack after commit, the same way invoices do. §3.6. |
+| 8 | **Broadcasting is a major feature**: featured game, live and game-specific commentary, position highlighting, move-by-move commentary, announcements, a dedicated broadcast view. | §3.5. A commentary item tied to a move is held back until that move is visible to spectators, so commentary can never leak the delay. Phase 6 is split into 6a (commentary engine) and 6b (broadcast studio and view). |
+| 9 | **Academy admin tournament dashboard**: all tournaments, hosts, registrations, participation, results, each student's tournament history. | `/admin/tournaments` (Phase 5) and a tournament tab in student history (Phase 8). §3.7. |
+| 10 | **Tenant-aware from day one.** | Same as #2, plus: no tournament query skips the tenant extension, and any future cross-academy read goes through one `asPlatform` seam named in §3.8. |
 
 Goal: a server-authoritative tournament platform (Swiss, Arena, Round Robin,
 Knockout) with live games, host commentary, spectators, standings, history and
@@ -62,7 +77,7 @@ ever involved. Arena points are plain integers.
   `startsAt`, `registrationOpensAt`, `registrationClosesAt`,
   `lateRegistrationUntilRound`, `minPlayers`, `maxPlayers`, `eligibilityJson`
   (Zod: age-group set + cutoff date, rating range, experience levels, batch
-  ids), `rulesText`, `prizesText`, `entryFeeMinor` + `currency`,
+  ids), `rulesText`, `prizesText` (no fee columns in v1, decision 5),
   `clockInitialMs`, `clockIncrementMs`, `startFen`, `rounds`, `roundBreakSec`,
   `arenaDurationMin`, `arenaConfigJson` (win/draw points, streaks, berserk),
   `knockoutConfigJson` (games per match, tiebreak game, armageddon),
@@ -74,7 +89,8 @@ ever involved. Arena points are plain integers.
 - **`TournamentHost`**: `(tournamentId, userId, role: HOST | CO_HOST | COMMENTATOR)`, unique pair.
 - **`TournamentPlayer`** (registration + live status): `status` (INVITED |
   PENDING | APPROVED | REJECTED | WITHDRAWN | DISQUALIFIED), `seedRating`
-  (snapshot), `seedNumber`, `registeredById` (self or admin), `withdrawnAt`,
+  (snapshot) + `seedRatingSource`, `seedNumber`, `tenantId` (the **player's**
+  academy, decision 2), `registeredById` (self or admin), `withdrawnAt`,
   `pausedAt` (arena "leave pool"), `eliminatedAt` (knockout), `ageGroup`
   snapshot. **Unique `(tournamentId, userId)`** prevents duplicate
   registration.
@@ -99,13 +115,31 @@ ever involved. Arena points are plain integers.
   **rewritten in the same transaction as every result**. It is a read cache
   only and can always be recomputed from games (an admin "recompute" action
   plus a spec asserting they are equal).
-- **`TournamentCommentary`**: `type` (GENERAL | GAME | PLAYER | ROUND |
+- **`TournamentSettings`** (one per academy, `requireTenantId()` key):
+  `coachesMayCreate`, `coachesMayPublishPublic`, `allowAnonymousSpectating`,
+  `publicNameFormat` (FIRST_NAME_LAST_INITIAL by default), `defaultSpectatorDelaySec`.
+- **`TournamentCommentary`**: `type` (GENERAL | GAME | MOVE | PLAYER | ROUND |
   ANNOUNCEMENT | FEATURED_ANALYSIS | EMERGENCY), `body` (FormattedText),
-  `gameId?`, `playerId?`, `fen?`, `ply?`, `pinnedAt`, `authorId`,
+  `gameId?`, `playerId?`, `ply?` (move-by-move commentary), `fen?` +
+  `highlightJson?` (squares and arrows for a position highlight), `releaseAt`
+  (§3.5), `pinnedAt`, `authorId`,
   `hiddenAt` / `hiddenById` / `hiddenReason` (moderation hides the message; it
   does not go through Trash), and `clientId` (idempotent send, unique
   `(authorId, clientId)`). Indexed by `(tournamentId, createdAt)`.
-- **`TournamentFeature`** (or columns on Tournament): `featuredGameId`, `featuredPlayerId`.
+- **Featured state** (columns on Tournament): `featuredGameId`,
+  `featuredPlayerId`, `featuredAt`. Every change also writes a commentary row
+  of type FEATURED_ANALYSIS, so the archive shows the broadcast timeline.
+- **`CertificateTemplate`** (per academy, soft-deletable): `name`, `layoutJson`
+  (title, body with placeholders from a fixed list, colours via
+  `brandColorIssue`, orientation), background/signature images (magic-byte
+  checked uploads).
+- **`TournamentCertificateRule`** (per tournament): `templateId`, `kind`
+  (PLACEMENT top N | AGE_GROUP_PLACEMENT top N | PARTICIPATION with minimum
+  games played).
+- **`TournamentCertificate`** (issued, never edited): `playerId`, `userId`,
+  `ruleId`, a frozen `snapshotJson` (names, placement, score, dates),
+  `serialNumber`, `verificationCode` (unique, random), `pdfStatus`,
+  `issuedAt`, `revokedAt` + `revokedReason`. Unique `(tournamentId, userId, ruleId)`.
 - **`TournamentAuditLog`**: append-only (`action`, `actorId`, `targetType/Id`,
   `beforeJson`, `afterJson`, `reason`). It records every sensitive action:
   start, pause, resume, pairing generation, forfeit, result correction,
@@ -121,12 +155,17 @@ All migrations are additive, named after the latest folder
 
 | Action | Who |
 |---|---|
-| Create or edit a tournament | ADMIN, SUPER_ADMIN of the academy. *Proposed:* a COACH may create a DRAFT, and publishing it is an approval request (`approval/handlers/tournament-publish`), in line with the permission plan. |
-| Run a tournament (start, pause, pair, forfeit, correct a result, end, publish) | Admins, plus `TournamentHost` rows with role HOST or CO_HOST |
-| Publish official commentary | HOST, CO_HOST, COMMENTATOR, admins |
+| Create a tournament | ADMIN, SUPER_ADMIN of the academy; COACH when `coachesMayCreate` (the creator becomes HOST) |
+| Edit, or manage registrations of, a tournament | Admins; a coach only when they hold a HOST or CO_HOST row on it |
+| Publish a PRIVATE or INVITATION_ONLY tournament | Admins; its coach HOST, inviting or adding only students from the coach's own batches |
+| Publish a PUBLIC tournament | Admins; a coach HOST only with `coachesMayPublishPublic`, otherwise a `TOURNAMENT_PUBLISH` approval request (claim → revalidate the requester is still HOST and the tournament is still DRAFT and unchanged since the request → publish, in one transaction) |
+| Run a tournament (start, pause, pair, forfeit, correct a result, end, publish results) | Admins, plus HOST or CO_HOST |
+| Publish official commentary and broadcast controls | HOST, CO_HOST, COMMENTATOR, admins |
 | Moderate commentary, grant or revoke hosts | Admins, plus HOST for their own tournament (CO_HOST and COMMENTATOR cannot) |
-| Register | STUDENT in the academy who passes `checkEligibility`; admins can register on someone's behalf |
-| Spectate | Any signed-in academy member for PUBLIC tournaments; PRIVATE and INVITATION_ONLY only for players, hosts and admins |
+| Configure certificate templates and academy tournament settings | Admins only |
+| Register | STUDENT in the academy who passes the `RegistrationGate` chain; admins (and a coach HOST, for own-batch students) can register someone |
+| Spectate PUBLIC | Signed-in academy members; anonymous viewers too when `allowAnonymousSpectating` is on (public projection only, §4.1) |
+| Spectate PRIVATE / INVITATION_ONLY | Signed in and one of: player, invitee, host, admin |
 | Play a move | Only the side to move in that game, checked on the server against the game row |
 
 The checks are `assertCanManageTournament(user, tournament)`,
@@ -180,6 +219,90 @@ Tournament-only rules:
 After commit: the LiveKit nudge, `GameRecorderService.record` (already
 idempotent) and notifications run. A failure there never touches the result.
 
+### 3.5 Broadcasting (decision 8)
+
+Host **broadcast studio** (`/tournaments/[id]/studio`, Phase 6b):
+
+- The featured board is the host's own live (undelayed) view. Next to it: a
+  game picker (live boards sorted by board number, standings proximity or
+  "decisive moment"), a player picker, and the commentary composer.
+- Composer types: general, game, **move** (anchored to `gameId` + `ply`,
+  defaulting to the current ply), player, round, announcement, featured
+  analysis, emergency.
+- **Position highlight**: draw squares and arrows on the board, sent as
+  `highlightJson` with the FEN.
+- Controls: pin and unpin, round-start and round-end templates (prefilled from
+  the round state), winner announcement (prefilled from standings), and
+  emergency (pinned and shown as a banner to everyone, players included).
+
+Spectator **broadcast view** (`/tournaments/[id]/broadcast`):
+
+- The featured board (delayed) is the primary element, with the commentary
+  timeline beside it on desktop and below it on mobile.
+- Move commentary is shown inline in the move list, and highlight arrows are
+  drawn on the board.
+- A "follow the broadcast" toggle auto-switches the board when the host
+  changes the featured game. Switching it off lets the viewer browse boards
+  freely.
+- Opening a highlighted game goes to its board.
+
+**Delay safety.** Each commentary row stores `releaseAt`:
+
+- Commentary tied to a game ply: `releaseAt` = the time that ply becomes
+  visible to spectators (move timestamp + `spectatorDelaySec`).
+- General commentary: the time it is created.
+- The feed query returns rows with `releaseAt <= now()` to everyone except
+  hosts and admins.
+
+The host sees a "visible to spectators in Ns" badge. Players see no game
+commentary about their own ongoing game until it ends: the server filters it
+for them (anti-assistance).
+
+### 3.6 Certificates (decision 7)
+
+- Admins manage `CertificateTemplate`s (`/admin/tournaments/certificates`)
+  with a live preview. A host picks templates and rules per tournament.
+- When results are published, `TournamentCertificateService.issueFor(tournamentId)`
+  is idempotent on the unique key. It snapshots placement and score, and
+  generates PDFs after commit (`pdfStatus: FAILED` can be retried; it never
+  changes a result).
+- A later result correction does not edit issued certificates. The host
+  revokes and reissues, and both are audited.
+- Downloads: the owner and academy admins (signed URL). A public
+  `/certificates/verify/<code>` page shows only the name format from §4.1,
+  the tournament, the placement and the date.
+
+### 3.7 Academy admin dashboard (decision 9)
+
+`/admin/tournaments`:
+
+- all academy tournaments, by status, with host, player count and date
+- host assignments across tournaments
+- a registration queue (pending approvals across all tournaments)
+- participation statistics (players per tournament, completion rate,
+  no-shows and forfeits)
+- results
+- the tournament settings and certificate templates
+
+A student's tournament history (tournaments, placements, score, performance,
+certificates) is a tab on the existing student detail page, read from the
+same standings rows.
+
+### 3.8 Tenant-awareness for later inter-academy events (decisions 2 and 10)
+
+- Ownership is always the organizer's `Tournament.tenantId`. Participation is
+  `TournamentPlayer.tenantId`, the player's academy. Game and commentary rows
+  carry the organizer's `tenantId`.
+- v1 enforces `TournamentPlayer.tenantId === Tournament.tenantId` in the
+  `RegistrationGate`. The nightly tenant integrity check reports any
+  mismatch, so the link is not added to `PLATFORM_OPERATOR_LINKS`.
+- A later inter-academy event adds an invited-academies table and a
+  security-reviewed `PLATFORM_OPERATOR_LINKS` entry for
+  `TournamentPlayer.tenantId → Tournament.tenantId`. The cross-academy reads
+  (standings and games for a player from another academy) then go through one
+  `asPlatform("inter-academy tournament", …)` seam in the tournament read
+  service. No other code assumes "same academy".
+
 ---
 
 ## 4. Real-time design
@@ -215,6 +338,30 @@ class uses. No new infrastructure.
   once cost one query. LiveKit handles the packet fan-out. The move route gets
   its own `@Throttle` budget (bullet chess can go over 100 requests a minute),
   and the spectator endpoints get a separate one.
+
+### 4.1 Anonymous spectators (decision 6)
+
+- **Scope.** Only PUBLIC tournaments of an academy with
+  `allowAnonymousSpectating` on. Routes go on `PUBLIC_ROUTES` (and in the
+  access suite's `ANONYMOUS_OK` with a reason).
+- **Public projection DTO** (a separate mapper with a spec asserting which
+  fields it holds):
+  - display name in `publicNameFormat` (first name + last initial by default)
+  - seed rating, score and results
+  - no user id (an opaque per-tournament player number), no avatar, no date of
+    birth, age, batch, email or profile link
+  - the age-group label only when the standings filter needs it
+- Commentary bodies are host-written; the console shows a "public audience"
+  reminder.
+- **Real-time.** Anonymous viewers get a hidden, receive-only LiveKit token
+  from a public route, rate-limited by IP, for that room only (no data grant).
+  They only ever receive `tournament_state`, `tournament_spectate` and
+  `tournament_commentary` nudges. Player move packets use
+  `destinationIdentities`, so anonymous viewers never get them. Polling also
+  works.
+- **Delay.** The same server-side delayed view as signed-in spectators.
+- **Abuse.** IP throttles on token and snapshot routes, a cached snapshot, and
+  `noindex` by default.
 
 The alternative is an SSE endpoint (`@Sse`) on the API. It is simpler for
 anonymous viewers, but it holds a Node connection per viewer on the single API
@@ -356,8 +503,9 @@ for every screen, with no horizontal overflow.
 - Tab-blur counts are an optional signal for the host only.
 
 **Minors**
-- Students are minors. Spectating is signed-in only by default.
-- Gender is not stored today (§9).
+- Students are minors. Anonymous spectating is off unless the academy
+  enables it, and then it shows only the public projection (§4.1).
+- No gender field (decision 3).
 - Sentry rules are unchanged.
 - Commentary is written by hosts only. No player chat is proposed for the
   first version.
@@ -371,44 +519,68 @@ for every screen, with no horizontal overflow.
 
 ---
 
-## 9. Owner decisions needed before or during build
+## 9. Owner decisions
 
-1. **Who can create a tournament?** Admins only, or coaches with an approval
-   step to publish (proposed)?
-2. **Cross-academy tournaments** (the "Academy" standings filter): is a
-   tournament limited to one academy (proposed for v1), or are platform-wide
-   open tournaments wanted? The latter needs `asPlatform`,
-   `PLATFORM_OPERATOR_LINKS` and a security review.
-3. **Gender**: adding a gender field to the student profile (optional,
-   admin-configurable, included in exports) involves minors' data. Proposed:
-   defer, and ship the age, rating and batch filters first.
-4. **Ratings**: seed from the typed-in `chessRating` (v1), or build an internal
-   Glicko-2 tournament rating (later phase)?
-5. **Entry fees**: needed in v1? It needs a new product type through
-   `PaymentService` and an `Entitlement`. Proposed: Phase 2b behind a flag.
-6. **Anonymous public spectating**: wanted? It changes the real-time choice
-   (§4) and the privacy posture.
-7. **Certificates**: is the existing invoice PDF pipeline acceptable to reuse
-   for certificate PDFs, or is it out of scope for v1?
-
----
+All seven open questions were decided on 2026-11-09 (§0). New questions get
+added here as they come up.
 
 ## 10. Phases (each independently testable and shippable)
 
 | Phase | Scope | Done when / tests |
 |---|---|---|
 | **0. Engine extraction** | `common/chess/game-engine.ts` pulled out of `LiveClassMatchService`. No behaviour change. | The existing match spec is green; new engine spec covers every end reason, clocks, increment, flag with insufficient material. |
-| **1. Domain, DB, permissions** | Models + migration + getters, `tournaments.ts` contract, `API_ROUTES`, module skeleton, `assertCan*` / visibility, feature key + Enterprise migration, audit log, soft delete (Trash checklist), privacy export. | Unit specs for permissions; access suites; `route-auth.spec`; tenant spec; `npm run typecheck` / `lint` / `test`. |
-| **2. Create, discover, register** | CRUD + versioned edits, banner/logo upload, publish flow, discovery list (paged), details, eligibility engine (age group by cutoff date, rating, level, batch), self + admin registration, invitations, withdraw-before-deadline, approve/reject, wizard UI, discovery and details UI. (2b: entry fees.) | Eligibility table tests; duplicate-registration race (int-spec); cross-user rows; shots of the screens. |
-| **3. Pairing engines** | Swiss, round robin, knockout, arena pool, tiebreaks: pure modules. Round generation service (transaction + lock). | Fixtures + property tests (§5); concurrent "next round" int-spec gives one round. |
-| **4. Live games + results** | Tournament game routes on the engine, first-move timer, flag sweeper cron, opponent-gone claim, result funnel (§3.4), Game Library `TOURNAMENT` source, play screen. | Specs for every outcome; concurrent completion int-spec (idempotent); reconnect = snapshot refetch (Playwright, two simulated players). |
-| **5. Standings + management** | Standings cache + recompute, filters (age group, rating band, batch), host dashboard: start, pause, resume, next round, forfeits, result correction with reason, disqualify, end, publish results, audit view. | Cached = recomputed (property test); correction re-ranks; audit row on every action. |
-| **6. Commentary + featured** | Commentary CRUD, types, pin, hide (moderation), host grants, featured game/player/position, LiveKit room + topics, commentary console UI and feed. | Permission specs (only hosts publish; COMMENTATOR cannot moderate); idempotent `clientId`; delivery via nudge + poll fallback. |
-| **7. Spectator experience** | Server-side delayed game view, multi-board grid, follow a player, switch boards, review finished games, snapshot caching, throttle budgets. | Spectator can never receive moves newer than the delay (spec + int-spec); spectator token has no data grant; moves rejected for non-players. |
-| **8. Notifications + history + analytics** | `NotificationType` / `MessagingEvent`: registered, starting soon (cron, `dedupeKey`), paired / new opponent, game starting, round complete, announcement, completed, results published. Archive (champion, runner-up, rounds, games, commentary), player stats, fair-play review flags. | Dedupe specs; no double send across sweeps; history page Playwright. |
+| **1. Domain, DB, permissions** | Models + migration + getters (incl. `TournamentSettings`, certificate tables), `tournaments.ts` contract, `API_ROUTES`, module skeleton, `assertCan*` / visibility (§3.2), `TOURNAMENT_PUBLISH` approval handler, feature key + Enterprise migration, audit log, soft delete (Trash checklist), privacy export, tenant ownership rules (§3.8). | Unit specs for every permission row; access suites; `route-auth.spec`; tenant spec; `npm run typecheck` / `lint` / `test`. |
+| **2. Create, discover, register** | CRUD + versioned edits, banner/logo upload, publish flow (direct or approval), discovery list (paged), details, `RegistrationGate` chain (eligibility: age group by cutoff date, rating, level, batch; capacity; approval; same-academy check), self + admin + coach-own-batch registration, invitations, withdraw-before-deadline, approve/reject, wizard UI, discovery and details UI. | Eligibility table tests; duplicate-registration race (int-spec); coach cannot add a non-own-batch student; cross-user rows; shots of the screens. |
+| **3. Pairing engines** | Swiss, round robin, knockout, arena pool, tiebreaks: pure modules. Round generation service (transaction + lock). Seeding through `TournamentRatingProvider`. | Fixtures + property tests (§5); concurrent "next round" int-spec gives one round. |
+| **4. Live games + results** | Tournament game routes on the Phase 0 engine, first-move timer, flag sweeper cron, opponent-gone claim, result funnel (§3.4), Game Library `TOURNAMENT` source, play screen. | Specs for every outcome; concurrent completion int-spec (idempotent); reconnect = snapshot refetch (Playwright, two simulated players). |
+| **5. Standings + management** | Standings cache + recompute, filters (age group, rating band, batch), host dashboard (start, pause, resume, next round, forfeits, result correction with reason, disqualify, end, publish results, audit view), **academy admin dashboard `/admin/tournaments`** (§3.7). | Cached = recomputed (property test); correction re-ranks; audit row on every action; admin dashboard only shows own-academy rows. |
+| **6a. Commentary engine** | Commentary CRUD for every type incl. move commentary and position highlights, `releaseAt` delay rule, pin, hide (moderation), host grants, featured game/player, LiveKit room + topics. | Permission specs (only hosts publish; COMMENTATOR cannot moderate); idempotent `clientId`; **commentary never released before its ply is visible**; players never see commentary on their own ongoing game. |
+| **6b. Broadcast studio + broadcast view** | Studio (§3.5) and the spectator broadcast page with follow-the-broadcast, inline move commentary, highlight arrows, emergency banner. | Playwright: host features a game → spectator board switches after the delay; shots of both pages on all devices. |
+| **7. Spectator experience** | Server-side delayed game view, multi-board grid, follow a player, switch boards, review finished games, snapshot caching, throttle budgets, **anonymous public projection** (§4.1). | Spectator can never receive moves newer than the delay (spec + int-spec); spectator token has no data grant; moves rejected for non-players; anonymous DTO holds no user id, date of birth, batch or contact data (spec); private tournaments 401/404 for anonymous callers. |
+| **8. Notifications, history, certificates, analytics** | `NotificationType` / `MessagingEvent`: registered, starting soon (cron, `dedupeKey`), paired / new opponent, game starting, round complete, announcement, completed, results published. Archive (champion, runner-up, rounds, games, commentary archive), student tournament-history tab, **certificate templates, rules, issue/revoke, PDF, verification page** (§3.6), fair-play review flags. | Dedupe specs; no double send across sweeps; certificate issue idempotent; failed PDF never changes a result; history page Playwright. |
 | **9. Polish + full test pass** | Mobile layouts, transitions, empty/error states, a load script (N simulated players playing at once against a local stack), docs. | `shots --devices all` clean; multi-player Playwright tournament runs end to end for each format; `npm run build -w apps/web`. |
 
 After each phase: run the scoped checks (`typecheck`, `lint`, `test`,
 `test:integration` where relevant, `build -w apps/web` for UI), update this doc
 plus `CLAUDE.md` (a 1–3 line §3 summary) and `TROUBLESHOOTING.md`, and commit
 in reviewable units on this branch.
+
+A phase is **done** only when its server rules, permissions and tests are in
+place. A screen without its enforced API behaviour does not count.
+
+---
+
+## 11. Phase status and Phase 0 scope
+
+| Phase | Status |
+|---|---|
+| 0 | In progress |
+| 1–9 | Not started |
+
+### Phase 0 — exact scope (confirmed before starting)
+
+**Goal.** Move the pure chess-game rules out of `LiveClassMatchService` into a
+reusable, database-free module, so the Phase 4 tournament games run on the
+same rules. **No behaviour change.**
+
+| File | Change |
+|---|---|
+| `apps/api/src/common/chess/game-engine.ts` | **New.** Pure functions, no Prisma and no Nest: `sideToMove`, `remainingClockMs`, `clockAfterMove`, `hasMatingMaterial`, `timeoutOutcome`, `replayGame`, `playUciMove`, `outcomeAfterMove`, `resignationOutcome`. Types come from `@nexa-chess/types` (`MatchColor`, `MatchMove`, `MatchEndReason`, `MatchGameResult`), which are string-identical to the Prisma enums. |
+| `apps/api/src/common/chess/game-engine.spec.ts` | **New.** Covers every end reason, clock start ply, increment, the timeout-vs-insufficient-material draw, replay with a stored-FEN fallback, illegal and malformed moves, promotion. |
+| `apps/api/src/student-match/live-class-match.service.ts` | Private `remainingFor`, `timeoutOutcome`, `hasMatingMaterial`, `replay`, `outcomeAfter` and `turnOf` become thin calls to the engine. The move-parsing block in `move()` uses `playUciMove`. Persistence, claims (`updateMany` on `ply` + status), broadcast and recording are **unchanged**. |
+
+**Not touched.**
+- the live-class match controller, module, DTOs, `packages/types`, the schema
+  and migrations
+- every web file
+- `simul/live-class-simul.service.ts`: it has its own `replay` / `outcomeAfter`
+  with simul-specific enums and per-side clocks. Moving it onto the engine is a
+  possible later clean-up, kept out of Phase 0 to keep the change small.
+- `puzzle-activity/playout-position.ts`: different rules (goal-based)
+
+**Verification.**
+- `src/student-match/live-class-match.service.spec.ts` runs **unchanged**
+  (baseline: the student-match, simul and common/chess suites, 5 suites and 187
+  tests, passed before the change), plus the new engine spec.
+- `npm run typecheck -w apps/api` and `npm run lint -w apps/api`.
+- The full API unit run.
