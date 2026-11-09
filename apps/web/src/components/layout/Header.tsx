@@ -106,7 +106,7 @@ export function Header({
               ? { target: "_blank", rel: "noopener noreferrer" }
               : {})}
           >
-            <Logo iconOnlyOnMobile size={32} />
+            <Logo mobileSize={28} size={32} />
           </Link>
 
           {leftSlot}

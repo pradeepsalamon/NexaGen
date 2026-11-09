@@ -59,7 +59,7 @@ export function ClassroomTopBar({
           href={activeUser ? getRoleDashboardHref(activeUser.role) : "/"}
           {...newTab}
         >
-          <Logo iconOnlyOnMobile onDark size={32} />
+          <Logo mobileSize={28} onDark size={32} />
         </Link>
         {status ? <div className="flex min-w-0 items-center gap-1.5">{status}</div> : null}
       </div>
