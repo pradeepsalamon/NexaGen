@@ -123,7 +123,7 @@ function RunPanel({ t }: { t: TournamentDetailDto }) {
             {live.data ? (
               <span className="text-sm text-app-muted">
                 {live.data.totalRounds ? `Round ${live.data.currentRound} of ${live.data.totalRounds} · ` : ""}
-                {live.data.ongoingGames.length} games in progress
+                {live.data.ongoingGames.length} {live.data.ongoingGames.length === 1 ? "game" : "games"} in progress
               </span>
             ) : null}
           </div>

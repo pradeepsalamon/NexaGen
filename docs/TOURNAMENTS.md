@@ -557,14 +557,14 @@ place. A screen without its enforced API behaviour does not count.
 |---|---|
 | 0 | **Done** (2026-11-09): `common/chess/game-engine.ts` + spec (37 tests); `LiveClassMatchService` delegates to it. The match spec ran unchanged: the student-match, simul and common/chess suites went from 5 suites and 187 tests to 6 and 224, all passing; the full API unit run had 207 suites and 2994 tests passing, with 2 suites skipped because they need a real Stockfish binary. |
 | 1 | **Done** (2026-11-09), see "Phase 1 as built" below. |
-| 2 | **API done** (2026-11-09): create, edit, publish (direct or `TOURNAMENT_PUBLISH` approval), cancel, delete, images, hosts, discovery, registration. Screens follow with the other phases' screens (see "Build order"). |
+| 2 | **Done** (2026-11-09): create, edit, publish (direct or `TOURNAMENT_PUBLISH` approval), cancel, delete, images, hosts, discovery, registration; screens in the web pass. |
 | 3 | **Done** (2026-11-09): pure engines (`apps/api/src/tournament/pairing/`) and their database orchestration (`TournamentEngineService`). |
-| 4 | **API done** (2026-11-09): moves, actions, the clock sweeper, the result funnel, Game Library archive. |
-| 5 | **API done** (2026-11-09): standings (cached, recomputable, filterable), host controls, live snapshot, audit. Admin dashboard screens with the web pass. |
-| 6 | **API done** (2026-11-09): commentary engine (all types, delay release, own-game filtering, pin, moderation, featured), LiveKit nudges. Studio and broadcast screens with the web pass. |
-| 7 | **API done** (2026-11-09): delayed game view (Phase 4), anonymous public projection, cached snapshots, throttles. Spectator screens with the web pass. |
-| 8 | **API done** (2026-11-09): notifications, certificates, history, academy dashboard. Screens with the web pass. |
-| 9 | Not started |
+| 4 | **Done** (2026-11-09): moves, actions, the clock sweeper, the result funnel, Game Library archive; the play/spectate board. |
+| 5 | **Done** (2026-11-09): standings (cached, recomputable, filterable), host controls, live snapshot, audit; tournament page and manage screen. |
+| 6 | **Done** (2026-11-09): commentary engine (all types, delay release, own-game filtering, pin, moderation, featured), LiveKit nudges; studio and broadcast screens. |
+| 7 | **Done** (2026-11-09): delayed game view, anonymous public projection, cached snapshots, throttles; `/watch` pages and the board grid. |
+| 8 | **Done** (2026-11-09): notifications, certificates, history, academy dashboard; their screens. |
+| 9 | **Done** (2026-11-09): every screen (see "Web — as built"), responsive shots on all devices, the multi-player Playwright spec, full unit + integration runs. |
 
 **Build order (2026-11-09).** The owner asked for the whole feature. The API of
 Phases 2–8 is built first, one committed phase at a time, each with its own
@@ -872,3 +872,56 @@ same rules. **No behaviour change.**
     revocation
   - history access, and the dashboard
   - plus 8 more cross-user rows and 3 own-data twins
+
+### Web — as built (Phase 9, 2026-11-09)
+
+All under `apps/web/src/features/tournaments/` (`api/tournamentsApi.ts`,
+`hooks/useTournaments.ts`, `hooks/usePublicTournaments.ts`,
+`hooks/useTournamentRealtime.ts`, `lib/format.ts`,
+`validation/tournamentForm.ts`, `components/`). Pages are thin server
+components under `app/`.
+
+| Route | Client | What it does |
+|---|---|---|
+| `/tournaments` | `TournamentsClient` | Tabs (live, upcoming, my entries, finished; plus hosting, drafts, cancelled for creators), search, format filter, paged cards. "New tournament" only when `capabilities.canCreate`. |
+| `/tournaments/new`, `/[id]/edit` | `TournamentEditor` | One form (react-hook-form + `tournamentFormSchema`, then the shared `createTournamentRequestSchema`): basics, banner/logo upload, format tiles and format options, time-control presets, schedule, entry and visibility, eligibility, rules/prizes, spectator delay. An edit sends only the changed fields plus `version`; once started only the text fields are editable. |
+| `/tournaments/[id]` | `TournamentPageClient` | One page that follows the status: entry actions (register, withdraw, accept/decline an invitation, publish or request publishing), links to manage/edit/studio/broadcast/boards, a share link for public events; while live, the "your game is on / next round in" panel (arena pause/rejoin), games in progress and leaders; when finished, the podium. Tabs: overview, standings (age-group and rating-band filters), rounds / bracket / arena games, players, commentary. |
+| `/tournaments/[id]/games/[gameId]` | `TournamentGameClient` | `GameBoardPanel`: board (premove for the player), clocks running from `turnSince` with the server clock offset, move list with stepping and flip, first-move countdown, and for the two players draw offer/accept/decline, berserk (arena, before the first move), claim on time, resign (confirmed). A move is shown at once and replaced by the server's answer; a lost race (409) snaps back. Spectators get the delayed view. |
+| `/tournaments/[id]/boards` | `BoardsClient` | Every game in progress as a small board with clocks; "follow a player" puts their game first. Polls slowly (or on nudges). |
+| `/tournaments/[id]/broadcast` | `BroadcastClient` → `BroadcastView` | The featured game large (with the latest move highlight drawn on it), the commentary feed, an announcement banner, leaders, other boards. |
+| `/tournaments/[id]/studio` | `StudioClient` | Hosts and commentators: pick a game, feature it, step to a move, draw arrows/circles (right-drag; `PracticeBoard.onShapesChange` → `TournamentHighlight`), post any commentary type with an idempotent `clientId`, pin, hide (with a reason). |
+| `/tournaments/[id]/manage` | `ManageClient` | Run (start, pause, resume, next round now, finish, publish results, recompute, cancel with reason, delete), players (search/enter/invite students, approve/reject, withdraw/disqualify with reason), hosts (staff picker from `GET /tournaments/:id/host-candidates`), games (adjudicate or correct with result + reason; corrections carry the game `version`), certificates (rules, issue, revoke, PDF), audit log. |
+| `/tournaments/history` | `MyHistoryClient` | Own results, podiums and certificate downloads. |
+| `/admin/tournaments` | `AdminTournamentsClient` | Overview (live, players this year, completion and forfeit rates, waiting items, live/upcoming, recent champions, hosts), registrations queue, academy settings, certificate templates (editor with a live text preview). |
+| `/admin/tournaments/students/[userId]` | `StudentHistoryClient` | A student's tournament history for staff. |
+| `/watch`, `/watch/[id]`, `/watch/[id]/games/[gameId]` | `PublicClients` | Anonymous spectating (public projection only, `noindex`), with its own minimal frame. |
+| `/certificates/[code]` | `CertificateCheckClient` | Public certificate verification (valid / revoked / unknown). |
+
+- Routing: `/tournaments` in `ROUTE_RULES` (every role) and the middleware
+  matcher; `/watch` and `/certificates` are `PUBLIC_PREFIXES`; titles in
+  `PAGE_TITLES`; nav entries for students, coaches and admins (feature
+  `tournaments`); `featureRoutes` for `/tournaments` and `/admin/tournaments`.
+- Real time: `useTournamentRealtime` joins the LiveKit room as a hidden
+  viewer and turns the server's nudges into refetches; without LiveKit every
+  query polls faster (players' game 1.5 s, live snapshot 4 s).
+- Only Design System tokens and `components/ui` primitives; tables use
+  `pin="end"` action columns with `neutral` `size-8` icon buttons; recorded
+  actions ask for a reason in `ReasonDialog`; dates via `lib/datetime.ts`.
+
+**Verification (2026-11-09).**
+
+- `e2e/tournaments.spec.ts` (Playwright, needs web + API on a seeded
+  database): the admin creates a one-round Swiss in the editor, publishes it,
+  enters two students from Manage and starts it; the two students open their
+  game from the tournament page in separate browsers and play fool's mate by
+  clicking the board, each move appearing on the other's board; both boards
+  show "0–1 · Checkmate"; the tournament finishes on its own with the winner
+  first in the standings; results are published; an anonymous browser watches
+  it on `/watch/[id]` and sees no email. Passed in 1.5 min.
+- Responsive shots (`npm run shots`): 9 signed-in screens (discovery, editor,
+  tournament page, manage, studio, broadcast, boards, game, admin dashboard)
+  on all 21 devices, 189 shots; the public `/watch` pages, certificate check
+  and history on mobile, tablet and laptop, 50 shots. No horizontal overflow.
+- API: unit 212 suites / 3106 tests passing (2 Stockfish suites skipped);
+  integration 48 suites / 820 tests passing (1 suite skipped).
+

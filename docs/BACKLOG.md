@@ -92,11 +92,12 @@ code on 2026-10-31.
 
 ### P3 — feature follow-ups (net-new, each needs a product yes)
 
-- **Tournament platform (logged 2026-11-09, assessment only).** Swiss, Arena,
-  Round Robin and Knockout tournaments with live games, host commentary,
-  spectators and history. Audit, design and a 10-phase plan are in
-  [TOURNAMENTS.md](TOURNAMENTS.md); §9 there lists the owner decisions
-  needed before Phase 1.
+- **Tournament platform (logged 2026-11-09; built 2026-11-09 on
+  `claude/nexachess-tournament-platform-sjutfe`, awaiting review/merge).**
+  Swiss, Arena, Round Robin and Knockout tournaments with live games, host
+  commentary and broadcasting, spectators (incl. anonymous `/watch`),
+  certificates and history. Design, phases and as-built notes:
+  [TOURNAMENTS.md](TOURNAMENTS.md).
 - **Instant feedback on in-app navigation (logged 2026-11-04, from another
   project; build, then test on a throttled network).** On a slow link a click
   shows nothing until the next page's server render arrives. To build and test:
