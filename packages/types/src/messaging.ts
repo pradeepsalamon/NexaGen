@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cursorPageQuerySchema } from "./core-schemas";
 import { escapeMarkdown } from "./markdown";
 
 // Admin-configurable outbound messaging. One rule per event decides whether a
@@ -1006,12 +1007,15 @@ export interface MessageDeliveryItem {
 export interface MessageDeliveryListResponse {
   deliveries: MessageDeliveryItem[];
   counts: { pending: number; sent: number; failed: number; skipped: number };
+  /** Pass back as `cursor` for the next (older) page; null on the last page. */
+  nextCursor: string | null;
 }
 
 export const messageDeliveryQuerySchema = z.object({
   event: messagingEventSchema.optional(),
   status: messageDeliveryStatusSchema.optional(),
   channel: messageChannelSchema.optional(),
+  cursor: cursorPageQuerySchema.shape.cursor,
   limit: z.coerce.number().int().min(1).max(200).default(50)
 });
 export type MessageDeliveryQuery = z.infer<typeof messageDeliveryQuerySchema>;
@@ -1058,6 +1062,8 @@ export interface AnnouncementItem {
 
 export interface AnnouncementListResponse {
   announcements: AnnouncementItem[];
+  /** Pass back as `cursor` for the next (older) page; null on the last page. */
+  nextCursor: string | null;
 }
 
 export interface CreateAnnouncementResponse {

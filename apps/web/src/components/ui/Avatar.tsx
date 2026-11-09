@@ -58,6 +58,9 @@ export const Avatar = memo(function Avatar({
       <img
         src={imageUrl}
         alt={label ?? ""}
+        decoding="async"
+        // Avatars repeat down long tables and rosters: fetch only the ones near the viewport.
+        loading="lazy"
         referrerPolicy="no-referrer"
         className={cn("shrink-0 rounded-full border border-app-border object-cover", SIZES[size], className)}
       />

@@ -1,7 +1,7 @@
 "use client";
 
 import { ScrollText } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { InfiniteScrollTrigger } from "@/components/ui/InfiniteScrollTrigger";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
@@ -57,17 +57,7 @@ export function AuditList({ academyName, tenantId }: { academyName?: (tenantId: 
           </TableBody>
         </Table>
       </div>
-      {audit.hasNextPage ? (
-        <Button
-          className="justify-self-center"
-          isLoading={audit.isFetchingNextPage}
-          onClick={() => void audit.fetchNextPage()}
-          type="button"
-          variant="neutral"
-        >
-          Load older entries
-        </Button>
-      ) : null}
+      <InfiniteScrollTrigger label="Load older entries" query={audit} />
     </div>
   );
 }

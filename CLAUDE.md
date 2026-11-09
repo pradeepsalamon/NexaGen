@@ -86,6 +86,8 @@ Web forms: react-hook-form + `zodResolver`, schemas from `@nexa-chess/types` or 
 
 Per feature in `apps/web/src/features/<feature>/`: `api/<x>Api.ts` (thin `apiFetch<T>(API_ROUTES…)` calls; `src/lib/api.ts` handles credentials, 401 → refresh → retry, error toasts), `hooks/use<X>Api.ts` (`useQuery`/`useMutation`, keys from `src/lib/queryKeys.ts`, invalidate on success), `components/`. Pages under `src/app/**` are thin server components rendering a `"use client"` `<XClient />`.
 
+**Lists are paged** ([docs/PAGINATION.md](docs/PAGINATION.md)): tables → `resolvePagination` + `useServerTable`; newest-first feeds → `common/cursor-pagination.ts` + `useInfiniteQuery` + `InfiniteScrollTrigger`; never a silent `take: N` cap.
+
 **Pages never check the auth cookie.** Route RBAC is one table, `src/lib/routeAccess.ts` `ROUTE_RULES`, applied by `middleware.ts` (unverified token peek — routing only; the API enforces roles) and by `SessionBootstrap` for refresh-only sessions. **New protected route = `ROUTE_RULES` entry + `middleware.ts` `matcher` entry + name in `lib/pageTitles.ts` `PAGE_TITLES`.** Session state: `useAuthStore` (Zustand, `localStorage` `nexa-auth`, only `user`).
 
 ### 3.6 UI conventions

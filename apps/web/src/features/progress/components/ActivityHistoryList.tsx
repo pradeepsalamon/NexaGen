@@ -9,7 +9,7 @@ import {
   type StudentActivityStatusFilter
 } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import { InfiniteScrollTrigger } from "@/components/ui/InfiniteScrollTrigger";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
@@ -167,20 +167,7 @@ export function ActivityHistoryList({
           <ActivityRow entry={entry} key={entry.id} />
         ))}
       </ul>
-      {query.isFetchNextPageError ? (
-        <WidgetError onRetry={() => query.fetchNextPage()} />
-      ) : query.hasNextPage ? (
-        <div className="flex justify-center">
-          <Button
-            isLoading={query.isFetchingNextPage}
-            onClick={() => query.fetchNextPage()}
-            type="button"
-            variant="outline"
-          >
-            Load more
-          </Button>
-        </div>
-      ) : null}
+      <InfiniteScrollTrigger query={query} />
     </div>
   );
 }

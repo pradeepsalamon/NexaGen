@@ -35,6 +35,7 @@ import {
   type MessagingRule,
   type User
 } from "@prisma/client";
+import { CREATED_AT_DESC_ORDER, createdAtCursorWhere, toCursorPage } from "../common/cursor-pagination";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
@@ -278,11 +279,12 @@ export class MessagingRuleService {
       ...(query.channel ? { channel: query.channel } : {})
     };
 
+    // Keyset-paged newest first; the counts describe the whole filter, not the page.
     const [rows, pending, sent, failed, skipped] = await Promise.all([
       this.prisma.messageDelivery.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        take: query.limit,
+        where: { ...where, ...createdAtCursorWhere(query.cursor) },
+        orderBy: [...CREATED_AT_DESC_ORDER],
+        take: query.limit + 1,
         include: {
           recipient: { select: { email: true, firstName: true, lastName: true } }
         }
@@ -293,9 +295,11 @@ export class MessagingRuleService {
       this.prisma.messageDelivery.count({ where: { ...where, status: "SKIPPED" } })
     ]);
 
+    const page = toCursorPage(rows, query.limit);
     return {
-      deliveries: rows.map((row) => this.toDeliveryItem(row)),
-      counts: { pending, sent, failed, skipped }
+      deliveries: page.items.map((row) => this.toDeliveryItem(row)),
+      counts: { pending, sent, failed, skipped },
+      nextCursor: page.nextCursor
     };
   }
 

@@ -89,7 +89,7 @@ function TestimonialCard({ item, muted = false }: { item: TestimonialItem; muted
       </div>
       <figcaption className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element -- remote avatar, same as the home page */}
-        <img alt="" className="size-10 shrink-0 rounded-full object-cover" src={item.avatar} />
+        <img alt="" className="size-10 shrink-0 rounded-full object-cover" decoding="async" loading="lazy" src={item.avatar} />
         <span className="grid">
           <span className="text-sm font-semibold text-app-text">{item.parentName}</span>
           <span className="text-sm text-app-muted">{item.studentInfo}</span>

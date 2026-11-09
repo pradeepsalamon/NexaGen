@@ -417,7 +417,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
                         type="button"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element -- in-memory data URL */}
-                        <img alt="" className="size-16 shrink-0 rounded-control border border-app-border object-contain" src={c.crop} />
+                        <img alt="" className="size-16 shrink-0 rounded-control border border-app-border object-contain" decoding="async" loading="lazy" src={c.crop} />
                         <span className="flex min-w-0 flex-col gap-1">
                           <span className="text-sm font-semibold text-app-text">
                             Page {c.page} · #{c.index}

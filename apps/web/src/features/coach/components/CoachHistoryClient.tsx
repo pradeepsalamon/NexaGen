@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Download, Eye, History, Info, NotebookPen } from "lucide-react";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import { RowActions, type RowAction } from "@/components/ui/RowActions";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useDataTable } from "../../../hooks/useDataTable";
+import { useServerTable } from "@/hooks/useServerTable";
 import { useClassHistory } from "../hooks/useCoachApi";
 import { formatFullDate, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -25,7 +26,14 @@ import { coachClassTitle } from "./CoachClassRow";
 import { CoachClassDetailsDialog } from "./CoachClassDetailsDialog";
 
 export function CoachHistoryClient() {
-  const { data, error, isLoading, refetch } = useClassHistory();
+  // Server-side pagination and sorting (AUDIT H26): a coach's history grows without bound.
+  const serverTable = useServerTable({ pageSize: 20 });
+  const { clampToPageCount } = serverTable;
+  const { data, error, isLoading, refetch } = useClassHistory(serverTable.params);
+  const pageCount = data?.pagination.totalPages ?? 1;
+  useEffect(() => {
+    clampToPageCount(pageCount);
+  }, [pageCount, clampToPageCount]);
   const tz = useUserTimeZone();
   const [detailsClassId, setDetailsClassId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -43,7 +51,8 @@ export function CoachHistoryClient() {
   const columns = useMemo<ColumnDef<CoachClass>[]>(
     () => [
       {
-        accessorKey: "date", meta: { label: "Date & time" },
+        // `startsAt` / `batchName` are the API's sort keys.
+        accessorKey: "startsAt", meta: { label: "Date & time" },
         header: ({ column }) => (
           <DataTableSortButton 
             label="Date & time" 
@@ -59,10 +68,7 @@ export function CoachHistoryClient() {
               {formatTime(row.original.startsAt, tz)}
             </span>
           </div>
-        ),
-        sortingFn: (a, b) => {
-          return new Date(a.original.startsAt).getTime() - new Date(b.original.startsAt).getTime();
-        }
+        )
       },
       {
         accessorKey: "batchName", meta: { label: "Batch" },
@@ -126,12 +132,18 @@ export function CoachHistoryClient() {
     [tz]
   );
 
+  const classes = useMemo(() => data?.classes ?? [], [data]);
+  const total = data?.pagination.total ?? 0;
   const { table } = useDataTable({
-    data: data?.classes || [],
-    columns
+    data: classes,
+    columns,
+    pagination: serverTable.pagination,
+    setPagination: serverTable.setPagination,
+    sorting: serverTable.sorting,
+    setSorting: serverTable.setSorting,
+    pageCount,
+    ...serverTable.manual
   });
-
-  const classes = data?.classes ?? [];
 
   return (
     <div className="animate-fade-in pb-10">
@@ -148,7 +160,7 @@ export function CoachHistoryClient() {
           message="Couldn't load your class history. Check your connection and try again."
           onRetry={() => refetch()}
         />
-      ) : classes.length === 0 ? (
+      ) : total === 0 ? (
         <EmptyState
           description="Classes you've taught or that were cancelled will show up here."
           icon={History}
@@ -158,7 +170,7 @@ export function CoachHistoryClient() {
         <div className="overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card">
           <DataTable columnsLength={columns.length} stackOnMobile table={table} />
           <div className="border-t border-app-border p-4">
-            <DataTablePagination table={table} totalRows={classes.length} />
+            <DataTablePagination table={table} totalRows={total} />
           </div>
         </div>
       )}

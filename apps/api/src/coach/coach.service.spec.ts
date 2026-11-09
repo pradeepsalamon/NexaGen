@@ -17,6 +17,7 @@ describe("CoachService class scheduling", () => {
   let coachClassUpdate: jest.Mock;
   let coachClassUpdateMany: jest.Mock;
   let coachClassFindMany: jest.Mock;
+  let coachClassCount: jest.Mock;
 
   beforeEach(async () => {
     jwtService = { verifyAsync: jest.fn() };
@@ -27,6 +28,7 @@ describe("CoachService class scheduling", () => {
     });
     coachClassFindUnique = jest.fn();
     coachClassFindMany = jest.fn().mockResolvedValue([]);
+    coachClassCount = jest.fn().mockResolvedValue(0);
     coachClassUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
     coachClassUpdate = jest.fn().mockImplementation(({ data }) => ({
       id: "class-1",
@@ -62,7 +64,7 @@ describe("CoachService class scheduling", () => {
           useValue: {
             batchStudent: { findMany: jest.fn() },
             coachClass: {
-              count: jest.fn(),
+              count: coachClassCount,
               findMany: coachClassFindMany,
               findUnique: coachClassFindUnique,
               findUniqueOrThrow: jest.fn().mockImplementation(() => coachClassUpdate({ data: { status: ClassStatus.CANCELLED } })),
@@ -231,6 +233,35 @@ describe("CoachService class scheduling", () => {
       coachClassUpdateMany.mockResolvedValue({ count: 0 });
 
       await expect(service.cancelClass(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe("getClassHistory (server-paginated)", () => {
+    it("pages with skip/take, newest first with an id tie-break, and reports the total", async () => {
+      coachClassCount.mockResolvedValue(45);
+
+      const res = await service.getClassHistory(ACCESS_TOKEN, { page: 3, pageSize: 20 });
+
+      expect(coachClassFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ startsAt: "desc" }, { id: "desc" }],
+          skip: 40,
+          take: 20,
+          where: expect.objectContaining({ coachId: COACH_ID })
+        })
+      );
+      expect(res.pagination).toEqual({ page: 3, pageSize: 20, total: 45, totalPages: 3 });
+    });
+
+    it("sorts by batch name on request and clamps a huge page size", async () => {
+      await service.getClassHistory(ACCESS_TOKEN, { order: "asc", pageSize: 100000, sort: "batchName" });
+
+      expect(coachClassFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ batch: { name: "asc" } }, { startsAt: "desc" }, { id: "desc" }],
+          take: 100
+        })
+      );
     });
   });
 

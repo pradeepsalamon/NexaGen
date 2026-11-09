@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { InfiniteScrollTrigger } from "@/components/ui/InfiniteScrollTrigger";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { FormField } from "@/components/ui/FormField";
@@ -171,13 +172,15 @@ function Composer() {
 }
 
 function History() {
-  const { data, isError, isLoading, refetch } = useAnnouncements();
+  const query = useAnnouncements();
+  const { data, isError, isLoading, refetch } = query;
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const remove = useDeleteAnnouncement({
     onSchedule: (id) => setHiddenIds((ids) => [...ids, id]),
     onCancel: (id) => setHiddenIds((ids) => ids.filter((hidden) => hidden !== id))
   });
-  const announcements = data?.announcements.filter((a) => !hiddenIds.includes(a.id)) ?? [];
+  const announcements =
+    data?.pages.flatMap((page) => page.announcements).filter((a) => !hiddenIds.includes(a.id)) ?? [];
   const timeZone = useUserTimeZone();
 
   if (isLoading) return <Skeleton className="h-48 w-full" />;
@@ -194,41 +197,44 @@ function History() {
   }
 
   return (
-    <Card className="overflow-hidden p-0">
-      {announcements.map((announcement) => (
-        <div
-          className="flex items-start justify-between gap-4 border-b border-app-border px-4 py-4 last:border-b-0 sm:px-5"
-          key={announcement.id}
-        >
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="font-semibold text-app-text">{announcement.title}</p>
-              <Badge variant="outline">
-                {announcement.batchName ?? announcement.audience.toLowerCase()}
-              </Badge>
+    <div className="space-y-3">
+      <Card className="overflow-hidden p-0">
+        {announcements.map((announcement) => (
+          <div
+            className="flex items-start justify-between gap-4 border-b border-app-border px-4 py-4 last:border-b-0 sm:px-5"
+            key={announcement.id}
+          >
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-semibold text-app-text">{announcement.title}</p>
+                <Badge variant="outline">
+                  {announcement.batchName ?? announcement.audience.toLowerCase()}
+                </Badge>
+              </div>
+              <FormattedText className="mt-1 text-sm text-app-muted" source={announcement.body} />
+              <p className="mt-1 text-xs text-app-muted">
+                {formatDateTime(announcement.createdAt, timeZone)}
+                {announcement.createdByName ? ` · ${announcement.createdByName}` : ""}
+              </p>
             </div>
-            <FormattedText className="mt-1 text-sm text-app-muted" source={announcement.body} />
-            <p className="mt-1 text-xs text-app-muted">
-              {formatDateTime(announcement.createdAt, timeZone)}
-              {announcement.createdByName ? ` · ${announcement.createdByName}` : ""}
-            </p>
-          </div>
 
-          <SimpleTooltip label="Remove from the dashboard feed">
-            <Button
-              aria-label={`Delete announcement ${announcement.title}`}
-              className="size-8 shrink-0 text-app-danger-ink hover:bg-app-danger-soft"
-              onClick={() => void remove.run(announcement.id)}
-              size="icon"
-              type="button"
-              variant="neutral"
-            >
-              <Trash2 className="size-4" strokeWidth={2.5} />
-            </Button>
-          </SimpleTooltip>
-        </div>
-      ))}
-    </Card>
+            <SimpleTooltip label="Remove from the dashboard feed">
+              <Button
+                aria-label={`Delete announcement ${announcement.title}`}
+                className="size-8 shrink-0 text-app-danger-ink hover:bg-app-danger-soft"
+                onClick={() => void remove.run(announcement.id)}
+                size="icon"
+                type="button"
+                variant="neutral"
+              >
+                <Trash2 className="size-4" strokeWidth={2.5} />
+              </Button>
+            </SimpleTooltip>
+          </div>
+        ))}
+      </Card>
+      <InfiniteScrollTrigger label="Load older announcements" query={query} />
+    </div>
   );
 }
 

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type {
+  CursorPageParams,
   MarkNotificationsReadRequest,
   MarkNotificationsReadResponse,
   NotificationItem,
@@ -10,10 +11,9 @@ import type {
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { authenticateUser } from "../auth/authenticate";
+import { CREATED_AT_DESC_ORDER, createdAtCursorWhere, toCursorPage } from "../common/cursor-pagination";
 
 type NotificationRow = Prisma.NotificationGetPayload<Record<string, never>>;
-
-const LIST_LIMIT = 50;
 
 /** One notification to create — see {@link NotificationService.notify}. */
 export interface NotifyInput {
@@ -37,17 +37,26 @@ export class NotificationService {
 
   // ── read side (student/coach/admin — anyone authenticated) ──
 
-  async list(accessToken: string | undefined): Promise<NotificationListResponse> {
+  /** Newest first, keyset-paged (`cursor` = the previous page's `nextCursor`). */
+  async list(
+    accessToken: string | undefined,
+    query: CursorPageParams
+  ): Promise<NotificationListResponse> {
     const user = await this.getAuthenticatedUser(accessToken);
     const [rows, unreadCount] = await Promise.all([
       this.prisma.notification.findMany({
-        where: { userId: user.id },
-        orderBy: { createdAt: "desc" },
-        take: LIST_LIMIT
+        where: { userId: user.id, ...createdAtCursorWhere(query.cursor) },
+        orderBy: [...CREATED_AT_DESC_ORDER],
+        take: query.limit + 1
       }),
       this.prisma.notification.count({ where: { userId: user.id, readAt: null } })
     ]);
-    return { notifications: rows.map((r) => this.toItem(r)), unreadCount };
+    const page = toCursorPage(rows, query.limit);
+    return {
+      notifications: page.items.map((r) => this.toItem(r)),
+      nextCursor: page.nextCursor,
+      unreadCount
+    };
   }
 
   async markRead(

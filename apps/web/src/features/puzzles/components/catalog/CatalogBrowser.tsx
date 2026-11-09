@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { InfiniteScrollTrigger } from "@/components/ui/InfiniteScrollTrigger";
 import { FilterChips, FilterField, FilterPopover, type ActiveFilter } from "@/components/ui/FilterPopover";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -105,7 +106,7 @@ interface Props {
 
 /**
  * The Lichess catalogue (spec §11): filter by rating / themes / opening, page
- * with "Load more" (there are no totals), preview with the solution, and —
+ * as the list scrolls (infinite scroll; there are no totals), preview with the solution, and —
  * by variant — adopt into a folder (admin), create homework, or share in class.
  */
 export function CatalogBrowser({
@@ -581,18 +582,7 @@ export function CatalogBrowser({
         </div>
       )}
 
-      {catalog.hasNextPage ? (
-        <div className="flex justify-center">
-          <Button
-            variant="outline"
-            onClick={() => void catalog.fetchNextPage()}
-            disabled={catalog.isFetchingNextPage}
-          >
-            {catalog.isFetchingNextPage ? <Spinner className="mr-1.5 size-4" /> : null}
-            Load more
-          </Button>
-        </div>
-      ) : null}
+      <InfiniteScrollTrigger query={catalog} />
 
       <CatalogPreviewDialog sourceId={previewId} onOpenChange={(open) => !open && setPreviewId(null)} />
       {!compact ? (

@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,8 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
   const [knownMessages, setKnownMessages] = useState<Map<string, ChatMessageDto>>(new Map());
   const [olderCursor, setOlderCursor] = useState<string | null | undefined>(undefined);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  // A failed page stops auto-loading until the reader clicks the button again.
+  const [olderFailed, setOlderFailed] = useState(false);
   const [pending, setPending] = useState<Pending[]>([]);
   // The parent keys this component by conversation, so the carried draft only ever seeds a fresh mount.
   const [draft, setDraft] = useState(initialDraft ?? "");
@@ -94,6 +97,7 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
     const el = scrollRef.current;
     const fromBottom = el ? el.scrollHeight - el.scrollTop : 0;
     setLoadingOlder(true);
+    setOlderFailed(false);
     stickToBottom.current = false;
     try {
       const page = await listMessages(conversationId, cursor);
@@ -108,11 +112,23 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
         if (el) el.scrollTop = el.scrollHeight - fromBottom;
       });
     } catch {
+      setOlderFailed(true);
       toast.error({ title: "Could not load older messages" });
     } finally {
       setLoadingOlder(false);
     }
   }, [conversationId, cursor, toast]);
+
+  // Reverse infinite scroll: earlier messages load as the reader nears the top.
+  // Waits for the first page so the initial jump to the bottom happens first.
+  const olderSentinelRef = useInfiniteScroll({
+    disabled: olderFailed || latest.isLoading || messages.length === 0,
+    hasNextPage: !!cursor,
+    isFetchingNextPage: loadingOlder,
+    onLoadMore: loadOlder,
+    root: scrollRef,
+    rootMargin: "160px 0px 0px 0px"
+  });
 
   // Follow new messages only while the reader is already at the bottom.
   const newestId = messages[messages.length - 1]?.id;
@@ -218,7 +234,7 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
         aria-label="Messages"
       >
         {cursor && (
-          <div className="flex justify-center pb-2">
+          <div className="flex justify-center pb-2" ref={olderSentinelRef}>
             <Button disabled={loadingOlder} onClick={() => void loadOlder()} size="sm" variant="outline">
               {loadingOlder && <Spinner className="mr-1.5 size-4" />}
               Load earlier messages

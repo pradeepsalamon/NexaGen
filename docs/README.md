@@ -20,6 +20,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [API_DEVELOPMENT_RULES.md](API_DEVELOPMENT_RULES.md) | **Strict** rules for any API change: contract, auth, validation, academy isolation, schema, side effects, errors, tests, definition of done |
 | [AUTHORIZATION.md](AUTHORIZATION.md) | Auth mechanics (sessions, MFA, lockout, cookies, CSRF, headers), who may do what per resource, the 2026-10-16 audit, access test suites |
 | [PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md](PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md) | Platform-wide permission model (direct / approval / admin-only / consent), the admin-approval engine design, roadmap and progress |
+| [PAGINATION.md](PAGINATION.md) | Which lists use offset pages vs keyset cursors + infinite scroll, the API/web helpers, lazy loading |
 | [UNDO_ARCHITECTURE.md](UNDO_ARCHITECTURE.md) | `useUndoableMutation` design (immediate vs defer) |
 | [UNIT_TEST_PLAN.md](UNIT_TEST_PLAN.md) | Original backend test inventory (last refreshed 2026-09-19) |
 | [../.agents/SAFETY.md](../.agents/SAFETY.md) | Production/dev boundary any autonomous agent must honour |

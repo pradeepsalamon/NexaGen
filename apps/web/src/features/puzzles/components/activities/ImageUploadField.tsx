@@ -66,7 +66,7 @@ export function ImageUploadField({
       {value ? (
         <span className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element -- uploaded CDN image of unknown size */}
-          <img src={value} alt="" className="h-12 w-12 rounded-control border border-app-border object-cover" />
+          <img src={value} alt="" className="h-12 w-12 rounded-control border border-app-border object-cover" decoding="async" loading="lazy" />
           <SimpleTooltip label="Remove image">
             <button
               type="button"

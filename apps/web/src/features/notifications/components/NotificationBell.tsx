@@ -1,17 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { Bell, CheckCheck } from "lucide-react";
 import type { NotificationItem } from "@nexa-chess/types";
 import { EmptyStateIllustration } from "@/components/ui/EmptyState";
 import { FormattedText } from "@/components/ui/FormattedText";
+import { InfiniteScrollTrigger } from "@/components/ui/InfiniteScrollTrigger";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { HEADER_ICON_BUTTON } from "@/components/layout/headerStyles";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
-import { useMarkNotificationsRead, useNotifications } from "../hooks/useNotificationsApi";
+import {
+  useMarkNotificationsRead,
+  useNotifications,
+  useTrimNotificationPages
+} from "../hooks/useNotificationsApi";
 
 export function NotificationBell({
   openLinksInNewTab = false,
@@ -23,27 +28,32 @@ export function NotificationBell({
   const user = useAuthStore((state) => state.user);
   const [open, setOpen] = useState(false);
 
-  const { data } = useNotifications(!!user);
+  const query = useNotifications(!!user);
+  const { data } = query;
   const markRead = useMarkNotificationsRead();
+  const trimPages = useTrimNotificationPages();
+  const listRef = useRef<HTMLDivElement>(null);
 
-  const notifications = useMemo(() => data?.notifications ?? [], [data]);
-  const unreadCount = data?.unreadCount ?? 0;
+  const notifications = useMemo(() => data?.pages.flatMap((page) => page.notifications) ?? [], [data]);
+  // Every page carries the current unread total; the newest page's is freshest.
+  const unreadCount = data?.pages[0]?.unreadCount ?? 0;
 
   if (!user) return null;
 
   const handleOpen = (next: boolean) => {
     setOpen(next);
+    if (!next) trimPages();
   };
 
   /** Only a link in the body takes clicks; the rest of it falls through to the row's button. */
   const handleLinkClick = (item: NotificationItem) => {
     if (!item.readAt) markRead.mutate({ ids: [item.id] });
-    setOpen(false);
+    handleOpen(false);
   };
 
   const handleItemClick = (item: NotificationItem) => {
     if (!item.readAt) markRead.mutate({ ids: [item.id] });
-    setOpen(false);
+    handleOpen(false);
     if (!item.linkPath) return;
     if (openLinksInNewTab) {
       window.open(item.linkPath, "_blank", "noopener,noreferrer");
@@ -86,7 +96,7 @@ export function NotificationBell({
           )}
         </div>
 
-        <div className="max-h-[22rem] overflow-y-auto">
+        <div className="max-h-[22rem] overflow-y-auto" ref={listRef}>
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center px-3 py-6 text-center">
               <EmptyStateIllustration name="notifications" size="sm" />
@@ -128,6 +138,15 @@ export function NotificationBell({
               ))}
             </ul>
           )}
+          {notifications.length > 0 ? (
+            <InfiniteScrollTrigger
+              className="px-3"
+              label="Show older"
+              query={query}
+              root={listRef}
+              size="sm"
+            />
+          ) : null}
         </div>
       </PopoverContent>
     </Popover>

@@ -46,6 +46,7 @@ export function getMessageDeliveries(
   if (params.status) search.set("status", params.status);
   if (params.channel) search.set("channel", params.channel);
   if (params.limit) search.set("limit", String(params.limit));
+  if (params.cursor) search.set("cursor", params.cursor);
 
   const query = search.toString();
   return apiFetch(
@@ -75,8 +76,12 @@ export function testSystemMessage(
   return apiFetch(API_ROUTES.messaging.testSystemMessage(key), { method: "POST", body: data });
 }
 
-export function getAnnouncements(): Promise<AnnouncementListResponse> {
-  return apiFetch(API_ROUTES.announcements.list);
+export function getAnnouncements(cursor?: string): Promise<AnnouncementListResponse> {
+  return apiFetch(
+    cursor
+      ? `${API_ROUTES.announcements.list}?${new URLSearchParams({ cursor }).toString()}`
+      : API_ROUTES.announcements.list
+  );
 }
 
 export function createAnnouncement(

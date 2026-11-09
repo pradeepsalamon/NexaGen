@@ -41,6 +41,11 @@ import {
 export {
   attemptMoveSchema,
   chessColorSchema,
+  CURSOR_PAGE_DEFAULT_LIMIT,
+  CURSOR_PAGE_MAX_LIMIT,
+  cursorPageQuerySchema,
+  type CursorPageParams,
+  type CursorPageQuery,
   paginationMetaSchema,
   partialWithoutDefaults,
   solutionMoveSchema
@@ -950,6 +955,11 @@ export type UpdateLiveClassPresetRequest = z.infer<typeof updateLiveClassPresetR
 
 export type CoachClassListResponse = {
   classes: CoachClass[];
+};
+
+/** `GET /coach/classes/history`: server-paginated (`page`, `pageSize`, `sort`=startsAt|batchName, `order`). */
+export type CoachClassHistoryResponse = CoachClassListResponse & {
+  pagination: PaginationMeta;
 };
 
 export type CoachClassResponse = {
@@ -2406,6 +2416,8 @@ export type NotificationItem = {
 export type NotificationListResponse = {
   notifications: NotificationItem[];
   unreadCount: number;
+  /** Pass back as `cursor` for the next (older) page; null on the last page. */
+  nextCursor: string | null;
 };
 
 export const markNotificationsReadRequestSchema = z.object({
