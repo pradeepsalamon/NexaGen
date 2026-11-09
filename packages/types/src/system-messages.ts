@@ -23,7 +23,15 @@ export const systemMessageKeySchema = z.enum([
   "DEMO_INVITATION",
   "NEW_LEAD_ADMIN",
   "ACCOUNT_DELETION_REQUESTED_ADMIN",
-  "TENANT_INTEGRITY_ALERT"
+  "TENANT_INTEGRITY_ALERT",
+  "TOURNAMENT_REGISTERED",
+  "TOURNAMENT_INVITED",
+  "TOURNAMENT_STARTING_SOON",
+  "TOURNAMENT_PAIRED",
+  "TOURNAMENT_ROUND_COMPLETED",
+  "TOURNAMENT_ANNOUNCEMENT",
+  "TOURNAMENT_COMPLETED",
+  "TOURNAMENT_RESULTS_PUBLISHED"
 ]);
 export type SystemMessageKey = z.infer<typeof systemMessageKeySchema>;
 
@@ -38,12 +46,13 @@ export const SYSTEM_MESSAGE_CHANNEL_LABELS: Record<SystemMessageChannel, string>
   WHATSAPP: "WhatsApp"
 };
 
-export type SystemMessageGroup = "ACCOUNT" | "BILLING" | "DEMO" | "ADMIN" | "PLATFORM";
+export type SystemMessageGroup = "ACCOUNT" | "BILLING" | "DEMO" | "TOURNAMENTS" | "ADMIN" | "PLATFORM";
 
 export const SYSTEM_MESSAGE_GROUP_LABELS: Record<SystemMessageGroup, string> = {
   ACCOUNT: "Sign-in and account",
   BILLING: "Billing",
   DEMO: "Demo classes",
+  TOURNAMENTS: "Tournaments",
   ADMIN: "Sent to admins",
   PLATFORM: "Sent to platform operators"
 };
@@ -97,6 +106,151 @@ const DEMO_VARIABLES = ["academy.name", "guest.name", "demo.topic", "demo.dateTi
 const DEMO_BOOKING_VARIABLES = ["academy.name", "lead.parentName", "lead.studentName"];
 
 export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageDefinition> = {
+  TOURNAMENT_REGISTERED: {
+    key: "TOURNAMENT_REGISTERED",
+    group: "TOURNAMENTS",
+    label: "Tournament entry confirmed",
+    description: "Sent when a player is entered (or their entry is waiting for the host).",
+    sentTo: "The player",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    inAppLink: "/tournaments",
+    actionVariable: "links.tournament",
+    variables: ["academy.name", "recipient.firstName", "tournament.name", "links.tournament", "registration.statusLine"],
+    defaults: {
+      subject: "Your tournament entry: {{tournament.name}}",
+      body: "Hi {{recipient.firstName}}, {{registration.statusLine}}",
+      actionLabel: "Open the tournament",
+      whatsappBody: null
+    }
+  },
+  TOURNAMENT_INVITED: {
+    key: "TOURNAMENT_INVITED",
+    group: "TOURNAMENTS",
+    label: "Tournament invitation",
+    description: "Sent when a host invites a player to an invitation-only tournament.",
+    sentTo: "The player",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    inAppLink: "/tournaments",
+    actionVariable: "links.tournament",
+    variables: ["academy.name", "recipient.firstName", "tournament.name", "links.tournament"],
+    defaults: {
+      subject: "You are invited: {{tournament.name}}",
+      body: "Hi {{recipient.firstName}}, you are invited to play in {{tournament.name}}. Accept the invitation to take your place.",
+      actionLabel: "See the invitation",
+      whatsappBody: null
+    }
+  },
+  TOURNAMENT_STARTING_SOON: {
+    key: "TOURNAMENT_STARTING_SOON",
+    group: "TOURNAMENTS",
+    label: "Tournament starting soon",
+    description: "Sent about 15 minutes before a tournament starts.",
+    sentTo: "Every entered player",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["IN_APP"],
+    inAppLink: "/tournaments",
+    actionVariable: "links.tournament",
+    variables: ["academy.name", "recipient.firstName", "tournament.name", "links.tournament", "tournament.startsIn"],
+    defaults: {
+      subject: "{{tournament.name}} starts {{tournament.startsIn}}",
+      body: "Hi {{recipient.firstName}}, {{tournament.name}} starts {{tournament.startsIn}}. Be ready at your board.",
+      actionLabel: "Open the tournament",
+      whatsappBody: null
+    }
+  },
+  TOURNAMENT_PAIRED: {
+    key: "TOURNAMENT_PAIRED",
+    group: "TOURNAMENTS",
+    label: "New tournament game",
+    description: "Sent when a player is paired (a new round or a new arena game).",
+    sentTo: "The two players",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["IN_APP"],
+    inAppLink: "/tournaments",
+    actionVariable: "links.tournament",
+    variables: ["academy.name", "recipient.firstName", "tournament.name", "links.tournament", "game.opponent", "game.color", "game.round", "links.game"],
+    defaults: {
+      subject: "{{game.round}}: you play {{game.opponent}}",
+      body: "Hi {{recipient.firstName}}, {{game.round}} of {{tournament.name}}: you play {{game.opponent}} with {{game.color}}. Your clock is about to start.",
+      actionLabel: "Play now",
+      whatsappBody: null
+    }
+  },
+  TOURNAMENT_ROUND_COMPLETED: {
+    key: "TOURNAMENT_ROUND_COMPLETED",
+    group: "TOURNAMENTS",
+    label: "Tournament round finished",
+    description: "Sent when every game of a round has finished.",
+    sentTo: "Every player still in",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["IN_APP"],
+    inAppLink: "/tournaments",
+    actionVariable: "links.tournament",
+    variables: ["academy.name", "recipient.firstName", "tournament.name", "links.tournament", "round.number", "standing.line"],
+    defaults: {
+      subject: "Round {{round.number}} of {{tournament.name}} is over",
+      body: "Hi {{recipient.firstName}}, round {{round.number}} has finished. {{standing.line}}",
+      actionLabel: "See the standings",
+      whatsappBody: null
+    }
+  },
+  TOURNAMENT_ANNOUNCEMENT: {
+    key: "TOURNAMENT_ANNOUNCEMENT",
+    group: "TOURNAMENTS",
+    label: "Tournament announcement",
+    description: "Sent when a host publishes an announcement or an important message.",
+    sentTo: "Every entered player",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["IN_APP"],
+    inAppLink: "/tournaments",
+    actionVariable: "links.tournament",
+    variables: ["academy.name", "recipient.firstName", "tournament.name", "links.tournament", "announcement.body"],
+    defaults: {
+      subject: "{{tournament.name}}: a message from the host",
+      body: "{{announcement.body}}",
+      actionLabel: "Open the tournament",
+      whatsappBody: null
+    }
+  },
+  TOURNAMENT_COMPLETED: {
+    key: "TOURNAMENT_COMPLETED",
+    group: "TOURNAMENTS",
+    label: "Tournament finished",
+    description: "Sent when a tournament finishes.",
+    sentTo: "Every player",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    inAppLink: "/tournaments",
+    actionVariable: "links.tournament",
+    variables: ["academy.name", "recipient.firstName", "tournament.name", "links.tournament", "standing.line"],
+    defaults: {
+      subject: "{{tournament.name}} has finished",
+      body: "Hi {{recipient.firstName}}, {{tournament.name}} has finished. {{standing.line}}",
+      actionLabel: "See the final table",
+      whatsappBody: null
+    }
+  },
+  TOURNAMENT_RESULTS_PUBLISHED: {
+    key: "TOURNAMENT_RESULTS_PUBLISHED",
+    group: "TOURNAMENTS",
+    label: "Tournament results published",
+    description: "Sent when the host publishes the final results (with any certificate).",
+    sentTo: "Every player",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    inAppLink: "/tournaments",
+    actionVariable: "links.tournament",
+    variables: ["academy.name", "recipient.firstName", "tournament.name", "links.tournament", "standing.line", "certificate.line"],
+    defaults: {
+      subject: "Final results: {{tournament.name}}",
+      body: "Hi {{recipient.firstName}}, the final results of {{tournament.name}} are out. {{standing.line}} {{certificate.line}}",
+      actionLabel: "See the results",
+      whatsappBody: null
+    }
+  },
+
   PASSWORD_RESET: {
     key: "PASSWORD_RESET",
     group: "ACCOUNT",

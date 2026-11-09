@@ -18,7 +18,10 @@ const ANONYMOUS_OK = new Set([
   "GET /tenant/public-config",
   "POST /auth/logout",
   // CSP violation reports: always 204, nothing stored (csp-report/).
-  "POST /security/csp-report"
+  "POST /security/csp-report",
+  // Certificate verification by its random code: { valid: false } for an unknown
+  // one; a known one shows only the public name format (docs/TOURNAMENTS.md §3.6).
+  "GET /public/certificates/:code"
 ]);
 
 

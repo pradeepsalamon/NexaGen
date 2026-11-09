@@ -357,8 +357,37 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     }
   });
 
+  const certificateTemplate = await prisma.certificateTemplate.create({
+    data: { accentColor: "#1F4FA8", body: "{{player.name}} took part.", name: `Template ${label}`, title: "Certificate" }
+  });
+  const certificateRule = await prisma.tournamentCertificateRule.create({
+    data: { kind: "PARTICIPATION", minGames: 0, templateId: certificateTemplate.id, tournamentId: tournament.id }
+  });
+  const certificate = await prisma.tournamentCertificate.create({
+    data: {
+      playerId: tournamentPlayer.id,
+      ruleId: certificateRule.id,
+      serialNumber: `2026-${label}`,
+      snapshotJson: {
+        academyName: "Academy",
+        ageGroup: null,
+        date: "2026-11-09",
+        placement: "Participant",
+        playerName: `Student ${label}`,
+        points: "1",
+        template: { accentColor: "#1F4FA8", body: "{{player.name}} took part.", borderStyle: "CLASSIC", orientation: "LANDSCAPE", title: "Certificate" },
+        tournamentName: `Tournament ${label}`
+      },
+      templateId: certificateTemplate.id,
+      tournamentId: tournament.id,
+      userId: student.id,
+      verificationCode: `${label.toLowerCase().padEnd(16, "0").slice(0, 16)}`
+    }
+  });
+
   return {
     externalAccount,
+    certificate,
     tournament,
     tournamentGame,
     tournamentPlayer,

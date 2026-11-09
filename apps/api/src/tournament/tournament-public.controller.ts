@@ -3,6 +3,7 @@ import { API_ROUTES, type PaginatedQuery } from "@nexa-chess/types";
 import { Throttle } from "@nestjs/throttler";
 import { optionalQueryString } from "../common/query-params";
 import { RequireFeature } from "../platform/require-feature.decorator";
+import { TournamentCertificateService } from "./tournament-certificate.service";
 import { TournamentPublicService } from "./tournament-public.service";
 
 /**
@@ -15,7 +16,17 @@ import { TournamentPublicService } from "./tournament-public.service";
 @RequireFeature("tournaments")
 @Controller()
 export class TournamentPublicController {
-  constructor(private readonly publicView: TournamentPublicService) {}
+  constructor(
+    private readonly publicView: TournamentPublicService,
+    private readonly certificates: TournamentCertificateService
+  ) {}
+
+  /** Certificate verification: always available (its own minimal data), unlike spectating. */
+  @Get(API_ROUTES.publicTournaments.verifyCertificate())
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  verifyCertificate(@Param("code") code: string) {
+    return this.certificates.verify(code);
+  }
 
   @Get(API_ROUTES.publicTournaments.list)
   @Throttle({ default: { limit: 60, ttl: 60_000 } })

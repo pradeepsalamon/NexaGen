@@ -109,7 +109,8 @@ export class PrivacyService {
       tournamentEntries,
       tournamentHostRoles,
       tournamentAuditActions,
-      tournamentCommentary
+      tournamentCommentary,
+      tournamentCertificates
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -244,7 +245,9 @@ export class PrivacyService {
       p.tournamentCommentary.findMany({
         select: { body: true, createdAt: true, hiddenAt: true, id: true, pinnedAt: true, tournamentId: true, type: true },
         where: { authorId: id }
-      })
+      }),
+      // The account's own certificates (the snapshot is about them; who revoked one is not).
+      p.tournamentCertificate.findMany({ omit: { revokedById: true }, where: { userId: id } })
     ]);
 
     return {
@@ -298,6 +301,7 @@ export class PrivacyService {
         referralsMade: records(referralsMade),
         sessions: records(sessions),
         tournamentAuditActions: records(tournamentAuditActions),
+        tournamentCertificates: records(tournamentCertificates),
         tournamentCommentary: records(tournamentCommentary),
         tournamentEntries: records(tournamentEntries),
         tournamentHostRoles: records(tournamentHostRoles),

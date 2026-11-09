@@ -4,6 +4,7 @@ import { TournamentStatus } from "@prisma/client";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TournamentGameService } from "./tournament-game.service";
+import { TournamentNotifierService } from "./tournament-notifier.service";
 import { TournamentRunnerService } from "./tournament-runner.service";
 
 /**
@@ -22,7 +23,8 @@ export class TournamentScheduler {
     private readonly prisma: PrismaService,
     private readonly jobs: JobLockService,
     private readonly games: TournamentGameService,
-    private readonly runner: TournamentRunnerService
+    private readonly runner: TournamentRunnerService,
+    private readonly notifier: TournamentNotifierService
   ) {}
 
   @Cron(CronExpression.EVERY_5_SECONDS)
@@ -49,6 +51,12 @@ export class TournamentScheduler {
         // One broken tournament never stops the others; the next tick retries.
         this.logger.error(`tournament tick failed (${t.id})`, error instanceof Error ? error.stack : String(error));
       }
+    }
+    // Claim-first scheduled messages (starting soon, pairings, rounds, completion).
+    try {
+      await this.notifier.tick(now);
+    } catch (error) {
+      this.logger.error("tournament notifications failed", error instanceof Error ? error.stack : String(error));
     }
   }
 }

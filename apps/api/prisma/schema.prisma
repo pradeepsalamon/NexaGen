@@ -502,17 +502,20 @@ model User {
   personalDiscounts           Discount[]                 @relation("DiscountRestrictedTo")
 
   // Tournaments (docs/TOURNAMENTS.md)
-  tournamentsCreated         Tournament[]           @relation("TournamentCreatedBy")
-  deletedTournaments         Tournament[]           @relation("TournamentDeletedBy")
-  tournamentHostRoles        TournamentHost[]       @relation("TournamentHostUser")
-  tournamentHostGrants       TournamentHost[]       @relation("TournamentHostGrantedBy")
-  tournamentEntries          TournamentPlayer[]     @relation("TournamentPlayerUser")
-  tournamentEntriesAdded     TournamentPlayer[]     @relation("TournamentPlayerRegisteredBy")
-  tournamentEntriesDecided   TournamentPlayer[]     @relation("TournamentPlayerDecidedBy")
-  tournamentSettingsUpdates  TournamentSettings[]   @relation("TournamentSettingsUpdatedBy")
-  tournamentAuditActions     TournamentAuditLog[]   @relation("TournamentAuditActor")
-  tournamentCommentary       TournamentCommentary[] @relation("TournamentCommentaryAuthor")
-  tournamentCommentaryHidden TournamentCommentary[] @relation("TournamentCommentaryHiddenBy")
+  tournamentsCreated            Tournament[]            @relation("TournamentCreatedBy")
+  deletedTournaments            Tournament[]            @relation("TournamentDeletedBy")
+  tournamentHostRoles           TournamentHost[]        @relation("TournamentHostUser")
+  tournamentHostGrants          TournamentHost[]        @relation("TournamentHostGrantedBy")
+  tournamentEntries             TournamentPlayer[]      @relation("TournamentPlayerUser")
+  tournamentEntriesAdded        TournamentPlayer[]      @relation("TournamentPlayerRegisteredBy")
+  tournamentEntriesDecided      TournamentPlayer[]      @relation("TournamentPlayerDecidedBy")
+  tournamentSettingsUpdates     TournamentSettings[]    @relation("TournamentSettingsUpdatedBy")
+  tournamentAuditActions        TournamentAuditLog[]    @relation("TournamentAuditActor")
+  tournamentCommentary          TournamentCommentary[]  @relation("TournamentCommentaryAuthor")
+  tournamentCommentaryHidden    TournamentCommentary[]  @relation("TournamentCommentaryHiddenBy")
+  certificateTemplatesCreated   CertificateTemplate[]   @relation("CertificateTemplateCreatedBy")
+  tournamentCertificates        TournamentCertificate[] @relation("TournamentCertificateUser")
+  tournamentCertificatesRevoked TournamentCertificate[] @relation("TournamentCertificateRevokedBy")
 
   // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
   @@unique([tenantId, email])
@@ -7789,6 +7792,29 @@ enum TournamentAuditAction {
   RESULTS_PUBLISHED
   STANDINGS_RECOMPUTED
   COMMENTARY_HIDDEN
+  CERTIFICATE_RULES_CHANGED
+  CERTIFICATES_ISSUED
+  CERTIFICATE_REVOKED
+}
+
+enum CertificateOrientation {
+  LANDSCAPE
+  PORTRAIT
+}
+
+enum CertificateBorderStyle {
+  CLASSIC
+  MODERN
+  MINIMAL
+}
+
+enum TournamentCertificateKind {
+  /// The top N of the final standings.
+  PLACEMENT
+  /// The top N of each age group.
+  AGE_GROUP_PLACEMENT
+  /// Everyone who played at least `minGames` games.
+  PARTICIPATION
 }
 
 enum TournamentCommentaryType {
@@ -7947,13 +7973,19 @@ model Tournament {
   featuredPlayerId String?
   featuredAt       DateTime?
 
-  hosts           TournamentHost[]
-  players         TournamentPlayer[]
-  auditLogs       TournamentAuditLog[]
-  roundsList      TournamentRound[]
-  games           TournamentGame[]
-  knockoutMatches TournamentKnockoutMatch[]
-  commentary      TournamentCommentary[]
+  /// Claim-first notification markers: the tick claims the row, then sends (never twice).
+  startingSoonNotifiedAt DateTime?
+  completedNotifiedAt    DateTime?
+
+  hosts            TournamentHost[]
+  players          TournamentPlayer[]
+  auditLogs        TournamentAuditLog[]
+  roundsList       TournamentRound[]
+  games            TournamentGame[]
+  knockoutMatches  TournamentKnockoutMatch[]
+  commentary       TournamentCommentary[]
+  certificateRules TournamentCertificateRule[]
+  certificates     TournamentCertificate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8039,9 +8071,10 @@ model TournamentPlayer {
   tiebreaksJson Json?
   performance   Int?
 
-  whiteGames TournamentGame[]       @relation("TournamentGameWhite")
-  blackGames TournamentGame[]       @relation("TournamentGameBlack")
-  commentary TournamentCommentary[]
+  whiteGames   TournamentGame[]        @relation("TournamentGameWhite")
+  blackGames   TournamentGame[]        @relation("TournamentGameBlack")
+  commentary   TournamentCommentary[]
+  certificates TournamentCertificate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8111,6 +8144,8 @@ model TournamentRound {
   status       TournamentRoundStatus @default(ONGOING)
   startedAt    DateTime              @default(now())
   completedAt  DateTime?
+  /// Players were told the round finished (claim-first).
+  notifiedAt   DateTime?
 
   games TournamentGame[]
 
@@ -8198,6 +8233,8 @@ model TournamentGame {
   /// Bumped by every host decision or correction (optimistic concurrency).
   commentary      TournamentCommentary[]
   version         Int                     @default(1)
+  /// The two players were told about this pairing (claim-first).
+  notifiedAt      DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8253,4 +8290,91 @@ model TournamentCommentary {
   @@index([tournamentId, pinnedAt])
   @@index([gameId])
   @@map("tournament_commentary")
+}
+
+/// An academy's certificate design (docs/TOURNAMENTS.md §3.6). Archived, never
+/// deleted: issued certificates keep a frozen copy of the wording they used.
+model CertificateTemplate {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  name                 String
+  title                String
+  /// Readable text with placeholders (`CERTIFICATE_PLACEHOLDERS`).
+  body                 String
+  orientation          CertificateOrientation @default(LANDSCAPE)
+  borderStyle          CertificateBorderStyle @default(CLASSIC)
+  /// #RRGGBB, checked with `brandColorIssue`.
+  accentColor          String
+  signatoryName        String?
+  signatoryTitle       String?
+  secondSignatoryName  String?
+  secondSignatoryTitle String?
+  archivedAt           DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("CertificateTemplateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  rules        TournamentCertificateRule[]
+  certificates TournamentCertificate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, archivedAt])
+  @@map("certificate_templates")
+}
+
+/// Who in one tournament gets a certificate, and on which template.
+model TournamentCertificateRule {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  templateId   String
+  template     CertificateTemplate       @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  kind         TournamentCertificateKind
+  topN         Int?
+  minGames     Int?
+
+  certificates TournamentCertificate[]
+
+  createdAt DateTime @default(now())
+
+  @@index([tournamentId])
+  @@map("tournament_certificate_rules")
+}
+
+/// An issued certificate: a frozen snapshot (names, placement, score, the
+/// template's wording), never edited. A correction revokes and reissues.
+model TournamentCertificate {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  ruleId       String
+  rule         TournamentCertificateRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  templateId   String
+  template     CertificateTemplate       @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  playerId     String
+  player       TournamentPlayer          @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                      @relation("TournamentCertificateUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  snapshotJson     Json
+  serialNumber     String
+  /// Random, for the public verification page.
+  verificationCode String    @unique
+  issuedAt         DateTime  @default(now())
+  revokedAt        DateTime?
+  revokedReason    String?
+  revokedById      String?
+  revokedBy        User?     @relation("TournamentCertificateRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@unique([tournamentId, userId, ruleId])
+  @@unique([tenantId, serialNumber])
+  @@index([userId])
+  @@map("tournament_certificates")
 }

@@ -1007,3 +1007,169 @@ export type PublicTournamentCommentaryDto = Omit<TournamentCommentaryDto, "autho
 };
 
 export type PublicTournamentListResponse = { items: PublicTournamentDto[]; pagination: TournamentListResponse["pagination"] };
+
+// ── Phase 8: certificates, history, the academy dashboard ──
+
+export const CERTIFICATE_ORIENTATIONS = ["LANDSCAPE", "PORTRAIT"] as const;
+export const CERTIFICATE_BORDER_STYLES = ["CLASSIC", "MODERN", "MINIMAL"] as const;
+export const TOURNAMENT_CERTIFICATE_KINDS = ["PLACEMENT", "AGE_GROUP_PLACEMENT", "PARTICIPATION"] as const;
+export type TournamentCertificateKind = (typeof TOURNAMENT_CERTIFICATE_KINDS)[number];
+
+export const TOURNAMENT_CERTIFICATE_KIND_LABELS: Record<TournamentCertificateKind, string> = {
+  AGE_GROUP_PLACEMENT: "Top places in each age group",
+  PARTICIPATION: "Everyone who took part",
+  PLACEMENT: "Top places"
+};
+
+/** What a certificate body may say. Unknown placeholders are refused. */
+export const CERTIFICATE_PLACEHOLDERS = [
+  "player.name",
+  "tournament.name",
+  "placement",
+  "points",
+  "ageGroup",
+  "date",
+  "academy.name"
+] as const;
+
+const placeholderPattern = /\{\{\s*([\w.]+)\s*\}\}/g;
+
+export function certificatePlaceholderIssue(text: string): string | null {
+  for (const match of text.matchAll(placeholderPattern)) {
+    if (!(CERTIFICATE_PLACEHOLDERS as readonly string[]).includes(match[1])) return `Unknown placeholder {{${match[1]}}}.`;
+  }
+  return null;
+}
+
+/** Fills a certificate text (plain text in, plain text out; never HTML). */
+export function renderCertificateText(text: string, values: Partial<Record<(typeof CERTIFICATE_PLACEHOLDERS)[number], string>>): string {
+  return text.replace(placeholderPattern, (_all, key: string) => values[key as keyof typeof values] ?? "");
+}
+
+/** "1st", "2nd", "3rd", "11th" — placements on certificates. */
+export function ordinal(n: number): string {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+}
+
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Use a colour like #1F4FA8.");
+
+export const certificateTemplateRequestSchema = z
+  .object({
+    accentColor: hexColor,
+    body: z.string().trim().min(10).max(1000),
+    borderStyle: z.enum(CERTIFICATE_BORDER_STYLES),
+    name: z.string().trim().min(3).max(80),
+    orientation: z.enum(CERTIFICATE_ORIENTATIONS),
+    secondSignatoryName: z.string().trim().max(80).nullable().optional(),
+    secondSignatoryTitle: z.string().trim().max(80).nullable().optional(),
+    signatoryName: z.string().trim().max(80).nullable().optional(),
+    signatoryTitle: z.string().trim().max(80).nullable().optional(),
+    title: z.string().trim().min(3).max(80)
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    for (const field of ["body", "title"] as const) {
+      const issue = certificatePlaceholderIssue(v[field]);
+      if (issue) ctx.addIssue({ code: "custom", message: issue, path: [field] });
+    }
+  });
+export type CertificateTemplateRequest = z.infer<typeof certificateTemplateRequestSchema>;
+
+export type CertificateTemplateDto = CertificateTemplateRequest & { id: string; archivedAt: string | null; createdAt: string; updatedAt: string };
+export type CertificateTemplatesResponse = { templates: CertificateTemplateDto[] };
+
+export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateTemplateRequest = {
+  accentColor: "#1F4FA8",
+  body: "This certifies that {{player.name}} placed {{placement}} in {{tournament.name}} with {{points}} points.",
+  borderStyle: "CLASSIC",
+  name: "Achievement",
+  orientation: "LANDSCAPE",
+  signatoryName: null,
+  signatoryTitle: null,
+  title: "Certificate of Achievement"
+};
+
+export const tournamentCertificateRuleSchema = z
+  .object({
+    kind: z.enum(TOURNAMENT_CERTIFICATE_KINDS),
+    minGames: z.number().int().min(0).max(50).nullable().optional(),
+    templateId: z.string().min(1).max(64),
+    topN: z.number().int().min(1).max(50).nullable().optional()
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    if (v.kind !== "PARTICIPATION" && !v.topN) ctx.addIssue({ code: "custom", message: "How many places get one?", path: ["topN"] });
+  });
+export const setTournamentCertificateRulesRequestSchema = z.object({ rules: z.array(tournamentCertificateRuleSchema).max(10) }).strict();
+export type SetTournamentCertificateRulesRequest = z.infer<typeof setTournamentCertificateRulesRequestSchema>;
+export type TournamentCertificateRuleDto = z.infer<typeof tournamentCertificateRuleSchema> & { id: string; templateName: string };
+export type TournamentCertificateRulesResponse = { rules: TournamentCertificateRuleDto[] };
+
+export type TournamentCertificateSnapshot = {
+  playerName: string;
+  tournamentName: string;
+  academyName: string;
+  placement: string;
+  points: string;
+  ageGroup: string | null;
+  date: string;
+  template: Omit<CertificateTemplateRequest, "name">;
+};
+
+export type TournamentCertificateDto = {
+  id: string;
+  tournamentId: string;
+  tournamentName: string;
+  user: TournamentPersonRef;
+  kind: TournamentCertificateKind;
+  placement: string;
+  serialNumber: string;
+  verificationCode: string;
+  issuedAt: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
+};
+export type TournamentCertificatesResponse = { certificates: TournamentCertificateDto[] };
+
+export const revokeTournamentCertificateRequestSchema = z.object({ reason: z.string().trim().min(3).max(300) }).strict();
+
+export type CertificateVerificationDto =
+  | { valid: false }
+  | { valid: true; revoked: boolean; name: string; tournamentName: string; placement: string; issuedAt: string; academyName: string };
+
+/** A player's tournament history (student page, admin student view). */
+export type TournamentHistoryEntryDto = {
+  tournament: TournamentSummaryDto;
+  status: TournamentPlayerStatus;
+  rank: number | null;
+  points: number;
+  pointsUnit: "half-points" | "arena-points";
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  performance: number | null;
+  certificates: TournamentCertificateDto[];
+};
+export type TournamentHistoryResponse = { entries: TournamentHistoryEntryDto[] };
+
+export type AdminTournamentOverviewDto = {
+  counts: Record<TournamentStatus, number>;
+  pendingRegistrations: number;
+  pendingPublishRequests: number;
+  playersThisYear: number;
+  completionRate: number | null;
+  forfeitRate: number | null;
+  hosts: { user: TournamentPersonRef; tournaments: number; live: number }[];
+  upcoming: TournamentSummaryDto[];
+  live: TournamentSummaryDto[];
+  recent: (TournamentSummaryDto & { champion: TournamentPersonRef | null })[];
+};
+
+export type AdminTournamentRegistrationDto = TournamentPlayerDto & { tournament: Pick<TournamentSummaryDto, "id" | "name" | "startsAt" | "status"> };
+export type AdminTournamentRegistrationsResponse = {
+  registrations: AdminTournamentRegistrationDto[];
+  pagination: TournamentListResponse["pagination"];
+};

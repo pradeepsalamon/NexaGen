@@ -798,7 +798,9 @@ export const API_ROUTES = {
     standings: (id: string = ":id") => `/public/tournaments/${id}/standings`,
     game: (id: string = ":id", gameId: string = ":gameId") => `/public/tournaments/${id}/games/${gameId}`,
     commentary: (id: string = ":id") => `/public/tournaments/${id}/commentary`,
-    realtimeToken: (id: string = ":id") => `/public/tournaments/${id}/realtime-token`
+    realtimeToken: (id: string = ":id") => `/public/tournaments/${id}/realtime-token`,
+    // Anyone holding a certificate's code can check it (name in the public format only).
+    verifyCertificate: (code: string = ":code") => `/public/certificates/${code}`
   },
   // Tournaments (docs/TOURNAMENTS.md). Phase 1: the academy's tournament settings (admins).
   tournaments: {
@@ -847,7 +849,22 @@ export const API_ROUTES = {
     commentaryPin: (id: string = ":id", itemId: string = ":itemId") => `/tournaments/${id}/commentary/${itemId}/pin`,
     commentaryHide: (id: string = ":id", itemId: string = ":itemId") => `/tournaments/${id}/commentary/${itemId}/hide`,
     featured: (id: string = ":id") => `/tournaments/${id}/featured`,
-    realtimeToken: (id: string = ":id") => `/tournaments/${id}/realtime-token`
+    realtimeToken: (id: string = ":id") => `/tournaments/${id}/realtime-token`,
+    // Phase 8: certificates and history.
+    certificateRules: (id: string = ":id") => `/tournaments/${id}/certificate-rules`,
+    certificates: (id: string = ":id") => `/tournaments/${id}/certificates`,
+    issueCertificates: (id: string = ":id") => `/tournaments/${id}/certificates/issue`,
+    revokeCertificate: (id: string = ":id", certificateId: string = ":certificateId") => `/tournaments/${id}/certificates/${certificateId}/revoke`,
+    certificatePdf: (certificateId: string = ":certificateId") => `/tournaments/certificates/${certificateId}/pdf`,
+    // Hosts pick templates for their rules (read only; the admin route manages them).
+    templates: "/tournaments/certificates/templates",
+    myHistory: "/tournaments/history/me",
+    studentHistory: (userId: string = ":userId") => `/tournaments/history/students/${userId}`,
+    // Academy admin dashboard and certificate templates.
+    adminOverview: "/admin/tournaments/overview",
+    adminRegistrations: "/admin/tournaments/registrations",
+    adminTemplates: "/admin/tournaments/certificate-templates",
+    adminTemplate: (id: string = ":id") => `/admin/tournaments/certificate-templates/${id}`
   },
   adminReferrals: {
     overview: "/admin/referrals/overview",

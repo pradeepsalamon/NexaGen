@@ -20,6 +20,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { TournamentAccessService } from "./tournament-access.service";
 import { TournamentAuditService } from "./tournament-audit.service";
 import { TournamentEventsService } from "./tournament-events.service";
+import { TournamentNotifierService } from "./tournament-notifier.service";
 import { movesOf } from "./tournament-game.service";
 import { personSelect, toPerson } from "./tournament-mapper";
 import { canBroadcast, canModerateTournament } from "./tournament-policy";
@@ -58,7 +59,8 @@ export class TournamentCommentaryService {
     private readonly prisma: PrismaService,
     private readonly access: TournamentAccessService,
     private readonly audit: TournamentAuditService,
-    private readonly events: TournamentEventsService
+    private readonly events: TournamentEventsService,
+    private readonly notifier: TournamentNotifierService
   ) {}
 
   async list(accessToken: string | undefined, id: string, cursor: string | undefined): Promise<TournamentCommentaryListResponse> {
@@ -153,6 +155,8 @@ export class TournamentCommentaryService {
         include: commentaryInclude
       });
       this.events.commentaryChanged(id, row.id);
+      // Announcements and important messages also reach the players outside the page.
+      if (dto.type === "ANNOUNCEMENT" || dto.type === "EMERGENCY") this.notifier.announcementInBackground(id, dto.body);
       return { item: this.toDto(row, true, new Date()) };
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

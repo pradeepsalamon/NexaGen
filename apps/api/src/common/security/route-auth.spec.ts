@@ -28,7 +28,8 @@ const PUBLIC_ROUTES = new Set([
   "tournament/tournament-public.controller.ts#list",
   "tournament/tournament-public.controller.ts#live",
   "tournament/tournament-public.controller.ts#realtimeToken",
-  "tournament/tournament-public.controller.ts#standings"
+  "tournament/tournament-public.controller.ts#standings",
+  "tournament/tournament-public.controller.ts#verifyCertificate"
 ]);
 
 const SRC = path.resolve(__dirname, "../..");

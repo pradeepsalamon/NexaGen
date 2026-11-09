@@ -185,7 +185,15 @@ export const CROSS_USER: Case[] = [
   { name: "coach withdraws a player from another coach's tournament", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.tournaments.withdrawPlayer(w.b.tournament.id, w.b.tournamentPlayer.id), body: { reason: "Not mine", status: "WITHDRAWN" } },
   { name: "coach reads another coach's tournament audit", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.audit(w.b.tournament.id) },
   { name: "student reads another side's tournament standings", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.standings(w.b.tournament.id) },
-  { name: "student reads another side's live tournament", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.live(w.b.tournament.id) }
+  { name: "student reads another side's live tournament", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.live(w.b.tournament.id) },
+  { name: "student downloads another student's certificate", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.certificatePdf(w.b.certificate.id) },
+  { name: "coach downloads another coach's player's certificate", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.certificatePdf(w.b.certificate.id) },
+  { name: "coach reads another coach's student's tournament history", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.studentHistory(w.b.student.id) },
+  { name: "student reads another student's tournament history", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.studentHistory(w.b.student.id) },
+  { name: "coach sets certificate rules on another coach's tournament", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.tournaments.certificateRules(w.b.tournament.id), body: { rules: [] } },
+  { name: "coach revokes another coach's tournament certificate", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.tournaments.revokeCertificate(w.b.tournament.id, w.b.certificate.id), body: { reason: "Not mine" } },
+  { name: "coach revokes another tournament's certificate through own tournament", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.tournaments.revokeCertificate(w.a.tournament.id, w.b.certificate.id), body: { reason: "Not mine" } },
+  { name: "student lists another side's certificates", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.certificates(w.b.tournament.id) }
 ];
 
 export const OWN_CASES: Case[] = [
@@ -196,6 +204,9 @@ export const OWN_CASES: Case[] = [
   { name: "coach reads own tournament audit", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.audit(w.a.tournament.id) },
   { name: "student reads own tournament standings", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.standings(w.a.tournament.id) },
   { name: "student reads own live tournament", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.live(w.a.tournament.id) },
+  { name: "student downloads own certificate", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.certificatePdf(w.a.certificate.id) },
+  { name: "coach reads own student's tournament history", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.studentHistory(w.a.student.id) },
+  { name: "student lists own certificates", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.certificates(w.a.tournament.id) },
   { name: "coach lists substitutes for own class", as: (w) => w.a.coach, path: (w) => API_ROUTES.approvals.substituteOptions(w.a.class.id) },
   { name: "student reads own class's running activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRun(w.a.liveClass.id) },
   { name: "coach monitors own class's activity", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.a.liveClass.id, w.a.playoutRun.id) },

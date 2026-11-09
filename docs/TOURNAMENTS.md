@@ -563,7 +563,8 @@ place. A screen without its enforced API behaviour does not count.
 | 5 | **API done** (2026-11-09): standings (cached, recomputable, filterable), host controls, live snapshot, audit. Admin dashboard screens with the web pass. |
 | 6 | **API done** (2026-11-09): commentary engine (all types, delay release, own-game filtering, pin, moderation, featured), LiveKit nudges. Studio and broadcast screens with the web pass. |
 | 7 | **API done** (2026-11-09): delayed game view (Phase 4), anonymous public projection, cached snapshots, throttles. Spectator screens with the web pass. |
-| 8–9 | Not started |
+| 8 | **API done** (2026-11-09): notifications, certificates, history, academy dashboard. Screens with the web pass. |
+| 9 | Not started |
 
 **Build order (2026-11-09).** The owner asked for the whole feature. The API of
 Phases 2–8 is built first, one committed phase at a time, each with its own
@@ -820,3 +821,54 @@ same rules. **No behaviour change.**
   - the projection, which holds no user id, `userId`, avatar or full last name
   - delayed games for anonymous viewers; private tournaments and drafts are
     404s
+
+### Phase 8 — as built (API, 2026-11-09)
+
+- **Notifications** (`TournamentNotifierService`, through `SystemNotifier`):
+  - Eight catalogue messages in a new "Tournaments" group:
+    `TOURNAMENT_REGISTERED`, `_INVITED`, `_STARTING_SOON`, `_PAIRED`,
+    `_ROUND_COMPLETED`, `_ANNOUNCEMENT`, `_COMPLETED`, `_RESULTS_PUBLISHED`.
+  - Academy admins edit wording and channels (in-app, email, WhatsApp) like
+    every other system message. Pairings and rounds are in-app by default.
+  - Event messages (entry, invitation, announcement, results) are sent after
+    commit.
+  - Scheduled messages are **claim-first**: the tick sets
+    `startingSoonNotifiedAt` / `notifiedAt` / `completedNotifiedAt` with a
+    filtered `updateMany`, and only the claimer sends, so nothing goes out
+    twice.
+  - New placeholders are documented in `MESSAGE_VARIABLE_DOCS`.
+    `announcement.body` is reused (formatted text).
+- **Certificates** (`TournamentCertificateService`, `CertificatePdfService`):
+  - Admin templates: title and body with `CERTIFICATE_PLACEHOLDERS` only,
+    orientation, border, accent colour (checked with `brandColorIssue`), two
+    signatories. Archived, never deleted.
+  - Per-tournament rules: top N, top N per age group, participation with a
+    minimum number of games. A rule that already has certificates can't change.
+  - Issuing happens on publishing results, or on demand. It is idempotent on
+    (tournament, user, rule); a shared place shares the certificate; a
+    disqualified player never gets one.
+  - Each certificate holds a frozen snapshot, including the template's
+    wording, so editing a template never changes an issued certificate.
+  - The PDF is rendered on request (pdfmake, `private, no-store`) for the
+    owner, managers and admins; a revoked certificate can't be downloaded.
+  - Revoking is HOST / admin only and audited.
+  - Public verification (`/public/certificates/:code`, a 16-hex random code)
+    shows the public name format only.
+- **History** (`TournamentHistoryService`): `/tournaments/history/me`, and
+  `/tournaments/history/students/:userId` (admins any student, coaches only
+  their own batches' students, via `assertCanViewStudent`).
+- **Academy dashboard** (`/admin/tournaments/overview`, `/registrations`):
+  - counts by status, pending entries and publish requests
+  - players this year, completion and forfeit rates
+  - hosts with their tournament and live counts
+  - upcoming, live and recent tournaments (with the champion)
+- **Privacy:** the export gains `tournamentCertificates`.
+- **Tests:** `tournament-records.int-spec.ts` (9 tests):
+  - entry, starting-soon, pairing, round and completion messages each exactly
+    once across repeated and concurrent ticks; an announcement to every player
+  - templates (admin only, colour and placeholder checks), issuing by rules,
+    idempotent re-issue, locked rules
+  - the PDF (owner yes, another student 404, anonymous 401), verification and
+    revocation
+  - history access, and the dashboard
+  - plus 8 more cross-user rows and 3 own-data twins

@@ -28,6 +28,7 @@ import { isAdminRole } from "../auth/authenticate";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { TournamentAccessService, type LoadedTournament, type TournamentViewer } from "./tournament-access.service";
 import { TournamentAuditService } from "./tournament-audit.service";
+import { TournamentNotifierService } from "./tournament-notifier.service";
 import { playerInclude, personSelect, toPerson, toPlayer } from "./tournament-mapper";
 import { canManageTournament, playerAcademyAllowed } from "./tournament-policy";
 
@@ -78,7 +79,8 @@ export class TournamentRegistrationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: TournamentAccessService,
-    private readonly audit: TournamentAuditService
+    private readonly audit: TournamentAuditService,
+    private readonly notifier: TournamentNotifierService
   ) {}
 
   // ── the viewer's own entry ──
@@ -118,6 +120,7 @@ export class TournamentRegistrationService {
         status: tournament.registrationRequiresApproval ? TournamentPlayerStatus.PENDING : TournamentPlayerStatus.APPROVED
       });
     });
+    this.notifier.registeredInBackground(player.id);
     return { player: toPlayer(player) };
   }
 
@@ -152,6 +155,7 @@ export class TournamentRegistrationService {
         status: tournament.registrationRequiresApproval ? TournamentPlayerStatus.PENDING : TournamentPlayerStatus.APPROVED
       });
     });
+    this.notifier.registeredInBackground(player.id);
     return { player: toPlayer(player) };
   }
 
@@ -252,6 +256,8 @@ export class TournamentRegistrationService {
           return player;
         });
         added.push(toPlayer(row));
+        if (as === "INVITED") this.notifier.invitedInBackground(row.id);
+        else this.notifier.registeredInBackground(row.id);
       } catch (error) {
         if (error instanceof ConflictException || error instanceof ForbiddenException || error instanceof BadRequestException) {
           skipped.push({ reason: error.message, userId });
@@ -310,6 +316,7 @@ export class TournamentRegistrationService {
       });
       return tx.tournamentPlayer.findUniqueOrThrow({ include: playerInclude, where: { id: playerId } });
     });
+    if (dto.status === "APPROVED") this.notifier.registeredInBackground(player.id);
     return { player: toPlayer(player) };
   }
 

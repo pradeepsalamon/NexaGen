@@ -30,8 +30,10 @@ import { paginationMeta, resolvePagination } from "../common/pagination";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { TournamentAccessService, type TournamentViewer } from "./tournament-access.service";
 import { TournamentAuditService } from "./tournament-audit.service";
+import { TournamentCertificateService } from "./tournament-certificate.service";
 import { TournamentEngineService } from "./tournament-engine.service";
 import { TournamentEventsService } from "./tournament-events.service";
+import { TournamentNotifierService } from "./tournament-notifier.service";
 import { gameInclude, toGamePlayer, toGameSummary } from "./tournament-game.service";
 import { personSelect, summaryInclude, toPerson, toSummary } from "./tournament-mapper";
 import { TournamentService } from "./tournament.service";
@@ -80,7 +82,9 @@ export class TournamentRunnerService {
     private readonly engine: TournamentEngineService,
     private readonly audit: TournamentAuditService,
     private readonly events: TournamentEventsService,
-    private readonly tournaments: TournamentService
+    private readonly tournaments: TournamentService,
+    private readonly certificates: TournamentCertificateService,
+    private readonly notifier: TournamentNotifierService
   ) {}
 
   // ── host controls ──
@@ -138,6 +142,10 @@ export class TournamentRunnerService {
       if (count === 0) throw new ConflictException("Results can be published once, after the tournament has finished.");
       await this.audit.record(tx, { action: TournamentAuditAction.RESULTS_PUBLISHED, actorId: user.id, tournamentId: id });
     });
+    // After commit: certificates by the tournament's rules (idempotent; a failure is retried with "Issue certificates"),
+    // then the players hear about it.
+    await this.certificates.issueFor(id, user.id).catch(() => 0);
+    this.notifier.resultsPublishedInBackground(id);
     return this.done(user, id);
   }
 
