@@ -561,7 +561,9 @@ place. A screen without its enforced API behaviour does not count.
 | 3 | **Done** (2026-11-09): pure engines (`apps/api/src/tournament/pairing/`) and their database orchestration (`TournamentEngineService`). |
 | 4 | **API done** (2026-11-09): moves, actions, the clock sweeper, the result funnel, Game Library archive. |
 | 5 | **API done** (2026-11-09): standings (cached, recomputable, filterable), host controls, live snapshot, audit. Admin dashboard screens with the web pass. |
-| 6–9 | Not started |
+| 6 | **API done** (2026-11-09): commentary engine (all types, delay release, own-game filtering, pin, moderation, featured), LiveKit nudges. Studio and broadcast screens with the web pass. |
+| 7 | **API done** (2026-11-09): delayed game view (Phase 4), anonymous public projection, cached snapshots, throttles. Spectator screens with the web pass. |
+| 8–9 | Not started |
 
 **Build order (2026-11-09).** The owner asked for the whole feature. The API of
 Phases 2–8 is built first, one committed phase at a time, each with its own
@@ -767,3 +769,54 @@ same rules. **No behaviour change.**
   - mid-event withdrawal, correction with a stale version, and cached
     standings = recomputed standings
 - 10 more cross-user rows and 4 own-data twins.
+
+### Phases 6–7 — as built (API, 2026-11-09)
+
+- **`TournamentCommentary`** (migration `…_tournament_commentary`):
+  - Types: GENERAL, GAME, MOVE (anchored to `gameId` + `ply`), PLAYER, ROUND,
+    ANNOUNCEMENT, FEATURED, EMERGENCY (always pinned).
+  - Optional FEN, plus a `highlight` of squares and arrows validated by
+    `tournamentHighlightSchema`.
+  - Idempotent on `(authorId, clientId)`.
+  - **`releaseAt`**: commentary about a ply is released at that move's time
+    plus the delay. Commentary about a game in play is released at now plus the
+    delay. Everything else is released at once.
+  - Non-hosts only get released, unhidden items. A player never gets
+    commentary on their own game while it is in play.
+  - Pin (any host role), hide (HOST / admin, audited `COMMENTARY_HIDDEN`).
+  - Cursor-paged feed plus up to 5 pinned items.
+- **Featured** game and player (columns on `Tournament`): any host role; it
+  writes a FEATURED item into the feed.
+- **Real time** (`TournamentRealtimeService`):
+  - One room per tournament, `tournament-<tenantId>-<id>`.
+  - `POST …/realtime-token` gives a hidden seat with no publish and no data
+    grant. Identity: `tu_<userId>`, or `anon_<random>` on the public route.
+  - Topics: `tournament_state` and `tournament_commentary` (everyone);
+    `tournament_game` (only the two players, through `destinationIdentities`);
+    `tournament_spectate` (everyone, with `visibleAt`).
+  - Packets are nudges: clients refetch over REST, which applies permissions
+    and the delay.
+  - `LiveKitService` is the module's own instance, so the tournament module
+    doesn't import the live-class room. Without LiveKit the token route says
+    `enabled: false` and the web polls.
+  - The live `version` is in-memory per API instance; a mismatch only causes a
+    refetch.
+- **Anonymous projection** (`TournamentPublicService`, `/public/tournaments/…`,
+  on `route-auth.spec` PUBLIC_ROUTES):
+  - A 404 unless `allowAnonymousSpectating` is on and the tournament is PUBLIC
+    and not a draft.
+  - Players are `{ number, name (publicNameFormat), rating }`, never a user id,
+    avatar, date of birth, batch or contact data. Hosts and commentary authors
+    also get the public name format.
+  - Games are always the delayed view. Commentary is released only, without
+    hidden items.
+  - Live and standings are cached for 1 s per academy and tournament.
+  - Throttles are per route (10–120 per minute; the token is 10 per minute).
+- **Privacy:** the export gains `tournamentCommentary` (what the account wrote).
+- **Tests:** `tournament-broadcast.int-spec.ts` (13 tests):
+  - permissions, idempotency, delayed release and own-game filtering
+  - highlight validation, emergency pin, moderation, featured, the cursor
+  - the token's claims
+  - the projection, which holds no user id, `userId`, avatar or full last name
+  - delayed games for anonymous viewers; private tournaments and drafts are
+    404s

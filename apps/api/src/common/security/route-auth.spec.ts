@@ -19,7 +19,16 @@ const PUBLIC_ROUTES = new Set([
   "health/health.controller.ts#live",
   "health/health.controller.ts#ready",
   "live-class/live-class.controller.ts#getDemoInfo",
-  "live-class/live-class.controller.ts#joinDemoClass"
+  "live-class/live-class.controller.ts#joinDemoClass",
+  // Anonymous tournament spectating (docs/TOURNAMENTS.md §4.1): a 404 unless the
+  // academy allows it; only the public projection (no user ids or personal data).
+  "tournament/tournament-public.controller.ts#commentary",
+  "tournament/tournament-public.controller.ts#game",
+  "tournament/tournament-public.controller.ts#get",
+  "tournament/tournament-public.controller.ts#list",
+  "tournament/tournament-public.controller.ts#live",
+  "tournament/tournament-public.controller.ts#realtimeToken",
+  "tournament/tournament-public.controller.ts#standings"
 ]);
 
 const SRC = path.resolve(__dirname, "../..");

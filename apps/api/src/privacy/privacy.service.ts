@@ -108,7 +108,8 @@ export class PrivacyService {
       referredBy,
       tournamentEntries,
       tournamentHostRoles,
-      tournamentAuditActions
+      tournamentAuditActions,
+      tournamentCommentary
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -238,6 +239,11 @@ export class PrivacyService {
       p.tournamentAuditLog.findMany({
         select: { action: true, createdAt: true, id: true, reason: true, targetType: true, tournamentId: true },
         where: { actorId: id }
+      }),
+      // Commentary this account wrote (who hid it is someone else's account).
+      p.tournamentCommentary.findMany({
+        select: { body: true, createdAt: true, hiddenAt: true, id: true, pinnedAt: true, tournamentId: true, type: true },
+        where: { authorId: id }
       })
     ]);
 
@@ -292,6 +298,7 @@ export class PrivacyService {
         referralsMade: records(referralsMade),
         sessions: records(sessions),
         tournamentAuditActions: records(tournamentAuditActions),
+        tournamentCommentary: records(tournamentCommentary),
         tournamentEntries: records(tournamentEntries),
         tournamentHostRoles: records(tournamentHostRoles),
         studentProfile: records(studentProfile),

@@ -502,15 +502,17 @@ model User {
   personalDiscounts           Discount[]                 @relation("DiscountRestrictedTo")
 
   // Tournaments (docs/TOURNAMENTS.md)
-  tournamentsCreated        Tournament[]         @relation("TournamentCreatedBy")
-  deletedTournaments        Tournament[]         @relation("TournamentDeletedBy")
-  tournamentHostRoles       TournamentHost[]     @relation("TournamentHostUser")
-  tournamentHostGrants      TournamentHost[]     @relation("TournamentHostGrantedBy")
-  tournamentEntries         TournamentPlayer[]   @relation("TournamentPlayerUser")
-  tournamentEntriesAdded    TournamentPlayer[]   @relation("TournamentPlayerRegisteredBy")
-  tournamentEntriesDecided  TournamentPlayer[]   @relation("TournamentPlayerDecidedBy")
-  tournamentSettingsUpdates TournamentSettings[] @relation("TournamentSettingsUpdatedBy")
-  tournamentAuditActions    TournamentAuditLog[] @relation("TournamentAuditActor")
+  tournamentsCreated         Tournament[]           @relation("TournamentCreatedBy")
+  deletedTournaments         Tournament[]           @relation("TournamentDeletedBy")
+  tournamentHostRoles        TournamentHost[]       @relation("TournamentHostUser")
+  tournamentHostGrants       TournamentHost[]       @relation("TournamentHostGrantedBy")
+  tournamentEntries          TournamentPlayer[]     @relation("TournamentPlayerUser")
+  tournamentEntriesAdded     TournamentPlayer[]     @relation("TournamentPlayerRegisteredBy")
+  tournamentEntriesDecided   TournamentPlayer[]     @relation("TournamentPlayerDecidedBy")
+  tournamentSettingsUpdates  TournamentSettings[]   @relation("TournamentSettingsUpdatedBy")
+  tournamentAuditActions     TournamentAuditLog[]   @relation("TournamentAuditActor")
+  tournamentCommentary       TournamentCommentary[] @relation("TournamentCommentaryAuthor")
+  tournamentCommentaryHidden TournamentCommentary[] @relation("TournamentCommentaryHiddenBy")
 
   // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
   @@unique([tenantId, email])
@@ -7786,6 +7788,18 @@ enum TournamentAuditAction {
   COMPLETED
   RESULTS_PUBLISHED
   STANDINGS_RECOMPUTED
+  COMMENTARY_HIDDEN
+}
+
+enum TournamentCommentaryType {
+  GENERAL
+  GAME
+  MOVE
+  PLAYER
+  ROUND
+  ANNOUNCEMENT
+  FEATURED
+  EMERGENCY
 }
 
 enum TournamentRoundStatus {
@@ -7928,12 +7942,18 @@ model Tournament {
   arenaEndsAt  DateTime?
   pausedAt     DateTime?
 
+  /// Broadcast: the game and player the host is featuring (ids of this tournament's rows).
+  featuredGameId   String?
+  featuredPlayerId String?
+  featuredAt       DateTime?
+
   hosts           TournamentHost[]
   players         TournamentPlayer[]
   auditLogs       TournamentAuditLog[]
   roundsList      TournamentRound[]
   games           TournamentGame[]
   knockoutMatches TournamentKnockoutMatch[]
+  commentary      TournamentCommentary[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8019,8 +8039,9 @@ model TournamentPlayer {
   tiebreaksJson Json?
   performance   Int?
 
-  whiteGames TournamentGame[] @relation("TournamentGameWhite")
-  blackGames TournamentGame[] @relation("TournamentGameBlack")
+  whiteGames TournamentGame[]       @relation("TournamentGameWhite")
+  blackGames TournamentGame[]       @relation("TournamentGameBlack")
+  commentary TournamentCommentary[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8175,6 +8196,7 @@ model TournamentGame {
   startedAt       DateTime                @default(now())
   finishedAt      DateTime?
   /// Bumped by every host decision or correction (optimistic concurrency).
+  commentary      TournamentCommentary[]
   version         Int                     @default(1)
 
   createdAt DateTime @default(now())
@@ -8189,4 +8211,46 @@ model TournamentGame {
   @@index([whitePlayerId])
   @@index([blackPlayerId])
   @@map("tournament_games")
+}
+
+/// Host commentary and announcements (docs/TOURNAMENTS.md §3.5). `releaseAt`
+/// keeps commentary about a position from reaching spectators before the
+/// position does. Moderation hides an item (never Trash); a resend with the
+/// same (author, clientId) is the same item.
+model TournamentCommentary {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament               @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  type         TournamentCommentaryType
+  body         String
+  authorId     String?
+  author       User?                    @relation("TournamentCommentaryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  clientId     String
+
+  gameId        String?
+  game          TournamentGame?   @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  playerId      String?
+  player        TournamentPlayer? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  /// The half-move it is about (move commentary).
+  ply           Int?
+  fen           String?
+  /// `tournamentHighlightSchema`: squares and arrows.
+  highlightJson Json?
+
+  releaseAt    DateTime
+  pinnedAt     DateTime?
+  hiddenAt     DateTime?
+  hiddenById   String?
+  hiddenBy     User?     @relation("TournamentCommentaryHiddenBy", fields: [hiddenById], references: [id], onDelete: SetNull)
+  hiddenReason String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([authorId, clientId])
+  @@index([tournamentId, createdAt])
+  @@index([tournamentId, pinnedAt])
+  @@index([gameId])
+  @@map("tournament_commentary")
 }

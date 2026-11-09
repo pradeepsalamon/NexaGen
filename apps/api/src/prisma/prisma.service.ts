@@ -695,6 +695,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.tournamentKnockoutMatch;
   }
 
+  get tournamentCommentary() {
+    return this.client.tournamentCommentary;
+  }
+
   get referralRewardRule() {
     return this.client.referralRewardRule;
   }
