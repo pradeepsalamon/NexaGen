@@ -1,4 +1,4 @@
-import type { RetentionCategory } from "@nexa-chess/types";
+import { TRANSCRIPT_RETENTION_DAYS, type RetentionCategory } from "@nexa-chess/types";
 import { TENANT_TABLES } from "../tenancy/tenant-models";
 
 /** A table and the timestamp column its age is measured on. */
@@ -35,6 +35,14 @@ export const RETENTION_RULES: readonly FixedRetentionRuleDef[] = [
   // Help-centre searches (free text typed by students, who are minors): only
   // the recent window feeds the unanswered inbox and topic trends.
   { column: "createdAt", days: 90, label: "Help-centre searches", table: "knowledge_search_logs" },
+  // A coach's class speech as text (docs/LIVE_CLASS.md § "Class transcript").
+  // The window is part of what the coach consented to (TRANSCRIPT_RETENTION_DAYS).
+  {
+    column: "createdAt",
+    days: TRANSCRIPT_RETENTION_DAYS,
+    label: "Live class transcripts (coach speech)",
+    table: "live_class_transcript_segments"
+  },
   { column: "createdAt", days: 365, label: "Emails sent by staff", table: "direct_emails" },
   // One row per referral-link hit; the referral itself (and its stage history)
   // stays, so only the raw visit counts age out.

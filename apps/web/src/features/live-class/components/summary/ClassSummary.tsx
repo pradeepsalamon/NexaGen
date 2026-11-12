@@ -23,6 +23,7 @@ import { ClassEndFeedback } from "@/features/feedback/components/ClassEndFeedbac
 import { Badge } from "@/components/ui/Badge";
 import { enumLabel } from "@/lib/utils";
 import { Spinner } from "@/components/ui/Spinner";
+import { ClassTranscriptCard } from "@/features/live-captions/components/ClassTranscriptCard";
 
 function Shell({
   badge,
@@ -119,6 +120,11 @@ export function ClassSummary({ classId }: { classId: string }) {
     >
 
       {data.status !== "CANCELLED" ? <ClassEndFeedback classId={classId} /> : null}
+
+      {/* The coach's speech as text: coach-owner and admins only (the API refuses students). */}
+      {data.status !== "CANCELLED" && data.viewerRole !== "STUDENT" ? (
+        <ClassTranscriptCard classId={classId} topic={data.topic} />
+      ) : null}
 
       {data.status === "CANCELLED" ? (
         <EmptyState icon={Ban} title="This class was cancelled" />

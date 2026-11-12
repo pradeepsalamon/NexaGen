@@ -288,6 +288,10 @@ export const queryKeys = {
   liveClassTools: {
     state: (classId: string) => ["live-class-tools", "state", classId] as const,
   },
+  liveClassTranscript: {
+    consent: ["live-class-transcript", "consent"] as const,
+    lines: (classId: string) => ["live-class-transcript", "lines", classId] as const,
+  },
   liveClassChapters: {
     list: (classId: string) => ["live-class-chapters", classId] as const,
   },

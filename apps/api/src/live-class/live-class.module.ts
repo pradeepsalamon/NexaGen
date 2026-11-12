@@ -9,6 +9,8 @@ import { LiveClassModerationService } from "./live-class-moderation.service";
 import { LiveClassPullService } from "./live-class-pull.service";
 import { LiveClassRecordingService } from "./live-class-recording.service";
 import { LiveClassScreenShareService } from "./live-class-screen-share.service";
+import { LiveClassTranscriptController } from "./live-class-transcript.controller";
+import { LiveClassTranscriptService } from "./live-class-transcript.service";
 import { LiveClassSpectateController } from "./live-class-spectate.controller";
 import { LiveClassSpectateService } from "./live-class-spectate.service";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
@@ -46,7 +48,8 @@ import { TrashModule } from "../trash/trash.module";
     LiveClassController,
     LiveClassSettingsController,
     LiveClassPresetController,
-    LiveClassSpectateController
+    LiveClassSpectateController,
+    LiveClassTranscriptController
   ],
   providers: [
     LiveClassService,
@@ -59,6 +62,7 @@ import { TrashModule } from "../trash/trash.module";
     LiveClassRecordingService,
     LiveClassScreenShareService,
     LiveClassSpectateService,
+    LiveClassTranscriptService,
     LiveClassWaitingRoomService,
     LiveClassSettingsService,
     LiveClassPresetService,

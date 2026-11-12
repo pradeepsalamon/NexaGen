@@ -28,6 +28,7 @@ import { MeetingEventToasts } from "../meeting/MeetingEventToasts";
 import { LiveClassSettingsBridge } from "../meeting/LiveClassSettingsBridge";
 import { WaitingRoomBridge } from "../meeting/WaitingRoomBridge";
 import { ScreenShareRequestBridge } from "../meeting/ScreenShareRequestBridge";
+import { TranscriptBridge } from "../meeting/TranscriptBridge";
 import { ChatProvider } from "../../providers/ChatProvider";
 import { ConnectionStateManager } from "../../providers/ConnectionStateManager";
 import { LiveRoomProvider } from "../../providers/LiveRoomContext";
@@ -214,6 +215,7 @@ export function MeetingRoom({ token, classId, guestToken = null }: MeetingRoomPr
             <LiveClassSettingsBridge />
             <WaitingRoomBridge classId={classId} />
             <ScreenShareRequestBridge classId={classId} />
+            <TranscriptBridge classId={classId} />
             <HandRaiseBridge />
             <PuzzleBridge classId={classId} />
             <MovePollStudentHost classId={classId} />

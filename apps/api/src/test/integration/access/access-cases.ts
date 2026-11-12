@@ -114,6 +114,9 @@ export const CROSS_USER: Case[] = [
   { name: "coach reports into another coach's Puzzle Storm", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.puzzleRushProgress(w.b.liveClass.id), body: (w: World) => rushReport(w.b.rush.id) },
   { name: "coach ends another coach's Puzzle Storm", as: (w) => w.a.coach, method: "DELETE", path: (w) => API_ROUTES.liveClass.puzzleRush(w.b.liveClass.id) },
   { name: "coach writes another class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.b.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } },
+  // Class transcript (the coach's speech as text: coach-owner/admin read, owning coach write)
+  { name: "coach reads another class's transcript", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.transcript(w.b.liveClass.id) },
+  { name: "coach writes to another class's transcript", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.transcript(w.b.liveClass.id), body: { lines: [{ clientId: "intruder-0001", lang: "en-IN", spokenAt: "2026-11-12T10:00:00.000Z", text: "hijacked" }] } },
   // Chapters (coach-owner/admin only; a chapter id from another batch is a 404)
   { name: "coach reads another class's chapters", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.chapters(w.b.liveClass.id) },
   { name: "coach adds a chapter to another class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.chapters(w.b.liveClass.id), body: { clientId: "intruder-0001", state: { arrows: [], fen: "8/8/8/8/8/8/8/K6k w - - 0 1", historyIndex: -1, orientation: "white", pgn: "", squares: {} }, title: "intruder" } },
@@ -252,6 +255,7 @@ export const OWN_CASES: Case[] = [
   { name: "student reports into own class's Puzzle Storm", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.liveClass.puzzleRushProgress(w.a.liveClass.id), body: (w: World) => rushReport(w.a.rush.id) },
   { name: "coach reads own class's Puzzle Storm", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.puzzleRush(w.a.liveClass.id) },
   { name: "coach plays along in own class's Puzzle Storm", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.puzzleRushProgress(w.a.liveClass.id), body: (w: World) => rushReport(w.a.rush.id) },
+  { name: "coach reads own class's transcript", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.transcript(w.a.liveClass.id) },
   { name: "coach reads own class's chapters", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.chapters(w.a.liveClass.id) },
   { name: "coach renames own chapter", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.liveClass.chapter(w.a.liveClass.id, w.a.chapter.id), body: { title: "Renamed" } },
   { name: "coach reads own class's activity queues", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityQueues(w.a.liveClass.id) },
@@ -346,6 +350,9 @@ export const WRONG_ROLE: Case[] = [
   { name: "coach creates a library activity", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.puzzles.activities, body: (w: World) => ({ config: { engine: { movetimeMs: 100, skillLevel: 1 }, goal: { type: "CHECKMATE" }, startFen: "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1", studentColor: "white" }, difficulty: "EASY", kind: "PLAYOUT", title: "hijacked", topicId: w.a.privatePuzzle.topicId, tags: [] }) },
   { name: "student lists help suggestions (coaches only)", as: (w) => w.a.student, path: () => API_ROUTES.knowledge.suggestions },
   { name: "student reads help topic trends (coaches only)", as: (w) => w.a.student, path: () => API_ROUTES.knowledge.trends },
+  { name: "student reads own class's transcript", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.transcript(w.a.liveClass.id) },
+  { name: "student writes to own class's transcript", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.transcript(w.a.liveClass.id), body: { lines: [{ clientId: "student-0001", lang: "en-IN", spokenAt: "2026-11-12T10:00:00.000Z", text: "hijacked" }] } },
+  { name: "student gives a coach's transcript consent", as: (w) => w.a.student, method: "PUT", path: () => API_ROUTES.liveClass.transcriptConsent(), body: { consent: true } },
   { name: "student reads own class's chapters", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.chapters(w.a.liveClass.id) },
   { name: "student deletes all of own class's chapters", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.chapterBulkDelete(w.a.liveClass.id), body: (w: World) => ({ ids: [w.a.chapter.id] }) },
   { name: "student lists own class's activity queues", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityQueues(w.a.liveClass.id) },

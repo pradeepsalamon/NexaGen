@@ -384,6 +384,7 @@ model User {
   coachAttendances                CoachAttendance[]                @relation("CoachClassAttendance")
   coachAttendanceLogs             CoachAttendanceLog[]             @relation("UserCoachAttendanceLogs")
   chatMessages                    LiveChatMessage[]                @relation("UserLiveChatMessages")
+  liveClassTranscriptSegments     LiveClassTranscriptSegment[]     @relation("LiveClassTranscriptSpeaker")
   directChatMessages              LiveChatMessage[]                @relation("UserLiveChatDirectMessages")
   notifications                   Notification[]                   @relation("UserNotifications")
   createdBatchSchedules           BatchClassSchedule[]             @relation("BatchScheduleCreatedBy")
@@ -613,6 +614,11 @@ model CoachProfile {
   approvedBy   User?   @relation("CoachApprovedBy", fields: [approvedById], references: [id])
 
   approvedAt DateTime?
+
+  /// When the coach agreed to have their live-class speech turned into text
+  /// (null = never, or withdrawn), and the `TRANSCRIPT_CONSENT_VERSION` they saw.
+  transcriptConsentAt      DateTime?
+  transcriptConsentVersion Int?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -1658,6 +1664,7 @@ model LiveSession {
   metadata Json?
 
   chatMessages             LiveChatMessage[]
+  transcriptSegments       LiveClassTranscriptSegment[]
   recordingWatchProgresses RecordingWatchProgress[]
   waitingParticipants      LiveClassWaitingParticipant[]
   pulls                    LiveClassPull[]
@@ -1782,6 +1789,37 @@ model LiveClassScreenShareRequest {
   @@unique([liveSessionId, studentId])
   @@index([liveSessionId, status])
   @@map("live_class_screen_share_requests")
+}
+
+/// One finished phrase of the coach's speech in a live class, as text. The
+/// coach's browser does the recognition; no audio is stored, and only the
+/// owning coach can write one. Aged out after 30 days (`RETENTION_RULES`).
+/// Not soft-deletable, not Trash-registered.
+model LiveClassTranscriptSegment {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  liveSessionId String
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+
+  speakerId String
+  speaker   User   @relation("LiveClassTranscriptSpeaker", fields: [speakerId], references: [id], onDelete: Cascade)
+
+  /// Client-generated per phrase, so a retried request stores it once.
+  clientId String
+  /// BCP 47 tag the recogniser was listening for (`transcriptLanguageSchema`).
+  lang     String
+  text     String
+  /// When the phrase was first heard (the coach's clock, clamped to the class).
+  spokenAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@unique([liveSessionId, clientId])
+  @@index([liveSessionId, spokenAt, id])
+  @@index([speakerId])
+  @@index([tenantId, createdAt])
+  @@map("live_class_transcript_segments")
 }
 
 model LiveChatMessage {

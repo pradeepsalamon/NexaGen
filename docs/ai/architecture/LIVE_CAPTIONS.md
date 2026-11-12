@@ -2,6 +2,14 @@
 
 Status: **proposal, not approved** (revision 2, 2026-10-19). Only the speech
 timing test is built (§5.1); its first result is §5.2.
+
+**2026-11-12:** a different, smaller thing is built and approved: a **stored
+transcript** of the coach's speech made by Chrome's speech recognition in the
+coach's own browser (PHASE3_SPEC.md §0a option A; docs/LIVE_CLASS.md § "Class
+transcript"). It shows nothing to students and translates nothing. The agent,
+self-hosted models, live captions and translation below are still this
+proposal, and its `LiveClassTranscriptSegment` table and 30-day retention
+(OD-33) are the ones now in the schema.
 It needs OD-30 to OD-33 (§7). Speech from students is out of scope (OD-13).
 
 Goal: the coach's speech becomes live captions in the room, translated into

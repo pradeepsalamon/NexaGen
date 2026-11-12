@@ -78,6 +78,7 @@ export class PrivacyService {
       mcqAttempts,
       playoutGames,
       chatMessages,
+      classTranscriptLines,
       notifications,
       orders,
       payments,
@@ -168,6 +169,11 @@ export class PrivacyService {
       p.liveChatMessage.findMany({
         select: { createdAt: true, id: true, liveSessionId: true, message: true, recipientId: true },
         where: { senderId: id }
+      }),
+      // A coach's own class speech as text (kept 30 days).
+      p.liveClassTranscriptSegment.findMany({
+        select: { createdAt: true, id: true, lang: true, liveSessionId: true, spokenAt: true, text: true },
+        where: { speakerId: id }
       }),
       p.notification.findMany({ where: { userId: id } }),
       p.order.findMany({ omit: { idempotencyKey: true }, where: { userId: id } }),
@@ -261,6 +267,7 @@ export class PrivacyService {
         batchesAsStudent: records(batchesAsStudent),
         billingProfile: records(billingProfile),
         chatMessages: records(chatMessages),
+        classTranscriptLines: records(classTranscriptLines),
         chessAppearance: records(chessAppearance),
         classAttendance: records(classAttendance),
         classChangeRequests: records(classChangeRequests),

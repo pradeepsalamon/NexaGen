@@ -82,6 +82,8 @@ describe("cross-user access (real app, real Postgres)", () => {
       status: "LIVE"
     });
     expect(await t.prisma.liveChatMessage.count({ where: { senderId: a.student.id } })).toBe(0);
+    expect(await t.prisma.liveClassTranscriptSegment.count()).toBe(0);
+    expect(await t.prisma.coachProfile.count({ where: { transcriptConsentAt: { not: null } } })).toBe(0);
     expect(await t.prisma.chatMessage.count({ where: { senderId: a.student.id } })).toBe(0);
     expect(await t.prisma.knowledgeArticleVersion.findUnique({ where: { id: b.kbSuggestion.id } })).toMatchObject({ status: "SUBMITTED", title: "Suggestion B" });
     expect(await t.prisma.knowledgeArticleVersion.count({ where: { title: "hijacked" } })).toBe(0);
