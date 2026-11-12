@@ -10,6 +10,7 @@ import {
   type TournamentSummaryDto,
   type TournamentViewerDto
 } from "@nexa-chess/types";
+import { roundScheduleOf } from "./tournament-engine.service";
 import { Prisma, TournamentHostRole, TournamentPlayerStatus, type Tournament, type TournamentPlayer } from "@prisma/client";
 
 export const personSelect = { avatarUrl: true, firstName: true, id: true, lastName: true } as const;
@@ -80,6 +81,8 @@ export function toDetail(
     registrationRequiresApproval: row.registrationRequiresApproval,
     resultsPublishedAt: row.resultsPublishedAt?.toISOString() ?? null,
     roundBreakSec: row.roundBreakSec,
+    roundSchedule: roundScheduleOf(row),
+    roundStartMode: row.roundStartMode,
     rulesText: row.rulesText,
     spectatorDelaySec: row.spectatorDelaySec,
     startFen: row.startFen,

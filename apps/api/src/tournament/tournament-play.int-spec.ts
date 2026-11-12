@@ -96,7 +96,8 @@ describe("playing tournaments (real app, real Postgres)", () => {
     let id: string;
 
     it("only the host or an admin starts; the field is seeded by rating; round 1 is paired with a bye", async () => {
-      id = await setup({ format: "SWISS", rounds: 3, roundBreakSec: 0 }, 7);
+      // A real break, so only a host (or a later tick) starts the next round, never the exact-time timer mid-test.
+      id = await setup({ format: "SWISS", rounds: 3, roundBreakSec: 600 }, 7);
       expect((await t.call(outsiderCoach, "POST", API_ROUTES.tournaments.start(id))).status).toBe(403);
       expect((await t.call(students[0], "POST", API_ROUTES.tournaments.start(id))).status).toBe(403);
       const started = await t.call(coach, "POST", API_ROUTES.tournaments.start(id));
@@ -209,8 +210,10 @@ describe("playing tournaments (real app, real Postgres)", () => {
       expect(res.status).toBe(200);
       expect(await game(id, g.id)).toMatchObject({ endReason: "FORFEIT", result: "BLACK_WON" });
       await playRound(id, 2, () => "WHITE");
-      // The break is 0: the scheduler starts round 3 on its own.
+      // Once the break is over the scheduler starts round 3 on its own.
       await tick();
+      expect((await rounds(id)).rounds).toHaveLength(2);
+      await tick(new Date(Date.now() + 11 * 60_000));
       const r3 = (await rounds(id)).rounds[2];
       expect(r3).toBeDefined();
       expect(r3.games.some((x) => x.white.playerId === leaving || x.black?.playerId === leaving)).toBe(false);
@@ -236,6 +239,67 @@ describe("playing tournaments (real app, real Postgres)", () => {
       expect(recomputed.standings.map((s) => [s.playerId, s.points, s.rank])).toEqual(cached.standings.map((s) => [s.playerId, s.points, s.rank]));
       expect((await t.call(coach, "POST", API_ROUTES.tournaments.publishResults(id))).status).toBe(200);
       expect((await t.call(coach, "POST", API_ROUTES.tournaments.publishResults(id))).status).toBe(409);
+    });
+  });
+
+  describe("round start times", () => {
+    const live = async (id: string, as: User = admin) => (await t.call(as, "GET", API_ROUTES.tournaments.live(id))).body as TournamentLiveDto;
+    const inMinutes = (n: number) => new Date(Date.now() + n * 60_000).toISOString();
+
+    it("scheduled: round 2 waits for its own time, and the host can move it", async () => {
+      const id = await setup(
+        { format: "SWISS", roundBreakSec: 0, roundSchedule: [{ round: 2, startsAt: new Date(Date.now() + 5 * DAY + 30 * 60_000).toISOString() }], roundStartMode: "SCHEDULED", rounds: 3 },
+        4
+      );
+      await t.call(admin, "POST", API_ROUTES.tournaments.start(id));
+      // Too early to move anything: round 1 is still being played.
+      expect((await t.call(coach, "POST", API_ROUTES.tournaments.nextRoundAt(id), { startsAt: inMinutes(5) })).status).toBe(409);
+      await playRound(id, 1, () => "WHITE");
+      await tick();
+      const waiting = await live(id, students[0]);
+      expect(waiting).toMatchObject({ awaitingHost: false, currentRound: 1 });
+      expect(Date.parse(waiting.nextRoundAt!)).toBeGreaterThan(Date.now() + 4 * DAY);
+
+      // The host brings it forward; a player may not, and the past is refused.
+      expect((await t.call(students[0], "POST", API_ROUTES.tournaments.nextRoundAt(id), { startsAt: inMinutes(2) })).status).toBe(403);
+      expect((await t.call(coach, "POST", API_ROUTES.tournaments.nextRoundAt(id), { startsAt: inMinutes(-1) })).status).toBe(400);
+      const at = inMinutes(2);
+      expect((await t.call(coach, "POST", API_ROUTES.tournaments.nextRoundAt(id), { startsAt: at })).status).toBe(200);
+      expect((await live(id)).nextRoundAt).toBe(at);
+      expect(await t.prisma.tournamentAuditLog.count({ where: { action: "NEXT_ROUND_RESCHEDULED", tournamentId: id } })).toBe(1);
+
+      await tick();
+      expect((await rounds(id)).rounds).toHaveLength(1);
+      await tick(new Date(Date.parse(at) + 1000));
+      expect((await rounds(id)).rounds).toHaveLength(2);
+      // The player's page learns which board to open.
+      expect((await live(id, students[0])).me?.currentGameId).toBeTruthy();
+
+      // Round 3 has no time of its own: the break (0 seconds) applies.
+      await playRound(id, 2, () => "DRAW");
+      await tick();
+      expect((await rounds(id)).rounds).toHaveLength(3);
+    });
+
+    it("manual: nothing starts until a host does; the setting can change while it runs", async () => {
+      const id = await setup({ format: "SWISS", roundStartMode: "MANUAL", rounds: 3 }, 4);
+      await t.call(admin, "POST", API_ROUTES.tournaments.start(id));
+      await playRound(id, 1, () => "BLACK");
+      await tick(new Date(Date.now() + 60 * 60_000));
+      expect(await live(id)).toMatchObject({ awaitingHost: true, currentRound: 1, nextRoundAt: null });
+      expect((await t.call(coach, "POST", API_ROUTES.tournaments.nextRound(id))).status).toBe(200);
+      await playRound(id, 2, () => "WHITE");
+      expect((await live(id)).awaitingHost).toBe(true);
+
+      // Back to automatic, mid-tournament: the waiting round gets its time at once.
+      const current = await detail(id);
+      const saved = await t.call(coach, "PATCH", API_ROUTES.tournaments.update(id), { roundBreakSec: 0, roundStartMode: "AUTO", version: current.version });
+      expect(saved.status).toBe(200);
+      expect((await live(id)).nextRoundAt).not.toBeNull();
+      await tick();
+      expect((await rounds(id)).rounds).toHaveLength(3);
+      // The format still can't change once it has started.
+      expect((await t.call(coach, "PATCH", API_ROUTES.tournaments.update(id), { rounds: 5, version: (await detail(id)).version })).status).toBe(409);
     });
   });
 

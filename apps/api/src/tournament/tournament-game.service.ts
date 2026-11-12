@@ -280,6 +280,12 @@ export class TournamentGameService {
       this.events.stateChanged(tournamentId);
     }
     this.events.gameChanged(tournamentId, gameId);
+    if (!outcome) {
+      // Wake the clock exactly when the opponent's time (or first-move window) runs out.
+      const opponentMs = color === "white" ? game.blackClockMs : game.whiteClockMs;
+      const due = game.ply + 1 < TOURNAMENT_CLOCK_START_PLY ? now.getTime() + TOURNAMENT_FIRST_MOVE_SECONDS * 1000 : now.getTime() + opponentMs;
+      this.events.deadlineAt(tournamentId, due);
+    }
     return this.reload(tournament, gameId, user.id);
   }
 
@@ -423,6 +429,22 @@ export class TournamentGameService {
   }
 
   // ── sweeper (no user) ──
+
+  /** When the next flag falls or first-move window closes in this tournament (epoch ms), if any game is on. */
+  async nextDeadline(tournamentId: string): Promise<number | null> {
+    const ongoing = await this.prisma.tournamentGame.findMany({
+      select: { blackClockMs: true, fen: true, firstMoveDeadline: true, ply: true, turnSince: true, whiteClockMs: true },
+      where: { status: TournamentGameStatus.ONGOING, tournamentId }
+    });
+    let next: number | null = null;
+    for (const game of ongoing) {
+      let due: number | null;
+      if (game.ply < TOURNAMENT_CLOCK_START_PLY) due = game.firstMoveDeadline?.getTime() ?? null;
+      else due = game.turnSince.getTime() + (sideToMove({ fen: game.fen, ongoing: true }) === "white" ? game.whiteClockMs : game.blackClockMs);
+      if (due !== null && (next === null || due < next)) next = due;
+    }
+    return next;
+  }
 
   /** Flags and no-shows of one tournament's games. Run inside the tournament's academy. */
   async sweep(tournamentId: string, now = new Date()): Promise<number> {

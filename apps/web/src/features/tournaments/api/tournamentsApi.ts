@@ -95,6 +95,8 @@ export const startTournament = (id: string) => hostAction(T.start(id));
 export const pauseTournament = (id: string) => hostAction(T.pause(id));
 export const resumeTournament = (id: string) => hostAction(T.resume(id));
 export const startNextRound = (id: string) => hostAction(T.nextRound(id));
+export const setNextRoundAt = (id: string, startsAt: string) =>
+  apiFetch<TournamentResponse>(T.nextRoundAt(id), { body: { startsAt }, method: "POST" });
 export const finishTournament = (id: string) => hostAction(T.finish(id));
 export const publishResults = (id: string) => hostAction(T.publishResults(id));
 export const removePlayer = (id: string, playerId: string, body: RemoveTournamentPlayerRequest) =>

@@ -183,6 +183,7 @@ export const CROSS_USER: Case[] = [
   { name: "student resigns another side's tournament game", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.tournaments.gameAction(w.b.tournament.id, w.b.tournamentGame.id), body: { action: "RESIGN" } },
   { name: "coach decides another coach's tournament game", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.tournaments.gameDecision(w.b.tournament.id, w.b.tournamentGame.id), body: { reason: "Not mine", result: "DRAW" } },
   { name: "coach starts another coach's tournament", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.tournaments.start(w.b.tournament.id) },
+  { name: "coach moves the next round of another coach's tournament", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.tournaments.nextRoundAt(w.b.tournament.id), body: { startsAt: "2099-01-01T10:00:00.000Z" } },
   { name: "coach withdraws a player from another coach's tournament", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.tournaments.withdrawPlayer(w.b.tournament.id, w.b.tournamentPlayer.id), body: { reason: "Not mine", status: "WITHDRAWN" } },
   { name: "coach reads another coach's tournament audit", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.audit(w.b.tournament.id) },
   { name: "student reads another side's tournament standings", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.standings(w.b.tournament.id) },

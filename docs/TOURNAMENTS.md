@@ -565,6 +565,7 @@ place. A screen without its enforced API behaviour does not count.
 | 7 | **Done** (2026-11-09): delayed game view, anonymous public projection, cached snapshots, throttles; `/watch` pages and the board grid. |
 | 8 | **Done** (2026-11-09): notifications, certificates, history, academy dashboard; their screens. |
 | 9 | **Done** (2026-11-09): every screen (see "Web — as built"), responsive shots on all devices, the multi-player Playwright spec, full unit + integration runs. |
+| 10 | **Done** (2026-11-12): custom round start times, exact-time scheduling, boards that open by themselves, two messaging rules. See §12. |
 
 **Build order (2026-11-09).** The owner asked for the whole feature. The API of
 Phases 2–8 is built first, one committed phase at a time, each with its own
@@ -925,3 +926,115 @@ components under `app/`.
 - API: unit 212 suites / 3106 tests passing (2 Stockfish suites skipped);
   integration 48 suites / 820 tests passing (1 suite skipped).
 
+
+---
+
+## 12. Round start times, timing and flow — as built (2026-11-12)
+
+### Round start times (Swiss and round robin)
+
+Round 1 starts with the tournament. How the later rounds start is the
+tournament's **`roundStartMode`**:
+
+| Mode | The next round starts |
+|---|---|
+| `AUTO` (default) | `roundBreakSec` after the previous round's last game. |
+| `SCHEDULED` | At the round's own time in `roundSchedule` (`[{ round, startsAt }]`, rounds 2 and later). A round without a time uses the break. A round whose time passed while the previous one was still playing starts `TOURNAMENT_LATE_ROUND_PAUSE_SEC` (15 s) after it ends. |
+| `MANUAL` | When a host presses "Next round now", or sets a time. |
+
+- **One rule:** `resolveNextRoundAt` (`@nexa-chess/types`). The engine stores
+  its answer in `Tournament.nextRoundAt` when a round completes
+  (`TournamentEngineService.planNextRound`), and the tick starts the round
+  when that time has come. Nothing else decides when a round starts; never
+  re-derive it from `roundBreakSec`.
+- **A host can move it** between rounds: `POST /tournaments/:id/rounds/next/starts-at`
+  (`API_ROUTES.tournaments.nextRoundAt`, managers only, future times only,
+  audited as `NEXT_ROUND_RESCHEDULED`). Manage shows the countdown with
+  "In 1 / 5 / 15 min" and a date-time picker.
+- **Editable while it runs:** `roundStartMode`, `roundSchedule` and
+  `roundBreakSec` join the fields a started tournament may change; saving
+  them re-plans the round that is waiting.
+- Validation (`tournamentConfigIssues`): a schedule needs at least one time,
+  times in round order and after the start, no round twice, no round a Swiss
+  doesn't have, and only on Swiss / round robin.
+- A paused tournament starts no round; it starts on resume if the time passed.
+- `TournamentLiveDto.nextRoundAt` is that stored time; `awaitingHost` is true
+  between rounds when nothing is set to start the next one.
+
+### Timing: nothing waits for the cron
+
+The 5-second cron (`TournamentScheduler.tickCron`) is now the safety net, not
+the clock.
+
+- **`TournamentTimerService`** holds one in-process timer per tournament,
+  armed for its earliest deadline within 20 s: the start time, `nextRoundAt`,
+  the arena's end, a flag fall or a first-move deadline. At that moment it
+  runs the same idempotent pass for that one tournament
+  (`TournamentScheduler.runOne`: sweep, tick, re-arm). Timers are armed by the
+  cron pass, by a move (`TournamentEventsService.deadlineAt`, the opponent's
+  flag time) and after every state change. A lost timer (restart, another
+  instance) costs at most one cron pass, never a result: every step still
+  re-checks under the tournament's row lock.
+- **A scheduler-made change now tells the viewers.** `TournamentRunnerService.tick`
+  returns whether it changed anything and emits `stateChanged`; before, an
+  automatic start or next round reached connected clients only on their
+  30-second poll.
+- **The opponent's move rides the packet.** The `tournament_game` packet (to
+  the two players only) carries the move, position and clocks; the player's
+  board applies it without a request. Anything that is not exactly the next
+  move (a result, a draw offer, a missed packet) is refetched as before.
+- **Moves no longer nudge the lobby.** A `game` event used to send a `state`
+  nudge too, making every viewer refetch four queries per move; results send
+  their own.
+- **Flags fall without a click.** The server timer ends the game at the
+  deadline, and the player's page also sends `CLAIM_TIMEOUT` once when a
+  clock reaches zero.
+
+### Flow: the board comes to the player
+
+- **`useAutoOpenGame`** takes a player to `/tournaments/[id]/games/[gameId]`
+  the moment the live snapshot shows a game for them: from the tournament page
+  (round 1, an arena pairing) and from their finished game (the next round).
+  Once per game and per tab (`sessionStorage`), so walking back to the lobby
+  never bounces.
+- **Before the start** (`StartPanel`, within a day): a countdown; at zero the
+  page asks every 3 s until the tournament is live. The page joins the
+  real-time room while `PUBLISHED` too, and a `state` nudge refreshes the
+  detail, so the lobby turns live by itself.
+- **After a game** (`NextUp` on the game page): "Round N starts in …", "starts
+  when the host begins it", or the arena's "finding your next opponent", then
+  the jump to the next board; "The tournament is over" with the standings
+  link after the last round.
+- The overview shows how rounds start, with the schedule in the viewer's time
+  zone.
+
+### Messages
+
+Two admin **messaging rules** (`/admin/messaging`, docs/MESSAGING.md), both
+enabled and in-app only by default, sent to students:
+
+| Rule | When | Who |
+|---|---|---|
+| `TOURNAMENT_REGISTRATION_OPEN` | A PUBLIC tournament's registration opens (publication, or `registrationOpensAt`). | Active students of the academy; only the eligible batches when the tournament is limited to batches. Private and invitation-only tournaments are not announced. |
+| `TOURNAMENT_STARTED` | The tournament goes live. | Its entered players. |
+
+Both are dispatched from `TournamentNotifierService.tick`, claim-first on
+`registrationAnnouncedAt` / `startedAnnouncedAt`, through
+`MessagingDispatchService` (so they are queued and delivered within a minute;
+the page itself changes in real time). Placeholders: `tournament.name`,
+`.format`, `.timeControl`, `.startDate`, `.startTime`, `.startDateTime`,
+`links.tournament`. The eight fixed system messages of Phase 8 are unchanged.
+
+### Tests
+
+- `tournament-rules.spec.ts`: the schedule's validation and
+  `resolveNextRoundAt` in every mode.
+- `tournament-timer.service.spec.ts`: fires at the deadline, keeps the
+  earliest, ignores far deadlines and events without an academy.
+- `tournament-play.int-spec.ts` "round start times": a scheduled round waits
+  for its time, a host moves it (403 for a player, 400 for the past, 409 mid
+  round), a manual tournament waits for the host, and the mode changes while
+  it runs.
+- `tournament-records.int-spec.ts`: each rule queues one message per
+  recipient across repeated and concurrent ticks.
+- One more cross-user row (a coach moving another coach's next round).

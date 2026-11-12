@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Flag, Handshake, Zap } from "lucide-react";
+import { ArrowLeft, Flag, Handshake, Hourglass, Zap } from "lucide-react";
 import type { TournamentGameActionRequest, TournamentGameDto } from "@nexa-chess/types";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -14,10 +14,11 @@ import { useToast } from "@/providers/ToastProvider";
 import { ApiError } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
 import { sendGameAction, sendMove } from "../api/tournamentsApi";
-import { useGame, useTournament } from "../hooks/useTournaments";
+import { markGameOpened, useAutoOpenGame } from "../hooks/useAutoOpenGame";
+import { useGame, useTournament, useTournamentLive } from "../hooks/useTournaments";
 import { useTournamentRealtime } from "../hooks/useTournamentRealtime";
 import { GameBoardPanel, useLiveClock } from "./GameBoardPanel";
-import { countdown } from "../lib/format";
+import { countdown, nextRoundLine } from "../lib/format";
 import { useNow, useServerOffset } from "./TournamentBits";
 
 function PlayerActions({ game, tournamentId, arena }: { game: TournamentGameDto; tournamentId: string; arena: boolean }) {
@@ -40,6 +41,20 @@ function PlayerActions({ game, tournamentId, arena }: { game: TournamentGameDto;
       setConfirmResign(false);
     }
   };
+
+  // A flag falls on the server by itself; this asks once as well, so the result never waits for a click.
+  const flagged = game.status === "ONGOING" && game.clock.running !== null && clocks[game.clock.running] <= 0;
+  const claimedPly = useRef<number | null>(null);
+  useEffect(() => {
+    if (!flagged || claimedPly.current === game.ply) return;
+    claimedPly.current = game.ply;
+    const timer = window.setTimeout(() => {
+      void sendGameAction(tournamentId, game.id, { action: "CLAIM_TIMEOUT" })
+        .then((response) => qc.setQueryData(queryKeys.tournaments.game(tournamentId, game.id), response))
+        .catch(() => qc.invalidateQueries({ queryKey: queryKeys.tournaments.game(tournamentId, game.id) }));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [flagged, game.id, game.ply, qc, tournamentId]);
 
   if (game.status === "FINISHED") return null;
   const myMoveMade = me === "white" ? game.ply >= 1 : game.ply >= 2;
@@ -104,6 +119,46 @@ function FirstMoveBanner({ game }: { game: TournamentGameDto }) {
   );
 }
 
+/**
+ * After a player's game: what comes next (the countdown to the next round, the
+ * wait for an arena opponent), and the jump to the next board when it exists.
+ */
+function NextUp({ tournamentId, gameId, realtime }: { tournamentId: string; gameId: string; realtime: boolean }) {
+  const live = useTournamentLive(tournamentId, { realtime });
+  const now = useNow(1000);
+  const offset = useServerOffset(live.data?.serverNow);
+  const me = live.data?.me;
+  useAutoOpenGame(tournamentId, me?.status === "APPROVED" ? me.currentGameId : null, gameId);
+  if (!live.data || !me) return null;
+  const status = live.data.tournament.status;
+  if (status === "COMPLETED") {
+    return (
+      <Alert title="The tournament is over" variant="success">
+        <Link className="underline" href={`/tournaments/${tournamentId}`}>
+          See the final standings
+        </Link>
+      </Alert>
+    );
+  }
+  if ((status !== "LIVE" && status !== "PAUSED") || me.status !== "APPROVED") return null;
+  const arena = live.data.tournament.format === "ARENA";
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-control border border-primary bg-primary-soft p-3">
+      <Hourglass aria-hidden className="size-5 shrink-0 text-primary-ink" />
+      <span className="min-w-0 text-sm font-medium text-app-text">
+        {arena
+          ? me.arenaPaused
+            ? "You're paused and won't be paired. Rejoin from the tournament page."
+            : "Finding your next opponent… your board opens by itself."
+          : nextRoundLine(live.data, now + offset)}
+      </span>
+      <Button asChild className="ml-auto" size="sm" variant="outline">
+        <Link href={`/tournaments/${tournamentId}`}>Standings</Link>
+      </Button>
+    </div>
+  );
+}
+
 /** One tournament game: the players play here; everyone else spectates (with the tournament's delay). */
 export function TournamentGameClient({ tournamentId, gameId }: { tournamentId: string; gameId: string }) {
   const qc = useQueryClient();
@@ -113,6 +168,11 @@ export function TournamentGameClient({ tournamentId, gameId }: { tournamentId: s
   const query = useGame(tournamentId, gameId, { live: true, realtime: connected });
   const [resetKey, setResetKey] = useState(0);
   const game = query.data?.game;
+  const mine = game ? game.viewerColor !== null : false;
+  // The player is at their board: the lobby won't send them here again for this game.
+  useEffect(() => {
+    if (mine) markGameOpened(gameId);
+  }, [gameId, mine]);
 
   if (query.isError) {
     return <Alert title="This game isn't available" variant="error">It may belong to a tournament you can&apos;t see.</Alert>;
@@ -154,7 +214,7 @@ export function TournamentGameClient({ tournamentId, gameId }: { tournamentId: s
       />
       <GameBoardPanel
         actions={playing ? <PlayerActions arena={arena} game={game} tournamentId={tournamentId} /> : null}
-        banner={<FirstMoveBanner game={game} />}
+        banner={playing && game.status === "FINISHED" ? <NextUp gameId={gameId} realtime={connected} tournamentId={tournamentId} /> : <FirstMoveBanner game={game} />}
         game={game}
         interactive={playing}
         onMove={playing ? (m) => void onMove(m) : undefined}

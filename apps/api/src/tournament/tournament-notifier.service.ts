@@ -4,6 +4,7 @@ import { ordinal, type SystemMessageKey } from "@nexa-chess/types";
 import { TournamentFormat, TournamentGameStatus, TournamentPlayerStatus, TournamentRoundStatus, TournamentStatus } from "@prisma/client";
 import { BrandingService } from "../branding/branding.service";
 import { SystemNotifier } from "../mail/system-notifier.service";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const STARTING_SOON_MS = 15 * 60_000;
@@ -30,7 +31,8 @@ export class TournamentNotifierService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifier: SystemNotifier,
-    private readonly branding: BrandingService
+    private readonly branding: BrandingService,
+    private readonly messaging: MessagingDispatchService
   ) {}
 
   // ── event messages (called after commit) ──
@@ -56,10 +58,47 @@ export class TournamentNotifierService {
   // ── scheduled messages (the tournament tick) ──
 
   async tick(now = new Date()): Promise<void> {
+    await this.registrationOpen(now);
+    await this.started(now);
     await this.startingSoon(now);
     await this.pairings(now);
     await this.roundsCompleted();
     await this.completed();
+  }
+
+  /**
+   * The admin messaging rules (docs/MESSAGING.md): "registration open" once a
+   * published tournament's registration window opens, "tournament started"
+   * once it goes live. Claim-first like the rest; the rule decides whether
+   * anything is sent, on which channels and with what wording.
+   */
+  private async registrationOpen(now: Date) {
+    const due = await this.prisma.tournament.findMany({
+      select: { id: true },
+      take: 50,
+      where: {
+        OR: [{ registrationOpensAt: null }, { registrationOpensAt: { lte: now } }],
+        registrationAnnouncedAt: null,
+        startsAt: { gt: now },
+        status: TournamentStatus.PUBLISHED
+      }
+    });
+    for (const t of due) {
+      if (!(await this.claim("tournament", t.id, "registrationAnnouncedAt"))) continue;
+      this.messaging.dispatchInBackground({ event: "TOURNAMENT_REGISTRATION_OPEN", tournamentId: t.id });
+    }
+  }
+
+  private async started(now: Date) {
+    const due = await this.prisma.tournament.findMany({
+      select: { id: true },
+      take: 50,
+      where: { startedAnnouncedAt: null, startedAt: { gte: new Date(now.getTime() - PAIRING_FRESH_MS) }, status: { in: [TournamentStatus.LIVE, TournamentStatus.PAUSED] } }
+    });
+    for (const t of due) {
+      if (!(await this.claim("tournament", t.id, "startedAnnouncedAt"))) continue;
+      this.messaging.dispatchInBackground({ event: "TOURNAMENT_STARTED", tournamentId: t.id });
+    }
   }
 
   private async startingSoon(now: Date) {

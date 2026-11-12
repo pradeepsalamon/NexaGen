@@ -295,6 +295,54 @@ export const DEFAULT_TIEBREAKS: Record<TournamentFormat, TournamentTiebreak[]> =
 
 const isoDateTime = z.string().datetime({ offset: true });
 
+// ── Round starts (Swiss and round robin) ──
+
+export const TOURNAMENT_ROUND_START_MODES = ["AUTO", "SCHEDULED", "MANUAL"] as const;
+export const tournamentRoundStartModeSchema = z.enum(TOURNAMENT_ROUND_START_MODES);
+export type TournamentRoundStartMode = z.infer<typeof tournamentRoundStartModeSchema>;
+
+export const TOURNAMENT_ROUND_START_MODE_LABELS: Record<TournamentRoundStartMode, string> = {
+  AUTO: "Automatically, after a break",
+  MANUAL: "When a host starts it",
+  SCHEDULED: "At set times"
+};
+
+/** Start times of rounds 2 and later (round 1 starts with the tournament). */
+export const tournamentRoundScheduleSchema = z
+  .array(z.object({ round: z.number().int().min(2).max(TOURNAMENT_LIMITS.maxRounds), startsAt: isoDateTime }).strict())
+  .max(TOURNAMENT_LIMITS.maxRounds);
+export type TournamentRoundSchedule = z.infer<typeof tournamentRoundScheduleSchema>;
+
+/** A scheduled round whose time passed while the previous one was still playing starts this long after it ends. */
+export const TOURNAMENT_LATE_ROUND_PAUSE_SEC = 15;
+
+/**
+ * When the round after a completed one starts on its own — the one rule (the
+ * engine stores the answer in `Tournament.nextRoundAt`; a host can then move
+ * it). Null: nothing starts it but a host.
+ */
+export function resolveNextRoundAt(input: {
+  mode: TournamentRoundStartMode;
+  roundBreakSec: number;
+  schedule: TournamentRoundSchedule;
+  /** The round that is about to start. */
+  nextRound: number;
+  /** When the previous round's last game ended. */
+  completedAt: Date;
+}): Date | null {
+  if (input.mode === "MANUAL") return null;
+  const afterBreak = new Date(input.completedAt.getTime() + input.roundBreakSec * 1000);
+  if (input.mode === "AUTO") return afterBreak;
+  const planned = input.schedule.find((entry) => entry.round === input.nextRound);
+  if (!planned) return afterBreak;
+  const earliest = input.completedAt.getTime() + TOURNAMENT_LATE_ROUND_PAUSE_SEC * 1000;
+  return new Date(Math.max(Date.parse(planned.startsAt), earliest));
+}
+
+/** A host moving the next round's start (between rounds only). */
+export const setTournamentNextRoundAtRequestSchema = z.object({ startsAt: isoDateTime }).strict();
+export type SetTournamentNextRoundAtRequest = z.infer<typeof setTournamentNextRoundAtRequestSchema>;
+
 const tournamentFields = {
   arenaConfig: tournamentArenaConfigSchema.optional(),
   arenaDurationMin: z.number().int().min(10).max(600).optional(),
@@ -311,6 +359,8 @@ const tournamentFields = {
   registrationOpensAt: isoDateTime.nullable().optional(),
   registrationRequiresApproval: z.boolean(),
   roundBreakSec: z.number().int().min(0).max(3600),
+  roundSchedule: tournamentRoundScheduleSchema.optional(),
+  roundStartMode: tournamentRoundStartModeSchema,
   /** Swiss: rounds. Round robin: cycles (1 single, 2 double). Ignored for arena and knockout. */
   rounds: z.number().int().min(1).max(TOURNAMENT_LIMITS.maxRounds).optional(),
   rulesText: z.string().trim().max(TOURNAMENT_LIMITS.rulesMax).optional(),
@@ -329,6 +379,7 @@ const tournamentCreateFields = {
   minPlayers: tournamentFields.minPlayers.default(2),
   registrationRequiresApproval: tournamentFields.registrationRequiresApproval.default(false),
   roundBreakSec: tournamentFields.roundBreakSec.default(60),
+  roundStartMode: tournamentFields.roundStartMode.default("AUTO"),
   visibility: tournamentFields.visibility.default("PUBLIC")
 };
 
@@ -341,6 +392,8 @@ type TournamentFieldsShape = {
   registrationOpensAt?: string | null;
   registrationClosesAt?: string | null;
   startsAt: string;
+  roundStartMode?: TournamentRoundStartMode;
+  roundSchedule?: TournamentRoundSchedule;
 };
 
 /** Cross-field rules shared by create and the merged result of an update. */
@@ -366,7 +419,29 @@ export function tournamentConfigIssues(value: TournamentFieldsShape): { path: st
     issues.push({ message: "Registration must close by the start time.", path: "registrationClosesAt" });
   }
   if (opens !== null && opens > starts) issues.push({ message: "Registration must open before the start.", path: "registrationOpensAt" });
+  issues.push(...roundScheduleIssues(value));
   return issues;
+}
+
+function roundScheduleIssues(value: TournamentFieldsShape): { path: string; message: string }[] {
+  const schedule = [...(value.roundSchedule ?? [])].sort((a, b) => a.round - b.round);
+  const path = "roundSchedule";
+  if (value.roundStartMode !== "SCHEDULED") return [];
+  if (value.format !== "SWISS" && value.format !== "ROUND_ROBIN") return [{ message: "Only Swiss and round robin tournaments have a round schedule.", path }];
+  if (schedule.length === 0) return [{ message: "Set a start time for at least one round.", path }];
+  let previous = Date.parse(value.startsAt);
+  const seen = new Set<number>();
+  for (const entry of schedule) {
+    if (seen.has(entry.round)) return [{ message: `Round ${entry.round} has two start times.`, path }];
+    seen.add(entry.round);
+    if (value.format === "SWISS" && value.rounds !== undefined && entry.round > value.rounds) {
+      return [{ message: `There is no round ${entry.round}.`, path }];
+    }
+    const at = Date.parse(entry.startsAt);
+    if (at <= previous) return [{ message: `Round ${entry.round} must start after the round before it.`, path }];
+    previous = at;
+  }
+  return [];
 }
 
 export const createTournamentRequestSchema = z
@@ -488,6 +563,9 @@ export type TournamentDetailDto = TournamentSummaryDto & {
   minPlayers: number;
   startFen: string | null;
   roundBreakSec: number;
+  roundStartMode: TournamentRoundStartMode;
+  /** Start times of rounds 2 and later, when the mode is SCHEDULED. */
+  roundSchedule: TournamentRoundSchedule;
   arenaConfig: TournamentArenaConfig | null;
   knockoutConfig: TournamentKnockoutConfig | null;
   tiebreaks: TournamentTiebreak[];
@@ -806,8 +884,10 @@ export type TournamentLiveDto = {
   tournament: TournamentSummaryDto & { arenaEndsAt: string | null; startedAt: string | null; endedAt: string | null; spectatorDelaySec: number };
   currentRound: number;
   totalRounds: number | null;
-  /** When the next round starts on its own (round break), if one is due. */
+  /** When the next round starts on its own (break, schedule, or the time a host set), if one is due. */
   nextRoundAt: string | null;
+  /** Between rounds with nothing set to start the next one: a host has to. */
+  awaitingHost: boolean;
   ongoingGames: TournamentGameSummaryDto[];
   /** The top of the standings (the full table is its own route). */
   leaders: TournamentStandingDto[];
@@ -951,10 +1031,22 @@ export const TOURNAMENT_REALTIME_TOPICS = {
 export type TournamentRealtimeMessage =
   | { type: "state"; version: number }
   | { type: "commentary"; id: string; version: number }
-  /** To the two players only: their game moved. */
-  | { type: "game"; gameId: string; ply: number }
+  /**
+   * To the two players only: their game changed. `move` carries the move that
+   * led to `ply` while the game goes on, so the opponent's board updates
+   * without a round trip; anything else (a result, a draw offer) is refetched.
+   */
+  | { type: "game"; gameId: string; ply: number; move?: TournamentRealtimeMove }
   /** To everyone: refetch this game at or after `visibleAt` (the delay is applied by the server). */
   | { type: "spectate"; gameId: string; visibleAt: string; finished: boolean };
+
+export type TournamentRealtimeMove = {
+  san: string;
+  uci: string;
+  fen: string;
+  clock: TournamentGameDto["clock"];
+  firstMoveDeadline: string | null;
+};
 
 export type TournamentRealtimeTokenResponse =
   | { enabled: false }

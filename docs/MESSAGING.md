@@ -163,6 +163,8 @@ every 5 minutes, and the assignment-due sweep hourly.
 | Subscription renewal failed | `SubscriptionService` when a recurring charge fails | on, in-app only |
 | Invoice issued | invoice generation after a capture (can carry the PDF) | on, in-app only |
 | Payroll finalized / paid | an admin finalizing a payroll period / marking a payout paid | on, in-app only |
+| Tournament open for registration | the tournament tick, once a public tournament's registration opens; to the academy's students (only the eligible batches, when it is limited to batches) | on, in-app only |
+| Tournament started | the tournament tick, once a tournament goes live; to its entered players | on, in-app only |
 
 Each rule carries: a master on/off, per-channel toggles (**WhatsApp**, the
 **in-app bell** and **email**), an audience, **when to send** (immediately, daily
