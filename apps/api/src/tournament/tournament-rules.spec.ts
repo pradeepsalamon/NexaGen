@@ -3,7 +3,9 @@ import {
   createTournamentRequestSchema,
   formatTimeControl,
   parseTournamentEligibility,
+  resolveNextRoundAt,
   resolveTournamentPhase,
+  TOURNAMENT_LATE_ROUND_PAUSE_SEC,
   tournamentAgeGroup,
   tournamentConfigIssues,
   tournamentEligibilityIssue,
@@ -162,6 +164,55 @@ describe("tournament configuration", () => {
   it("refuses untimed and unknown fields", () => {
     expect(createTournamentRequestSchema.safeParse({ ...valid, timeControl: { incrementSeconds: 0, initialSeconds: 0 } }).success).toBe(false);
     expect(createTournamentRequestSchema.safeParse({ ...valid, tenantId: "x" }).success).toBe(false);
+  });
+
+  describe("round starts", () => {
+    const scheduled = {
+      ...valid,
+      roundSchedule: [
+        { round: 2, startsAt: "2026-12-01T11:00:00.000Z" },
+        { round: 3, startsAt: "2026-12-01T12:00:00.000Z" }
+      ],
+      roundStartMode: "SCHEDULED" as const
+    };
+
+    it("defaults to automatic and accepts a schedule in order", () => {
+      expect(createTournamentRequestSchema.parse(valid).roundStartMode).toBe("AUTO");
+      expect(createTournamentRequestSchema.safeParse(scheduled).success).toBe(true);
+      expect(createTournamentRequestSchema.safeParse({ ...valid, roundStartMode: "MANUAL" }).success).toBe(true);
+    });
+
+    it.each([
+      ["no time at all", { ...scheduled, roundSchedule: [] }],
+      ["a round before the start", { ...scheduled, roundSchedule: [{ round: 2, startsAt: "2026-12-01T09:00:00.000Z" }] }],
+      ["rounds out of order", { ...scheduled, roundSchedule: [scheduled.roundSchedule[1], { round: 2, startsAt: "2026-12-01T13:00:00.000Z" }] }],
+      ["a round twice", { ...scheduled, roundSchedule: [scheduled.roundSchedule[0], { round: 2, startsAt: "2026-12-01T11:30:00.000Z" }] }],
+      ["a round the Swiss doesn't have", { ...scheduled, roundSchedule: [{ round: 6, startsAt: "2026-12-01T11:00:00.000Z" }] }],
+      ["a schedule on an arena", { ...scheduled, arenaDurationMin: 60, format: "ARENA", rounds: undefined }]
+    ] as const)("refuses %s", (_label, value) => {
+      expect(tournamentConfigIssues(value as Parameters<typeof tournamentConfigIssues>[0]).map((i) => i.path)).toContain("roundSchedule");
+    });
+
+    const completedAt = new Date("2026-12-01T10:40:00.000Z");
+    const base = { completedAt, nextRound: 2, roundBreakSec: 90, schedule: scheduled.roundSchedule };
+
+    it("automatic: the break after the last game", () => {
+      expect(resolveNextRoundAt({ ...base, mode: "AUTO" })).toEqual(new Date("2026-12-01T10:41:30.000Z"));
+    });
+
+    it("manual: nothing starts it but a host", () => {
+      expect(resolveNextRoundAt({ ...base, mode: "MANUAL" })).toBeNull();
+    });
+
+    it("scheduled: the round's own time, the break for a round without one", () => {
+      expect(resolveNextRoundAt({ ...base, mode: "SCHEDULED" })).toEqual(new Date("2026-12-01T11:00:00.000Z"));
+      expect(resolveNextRoundAt({ ...base, mode: "SCHEDULED", nextRound: 4 })).toEqual(new Date("2026-12-01T10:41:30.000Z"));
+    });
+
+    it("scheduled but running late: a short pause after the round ends, never the past", () => {
+      const late = new Date("2026-12-01T11:20:00.000Z");
+      expect(resolveNextRoundAt({ ...base, completedAt: late, mode: "SCHEDULED" })).toEqual(new Date(late.getTime() + TOURNAMENT_LATE_ROUND_PAUSE_SEC * 1000));
+    });
   });
 
   it("formats a time control", () => {

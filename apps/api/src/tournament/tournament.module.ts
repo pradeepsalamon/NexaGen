@@ -4,6 +4,7 @@ import { ApprovalModule } from "../approval/approval.module";
 import { BrandingModule } from "../branding/branding.module";
 import { GameLibraryModule } from "../game-library/game-library.module";
 import { MailModule } from "../mail/mail.module";
+import { MessagingModule } from "../messaging/messaging.module";
 import { LiveKitService } from "../live-class/livekit.service";
 import { PrismaModule } from "../prisma/prisma.module";
 import { TrashModule } from "../trash/trash.module";
@@ -22,6 +23,7 @@ import { TournamentGameService } from "./tournament-game.service";
 import { TournamentHistoryService } from "./tournament-history.service";
 import { TournamentNotifierService } from "./tournament-notifier.service";
 import { TournamentRunnerService } from "./tournament-runner.service";
+import { TournamentTimerService } from "./tournament-timer.service";
 import { TournamentScheduler } from "./tournament.scheduler";
 import { TournamentRegistrationService } from "./tournament-registration.service";
 import { TournamentSettingsService } from "./tournament-settings.service";
@@ -37,7 +39,7 @@ import { TournamentService } from "./tournament.service";
 @Module({
   controllers: [TournamentAdminController, TournamentBroadcastController, TournamentController, TournamentPlayController, TournamentPublicController, TournamentRecordsController],
   exports: [TournamentAccessService, TournamentAuditService, TournamentEventsService, TournamentGameService, TournamentRunnerService, TournamentSettingsService],
-  imports: [ApprovalModule, BrandingModule, GameLibraryModule, JwtModule, MailModule, PrismaModule, TrashModule, UploadModule],
+  imports: [ApprovalModule, BrandingModule, GameLibraryModule, JwtModule, MailModule, MessagingModule, PrismaModule, TrashModule, UploadModule],
   providers: [
     // Stateless LiveKit clients; its own instance, so this module doesn't pull in the live-class room.
     LiveKitService,
@@ -58,7 +60,8 @@ import { TournamentService } from "./tournament.service";
     TournamentRunnerService,
     TournamentScheduler,
     TournamentService,
-    TournamentSettingsService
+    TournamentSettingsService,
+    TournamentTimerService
   ]
 })
 export class TournamentModule {}

@@ -3,6 +3,7 @@ import {
   resolveTournamentPhase,
   type PaginatedQuery,
   type RemoveTournamentPlayerRequest,
+  type SetTournamentNextRoundAtRequest,
   type TournamentAuditResponse,
   type TournamentLiveDto,
   type TournamentResponse,
@@ -22,6 +23,7 @@ import {
   TournamentKnockoutMatchStatus,
   TournamentPlayerStatus,
   TournamentResultSource,
+  TournamentRoundStartMode,
   TournamentRoundStatus,
   TournamentStatus,
   type Tournament
@@ -108,6 +110,35 @@ export class TournamentRunnerService {
     const user = await this.access.authenticate(accessToken);
     await this.access.loadForManager(user, id);
     await this.prisma.$transaction(async (tx) => this.engine.startNextRound(tx, await this.engine.lockTournament(tx, id), user.id), { timeout: 60_000 });
+    return this.done(user, id);
+  }
+
+  /**
+   * Between rounds: a host moves the next round's start (later to give players
+   * a longer break, earlier to get going). "Start next round" starts it now.
+   */
+  async setNextRoundAt(accessToken: string | undefined, id: string, dto: SetTournamentNextRoundAtRequest): Promise<TournamentResponse> {
+    const user = await this.access.authenticate(accessToken);
+    await this.access.loadForManager(user, id);
+    const at = new Date(dto.startsAt);
+    if (at.getTime() <= Date.now()) throw new BadRequestException("Choose a time in the future, or start the round now.");
+    await this.prisma.$transaction(async (tx) => {
+      const t = await this.engine.lockTournament(tx, id);
+      if (t.format !== TournamentFormat.SWISS && t.format !== TournamentFormat.ROUND_ROBIN) throw new ConflictException("This format has no rounds to schedule.");
+      if (t.status !== TournamentStatus.LIVE && t.status !== TournamentStatus.PAUSED) throw new ConflictException("The tournament isn't running.");
+      const last = await tx.tournamentRound.findFirst({ orderBy: { number: "desc" }, where: { tournamentId: id } });
+      const total = await this.engine.totalRounds(tx, t);
+      if (!last || last.status !== TournamentRoundStatus.COMPLETED) throw new ConflictException("The current round hasn't finished yet.");
+      if (total === null || last.number >= total) throw new ConflictException("Every round has been played.");
+      await tx.tournament.update({ data: { nextRoundAt: at, version: { increment: 1 } }, where: { id } });
+      await this.audit.record(tx, {
+        action: TournamentAuditAction.NEXT_ROUND_RESCHEDULED,
+        actorId: user.id,
+        after: { round: last.number + 1, startsAt: at.toISOString() },
+        before: { startsAt: t.nextRoundAt?.toISOString() ?? null },
+        tournamentId: id
+      });
+    });
     return this.done(user, id);
   }
 
@@ -262,11 +293,11 @@ export class TournamentRunnerService {
       this.engine.totalRounds(this.prisma as unknown as Tx, t)
     ]);
     const roundFormat = t.format === TournamentFormat.SWISS || t.format === TournamentFormat.ROUND_ROBIN;
-    const nextRoundAt =
-      roundFormat && t.status === TournamentStatus.LIVE && lastRound?.status === TournamentRoundStatus.COMPLETED && lastRound.completedAt && total !== null && lastRound.number < total
-        ? new Date(lastRound.completedAt.getTime() + t.roundBreakSec * 1000).toISOString()
-        : null;
+    const running = t.status === TournamentStatus.LIVE || t.status === TournamentStatus.PAUSED;
+    const betweenRounds = roundFormat && running && lastRound?.status === TournamentRoundStatus.COMPLETED && total !== null && lastRound.number < total;
+    const nextRoundAt = betweenRounds ? (row.nextRoundAt?.toISOString() ?? null) : null;
     return {
+      awaitingHost: betweenRounds && nextRoundAt === null,
       currentRound: row.currentRound,
       leaders: this.withFilteredRanks(leaders, false),
       me: playerRow
@@ -319,29 +350,37 @@ export class TournamentRunnerService {
    * pairing and end, and the next round after the break. Idempotent: every
    * step re-checks under the tournament lock.
    */
-  async tick(id: string, now = new Date()): Promise<void> {
-    await this.prisma.$transaction(
+  async tick(id: string, now = new Date()): Promise<boolean> {
+    const changed = await this.prisma.$transaction(
       async (tx) => {
         const t = await this.engine.lockTournament(tx, id);
         if (t.status === TournamentStatus.PUBLISHED && t.startsAt <= now) {
           const approved = await tx.tournamentPlayer.count({ where: { status: TournamentPlayerStatus.APPROVED, tournamentId: id } });
-          if (approved >= Math.max(2, t.minPlayers)) await this.engine.start(tx, t, null);
-          return;
+          if (approved < Math.max(2, t.minPlayers)) return false;
+          await this.engine.start(tx, t, null);
+          return true;
         }
-        if (t.status !== TournamentStatus.LIVE) return;
+        if (t.status !== TournamentStatus.LIVE) return false;
         if (t.format === TournamentFormat.ARENA) {
-          await this.engine.arenaTick(tx, t);
+          const paired = await this.engine.arenaTick(tx, t);
           await this.engine.completeArenaIfOver(tx, t);
-          return;
+          const after = await tx.tournament.findUniqueOrThrow({ select: { status: true }, where: { id } });
+          return paired > 0 || after.status !== t.status;
         }
-        if (t.format === TournamentFormat.KNOCKOUT) return;
-        const last = await tx.tournamentRound.findFirst({ orderBy: { number: "desc" }, where: { tournamentId: id } });
-        const total = await this.engine.totalRounds(tx, t);
-        if (!last || last.status !== TournamentRoundStatus.COMPLETED || !last.completedAt || total === null || last.number >= total) return;
-        if (last.completedAt.getTime() + t.roundBreakSec * 1000 <= now.getTime()) await this.engine.startNextRound(tx, t, null);
+        if (t.format === TournamentFormat.KNOCKOUT) return false;
+        // A round finished before `nextRoundAt` existed (or its plan was lost): plan it now.
+        const due = t.nextRoundAt ?? (t.roundStartMode === TournamentRoundStartMode.MANUAL ? null : await this.engine.planNextRound(tx, t));
+        if (!due || due.getTime() > now.getTime()) return false;
+        const open = await tx.tournamentRound.count({ where: { status: TournamentRoundStatus.ONGOING, tournamentId: id } });
+        if (open > 0) return false;
+        await this.engine.startNextRound(tx, t, null);
+        return true;
       },
       { timeout: 60_000 }
     );
+    // Viewers hear about a start or a new round at once (the players' pages then open their boards).
+    if (changed) this.events.stateChanged(id);
+    return changed;
   }
 
   // ── helpers ──

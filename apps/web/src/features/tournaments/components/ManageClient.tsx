@@ -31,6 +31,7 @@ import {
   type TournamentDetailDto,
   type TournamentGameResult,
   type TournamentHostRole,
+  type TournamentLiveDto,
   type TournamentPlayerDto
 } from "@nexa-chess/types";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
@@ -40,6 +41,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { DateStringPicker } from "@/components/ui/DatePicker";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
@@ -67,9 +69,10 @@ import {
   useTournament,
   useTournamentLive
 } from "../hooks/useTournaments";
-import { resultText } from "../lib/format";
+import { countdown, resultText } from "../lib/format";
+import { isoToLocalInput, localInputToIso } from "../validation/tournamentForm";
 import { ReasonDialog } from "./ReasonDialog";
-import { Pager, PhaseBadge, playerStatusLabel } from "./TournamentBits";
+import { Pager, PhaseBadge, playerStatusLabel, useNow, useServerOffset } from "./TournamentBits";
 
 function IconAction({ label, onClick, children, tone }: { label: string; onClick: () => void; children: React.ReactNode; tone?: "danger" }) {
   return (
@@ -103,6 +106,48 @@ function useRun(id: string) {
 }
 
 // ── Run ──
+
+/** Between rounds: when the next one starts, and the host's ways to move it. */
+function NextRoundControl({ t, live, busy, run }: { t: TournamentDetailDto; live: TournamentLiveDto; busy: boolean; run: ReturnType<typeof useRun>["run"] }) {
+  const now = useNow(1000);
+  const serverNow = now + useServerOffset(live.serverNow);
+  const timeZone = useUserTimeZone();
+  const [custom, setCustom] = useState("");
+  const next = live.currentRound + 1;
+  const set = (iso: string, done: string) => run(() => api.setNextRoundAt(t.id, iso), done);
+  const customIso = localInputToIso(custom);
+  return (
+    <div className="flex flex-col gap-3 rounded-control border border-app-border bg-app-soft p-3">
+      <p className="text-sm font-medium text-app-text">
+        {live.nextRoundAt
+          ? `Round ${next} starts ${formatDateTime(live.nextRoundAt, timeZone)} (in ${countdown(Date.parse(live.nextRoundAt), serverNow)}).`
+          : `Round ${next} waits for you: start it now, or set a time.`}
+        {t.status === "PAUSED" ? " The tournament is paused, so it won't start until you resume." : ""}
+      </p>
+      <div className="flex flex-wrap items-end gap-2">
+        {[1, 5, 15].map((minutes) => (
+          <Button
+            disabled={busy}
+            key={minutes}
+            onClick={() => void set(new Date(serverNow + minutes * 60_000).toISOString(), `Round ${next} starts in ${minutes} min`)}
+            size="sm"
+            variant="outline"
+          >
+            In {minutes} min
+          </Button>
+        ))}
+        <div className="w-full sm:w-64">
+          <FormField id="next-round-at" label="Or at">
+            <DateStringPicker id="next-round-at" onChange={setCustom} value={custom || isoToLocalInput(live.nextRoundAt)} withTime />
+          </FormField>
+        </div>
+        <Button disabled={busy || !customIso} onClick={() => customIso && void set(customIso, `Round ${next} rescheduled`).then((ok) => ok && setCustom(""))} size="sm">
+          Set time
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function RunPanel({ t }: { t: TournamentDetailDto }) {
   const router = useRouter();
@@ -187,6 +232,7 @@ function RunPanel({ t }: { t: TournamentDetailDto }) {
               </Button>
             ) : null}
           </div>
+          {live.data && roundBased && (live.data.nextRoundAt || live.data.awaitingHost) ? <NextRoundControl busy={busy} live={live.data} run={run} t={t} /> : null}
           {t.status === "PUBLISHED" ? <p className="text-sm text-app-muted">It also starts on its own at the start time if at least {t.minPlayers} players have entered.</p> : null}
         </div>
       </SectionCard>

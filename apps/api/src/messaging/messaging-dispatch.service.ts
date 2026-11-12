@@ -3,11 +3,13 @@ import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
   APPROVAL_ACTIONS,
   formatMoney,
+  parseTournamentEligibility,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
   renderFormattedTemplate,
   renderMessageTemplate,
   resolveWhatsAppTemplate,
+  TOURNAMENT_FORMAT_LABELS,
   type MessageVariables,
   type MessagingAudience,
   type MessagingDispatchSummary,
@@ -119,7 +121,13 @@ export type DispatchRequest =
    * REQUESTED → every admin who may decide it (never the requester); DECIDED →
    * the requester. Everything shown is read back from the request row.
    */
-  | { event: "APPROVAL_REQUESTED" | "APPROVAL_DECIDED"; approvalRequestId: string };
+  | { event: "APPROVAL_REQUESTED" | "APPROVAL_DECIDED"; approvalRequestId: string }
+  /**
+   * Tournaments (docs/TOURNAMENTS.md "Messages"): REGISTRATION_OPEN → the
+   * academy's students who could enter a public tournament; STARTED → its
+   * entered players. Everything shown is read back from the tournament row.
+   */
+  | { event: "TOURNAMENT_REGISTRATION_OPEN" | "TOURNAMENT_STARTED"; tournamentId: string };
 
 const EMPTY_SUMMARY: MessagingDispatchSummary = {
   ruleEnabled: false,
@@ -398,7 +406,58 @@ export class MessagingDispatchService {
       case "APPROVAL_REQUESTED":
       case "APPROVAL_DECIDED":
         return this.approvalRecipients(request.event, request.approvalRequestId);
+      case "TOURNAMENT_REGISTRATION_OPEN":
+      case "TOURNAMENT_STARTED":
+        return this.tournamentRecipients(request.event, request.tournamentId);
     }
+  }
+
+  private async tournamentRecipients(
+    event: "TOURNAMENT_REGISTRATION_OPEN" | "TOURNAMENT_STARTED",
+    tournamentId: string
+  ): Promise<Recipient[]> {
+    const t = await this.prisma.tournament.findUnique({ where: { id: tournamentId } });
+    if (!t) return [];
+
+    let users;
+    if (event === "TOURNAMENT_STARTED") {
+      users = await this.prisma.user.findMany({
+        where: {
+          status: UserStatus.ACTIVE,
+          tournamentEntries: { some: { status: "APPROVED", tournamentId } }
+        }
+      });
+    } else {
+      // Only a tournament every student can already see; invitations have their own message.
+      if (t.visibility !== "PUBLIC" || t.status !== "PUBLISHED") return [];
+      const batchIds = parseTournamentEligibility(t.eligibilityJson).batchIds ?? [];
+      users = await this.prisma.user.findMany({
+        where: {
+          role: UserRole.STUDENT,
+          status: UserStatus.ACTIVE,
+          ...(batchIds.length
+            ? { studentBatches: { some: { batchId: { in: batchIds }, isDeleted: false } } }
+            : {})
+        }
+      });
+    }
+
+    const variables = (timezone: string): MessageVariables => ({
+      "tournament.format": TOURNAMENT_FORMAT_LABELS[t.format],
+      "tournament.name": t.name,
+      "tournament.startDate": formatInZone(t.startsAt, timezone, "date"),
+      "tournament.startDateTime": formatInZone(t.startsAt, timezone, "dateTime"),
+      "tournament.startTime": formatInZone(t.startsAt, timezone, "time"),
+      "tournament.timeControl": `${t.clockInitialMs / 60_000}+${t.clockIncrementMs / 1000}`
+    });
+    return users.map((u) =>
+      this.toRecipient(u, {
+        variables: variables(u.timezone),
+        linkPath: `/tournaments/${t.id}`,
+        linkVariable: "links.tournament",
+        dedupeKey: `${event}:${t.id}:${u.id}`
+      })
+    );
   }
 
   private async classRecipients(
@@ -974,7 +1033,8 @@ export class MessagingDispatchService {
         | "links.earnings"
         | "links.revision"
         | "links.approval"
-        | "links.approvals";
+        | "links.approvals"
+        | "links.tournament";
       dedupeKey: string | null;
     }
   ): Recipient {

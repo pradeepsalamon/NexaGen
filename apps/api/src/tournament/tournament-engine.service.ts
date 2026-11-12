@@ -1,9 +1,12 @@
 import { ConflictException, Injectable } from "@nestjs/common";
 import {
+  resolveNextRoundAt,
   TOURNAMENT_FIRST_MOVE_SECONDS,
   tournamentArenaConfigSchema,
   tournamentKnockoutConfigSchema,
-  type TournamentKnockoutConfig
+  tournamentRoundScheduleSchema,
+  type TournamentKnockoutConfig,
+  type TournamentRoundSchedule
 } from "@nexa-chess/types";
 import {
   Prisma,
@@ -48,6 +51,12 @@ export function halfPointsOf(result: TournamentGameResult): [number, number] {
     case TournamentGameResult.NO_RESULT:
       return [0, 0];
   }
+}
+
+/** The stored round schedule (an unreadable value reads as none). */
+export function roundScheduleOf(t: Pick<Tournament, "roundScheduleJson">): TournamentRoundSchedule {
+  const parsed = tournamentRoundScheduleSchema.safeParse(t.roundScheduleJson ?? []);
+  return parsed.success ? parsed.data : [];
 }
 
 const BYE_POINTS: Record<TournamentByeKind, number> = { FULL: 2, HALF: 1, ZERO: 0 };
@@ -228,7 +237,7 @@ export class TournamentEngineService {
     const games = (await tx.tournamentGame.findMany({ where: { tournamentId: t.id } })).map(toGameRecord);
 
     const round = await tx.tournamentRound.create({ data: { number, tournamentId: t.id } });
-    await tx.tournament.update({ data: { currentRound: number, version: { increment: 1 } }, where: { id: t.id } });
+    await tx.tournament.update({ data: { currentRound: number, nextRoundAt: null, version: { increment: 1 } }, where: { id: t.id } });
 
     let pairings: { whiteId: string; blackId: string; board: number }[];
     let byes: { playerId: string; kind: TournamentByeKind }[];
@@ -501,7 +510,30 @@ export class TournamentEngineService {
     await this.audit.record(tx, { action: TournamentAuditAction.ROUND_COMPLETED, actorId: null, after: { round: round.number }, tournamentId });
     const t = await tx.tournament.findUniqueOrThrow({ where: { id: tournamentId } });
     const total = await this.totalRounds(tx, t);
-    if (t.format !== TournamentFormat.KNOCKOUT && total !== null && round.number >= total) await this.complete(tx, t, null);
+    if (t.format === TournamentFormat.KNOCKOUT || total === null) return;
+    if (round.number >= total) await this.complete(tx, t, null);
+    else await this.planNextRound(tx, t);
+  }
+
+  /**
+   * Between rounds: (re)writes when the next round starts on its own, from the
+   * tournament's round-start settings (`resolveNextRoundAt`). Called when a
+   * round completes and when a host edits those settings. Returns the time.
+   */
+  async planNextRound(tx: Tx, t: Tournament): Promise<Date | null> {
+    if (t.format !== TournamentFormat.SWISS && t.format !== TournamentFormat.ROUND_ROBIN) return null;
+    const last = await tx.tournamentRound.findFirst({ orderBy: { number: "desc" }, where: { tournamentId: t.id } });
+    const total = await this.totalRounds(tx, t);
+    if (!last || last.status !== TournamentRoundStatus.COMPLETED || !last.completedAt || total === null || last.number >= total) return null;
+    const at = resolveNextRoundAt({
+      completedAt: last.completedAt,
+      mode: t.roundStartMode,
+      nextRound: last.number + 1,
+      roundBreakSec: t.roundBreakSec,
+      schedule: roundScheduleOf(t)
+    });
+    await tx.tournament.update({ data: { nextRoundAt: at }, where: { id: t.id } });
+    return at;
   }
 
   async completeArenaIfOver(tx: Tx, t: Tournament) {

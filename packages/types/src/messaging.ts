@@ -31,7 +31,9 @@ export const messagingEventSchema = z.enum([
   "PAYROLL_FINALIZED",
   "PAYROLL_PAID",
   "APPROVAL_REQUESTED",
-  "APPROVAL_DECIDED"
+  "APPROVAL_DECIDED",
+  "TOURNAMENT_REGISTRATION_OPEN",
+  "TOURNAMENT_STARTED"
 ]);
 export type MessagingEvent = z.infer<typeof messagingEventSchema>;
 
@@ -184,6 +186,17 @@ const APPROVAL_VARIABLES = [
   "approval.decision",
   "approval.note",
   "links.approval"
+] as const;
+
+const TOURNAMENT_VARIABLES = [
+  ...RECIPIENT_VARIABLES,
+  "tournament.name",
+  "tournament.format",
+  "tournament.timeControl",
+  "tournament.startDate",
+  "tournament.startTime",
+  "tournament.startDateTime",
+  "links.tournament"
 ] as const;
 
 export const MESSAGING_EVENT_DEFINITIONS: Record<
@@ -414,6 +427,23 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     variables: APPROVAL_VARIABLES,
     audiences: ["COACHES"],
     supportsLeadTime: false
+  },
+  TOURNAMENT_REGISTRATION_OPEN: {
+    event: "TOURNAMENT_REGISTRATION_OPEN",
+    label: "Tournament open for registration",
+    description:
+      "Sent to the academy's students when a public tournament's registration opens (at publication, or at the opening time set on it). A tournament limited to some batches goes to those batches only; private and invitation-only tournaments are not announced.",
+    variables: TOURNAMENT_VARIABLES,
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false
+  },
+  TOURNAMENT_STARTED: {
+    event: "TOURNAMENT_STARTED",
+    label: "Tournament started",
+    description: "Sent to every entered player the moment a tournament goes live, with the link to their board.",
+    variables: TOURNAMENT_VARIABLES,
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false
   }
 };
 
@@ -563,6 +593,11 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   },
   "links.integrity": { label: "Platform console link (integrity tab)", sample: "https://nexa.test/admin/platform?tab=integrity" },
   "tournament.name": { label: "Tournament name", sample: "Winter Swiss" },
+  "tournament.format": { label: "Tournament format", sample: "Swiss" },
+  "tournament.timeControl": { label: "Time control (minutes + increment)", sample: "5+3" },
+  "tournament.startDate": { label: "Tournament start date", sample: "Sat, 14 Nov 2026" },
+  "tournament.startTime": { label: "Tournament start time", sample: "5:00 PM" },
+  "tournament.startDateTime": { label: "Tournament start date and time", sample: "Sat, 14 Nov 2026, 5:00 PM" },
   "tournament.startsIn": { label: "When the tournament starts", sample: "in 15 minutes" },
   "links.tournament": { label: "Link to the tournament", sample: "https://nexa.test/tournaments/sample" },
   "links.game": { label: "Link to the game", sample: "https://nexa.test/tournaments/sample/games/sample" },
@@ -906,6 +941,26 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "Your request was {{approval.decision}}",
     body: "Hi {{recipient.firstName}}, your request ({{approval.action}}, {{approval.subject}}) was {{approval.decision}}. {{approval.note}}"
+  },
+  // Tournament rules ship ENABLED and in-app only, like the other operational
+  // notices: a student should hear that they can enter, and that play began.
+  TOURNAMENT_REGISTRATION_OPEN: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    title: "New tournament: {{tournament.name}}",
+    body: "Hi {{recipient.firstName}}, registration is open for {{tournament.name}} ({{tournament.format}}, {{tournament.timeControl}}). It starts {{tournament.startDateTime}}. Register here: {{links.tournament}}"
+  },
+  TOURNAMENT_STARTED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    title: "{{tournament.name}} has started",
+    body: "Hi {{recipient.firstName}}, {{tournament.name}} is live. Open the tournament to play your game: {{links.tournament}}"
   }
 };
 

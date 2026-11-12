@@ -2335,6 +2335,8 @@ enum NotificationType {
   PAYROLL_PAID
   APPROVAL_REQUESTED
   APPROVAL_DECIDED
+  TOURNAMENT_REGISTRATION_OPEN
+  TOURNAMENT_STARTED
   /// A fixed system message sent in-app (SystemNotifier), not a messaging rule.
   SYSTEM_MESSAGE
 }
@@ -3243,6 +3245,8 @@ enum MessagingEvent {
   PAYROLL_PAID
   APPROVAL_REQUESTED
   APPROVAL_DECIDED
+  TOURNAMENT_REGISTRATION_OPEN
+  TOURNAMENT_STARTED
 }
 
 enum MessagingScheduleMode {
@@ -7724,6 +7728,16 @@ enum TournamentVisibility {
   INVITATION_ONLY
 }
 
+/// How the rounds after the first one start (Swiss and round robin).
+enum TournamentRoundStartMode {
+  /// `roundBreakSec` after the previous round's last game.
+  AUTO
+  /// At the times in `roundScheduleJson` (a round without one falls back to the break).
+  SCHEDULED
+  /// When a host starts it.
+  MANUAL
+}
+
 enum TournamentTiebreak {
   BUCHHOLZ
   BUCHHOLZ_CUT1
@@ -7795,6 +7809,7 @@ enum TournamentAuditAction {
   CERTIFICATE_RULES_CHANGED
   CERTIFICATES_ISSUED
   CERTIFICATE_REVOKED
+  NEXT_ROUND_RESCHEDULED
 }
 
 enum CertificateOrientation {
@@ -7928,12 +7943,15 @@ model Tournament {
   prizesText                   String?
 
   clockInitialMs     Int
-  clockIncrementMs   Int                  @default(0)
+  clockIncrementMs   Int                      @default(0)
   /// null = the standard starting position.
   startFen           String?
   /// Swiss / round robin / knockout; null for arena.
   rounds             Int?
-  roundBreakSec      Int                  @default(60)
+  roundBreakSec      Int                      @default(60)
+  roundStartMode     TournamentRoundStartMode @default(AUTO)
+  /// `tournamentRoundScheduleSchema`: [{ round, startsAt }] for rounds 2 and later.
+  roundScheduleJson  Json?
   arenaDurationMin   Int?
   /// `tournamentArenaConfigSchema`.
   arenaConfigJson    Json?
@@ -7941,7 +7959,7 @@ model Tournament {
   knockoutConfigJson Json?
   tiebreaks          TournamentTiebreak[]
   /// Moves are shown to non-players this long after they are played.
-  spectatorDelaySec  Int                  @default(15)
+  spectatorDelaySec  Int                      @default(15)
 
   publishedAt        DateTime?
   startedAt          DateTime?
@@ -7967,6 +7985,9 @@ model Tournament {
   /// When the arena stops pairing (startedAt + arenaDurationMin).
   arenaEndsAt  DateTime?
   pausedAt     DateTime?
+  /// When the next round starts on its own. Set when a round completes (by
+  /// `resolveNextRoundAt`), moved by a host, cleared when the round starts.
+  nextRoundAt  DateTime?
 
   /// Broadcast: the game and player the host is featuring (ids of this tournament's rows).
   featuredGameId   String?
@@ -7974,8 +7995,11 @@ model Tournament {
   featuredAt       DateTime?
 
   /// Claim-first notification markers: the tick claims the row, then sends (never twice).
-  startingSoonNotifiedAt DateTime?
-  completedNotifiedAt    DateTime?
+  startingSoonNotifiedAt  DateTime?
+  completedNotifiedAt     DateTime?
+  /// The TOURNAMENT_REGISTRATION_OPEN / TOURNAMENT_STARTED messaging rules were dispatched.
+  registrationAnnouncedAt DateTime?
+  startedAnnouncedAt      DateTime?
 
   hosts            TournamentHost[]
   players          TournamentPlayer[]

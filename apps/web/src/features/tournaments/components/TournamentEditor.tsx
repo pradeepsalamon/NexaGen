@@ -6,12 +6,15 @@ import { useRef, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { ImagePlus, Trash2 } from "lucide-react";
+import { ImagePlus, Plus, Trash2 } from "lucide-react";
 import {
   TOURNAMENT_FORMAT_LABELS,
   TOURNAMENT_FORMATS,
   TOURNAMENT_IMAGE_MAX_BYTES,
+  TOURNAMENT_LIMITS,
   TOURNAMENT_MAX_SPECTATOR_DELAY_SEC,
+  TOURNAMENT_ROUND_START_MODE_LABELS,
+  TOURNAMENT_ROUND_START_MODES,
   TOURNAMENT_TIME_CONTROL_PRESETS,
   TOURNAMENT_VISIBILITIES,
   TOURNAMENT_VISIBILITY_LABELS,
@@ -115,6 +118,12 @@ function EditorForm({ tournament }: { tournament?: TournamentDetailDto }) {
   const form = useForm<TournamentForm>({ defaultValues: initial, resolver: zodResolver(tournamentFormSchema) });
   const { errors } = form.formState;
   const format = form.watch("format");
+  const roundStartMode = form.watch("roundStartMode");
+  const roundTimes = form.watch("roundTimes");
+  const roundFormat = format === "SWISS" || format === "ROUND_ROBIN";
+  // Swiss knows its rounds; a round robin's count depends on who enters.
+  const lastRound = format === "SWISS" ? Number(form.watch("rounds")) || 0 : TOURNAMENT_LIMITS.maxRounds;
+  const setRoundTimes = (next: string[]) => form.setValue("roundTimes", next, { shouldDirty: true });
   const [saving, setSaving] = useState(false);
   const started = tournament ? !["DRAFT", "PUBLISHED"].includes(tournament.status) : false;
   const published = tournament ? tournament.status !== "DRAFT" : false;
@@ -125,7 +134,7 @@ function EditorForm({ tournament }: { tournament?: TournamentDetailDto }) {
     if (!parsed.success && !started) {
       for (const issue of parsed.error.issues) {
         const path = String(issue.path[0] ?? "name");
-        const field = (path === "timeControl" ? "initialMinutes" : path === "eligibility" ? "minRating" : path) as keyof TournamentForm;
+        const field = (path === "timeControl" ? "initialMinutes" : path === "eligibility" ? "minRating" : path === "roundSchedule" ? "roundStartMode" : path) as keyof TournamentForm;
         form.setError(field in values ? field : "name", { message: issue.message });
       }
       return;
@@ -181,7 +190,7 @@ function EditorForm({ tournament }: { tournament?: TournamentDetailDto }) {
 
   return (
     <form className="flex flex-col gap-5" noValidate onSubmit={form.handleSubmit(submit)}>
-      {started ? <Alert variant="info">This tournament has started: only its name, texts and spectator delay can change.</Alert> : null}
+      {started ? <Alert variant="info">This tournament has started: only its name, texts, spectator delay and how the next rounds start can change.</Alert> : null}
       <SectionCard description="What players see first." title="Basics">
         <div className="flex flex-col gap-4">
           {text("name", "Name", { placeholder: "Winter Rapid Open" })}
@@ -271,8 +280,50 @@ function EditorForm({ tournament }: { tournament?: TournamentDetailDto }) {
             {text("initialMinutes", "Minutes per player", { disabled: started, inputMode: "decimal" })}
             {text("incrementSeconds", "Increment (seconds per move)", { disabled: started, inputMode: "numeric" })}
             {when("startsAt", "Starts at")}
-            {format === "ARENA" ? null : text("roundBreakSec", "Break between rounds (seconds)", { disabled: started, inputMode: "numeric" })}
+            {format === "ARENA" || (roundFormat && roundStartMode === "MANUAL") ? null : text("roundBreakSec", "Break between rounds (seconds)", { hint: roundFormat && roundStartMode === "SCHEDULED" ? "Used for a round without a set time." : undefined, inputMode: "numeric" })}
+            {roundFormat ? (
+              <FormField
+                error={errors.roundStartMode?.message}
+                hint={roundStartMode === "MANUAL" ? "A host starts each round from Manage." : "Round 1 starts with the tournament."}
+                id="t-roundStartMode"
+                label="Later rounds start"
+              >
+                <Select
+                  id="t-roundStartMode"
+                  options={TOURNAMENT_ROUND_START_MODES.map((mode) => ({ label: TOURNAMENT_ROUND_START_MODE_LABELS[mode], value: mode }))}
+                  {...form.register("roundStartMode")}
+                />
+              </FormField>
+            ) : null}
           </Grid>
+          {roundFormat && roundStartMode === "SCHEDULED" ? (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-app-muted">
+                Times are in your own time zone. A round whose time passes while the round before is still playing starts shortly after that round ends.
+              </p>
+              <Grid>
+                {roundTimes.map((value, i) => (
+                  <FormField id={`t-round-${i + 2}`} key={i} label={`Round ${i + 2} starts at`}>
+                    <DateStringPicker id={`t-round-${i + 2}`} onChange={(next) => setRoundTimes(roundTimes.map((v, j) => (j === i ? next : v)))} value={value} withTime />
+                  </FormField>
+                ))}
+              </Grid>
+              <div className="flex flex-wrap gap-2">
+                {roundTimes.length + 1 < lastRound ? (
+                  <Button onClick={() => setRoundTimes([...roundTimes, ""])} size="sm" type="button" variant="outline">
+                    <Plus className="size-4" />
+                    Add round {roundTimes.length + 2}
+                  </Button>
+                ) : null}
+                {roundTimes.length > 0 ? (
+                  <Button onClick={() => setRoundTimes(roundTimes.slice(0, -1))} size="sm" type="button" variant="ghost">
+                    <Trash2 className="size-4" />
+                    Remove round {roundTimes.length + 1}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
       </SectionCard>
 

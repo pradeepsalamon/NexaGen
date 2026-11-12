@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Room, RoomEvent } from "livekit-client";
-import { TOURNAMENT_REALTIME_TOPICS, type TournamentRealtimeMessage } from "@nexa-chess/types";
+import { TOURNAMENT_REALTIME_TOPICS, type TournamentGameResponse, type TournamentRealtimeMessage } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { getPublicRealtimeToken, getRealtimeToken } from "../api/tournamentsApi";
 
@@ -38,6 +38,8 @@ export function useTournamentRealtime(tournamentId: string, options: { publicVie
         return;
       }
       void qc.invalidateQueries({ queryKey: K.live(tournamentId) });
+      // The start, a pause, a moved round: the detail carries the status the page is built on.
+      void qc.invalidateQueries({ queryKey: K.detail(tournamentId) });
       void qc.invalidateQueries({ queryKey: ["tournaments", "standings", tournamentId] });
       void qc.invalidateQueries({ queryKey: K.rounds(tournamentId) });
       void qc.invalidateQueries({ queryKey: K.myGame(tournamentId) });
@@ -64,9 +66,30 @@ export function useTournamentRealtime(tournamentId: string, options: { publicVie
           case "commentary":
             void qc.invalidateQueries({ queryKey: publicView ? K.public.commentary(tournamentId) : K.commentary(tournamentId) });
             break;
-          case "game":
-            refreshGame(message.gameId);
+          case "game": {
+            // The opponent's move arrives in the packet: show it now, no round trip.
+            const key = K.game(tournamentId, message.gameId);
+            const cached = qc.getQueryData<TournamentGameResponse>(key);
+            const move = message.move;
+            if (!publicView && move && cached?.game.status === "ONGOING" && cached.game.viewerColor && cached.game.ply === message.ply - 1) {
+              void qc.cancelQueries({ queryKey: key });
+              qc.setQueryData<TournamentGameResponse>(key, {
+                game: {
+                  ...cached.game,
+                  clock: move.clock,
+                  drawOfferedBy: null,
+                  fen: move.fen,
+                  firstMoveDeadline: move.firstMoveDeadline,
+                  moves: [...cached.game.moves, { san: move.san, uci: move.uci }],
+                  ply: message.ply
+                }
+              });
+            } else if (!(move && cached?.game.ply === message.ply)) {
+              // Not the next move (a result, a draw offer, a missed packet): ask the server.
+              refreshGame(message.gameId);
+            }
             break;
+          }
           case "spectate": {
             // The server applies the delay; ask again once the move is visible.
             const wait = Math.max(0, Date.parse(message.visibleAt) - Date.now()) + 250;

@@ -80,10 +80,19 @@ describe("tournament notifications, certificates and history (real app, real Pos
     await tick();
     await tick();
     expect(await notifications(students[0].id, "starts in")).toBe(1);
+    // The "open for registration" rule queued one in-app message per student, however many ticks ran.
+    const queued = (event: "TOURNAMENT_REGISTRATION_OPEN" | "TOURNAMENT_STARTED", userId: string) =>
+      t.prisma.messageDelivery.count({ where: { channel: "IN_APP", event, recipientId: userId } });
+    for (let i = 0; i < 40 && (await queued("TOURNAMENT_REGISTRATION_OPEN", students[0].id)) === 0; i += 1) await new Promise((r) => setTimeout(r, 50));
+    for (const s of students) expect(await queued("TOURNAMENT_REGISTRATION_OPEN", s.id)).toBe(1);
+    expect(await queued("TOURNAMENT_STARTED", students[0].id)).toBe(0);
 
     await t.call(coach, "POST", API_ROUTES.tournaments.start(id));
     await tick();
     await Promise.all([tick(), tick()]);
+    // … and "tournament started" reached every entered player once.
+    for (let i = 0; i < 40 && (await queued("TOURNAMENT_STARTED", students[0].id)) === 0; i += 1) await new Promise((r) => setTimeout(r, 50));
+    for (const s of students) expect(await queued("TOURNAMENT_STARTED", s.id)).toBe(1);
     for (const s of students) expect(await notifications(s.id, ": you play")).toBe(1);
   });
 
