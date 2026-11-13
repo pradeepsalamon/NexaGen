@@ -905,6 +905,8 @@ export const API_ROUTES = {
     approveReward: (id: string = ":id") => `/admin/referrals/rewards/${id}/approve`,
     cancelReward: (id: string = ":id") => `/admin/referrals/rewards/${id}/cancel`,
     withdrawals: "/admin/referrals/withdrawals",
+    /** CSV of the withdrawals in the current filter, to pay in bulk outside the app. */
+    withdrawalsExport: "/admin/referrals/withdrawals/export",
     payWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/pay`,
     rejectWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/reject`,
     adjustCredits: "/admin/referrals/credits/adjust",

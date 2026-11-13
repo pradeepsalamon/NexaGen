@@ -3,6 +3,7 @@ import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
   APPROVAL_ACTIONS,
   formatMoney,
+  maskProspectName,
   parseTournamentEligibility,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -26,6 +27,12 @@ import { ACADEMY_NAME, formatInZone } from "./messaging.format";
 import { computeScheduledFor } from "./messaging.schedule";
 
 const HOUR_MS = 60 * 60 * 1000;
+
+/** Where each role's referral board lives (`routeAccess.ts`). */
+function referralBoardPath(role: UserRole): string {
+  if (role === UserRole.SALES) return "/sales";
+  return role === UserRole.COACH ? "/coach/referrals" : "/student/referrals";
+}
 
 /** One resolved addressee plus the values its templates bind. */
 interface Recipient {
@@ -127,7 +134,15 @@ export type DispatchRequest =
    * academy's students who could enter a public tournament; STARTED → its
    * entered players. Everything shown is read back from the tournament row.
    */
-  | { event: "TOURNAMENT_REGISTRATION_OPEN" | "TOURNAMENT_STARTED"; tournamentId: string };
+  | { event: "TOURNAMENT_REGISTRATION_OPEN" | "TOURNAMENT_STARTED"; tournamentId: string }
+  /**
+   * The referral programme (docs/REFERRALS.md § "Notifications"), always after
+   * the change committed. Everything shown is read back from the row, so a
+   * reward that is not credited or a request that is not decided sends nothing.
+   */
+  | { event: "REFERRAL_PROGRESS"; referralId: string }
+  | { event: "REFERRAL_REWARD"; rewardId: string }
+  | { event: "REFERRAL_REQUEST_DECIDED"; kind: "REDEMPTION" | "WITHDRAWAL"; id: string };
 
 const EMPTY_SUMMARY: MessagingDispatchSummary = {
   ruleEnabled: false,
@@ -409,6 +424,12 @@ export class MessagingDispatchService {
       case "TOURNAMENT_REGISTRATION_OPEN":
       case "TOURNAMENT_STARTED":
         return this.tournamentRecipients(request.event, request.tournamentId);
+      case "REFERRAL_PROGRESS":
+        return this.referralProgressRecipients(request.referralId);
+      case "REFERRAL_REWARD":
+        return this.referralRewardRecipients(request.rewardId);
+      case "REFERRAL_REQUEST_DECIDED":
+        return this.referralDecisionRecipients(request.kind, request.id);
     }
   }
 
@@ -926,6 +947,97 @@ export class MessagingDispatchService {
     return [recipient];
   }
 
+  /** The referrer, when their referral changed stage. The prospect's name is masked as on their board. */
+  private async referralProgressRecipients(referralId: string): Promise<Recipient[]> {
+    const referral = await this.prisma.referral.findUnique({
+      include: { referrer: true, stage: { select: { id: true, name: true } } },
+      where: { id: referralId }
+    });
+    if (!referral || referral.referrer.isDeleted) return [];
+    const { referrer } = referral;
+    // SALES follows up its own prospects, so it sees the full name (docs/REFERRALS.md).
+    const prospect =
+      (referrer.role === UserRole.SALES ? referral.prospectName?.trim() : maskProspectName(referral.prospectName)) ||
+      "a new visitor";
+    return [
+      this.toRecipient(referrer, {
+        variables: { "referral.prospect": prospect, "referral.stage": referral.stage.name },
+        linkPath: referralBoardPath(referrer.role),
+        linkVariable: "links.referrals",
+        dedupeKey: `REFERRAL_PROGRESS:${referral.id}:${referral.stage.id}:${referral.stageChangedAt.getTime()}`
+      })
+    ];
+  }
+
+  /** Whoever a credited reward belongs to: the referrer, or the new member (welcome points). */
+  private async referralRewardRecipients(rewardId: string): Promise<Recipient[]> {
+    const reward = await this.prisma.referralReward.findUnique({
+      include: { referrer: true },
+      where: { id: rewardId }
+    });
+    // A legacy discount reward is a code, not a balance; it never announces itself here.
+    if (!reward || reward.status !== "CREDITED" || reward.unit === "DISCOUNT_PERCENT" || reward.referrer.isDeleted) {
+      return [];
+    }
+    const earned =
+      reward.unit === "POINTS"
+        ? `${reward.amountMinor} ${reward.amountMinor === 1 ? "point" : "points"}`
+        : formatMoney(reward.amountMinor, reward.currency);
+    return [
+      this.toRecipient(reward.referrer, {
+        variables: { "referral.reward": earned, "referral.rewardReason": reward.description ?? "Referral reward" },
+        linkPath: referralBoardPath(reward.referrer.role),
+        linkVariable: "links.referrals",
+        dedupeKey: `REFERRAL_REWARD:${reward.id}`
+      })
+    ];
+  }
+
+  /** The student whose voucher request, or the coach/SALES whose withdrawal, an admin decided. */
+  private async referralDecisionRecipients(kind: "REDEMPTION" | "WITHDRAWAL", id: string): Promise<Recipient[]> {
+    const decided =
+      kind === "REDEMPTION"
+        ? await this.prisma.referralRedemption
+            .findUnique({ include: { user: true }, where: { id } })
+            .then((row) =>
+              row && (row.status === "FULFILLED" || row.status === "REJECTED")
+                ? {
+                    decision: row.status === "FULFILLED" ? "approved" : "declined",
+                    note: row.adminNote,
+                    request: `the voucher ${row.voucherName}`,
+                    status: row.status,
+                    user: row.user
+                  }
+                : null
+            )
+        : await this.prisma.referralWithdrawal
+            .findUnique({ include: { user: true }, where: { id } })
+            .then((row) =>
+              row && (row.status === "PAID" || row.status === "REJECTED")
+                ? {
+                    decision: row.status === "PAID" ? "paid" : "declined",
+                    note: row.adminNote,
+                    request: `a withdrawal of ${formatMoney(row.amountMinor, row.currency)}`,
+                    status: row.status,
+                    user: row.user
+                  }
+                : null
+            );
+    if (!decided || decided.user.isDeleted) return [];
+    return [
+      this.toRecipient(decided.user, {
+        variables: {
+          "referral.decision": decided.decision,
+          "referral.note": decided.note?.trim() ?? "",
+          "referral.request": decided.request
+        },
+        linkPath: referralBoardPath(decided.user.role),
+        linkVariable: "links.referrals",
+        dedupeKey: `REFERRAL_REQUEST_DECIDED:${kind}:${id}:${decided.status}`
+      })
+    ];
+  }
+
   private async approvalRecipients(
     event: "APPROVAL_REQUESTED" | "APPROVAL_DECIDED",
     approvalRequestId: string
@@ -1034,7 +1146,8 @@ export class MessagingDispatchService {
         | "links.revision"
         | "links.approval"
         | "links.approvals"
-        | "links.tournament";
+        | "links.tournament"
+        | "links.referrals";
       dedupeKey: string | null;
     }
   ): Recipient {

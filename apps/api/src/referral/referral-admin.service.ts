@@ -46,6 +46,8 @@ import { type Prisma, UserRole } from "@prisma/client";
 import { authenticateUser, isAdminRole } from "../auth/authenticate";
 import { paginationMeta, resolveOrderBy, resolvePagination } from "../common/pagination";
 import { queryEnum, queryString } from "../common/query-params";
+import { rowsToCsv } from "../analytics/analytics-csv";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { isUniqueViolation } from "../payments/payments.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { ReferralAccessService } from "./referral-access.service";
@@ -68,6 +70,8 @@ import {
 } from "./referral.mappers";
 import { displayName, toReferrerRole } from "./referral.util";
 
+const WITHDRAWAL_EXPORT_MAX_ROWS = 10_000;
+
 /** Admin referral board: pipeline, stages and their values, bonuses, rewards, vouchers, payouts, settings. */
 @Injectable()
 export class ReferralAdminService {
@@ -78,7 +82,8 @@ export class ReferralAdminService {
     private readonly pipeline: ReferralPipelineService,
     private readonly credits: ReferralCreditsService,
     private readonly access: ReferralAccessService,
-    private readonly vouchers: ReferralVouchersService
+    private readonly vouchers: ReferralVouchersService,
+    private readonly messaging: MessagingDispatchService
   ) {}
 
   private async getAdmin(accessToken: string | undefined) {
@@ -629,6 +634,7 @@ export class ReferralAdminService {
   async approveReward(accessToken: string | undefined, id: string) {
     const admin = await this.getAdmin(accessToken);
     await this.credits.approveReward(admin.id, id);
+    this.messaging.dispatchInBackground({ event: "REFERRAL_REWARD", rewardId: id });
     return { ok: true };
   }
 
@@ -646,8 +652,47 @@ export class ReferralAdminService {
   ): Promise<ReferralPage<ReferralWithdrawalItem>> {
     await this.getAdmin(accessToken);
     const { page, pageSize, skip, take, search } = resolvePagination(query);
-    const status = queryEnum(query.status, referralWithdrawalStatusSchema.options, "status");
-    const where: Prisma.ReferralWithdrawalWhereInput = {
+    const where = this.withdrawalWhere(query.status, search);
+    const [rows, total] = await Promise.all([
+      this.prisma.referralWithdrawal.findMany({ include: WITHDRAWAL_ITEM_INCLUDE, orderBy: { createdAt: "desc" }, skip, take, where }),
+      this.prisma.referralWithdrawal.count({ where })
+    ]);
+    return { items: rows.map(toWithdrawalItem), pagination: paginationMeta(total, page, pageSize) };
+  }
+
+  /**
+   * The withdrawals in the same filter as the list, oldest first, as a CSV an admin can pay
+   * from in one go (bank upload, UPI batch). Marking each one paid stays a separate step.
+   */
+  async exportWithdrawalsCsv(accessToken: string | undefined, query: PaginatedQuery & { status?: unknown }): Promise<string> {
+    await this.getAdmin(accessToken);
+    const rows = await this.prisma.referralWithdrawal.findMany({
+      include: { user: { select: { email: true, firstName: true, lastName: true, role: true } } },
+      orderBy: { createdAt: "asc" },
+      take: WITHDRAWAL_EXPORT_MAX_ROWS,
+      where: this.withdrawalWhere(query.status, resolvePagination(query).search)
+    });
+    return rowsToCsv(
+      ["Requested at (UTC)", "Name", "Email", "Role", "Amount", "Currency", "Payout details", "Status", "Payout reference", "Withdrawal ID"],
+      rows.map((row) => [
+        row.createdAt,
+        displayName(row.user),
+        row.user.email,
+        row.user.role,
+        // Major units as text ("500.00"): what a bank sheet expects, and exact for any amount.
+        (row.amountMinor / 100).toFixed(2),
+        row.currency,
+        row.payoutDetails,
+        row.status,
+        row.payoutReference,
+        row.id
+      ])
+    );
+  }
+
+  private withdrawalWhere(statusParam: unknown, search: string | undefined): Prisma.ReferralWithdrawalWhereInput {
+    const status = queryEnum(statusParam, referralWithdrawalStatusSchema.options, "status");
+    return {
       ...(status ? { status } : {}),
       ...(search
         ? {
@@ -659,22 +704,23 @@ export class ReferralAdminService {
           }
         : {})
     };
-    const [rows, total] = await Promise.all([
-      this.prisma.referralWithdrawal.findMany({ include: WITHDRAWAL_ITEM_INCLUDE, orderBy: { createdAt: "desc" }, skip, take, where }),
-      this.prisma.referralWithdrawal.count({ where })
-    ]);
-    return { items: rows.map(toWithdrawalItem), pagination: paginationMeta(total, page, pageSize) };
+  }
+
+  private announceDecision(kind: "REDEMPTION" | "WITHDRAWAL", id: string) {
+    this.messaging.dispatchInBackground({ event: "REFERRAL_REQUEST_DECIDED", id, kind });
   }
 
   async payWithdrawal(accessToken: string | undefined, id: string, body: PayReferralWithdrawalRequest) {
     const admin = await this.getAdmin(accessToken);
     await this.credits.payWithdrawal(admin.id, id, body);
+    this.announceDecision("WITHDRAWAL", id);
     return { ok: true };
   }
 
   async rejectWithdrawal(accessToken: string | undefined, id: string, body: RejectReferralWithdrawalRequest) {
     const admin = await this.getAdmin(accessToken);
     await this.credits.rejectWithdrawal(admin.id, id, body);
+    this.announceDecision("WITHDRAWAL", id);
     return { ok: true };
   }
 
@@ -743,12 +789,14 @@ export class ReferralAdminService {
   async approveRedemption(accessToken: string | undefined, id: string) {
     const admin = await this.getAdmin(accessToken);
     await this.vouchers.approve(admin.id, id);
+    this.announceDecision("REDEMPTION", id);
     return { ok: true };
   }
 
   async rejectRedemption(accessToken: string | undefined, id: string, body: RejectReferralRedemptionRequest) {
     const admin = await this.getAdmin(accessToken);
     await this.vouchers.reject(admin.id, id, body.adminNote);
+    this.announceDecision("REDEMPTION", id);
     return { ok: true };
   }
 

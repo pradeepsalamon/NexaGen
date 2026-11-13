@@ -2380,6 +2380,9 @@ enum NotificationType {
   APPROVAL_DECIDED
   TOURNAMENT_REGISTRATION_OPEN
   TOURNAMENT_STARTED
+  REFERRAL_PROGRESS
+  REFERRAL_REWARD
+  REFERRAL_REQUEST_DECIDED
   /// A fixed system message sent in-app (SystemNotifier), not a messaging rule.
   SYSTEM_MESSAGE
 }
@@ -3290,6 +3293,9 @@ enum MessagingEvent {
   APPROVAL_DECIDED
   TOURNAMENT_REGISTRATION_OPEN
   TOURNAMENT_STARTED
+  REFERRAL_PROGRESS
+  REFERRAL_REWARD
+  REFERRAL_REQUEST_DECIDED
 }
 
 enum MessagingScheduleMode {
@@ -7181,6 +7187,8 @@ enum ReferralCreditEntryType {
   REDEMPTION
   /// Points returned: a voucher request rejected, cancelled or revoked.
   REDEMPTION_REVERSAL
+  /// Unspent points older than the academy's `pointsExpiryDays` (nightly job).
+  EXPIRY
 }
 
 /// CASH is money (coaches and SALES: withdrawable, never transferable);
@@ -7610,6 +7618,8 @@ model ReferralSettings {
   // ── Earning and redeeming ──
   /// Stage-value rewards in points are credited at once (off = admin approves).
   autoApprovePoints       Boolean @default(true)
+  /// Unspent points expire this many days after they were earned; null = never.
+  pointsExpiryDays        Int?
   /// Stage-value rewards in money wait for an admin unless this is on.
   autoApproveCash         Boolean @default(false)
   /// Students may redeem points for vouchers.

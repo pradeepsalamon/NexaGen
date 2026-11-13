@@ -33,7 +33,10 @@ export const messagingEventSchema = z.enum([
   "APPROVAL_REQUESTED",
   "APPROVAL_DECIDED",
   "TOURNAMENT_REGISTRATION_OPEN",
-  "TOURNAMENT_STARTED"
+  "TOURNAMENT_STARTED",
+  "REFERRAL_PROGRESS",
+  "REFERRAL_REWARD",
+  "REFERRAL_REQUEST_DECIDED"
 ]);
 export type MessagingEvent = z.infer<typeof messagingEventSchema>;
 
@@ -186,6 +189,22 @@ const APPROVAL_VARIABLES = [
   "approval.decision",
   "approval.note",
   "links.approval"
+] as const;
+
+/**
+ * The referral programme (docs/REFERRALS.md). The prospect's name is masked
+ * ("Priya S.") for students and coaches, as on their board; never a contact.
+ */
+const REFERRAL_VARIABLES = [
+  ...RECIPIENT_VARIABLES,
+  "referral.prospect",
+  "referral.stage",
+  "referral.reward",
+  "referral.rewardReason",
+  "referral.request",
+  "referral.decision",
+  "referral.note",
+  "links.referrals"
 ] as const;
 
 const TOURNAMENT_VARIABLES = [
@@ -444,6 +463,33 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     variables: TOURNAMENT_VARIABLES,
     audiences: ["STUDENTS"],
     supportsLeadTime: false
+  },
+  REFERRAL_PROGRESS: {
+    event: "REFERRAL_PROGRESS",
+    label: "Referral moved to a new stage",
+    description:
+      "Sent to the person whose referral link was used (student, coach or sales account) when that referral moves to another stage, automatically or by an admin. A first visit to the link sends nothing.",
+    variables: REFERRAL_VARIABLES,
+    audiences: ["STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
+  },
+  REFERRAL_REWARD: {
+    event: "REFERRAL_REWARD",
+    label: "Referral reward credited",
+    description:
+      "Sent when referral points or money are credited: to the referrer, or to the new member for their welcome points. A reward waiting for approval sends nothing until an admin approves it.",
+    variables: REFERRAL_VARIABLES,
+    audiences: ["STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
+  },
+  REFERRAL_REQUEST_DECIDED: {
+    event: "REFERRAL_REQUEST_DECIDED",
+    label: "Voucher request or withdrawal decided",
+    description:
+      "Sent when an admin approves or declines a student's voucher request, or pays or declines a coach's or sales account's withdrawal.",
+    variables: REFERRAL_VARIABLES,
+    audiences: ["STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
   }
 };
 
@@ -601,6 +647,14 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "tournament.startsIn": { label: "When the tournament starts", sample: "in 15 minutes" },
   "links.tournament": { label: "Link to the tournament", sample: "https://nexa.test/tournaments/sample" },
   "links.game": { label: "Link to the game", sample: "https://nexa.test/tournaments/sample/games/sample" },
+  "referral.prospect": { label: "The referred person (short name)", sample: "Priya S." },
+  "referral.stage": { label: "The referral's new stage", sample: "Demo attended" },
+  "referral.reward": { label: "What was credited", sample: "50 points" },
+  "referral.rewardReason": { label: "Why it was credited", sample: "A referral reached Demo attended" },
+  "referral.request": { label: "What was asked for", sample: "the voucher 10% off next month" },
+  "referral.decision": { label: "The decision (approved, declined or paid)", sample: "approved" },
+  "referral.note": { label: "The admin's note, if any", sample: "Paid by bank transfer." },
+  "links.referrals": { label: "Link to the referral board", sample: "https://nexa.test/student/referrals" },
   "registration.statusLine": {
     label: "Whether the entry is confirmed or waiting for the host",
     sample: "you're entered in Winter Swiss. Good luck!"
@@ -961,6 +1015,35 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "{{tournament.name}} has started",
     body: "Hi {{recipient.firstName}}, {{tournament.name}} is live. Open the tournament to play your game: {{links.tournament}}"
+  },
+  // Referral rules ship ENABLED and in-app only: they tell someone about their
+  // own points or money, and the bell is where the board already lives.
+  REFERRAL_PROGRESS: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS_AND_COACHES",
+    leadTimeMinutes: null,
+    title: "Your referral moved to {{referral.stage}}",
+    body: "Hi {{recipient.firstName}}, your referral {{referral.prospect}} is now at {{referral.stage}}. See your referrals at {{links.referrals}}."
+  },
+  REFERRAL_REWARD: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS_AND_COACHES",
+    leadTimeMinutes: null,
+    title: "You earned {{referral.reward}}",
+    body: "Hi {{recipient.firstName}}, {{referral.reward}} was added to your referral balance. {{referral.rewardReason}}. See it at {{links.referrals}}."
+  },
+  REFERRAL_REQUEST_DECIDED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS_AND_COACHES",
+    leadTimeMinutes: null,
+    title: "Your request was {{referral.decision}}",
+    body: "Hi {{recipient.firstName}}, your request for {{referral.request}} was {{referral.decision}}. See it at {{links.referrals}}. {{referral.note}}"
   }
 };
 

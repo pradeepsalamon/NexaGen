@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import {
+  referralPointsExpired,
   canAutoAdvanceReferral,
   canHoldReferralLink,
   DEFAULT_REFERRAL_STAGES,
@@ -158,5 +159,36 @@ describe("referral vouchers", () => {
     const text = formatReferralVoucherValue({ ...none, maxDiscountMinor: 50000, minOrderMinor: 100000, percentOff: 20, type: "PERCENT_DISCOUNT" }, "INR");
     expect(text).toMatch(/^20% off \(up to .*500.*\) on fees of .*1,000.* or more$/);
     expect(formatReferralVoucherValue({ ...none, amountOffMinor: 50000, type: "FIXED_DISCOUNT" }, "INR")).toMatch(/500.* off$/);
+  });
+});
+
+describe("referral points expiry", () => {
+  const day = (n: number) => new Date(Date.UTC(2026, 0, n));
+  const cutoff = day(10);
+
+  it("expires what is left of the points earned before the cutoff", () => {
+    expect(referralPointsExpired([{ amountMinor: 100, createdAt: day(1) }], cutoff)).toBe(100);
+    expect(referralPointsExpired([{ amountMinor: 100, createdAt: day(10) }], cutoff)).toBe(0);
+    expect(referralPointsExpired([{ amountMinor: 100, createdAt: day(20) }], cutoff)).toBe(0);
+  });
+
+  it("counts spending against the oldest points first, whenever it happened", () => {
+    const entries = [
+      { amountMinor: 100, createdAt: day(1) },
+      { amountMinor: 50, createdAt: day(15) },
+      { amountMinor: -120, createdAt: day(16) }
+    ];
+    // The 120 spent used all 100 old points first, so none of them is left to expire.
+    expect(referralPointsExpired(entries, cutoff)).toBe(0);
+    expect(referralPointsExpired([...entries.slice(0, 2), { amountMinor: -30, createdAt: day(5) }], cutoff)).toBe(70);
+  });
+
+  it("never expires the same points twice, and never goes negative", () => {
+    const afterExpiry = [
+      { amountMinor: 100, createdAt: day(1) },
+      { amountMinor: -100, createdAt: day(11) }
+    ];
+    expect(referralPointsExpired(afterExpiry, cutoff)).toBe(0);
+    expect(referralPointsExpired([{ amountMinor: -40, createdAt: day(1) }], cutoff)).toBe(0);
   });
 });

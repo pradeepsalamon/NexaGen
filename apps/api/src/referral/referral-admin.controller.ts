@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Header, HttpCode, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
 import {
   API_ROUTES,
   adjustReferralCreditsRequestSchema,
@@ -233,6 +233,13 @@ export class ReferralAdminController {
   @Get(API_ROUTES.adminReferrals.withdrawals)
   listWithdrawals(@Req() request: Request, @Query() query: ListQuery) {
     return this.admin.listWithdrawals(this.getAccessToken(request), query);
+  }
+
+  @Get(API_ROUTES.adminReferrals.withdrawalsExport)
+  @Header("Content-Type", "text/csv; charset=utf-8")
+  @Header("Content-Disposition", 'attachment; filename="referral-withdrawals.csv"')
+  exportWithdrawals(@Req() request: Request, @Query() query: ListQuery) {
+    return this.admin.exportWithdrawalsCsv(this.getAccessToken(request), query);
   }
 
   @Post(API_ROUTES.adminReferrals.payWithdrawal())

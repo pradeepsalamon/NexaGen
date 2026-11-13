@@ -15,6 +15,8 @@ import { UserRole, UserStatus, type User } from "@prisma/client";
 import { TEST_ORIGIN } from "../test/integration/app-env";
 import { createTestApp, type TestApp } from "../test/integration/app";
 import { createUser, resetDatabase } from "../test/integration/db";
+import { runInTenant } from "../tenancy/tenant-context";
+import { ReferralCreditsService } from "./referral-credits.service";
 
 /**
  * The referral programme end to end (docs/REFERRALS.md): a link visit, the
@@ -145,7 +147,7 @@ describe("referral programme (real app, real Postgres)", () => {
 
     me = await summary(student);
     expect(me.totals.converted).toBe(1);
-    expect(me.points).toEqual({ balance: 650, earned: 650, pending: 0, redeemed: 0 });
+    expect(me.points).toEqual({ balance: 650, earned: 650, expiringSoon: 0, expiryDays: null, pending: 0, redeemed: 0 });
     mine = (await t.call(student, "GET", API_ROUTES.referrals.myReferrals)).body as ReferralPage<ReferralItem>;
     expect(mine.items.find((r) => r.id === priya.id)?.convertedAt).not.toBeNull();
     // Students never withdraw.
@@ -383,5 +385,91 @@ describe("referral programme (real app, real Postgres)", () => {
     expect((await t.call(admin, "DELETE", API_ROUTES.adminReferrals.stage("refstage_booked"))).status).toBe(400);
     expect((await t.call(admin, "DELETE", API_ROUTES.adminReferrals.stage(stage.id))).status).toBe(200);
     expect((await t.prisma.referral.findUniqueOrThrow({ where: { id: kavya.id } })).stageId).toBe("refstage_booked");
+  });
+
+  it("tells the referrer about a stage move and a credited reward, then expires old points", async () => {
+    await settings({ autoApprovePoints: true });
+    const referrer = await active(UserRole.STUDENT);
+    const code = (await summary(referrer)).code!;
+    expect((await browser()("POST", API_ROUTES.leads.create, lead("Meera Nair", "9000011111", { referralCode: code }))).status).toBe(201);
+    const referral = await t.prisma.referral.findFirstOrThrow({ where: { referrerId: referrer.id } });
+    expect((await t.call(admin, "PATCH", API_ROUTES.adminReferrals.moveStage(referral.id), { stageId: "refstage_attended" })).status).toBe(200);
+
+    // Dispatch runs after the response; the outbox rows are the proof.
+    const deliveries = async () =>
+      t.prisma.messageDelivery.findMany({ select: { body: true, channel: true, event: true }, where: { recipientId: referrer.id } });
+    for (let i = 0; i < 50 && (await deliveries()).filter((d) => d.event === "REFERRAL_REWARD").length === 0; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const sent = await deliveries();
+    expect(sent.every((d) => d.channel === "IN_APP")).toBe(true);
+    const moved = sent.filter((d) => d.event === "REFERRAL_PROGRESS").map((d) => d.body);
+    // The name is masked, as on the student's board.
+    expect(moved.some((body) => body.includes("Meera N.") && body.includes("Demo attended"))).toBe(true);
+    expect(moved.some((body) => body.includes("Meera Nair"))).toBe(false);
+    expect(sent.filter((d) => d.event === "REFERRAL_REWARD").map((d) => d.body).join(" ")).toContain("100 points");
+
+    // Expiry: off by default, refuses a window shorter than 30 days.
+    expect((await summary(referrer)).points).toMatchObject({ balance: 100, expiringSoon: 0, expiryDays: null });
+    expect((await settings({ pointsExpiryDays: 5 })).status).toBe(400);
+    expect((await settings({ pointsExpiryDays: 90 })).status).toBe(200);
+    const credits = t.app.get(ReferralCreditsService);
+    const expire = async () =>
+      runInTenant(DEFAULT_TENANT_ID, "test:expiry", async () =>
+        credits.expirePoints(await t.prisma.referralSettings.findFirstOrThrow())
+      );
+    // Fresh points are untouched.
+    await expire();
+    expect((await summary(referrer)).points).toMatchObject({ balance: 100, expiringSoon: 0, expiryDays: 90 });
+
+    // 70 days old: inside the 30-day warning, not yet expired.
+    const age = (days: number) =>
+      t.prisma.referralCreditEntry.updateMany({
+        data: { createdAt: new Date(Date.now() - days * 24 * 60 * 60 * 1000) },
+        where: { userId: referrer.id }
+      });
+    await age(70);
+    await expire();
+    expect((await summary(referrer)).points).toMatchObject({ balance: 100, expiringSoon: 100 });
+
+    // 100 days old: gone, once, however often the job runs.
+    await age(100);
+    await expire();
+    await expire();
+    expect((await summary(referrer)).points).toMatchObject({ balance: 0, expiringSoon: 0 });
+    const ledger = await t.prisma.referralCreditEntry.findMany({ where: { type: "EXPIRY", userId: referrer.id } });
+    expect(ledger.map((entry) => [entry.amountMinor, entry.wallet])).toEqual([[-100, "POINTS"]]);
+    expect((await settings({ pointsExpiryDays: null })).status).toBe(200);
+  });
+
+  it("exports withdrawals as CSV for admins only, and tells the coach when one is paid", async () => {
+    // The earlier test's rejected withdrawal returned the money; ask again.
+    expect(
+      (await t.call(sales, "POST", API_ROUTES.referrals.myWithdrawals, { amountMinor: 20000, payoutDetails: "=s@upi" })).status
+    ).toBe(201);
+    const withdrawal = await t.prisma.referralWithdrawal.findFirstOrThrow({ include: { user: true }, where: { status: "REQUESTED" } });
+    expect((await t.call(student, "GET", API_ROUTES.adminReferrals.withdrawalsExport)).status).toBe(403);
+
+    const res = await t.call(admin, "GET", `${API_ROUTES.adminReferrals.withdrawalsExport}?status=REQUESTED`);
+    expect(res.status).toBe(200);
+    const [header, ...rows] = String(res.body).split("\r\n");
+    expect(header).toBe("Requested at (UTC),Name,Email,Role,Amount,Currency,Payout details,Status,Payout reference,Withdrawal ID");
+    const row = rows.find((line) => line.endsWith(withdrawal.id))!;
+    expect(row).toContain(withdrawal.user.email);
+    // Typed text can't run as a spreadsheet formula.
+    expect(row).toContain(",'=s@upi,");
+    expect(row).toContain(`,${(withdrawal.amountMinor / 100).toFixed(2)},INR,`);
+    expect(rows.every((line) => line.includes(",REQUESTED,"))).toBe(true);
+
+    expect(
+      (await t.call(admin, "POST", API_ROUTES.adminReferrals.payWithdrawal(withdrawal.id), { payoutReference: "UTR123" })).status
+    ).toBe(200);
+    const decided = async () =>
+      t.prisma.messageDelivery.findMany({ where: { event: "REFERRAL_REQUEST_DECIDED", recipientId: withdrawal.userId } });
+    const bodies = async () => (await decided()).map((d) => d.body).join(" | ");
+    for (let i = 0; i < 50 && !(await bodies()).includes("was paid"); i += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+    // The earlier test's rejection was announced too, with the admin's note.
+    expect(await bodies()).toMatch(/a withdrawal of \S+ was paid/);
+    expect(await bodies()).toMatch(/was declined\..*Wrong UPI/);
   });
 });

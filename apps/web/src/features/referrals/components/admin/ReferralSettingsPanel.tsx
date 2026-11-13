@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import {
   REFERRAL_PAYOUT_ROLES,
+  REFERRAL_POINTS_EXPIRY_MIN_DAYS,
+  REFERRAL_POINTS_EXPIRY_WARNING_DAYS,
   REFERRER_ROLE_LABELS,
   REFERRER_ROLES,
   toMajorUnits,
@@ -54,6 +56,7 @@ export function ReferralSettingsPanel() {
   const { data, isLoading } = useReferralSettings();
   const [form, setForm] = useState<ReferralSettingsItem | null>(null);
   const [minWithdrawal, setMinWithdrawal] = useState("");
+  const [expiryDays, setExpiryDays] = useState("");
   const [error, setError] = useState<string | null>(null);
   const save = useReferralAdminMutation(referralAdminApi.updateSettings, {
     failure: "Could not save settings",
@@ -64,6 +67,7 @@ export function ReferralSettingsPanel() {
     if (!data) return;
     setForm(data);
     setMinWithdrawal(String(toMajorUnits(data.minWithdrawalMinor, data.currency)));
+    setExpiryDays(data.pointsExpiryDays ? String(data.pointsExpiryDays) : "");
   }, [data]);
 
   if (isLoading || !form) return <Skeleton className="h-96 rounded-app" />;
@@ -79,6 +83,10 @@ export function ReferralSettingsPanel() {
     if (!Number.isInteger(form.maxRedemptionsPer30Days) || form.maxRedemptionsPer30Days < 0 || form.maxRedemptionsPer30Days > 1000) {
       return setError("The redemption limit must be 0 (no limit) to 1000.");
     }
+    const expiry = expiryDays.trim() === "" ? null : Number(expiryDays);
+    if (expiry !== null && (!Number.isInteger(expiry) || expiry < REFERRAL_POINTS_EXPIRY_MIN_DAYS || expiry > 3650)) {
+      return setError(`Points expiry must be ${REFERRAL_POINTS_EXPIRY_MIN_DAYS} to 3650 days, or empty for no expiry.`);
+    }
     setError(null);
     save.mutate({
       attributionDays: form.attributionDays,
@@ -87,6 +95,7 @@ export function ReferralSettingsPanel() {
       enabled: form.enabled,
       maxRedemptionsPer30Days: form.maxRedemptionsPer30Days,
       minWithdrawalMinor: toMinorUnits(min, form.currency),
+      pointsExpiryDays: expiry,
       programTerms: form.programTerms?.trim() || null,
       redemptionsEnabled: form.redemptionsEnabled,
       referrerRoles: form.referrerRoles.filter((role) => role !== "SALES"),
@@ -174,6 +183,20 @@ export function ReferralSettingsPanel() {
               inputMode="numeric"
               onChange={(event) => update({ maxRedemptionsPer30Days: Number(event.target.value) || 0 })}
               value={String(form.maxRedemptionsPer30Days)}
+            />
+          </FormField>
+          <FormField
+            hint={`Unspent points are removed this many days after they were earned, oldest first, in a nightly run. Leave empty so points never expire. Careful: points already older than this are removed at the next run. Students see a warning ${REFERRAL_POINTS_EXPIRY_WARNING_DAYS} days ahead.`}
+            id="ref-points-expiry"
+            label="Points expire after (days)"
+          >
+            <Input
+              className="w-32"
+              id="ref-points-expiry"
+              inputMode="numeric"
+              onChange={(event) => setExpiryDays(event.target.value)}
+              placeholder="Never"
+              value={expiryDays}
             />
           </FormField>
         </div>

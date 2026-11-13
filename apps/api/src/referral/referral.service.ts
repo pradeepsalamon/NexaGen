@@ -68,7 +68,7 @@ export class ReferralService {
       : await this.prisma.referralCode.findUnique({ where: { userId: user.id } });
 
     const byReferrer = { referrerId: user.id };
-    const [stages, reachGroups, currentGroups, referrals, visits, converted, balances, rewardGroups, rules, redeemed] =
+    const [stages, reachGroups, currentGroups, referrals, visits, converted, balances, rewardGroups, rules, redeemed, expiringSoon] =
       await Promise.all([
         this.pipeline.listStages(),
         this.prisma.referralStageReach.groupBy({ _count: true, by: ["stageId"], where: { referral: byReferrer } }),
@@ -91,7 +91,8 @@ export class ReferralService {
         this.prisma.referralRedemption.aggregate({
           _sum: { pointsCost: true },
           where: { status: { in: ["PENDING", "FULFILLED"] }, userId: user.id }
-        })
+        }),
+        this.credits.pointsExpiringSoon(user.id, settings)
       ]);
     const rewardSum = (unit: "CASH" | "POINTS", status: "PENDING" | "CREDITED") =>
       rewardGroups.find((group) => group.unit === unit && group.status === status)?._sum.amountMinor ?? 0;
@@ -141,6 +142,8 @@ export class ReferralService {
       points: {
         balance: balances.points,
         earned: rewardSum("POINTS", "CREDITED"),
+        expiringSoon,
+        expiryDays: settings.pointsExpiryDays,
         pending: rewardSum("POINTS", "PENDING"),
         redeemed: redeemed._sum.pointsCost ?? 0
       },

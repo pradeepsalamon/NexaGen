@@ -36,6 +36,11 @@ export class ReferralSettingsService {
     });
   }
 
+  /** The saved row, or null for an academy that never opened the programme (jobs must not create one). */
+  find(): Promise<ReferralSettings | null> {
+    return this.prisma.referralSettings.findUnique({ where: settingsRow().where });
+  }
+
   async getItem(): Promise<ReferralSettingsItem> {
     return this.toItem(await this.get());
   }
@@ -54,6 +59,7 @@ export class ReferralSettingsService {
         ...(body.autoApproveCash !== undefined ? { autoApproveCash: body.autoApproveCash } : {}),
         ...(body.redemptionsEnabled !== undefined ? { redemptionsEnabled: body.redemptionsEnabled } : {}),
         ...(body.maxRedemptionsPer30Days !== undefined ? { maxRedemptionsPer30Days: body.maxRedemptionsPer30Days } : {}),
+        ...(body.pointsExpiryDays !== undefined ? { pointsExpiryDays: body.pointsExpiryDays } : {}),
         updatedById: adminId
       },
       where: settingsRow().where
@@ -71,6 +77,7 @@ export class ReferralSettingsService {
       enabled: settings.enabled,
       maxRedemptionsPer30Days: settings.maxRedemptionsPer30Days,
       minWithdrawalMinor: settings.minWithdrawalMinor,
+      pointsExpiryDays: settings.pointsExpiryDays,
       programTerms: settings.programTerms,
       redemptionsEnabled: settings.redemptionsEnabled,
       referrerRoles: roles(settings.referrerRoles),
