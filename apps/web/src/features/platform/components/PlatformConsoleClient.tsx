@@ -16,8 +16,9 @@ import { ContentPacksTab } from "./ContentPacksTab";
 import { IntegrityTab } from "./IntegrityTab";
 import { PlansTab } from "./PlansTab";
 import { SupportVisitsTable } from "./SupportVisitsTable";
+import { UsageTab } from "./UsageTab";
 
-const TABS = ["academies", "plans", "packs", "billing", "support", "audit", "integrity"] as const;
+const TABS = ["academies", "usage", "plans", "packs", "billing", "support", "audit", "integrity"] as const;
 type Tab = (typeof TABS)[number];
 
 /** The academy name for an id, from the (small) academy list the console already holds. */
@@ -58,7 +59,7 @@ export function PlatformConsoleClient() {
   return (
     <div>
       <PageHeader
-        description="Academies, plans, content packs and support visits across the whole platform."
+        description="Academies, usage, plans, content packs and support visits across the whole platform."
         title="Platform console"
       />
       {!isOperator ? (
@@ -69,6 +70,7 @@ export function PlatformConsoleClient() {
         <Tabs onValueChange={(value) => setTab(value as Tab)} value={tab}>
           <TabsList className="max-w-full justify-self-start overflow-x-auto">
             <TabsTrigger value="academies">Academies</TabsTrigger>
+            <TabsTrigger value="usage">Usage</TabsTrigger>
             <TabsTrigger value="plans">Plans</TabsTrigger>
             <TabsTrigger value="packs">Content packs</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
@@ -78,6 +80,9 @@ export function PlatformConsoleClient() {
           </TabsList>
           <TabsContent value="academies">
             <AcademiesTab />
+          </TabsContent>
+          <TabsContent value="usage">
+            <UsageTab academyName={academyName} />
           </TabsContent>
           <TabsContent value="plans">
             <PlansTab />

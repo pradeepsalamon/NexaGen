@@ -1072,6 +1072,8 @@ export const API_ROUTES = {
     invoices: "/platform/billing/invoices",
     invoice: (id: string = ":id") => `/platform/billing/invoices/${id}`,
     usage: "/platform/usage",
+    // Daily usage history per academy (`?tenantId=&days=`), platform operators only.
+    usageHistory: "/platform/usage/history",
     // GET the latest runs, POST to run the check now (platform operators only).
     integrityRuns: "/platform/integrity/runs"
   },

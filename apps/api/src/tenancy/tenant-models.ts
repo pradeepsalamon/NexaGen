@@ -30,7 +30,8 @@ export const PLATFORM_MODELS = {
   TenantIntegrityRun: "Nightly cross-academy integrity check results, across academies by design",
   TenantSubscription: "Platform billing state, keyed by tenantId (with FK)",
   TenantSubscriptionEvent: "Platform billing log, keyed by tenantId (with FK)",
-  TenantUsage: "Nightly usage counts per academy for the console (§G), keyed by tenantId (with FK)"
+  TenantUsage: "Nightly usage counts per academy for the console (§G), keyed by tenantId (with FK)",
+  TenantUsageDay: "Daily usage history per academy for the console, keyed by tenantId (with FK)"
 } as const satisfies Partial<Record<Prisma.ModelName, string>>;
 
 export type PlatformModel = keyof typeof PLATFORM_MODELS;

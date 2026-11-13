@@ -24,6 +24,7 @@ import {
 import { AcademyBillingCard } from "./AcademyBillingCard";
 import { AcademyDomainsCard } from "./AcademyDomainsCard";
 import { AcademySubscriptionCard } from "./AcademySubscriptionCard";
+import { AcademyUsageCard } from "./AcademyUsageCard";
 import { AuditList } from "./AuditList";
 import { ReasonDialog } from "./ReasonDialog";
 import { TenantStatusBadge } from "./statusBadges";
@@ -169,6 +170,9 @@ export function AcademyDetailClient({ tenantId }: { tenantId: string }) {
           <AcademyDomainsCard tenant={tenant} />
           {isNexa ? null : <AcademyBillingCard primaryHost={tenant.primaryHost} tenantId={tenantId} />}
         </div>
+      </div>
+      <div className="mt-6">
+        <AcademyUsageCard tenantId={tenantId} />
       </div>
       <section className="mt-6 grid gap-3">
         <h2 className="text-lg font-bold text-app-text">Audit log</h2>
