@@ -33,6 +33,11 @@ const config: Config = {
         "tab-panel-in": "tabPanelIn 220ms cubic-bezier(0.22, 1, 0.36, 1) backwards",
         "overlay-in": "fadeIn 220ms ease both",
         "overlay-out": "fadeOut 180ms ease both",
+        // Centred dialogs. These animate the standalone `scale` / `translate` properties, never
+        // `transform`: the panel is centred with a -50% transform, and a keyframe that replaces it
+        // makes the dialog fly in from the bottom right.
+        "dialog-in": "dialogIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both",
+        "dialog-out": "dialogOut 160ms ease-in both",
         "drawer-in": "slideInRight 300ms cubic-bezier(0.32, 0.72, 0, 1) both",
         "drawer-out": "slideOutRight 240ms ease-in both"
       },
@@ -171,6 +176,16 @@ const config: Config = {
         popIn: {
           from: { opacity: "0", transform: "scale(0.96)" },
           to: { opacity: "1", transform: "scale(1)" }
+        },
+        // `scale` also shrinks the panel's -50% centring offset, which would drift it right and down
+        // by half the lost size; the percentages in `translate` (of the panel's own size) cancel that.
+        dialogIn: {
+          from: { opacity: "0", scale: "0.96", translate: "-2% calc(-2% + 8px)" },
+          to: { opacity: "1", scale: "1", translate: "0 0" }
+        },
+        dialogOut: {
+          from: { opacity: "1", scale: "1", translate: "0 0" },
+          to: { opacity: "0", scale: "0.97", translate: "-1.5% calc(-1.5% + 4px)" }
         },
         shimmer: {
           from: { transform: "translateX(-100%)" },
