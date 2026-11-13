@@ -430,6 +430,12 @@ search engines only ever see `/`.
 
 ## Live captions: browser speech test (admin only)
 
+**In real classes since 2026-11-12:** the same recogniser now keeps a stored
+transcript of the coach's speech when the class setting is on and the coach
+has agreed. That feature (consent, storage, retention) is documented in
+[LIVE_CLASS.md](LIVE_CLASS.md) § "Class transcript"; this section is the
+test bench only.
+
 `/admin/caption-test` (staff, nav "Classes → Caption test"),
 `features/live-captions/`. A test bench for option A of live captions: the
 browser's own Web Speech API (`SpeechRecognition`) on the speaker's mic, in
@@ -439,8 +445,8 @@ text for review.
 
 - **Audio goes to Google.** Chrome's recognition is server-side. The page
   warns about this and won't start until the speaker's consent is ticked.
-  Putting captions into real classes needs the coach's consent in the staff
-  terms and a `features/legal/content.ts` update (new processor).
+  In real classes the coach's consent is recorded per coach and
+  `features/legal/content.ts` names Google as the processor.
 - **No on-device mode.** `processLocally` and `SpeechRecognition.available()`
   with it crash the renderer in Chromium 151, and on-device mode doesn't
   cover Tamil anyway, so neither is called.

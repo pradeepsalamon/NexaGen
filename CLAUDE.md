@@ -184,6 +184,7 @@ NestJS `apps/api/src/ai/` is the only caller of stateless Python `services/ai-ru
 - In-class moves/answers go through REST with a status/ply-filtered `updateMany` claim (409 on lost race), then a server-injected packet — never peer data.
 - LiveKit webhook needs its raw body; identity → user id mapping skips `isSpectatorIdentity`. Pre-class settings resolver: `@nexa-chess/types` `live-class-settings.ts`; always pass `systemLocks`/`batchLocks` — an admin-locked field ignores lower layers and a class override can't change it.
 - **Never put follow-up work in a per-call `mutate(…, { onSuccess })`** in the room (the caller may unmount) — await `mutateAsync`.
+- **Class transcript** (`live-class-transcript.service.ts`, `features/live-captions/`): the coach's speech as text, stored only when the class setting is on, the caller is the class's own coach and that coach consented (`transcriptConsentIsCurrent`); never a student's audio; bump `TRANSCRIPT_CONSENT_VERSION` when the consent wording changes.
 
 ---
 

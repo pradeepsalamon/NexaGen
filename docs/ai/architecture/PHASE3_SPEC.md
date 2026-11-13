@@ -28,8 +28,12 @@ Labels:
 
 ## 0a. Owner scope change, 2026-10-31: v1 is a student recap from the coach's voice
 
-**Planning only. Nothing is built, and v1 doesn't start until the open items
-below are decided.** On 2026-10-31 the owner narrowed v1. Where this section
+**Steps 1 and 2 of the pipeline below are built (2026-11-12): the coach's
+Chrome transcribes, the API stores the lines for 30 days
+(docs/LIVE_CLASS.md § "Class transcript"). Steps 3 to 5 (the summary) are
+not built; the next step is to test a summary on a real stored transcript.**
+The rest of this section is still planning, and v1 doesn't go further until
+the open items below are decided. On 2026-10-31 the owner narrowed v1. Where this section
 conflicts with §1–§14, it wins for v1. The rest of the spec stays the target
 for later versions, which will add evidence.
 
@@ -84,9 +88,8 @@ recognises only the coach's microphone, never the room mix.
 
 **Open owner decisions for v1:**
 
-- **OD-13 (revised):** allow transcription of the coach's voice only, with
-  each coach's written consent. Choosing option A implies it; it isn't yet
-  recorded as approved.
+- ~~**OD-13 (revised):**~~ approved 2026-11-12 (DECISIONS.md): the coach's
+  voice only, with each coach's recorded consent.
 - **OD-5:** does a coach still approve each recap before students see it?
   The recommendation stays **yes**, even more so for transcripts.
 - **Recap language:** English, Tamil, or the student's choice.

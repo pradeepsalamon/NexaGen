@@ -33,6 +33,12 @@ export type CaptionStatus = "idle" | "starting" | "listening" | "stopping";
 export type CaptionOptions = {
   fixChessTerms: boolean;
   lang: string;
+  /**
+   * Called with each batch of finished phrases as they arrive. With it the
+   * phrases are handed over and not kept in `segments`, so a whole class of
+   * speech doesn't pile up in memory.
+   */
+  onFinal?: (segments: CaptionSegment[]) => void;
 };
 
 // Chrome ends a continuous session on its own after silence or about a minute;
@@ -105,7 +111,10 @@ export function useSpeechCaptions() {
       lastInterimRef.current = now;
     }
     failuresRef.current = 0;
-    if (finals.length > 0) setSegments((previous) => [...previous, ...finals]);
+    if (finals.length > 0) {
+      if (options.onFinal) options.onFinal(finals);
+      else setSegments((previous) => [...previous, ...finals]);
+    }
     setInterim(interimText);
   }, []);
 

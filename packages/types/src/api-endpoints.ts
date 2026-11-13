@@ -180,6 +180,11 @@ export const API_ROUTES = {
     movePoll: (id: string = ":id") => `/live-class/${id}/move-poll`,
     // Student submits (or changes) their move while the poll is open.
     movePollAnswer: (id: string = ":id") => `/live-class/${id}/move-poll/answer`,
+    // Class transcript (the coach's speech as text): POST lines (the owning coach
+    // only, class LIVE, setting on, consent given) / GET a page (coach-owner+admin).
+    transcript: (id: string = ":id") => `/live-class/${id}/transcript`,
+    // The signed-in coach's own consent to being transcribed: GET / PUT.
+    transcriptConsent: () => `/live-class-transcript/consent`,
     // Chapters (coach-owner+admin): GET list / POST create, POST import puzzles,
     // PUT the order, PATCH rename-or-save / DELETE one, POST delete-many ("Delete all").
     chapters: (id: string = ":id") => `/live-class/${id}/chapters`,
