@@ -98,34 +98,16 @@ code on 2026-10-31.
   commentary and broadcasting, spectators (incl. anonymous `/watch`),
   certificates and history. Design, phases and as-built notes:
   [TOURNAMENTS.md](TOURNAMENTS.md).
-- **Instant feedback on in-app navigation (logged 2026-11-04, from another
-  project; build, then test on a throttled network).** On a slow link a click
-  shows nothing until the next page's server render arrives. To build and test:
-  - **Top progress bar.** A thin `accent` (gold) bar under the fixed header
-    (gold shows in both themes; navy would vanish in dark). It starts on click
-    of an internal `<Link>` to a different path, creeps toward ~90% while
-    waiting, finishes at 100% when `usePathname` changes, then fades. Ignore
-    Ctrl/Cmd/Shift/middle-clicks, `download`, `target="_blank"`, external hosts
-    and same-path links. A safety timeout (~20 s) clears it when a navigation
-    never lands (e.g. a redirect back to the same page). Mount once in
-    `AppProviders` next to `<Header />`, and respect `prefers-reduced-motion`.
-  - **Programmatic navigation isn't covered by a click listener:**
-    `router.push` appears in 27 web files. Either accept that, or start the
-    bar through a small `useNavigate()` wrapper adopted where it matters.
-  - **Loading states.** `admin`, `coach` and `student` have `loading.tsx` with
-    `PageLoading` (skeleton inside `AppShell`). Pages that mount `AppShell`
-    themselves fall back to the root `app/loading.tsx`, a full-screen spinner
-    without the nav: `/profile`, `/games`, `/messages`, `/chess-board`,
-    `/help`, `/classes/[id]`. Now that the nav is docked from `xl`, the sidebar
-    disappears while they load. Give them a loading state that keeps the shell.
-    One way: a route group for the shared-shell pages with one `loading.tsx`.
-  - **Test:** `next build && next start` (the dev server behaves differently),
-    Chrome DevTools "Slow 4G": click the sidebar items and the header's profile
-    link. The bar appears on the click itself, with no sidebar flicker, in both
-    themes.
-  - **Not the real fix for slowness.** A slow server or box (CPU, containers
-    competing, proxy timeouts) needs its own look. This only makes the wait
-    visible.
+- ~~**Instant feedback on in-app navigation (logged 2026-11-04).**~~ **Built
+  2026-11-13:** a gold bar at the top of the window starts on the click of an
+  internal link and finishes when the path changes (`NavigationProgress`,
+  mounted in `AppProviders`; 20 s safety timeout). `/profile`, `/games`,
+  `/messages`, `/chess-board`, `/help`, `/classes/[id]` and `/tournaments` got a
+  `loading.tsx` that keeps the shell (`ShellPageLoading`), so the nav no longer
+  disappears behind the root spinner. **Still open:** navigation started in code
+  (`router.push`, 27 web files) doesn't start the bar, and it has only been
+  checked on the dev server with delayed responses, not `next start` on
+  "Slow 4G". It only makes the wait visible; a slow server needs its own look.
 
 - **Smart Revision:** non-puzzle item kinds (lessons / `REPLAY` assignments,
   course modules, live-class chapters). Blocked by design: no graded attempt to
