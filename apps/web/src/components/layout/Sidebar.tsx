@@ -301,12 +301,14 @@ export function NavDrawer({
 
       <div
         className={cn(
-          "fixed bottom-3 left-3 top-[72px] z-50 w-[268px] max-w-[calc(100vw-48px)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] max-md:w-[248px]",
-          open
-            ? "translate-x-0"
-            : peek
-              ? "translate-x-0"
-              : "-translate-x-[calc(100%+12px)]"
+          "fixed bottom-3 left-3 top-[72px] z-50 w-[268px] max-w-[calc(100vw-48px)] transition-transform duration-300 will-change-transform max-md:w-[248px]",
+          // As a property, not `ease-[…]`: that class lost to `transition-transform`'s own default curve
+          // (slow start), which made the drawer feel late even once it was moving.
+          "[transition-timing-function:cubic-bezier(0.32,0.72,0,1)]",
+          // Open is the attribute the store sets on <html> with the tap (sidebarStore `moveDrawer`),
+          // not the `open` state, which arrives a frame later.
+          "[[data-nav-drawer-open]_&]:translate-x-0",
+          peek ? "translate-x-0" : "-translate-x-[calc(100%+12px)]"
         )}
         onPointerLeave={() => {
           if (!pull.current) setPeek(false);
@@ -382,7 +384,7 @@ export function NavDrawer({
           aria-expanded={open}
           aria-label={open ? "Close menu" : "Open menu"}
           className={cn(
-            "absolute left-full top-1/2 flex h-14 -translate-y-1/2 items-center justify-center bg-accent text-on-accent shadow-lift transition-[width,margin,border-radius] duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
+            "absolute left-full top-1/2 flex h-14 -translate-y-1/2 items-center justify-center bg-accent text-on-accent shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
             open ? "ml-2 w-7 rounded-app" : "w-5 touch-none rounded-r-app hover:w-6"
           )}
           onClick={unlessDragged(toggle)}

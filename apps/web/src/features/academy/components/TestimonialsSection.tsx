@@ -182,7 +182,7 @@ function CardBody({ item, isActive, compact = false }: CardBodyProps) {
 
 // Shared smooth easing (fast start, long soft landing)
 const MOTION =
-  "transition-[transform,opacity,box-shadow,background-color,border-color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none will-change-transform [backface-visibility:hidden]";
+  "transition-[transform,opacity,box-shadow,background-color,border-color] duration-700 ease-emphasized motion-reduce:transition-none will-change-transform [backface-visibility:hidden]";
 
 export function TestimonialsSection() {
 
