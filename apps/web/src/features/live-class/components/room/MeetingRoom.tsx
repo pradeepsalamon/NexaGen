@@ -34,7 +34,7 @@ import { ConnectionStateManager } from "../../providers/ConnectionStateManager";
 import { LiveRoomProvider } from "../../providers/LiveRoomContext";
 import { MediaDeviceProvider } from "../../providers/MediaDeviceProvider";
 import { VideoEffectsProvider } from "../../providers/VideoEffectsProvider";
-import { loadMediaPrefs } from "../../lib/mediaDevices";
+import { MOBILE_CAMERA_RESOLUTION, isMobileDevice, loadMediaPrefs } from "../../lib/mediaDevices";
 import { useClassroomSession } from "../../providers/ClassroomSessionManager";
 import { ConnectionLost } from "../states/ErrorStates";
 import { ClassSummary, LazyView } from "../meeting/lazyViews";
@@ -127,6 +127,9 @@ export function MeetingRoom({ token, classId, guestToken = null }: MeetingRoomPr
       dynacast: true,
       videoCaptureDefaults: {
         deviceId: prefs.videoinput?.deviceId,
+        // Phones and tablets capture at 480p rather than LiveKit's 720p
+        // default: less to encode and upload, and their tiles are small.
+        ...(isMobileDevice() ? { resolution: MOBILE_CAMERA_RESOLUTION } : {}),
       },
     };
   }, []);
