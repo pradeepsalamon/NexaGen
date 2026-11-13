@@ -202,3 +202,104 @@ export type TenantUsageSnapshot = {
   counts: Record<string, number>;
   measuredAt: string;
 };
+
+/**
+ * What the nightly job measures per academy besides the plan-limit counts
+ * (docs/SAAS_PLANS.md § "Usage history"). Analytics only: no limit, no bill.
+ * `level` = a total as of the end of the day; `daily` = what happened that day
+ * (add the days up for a month).
+ */
+export const TENANT_USAGE_METRIC_KEYS = [
+  "storageBytes",
+  "recordingBytes",
+  "documentBytes",
+  "uploadBytes",
+  "participantMinutes",
+  "emailsSent",
+  "whatsappSent",
+  "analysesCompleted"
+] as const;
+
+export type TenantUsageMetricKey = (typeof TENANT_USAGE_METRIC_KEYS)[number];
+
+export type TenantUsageMetricDefinition = {
+  key: TenantUsageMetricKey;
+  label: string;
+  description: string;
+  kind: "level" | "daily";
+  unit: "bytes" | "minutes" | "count";
+};
+
+export const TENANT_USAGE_METRICS: Record<TenantUsageMetricKey, TenantUsageMetricDefinition> = {
+  analysesCompleted: {
+    description: "Engine game analyses that finished (complete or partial).",
+    key: "analysesCompleted",
+    kind: "daily",
+    label: "Engine analyses",
+    unit: "count"
+  },
+  documentBytes: {
+    description: "Invoice, credit note and payslip PDFs and payment-proof attachments.",
+    key: "documentBytes",
+    kind: "level",
+    label: "Documents",
+    unit: "bytes"
+  },
+  emailsSent: {
+    description: "Emails sent by messaging rules and by staff. Sign-in emails (password reset, verification) are not logged, so not counted.",
+    key: "emailsSent",
+    kind: "daily",
+    label: "Emails",
+    unit: "count"
+  },
+  participantMinutes: {
+    description: "Minutes students and coaches spent connected to live classes.",
+    key: "participantMinutes",
+    kind: "daily",
+    label: "Live-class minutes",
+    unit: "minutes"
+  },
+  recordingBytes: {
+    description: "Class recordings kept on the server.",
+    key: "recordingBytes",
+    kind: "level",
+    label: "Recordings",
+    unit: "bytes"
+  },
+  storageBytes: {
+    description: "Recordings, documents and uploads together.",
+    key: "storageBytes",
+    kind: "level",
+    label: "Storage",
+    unit: "bytes"
+  },
+  uploadBytes: {
+    description: "Images and PGN files uploaded since sizes were first recorded (2026-11-13).",
+    key: "uploadBytes",
+    kind: "level",
+    label: "Uploads",
+    unit: "bytes"
+  },
+  whatsappSent: {
+    description: "WhatsApp messages sent by messaging rules.",
+    key: "whatsappSent",
+    kind: "daily",
+    label: "WhatsApp messages",
+    unit: "count"
+  }
+};
+
+/** One academy's usage for one UTC day. A key missing from `counts` was not measured that day. */
+export type TenantUsageDayItem = {
+  tenantId: string;
+  /** `YYYY-MM-DD` (UTC). */
+  day: string;
+  counts: Record<string, number>;
+  measuredAt: string;
+};
+
+export const TENANT_USAGE_HISTORY_DEFAULT_DAYS = 90;
+export const TENANT_USAGE_HISTORY_MAX_DAYS = 366;
+
+/** `GET /platform/usage/history?tenantId=&days=`: oldest day first. */
+export type TenantUsageHistoryResponse = { days: TenantUsageDayItem[] };

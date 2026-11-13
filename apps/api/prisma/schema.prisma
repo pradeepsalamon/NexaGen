@@ -4990,6 +4990,8 @@ model Payslip {
 
   /// Private Cloudinary public_id — no permanently-public URL, mirrors Invoice.
   storageKey  String?
+  /// Size of the stored PDF, like Invoice.pdfBytes (academy storage usage).
+  pdfBytes    Int?
   pdfStatus   PayslipPdfStatus @default(PENDING)
   pdfError    String?
   pdfAttempts Int              @default(0)
@@ -6379,6 +6381,7 @@ model Tenant {
   platformCheckouts  PlatformCheckout[]
   platformInvoices   PlatformInvoice[]
   usage              TenantUsage?
+  usageDays          TenantUsageDay[]
 
   @@map("tenants")
 }
@@ -6705,6 +6708,42 @@ model TenantUsage {
   measuredAt DateTime @default(now())
 
   @@map("tenant_usage")
+}
+
+/// One row per academy per UTC day: the history behind `TenantUsage`
+/// (docs/SAAS_PLANS.md § "Usage history"). `counts` holds the plan-limit
+/// counts and storage totals as measured at the end of that day, plus what
+/// happened during it (class minutes, messages, analyses). Analytics only:
+/// nothing is enforced or billed from it.
+model TenantUsageDay {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  day        DateTime @db.Date
+  counts     Json     @default("{}")
+  measuredAt DateTime @default(now())
+
+  @@unique([tenantId, day])
+  @@index([day])
+  @@map("tenant_usage_days")
+}
+
+/// The size of each file `UploadService` put in Cloudinary (images, PGNs), so
+/// an academy's storage can be added up: Cloudinary reports no per-folder
+/// usage on our plan. The row goes when the file is deleted.
+model UploadedFile {
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). No default: the writer passes it.
+  tenantId String
+
+  /// Cloudinary public_id.
+  publicId String
+  bytes    Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, publicId])
+  @@map("uploaded_files")
 }
 
 /// An academy's own gateway keys for student payments (Phase 6, §G "Two money

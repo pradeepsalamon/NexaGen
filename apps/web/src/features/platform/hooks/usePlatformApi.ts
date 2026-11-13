@@ -50,6 +50,7 @@ import {
   listPlatformTenants,
   listIntegrityRuns,
   listPlatformUsage,
+  listPlatformUsageHistory,
   runIntegrityCheck,
   makePlatformTenantDomainPrimary,
   reactivatePlatformTenant,
@@ -254,6 +255,13 @@ export const usePlatformSellerDetails = () =>
   useQuery({ queryFn: getPlatformSellerDetails, queryKey: queryKeys.platform.seller });
 
 export const usePlatformUsage = () => useQuery({ queryFn: listPlatformUsage, queryKey: queryKeys.platform.usage });
+
+/** Daily usage rows for the last `days` days: one academy's, or every academy's. */
+export const usePlatformUsageHistory = (days: number, tenantId?: string) =>
+  useQuery({
+    queryFn: () => listPlatformUsageHistory(days, tenantId),
+    queryKey: queryKeys.platform.usageHistory(days, tenantId)
+  });
 
 export const useIntegrityRuns = () => useQuery({ queryFn: listIntegrityRuns, queryKey: queryKeys.platform.integrity });
 

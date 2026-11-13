@@ -33,6 +33,7 @@ import {
   type StartSupportSessionResponse,
   type TenantIntegrityRunSummary,
   type TenantIntegrityRunsResponse,
+  type TenantUsageHistoryResponse,
   type TenantUsageSnapshot,
   type TransitionTenantSubscriptionRequest,
   type UpdatePlatformPlanRequest,
@@ -175,6 +176,11 @@ export const updatePlatformSellerDetails = (body: UpdatePlatformSellerDetailsReq
   apiFetch<{ seller: PlatformSellerDetails; saved: boolean }>(API_ROUTES.platform.sellerDetails, { body, method: "PUT" });
 
 export const listPlatformUsage = () => apiFetch<{ usage: TenantUsageSnapshot[] }>(API_ROUTES.platform.usage);
+
+export const listPlatformUsageHistory = (days: number, tenantId?: string) =>
+  apiFetch<TenantUsageHistoryResponse>(
+    `${API_ROUTES.platform.usageHistory}?${new URLSearchParams({ days: String(days), ...(tenantId ? { tenantId } : {}) })}`
+  );
 
 export const listIntegrityRuns = () => apiFetch<TenantIntegrityRunsResponse>(API_ROUTES.platform.integrityRuns);
 

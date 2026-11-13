@@ -98,6 +98,72 @@ attendance, assignments, the puzzle library, announcements, notifications.
 - A **downgrade never deletes anything**: over-limit rows stay; only adding more
   is refused.
 
+## Usage history
+
+What each academy consumes, measured every night for the platform console.
+**Analytics only**: the four limits above are the only things enforced, and
+nothing here is billed. There is no separate metering system: the figures are
+read from rows the app already writes.
+
+- **Job:** `TenantUsageService.snapshotCron` (`platform-billing/`, 02:00 UTC,
+  `JobLockService.runForEachTenant`, so every query runs inside one academy and
+  is scoped by the Prisma extension; no raw SQL). It measures the UTC day that
+  just ended.
+- **Storage:** one row per academy per day in `tenant_usage_days`
+  (`TenantUsageDay`, unique on `tenantId` + `day`; `counts` is JSON). A rerun
+  replaces that day's row. `tenant_usage` (`TenantUsage`) still holds the latest
+  figures. Both are platform tables keyed by `tenantId`.
+- **Catalogue:** `TENANT_USAGE_METRICS` in `@nexa-chess/types`
+  (`platform-billing.ts`): label, unit and whether a figure is a total (`level`)
+  or per day (`daily`).
+
+| Key | Kind | Read from |
+|---|---|---|
+| `maxStudents`, `maxCoaches`, `maxBatches`, `maxConcurrentLiveClasses` | total | `EntitlementService.getUsage()` (the limit counts) |
+| `recordingBytes` | total | `LiveSession.recordingBytes` where a recording is kept |
+| `documentBytes` | total | `Invoice.pdfBytes`, `CreditNote.pdfBytes`, `Payslip.pdfBytes`, `ManualPaymentRecord.attachmentSizeBytes` |
+| `uploadBytes` | total | `UploadedFile.bytes` (see below) |
+| `storageBytes` | total | the three above added together |
+| `participantMinutes` | per day | `sessionDuration` of `AttendanceLog` and `CoachAttendanceLog` sessions that ended that day (a coach's board sessions are left out: they run inside the class session) |
+| `emailsSent` | per day | `MessageDelivery` EMAIL + `DirectEmail`, status SENT, by `sentAt` |
+| `whatsappSent` | per day | `MessageDelivery` WHATSAPP, status SENT, by `sentAt` |
+| `analysesCompleted` | per day | `GameAnalysis` COMPLETED or PARTIAL, by `completedAt` |
+
+- **Totals are as of the measurement** (about 02:00 UTC after the day ends),
+  labelled with the day that ended.
+- **Missing days:** each run also fills in days of the last 30
+  (`USAGE_BACKFILL_DAYS`) that have no row and that the academy existed on,
+  with the per-day figures only. A past day's totals can't be known, so those
+  keys are absent and the charts show a gap, never a zero.
+- **Upload sizes** (`UploadedFile`, `uploaded_files`): Cloudinary reports no
+  per-folder usage on our plan (checked 2026-11-13: Free plan, account-wide
+  usage only, search aggregations refused, 500 Admin API calls an hour, and
+  dev, staging and production share the `nexa_chess/` folder), so
+  `UploadService` records each file's `public_id` and size when it stores one
+  and deletes the row with the file. Recording never fails an upload. Files
+  stored before 2026-11-13 have no row (about 0.4 MB in the whole account), so
+  `uploadBytes` starts from that date. Payslip PDFs get their size from then on
+  too (`Payslip.pdfBytes`).
+- **Not counted:** fixed system emails (password reset, verification, invites;
+  they aren't logged), in-app notifications, demo-class guests and spectators
+  (no attendance row), derived Cloudinary images, bandwidth (files are served
+  by Cloudinary and video by LiveKit, not by the API), AI (mock only).
+- **API:** `GET /platform/usage` (latest per academy) and
+  `GET /platform/usage/history?tenantId=&days=` (daily rows, oldest first,
+  default 90 days, max 366). Platform operators only.
+- **Console:** `/admin/platform` → **Usage** (a chart of one figure by academy
+  and a table of every academy over the chosen period) and the **Usage
+  history** card on an academy's page (`features/platform/components/UsageTab.tsx`,
+  `AcademyUsageCard.tsx`, helpers in `features/platform/lib/usage.ts`).
+- **Tests:** `tenant-usage.int-spec.ts` (two academies with different figures:
+  each row holds only its own; one row per day; backfill; operators only),
+  `upload.service.spec.ts`.
+- **Adding a figure:** a key in `TENANT_USAGE_METRIC_KEYS` + its
+  `TENANT_USAGE_METRICS` entry, the query in `measureStorage` or
+  `measureActivity`, a row in the table above, and a case in the int-spec. To
+  turn one into a limit later, it becomes a `PLAN_LIMIT_KEYS` entry checked in
+  the creating transaction like the others, never read from this table.
+
 ## Subscription state → access mode
 
 `resolveTenantAccessMode` (shared) derives it from the stored dates on every

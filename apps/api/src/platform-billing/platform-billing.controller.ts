@@ -106,6 +106,14 @@ export class PlatformBillingConsoleController {
   usageList(@Req() request: Request) {
     return this.usage.list(accessToken(request));
   }
+
+  @Get(API_ROUTES.platform.usageHistory)
+  usageHistory(@Req() request: Request, @Query("tenantId") tenantId: unknown, @Query("days") days: unknown) {
+    return this.usage.history(accessToken(request), {
+      days: queryString(days, "days"),
+      tenantId: queryString(tenantId, "tenantId")
+    });
+  }
 }
 
 /**

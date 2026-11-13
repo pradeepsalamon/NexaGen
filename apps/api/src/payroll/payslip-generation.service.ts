@@ -163,6 +163,7 @@ export class PayslipGenerationService {
       await this.prisma.payslip.update({
         where: { id: payslipId },
         data: {
+          pdfBytes: stored.bytes,
           pdfStatus: PayslipPdfStatus.READY,
           storageKey: stored.storageKey,
           pdfError: null,
@@ -247,14 +248,14 @@ export class PayslipGenerationService {
     pdf: Buffer,
     documentNumber: string,
     issuedAt: Date
-  ): Promise<{ storageKey: string | null }> {
+  ): Promise<{ bytes: number | null; storageKey: string | null }> {
     if (!this.storage.isConfigured()) {
       this.storage.warnIfUnconfigured();
-      return { storageKey: null };
+      return { bytes: null, storageKey: null };
     }
     const key = this.storage.buildKey(documentNumber, issuedAt);
     const result = await this.storage.upload(key, pdf);
-    return { storageKey: result.storageKey };
+    return { bytes: result.bytes, storageKey: result.storageKey };
   }
 
   // ────────────────────────────────────────────────
