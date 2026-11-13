@@ -5,7 +5,9 @@ type Listener = (event: TournamentEvent) => void;
 export type TournamentEvent =
   | { type: "state"; tournamentId: string }
   | { type: "game"; tournamentId: string; gameId: string }
-  | { type: "commentary"; tournamentId: string; commentaryId: string };
+  | { type: "commentary"; tournamentId: string; commentaryId: string }
+  /** Something of this tournament is due at `at` (epoch ms): a flag fall, a first-move deadline. */
+  | { type: "deadline"; tournamentId: string; at: number };
 
 /**
  * After-commit tournament events (docs/TOURNAMENTS.md §4). Services call these
@@ -37,6 +39,11 @@ export class TournamentEventsService {
   commentaryChanged(tournamentId: string, commentaryId: string): void {
     this.bump(tournamentId);
     this.emit({ commentaryId, tournamentId, type: "commentary" });
+  }
+
+  /** Asks for the tournament's pass to run at `at` (the timer service listens). Changes nothing viewers see. */
+  deadlineAt(tournamentId: string, at: number): void {
+    this.emit({ at, tournamentId, type: "deadline" });
   }
 
   version(tournamentId: string): number {

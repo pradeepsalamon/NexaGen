@@ -833,6 +833,7 @@ export const API_ROUTES = {
     pause: (id: string = ":id") => `/tournaments/${id}/pause`,
     resume: (id: string = ":id") => `/tournaments/${id}/resume`,
     nextRound: (id: string = ":id") => `/tournaments/${id}/rounds/next`,
+    nextRoundAt: (id: string = ":id") => `/tournaments/${id}/rounds/next/starts-at`,
     finish: (id: string = ":id") => `/tournaments/${id}/finish`,
     publishResults: (id: string = ":id") => `/tournaments/${id}/results/publish`,
     rounds: (id: string = ":id") => `/tournaments/${id}/rounds`,

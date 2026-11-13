@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   DEFAULT_TIEBREAKS,
   TOURNAMENT_FORMATS,
+  TOURNAMENT_ROUND_START_MODES,
   TOURNAMENT_VISIBILITIES,
   type CreateTournamentRequest,
   type TournamentDetailDto,
@@ -39,6 +40,9 @@ export const tournamentFormSchema = z.object({
   registrationOpensAt: z.string(),
   registrationRequiresApproval: z.boolean(),
   roundBreakSec: wholeOrBlank,
+  roundStartMode: z.enum(TOURNAMENT_ROUND_START_MODES),
+  /** Start times of rounds 2, 3, … as the picker's local text (blank = after the break). */
+  roundTimes: z.array(z.string()),
   rounds: wholeOrBlank,
   rulesText: z.string(),
   spectatorDelaySec: wholeOrBlank,
@@ -65,6 +69,13 @@ export function localInputToIso(value: string): string | null {
 }
 
 const num = (value: string): number | undefined => (value.trim() === "" ? undefined : Number(value));
+
+/** The stored schedule as one text per round from round 2 (gaps blank). */
+function roundTimesOf(t?: TournamentDetailDto): string[] {
+  const schedule = t?.roundSchedule ?? [];
+  const last = schedule.reduce((max, entry) => Math.max(max, entry.round), 1);
+  return Array.from({ length: last - 1 }, (_, i) => isoToLocalInput(schedule.find((entry) => entry.round === i + 2)?.startsAt));
+}
 
 export function defaultTournamentForm(t?: TournamentDetailDto): TournamentForm {
   const tomorrow = new Date(Date.now() + 24 * 3600_000);
@@ -95,6 +106,8 @@ export function defaultTournamentForm(t?: TournamentDetailDto): TournamentForm {
     registrationOpensAt: isoToLocalInput(t?.registrationOpensAt),
     registrationRequiresApproval: t?.registrationRequiresApproval ?? false,
     roundBreakSec: str(t?.roundBreakSec ?? 60),
+    roundStartMode: t?.roundStartMode ?? "AUTO",
+    roundTimes: roundTimesOf(t),
     rounds: str(t?.rounds ?? (t?.format === "ROUND_ROBIN" ? 1 : 5)),
     rulesText: t?.rulesText ?? "",
     spectatorDelaySec: t ? str(t.spectatorDelaySec) : "",
@@ -107,6 +120,7 @@ export function defaultTournamentForm(t?: TournamentDetailDto): TournamentForm {
 /** The request body for create (and, plus `version`, for update). */
 export function toTournamentRequest(values: TournamentForm): CreateTournamentRequest {
   const format = values.format;
+  const roundFormat = format === "SWISS" || format === "ROUND_ROBIN";
   const eligibility: TournamentEligibility = {
     allowUnrated: values.allowUnrated,
     ...(values.experienceLevels.length ? { experienceLevels: values.experienceLevels } : {}),
@@ -135,6 +149,18 @@ export function toTournamentRequest(values: TournamentForm): CreateTournamentReq
     registrationOpensAt: localInputToIso(values.registrationOpensAt),
     registrationRequiresApproval: values.registrationRequiresApproval,
     roundBreakSec: num(values.roundBreakSec) ?? 60,
+    ...(roundFormat
+      ? {
+          roundSchedule:
+            values.roundStartMode === "SCHEDULED"
+              ? values.roundTimes.flatMap((value, i) => {
+                  const startsAt = localInputToIso(value);
+                  return startsAt ? [{ round: i + 2, startsAt }] : [];
+                })
+              : [],
+          roundStartMode: values.roundStartMode
+        }
+      : {}),
     rulesText: values.rulesText.trim() || undefined,
     ...(num(values.spectatorDelaySec) !== undefined ? { spectatorDelaySec: num(values.spectatorDelaySec) } : {}),
     startsAt: localInputToIso(values.startsAt) ?? "",

@@ -45,6 +45,8 @@ import { UploadService } from "../upload/upload.service";
 import { ApprovalService } from "../approval/approval.service";
 import { TournamentAccessService, type LoadedTournament, type TournamentViewer } from "./tournament-access.service";
 import { TournamentAuditService } from "./tournament-audit.service";
+import { roundScheduleOf, TournamentEngineService } from "./tournament-engine.service";
+import { TournamentEventsService } from "./tournament-events.service";
 import { personSelect, summaryInclude, toDetail, toPerson, toSummary } from "./tournament-mapper";
 import {
   canBroadcast,
@@ -60,8 +62,9 @@ import { publishInTx } from "./tournament-publish";
 import { TournamentRegistrationService } from "./tournament-registration.service";
 import { TournamentSettingsService } from "./tournament-settings.service";
 
-/** Once a tournament has started only its wording and the spectator delay may change. */
-const TEXT_ONLY_FIELDS = new Set(["description", "name", "prizesText", "rulesText", "spectatorDelaySec", "version"]);
+/** Once a tournament has started only its wording, the spectator delay and how later rounds start may change. */
+const ROUND_START_FIELDS = ["roundBreakSec", "roundSchedule", "roundStartMode"];
+const TEXT_ONLY_FIELDS = new Set(["description", "name", "prizesText", "rulesText", "spectatorDelaySec", "version", ...ROUND_START_FIELDS]);
 const EDITABLE_STATUSES: TournamentStatus[] = [TournamentStatus.DRAFT, TournamentStatus.PUBLISHED];
 
 type TournamentData = Omit<Prisma.TournamentUncheckedCreateInput, "slug" | "tenantId">;
@@ -83,7 +86,9 @@ export class TournamentService {
     private readonly registration: TournamentRegistrationService,
     private readonly trash: TrashRepository,
     private readonly uploads: UploadService,
-    private readonly approvals: ApprovalService
+    private readonly approvals: ApprovalService,
+    private readonly engine: TournamentEngineService,
+    private readonly events: TournamentEventsService
   ) {}
 
   async capabilities(accessToken: string | undefined): Promise<TournamentCapabilitiesResponse> {
@@ -130,7 +135,7 @@ export class TournamentService {
     const fields = Object.keys(dto).filter((key) => dto[key as keyof UpdateTournamentRequest] !== undefined);
     if (!EDITABLE_STATUSES.includes(tournament.status)) {
       const blocked = fields.filter((f) => !TEXT_ONLY_FIELDS.has(f));
-      if (blocked.length) throw new ConflictException("Once a tournament has started, only its name, texts and spectator delay can change.");
+      if (blocked.length) throw new ConflictException("Once a tournament has started, only its name, texts, spectator delay and round start times can change.");
     }
     if (tournament.status === TournamentStatus.PUBLISHED && dto.format && dto.format !== tournament.format) {
       throw new ConflictException("The format can't change after the tournament is published.");
@@ -150,6 +155,10 @@ export class TournamentService {
         where: { id, version: dto.version }
       });
       if (count === 0) throw new ConflictException("Someone else changed this tournament. Reload it and try again.");
+      // Between rounds, new round-start settings move the round that is waiting.
+      if (!EDITABLE_STATUSES.includes(tournament.status) && fields.some((f) => ROUND_START_FIELDS.includes(f))) {
+        await this.engine.planNextRound(tx, await this.engine.lockTournament(tx, id));
+      }
       await this.audit.record(tx, {
         action: TournamentAuditAction.UPDATED,
         actorId: user.id,
@@ -157,6 +166,7 @@ export class TournamentService {
         tournamentId: id
       });
     });
+    this.events.stateChanged(id);
     return this.detail(user, id);
   }
 
@@ -413,6 +423,8 @@ export class TournamentService {
   private toData(dto: CreateTournamentRequest): TournamentData {
     const format = dto.format;
     const startFen = this.resolveStartFen(dto.startFen ?? null);
+    const roundFormat = format === TournamentFormat.SWISS || format === TournamentFormat.ROUND_ROBIN;
+    const scheduled = roundFormat && dto.roundStartMode === "SCHEDULED";
     return {
       arenaConfigJson: format === TournamentFormat.ARENA ? ((dto.arenaConfig ?? { berserk: true, streaks: true }) as Prisma.InputJsonValue) : Prisma.DbNull,
       arenaDurationMin: format === TournamentFormat.ARENA ? (dto.arenaDurationMin ?? null) : null,
@@ -434,6 +446,8 @@ export class TournamentService {
       registrationOpensAt: dto.registrationOpensAt ? new Date(dto.registrationOpensAt) : null,
       registrationRequiresApproval: dto.registrationRequiresApproval ?? false,
       roundBreakSec: dto.roundBreakSec ?? 60,
+      roundScheduleJson: scheduled && dto.roundSchedule?.length ? ([...dto.roundSchedule].sort((a, b) => a.round - b.round) as Prisma.InputJsonValue) : Prisma.DbNull,
+      roundStartMode: roundFormat ? (dto.roundStartMode ?? "AUTO") : "AUTO",
       rounds:
         format === TournamentFormat.SWISS
           ? (dto.rounds ?? null)
@@ -467,6 +481,8 @@ export class TournamentService {
       registrationOpensAt: t.registrationOpensAt?.toISOString() ?? null,
       registrationRequiresApproval: t.registrationRequiresApproval,
       roundBreakSec: t.roundBreakSec,
+      roundSchedule: roundScheduleOf(t),
+      roundStartMode: t.roundStartMode,
       rounds: t.rounds ?? undefined,
       rulesText: t.rulesText ?? undefined,
       spectatorDelaySec: t.spectatorDelaySec,

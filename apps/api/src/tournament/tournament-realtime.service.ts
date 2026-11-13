@@ -1,10 +1,13 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import {
+  TOURNAMENT_CLOCK_START_PLY,
   TOURNAMENT_REALTIME_TOPICS,
   type TournamentRealtimeMessage,
+  type TournamentRealtimeMove,
   type TournamentRealtimeTokenResponse
 } from "@nexa-chess/types";
 import { TournamentGameStatus } from "@prisma/client";
+import { sideToMove } from "../common/chess/game-engine";
 import { LiveKitService } from "../live-class/livekit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
@@ -92,22 +95,50 @@ export class TournamentRealtimeService implements OnModuleInit, OnModuleDestroy 
       case "commentary":
         await send(TOURNAMENT_REALTIME_TOPICS.commentary, { id: event.commentaryId, type: "commentary", version });
         return;
+      case "deadline":
+        return;
       case "game": {
         const game = await this.prisma.tournamentGame.findUnique({
           select: {
+            blackClockMs: true,
             blackPlayer: { select: { userId: true } },
+            fen: true,
+            firstMoveDeadline: true,
             movesJson: true,
             ply: true,
             status: true,
-            tournament: { select: { spectatorDelaySec: true } },
+            tournament: { select: { clockIncrementMs: true, clockInitialMs: true, spectatorDelaySec: true } },
+            turnSince: true,
+            whiteClockMs: true,
             whitePlayer: { select: { userId: true } }
           },
           where: { id: event.gameId }
         });
         if (!game) return;
         const players = [game.whitePlayer.userId, game.blackPlayer?.userId].filter((u): u is string => !!u).map(viewerIdentity);
-        await send(TOURNAMENT_REALTIME_TOPICS.game, { gameId: event.gameId, ply: game.ply, type: "game" }, players);
-        const lastAt = movesOf(game.movesJson).at(-1)?.at ?? Date.now();
+        const last = movesOf(game.movesJson).at(-1);
+        const ongoing = game.status === TournamentGameStatus.ONGOING;
+        // The move itself, to the two players only (everyone else gets the delayed view over REST).
+        const move: TournamentRealtimeMove | undefined =
+          ongoing && last && game.turnSince
+            ? {
+                clock: {
+                  blackMs: game.blackClockMs,
+                  incrementMs: game.tournament.clockIncrementMs,
+                  initialMs: game.tournament.clockInitialMs,
+                  running: game.ply >= TOURNAMENT_CLOCK_START_PLY ? sideToMove({ fen: game.fen, ongoing: true }) : null,
+                  serverNow: new Date().toISOString(),
+                  turnSince: game.turnSince.toISOString(),
+                  whiteMs: game.whiteClockMs
+                },
+                fen: game.fen,
+                firstMoveDeadline: game.firstMoveDeadline?.toISOString() ?? null,
+                san: last.san,
+                uci: last.uci
+              }
+            : undefined;
+        await send(TOURNAMENT_REALTIME_TOPICS.game, { gameId: event.gameId, ply: game.ply, type: "game", ...(move ? { move } : {}) }, players);
+        const lastAt = last?.at ?? Date.now();
         const visibleAt = new Date(lastAt + game.tournament.spectatorDelaySec * 1000).toISOString();
         await send(TOURNAMENT_REALTIME_TOPICS.spectate, {
           finished: game.status === TournamentGameStatus.FINISHED,
@@ -115,7 +146,7 @@ export class TournamentRealtimeService implements OnModuleInit, OnModuleDestroy 
           type: "spectate",
           visibleAt
         });
-        await send(TOURNAMENT_REALTIME_TOPICS.state, { type: "state", version });
+        // No state nudge here: a move changes nothing in the lobby, and a result sends its own.
         return;
       }
     }

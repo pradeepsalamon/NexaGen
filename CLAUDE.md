@@ -167,7 +167,7 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 ### 3.6m5 Tournaments
 
-`tournament/` (API), contract `@nexa-chess/types` `tournaments.ts`, feature `tournaments`. **Every permission decision goes through `tournament/tournament-policy.ts`** (pure; host rows count only on staff; its list filter is spec-checked against `canViewTournament`); sensitive actions write `TournamentAuditLog` in the same transaction. `TournamentPlayer.tenantId` is the player's academy (v1: must equal the organizer's). Game rules come from `common/chess/game-engine.ts`, shared with live-class matches. Web: `features/tournaments/` (`/tournaments/**`, `/admin/tournaments`, public `/watch/**` and `/certificates/[code]`). [docs/TOURNAMENTS.md](docs/TOURNAMENTS.md)
+`tournament/` (API), contract `@nexa-chess/types` `tournaments.ts`, feature `tournaments`. **Every permission decision goes through `tournament/tournament-policy.ts`** (pure; host rows count only on staff; its list filter is spec-checked against `canViewTournament`); sensitive actions write `TournamentAuditLog` in the same transaction. `TournamentPlayer.tenantId` is the player's academy (v1: must equal the organizer's). Game rules come from `common/chess/game-engine.ts`, shared with live-class matches. When a round starts is `resolveNextRoundAt` → `Tournament.nextRoundAt` only; a scheduler step that changes anything emits `stateChanged`; exact-time wake-ups go through `TournamentTimerService` (the cron is the safety net). Web: `features/tournaments/` (`/tournaments/**`, `/admin/tournaments`, public `/watch/**` and `/certificates/[code]`). [docs/TOURNAMENTS.md](docs/TOURNAMENTS.md)
 
 ### 3.6n AI runtime (mock only)
 

@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
   Clapperboard,
+  Clock,
   Grid3x3,
   Pause,
   Pencil,
@@ -21,6 +22,7 @@ import {
 import {
   TOURNAMENT_AGE_LIMITS,
   TOURNAMENT_HOST_ROLE_LABELS,
+  TOURNAMENT_ROUND_START_MODE_LABELS,
   TOURNAMENT_VISIBILITY_LABELS,
   type TournamentDetailDto,
   type TournamentLiveDto,
@@ -42,8 +44,9 @@ import { formatDateTime } from "@/lib/datetime";
 import { useToast } from "@/providers/ToastProvider";
 import { acceptInvitation, arenaJoin, arenaLeave, declineInvitation, publishTournament, register, withdraw } from "../api/tournamentsApi";
 import { useBracket, useCommentary, useInvalidateTournament, usePlayers, useRounds, useStandings, useTournament, useTournamentLive } from "../hooks/useTournaments";
+import { useAutoOpenGame } from "../hooks/useAutoOpenGame";
 import { useTournamentRealtime } from "../hooks/useTournamentRealtime";
-import { countdown, formatLine, points } from "../lib/format";
+import { countdown, formatLine, nextRoundLine, points } from "../lib/format";
 import { BracketView } from "./BracketView";
 import { CommentaryFeed } from "./CommentaryFeed";
 import { PairingsList, type PairingRow } from "./PairingsList";
@@ -214,6 +217,47 @@ function EntryActions({ t }: { t: TournamentDetailDto }) {
   );
 }
 
+/** How long after the start time the page keeps asking whether the tournament has started. */
+const START_RECHECK_MS = 3_000;
+
+/**
+ * Before the start: the countdown, and at zero the page asks the server until
+ * the tournament is live — so a player waiting here is carried into round 1
+ * (the live panel then opens their board) without touching anything.
+ */
+function StartPanel({ t }: { t: TournamentDetailDto }) {
+  const qc = useQueryClient();
+  const now = useNow(1000);
+  const startsAt = Date.parse(t.startsAt);
+  const due = now >= startsAt;
+  const entered = t.viewer.myStatus === "APPROVED";
+  useEffect(() => {
+    if (!due) return;
+    const refresh = () => void qc.invalidateQueries({ queryKey: ["tournaments", "detail", t.id] });
+    refresh();
+    const timer = window.setInterval(refresh, START_RECHECK_MS);
+    return () => window.clearInterval(timer);
+  }, [due, qc, t.id]);
+  // Only close to the start: days ahead, the date in the header says enough.
+  if (startsAt - now > 24 * 3600_000) return null;
+  const short = t.playerCount < Math.max(2, t.minPlayers);
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-control border border-primary bg-primary-soft p-3">
+      <Clock aria-hidden className="size-5 shrink-0 text-primary-ink" />
+      <div className="min-w-0">
+        <p className="font-medium text-app-text">{due ? (short ? "Waiting for enough players to start" : "Starting…") : `Starts in ${countdown(startsAt, now)}`}</p>
+        <p className="text-sm text-app-muted">
+          {entered
+            ? "Stay on this page: your board opens by itself when you are paired."
+            : due && short
+              ? `It starts as soon as ${Math.max(2, t.minPlayers)} players have entered.`
+              : "This page updates by itself when play begins."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function LivePanel({ t, live }: { t: TournamentDetailDto; live: TournamentLiveDto }) {
   const now = useNow(1000);
   const offset = useServerOffset(live.serverNow);
@@ -263,7 +307,7 @@ function LivePanel({ t, live }: { t: TournamentDetailDto; live: TournamentLiveDt
             ) : (
               <>
                 <span className="text-sm text-app-text">
-                  {arena ? (me.arenaPaused ? "You're paused and won't be paired." : "Waiting for your next opponent…") : live.nextRoundAt ? `Next round in ${countdown(Date.parse(live.nextRoundAt), serverNow)}.` : "Waiting for the next round."}
+                  {arena ? (me.arenaPaused ? "You're paused and won't be paired." : "Waiting for your next opponent…") : nextRoundLine(live, serverNow)}
                 </span>
                 {arena ? (
                   <Button className="ml-auto" isLoading={busy} onClick={() => void toggleArena()} variant={me.arenaPaused ? "primary" : "outline"}>
@@ -274,8 +318,8 @@ function LivePanel({ t, live }: { t: TournamentDetailDto; live: TournamentLiveDt
               </>
             )}
           </div>
-        ) : live.nextRoundAt ? (
-          <p className="text-sm text-app-muted">Next round in {countdown(Date.parse(live.nextRoundAt), serverNow)}.</p>
+        ) : live.nextRoundAt || live.awaitingHost ? (
+          <p className="text-sm text-app-muted">{nextRoundLine(live, serverNow)}</p>
         ) : null}
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="min-w-0">
@@ -483,6 +527,23 @@ function OverviewTab({ t }: { t: TournamentDetailDto }) {
           <dt className="text-app-muted">Visibility</dt>
           <dd className="font-medium text-app-text">{TOURNAMENT_VISIBILITY_LABELS[t.visibility]}</dd>
         </div>
+        {t.format === "SWISS" || t.format === "ROUND_ROBIN" ? (
+          <div>
+            <dt className="text-app-muted">Rounds start</dt>
+            <dd className="font-medium text-app-text">
+              {t.roundStartMode === "AUTO" ? `${t.roundBreakSec} seconds after the round before` : TOURNAMENT_ROUND_START_MODE_LABELS[t.roundStartMode]}
+            </dd>
+            {t.roundStartMode === "SCHEDULED" ? (
+              <dd className="mt-1 flex flex-col gap-0.5 text-app-text">
+                {t.roundSchedule.map((entry) => (
+                  <span key={entry.round}>
+                    Round {entry.round}: {formatDateTime(entry.startsAt, timeZone)}
+                  </span>
+                ))}
+              </dd>
+            ) : null}
+          </div>
+        ) : null}
         {t.spectatorDelaySec > 0 ? (
           <div>
             <dt className="text-app-muted">Spectator delay</dt>
@@ -512,11 +573,14 @@ export function TournamentPageClient({ tournamentId }: { tournamentId: string })
   const query = useTournament(tournamentId);
   const t = query.data?.tournament;
   const started = t ? ["LIVE", "PAUSED", "COMPLETED"].includes(t.status) : false;
-  const { connected } = useTournamentRealtime(tournamentId, { enabled: started });
+  // Joined before the start too, so the page turns live the moment the first round is paired.
+  const { connected } = useTournamentRealtime(tournamentId, { enabled: started || t?.status === "PUBLISHED" });
   const live = useTournamentLive(tournamentId, { enabled: !!t && (t.status === "LIVE" || t.status === "PAUSED"), realtime: connected });
   const qc = useQueryClient();
   const [tab, setTab] = useState<string | null>(null);
   const timeZone = useUserTimeZone();
+  // Paired: straight to the board.
+  useAutoOpenGame(tournamentId, live.data?.me?.status === "APPROVED" ? live.data.me.currentGameId : null);
 
   // A new version (round, result) refreshes the detail too.
   const liveVersion = live.data?.version;
@@ -571,6 +635,7 @@ export function TournamentPageClient({ tournamentId }: { tournamentId: string })
         <Alert variant="info">Results are final but not yet published. Publish them from Manage to notify players.</Alert>
       ) : null}
       <EntryActions t={t} />
+      {t.status === "PUBLISHED" ? <StartPanel t={t} /> : null}
       {live.data && (t.status === "LIVE" || t.status === "PAUSED") ? <LivePanel live={live.data} t={t} /> : null}
       {t.status === "COMPLETED" ? <Podium tournamentId={t.id} /> : null}
       <Tabs onValueChange={setTab} value={activeTab}>

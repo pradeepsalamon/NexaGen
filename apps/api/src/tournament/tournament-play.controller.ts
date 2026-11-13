@@ -2,12 +2,14 @@ import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Quer
 import {
   API_ROUTES,
   removeTournamentPlayerRequestSchema,
+  setTournamentNextRoundAtRequestSchema,
   tournamentGameActionRequestSchema,
   tournamentGameDecisionRequestSchema,
   tournamentMoveRequestSchema,
   tournamentStandingsQuerySchema,
   type PaginatedQuery,
   type RemoveTournamentPlayerRequest,
+  type SetTournamentNextRoundAtRequest,
   type TournamentGameActionRequest,
   type TournamentGameDecisionRequest,
   type TournamentMoveRequest
@@ -59,6 +61,16 @@ export class TournamentPlayController {
   @HttpCode(200)
   nextRound(@Req() request: Request, @Param("id") id: string) {
     return this.runner.nextRound(this.getAccessToken(request), id);
+  }
+
+  @Post(API_ROUTES.tournaments.nextRoundAt())
+  @HttpCode(200)
+  setNextRoundAt(
+    @Req() request: Request,
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(setTournamentNextRoundAtRequestSchema)) body: SetTournamentNextRoundAtRequest
+  ) {
+    return this.runner.setNextRoundAt(this.getAccessToken(request), id, body);
   }
 
   @Post(API_ROUTES.tournaments.finish())

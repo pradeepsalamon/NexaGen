@@ -88,3 +88,15 @@ export function countdown(toMs: number, nowMs: number): string {
 }
 
 export const newClientId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+/** What a player between rounds is waiting for. */
+export function nextRoundLine(live: { awaitingHost: boolean; currentRound: number; nextRoundAt: string | null; tournament: { status: string } }, serverNow: number): string {
+  const next = `Round ${live.currentRound + 1}`;
+  if (live.tournament.status === "PAUSED") return "The tournament is paused.";
+  if (live.nextRoundAt) {
+    const at = Date.parse(live.nextRoundAt);
+    return at - serverNow < 1000 ? `${next} is starting…` : `${next} starts in ${countdown(at, serverNow)}. Your board opens by itself.`;
+  }
+  if (live.awaitingHost) return `${next} starts when the host begins it. Your board opens by itself.`;
+  return "This round is still being played.";
+}

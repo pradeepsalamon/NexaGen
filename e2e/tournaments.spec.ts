@@ -119,7 +119,7 @@ test.describe("Tournaments", () => {
     await admin.getByRole("button", { exact: true, name: "Start" }).click();
     await expect(admin.getByText("Tournament started")).toBeVisible();
 
-    // ── The two students open their game from the tournament page ──
+    // ── The two students open the tournament page; their board opens by itself ──
     const contexts: BrowserContext[] = [];
     const players: { page: Page; color: "white" | "black" }[] = [];
     for (const account of [TEST_USERS.student, SECOND_STUDENT]) {
@@ -128,7 +128,6 @@ test.describe("Tournaments", () => {
       await signIn(context, account);
       const page = await context.newPage();
       await page.goto(`/tournaments/${tournamentId}`);
-      await page.getByRole("link", { exact: true, name: "Play" }).click();
       await page.waitForURL(/\/games\//);
       await expect(page.locator("cg-board")).toBeVisible();
       const gameId = page.url().split("/").at(-1)!;
