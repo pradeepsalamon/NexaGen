@@ -6,7 +6,7 @@ import "@livekit/components-styles/prefabs";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { LiveClassProvider } from "@/features/live-class/providers/LiveClassProvider";
-import { MeetingRoom } from "@/features/live-class/components/room/MeetingRoom";
+import { MeetingRoom, preloadMeetingRoom } from "@/features/live-class/components/room/LazyMeetingRoom";
 import { ClassroomSessionManager } from "@/features/live-class/providers/ClassroomSessionManager";
 import { LoadingMeeting } from "@/features/live-class/components/states/LoadingMeeting";
 import { ClassroomStateShell } from "@/features/live-class/components/states/ClassroomStateShell";
@@ -185,6 +185,12 @@ function DemoClassJoin() {
     );
   };
 
+  // The room's code is a separate download: fetch it once the demo is known to exist.
+  const demoFound = !!info;
+  useEffect(() => {
+    if (demoFound) preloadMeetingRoom();
+  }, [demoFound]);
+
   // The same chrome as a member's pre-join and waiting screens.
   const shell = (children: React.ReactNode) => (
     <ClassroomStateShell topic={topic}>{children}</ClassroomStateShell>
@@ -194,7 +200,12 @@ function DemoClassJoin() {
     return (
       <LiveClassProvider topic={topic}>
         <ClassroomSessionManager roomId={classId}>
-          <MeetingRoom token={token} classId={classId} guestToken={guestToken} />
+          <MeetingRoom
+            token={token}
+            classId={classId}
+            guestToken={guestToken}
+            fallback={shell(<LoadingMeeting message="Connecting…" />)}
+          />
         </ClassroomSessionManager>
       </LiveClassProvider>
     );

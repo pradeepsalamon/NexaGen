@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { Crown, Grid2x2, Maximize2, Puzzle as PuzzleIcon } from "lucide-react";
 import { RoomTabs, type RoomTabItem } from "../room-ui/RoomTabs";
@@ -32,6 +32,68 @@ const SCROLLBAR_GUTTER = 16;
 // Shared references so memoized tiles skip re-rendering when nothing moved.
 const UNMEASURED_TILE_STYLE: CSSProperties = {};
 const SPAN_TWO_TILE_STYLE: CSSProperties = { gridColumn: "span 2" };
+
+/**
+ * The shared board as a grid tile. Memoised with stable props: the grid
+ * re-renders on every active-speaker update, and re-rendering this tile there
+ * re-rendered the board and made framer re-measure every tile each time.
+ */
+const BoardGridTile = memo(function BoardGridTile({
+  layoutKey,
+  onExpand,
+  style,
+}: {
+  layoutKey: string;
+  onExpand: () => void;
+  style: CSSProperties;
+}) {
+  return (
+    <motion.div
+      layout
+      layoutDependency={layoutKey}
+      initial={{ opacity: 0, scale: 0.94 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.94 }}
+      transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+      className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-app border border-app-border bg-app-surface transition-shadow duration-200"
+      style={{ containerType: "size", ...style }}
+    >
+      <div
+        className="relative"
+        style={{
+          width: "min(100cqw, 100cqh)",
+          height: "min(100cqw, 100cqh)",
+        }}
+      >
+        <ChessgroundBoard />
+      </div>
+
+      {/* Bottom-left name pill & request control button. The clock
+          is intentionally not shown on this small tile — it lives
+          in the full-screen board view. */}
+      <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5 rounded-chip bg-scrim/80 px-2 py-1">
+          <Crown className="size-3 text-accent" />
+          <span className="text-xs font-semibold text-on-scrim/90">Shared Board</span>
+        </div>
+        <RequestControlButton />
+      </div>
+
+      {/* Top-right flip + full-screen buttons (hover-revealed only where hover exists) */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end gap-1.5 p-2">
+        <FlipBoardButton className="pointer-events-auto" />
+        <button
+          type="button"
+          className="pointer-events-auto flex size-7 items-center justify-center rounded-control border border-app-border bg-app-surface/80 text-app-text backdrop-blur-sm transition duration-150 hover:bg-app-surface hover:scale-105 shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+          onClick={onExpand}
+          aria-label="View board full screen"
+        >
+          <Maximize2 className="size-3.5" />
+        </button>
+      </div>
+    </motion.div>
+  );
+});
 
 export function MeetingVideoGrid({
   compact = false,
@@ -70,6 +132,7 @@ export function MeetingVideoGrid({
   useEffect(() => {
     if (!showBoardTile) setBoardStage(false);
   }, [showBoardTile]);
+  const expandBoard = useCallback(() => setBoardStage(true), []);
 
   const { height, width, ref: containerRef } = useElementSize<HTMLDivElement>();
 
@@ -121,12 +184,16 @@ export function MeetingVideoGrid({
         maxWidth: "72rem",
       };
 
+  // One object per indent, so the indented tile's props stay equal between renders too.
+  const indentedTileStyle = useMemo<CSSProperties>(() => ({ gridColumn: `${indent + 1} / span 2` }), [indent]);
   const tileStyle = (index: number): CSSProperties =>
     !measured
       ? UNMEASURED_TILE_STYLE
       : indent > 0 && index === lastRowStartIndex
-        ? { gridColumn: `${indent + 1} / span 2` }
+        ? indentedTileStyle
         : SPAN_TWO_TILE_STYLE;
+  // What decides where a tile sits besides its own index (see VideoTile `layoutKey`).
+  const layoutSignature = `${totalItems}:${layout.cols}`;
 
   const participantFocus = (
     <AnimatePresence>
@@ -198,8 +265,12 @@ export function MeetingVideoGrid({
       <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto custom-scrollbar">
         <LayoutGroup>
           <AnimatePresence mode="popLayout">
-            {sortedTracks.map((trackRef) => (
-              <CompactVideoTile key={getTrackKey(trackRef)} trackRef={trackRef} />
+            {sortedTracks.map((trackRef, trackIndex) => (
+              <CompactVideoTile
+                key={getTrackKey(trackRef)}
+                layoutKey={`${trackIndex}:${sortedTracks.length}`}
+                trackRef={trackRef}
+              />
             ))}
           </AnimatePresence>
         </LayoutGroup>
@@ -227,58 +298,26 @@ export function MeetingVideoGrid({
               <div className="grid gap-3" style={gridStyle}>
               <AnimatePresence mode="popLayout">
                 {puzzleTileShown && activePuzzle && (
-                  <PuzzleGridTile key="puzzle-tile" puzzle={activePuzzle} style={tileStyle(0)} />
+                  <PuzzleGridTile
+                    key="puzzle-tile"
+                    layoutKey={`puzzle:${layoutSignature}`}
+                    puzzle={activePuzzle}
+                    style={tileStyle(0)}
+                  />
                 )}
                 {boardTileShown && (
-                  <motion.div
+                  <BoardGridTile
                     key="inline-chessboard"
-                    layout
-                    initial={{ opacity: 0, scale: 0.94 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.94 }}
-                    transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-                    className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-app border border-app-border bg-app-surface transition-shadow duration-200"
-                    style={{ containerType: "size", ...tileStyle(puzzleTileShown ? 1 : 0) }}
-                  >
-                    <div
-                      className="relative"
-                      style={{
-                        width: "min(100cqw, 100cqh)",
-                        height: "min(100cqw, 100cqh)",
-                      }}
-                    >
-                      <ChessgroundBoard />
-                    </div>
-
-                    {/* Bottom-left name pill & request control button. The clock
-                        is intentionally not shown on this small tile — it lives
-                        in the full-screen board view. */}
-                    <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center gap-1.5">
-                      <div className="flex shrink-0 items-center gap-1.5 rounded-chip bg-scrim/80 px-2 py-1">
-                        <Crown className="size-3 text-accent" />
-                        <span className="text-xs font-semibold text-on-scrim/90">Shared Board</span>
-                      </div>
-                      <RequestControlButton />
-                    </div>
-
-                    {/* Top-right flip + full-screen buttons (hover-revealed only where hover exists) */}
-                    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end gap-1.5 p-2">
-                      <FlipBoardButton className="pointer-events-auto" />
-                      <button
-                        type="button"
-                        className="pointer-events-auto flex size-7 items-center justify-center rounded-control border border-app-border bg-app-surface/80 text-app-text backdrop-blur-sm transition duration-150 hover:bg-app-surface hover:scale-105 shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
-                        onClick={() => setBoardStage(true)}
-                        aria-label="View board full screen"
-                      >
-                        <Maximize2 className="size-3.5" />
-                      </button>
-                    </div>
-                  </motion.div>
+                    layoutKey={`board:${puzzleTileShown ? 1 : 0}:${layoutSignature}`}
+                    onExpand={expandBoard}
+                    style={tileStyle(puzzleTileShown ? 1 : 0)}
+                  />
                 )}
                 {sortedTracks.map((trackRef, trackIndex) => (
                   <VideoTile
                     key={getTrackKey(trackRef)}
                     trackRef={trackRef}
+                    layoutKey={`${trackIndex + leadingTiles}:${layoutSignature}`}
                     onPin={setPinnedParticipantSid}
                     style={tileStyle(trackIndex + leadingTiles)}
                   />

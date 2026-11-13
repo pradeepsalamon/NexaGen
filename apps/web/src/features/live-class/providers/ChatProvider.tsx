@@ -73,12 +73,18 @@ interface ChatContextValue {
   /** Sends into `activeThread`. */
   send: (msg: string) => Promise<ChatMessage | void>;
   unreadCount: number;
-  draft: string;
   setDraft: React.Dispatch<React.SetStateAction<string>>;
   resetUnreadCount: () => void;
 }
 
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
+// The text being typed and the unread count live in contexts of their own.
+// In the main one, every keystroke re-rendered each consumer — the control
+// bar, the whole side panel and every message in the list — and typing lagged
+// on phones. `useChatUnreadCount` likewise spares a badge-only consumer a
+// re-render per incoming message while the chat is open.
+const ChatDraftContext = createContext<string | undefined>(undefined);
+const ChatUnreadContext = createContext<number | undefined>(undefined);
 
 /** LiveKit identity is `<userId>` or `<userId>_<clientId>`; cuids carry no `_`. */
 function userIdFromIdentity(identity: string | undefined): string | null {
@@ -517,7 +523,6 @@ export function ChatProvider({ children, classId }: { children: ReactNode; class
       canMessagePrivately,
       chatEnabled,
       chatMessages,
-      draft,
       isSending,
       openPrivateThread,
       privateChatEnabled,
@@ -534,7 +539,6 @@ export function ChatProvider({ children, classId }: { children: ReactNode; class
       canMessagePrivately,
       chatEnabled,
       chatMessages,
-      draft,
       isSending,
       openPrivateThread,
       privateChatEnabled,
@@ -547,7 +551,31 @@ export function ChatProvider({ children, classId }: { children: ReactNode; class
     ],
   );
 
-  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
+  return (
+    <ChatContext.Provider value={value}>
+      <ChatUnreadContext.Provider value={unreadCount}>
+        <ChatDraftContext.Provider value={draft}>{children}</ChatDraftContext.Provider>
+      </ChatUnreadContext.Provider>
+    </ChatContext.Provider>
+  );
+}
+
+/** The message being typed. Only the composer's owner should read it — it changes on every keystroke. */
+export function useChatDraft() {
+  const draft = useContext(ChatDraftContext);
+  if (draft === undefined) {
+    throw new Error("useChatDraft must be used within a ChatProvider");
+  }
+  return draft;
+}
+
+/** Unread messages across threads, for badges. Re-renders only when the number changes. */
+export function useChatUnreadCount() {
+  const count = useContext(ChatUnreadContext);
+  if (count === undefined) {
+    throw new Error("useChatUnreadCount must be used within a ChatProvider");
+  }
+  return count;
 }
 
 export function useLiveClassChat() {

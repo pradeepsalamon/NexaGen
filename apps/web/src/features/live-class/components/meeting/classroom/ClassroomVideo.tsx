@@ -200,8 +200,8 @@ export function ClassroomVideo({
 
           {others.length > 0 ? (
             <div className="custom-scrollbar flex shrink-0 gap-2 overflow-x-auto pb-1">
-              {others.map((trackRef) => (
-                <CompactVideoTile key={getTrackKey(trackRef)} trackRef={trackRef} />
+              {others.map((trackRef, index) => (
+                <CompactVideoTile key={getTrackKey(trackRef)} layoutKey={`${index}:${others.length}`} trackRef={trackRef} />
               ))}
             </div>
           ) : null}

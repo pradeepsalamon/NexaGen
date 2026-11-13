@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Lock } from "lucide-react";
-import { ROOM_THREAD, useLiveClassChat } from "../../providers/ChatProvider";
+import { ROOM_THREAD, useChatDraft, useLiveClassChat } from "../../providers/ChatProvider";
 import { ChatMessage } from "./chat/ChatMessage";
 import { ChatEmptyState } from "./chat/ChatEmptyState";
 import { ChatComposer } from "./chat/ChatComposer";
@@ -14,13 +14,13 @@ export function MeetingChat() {
   const {
     activeThread,
     chatEnabled,
-    draft,
     isSending,
     send,
     setDraft,
     threadMessages,
     threads,
   } = useLiveClassChat();
+  const draft = useChatDraft();
 
   const isPrivate = activeThread !== ROOM_THREAD;
   const threadLabel = threads.find((t) => t.id === activeThread)?.label ?? "Everyone";

@@ -4,7 +4,7 @@ import { lazy, Suspense, memo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, MessageSquareText, Users, Settings, Puzzle } from "lucide-react";
 import { useLiveClassState, type SidebarTab } from "../../providers/LiveClassProvider";
-import { useLiveClassChat } from "../../providers/ChatProvider";
+import { useChatUnreadCount } from "../../providers/ChatProvider";
 import { useReducedMotion } from "../../lib/meetingUi";
 import { useSlidingIndicator } from "@/hooks/useSlidingIndicator";
 import { cn } from "@/lib/utils";
@@ -122,7 +122,7 @@ export function MeetingSidebar({ inlinePanels = false }: { inlinePanels?: boolea
     "activeSidebar",
     "setActiveSidebar",
   );
-  const { unreadCount } = useLiveClassChat();
+  const unreadCount = useChatUnreadCount();
   const reducedMotion = useReducedMotion();
 
   return (

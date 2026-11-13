@@ -2,7 +2,7 @@
 
 import { useIsBoardViewport } from "../../../hooks/useIsBoardViewport";
 import { useMatch } from "../../../providers/MatchProvider";
-import { MatchCoachView } from "./MatchCoachView";
+import { LazyView, MatchCoachView } from "../lazyViews";
 import { MatchStartDialog } from "./MatchStartDialog";
 import { MatchStudentView } from "./MatchStudentView";
 
@@ -14,7 +14,11 @@ export function MatchHost() {
   return (
     <>
       <MatchStartDialog />
-      {wide ? null : <MatchCoachView />}
+      {wide ? null : (
+        <LazyView>
+          <MatchCoachView />
+        </LazyView>
+      )}
     </>
   );
 }

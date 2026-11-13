@@ -13,7 +13,7 @@ import {
 } from "@/features/live-class/providers/ClassroomSessionManager";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { LiveClassProvider } from "@/features/live-class/providers/LiveClassProvider";
-import { MeetingRoom } from "@/features/live-class/components/room/MeetingRoom";
+import { MeetingRoom, preloadMeetingRoom } from "@/features/live-class/components/room/LazyMeetingRoom";
 import { PreJoinCard } from "@/features/live-class/components/prejoin/PreJoinCard";
 import { LoadingMeeting } from "@/features/live-class/components/states/LoadingMeeting";
 import { ClassroomStateShell } from "@/features/live-class/components/states/ClassroomStateShell";
@@ -26,7 +26,7 @@ import {
   JoinDenied,
   RemovedFromClass,
 } from "@/features/live-class/components/states/ErrorStates";
-import { ClassSummary } from "@/features/live-class/components/summary/ClassSummary";
+import { ClassSummary, LazyView } from "@/features/live-class/components/meeting/lazyViews";
 import { loadMediaPrefs } from "@/features/live-class/lib/mediaDevices";
 
 export default function LiveClassPage() {
@@ -64,6 +64,13 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
   const join = () => {
     markJoined();
   };
+
+  // The room's code is a separate download: fetch it while the pre-join card
+  // is up (or at once on a mid-class refresh), not for a class that can't be joined.
+  const joinable = hasJoined || (!isLoading && !error);
+  useEffect(() => {
+    if (joinable) preloadMeetingRoom();
+  }, [joinable]);
 
   // Auto-join: when the class policy enables it, skip the pre-join card. A
   // device that is meant to be on is pre-flighted first — if the browser
@@ -167,7 +174,11 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
     }
 
     if (errorStr.includes("ended") || classStatus === "COMPLETED" || classStatus === "CANCELLED") {
-      return <ClassSummary classId={roomId} />;
+      return (
+        <LazyView>
+          <ClassSummary classId={roomId} />
+        </LazyView>
+      );
     }
 
     return (
@@ -192,17 +203,17 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
     );
   }
 
-  if (!token) {
-    return (
-      <ClassroomStateShell topic={topic} subtitle={batchName}>
-        <LoadingMeeting message="Connecting…" />
-      </ClassroomStateShell>
-    );
-  }
+  const connecting = (
+    <ClassroomStateShell topic={topic} subtitle={batchName}>
+      <LoadingMeeting message="Connecting…" />
+    </ClassroomStateShell>
+  );
+
+  if (!token) return connecting;
 
   return (
     <LiveClassProvider topic={topic} batchName={batchName} startedAt={startedAt} endsAt={endsAt} settings={settings}>
-      <MeetingRoom token={token} classId={roomId} />
+      <MeetingRoom token={token} classId={roomId} fallback={connecting} />
     </LiveClassProvider>
   );
 }

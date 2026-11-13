@@ -8,6 +8,8 @@
 
 | Symptom | Start here |
 |---|---|
+| Mini player (browser Picture-in-Picture on phones / Safari) shows a frozen frame | The room uses adaptive streaming, which pauses a camera no LiveKit-attached element shows. `VideoPipSurface` feeds its `<video>` by hand, so it must stay registered through `track.observeElementInfo` ([LIVE_CLASS](LIVE_CLASS.md) "Download and network cost in the room") |
+| Every page's JS grew by ~100 kB gzipped / a `zod` chunk with locale strings on every route | A workspace package is being bundled from its CommonJS build. `@nexa-chess/config` and `@nexa-chess/types` each need the `dist/esm` build and the `import` export condition pointing at it, or the web bundle gets a second, un-tree-shaken zod |
 | Theme toggle or docked-nav collapse feels laggy (worse on phones) | `ThemeProvider.applyMode` must keep its freeze `<style>` until after the new theme paints (two rAFs) and run React's update in `startTransition`; `useChartColors` re-reads after paint. `AppShell` must not animate its `padding` (every frame re-lays out the page). Measure at 4× CPU: theme worst frame went 217–300 ms → 67–83 ms (2026-11-06) |
 | Buttons are bigger in dark mode than in light mode on a phone | The touch sizes in `globals.css` `@media (pointer: coarse)` must use `:root, :root[data-theme]`: the base block's `:root[data-theme="light"]` outranks a plain `:root`, so light mode kept 36px and only dark got 44px (fixed 2026-11-08) |
 | Theme switch knob jumps instead of sliding | The knob in `ThemeToggle` needs `data-theme-keep-transition` (the provider's freeze rule skips it) and its position from `dark:translate-x-9`, not React state, so it moves on the same paint as the theme |

@@ -38,7 +38,7 @@ import {
   useUpdateLivePuzzle
 } from "../../hooks/useLivePuzzle";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
-import { PuzzleAssignModal } from "./PuzzleAssignModal";
+import { PuzzleAssignModal } from "./lazyViews";
 import { PuzzleLiveBoardsPanel } from "./PuzzleLiveBoardsPanel";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { Switch } from "@/components/ui/Switch";

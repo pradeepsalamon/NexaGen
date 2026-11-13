@@ -20,13 +20,13 @@ import { StockfishPanel } from "@/features/chessboard/components/panels/Stockfis
 import { useEngineEvalCache } from "@/features/chessboard/hooks/useEngineAnalysis";
 import { RoomTabs } from "../../room-ui/RoomTabs";
 import { cn } from "@/lib/utils";
-import { useLiveClassChat } from "../../../providers/ChatProvider";
+import { useChatUnreadCount } from "../../../providers/ChatProvider";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
 import { MeetingChat } from "../MeetingChat";
 import { MeetingParticipants } from "../MeetingParticipants";
 import { MeetingPuzzlePanel } from "../MeetingPuzzlePanel";
 import { MovePollCoachPanel } from "../move-poll/MovePollCoachPanel";
-import { ActivityQueueRoomPanel } from "../../activity-queue/ActivityQueueRoomPanel";
+import { ActivityQueueRoomPanel, LazyView } from "../lazyViews";
 import { ClassroomVideo } from "./ClassroomVideo";
 import { useMemberClassId } from "../../../providers/LiveRoomContext";
 
@@ -118,7 +118,7 @@ export function ClassroomPanel({
     "setActiveSidebar",
     "setClassroomChatOpen",
   );
-  const { unreadCount } = useLiveClassChat();
+  const unreadCount = useChatUnreadCount();
   const roomId = useMemberClassId();
   const inSideColumn = (id: TabId) => sideColumn && SIDE_COLUMN_TABS.has(id);
   const activeTab: TabId = inSideColumn(tab) ? "moves" : tab;
@@ -214,7 +214,9 @@ export function ClassroomPanel({
             </div>
           ) : null}
           {activeTab === "queue" && roomId ? (
-            <ActivityQueueRoomPanel classId={roomId} onOpenResponses={() => setTab("response")} />
+            <LazyView>
+              <ActivityQueueRoomPanel classId={roomId} onOpenResponses={() => setTab("response")} />
+            </LazyView>
           ) : null}
           {activeTab === "engine" ? <StockfishPanel /> : null}
           {activeTab === "pgn" ? (

@@ -37,7 +37,7 @@ import { VideoEffectsProvider } from "../../providers/VideoEffectsProvider";
 import { loadMediaPrefs } from "../../lib/mediaDevices";
 import { useClassroomSession } from "../../providers/ClassroomSessionManager";
 import { ConnectionLost } from "../states/ErrorStates";
-import { ClassSummary } from "../summary/ClassSummary";
+import { ClassSummary, LazyView } from "../meeting/lazyViews";
 import { getWebEnv } from "@nexa-chess/config/web";
 
 const env = getWebEnv({
@@ -110,12 +110,21 @@ export function MeetingRoom({ token, classId, guestToken = null }: MeetingRoomPr
   const roomOptions = useMemo<RoomOptions>(() => {
     const prefs = loadMediaPrefs();
     return {
+      // Receive each camera at the size its tile is actually drawn (a phone's
+      // small tiles get the small simulcast layer) and pause the ones that are
+      // off screen or in a hidden tab. Without it every device downloads and
+      // decodes every camera at full resolution. A consumer that feeds a
+      // <video> by hand must register with the track — see VideoPipSurface.
+      adaptiveStream: true,
       audioCaptureDefaults: {
         autoGainControl: true,
         deviceId: prefs.audioinput?.deviceId,
         echoCancellation: true,
         noiseSuppression: true,
       },
+      // The publishing side of the same saving: stop encoding the simulcast
+      // layers nobody is watching (the 720p layer while every tile is small).
+      dynacast: true,
       videoCaptureDefaults: {
         deviceId: prefs.videoinput?.deviceId,
       },
@@ -125,7 +134,11 @@ export function MeetingRoom({ token, classId, guestToken = null }: MeetingRoomPr
   if (ended) {
     // The class ended (room deleted) while this tab was in the meeting. Show the
     // post-class summary instead of silently bouncing to the dashboard.
-    return <ClassSummary classId={classId} />;
+    return (
+      <LazyView>
+        <ClassSummary classId={classId} />
+      </LazyView>
+    );
   }
 
   if (error) {

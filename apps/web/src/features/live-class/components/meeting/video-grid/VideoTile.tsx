@@ -6,7 +6,6 @@ import {
   isTrackReference,
   ParticipantTile,
   useIsMuted,
-  useIsSpeaking,
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
 import { Hand, Maximize2, Mic, MicOff } from "lucide-react";
@@ -17,6 +16,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "../../../lib/meetingUi";
 import { getRole, getTrackKey } from "./videoGrid.utils";
+import { SpeakingRing } from "./SpeakingRing";
 import { TileModerationControls } from "./TileModerationControls";
 import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider";
 
@@ -25,12 +25,17 @@ interface VideoTileProps {
   onPin?: (key: string) => void;
   /** Grid placement, e.g. indenting the first tile of a partial last row. */
   style?: CSSProperties;
+  /**
+   * Changes when this tile's place in the grid does (its index, the tile
+   * count, the column count). The move animation runs only then, instead of
+   * framer re-measuring the grid on every render of any tile.
+   */
+  layoutKey?: string;
 }
 
-export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: VideoTileProps) {
+export const VideoTile = memo(function VideoTile({ trackRef, onPin, style, layoutKey }: VideoTileProps) {
   const user = useAuthStore((state) => state.user);
   const participant = trackRef.participant;
-  const isSpeaking = useIsSpeaking(participant);
   // Subscribed directly: a memoised tile isn't re-rendered for a mic change.
   const isMuted = useIsMuted({ participant, source: Track.Source.Microphone });
   const localName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "You";
@@ -50,25 +55,19 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
   return (
     <motion.div
       layout={!reducedMotion}
+      layoutDependency={layoutKey}
       initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       className={cn(
         // Video tile (spec component 10): 16:9, 12px radius; speaking = green ring.
-        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-app border bg-brand-900 transition-[border-color] duration-200",
-        isSpeaking ? "border-success" : "border-app-border",
+        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-app border border-app-border bg-brand-900 transition-[border-color] duration-200 has-[[data-speaking]]:border-success",
       )}
       style={{ containerType: "size", ...style }}
     >
       {/* Inset so the parent's overflow never clips it, and it inherits the tile's radius. */}
-      <div
-        aria-hidden="true"
-        className={cn(
-          "pointer-events-none absolute inset-0 z-20 rounded-[inherit] ring-[3px] ring-inset ring-success transition-opacity duration-200",
-          isSpeaking ? "opacity-100" : "opacity-0",
-        )}
-      />
+      <SpeakingRing participant={participant} className="ring-[3px] duration-200" />
       {/* Video layer */}
       {hasVideo ? (
         <ParticipantTile

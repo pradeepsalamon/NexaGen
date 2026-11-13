@@ -55,7 +55,7 @@ import { useOptionalSimul } from "../../providers/SimulProvider";
 import { isHumanParticipant } from "../../lib/participants";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
-import { useLiveClassChat } from "../../providers/ChatProvider";
+import { useChatUnreadCount } from "../../providers/ChatProvider";
 import { Z, useReducedMotion } from "../../lib/meetingUi";
 import { useRecordingState } from "../../hooks/useRecordingState";
 import { startRecording, stopRecording, requestScreenShare, endScreenShare } from "../../api/live-class";
@@ -105,7 +105,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   const screenShareLocked =
     !isCoach && !!settings && settings.student.screenShare !== "ALLOWED";
 
-  const { unreadCount } = useLiveClassChat();
+  const unreadCount = useChatUnreadCount();
   const simul = useOptionalSimul();
   const simulActive = simul?.simul?.status === "ACTIVE";
   const showSimul = !!simul && (simul.isManager || !!simul.myGame);

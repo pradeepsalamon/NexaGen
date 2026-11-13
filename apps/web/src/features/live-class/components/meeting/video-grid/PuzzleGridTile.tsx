@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { memo, type CSSProperties } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, Puzzle as PuzzleIcon, Trophy } from "lucide-react";
 import type { LivePuzzleAssignment } from "@nexa-chess/types";
@@ -19,12 +19,15 @@ import { useMemberClassId } from "../../../providers/LiveRoomContext";
  * status (solve / continue / solved + points / tries left); the coach sees the
  * class's progress and opens the Puzzle panel.
  */
-export function PuzzleGridTile({
+export const PuzzleGridTile = memo(function PuzzleGridTile({
   puzzle,
   style,
+  layoutKey,
 }: {
   puzzle: LivePuzzleAssignment;
   style?: CSSProperties;
+  /** Changes when the tile's place in the grid does (see VideoTile `layoutKey`). */
+  layoutKey?: string;
 }) {
   const classId = useMemberClassId();
   const user = useAuthStore((state) => state.user);
@@ -78,6 +81,7 @@ export function PuzzleGridTile({
     <motion.div
       key="puzzle-tile"
       layout
+      layoutDependency={layoutKey}
       initial={{ opacity: 0, scale: 0.94 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.94 }}
@@ -149,4 +153,4 @@ export function PuzzleGridTile({
       </button>
     </motion.div>
   );
-}
+});

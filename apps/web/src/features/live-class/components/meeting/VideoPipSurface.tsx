@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { isTrackReference } from "@livekit/components-react";
+import { RemoteVideoTrack, type ElementInfo } from "livekit-client";
 import { useAuthStore } from "@/stores/authStore";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { usePip } from "../../providers/PipProvider";
@@ -56,7 +57,7 @@ function paintPlaceholder(canvas: HTMLCanvasElement, name: string, subtitle: str
  * laid out will not reliably start decoding, and PiP needs a live frame.
  */
 export function VideoPipSurface() {
-  const { mode, registerPipVideo } = usePip();
+  const { active, mode, registerPipVideo } = usePip();
   const { pinnedParticipantSid } = useLiveClassState("pinnedParticipantSid");
   const user = useAuthStore((state) => state.user);
   const spotlight = useSpotlightTrack(pinnedParticipantSid);
@@ -82,6 +83,45 @@ export function VideoPipSurface() {
     spotlight && isTrackReference(spotlight) && !spotlight.publication.isMuted
       ? spotlight.publication.track?.mediaStreamTrack
       : undefined;
+  const spotlightTrack = liveTrack && spotlight && isTrackReference(spotlight) ? spotlight.publication.track : undefined;
+  const remoteTrack = spotlightTrack instanceof RemoteVideoTrack ? spotlightTrack : undefined;
+
+  // The room uses adaptive streaming, which pauses a camera no LiveKit-attached
+  // element is showing — and this <video> is fed by hand, so LiveKit cannot see
+  // it. Registering it keeps the spotlight flowing: at the smallest layer while
+  // the mini player is closed (so it can open on a live frame), and at the
+  // window's size, hidden tab included, while it is open.
+  const pipInfoRef = useRef<ElementInfo | null>(null);
+  const activeRef = useRef(active);
+  activeRef.current = active;
+
+  useEffect(() => {
+    if (mode !== "video" || !remoteTrack) return;
+    const info: ElementInfo = {
+      element: {},
+      height: () => (activeRef.current ? PLACEHOLDER_H : 1),
+      observe: () => {},
+      pictureInPicture: activeRef.current,
+      stopObserving: () => {},
+      visibilityChangedAt: undefined,
+      visible: true,
+      width: () => (activeRef.current ? PLACEHOLDER_W : 1),
+    };
+    pipInfoRef.current = info;
+    remoteTrack.observeElementInfo(info);
+    return () => {
+      pipInfoRef.current = null;
+      remoteTrack.stopObservingElementInfo(info);
+    };
+  }, [mode, remoteTrack]);
+
+  useEffect(() => {
+    const info = pipInfoRef.current;
+    if (!info) return;
+    info.pictureInPicture = active;
+    info.handleVisibilityChanged?.();
+    info.handleResize?.();
+  }, [active]);
 
   useEffect(() => {
     const video = videoRef.current;

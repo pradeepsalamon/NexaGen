@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { Crown, LayoutGrid, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/Switch";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { InlineStage } from "../classroom/InlineStage";
+import { LazyViewFallback } from "../lazyViews";
 import {
   useInteractives,
   useInteractivesTimer,
@@ -53,7 +54,9 @@ function ManagerToolBody({ tool }: { tool: InteractiveTool }) {
   );
   return (
     <PresentedViewProvider value={presentedView}>
-      <tool.Component classId={classId} isManager={isManager} timer={timer} />
+      <Suspense fallback={<LazyViewFallback />}>
+        <tool.Component classId={classId} isManager={isManager} timer={timer} />
+      </Suspense>
     </PresentedViewProvider>
   );
 }
@@ -69,7 +72,9 @@ function WatchToolBody({ tool }: { tool: InteractiveTool }) {
   );
   return (
     <PresentedViewProvider value={watch}>
-      <tool.Component classId={classId} isManager={false} timer={timer} />
+      <Suspense fallback={<LazyViewFallback />}>
+        <tool.Component classId={classId} isManager={false} timer={timer} />
+      </Suspense>
     </PresentedViewProvider>
   );
 }

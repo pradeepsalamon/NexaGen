@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import { lazy, type ComponentType } from "react";
 import {
   Award,
   BookOpen,
@@ -18,20 +18,23 @@ import {
 } from "lucide-react";
 import type { LiveClassInteractiveId } from "@nexa-chess/types";
 import type { ToolContext } from "./shared";
-import { ChessBalanceTool } from "./tools/ChessBalanceTool";
-import { ChessLegendsTool } from "./tools/ChessLegendsTool";
-import { ClassroomTimerTool } from "./tools/ClassroomTimerTool";
-import { GrandmasterMapperTool } from "./tools/GrandmasterMapperTool";
-import { MysteryBoxTool } from "./tools/MysteryBoxTool";
-import { OpeningOfTheDayTool } from "./tools/OpeningOfTheDayTool";
-import { PickStudentTool } from "./tools/PickStudentTool";
-import { PuzzleRacerTool } from "./tools/PuzzleRacerTool";
-import { PuzzleStormTool } from "./tools/PuzzleStormTool";
-import { RatingCalculatorTool } from "./tools/RatingCalculatorTool";
-import { TeamGeneratorTool } from "./tools/TeamGeneratorTool";
-import { VideoGeneratorTool } from "./tools/VideoGeneratorTool";
-import { WallOfMomentsTool } from "./tools/WallOfMomentsTool";
-import { WhiteOrBlackTool } from "./tools/WhiteOrBlackTool";
+
+// Each tool is its own download, fetched when someone opens it: a class uses
+// one or two of the fourteen, and a student only ever needs the one on stage.
+const ChessBalanceTool = lazy(() => import("./tools/ChessBalanceTool").then((m) => ({ default: m.ChessBalanceTool })));
+const ChessLegendsTool = lazy(() => import("./tools/ChessLegendsTool").then((m) => ({ default: m.ChessLegendsTool })));
+const ClassroomTimerTool = lazy(() => import("./tools/ClassroomTimerTool").then((m) => ({ default: m.ClassroomTimerTool })));
+const GrandmasterMapperTool = lazy(() => import("./tools/GrandmasterMapperTool").then((m) => ({ default: m.GrandmasterMapperTool })));
+const MysteryBoxTool = lazy(() => import("./tools/MysteryBoxTool").then((m) => ({ default: m.MysteryBoxTool })));
+const OpeningOfTheDayTool = lazy(() => import("./tools/OpeningOfTheDayTool").then((m) => ({ default: m.OpeningOfTheDayTool })));
+const PickStudentTool = lazy(() => import("./tools/PickStudentTool").then((m) => ({ default: m.PickStudentTool })));
+const PuzzleRacerTool = lazy(() => import("./tools/PuzzleRacerTool").then((m) => ({ default: m.PuzzleRacerTool })));
+const PuzzleStormTool = lazy(() => import("./tools/PuzzleStormTool").then((m) => ({ default: m.PuzzleStormTool })));
+const RatingCalculatorTool = lazy(() => import("./tools/RatingCalculatorTool").then((m) => ({ default: m.RatingCalculatorTool })));
+const TeamGeneratorTool = lazy(() => import("./tools/TeamGeneratorTool").then((m) => ({ default: m.TeamGeneratorTool })));
+const VideoGeneratorTool = lazy(() => import("./tools/VideoGeneratorTool").then((m) => ({ default: m.VideoGeneratorTool })));
+const WallOfMomentsTool = lazy(() => import("./tools/WallOfMomentsTool").then((m) => ({ default: m.WallOfMomentsTool })));
+const WhiteOrBlackTool = lazy(() => import("./tools/WhiteOrBlackTool").then((m) => ({ default: m.WhiteOrBlackTool })));
 
 /** Persisted in the PRESENTING tool state — the id list lives in @nexa-chess/types. */
 export type InteractiveToolId = LiveClassInteractiveId;
@@ -44,6 +47,7 @@ export type InteractiveTool = {
   icon: LucideIcon;
   /** Tailwind classes for the round icon chip (token tints only). */
   tone: string;
+  /** Lazy: render it inside a `<Suspense>` (see `InteractiveStage`). */
   Component: ComponentType<ToolContext>;
   /** Students play it on a board: their stage uses the full width, not a reading column. */
   wide?: boolean;

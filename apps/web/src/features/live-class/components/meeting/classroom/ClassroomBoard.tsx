@@ -35,8 +35,7 @@ import {
   useCoachBoardActions
 } from "../../../lib/coachBoardShortcuts";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
-import { PuzzleAssignModal } from "../PuzzleAssignModal";
-import { SharePositionDialog } from "../SharePositionDialog";
+import { PuzzleAssignModal, SharePositionDialog } from "../lazyViews";
 import { FlipBoardButton } from "../video-grid/FlipBoardButton";
 import { RequestControlButton } from "../video-grid/RequestControlButton";
 import { ROOM_ROW_QUERY } from "./roomLayout";

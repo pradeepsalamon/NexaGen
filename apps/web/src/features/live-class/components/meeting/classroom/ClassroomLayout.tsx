@@ -14,7 +14,7 @@ import { useActivityRun } from "../../../providers/ActivityRunProvider";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
 import { useMatch } from "../../../providers/MatchProvider";
 import { useSimul } from "../../../providers/SimulProvider";
-import { MatchCoachView } from "../match/MatchCoachView";
+import { LazyView, MatchCoachView, SimulCoachView } from "../lazyViews";
 import { MatchStudentView } from "../match/MatchStudentView";
 import { Button } from "@/components/ui/Button";
 import { ActivityRunStage } from "../activity-run/ActivityRunStage";
@@ -22,7 +22,6 @@ import { MeetingVideoGrid } from "../MeetingVideoGrid";
 import { PuzzleLiveBoardsGrid } from "../PuzzleLiveBoardsPanel";
 import { EndPuzzleButton, PuzzleTimerBadge } from "../PuzzleSessionControls";
 import { PuzzleStage } from "../PuzzleStage";
-import { SimulCoachView } from "../simul/SimulCoachView";
 import { SimulStudentBoard } from "../simul/SimulStudentBoard";
 import { ClassroomBoard } from "./ClassroomBoard";
 import { ClassroomPanel } from "./ClassroomPanel";
@@ -344,13 +343,17 @@ export function ClassroomLayout({ isCoach, toolbar }: { isCoach: boolean; toolba
         </InlineStage>
       ) : stage === "simul" ? (
         simul.isManager ? (
-          <SimulCoachView stageSwitch={stageSwitch} />
+          <LazyView>
+            <SimulCoachView stageSwitch={stageSwitch} />
+          </LazyView>
         ) : (
           <SimulStudentBoard stageSwitch={stageSwitch} />
         )
       ) : stage === "match" ? (
         match.isManager ? (
-          <MatchCoachView stageSwitch={stageSwitch} />
+          <LazyView>
+            <MatchCoachView stageSwitch={stageSwitch} />
+          </LazyView>
         ) : (
           <MatchStudentView stageSwitch={stageSwitch} />
         )

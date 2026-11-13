@@ -53,7 +53,8 @@ import {
   useChapterSelection
 } from "../../../../lib/chapterBoard";
 import { loadPuzzleCursor } from "../../../../lib/puzzleCursor";
-import { SharePositionDialog, type SharePositionPreset } from "../../SharePositionDialog";
+import { SharePositionDialog } from "../../lazyViews";
+import type { SharePositionPreset } from "../../SharePositionDialog";
 import { SidebarListHeader, SidebarSearch } from "./SidebarParts";
 import { Spinner } from "@/components/ui/Spinner";
 

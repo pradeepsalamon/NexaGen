@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useLiveClassChat } from "../../../../providers/ChatProvider";
+import { useChatUnreadCount } from "../../../../providers/ChatProvider";
 import { useLiveClassState } from "../../../../providers/LiveClassProvider";
 import { useLiveClassChapters } from "../../../../hooks/useLiveClassChapters";
 import { MeetingChat } from "../../MeetingChat";
@@ -69,7 +69,7 @@ export function ClassroomSidebar({ classId, width }: { classId: string; width: n
     "setActiveSidebar",
     "setClassroomChatOpen"
   );
-  const { unreadCount } = useLiveClassChat();
+  const unreadCount = useChatUnreadCount();
   const chapters = useLiveClassChapters(classId);
   const members = useRoomMembers();
 
