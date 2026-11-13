@@ -271,7 +271,20 @@ it through `MailService.sendRuleEmail`.
 - A 5xx from the mail server fails at once; anything else retries like WhatsApp.
   A sweep stops after 4 minutes, before its claims go stale, and later sweeps pick
   up what's left.
-- Email has no unsubscribe link or per-person opt-out yet.
+- **Every rule email carries the recipient's own unsubscribe link** (a footer line and a
+  `List-Unsubscribe` header) to `/unsubscribe?token=…`. The page changes nothing until its
+  button is pressed, because mail scanners open links. The same switch is on the profile page
+  ("Email notifications"). Code: `email-admin/email-preferences.service.ts`,
+  `features/email-preferences/`.
+  - The opt-out (`User.notificationEmailOptOutAt`) covers **rule emails only**. System messages
+    (password reset, verification, invoices) and email staff write at `/admin/email` always
+    send; in-app and WhatsApp are not affected.
+  - It is checked by the worker **at send time** (`EmailPreferencesService.targetFor`), so it
+    also stops emails already queued. Those rows become `SKIPPED` with the reason in the
+    Delivery log. A dispatch summary still counts them as queued.
+  - The token (`User.emailUnsubscribeToken`) is random, made on the person's first rule email
+    and never expires. The public route looks it up inside `asPlatform`, because the link opens
+    on the platform's address whichever academy the account belongs to.
 - A rule's test email only goes to the admin's own account.
 
 ## System messages

@@ -287,6 +287,19 @@ describe("MailService", () => {
       expect(callArgs.subject).toBe("Hello Bcc: someone@example.com");
       expect(callArgs.text).toBe("<img src=x>");
       expect(callArgs.html).not.toContain("<img");
+      expect(callArgs.headers).toBeUndefined();
+    });
+
+    it("adds the recipient's unsubscribe link as a footer and a List-Unsubscribe header", async () => {
+      mockSendMail.mockResolvedValue({ messageId: "<abc@smtp>" });
+      const unsubscribeUrl = "https://app.test/unsubscribe?token=abc&x=1";
+
+      await service.sendRuleEmail({ body: "Hi", subject: "Hello", to: "user@example.com", unsubscribeUrl });
+
+      const callArgs = mockSendMail.mock.calls[0][0];
+      expect(callArgs.headers).toEqual({ "List-Unsubscribe": `<${unsubscribeUrl}>` });
+      expect(callArgs.text).toContain(`Unsubscribe: ${unsubscribeUrl}`);
+      expect(callArgs.html).toContain('href="https://app.test/unsubscribe?token=abc&amp;x=1"');
     });
   });
 

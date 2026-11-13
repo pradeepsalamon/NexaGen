@@ -274,6 +274,11 @@ model User {
   isEmailVerified Boolean @default(false)
 
   emailVerifiedAt     DateTime?
+  // Set = this person turned off messaging-rule ("notification") emails; system emails
+  // (password reset, verification, invoices) still send. docs/MESSAGING.md "Email channel".
+  notificationEmailOptOutAt DateTime?
+  // The random value in the unsubscribe link of this person's emails; made on the first send.
+  emailUnsubscribeToken     String?   @unique
   // Self-registration's Terms of Service + Privacy Policy checkbox: when it was ticked and which
   // version (`LEGAL_TERMS_VERSION`). Null for accounts an admin created or made before it existed.
   termsAcceptedAt     DateTime?

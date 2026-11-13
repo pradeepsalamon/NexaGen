@@ -28,6 +28,11 @@ export const API_ROUTES = {
     restore: (id: string = ":id") => `/users/${id}/restore`,
     delete: (id: string = ":id") => `/users/${id}`
   },
+  emailPreferences: {
+    mine: "/email-preferences",
+    /** Public: the link at the bottom of a notification email. */
+    unsubscribe: "/email-preferences/unsubscribe"
+  },
   adminEmail: {
     overview: "/admin/email",
     policy: "/admin/email/verification-policy",

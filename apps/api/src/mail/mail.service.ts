@@ -102,15 +102,30 @@ export class MailService {
     });
   }
 
-  /** One message from a messaging rule. Returns the provider's id for the log. */
-  async sendRuleEmail(input: { to: string; subject: string; body: string }): Promise<string | null> {
+  /**
+   * One message from a messaging rule. Returns the provider's id for the log. `unsubscribeUrl`
+   * is the recipient's own link: a footer line, and the header mail apps turn into a button.
+   */
+  async sendRuleEmail(input: {
+    to: string;
+    subject: string;
+    body: string;
+    unsubscribeUrl?: string;
+  }): Promise<string | null> {
     const subject = input.subject.replace(/\s+/g, " ").trim();
+    const text = markdownToPlainText(input.body);
+    const html = toHtml({ action: null, body: input.body, subject });
     const info = await this.createTransporter().sendMail({
       ...(await this.sender()),
       to: input.to,
       subject,
-      text: markdownToPlainText(input.body),
-      html: toHtml({ action: null, body: input.body, subject })
+      ...(input.unsubscribeUrl
+        ? {
+            headers: { "List-Unsubscribe": `<${input.unsubscribeUrl}>` },
+            html: `${html}${unsubscribeFooterHtml(input.unsubscribeUrl)}`,
+            text: `${text}\n\n--\nDon't want these emails? Unsubscribe: ${input.unsubscribeUrl}`
+          }
+        : { html, text })
     });
     return info.messageId ?? null;
   }
@@ -184,6 +199,14 @@ function toText({ action, body }: RenderedSystemMessage): string {
 }
 
 /** Admin wording and member-supplied values are both escaped: never trusted as HTML. */
+/** Small grey line under a notification email. The colours are email-safe literals, like the rest. */
+function unsubscribeFooterHtml(url: string): string {
+  return `
+        <p style="font-family:Arial,sans-serif;font-size:12px;line-height:1.5;color:#667085;margin-top:24px;border-top:1px solid #eaecf0;padding-top:12px">
+          Don't want these emails? <a href="${escapeHtml(url)}" style="color:#667085;text-decoration:underline">Unsubscribe</a>.
+        </p>`;
+}
+
 function toHtml({ action, body, subject }: RenderedSystemMessage): string {
   const button = action
     ? `

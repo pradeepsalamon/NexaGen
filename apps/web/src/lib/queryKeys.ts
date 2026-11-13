@@ -9,6 +9,9 @@ export const queryKeys = {
     mfa: ["auth", "mfa"] as const,
     emailVerification: ["auth", "email-verification"] as const,
   },
+  emailPreferences: {
+    mine: ["email-preferences", "mine"] as const,
+  },
   emailAdmin: {
     all: ["email-admin"] as const,
     overview: ["email-admin", "overview"] as const,

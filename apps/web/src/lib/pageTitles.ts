@@ -155,6 +155,7 @@ export const PAGE_TITLES = {
   "/watch/[id]/games/[gameId]": "Watch game",
   "/certificates/[code]": "Certificate check",
   "/terms": "Terms of service",
+  "/unsubscribe": "Email notifications",
   "/verify-email": "Verify email"
 } as const;
 

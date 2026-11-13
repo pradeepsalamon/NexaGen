@@ -35,7 +35,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
     pathname?.startsWith("/register") ||
     pathname?.startsWith("/forgot-password") ||
     pathname?.startsWith("/reset-password") ||
-    pathname?.startsWith("/verify-email");
+    pathname?.startsWith("/verify-email") ||
+    pathname?.startsWith("/unsubscribe");
 
   // A referral link (/r/<code>) is a brief hand-off to the home page.
   const isReferralLink = pathname?.startsWith("/r/");
