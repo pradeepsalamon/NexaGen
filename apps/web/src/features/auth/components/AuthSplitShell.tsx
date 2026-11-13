@@ -84,7 +84,8 @@ interface AuthSplitShellProps {
 /**
  * Auth pattern: a solid navy brand panel (text never sits on the artwork) beside
  * the form card. The card holds the page's only `h1`; the panel tagline is a `<p>`.
- * Below `lg` the panel shrinks to a navy bar with the logo and theme toggle.
+ * Below `lg` the panel shrinks to a navy bar with the logo and theme toggle, and the card is
+ * centred in the space under it (a card taller than the screen starts at the top and scrolls).
  */
 export function AuthSplitShell({ variant, children, wide = false }: AuthSplitShellProps) {
   const brandName = useBrandName();
@@ -93,8 +94,8 @@ export function AuthSplitShell({ variant, children, wide = false }: AuthSplitShe
   const copy = { ...base, title: base.title.replace("Nexa Chess", brandName) };
 
   return (
-    <div className="min-h-dvh bg-app-background text-app-text lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-      <aside className="surface-brand relative flex flex-col overflow-hidden border-b border-app-border bg-app-background text-app-text lg:sticky lg:top-0 lg:h-dvh lg:border-b-0">
+    <div className="flex min-h-dvh flex-col bg-app-background text-app-text lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+      <aside className="surface-brand relative flex shrink-0 flex-col overflow-hidden border-b border-app-border bg-app-background text-app-text lg:sticky lg:top-0 lg:h-dvh lg:border-b-0">
         <div className="relative z-10 flex h-16 shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:h-auto lg:px-10 lg:pt-8 xl:px-14">
           <Link
             aria-label={`${brandName} home`}
@@ -148,7 +149,7 @@ export function AuthSplitShell({ variant, children, wide = false }: AuthSplitShe
         </div>
       </aside>
 
-      <main className="flex justify-center px-4 py-6 sm:px-6 sm:py-10 lg:items-center lg:px-10 lg:py-12">
+      <main className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
         <div
           className={cn(
             "w-full rounded-panel border border-app-border bg-app-surface p-5 shadow-card sm:p-8",
