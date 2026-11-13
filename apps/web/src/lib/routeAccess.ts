@@ -72,6 +72,8 @@ const PUBLIC_PREFIXES = [
   // A platform support visit's one-time link (§I): signs in on the academy's host.
   "/support",
   "/terms",
+  // The link in a notification email; works signed in or out.
+  "/unsubscribe",
   "/verify-email",
   // Public tournament spectating (docs/TOURNAMENTS.md §4.1).
   "/watch"

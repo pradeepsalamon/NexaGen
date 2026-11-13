@@ -19,21 +19,55 @@ type SidebarState = {
   toggleCollapsed: () => void;
 };
 
+/** On `<html>` while the drawer is out; the drawer's slide is CSS on this attribute alone. */
+export const NAV_DRAWER_OPEN_ATTRIBUTE = "data-nav-drawer-open";
+
+/** What was last asked for. `open` in the store follows one frame later. */
+let drawerTarget = false;
+
+/**
+ * Starts the drawer's slide with the tap. The attribute changes now, so the browser begins the
+ * transform on the next frame; React hears about it after that frame is painted. Doing both at
+ * once made a slow phone finish re-rendering the nav and header before the drawer moved at all.
+ */
+function moveDrawer(open: boolean, commit: (open: boolean) => void) {
+  drawerTarget = open;
+  if (typeof document === "undefined") return commit(open);
+  document.documentElement.toggleAttribute(NAV_DRAWER_OPEN_ATTRIBUTE, open);
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    commit(drawerTarget);
+  };
+  requestAnimationFrame(() => setTimeout(finish, 0));
+  // A hidden tab runs no animation frames.
+  setTimeout(finish, 120);
+}
+
 /**
  * The role nav: docked (expanded or a rail) from `xl`, an off-canvas drawer
  * below it. Driven by the drawer's own controls and the header's menu button.
  */
 export const useSidebarStore = create<SidebarState>()(
   persist(
-    (set) => ({
+    (set, get) => {
+      const commit = (open: boolean) => set((state) => (state.open === open ? state : { open }));
+      return {
       available: false,
       collapsed: false,
       open: false,
-      close: () => set({ open: false }),
-      setAvailable: (available) => set(available ? { available } : { available, open: false }),
+      close: () => {
+        // Called on every route change and resize; nothing to do while it is already in.
+        if (drawerTarget || get().open) moveDrawer(false, commit);
+      },
+      setAvailable: (available) => {
+        if (!available) moveDrawer(false, commit);
+        set({ available });
+      },
       setCollapsed: (collapsed) => set({ collapsed }),
-      show: () => set({ open: true }),
-      toggle: () => set((state) => ({ open: !state.open })),
+      show: () => moveDrawer(true, commit),
+      toggle: () => moveDrawer(!drawerTarget, commit),
       toggleCollapsed: () =>
         set((state) => {
           const collapsed = !state.collapsed;
@@ -41,7 +75,8 @@ export const useSidebarStore = create<SidebarState>()(
           if (typeof document !== "undefined") document.documentElement.dataset.nav = collapsed ? "collapsed" : "expanded";
           return { collapsed };
         })
-    }),
+      };
+    },
     {
       name: SIDEBAR_STORAGE_KEY,
       partialize: (state) => ({ collapsed: state.collapsed })

@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   formatMoney,
+  REFERRAL_POINTS_EXPIRY_WARNING_DAYS,
+  referralPointsExpired,
   type AdjustReferralCreditsRequest,
   type CancelReferralRewardRequest,
   type PayReferralWithdrawalRequest,
@@ -324,6 +326,63 @@ export class ReferralCreditsService {
         wallet: "POINTS"
       }
     });
+  }
+
+  // ── Points expiry (docs/REFERRALS.md § "Points expiry") ──
+
+  /**
+   * Expires this academy's unspent points older than `pointsExpiryDays`: one EXPIRY debit per
+   * user, under their lock. Safe to run again, since a debit lowers what is left to expire.
+   * Returns how many users lost points.
+   */
+  async expirePoints(settings: ReferralSettings, now = new Date()): Promise<number> {
+    if (!settings.pointsExpiryDays) return 0;
+    const days = settings.pointsExpiryDays;
+    const cutoff = new Date(now.getTime() - days * DAY_MS);
+    const candidates = await this.prisma.referralCreditEntry.groupBy({
+      by: ["userId"],
+      where: { amountMinor: { gt: 0 }, createdAt: { lt: cutoff }, wallet: "POINTS" }
+    });
+
+    let expiredUsers = 0;
+    for (const { userId } of candidates) {
+      const expired = await this.prisma.$transaction(async (tx) => {
+        await this.lockUser(tx, userId);
+        const amount = await this.pointsExpiredBy(userId, cutoff, tx);
+        if (amount === 0) return false;
+        await tx.referralCreditEntry.create({
+          data: {
+            amountMinor: -amount,
+            currency: settings.currency,
+            note: `Points not used within ${days} days of being earned.`,
+            type: "EXPIRY",
+            userId,
+            wallet: "POINTS"
+          }
+        });
+        return true;
+      });
+      if (expired) expiredUsers += 1;
+    }
+    return expiredUsers;
+  }
+
+  /** Points the next runs will take within the warning window, for the student's board. */
+  async pointsExpiringSoon(userId: string, settings: ReferralSettings, now = new Date()): Promise<number> {
+    if (!settings.pointsExpiryDays) return 0;
+    const lookAhead = Math.min(REFERRAL_POINTS_EXPIRY_WARNING_DAYS, settings.pointsExpiryDays);
+    const cutoff = new Date(now.getTime() - (settings.pointsExpiryDays - lookAhead) * DAY_MS);
+    return this.pointsExpiredBy(userId, cutoff, this.prisma);
+  }
+
+  private async pointsExpiredBy(userId: string, cutoff: Date, client: PrismaTransactionClient | PrismaService) {
+    const entries = await client.referralCreditEntry.findMany({
+      select: { amountMinor: true, createdAt: true },
+      where: { userId, wallet: "POINTS" }
+    });
+    // A balance already at or below zero (a cancelled reward after spending) has nothing to lose.
+    const balance = entries.reduce((sum, entry) => sum + entry.amountMinor, 0);
+    return Math.min(referralPointsExpired(entries, cutoff), Math.max(0, balance));
   }
 
   // ── Admin ──

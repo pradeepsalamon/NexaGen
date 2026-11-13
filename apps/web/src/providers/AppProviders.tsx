@@ -8,6 +8,7 @@ import { type ReactNode, useState } from "react";
 import { usePathname } from "next/navigation";
 import { EmailVerificationBanner } from "@/components/layout/EmailVerificationBanner";
 import { Header } from "@/components/layout/Header";
+import { NavigationProgress } from "@/components/layout/NavigationProgress";
 import { TooltipProvider } from "@/components/ui/Tooltip";
 import { TenantBrandProvider } from "@/features/branding/context/TenantBrandProvider";
 import { ChessAppearanceProvider } from "@/features/chess-appearance/context/ChessAppearanceProvider";
@@ -34,7 +35,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
     pathname?.startsWith("/register") ||
     pathname?.startsWith("/forgot-password") ||
     pathname?.startsWith("/reset-password") ||
-    pathname?.startsWith("/verify-email");
+    pathname?.startsWith("/verify-email") ||
+    pathname?.startsWith("/unsubscribe");
 
   // A referral link (/r/<code>) is a brief hand-off to the home page.
   const isReferralLink = pathname?.startsWith("/r/");
@@ -66,6 +68,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
               <PresenceBridge />
               <TypographySync />
               <AcquisitionCapture />
+              <NavigationProgress />
               {!isChromeless && <Header />}
               <div className={!isChromeless ? "pt-16" : ""}>
                 {!isChromeless && <EmailVerificationBanner />}

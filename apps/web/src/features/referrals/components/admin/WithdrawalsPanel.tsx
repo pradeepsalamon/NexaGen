@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { BadgeCheck, X } from "lucide-react";
-import { REFERRER_ROLE_LABELS, type ReferralWithdrawalItem } from "@nexa-chess/types";
+import { BadgeCheck, Download, X } from "lucide-react";
+import { API_ROUTES, REFERRER_ROLE_LABELS, type ReferralWithdrawalItem } from "@nexa-chess/types";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useServerTable } from "@/hooks/useServerTable";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { apiBaseUrl } from "@/lib/apiBase";
 import { formatFullDate } from "@/lib/datetime";
 import { referralAdminApi } from "../../api/referralAdminApi";
 import { useAdminReferralWithdrawals, useReferralAdminMutation } from "../../hooks/useReferralAdmin";
@@ -36,6 +37,11 @@ export function WithdrawalsPanel() {
   const pageCount = data?.pagination.totalPages ?? 1;
   useEffect(() => clampToPageCount(pageCount), [pageCount, clampToPageCount]);
   const [action, setAction] = useState<Action>(null);
+  // The same search and status as the table, every page of it.
+  const exportHref = `${apiBaseUrl()}${API_ROUTES.adminReferrals.withdrawalsExport}?${new URLSearchParams({
+    ...(serverTable.params.search ? { search: serverTable.params.search } : {}),
+    ...(serverTable.params.status ? { status: serverTable.params.status } : {})
+  }).toString()}`;
 
   const columns = useMemo<ColumnDef<ReferralWithdrawalItem>[]>(
     () => [
@@ -116,9 +122,17 @@ export function WithdrawalsPanel() {
     <Card className="grid gap-4 p-4">
       <p className="text-sm text-app-muted">
         Pay the amount outside the app (UPI or bank transfer), then mark it paid with the transfer reference. Rejecting returns
-        the credits to the referrer.
+        the credits to the referrer. To pay several at once, filter to Requested and export the list.
       </p>
       <DataTableToolbar
+        actions={
+          <Button asChild variant="outline">
+            <a download href={exportHref}>
+              <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              Export CSV
+            </a>
+          </Button>
+        }
         filters={
           <Select
             aria-label="Filter by status"

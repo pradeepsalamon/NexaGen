@@ -354,6 +354,7 @@ export const referralCreditEntryTypeSchema = z.enum([
   "REDEMPTION",
   "REDEMPTION_REVERSAL",
   "ADJUSTMENT",
+  "EXPIRY",
   // Retired in the rebuild; old rows still show.
   "PAYMENT_CODE",
   "PAYMENT_CODE_REVERSAL",
@@ -368,6 +369,7 @@ export const REFERRAL_CREDIT_ENTRY_LABELS: Record<ReferralCreditEntryType, strin
   ADJUSTMENT: "Adjustment",
   CONVERSION_IN: "Converted from points",
   CONVERSION_OUT: "Converted to money",
+  EXPIRY: "Points expired",
   PAYMENT_CODE: "Payment code",
   PAYMENT_CODE_REVERSAL: "Payment code cancelled",
   POINTS_TRANSFER_IN: "Points received",
@@ -753,6 +755,32 @@ export const reorderReferralStagesRequestSchema = z.object({
 });
 export type ReorderReferralStagesRequest = z.infer<typeof reorderReferralStagesRequestSchema>;
 
+// ── Points expiry ──
+
+export const REFERRAL_POINTS_EXPIRY_MIN_DAYS = 30;
+/** The board warns about points that expire within this many days. */
+export const REFERRAL_POINTS_EXPIRY_WARNING_DAYS = 30;
+
+/**
+ * How many points of one wallet have expired by `cutoff` (docs/REFERRALS.md § "Points expiry").
+ * Spending always uses the oldest points first, so everything ever taken out (vouchers,
+ * cancelled rewards, earlier expiries) counts against the credits older than the cutoff;
+ * what is left of those is expired. Points given back (a rejected voucher) count as earned
+ * on the day they came back. Never negative.
+ */
+export function referralPointsExpired(
+  entries: readonly { amountMinor: number; createdAt: Date | string }[],
+  cutoff: Date
+): number {
+  let oldCredits = 0;
+  let debits = 0;
+  for (const entry of entries) {
+    if (entry.amountMinor < 0) debits -= entry.amountMinor;
+    else if (new Date(entry.createdAt).getTime() < cutoff.getTime()) oldCredits += entry.amountMinor;
+  }
+  return Math.max(0, oldCredits - debits);
+}
+
 // ── Settings ──
 
 export type ReferralSettingsItem = {
@@ -771,6 +799,8 @@ export type ReferralSettingsItem = {
   redemptionsEnabled: boolean;
   /** Per student, rolling 30 days; 0 = no limit. */
   maxRedemptionsPer30Days: number;
+  /** Unspent points expire this many days after they were earned; null = never. */
+  pointsExpiryDays: number | null;
 };
 
 export const updateReferralSettingsRequestSchema = z.object({
@@ -783,7 +813,14 @@ export const updateReferralSettingsRequestSchema = z.object({
   autoApprovePoints: z.boolean().optional(),
   autoApproveCash: z.boolean().optional(),
   redemptionsEnabled: z.boolean().optional(),
-  maxRedemptionsPer30Days: z.number().int().min(0).max(1000).optional()
+  maxRedemptionsPer30Days: z.number().int().min(0).max(1000).optional(),
+  pointsExpiryDays: z
+    .number()
+    .int()
+    .min(REFERRAL_POINTS_EXPIRY_MIN_DAYS, `Use at least ${REFERRAL_POINTS_EXPIRY_MIN_DAYS} days, or leave it empty for no expiry.`)
+    .max(3650)
+    .nullable()
+    .optional()
 });
 export type UpdateReferralSettingsRequest = z.infer<typeof updateReferralSettingsRequestSchema>;
 
@@ -817,6 +854,10 @@ export type MyReferralSummary = {
     earned: number;
     /** Spent on vouchers (fulfilled or waiting for approval). */
     redeemed: number;
+    /** Points that expire within `REFERRAL_POINTS_EXPIRY_WARNING_DAYS` if not spent; 0 when expiry is off. */
+    expiringSoon: number;
+    /** Days points last (the academy's setting); null = they never expire. */
+    expiryDays: number | null;
   };
   /** Coaches and SALES only (null for students). */
   money: {

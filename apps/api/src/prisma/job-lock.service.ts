@@ -26,6 +26,7 @@ export const JOB_LOCKS = {
   payslipPdfSweep: "payroll.payslip-pdf-sweep",
   platformCheckoutReconcile: "platform.checkout-reconcile",
   platformSubscriptionLapse: "platform.subscription-lapse",
+  referralPointsExpiry: "referrals.points-expiry",
   refundReconciliation: "payments.refund-reconciliation",
   retentionSweep: "retention.sweep",
   tenantIntegrity: "platform.tenant-integrity",

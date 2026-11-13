@@ -6,6 +6,7 @@ import {
   formatReferralPoints,
   formatReferralWalletAmount,
   REFERRAL_CREDIT_ENTRY_LABELS,
+  REFERRAL_POINTS_EXPIRY_WARNING_DAYS,
   REFERRAL_WALLET_LABELS,
   type MyReferralSummary
 } from "@nexa-chess/types";
@@ -49,10 +50,17 @@ export function WalletPanel({ summary }: { summary: MyReferralSummary }) {
               {formatReferralPoints(points.earned)} earned · {formatReferralPoints(points.redeemed)} spent
               {points.pending > 0 ? ` · ${formatReferralPoints(points.pending)} awaiting approval` : ""}
             </p>
+            {points.expiringSoon > 0 ? (
+              <p className="mt-2 text-sm font-semibold text-warning-ink">
+                {formatReferralPoints(points.expiringSoon)} will expire in the next {REFERRAL_POINTS_EXPIRY_WARNING_DAYS} days if
+                you don&apos;t spend them.
+              </p>
+            ) : null}
             <p className="mt-3 text-xs text-app-muted">
               {summary.canRedeem
                 ? "Spend points on discounts and free days in the rewards store. Points are yours alone and can't be sent or cashed out."
                 : "Points are yours alone and can't be sent or cashed out."}
+              {points.expiryDays ? ` Points expire ${points.expiryDays} days after you earn them.` : ""}
             </p>
           </section>
         ) : null}

@@ -12,6 +12,8 @@ const PUBLIC_ROUTES = new Set([
   "auth/auth.controller.ts#forgotPassword",
   "auth/auth.controller.ts#resetPassword",
   "auth/auth.controller.ts#verifyEmail",
+  // The link in a notification email: the random token is the credential.
+  "email-admin/email-preferences.controller.ts#unsubscribe",
   // Public by host: the academy's look before sign-in, and the domain check echo (§F, §H).
   "branding/branding.controller.ts#publicConfig",
   // Browsers post CSP violation reports with no session; nothing is stored.

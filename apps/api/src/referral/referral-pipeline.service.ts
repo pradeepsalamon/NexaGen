@@ -9,6 +9,7 @@ import {
   referrerStageReward
 } from "@nexa-chess/types";
 import type { ReferralBeneficiary, ReferralStage, ReferralStageTrigger, UserRole } from "@prisma/client";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 import { ReferralCreditsService } from "./referral-credits.service";
@@ -45,8 +46,17 @@ export class ReferralPipelineService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly credits: ReferralCreditsService,
-    private readonly settings: ReferralSettingsService
+    private readonly settings: ReferralSettingsService,
+    private readonly messaging: MessagingDispatchService
   ) {}
+
+  /** After the move committed: tell the referrer, and whoever was credited a reward. */
+  private announce(referralId: string | null, creditedRewardIds: string[]) {
+    if (referralId) this.messaging.dispatchInBackground({ event: "REFERRAL_PROGRESS", referralId });
+    for (const rewardId of creditedRewardIds) {
+      this.messaging.dispatchInBackground({ event: "REFERRAL_REWARD", rewardId });
+    }
+  }
 
   async listStages(client: PrismaTransactionClient | PrismaService = this.prisma): Promise<ReferralStage[]> {
     const read = () => client.referralStage.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
@@ -78,7 +88,8 @@ export class ReferralPipelineService {
     const stage = stages.find((s) => s.id === referral.stageId);
     if (!stage) return;
     await tx.referralStageEvent.create({ data: { referralId: referral.id, toStageId: stage.id } });
-    await this.recordReachAndRewards(tx, referral, stage, stages);
+    // A first visit announces nothing (the caller owns this transaction).
+    await this.recordReachAndRewards(tx, referral, stage, stages, []);
   }
 
   /**
@@ -87,17 +98,19 @@ export class ReferralPipelineService {
    */
   async advance(referralId: string, trigger: ReferralStageTrigger, options: { actorId?: string | null; note?: string } = {}) {
     try {
-      await this.prisma.$transaction(async (tx) => {
+      const credited: string[] = [];
+      const moved = await this.prisma.$transaction(async (tx) => {
         const referral = await tx.referral.findUnique({
           select: { ...REFERRAL_FOR_MOVE, stage: true },
           where: { id: referralId }
         });
-        if (!referral) return;
+        if (!referral) return false;
         const stages = await this.listStages(tx);
         const target = stages.find((stage) => stage.trigger === trigger);
-        if (!target || !canAutoAdvanceReferral(referral.stage, target)) return;
-        await this.enterStage(tx, referral, target, stages, { actorId: options.actorId ?? null, note: options.note });
+        if (!target || !canAutoAdvanceReferral(referral.stage, target)) return false;
+        return this.enterStage(tx, referral, target, stages, { actorId: options.actorId ?? null, note: options.note }, credited);
       });
+      if (moved) this.announce(referralId, credited);
     } catch (error) {
       this.logger.warn(`Referral ${referralId} could not advance to ${trigger}: ${(error as Error).message}`);
     }
@@ -105,16 +118,19 @@ export class ReferralPipelineService {
 
   /** Admin move to any stage (forward or back). */
   async moveByAdmin(adminId: string, referralId: string, stageId: string, note?: string) {
-    await this.prisma.$transaction(async (tx) => {
+    const credited: string[] = [];
+    const moved = await this.prisma.$transaction(async (tx) => {
       const referral = await tx.referral.findUnique({ select: REFERRAL_FOR_MOVE, where: { id: referralId } });
       if (!referral) throw new NotFoundException("Referral not found.");
       const stages = await this.listStages(tx);
       const target = stages.find((stage) => stage.id === stageId);
       if (!target) throw new NotFoundException("Stage not found.");
-      if (referral.stageId === target.id) return;
-      const moved = await this.enterStage(tx, referral, target, stages, { actorId: adminId, note });
-      if (!moved) throw new ConflictException("This referral just changed. Refresh and try again.");
+      if (referral.stageId === target.id) return false;
+      const entered = await this.enterStage(tx, referral, target, stages, { actorId: adminId, note }, credited);
+      if (!entered) throw new ConflictException("This referral just changed. Refresh and try again.");
+      return true;
     });
+    if (moved) this.announce(referralId, credited);
   }
 
   private async enterStage(
@@ -122,7 +138,8 @@ export class ReferralPipelineService {
     referral: ReferralForMove,
     target: ReferralStage,
     stages: ReferralStage[],
-    options: { actorId: string | null; note?: string }
+    options: { actorId: string | null; note?: string },
+    credited: string[]
   ): Promise<boolean> {
     const now = new Date();
     // Status-filtered claim: two events racing the same referral move it once.
@@ -145,7 +162,7 @@ export class ReferralPipelineService {
         toStageId: target.id
       }
     });
-    await this.recordReachAndRewards(tx, referral, target, stages);
+    await this.recordReachAndRewards(tx, referral, target, stages, credited);
     return true;
   }
 
@@ -153,14 +170,15 @@ export class ReferralPipelineService {
     tx: PrismaTransactionClient,
     referral: ReferralForMove,
     target: ReferralStage,
-    stages: ReferralStage[]
+    stages: ReferralStage[],
+    credited: string[]
   ) {
     const reached = referralStagesReached(stages, target);
     await tx.referralStageReach.createMany({
       data: reached.map((stage) => ({ referralId: referral.id, stageId: stage.id })),
       skipDuplicates: true
     });
-    await this.grantRewards(tx, referral, reached.map((stage) => stage.id));
+    await this.grantRewards(tx, referral, reached.map((stage) => stage.id), credited);
   }
 
   /**
@@ -170,6 +188,7 @@ export class ReferralPipelineService {
    * refused once benefits were given — cancel them first.
    */
   async linkReferredUser(referralId: string, userId: string | null, actorId: string | null) {
+    const credited: string[] = [];
     await this.prisma.$transaction(async (tx) => {
       const referral = await tx.referral.findUnique({
         select: {
@@ -210,8 +229,9 @@ export class ReferralPipelineService {
           referralId: referral.id
         }
       });
-      if (userId) await this.grantReferredBenefits(tx, referral.id);
+      if (userId) await this.grantReferredBenefits(tx, referral.id, credited);
     });
+    this.announce(null, credited);
   }
 
   /**
@@ -219,7 +239,7 @@ export class ReferralPipelineService {
    * stage the referral has already reached (the referrer's rewards were
    * settled when the stages were reached).
    */
-  async grantReferredBenefits(tx: PrismaTransactionClient, referralId: string) {
+  private async grantReferredBenefits(tx: PrismaTransactionClient, referralId: string, credited: string[]) {
     const referral = await tx.referral.findUnique({
       select: { ...REFERRAL_FOR_MOVE, reaches: { select: { stageId: true } } },
       where: { id: referralId }
@@ -229,6 +249,7 @@ export class ReferralPipelineService {
       tx,
       referral,
       referral.reaches.map((reach) => reach.stageId),
+      credited,
       "REFERRED"
     );
   }
@@ -248,6 +269,8 @@ export class ReferralPipelineService {
     tx: PrismaTransactionClient,
     referral: ReferralForMove,
     stageIds: string[],
+    /** Collects the rewards credited here, for the caller to announce after its commit. */
+    credited: string[],
     only?: ReferralBeneficiary
   ) {
     if (stageIds.length === 0) return;
@@ -342,7 +365,7 @@ export class ReferralPipelineService {
       });
       if (created === 1 && grant.autoApprove) {
         const reward = await tx.referralReward.findUniqueOrThrow({ where: { dedupeKey: grant.dedupeKey } });
-        await this.credits.creditReward(tx, reward.id, null);
+        if (await this.credits.creditReward(tx, reward.id, null)) credited.push(reward.id);
       }
     }
   }

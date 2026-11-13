@@ -91,7 +91,7 @@ function ThemeSwitch({
           pointer-events-none absolute left-[3px] top-[3px] rounded-full
           bg-toggle-knob shadow-card
 
-          transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none
+          transition-transform duration-300 ease-emphasized motion-reduce:transition-none
           ${sm ? "size-6 dark:translate-x-6" : "size-7 dark:translate-x-7"}
         `}
       />

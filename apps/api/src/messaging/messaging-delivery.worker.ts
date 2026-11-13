@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { DEFAULT_TENANT_ID, markdownToWhatsApp, MESSAGE_MAX_ATTEMPTS } from "@nexa-chess/types";
 import type { MessageDelivery } from "@prisma/client";
+import { EmailPreferencesService } from "../email-admin/email-preferences.service";
 import { MailService } from "../mail/mail.service";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -31,6 +32,7 @@ export class MessagingDeliveryWorker {
   private running = false;
 
   constructor(
+    private readonly emailPreferences: EmailPreferencesService,
     private readonly mail: MailService,
     private readonly notifications: NotificationService,
     private readonly prisma: PrismaService,
@@ -196,13 +198,24 @@ export class MessagingDeliveryWorker {
     }
 
     const recipient = delivery.recipientId
-      ? await this.prisma.user.findUnique({
-          where: { id: delivery.recipientId },
-          select: { email: true }
-        })
+      ? await this.emailPreferences.targetFor(delivery.recipientId)
       : null;
     if (!recipient) {
       await this.markFailed(delivery.id, attempts, "The recipient's account no longer exists.");
+      return false;
+    }
+    // Checked at send time, so unsubscribing also stops what is already queued.
+    if (recipient.optedOut) {
+      await this.prisma.messageDelivery.update({
+        where: { id: delivery.id },
+        data: {
+          status: "SKIPPED",
+          attempts,
+          claimedAt: null,
+          error: "The recipient turned off notification emails.",
+          lastAttemptAt: new Date()
+        }
+      });
       return false;
     }
 
@@ -210,7 +223,8 @@ export class MessagingDeliveryWorker {
       const messageId = await this.mail.sendRuleEmail({
         to: recipient.email,
         subject: delivery.title ?? delivery.body.slice(0, 120),
-        body: delivery.body
+        body: delivery.body,
+        unsubscribeUrl: recipient.unsubscribeUrl
       });
       await this.markSent(delivery.id, attempts, messageId);
       return true;

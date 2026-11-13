@@ -120,6 +120,11 @@ withdrawals refuse students outright.
   the amount is held at once (`WITHDRAWAL` entry). An admin pays outside the
   app and marks it paid with a reference, or rejects (money returned). The
   referrer can cancel while it is `REQUESTED`.
+- **Paying in bulk**: Withdrawals tab → **Export CSV**
+  (`GET /admin/referrals/withdrawals/export`) downloads every withdrawal in the
+  current search and status filter, oldest first (up to 10,000): name, email,
+  role, amount, payout details, status, reference, id. Marking each one paid is
+  still a separate step.
 - **History**: `GET /referrals/me/credits` is the user's points/money history;
   the admin History tab (`GET /admin/referrals/ledger`, filter by wallet, type,
   user) lists every movement of every user; admins adjust either wallet.
@@ -128,6 +133,42 @@ Financial rows (`ReferralReward`, `ReferralCreditEntry`, `ReferralWithdrawal`,
 `ReferralRedemption`, legacy transfers/conversions, personal discounts)
 reference users with `onDelete: Restrict` and are in
 `TrashRepository.findUserIdsWithRetainedHistory`. They are never soft-deleted.
+
+### Points expiry
+
+Off by default. `ReferralSettings.pointsExpiryDays` (Settings tab; 30–3650, empty
+= never) removes unspent points that many days after they were earned.
+
+- **One rule: `referralPointsExpired`** (`@nexa-chess/types`). Spending uses the
+  oldest points first, so everything ever taken out counts against the credits
+  older than the cutoff; what is left of those expires. Points returned by a
+  rejected or cancelled voucher count as earned on the day they came back.
+- `ReferralPointsExpiryScheduler` runs nightly (21:20 UTC) under the
+  `referrals.points-expiry` job lock, once per academy:
+  `ReferralCreditsService.expirePoints` writes one `EXPIRY` debit per user under
+  that user's lock. Running it again takes nothing more. Money never expires.
+- Turning expiry on removes points already older than the window at the next
+  run (the Settings hint says so). The student's board shows the points that
+  will expire within 30 days (`MyReferralSummary.points.expiringSoon`).
+
+## Notifications
+
+Three messaging rules (`/admin/messaging`), on by default and in-app only; an
+admin can add email or WhatsApp and reword them ([MESSAGING.md](MESSAGING.md)):
+
+| Event | Sent to | When |
+|---|---|---|
+| `REFERRAL_PROGRESS` | the referrer | their referral changed stage (automatic or by an admin); a first link visit sends nothing |
+| `REFERRAL_REWARD` | whoever was credited (referrer, or the new member for welcome points) | points or money reached the ledger: at once when auto-approved, else when an admin approves |
+| `REFERRAL_REQUEST_DECIDED` | the student / the coach or SALES account | a voucher request was approved or declined; a withdrawal was paid or declined |
+
+- Dispatched **after the transaction commits** (`ReferralPipelineService.announce`,
+  `ReferralAdminService`), and everything shown is read back from the row, so a
+  reward that is not `CREDITED` sends nothing.
+- The prospect's name is masked for students and coaches (`maskProspectName`),
+  full for SALES, as on their boards. Never a contact detail.
+- Not announced: points expiring, a reward cancelled, an admin adjustment, a
+  voucher revoked.
 
 ## Vouchers
 

@@ -1,5 +1,6 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { MessageDelivery } from "@prisma/client";
+import { EmailPreferencesService } from "../email-admin/email-preferences.service";
 import { MailService } from "../mail/mail.service";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -43,8 +44,8 @@ describe("MessagingDeliveryWorker", () => {
   let prisma: {
     $queryRaw: jest.Mock;
     messageDelivery: { update: jest.Mock };
-    user: { findUnique: jest.Mock };
   };
+  let emailPreferences: { targetFor: jest.Mock };
   let mail: { isConfigured: jest.Mock; sendRuleEmail: jest.Mock };
   let whatsapp: {
     isConfigured: jest.Mock;
@@ -59,7 +60,13 @@ describe("MessagingDeliveryWorker", () => {
     prisma = {
       $queryRaw: jest.fn().mockResolvedValue(due),
       messageDelivery: { update: jest.fn().mockResolvedValue({}) },
-      user: { findUnique: jest.fn().mockResolvedValue({ email: "asha@example.com" }) }
+    };
+    emailPreferences = {
+      targetFor: jest.fn().mockResolvedValue({
+        email: "asha@example.com",
+        optedOut: false,
+        unsubscribeUrl: "https://app.test/unsubscribe?token=t"
+      })
     };
     mail = {
       isConfigured: jest.fn().mockReturnValue(true),
@@ -86,6 +93,7 @@ describe("MessagingDeliveryWorker", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessagingDeliveryWorker,
+        { provide: EmailPreferencesService, useValue: emailPreferences },
         { provide: MailService, useValue: mail },
         { provide: PrismaService, useValue: prisma },
         { provide: WhatsAppService, useValue: whatsapp },
@@ -129,7 +137,8 @@ describe("MessagingDeliveryWorker", () => {
       expect(mail.sendRuleEmail).toHaveBeenCalledWith({
         to: "asha@example.com",
         subject: "New class",
-        body: "Class at 6pm"
+        body: "Class at 6pm",
+        unsubscribeUrl: "https://app.test/unsubscribe?token=t"
       });
       expect(whatsapp.trySendText).not.toHaveBeenCalled();
       expect(lastUpdate()).toMatchObject({ status: "SENT", providerMessageId: "<smtp.1>" });
@@ -147,12 +156,26 @@ describe("MessagingDeliveryWorker", () => {
 
     it("sends nothing once the account is gone", async () => {
       await setup([email()]);
-      prisma.user.findUnique.mockResolvedValue(null);
+      emailPreferences.targetFor.mockResolvedValue(null);
 
       await worker.sweep();
 
       expect(mail.sendRuleEmail).not.toHaveBeenCalled();
       expect(lastUpdate()).toMatchObject({ status: "FAILED" });
+    });
+
+    it("skips someone who turned notification emails off, even if queued before", async () => {
+      await setup([email()]);
+      emailPreferences.targetFor.mockResolvedValue({
+        email: "asha@example.com",
+        optedOut: true,
+        unsubscribeUrl: "https://app.test/unsubscribe?token=t"
+      });
+
+      await worker.sweep();
+
+      expect(mail.sendRuleEmail).not.toHaveBeenCalled();
+      expect(lastUpdate()).toMatchObject({ status: "SKIPPED" });
     });
 
     it("retries a temporary mail failure", async () => {

@@ -28,6 +28,11 @@ export const API_ROUTES = {
     restore: (id: string = ":id") => `/users/${id}/restore`,
     delete: (id: string = ":id") => `/users/${id}`
   },
+  emailPreferences: {
+    mine: "/email-preferences",
+    /** Public: the link at the bottom of a notification email. */
+    unsubscribe: "/email-preferences/unsubscribe"
+  },
   adminEmail: {
     overview: "/admin/email",
     policy: "/admin/email/verification-policy",
@@ -900,6 +905,8 @@ export const API_ROUTES = {
     approveReward: (id: string = ":id") => `/admin/referrals/rewards/${id}/approve`,
     cancelReward: (id: string = ":id") => `/admin/referrals/rewards/${id}/cancel`,
     withdrawals: "/admin/referrals/withdrawals",
+    /** CSV of the withdrawals in the current filter, to pay in bulk outside the app. */
+    withdrawalsExport: "/admin/referrals/withdrawals/export",
     payWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/pay`,
     rejectWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/reject`,
     adjustCredits: "/admin/referrals/credits/adjust",
