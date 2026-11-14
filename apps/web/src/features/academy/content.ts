@@ -11,6 +11,9 @@ export const ACADEMY_NAME = "Nexa Chess Academy";
 /** Other names people search for; Google uses these for the site name. */
 export const ACADEMY_ALTERNATE_NAMES = ["Nexa Chess", "NexaChess", "Nexa Chess Academy online", "nexachess.in"];
 
+/** How many coaches the home page claims (owner, 2026-11-14). Every section shows this one value. */
+export const ACADEMY_COACH_COUNT = "45+";
+
 export const ACADEMY_TAGLINE = "Live online chess classes for kids and adults";
 export const ACADEMY_DESCRIPTION =
   "Nexa Chess Academy runs live, interactive online chess classes for beginner, intermediate and advanced players — one-on-one, buddy and group formats with FIDE-rated coaches, weekly lessons, Sunday tournament training and a free demo class.";

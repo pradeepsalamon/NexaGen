@@ -1,11 +1,12 @@
 import { ArrowRight, Calendar, ClipboardList, GraduationCap, Trophy, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { HeroBackdrop, HeroStage } from "../hero3d/HeroStage";
+import { ACADEMY_COACH_COUNT } from "../content";
 import { CountUp } from "./parts";
 
 const heroStats = [
   { Icon: Users, label: "Active students", value: "5,000+" },
-  { Icon: GraduationCap, label: "Expert coaches", value: "100+" },
+  { Icon: GraduationCap, label: "Expert coaches", value: ACADEMY_COACH_COUNT },
   { Icon: ClipboardList, label: "Classes completed", value: "15,000+" },
   { Icon: Trophy, label: "Tournaments played", value: "4,500+" }
 ];

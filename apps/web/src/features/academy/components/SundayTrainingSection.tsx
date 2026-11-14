@@ -10,6 +10,7 @@ import {
   Check,
   type LucideIcon
 } from "lucide-react";
+import { ACADEMY_COACH_COUNT } from "../content";
 
 const COLOSSEUM_BG_LIGHT = "/sunday/01_day_chess_colosseum.webp";
 const COLOSSEUM_BG_DARK = "/sunday/02_night_chess_colosseum.webp";
@@ -23,7 +24,7 @@ interface TournamentStat {
 const tournamentStats: TournamentStat[] = [
   { value: "50+", label: "Weekly Players", Icon: Users },
   { value: "75+", label: "Tournaments Hosted", Icon: Trophy },
-  { value: "45+", label: "Expert Coaches", Icon: Award },
+  { value: ACADEMY_COACH_COUNT, label: "Expert Coaches", Icon: Award },
   { value: "100+", label: "Students Trained", Icon: GraduationCap }
 ];
 

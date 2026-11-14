@@ -10,11 +10,12 @@ import {
   ClipboardList,
   Trophy
 } from "lucide-react";
+import { ACADEMY_COACH_COUNT } from "../content";
 import { HeroBackdrop, HeroStage } from "../hero3d/HeroStage";
 
 const heroStats = [
   { value: "5,000+", label: "Active Students", Icon: Users },
-  { value: "100+", label: "Expert Coaches", Icon: GraduationCap },
+  { value: ACADEMY_COACH_COUNT, label: "Expert Coaches", Icon: GraduationCap },
   { value: "15,000+", label: "Classes Completed", Icon: ClipboardList },
   { value: "4,500+", label: "Tournaments Played", Icon: Trophy }
 ];

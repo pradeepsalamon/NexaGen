@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { ArrowRight, Award, GraduationCap, type LucideIcon, Trophy, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ACADEMY_COACH_COUNT } from "../content";
 import { CheckItem, Section, SectionHeader } from "./parts";
 
 const COLOSSEUM_BG_LIGHT = "/sunday/01_day_chess_colosseum.webp";
@@ -9,7 +10,7 @@ const COLOSSEUM_BG_DARK = "/sunday/02_night_chess_colosseum.webp";
 const tournamentStats: { Icon: LucideIcon; label: string; value: string }[] = [
   { Icon: Users, label: "Weekly players", value: "50+" },
   { Icon: Trophy, label: "Tournaments hosted", value: "75+" },
-  { Icon: Award, label: "Expert coaches", value: "45+" },
+  { Icon: Award, label: "Expert coaches", value: ACADEMY_COACH_COUNT },
   { Icon: GraduationCap, label: "Students trained", value: "100+" }
 ];
 
