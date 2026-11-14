@@ -104,9 +104,11 @@ code on 2026-10-31.
   mounted in `AppProviders`; 20 s safety timeout). `/profile`, `/games`,
   `/messages`, `/chess-board`, `/help`, `/classes/[id]` and `/tournaments` got a
   `loading.tsx` that keeps the shell (`ShellPageLoading`), so the nav no longer
-  disappears behind the root spinner. **Still open:** navigation started in code
-  (`router.push`, 27 web files) doesn't start the bar, and it has only been
-  checked on the dev server with delayed responses, not `next start` on
+  disappears behind the root spinner. **2026-11-14:** navigation started in
+  code starts it too: `useRouter` comes from `@/lib/navigation` (45 files;
+  ESLint rejects the `next/navigation` one), whose `push`/`replace` fire
+  `nexa:navigation-start` when the path changes. **Still open:** it has only
+  been checked on the dev server with delayed responses, not `next start` on
   "Slow 4G". It only makes the wait visible; a slow server needs its own look.
 
 - **Smart Revision:** non-puzzle item kinds (lessons / `REPLAY` assignments,
