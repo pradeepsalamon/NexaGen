@@ -406,9 +406,14 @@ search engines only ever see `/`.
   - It draws only while on screen in a visible tab. `prefers-reduced-motion`
     gets one still frame. Touch devices and machines under 4 cores get the
     cheaper scene (no reflections, smaller shadow map, lower pixel ratio).
+  - `createHeroScene` is async: it builds in short steps and waits for
+    `renderer.compileAsync` before the first frame. Never draw before that, or
+    every shader compiles in one blocking step and the page stops while it loads.
   - `scene.ts` `watchSpeed` judges real frame time after the scene is ready: a
-    slow device steps down in quality, then freezes to a still picture and stops
-    the ring and drifting light too (`data-still`). Keep that guard.
+    device averaging over 26 ms a frame steps down (pixel ratio 1 and a smaller
+    shadow map, then no reflections); one still over 42 ms freezes to a still
+    picture and stops the ring and drifting light too (`data-still`). Keep that
+    guard. The shadow map is redrawn every second frame.
   - The theme comes from `data-theme` through a `MutationObserver`, never React
     state; during the circular theme reveal it changes in one step.
   - Reflections are mirrored copies of the pieces drawn under a slightly

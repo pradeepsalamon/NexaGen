@@ -120,7 +120,14 @@ function createStudio(): { dispose: () => void; scene: Scene } {
   return { dispose: () => disposables.forEach((d) => d.dispose()), scene };
 }
 
-export function createHeroScene(options: HeroSceneOptions): HeroScene {
+/** Lets the browser paint and take input between the heavy steps of building the scene. */
+const breathe = () => new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+
+/**
+ * Builds the scene in short steps and compiles its shaders in the background, so the
+ * page never stops while it loads. Resolves when the first frame can be drawn at once.
+ */
+export async function createHeroScene(options: HeroSceneOptions): Promise<HeroScene> {
   const { canvas, container, lowPower, reducedMotion } = options;
 
   const renderer = new WebGLRenderer({
@@ -136,6 +143,8 @@ export function createHeroScene(options: HeroSceneOptions): HeroScene {
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = PCFShadowMap;
+  // Redrawn every second frame (see `draw`): nothing here moves fast enough to show it.
+  renderer.shadowMap.autoUpdate = false;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowPower ? 1.5 : 2));
 
   const scene = new Scene();
@@ -147,12 +156,15 @@ export function createHeroScene(options: HeroSceneOptions): HeroScene {
   studio.dispose();
   pmrem.dispose();
   scene.environment = environment.texture;
+  await breathe();
 
   /* ───────────── materials ───────────── */
 
-  const geometries = buildGeometries(lowPower ? 40 : 72);
+  const geometries = buildGeometries(lowPower ? 32 : 48);
+  await breathe();
   const boardTexture = createBoardTexture(lowPower ? 1024 : 2048);
   boardTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  await breathe();
 
   // Polished gold: full metal under a thin clear coat.
   const gold = new MeshPhysicalMaterial({ clearcoat: 0.4, clearcoatRoughness: 0.16, metalness: 1, roughness: 0.2 });
@@ -373,7 +385,6 @@ export function createHeroScene(options: HeroSceneOptions): HeroScene {
     fit();
     if (!looping) draw(0, 0);
   });
-  resizeObserver.observe(container);
 
   /* ───────────── pointer ───────────── */
 
@@ -451,6 +462,7 @@ export function createHeroScene(options: HeroSceneOptions): HeroScene {
       dust.position.y = Math.sin(t * 0.4) * 0.15;
     }
 
+    renderer.shadowMap.needsUpdate = dt === 0 || frames % 2 === 0;
     renderer.render(scene, camera);
 
     frames += 1;
@@ -460,8 +472,9 @@ export function createHeroScene(options: HeroSceneOptions): HeroScene {
     }
   }
 
-  // A device that cannot keep up (no GPU, a very old phone) first gets a cheaper
-  // picture, then a still one: a frozen board is better than a page that stutters.
+  // A device that cannot keep up gets a cheaper picture step by step (fewer pixels and
+  // a smaller shadow map, then no reflections), and one that still crawls (no GPU, a
+  // very old phone) a still one: a frozen board is better than a page that stutters.
   let quality = 0;
   let frozen = false;
   let sampleMs = 0;
@@ -479,22 +492,31 @@ export function createHeroScene(options: HeroSceneOptions): HeroScene {
     const average = sampleMs / samples;
     sampleMs = 0;
     samples = 0;
-    slowWindows = average > 42 ? slowWindows + 1 : 0;
+    // Under about 38 frames a second the motion no longer looks smooth.
+    slowWindows = average > 26 ? slowWindows + 1 : 0;
     const hopeless = average > 120;
     if (!hopeless && slowWindows < 2) return;
     slowWindows = 0;
-    quality = hopeless ? 2 : quality + 1;
-    if (quality === 1) {
+    const next = hopeless ? 3 : quality + 1;
+    if (next === 1) {
       renderer.setPixelRatio(1);
       key.shadow.mapSize.set(1024, 1024);
       key.shadow.map?.dispose();
       key.shadow.map = null;
       fit();
+    } else if (next === 2) {
+      if (mirrors) {
+        mirrors.visible = false;
+        surface.opacity = 1;
+      }
     } else {
+      // The cheapest moving picture is kept unless it is under 24 frames a second.
+      if (average <= 42) return;
       frozen = true;
       update();
       options.onFrozen();
     }
+    quality = next;
   };
 
   const tick = (now: number) => {
@@ -531,6 +553,13 @@ export function createHeroScene(options: HeroSceneOptions): HeroScene {
     update();
   };
   canvas.addEventListener("webglcontextlost", onContextLost);
+
+  // Shaders are compiled off the main thread where the browser can; drawing before
+  // this is done would compile them all at once and stop the page for that long.
+  await breathe();
+  applyMood(0);
+  await renderer.compileAsync(scene, camera);
+  resizeObserver.observe(container);
 
   return {
     dispose: () => {

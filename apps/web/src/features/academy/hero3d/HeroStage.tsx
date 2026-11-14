@@ -20,8 +20,8 @@ const isDark = () => document.documentElement.dataset.theme === "dark";
 
 /**
  * The floating 3D chessboard. The scene (three.js) is a separate chunk, fetched
- * only when the stage is near the screen and the browser is idle, so it never
- * delays the hero text. It draws only while on screen in a visible tab, follows
+ * only when the stage is near the screen and the browser is idle, and built in
+ * short steps, so it never delays the hero text or stops the page. It draws only while on screen in a visible tab, follows
  * the theme from `data-theme` (not React state, so it changes on the same paint
  * as the page), and without WebGL the stage keeps just its glow.
  */
@@ -49,9 +49,8 @@ export function HeroStage({ className }: { className?: string }) {
       started = true;
       const load = () => {
         void import("./scene")
-          .then(({ createHeroScene }) => {
-            if (cancelled) return;
-            scene = createHeroScene({
+          .then(({ createHeroScene }) =>
+            createHeroScene({
               canvas,
               container,
               dark: isDark(),
@@ -59,7 +58,16 @@ export function HeroStage({ className }: { className?: string }) {
               onFrozen: () => setStill(true),
               onReady: () => setReady(true),
               reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-            });
+            })
+          )
+          .then((built) => {
+            if (cancelled) {
+              built.dispose();
+              return;
+            }
+            scene = built;
+            // The theme may have changed while the scene was being built.
+            scene.setDark(isDark(), true);
             sync();
           })
           .catch(() => {

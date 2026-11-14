@@ -22,21 +22,21 @@ type Pt = [radiusOrX: number, y: number];
 /** A turned profile (radius, height) spun round its axis; the spline keeps it smooth. */
 function lathe(points: Pt[], segments: number): BufferGeometry {
   const curve = new SplineCurve(points.map(([r, y]) => new Vector2(r, y)));
-  const smooth = curve.getPoints(points.length * 12).map((p) => new Vector2(Math.max(0, p.x), p.y));
+  const smooth = curve.getPoints(points.length * 6).map((p) => new Vector2(Math.max(0, p.x), p.y));
   smooth[0].x = 0;
   smooth[smooth.length - 1].x = 0;
   return new LatheGeometry(smooth, segments);
 }
 
 function ring(radius: number, y: number, tube: number, segments: number) {
-  const g = new TorusGeometry(radius, tube, 12, segments);
+  const g = new TorusGeometry(radius, tube, 8, segments);
   g.rotateX(Math.PI / 2);
   g.translate(0, y, 0);
   return g;
 }
 
 function sphere(r: number, x: number, y: number, z: number, scale?: [number, number, number]) {
-  const g = new SphereGeometry(r, 20, 14);
+  const g = new SphereGeometry(r, 16, 10);
   if (scale) g.scale(...scale);
   g.translate(x, y, z);
   return g;
