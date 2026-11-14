@@ -139,7 +139,8 @@ export class TrashRepository {
     return { entity, item };
   }
 
-  async restore(entityName: string, id: string, userId: string) {
+  /** `userId` null = the system restored it (e.g. a re-import of a trashed game). */
+  async restore(entityName: string, id: string, userId: string | null) {
     const { entity, item } = await this.findDeleted(entityName, id);
     const deleteGroupId = item.deleteGroupId ?? null;
 
@@ -386,7 +387,23 @@ export class TrashRepository {
 
     const byUser = { userId: { in: userIds } };
     const byCoach = { coachId: { in: userIds } };
-    const [orders, subscriptions, invoices, creditNotes, entitlements, redemptions, manualRecords, profiles, rates, payrollRecords] =
+    const [
+      orders,
+      subscriptions,
+      invoices,
+      creditNotes,
+      entitlements,
+      redemptions,
+      manualRecords,
+      profiles,
+      rates,
+      payrollRecords,
+      referralRewards,
+      referralCredits,
+      referralWithdrawals,
+      referralRedemptions,
+      personalDiscounts
+    ] =
       await Promise.all([
         this.prisma.order.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
         this.prisma.subscription.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
@@ -401,13 +418,29 @@ export class TrashRepository {
         }),
         this.prisma.coachCompensationProfile.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach }),
         this.prisma.coachCompensationRate.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach }),
-        this.prisma.coachPayrollRecord.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach })
+        this.prisma.coachPayrollRecord.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach }),
+        // Referral money and points (docs/REFERRALS.md): rewards, the ledger,
+        // payouts, voucher redemptions and personal codes are financial history. Points transfers and
+        // conversions always write ledger entries for both sides, so the ledger
+        // query covers them.
+        this.prisma.referralReward.findMany({ distinct: ["referrerId"], select: { referrerId: true }, where: { referrerId: { in: userIds } } }),
+        this.prisma.referralCreditEntry.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
+        this.prisma.referralWithdrawal.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
+        this.prisma.referralRedemption.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
+        this.prisma.discount.findMany({
+          distinct: ["restrictedToUserId"],
+          select: { restrictedToUserId: true },
+          where: { restrictedToUserId: { in: userIds } }
+        })
       ]);
 
     return new Set([
       ...[orders, subscriptions, invoices, creditNotes, entitlements, redemptions].flat().map((row) => row.userId),
       ...manualRecords.map((row) => row.recordedByUserId),
-      ...[profiles, rates, payrollRecords].flat().map((row) => row.coachId)
+      ...[profiles, rates, payrollRecords].flat().map((row) => row.coachId),
+      ...referralRewards.map((row) => row.referrerId),
+      ...[referralCredits, referralWithdrawals, referralRedemptions].flat().map((row) => row.userId),
+      ...personalDiscounts.flatMap((row) => (row.restrictedToUserId ? [row.restrictedToUserId] : []))
     ]);
   }
 

@@ -138,6 +138,13 @@ export const SETTINGS_FIELDS: SettingsFieldDef[] = [
     ],
   },
   {
+    path: "transcript",
+    group: "classroom",
+    label: "Class transcript",
+    help: "Keeps the coach's speech as text for 30 days. The coach's browser (desktop Chrome) sends their microphone audio to its speech service; students are never transcribed, and nothing starts until the coach agrees in the class.",
+    options: YES_NO("ENABLED", "DISABLED"),
+  },
+  {
     path: "waitingRoom",
     group: "classroom",
     label: "Waiting room",

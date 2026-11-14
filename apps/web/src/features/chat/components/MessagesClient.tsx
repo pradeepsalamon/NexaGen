@@ -12,6 +12,7 @@ import { useConversations } from "../hooks/useChat";
 import { ChatThread } from "./ChatThread";
 import { ConversationList } from "./ConversationList";
 import { NewChatDialog } from "./NewChatDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 /**
  * Two panes on md+, one at a time on phones. The open thread lives in `?c=`
@@ -85,14 +86,13 @@ export function MessagesClient() {
             onBack={() => select(null)}
           />
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-            <span className="flex size-14 items-center justify-center rounded-full bg-app-soft">
-              <MessagesSquare aria-hidden className="size-6 text-app-muted" />
-            </span>
-            <p className="text-sm font-semibold text-app-text">Pick a conversation</p>
-            <p className="max-w-xs text-sm text-app-muted">
-              Your batch chats appear here automatically. Start a new one with the New button.
-            </p>
+          <div className="flex flex-1 items-center justify-center">
+            <EmptyState
+              description="Your batch chats appear here automatically. Start a new one with the New button."
+              icon={MessagesSquare}
+              title="Pick a conversation"
+              variant="inline"
+            />
           </div>
         )}
       </section>

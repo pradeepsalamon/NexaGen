@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PageHeader, type PageHeaderProps } from "@/components/layout/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { WidgetError } from "@/components/ui/WidgetError";
@@ -24,7 +25,7 @@ type Tab = "overview" | "performance" | "history" | "revision" | "games";
 
 function LoadingTiles() {
   return (
-    <div aria-busy="true" aria-label="Loading" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div aria-busy="true" aria-label="Loading" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
       {Array.from({ length: 4 }).map((_, i) => (
         <Skeleton key={i} className="h-32 w-full rounded-app" />
       ))}
@@ -39,8 +40,15 @@ function LoadingTiles() {
  * and Games (evidence across their engine-analysed games).
  * `studentId` null = the signed-in student. The period and filters are shared
  * by Performance and History, so switching tabs keeps the same slice.
+ * It renders the page header too, so the tab strip can sit in it.
  */
-export function StudentProgressWorkspace({ studentId }: { studentId: string | null }) {
+export function StudentProgressWorkspace({
+  header,
+  studentId
+}: {
+  header: Omit<PageHeaderProps, "tabs">;
+  studentId: string | null;
+}) {
   const tz = useUserTimeZone();
   const [tab, setTab] = useState<Tab>("overview");
   const [filters, setFilters] = useState<ActivityFilters>(DEFAULT_ACTIVITY_FILTERS);
@@ -52,13 +60,18 @@ export function StudentProgressWorkspace({ studentId }: { studentId: string | nu
 
   return (
     <Tabs className="min-w-0 grid-cols-[minmax(0,1fr)]" onValueChange={(v) => setTab(v as Tab)} value={tab}>
-      <TabsList aria-label="Progress views" className="max-w-full justify-self-end overflow-x-auto">
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="performance">Performance</TabsTrigger>
-        <TabsTrigger value="history">Activity history</TabsTrigger>
-        <TabsTrigger value="revision">Revision</TabsTrigger>
-        <TabsTrigger value="games">Games</TabsTrigger>
-      </TabsList>
+      <PageHeader
+        {...header}
+        tabs={
+          <TabsList aria-label="Progress views">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
+            <TabsTrigger value="history">Activity history</TabsTrigger>
+            <TabsTrigger value="revision">Revision</TabsTrigger>
+            <TabsTrigger value="games">Games</TabsTrigger>
+          </TabsList>
+        }
+      />
 
       <TabsContent value="overview">
         {progress.isLoading ? (

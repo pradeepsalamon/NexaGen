@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Loader2,
   RotateCw,
   XCircle,
   type LucideIcon
@@ -15,9 +14,11 @@ import {
   type PaymentStatus,
   type PaymentStatusResponse
 } from "@nexa-chess/types";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Tone = "success" | "pending" | "danger" | "neutral";
 
@@ -42,11 +43,11 @@ const ICON_BY_TONE: Record<Tone, LucideIcon> = {
   neutral: AlertTriangle
 };
 
-// The four-colour design language: accent = gained, secondary = waiting,
-// danger = lost, soft = neutral. Same mapping as Badge's variants.
+// success = gained, warning = waiting, danger = lost, soft = neutral.
+// Same mapping as Badge's variants.
 const RING_BY_TONE: Record<Tone, string> = {
-  success: "border-accent bg-accent/10 text-accent-ink",
-  pending: "border-secondary bg-secondary/10 text-secondary-ink",
+  success: "border-success bg-success/10 text-success-ink",
+  pending: "border-warning bg-warning-soft text-warning-ink",
   danger: "border-app-danger/40 bg-app-danger/[0.08] text-app-danger-ink",
   neutral: "border-app-border bg-app-soft text-app-muted"
 };
@@ -81,7 +82,7 @@ export function PaymentStatusCard({
     <Card className={cn("border p-5 sm:p-6", RING_BY_TONE[tone])}>
       <div className="flex items-start gap-3">
         {status.pending && checking ? (
-          <Loader2 aria-hidden className="mt-0.5 size-6 shrink-0 animate-spin" />
+          <Spinner aria-hidden className="mt-0.5 size-6 shrink-0" />
         ) : (
           <Icon aria-hidden className="mt-0.5 size-6 shrink-0" strokeWidth={2.5} />
         )}
@@ -101,7 +102,7 @@ export function PaymentStatusCard({
             </div>
             <div>
               <dt className="text-xs text-app-muted">Order</dt>
-              <dd className="font-mono text-xs font-semibold text-app-text">
+              <dd className="text-xs font-semibold tabular-nums text-app-text">
                 {status.orderNumber}
               </dd>
             </div>
@@ -120,7 +121,7 @@ export function PaymentStatusCard({
             </p>
           ) : null}
 
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
             {onCheckStatus ? (
               <Button
                 isLoading={checking}
@@ -153,10 +154,10 @@ export function PaymentStatusCard({
           </div>
 
           {status.pending ? (
-            <p className="mt-4 rounded-app bg-app-surface/70 px-3 py-2 text-xs font-semibold text-app-text">
+            <Alert className="mt-4" variant="warning">
               Do not make another payment while we verify the current
               transaction.
-            </p>
+            </Alert>
           ) : null}
         </div>
       </div>

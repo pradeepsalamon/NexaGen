@@ -89,11 +89,12 @@ export const NavIconButton = React.forwardRef<HTMLButtonElement, { icon: React.R
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={`w-8 h-8 rounded-full border flex items-center justify-center shadow-card transition-colors
-          ${disabled ? 'opacity-50 cursor-not-allowed border-app-border bg-app-surface' : 
-            isActive 
-              ? 'border-primary bg-primary/10 text-primary-ink' 
-              : 'border-app-border bg-app-surface hover:bg-app-soft active:bg-app-soft'}
+        // The neutral icon-button look at the board's fixed 32px size.
+        className={`flex size-8 items-center justify-center rounded-control border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus
+          ${disabled ? 'cursor-not-allowed border-app-border bg-app-surface text-app-muted opacity-50' :
+            isActive
+              ? 'border-primary bg-primary/10 text-primary-ink'
+              : 'border-app-line-strong bg-app-surface text-app-text hover:bg-app-soft active:bg-app-soft'}
         `}
         {...props}
       >

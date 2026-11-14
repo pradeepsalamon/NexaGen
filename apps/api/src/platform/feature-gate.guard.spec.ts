@@ -24,6 +24,7 @@ class CoreController {
 const state = (overrides: Partial<TenantEntitlementState> = {}): TenantEntitlementState => ({
   accessMode: "FULL",
   features: [],
+  lapse: { graceAllows: ["chat", "fees", "homework", "liveClasses"], graceDays: 14, pastDueDays: 7 },
   limits: { maxBatches: null, maxCoaches: null, maxConcurrentLiveClasses: null, maxStudents: null },
   subscription: null,
   tenant: { id: "tenant_nexa", name: "Nexa" },
@@ -71,6 +72,22 @@ describe("FeatureGateGuard", () => {
   it("READ_ONLY blocks writes everywhere but allows reads", async () => {
     await expect(run(state({ accessMode: "READ_ONLY" }), context(CoreController, "handle", "GET"))).resolves.toBe(true);
     await expect(run(state({ accessMode: "READ_ONLY" }), context(CoreController, "handle", "POST"))).rejects.toMatchObject({
+      response: { code: "SUBSCRIPTION_READ_ONLY" }
+    });
+  });
+
+  it("grace keeps the lapse policy's writes open, and nothing else", async () => {
+    const grace = (allows: TenantEntitlementState["lapse"]["graceAllows"]) =>
+      state({ accessMode: "READ_ONLY", lapse: { graceAllows: allows, graceDays: 14, pastDueDays: 7 } });
+    const post = (path: string) => context(CoreController, "handle", "POST", path);
+    await expect(run(grace(["liveClasses"]), post("/live-class/c1/join"))).resolves.toBe(true);
+    await expect(run(grace(["chat"]), post("/chat/conversations/x/messages"))).resolves.toBe(true);
+    // Admin growth is never in an allowance.
+    await expect(run(grace(["chat", "fees", "homework", "liveClasses"]), post("/batches"))).rejects.toMatchObject({
+      response: { code: "SUBSCRIPTION_READ_ONLY" }
+    });
+    // A switched-off allowance closes its routes.
+    await expect(run(grace([]), post("/live-class/c1/join"))).rejects.toMatchObject({
       response: { code: "SUBSCRIPTION_READ_ONLY" }
     });
   });

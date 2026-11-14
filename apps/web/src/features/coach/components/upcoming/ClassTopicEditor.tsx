@@ -92,7 +92,7 @@ export function ClassTopicEditor({ classItem }: { classItem: CoachClass }) {
         value={draft}
       />
       <div className="flex justify-end gap-2">
-        <Button disabled={isPending} onClick={() => setEditing(false)} size="sm" type="button" variant="outline">
+        <Button disabled={isPending} onClick={() => setEditing(false)} size="sm" type="button" variant="neutral">
           Cancel
         </Button>
         <Button disabled={isPending} size="sm" type="submit">

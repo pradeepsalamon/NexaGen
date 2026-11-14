@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -48,12 +49,13 @@ import { useStudentClassDetail } from "../hooks/useStudentClassDetail";
  * `@nexa-chess/types`, the same ones the server enforces.
  */
 export function StudentClassDetailsClient({ classId }: { classId: string }) {
+  const brandName = useBrandName();
   const { data, error, isLoading, refetch } = useStudentClassDetail(classId);
   const cls = data?.class;
 
   useEffect(() => {
-    if (cls) document.title = `${cls.title} - Nexa Chess`;
-  }, [cls]);
+    if (cls) document.title = `${cls.title} - ${brandName}`;
+  }, [brandName, cls]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-8 animate-fade-in">
@@ -292,10 +294,10 @@ function ClassActionCard({ cls }: { cls: StudentClassDetail }) {
             <SimpleTooltip label="Download recording">
               <Button
                 aria-label="Download recording"
-                className="size-11 rounded-full"
+                className="size-11"
                 onClick={download}
                 size="icon"
-                variant="outline"
+                variant="neutral"
               >
                 <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
               </Button>
@@ -355,7 +357,7 @@ function ActionLayout({
           <p className="mt-1 text-sm text-app-muted">{text}</p>
         </div>
         {children ? (
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">{children}</div>
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-end">{children}</div>
         ) : null}
       </div>
     </div>

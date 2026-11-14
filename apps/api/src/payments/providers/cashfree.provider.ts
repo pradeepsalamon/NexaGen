@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
 import {
   toMajorUnits,
@@ -9,6 +9,7 @@ import {
   type RefundStatus,
   type UpiFlow
 } from "@nexa-chess/types";
+import { GatewayCredentialsService } from "../gateway-credentials.service";
 import { ProviderHealthService } from "../provider-health.service";
 import {
   PaymentProviderError,
@@ -48,9 +49,20 @@ const PRODUCTION_BASE = "https://api.cashfree.com/pg";
 export class CashfreeProvider implements PaymentProviderAdapter {
   readonly id = "CASHFREE" as const;
 
-  private readonly env = getApiEnv();
+  private readonly baseEnv = getApiEnv();
 
-  constructor(private readonly health: ProviderHealthService) {}
+  constructor(
+    private readonly health: ProviderHealthService,
+    @Optional() private readonly credentials?: GatewayCredentialsService
+  ) {}
+
+  /**
+   * The server env with the current academy's own gateway keys (SaaS Phase 6,
+   * `GatewayCredentialsService`). Nexa's academy: the server env, unchanged.
+   */
+  private get env() {
+    return this.credentials?.envFor(this.baseEnv) ?? this.baseEnv;
+  }
 
   isConfigured(): boolean {
     return Boolean(this.env.CASHFREE_APP_ID && this.env.CASHFREE_SECRET_KEY);

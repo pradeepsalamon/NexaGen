@@ -26,7 +26,7 @@ export function UsersAnalyticsPageClient() {
             query={query}
           />
           <div>
-            <h2 className="mb-2 text-base font-extrabold text-app-text">
+            <h2 className="mb-2 text-base font-bold text-app-text">
               User directory
             </h2>
             <AnalyticsDrillTable<AnalyticsUserRow>

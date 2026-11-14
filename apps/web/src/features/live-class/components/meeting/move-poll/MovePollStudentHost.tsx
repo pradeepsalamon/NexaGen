@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, MessageCircleQuestion } from "lucide-react";
+import { MessageCircleQuestion } from "lucide-react";
 import { Chess } from "@/lib/chess";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useAnswerLiveMovePoll, useLiveMovePollState, useLiveMovePollSync } from "../../../hooks/useLiveMovePoll";
 import { MovePollResults } from "./MovePollResults";
+import { Spinner } from "@/components/ui/Spinner";
 
 function sideToMove(fen: string): "white" | "black" {
   try {
@@ -77,7 +78,7 @@ function StudentMovePoll({ classId }: { classId: string }) {
               aria-label={isOpen ? "Answer your coach's question" : "See the results"}
               onClick={() => setOpen(true)}
               className={cn(
-                "flex size-12 items-center justify-center rounded-full bg-primary text-white shadow-card transition hover:scale-105",
+                "flex size-12 items-center justify-center rounded-control bg-primary text-on-primary shadow-card transition hover:scale-105",
                 isOpen && !mine && "animate-pulse"
               )}
             >
@@ -89,7 +90,7 @@ function StudentMovePoll({ classId }: { classId: string }) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         {/* No backdrop blur: blurring over live <video> flashes black on mobile GPUs. */}
-        <DialogContent className="max-h-[94dvh] max-w-lg overflow-y-auto" overlayClassName="bg-black/60 backdrop-blur-none">
+        <DialogContent className="max-h-[94dvh] max-w-lg overflow-y-auto" overlayClassName="bg-scrim/60 backdrop-blur-none">
           <DialogHeader>
             <DialogTitle>{poll.prompt || "What would you play?"}</DialogTitle>
           </DialogHeader>
@@ -105,7 +106,7 @@ function StudentMovePoll({ classId }: { classId: string }) {
               role="status"
               aria-live="polite"
             >
-              {status.tone === "wait" || answer.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              {status.tone === "wait" || answer.isPending ? <Spinner className="size-4" /> : null}
               {status.text}
             </div>
 

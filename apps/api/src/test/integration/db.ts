@@ -1,4 +1,4 @@
-import { UserRole } from "@prisma/client";
+import { type PrismaClient, UserRole } from "@prisma/client";
 import { ensurePlatformDefaults } from "../../platform/platform-defaults";
 import { PrismaService } from "../../prisma/prisma.service";
 
@@ -15,7 +15,9 @@ export async function resetDatabase(prisma: PrismaService) {
   if (!tables.length) return;
   const list = tables.map((t) => `"public"."${t.tablename}"`).join(", ");
   await prisma.$queryRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
-  await ensurePlatformDefaults(prisma.withDeleted);
+  // Platform models only, which the tenant-scope extension never touches; the
+  // cast just drops the extension's client type.
+  await ensurePlatformDefaults(prisma.withDeleted as unknown as PrismaClient);
 }
 
 let seq = 0;

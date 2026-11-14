@@ -180,6 +180,75 @@ TURN on 443: on this box that means nginx `stream` mode with `ssl_preread`
 routing `turn.` by SNI to LiveKit, or giving LiveKit its own IP / media VM, where
 `LIVEKIT_TURN_TLS_PORT=443` works directly.
 
+## Step 4c: Academy addresses (SaaS Phase 5)
+
+Only needed once a second academy goes live (docs/SAAS_MULTI_TENANCY.md §H).
+Nexa's own hosts above stay exactly as they are. Every academy's page calls the
+API **on its own address under `/api/`**, so each academy host needs that rule.
+
+1. **Shared proxy settings**: `/etc/nginx/nexa-proxy.conf`
+   ```nginx
+   proxy_http_version 1.1;
+   proxy_set_header Upgrade $http_upgrade;
+   proxy_set_header Connection 'upgrade';
+   proxy_set_header Host $host;
+   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+   proxy_set_header X-Forwarded-Proto $scheme;
+   ```
+2. **Subdomains (`<slug>.nexachess.in`)**: one wildcard DNS record
+   (`*.nexachess.in` → this box, DNS only / grey cloud) and one wildcard
+   certificate, which needs the DNS challenge:
+   `sudo certbot certonly --manual --preferred-challenges dns -d '*.nexachess.in'`
+   (or a DNS plugin). Then one server block:
+   ```nginx
+   server {
+       server_name *.nexachess.in;
+       listen 443 ssl;
+       ssl_certificate     /etc/letsencrypt/live/nexachess.in-0001/fullchain.pem;  # the wildcard cert's path
+       ssl_certificate_key /etc/letsencrypt/live/nexachess.in-0001/privkey.pem;
+       # /api/ straight to the API (prefix stripped), keeping one proxy hop (TRUST_PROXY_HOPS=1).
+       location /api/ { proxy_pass http://127.0.0.1:3001/; include /etc/nginx/nexa-proxy.conf; }
+       location /     { proxy_pass http://127.0.0.1:3000;  include /etc/nginx/nexa-proxy.conf; }
+   }
+   ```
+   Exact `server_name` blocks (nexachess.in, api., livekit., crm.) still win over the wildcard.
+3. **An academy's own domain** (plan feature `customDomain`): the console shows the
+   block to add when the domain is added (same two `location` rules, its own
+   `server_name`). Add it, run `sudo certbot --nginx -d learn.example.com`, reload
+   nginx, then press **Check** on the academy page in the console. The check calls
+   `https://<host>/api/tenant/domain-check/<one-time token>` and marks the domain
+   ACTIVE when this API answers.
+4. **Env**: `PLATFORM_ROOT_DOMAIN` (API, default `nexachess.in`) is the parent of
+   academy subdomains. The web build's `/api` rewrite (to `API_INTERNAL_URL`, else
+   `NEXT_PUBLIC_API_URL`) is only a fallback for a host without the nginx `/api/`
+   rule; don't rely on it in production — requests then come through two proxy
+   hops and every user shares the web container's rate-limit bucket.
+
+### Nexa on host-only cookies (optional, owner's switch)
+
+Nexa's own session cookies are domain-wide (`.nexachess.in`), so every
+subdomain (staging, the CRM, academies' `<slug>.nexachess.in`) receives them.
+Academies already use host-only cookies. To move Nexa too (docs/AUTHORIZATION.md
+"Host-only vs domain-wide"):
+
+1. nginx: in the `nexachess.in` (and `www.`) server block, add the same rule the
+   academies use, **above** `location /`:
+   `location /api/ { proxy_pass http://127.0.0.1:3001/; include /etc/nginx/nexa-proxy.conf; }`
+   (one proxy hop, so `TRUST_PROXY_HOPS=1` still sees the visitor's IP; never
+   rely on the web build's `/api` rewrite in production). `nginx -t && reload`.
+   Check `curl -s https://nexachess.in/api/tenant/public-config` answers JSON.
+2. Root `.env`: `NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API=true` (web, build-time)
+   and `PLATFORM_HOST_ONLY_COOKIES=true` (API). Rebuild web, restart API, in the
+   same release.
+3. Check in a browser: sign in on nexachess.in sets `nexa_h_*` with no
+   `Domain`; an already signed-in tab keeps working and swaps to `nexa_h_*` at
+   its next refresh; sign-out clears both pairs.
+4. Keep `api.nexachess.in`: webhooks (Razorpay, LiveKit) and the recorder still
+   use it.
+
+Rollback: set both back to `false`, rebuild web, restart API. Users who got
+`nexa_h_*` cookies sign in again once (the domain-wide pair was cleared).
+
 ## CI, automated deploys and rollback
 
 Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselves.

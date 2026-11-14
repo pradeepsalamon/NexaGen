@@ -25,12 +25,12 @@ export interface FontMeta {
 }
 
 export const FONT_CATALOG: FontMeta[] = [
-  { id: "outfit", name: "Outfit", description: "Clean geometric — the Nexa heading default." },
-  { id: "nunito-sans", name: "Nunito Sans", description: "Soft and very readable — the Nexa body default." },
+  { id: "outfit", name: "Outfit", description: "Clean geometric." },
+  { id: "nunito-sans", name: "Nunito Sans", description: "Soft and very readable." },
   { id: "jost", name: "Jost", description: "Classic geometric with sharper letterforms." },
   { id: "lato", name: "Lato", description: "Neutral and familiar." },
   { id: "plus-jakarta-sans", name: "Plus Jakarta Sans", description: "Modern and crisp." },
-  { id: "inter", name: "Inter", description: "Compact interface font." },
+  { id: "inter", name: "Inter", description: "Clean and highly readable — the Nexa default." },
   { id: "lexend", name: "Lexend", description: "Wider spacing designed for easier reading." },
   {
     id: "atkinson-hyperlegible",
@@ -64,8 +64,8 @@ export const TEXT_SCALE_LABELS: Record<TextScale, string> = {
 /** Fully-resolved typography. `typographySchema.parse({})` is the system default. */
 export const typographySchema = z
   .object({
-    headingFont: fontIdSchema.default("outfit"),
-    bodyFont: fontIdSchema.default("nunito-sans"),
+    headingFont: fontIdSchema.default("inter"),
+    bodyFont: fontIdSchema.default("inter"),
     textScale: textScaleSchema.default("md")
   })
   .prefault({});

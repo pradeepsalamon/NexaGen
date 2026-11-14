@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Archive, ArchiveRestore, FolderTree, Loader2, Plus, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, FolderTree, Plus, Trash2 } from "lucide-react";
 import type { KnowledgeCategoryDto } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +15,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { createKnowledgeCategory, deleteKnowledgeCategory, updateKnowledgeCategory } from "../../api/knowledgeApi";
 import { useKnowledgeCategories } from "../../hooks/useKnowledgeApi";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** Admin-defined groupings for the help centre (Platform help, Openings, Fees…). */
 export function CategoriesPanel() {
@@ -57,7 +58,7 @@ export function CategoriesPanel() {
         <Input aria-label="Category name" maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="Name, e.g. Platform help" value={name} />
         <Input aria-label="Description" maxLength={500} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" value={description} />
         <Button disabled={!name.trim() || create.isPending} onClick={() => void submit()}>
-          {create.isPending ? <Loader2 aria-hidden className="mr-2 size-4 animate-spin" /> : <Plus aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
+          {create.isPending ? <Spinner aria-hidden className="mr-2 size-4" /> : <Plus aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
           Add category
         </Button>
       </Card>

@@ -16,6 +16,8 @@ export interface LiveSession {
 export interface CoachClass {
   id: string;
   batchId: string;
+  /** The batch's name, for the room's top bar. */
+  batchName?: string | null;
   coachId: string;
   title: string | null;
   topic: string | null;

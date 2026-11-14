@@ -19,7 +19,7 @@ import type {
 import { AccountDeletionStatus, Prisma, UserRole, type AccountDeletionRequest, type User } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
 import { verifySecret } from "../auth/auth.utils";
-import { MailService } from "../mail/mail.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { UserService } from "../user/user.service";
 
@@ -37,7 +37,7 @@ export class AccountDeletionService {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly mail: MailService,
+    private readonly notifier: SystemNotifier,
     private readonly prisma: PrismaService,
     private readonly users: UserService
   ) {}
@@ -78,9 +78,15 @@ export class AccountDeletionService {
       throw error;
     }
 
-    this.mail
-      .sendAccountDeletionRequested({ email: user.email, name, reason, role: user.role })
-      .catch((error: unknown) => this.logger.warn(`Account-deletion notice not sent: ${String(error)}`));
+    // Never throws: ADMIN_EMAILS by email, the academy's admins by WhatsApp / in-app.
+    void this.notifier.adminAlertRecipients().then((recipients) =>
+      this.notifier.send("ACCOUNT_DELETION_REQUESTED_ADMIN", recipients, {
+        "request.reason": reason || "-",
+        "requester.email": user.email,
+        "requester.name": name,
+        "requester.role": user.role
+      })
+    ).catch((error: unknown) => this.logger.warn(`Account-deletion notice not sent: ${String(error)}`));
 
     return { request: toItem(row) };
   }
@@ -136,7 +142,7 @@ export class AccountDeletionService {
         throw error;
       }
     }
-    this.notifyUser(row.userEmail, true, note);
+    this.notifyUser(row, true, note);
     return { request: toItem(row) };
   }
 
@@ -148,7 +154,7 @@ export class AccountDeletionService {
     const admin = await this.authenticateAdmin(accessToken);
     await this.findPending(id);
     const row = await this.resolve(id, admin.id, AccountDeletionStatus.REJECTED, dto.note);
-    this.notifyUser(row.userEmail, false, dto.note);
+    this.notifyUser(row, false, dto.note);
     return { request: toItem(row) };
   }
 
@@ -171,10 +177,18 @@ export class AccountDeletionService {
     return this.prisma.accountDeletionRequest.findUniqueOrThrow({ include: INCLUDE, where: { id } });
   }
 
-  private notifyUser(email: string, completed: boolean, note: string | null) {
-    this.mail
-      .sendAccountDeletionResolved({ completed, email, note })
-      .catch((error: unknown) => this.logger.warn(`Account-deletion outcome not sent: ${String(error)}`));
+  /** Email and phone of the request's account (deleted or not); in-app only while it still exists. */
+  private notifyUser(row: { userEmail: string; userId: string | null }, completed: boolean, note: string | null) {
+    void (async () => {
+      const user = row.userId
+        ? await this.prisma.withDeleted.user.findUnique({ select: { phoneNumber: true }, where: { id: row.userId } })
+        : null;
+      await this.notifier.send(
+        completed ? "ACCOUNT_DELETION_COMPLETED" : "ACCOUNT_DELETION_DECLINED",
+        { email: row.userEmail, phone: user?.phoneNumber ?? null, userId: completed ? null : row.userId },
+        { "request.noteLine": note ? `Note from the academy: ${note}` : "" }
+      );
+    })().catch((error: unknown) => this.logger.warn(`Account-deletion outcome not sent: ${String(error)}`));
   }
 
   private authenticate(accessToken: string | undefined) {

@@ -13,12 +13,9 @@ import type {
   UpdateBillingProfileRequest,
   UpdateInvoiceSettingsRequest
 } from "@nexa-chess/types";
-import { getWebEnv } from "@nexa-chess/config/web";
+import { apiBaseUrl } from "@/lib/apiBase";
 import { apiFetch } from "@/lib/api";
 
-const API_BASE_URL = getWebEnv({
-  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
-}).NEXT_PUBLIC_API_URL;
 
 // ── Student ──
 
@@ -120,28 +117,31 @@ export function updateInvoiceSettings(
 // there is no signed storage URL in the markup — so the cookie is what grants
 // access, and changing the id reaches nothing you are not allowed to see.
 
+// Links to these open the API host directly, with no Origin header. Keep them
+// `rel="noopener"` without `noreferrer`: the origin-only Referer is how the API
+// tells which academy the request is for (docs/SAAS_MULTI_TENANCY.md § "Phase 2 as built").
 export function invoicePdfUrl(id: string): string {
-  return `${API_BASE_URL}${API_ROUTES.invoices.pdf(id)}`;
+  return `${apiBaseUrl()}${API_ROUTES.invoices.pdf(id)}`;
 }
 
 export function invoiceHtmlUrl(id: string): string {
-  return `${API_BASE_URL}${API_ROUTES.invoices.html(id)}`;
+  return `${apiBaseUrl()}${API_ROUTES.invoices.html(id)}`;
 }
 
 export function creditNotePdfUrl(id: string): string {
-  return `${API_BASE_URL}${API_ROUTES.invoices.creditNotePdf(id)}`;
+  return `${apiBaseUrl()}${API_ROUTES.invoices.creditNotePdf(id)}`;
 }
 
 export function adminInvoicePdfUrl(id: string): string {
-  return `${API_BASE_URL}${API_ROUTES.adminInvoices.pdf(id)}`;
+  return `${apiBaseUrl()}${API_ROUTES.adminInvoices.pdf(id)}`;
 }
 
 export function adminCreditNotePdfUrl(id: string): string {
-  return `${API_BASE_URL}${API_ROUTES.adminInvoices.creditNotePdf(id)}`;
+  return `${apiBaseUrl()}${API_ROUTES.adminInvoices.creditNotePdf(id)}`;
 }
 
 export function adminInvoiceExportUrl(query: Partial<AdminInvoiceQuery>): string {
-  return `${API_BASE_URL}${API_ROUTES.adminInvoices.export}${toQueryString(query)}`;
+  return `${apiBaseUrl()}${API_ROUTES.adminInvoices.export}${toQueryString(query)}`;
 }
 
 function toQueryString(query: Record<string, unknown>): string {

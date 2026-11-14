@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 interface CacheEntry {
   value: unknown;
@@ -12,6 +13,9 @@ interface CacheEntry {
  * container a shared cache buys nothing, and a few minutes of staleness per
  * instance is an acceptable trade for not re-running ~15 aggregate queries on
  * every dashboard poll. `?fresh=1` bypasses it.
+ *
+ * Every key is prefixed with the context's academy here, so a caller can't
+ * forget it (docs/SAAS_MULTI_TENANCY.md § "Asynchronous and realtime paths").
  */
 @Injectable()
 export class AnalyticsCache {
@@ -27,14 +31,15 @@ export class AnalyticsCache {
       return { value: await produce(), cached: false };
     }
     const now = Date.now();
+    const scopedKey = `${requireTenantId("analyticsCache")}|${key}`;
     if (!fresh) {
-      const hit = this.store.get(key);
+      const hit = this.store.get(scopedKey);
       if (hit && hit.expiresAt > now) {
         return { value: hit.value as T, cached: true };
       }
     }
     const value = await produce();
-    this.store.set(key, { value, expiresAt: now + this.ttlMs });
+    this.store.set(scopedKey, { value, expiresAt: now + this.ttlMs });
     if (this.store.size > 200) this.evictExpired(now);
     return { value, cached: false };
   }

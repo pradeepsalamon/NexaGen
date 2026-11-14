@@ -72,3 +72,21 @@ export type EmailVerificationStatusResponse = {
   isEmailVerified: boolean;
   policy: EmailVerificationPolicy;
 };
+
+/** A person's own choice about messaging-rule ("notification") emails. System emails always send. */
+export type EmailPreferencesDto = {
+  notificationEmails: boolean;
+};
+
+export const updateEmailPreferencesRequestSchema = z.object({ notificationEmails: z.boolean() });
+export type UpdateEmailPreferencesRequest = z.infer<typeof updateEmailPreferencesRequestSchema>;
+
+/** The link in a notification email: it changes the setting without signing in. */
+export const emailUnsubscribeRequestSchema = z.object({
+  /** False (the default) turns the emails off; true turns them back on from the same page. */
+  notificationEmails: z.boolean().default(false),
+  token: z.string().trim().min(20).max(200)
+});
+export type EmailUnsubscribeRequest = z.infer<typeof emailUnsubscribeRequestSchema>;
+
+export const EMAIL_UNSUBSCRIBE_PATH = "/unsubscribe";

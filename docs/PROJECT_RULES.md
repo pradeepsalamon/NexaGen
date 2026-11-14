@@ -69,8 +69,8 @@ docker-compose.yml  (livekit-server config is inline as LIVEKIT_CONFIG here)
    inside a Prisma `$transaction` (see `batch.service.ts#delete`).
 6. **Update docs in the same change.** If you touch setup, commands, env vars, or
    user-visible behavior, update the relevant README/doc in the same PR.
-7. **Data-table action buttons are `rounded-full` icon buttons** — use
-   `RowActions` (`components/ui/RowActions.tsx`, see `AGENTS.md`), Lucide icon with `strokeWidth={2.5}`.
+7. **Data-table action buttons are `neutral` icon buttons** — use
+   `RowActions` (`components/ui/RowActions.tsx`, see `docs/UI_RULES.md`), Lucide icon with `strokeWidth={2.5}`.
 8. **Reuse `apps/web/src/components/ui/` primitives before building new UI.**
 
 ---
@@ -278,7 +278,7 @@ access log (`[HTTP] METHOD url status durationms - ip`), excluding `/stockfish` 
   `src/components/forms/`, `src/components/common/` — shared composites.
 - `src/lib/` — `api.ts` (axios wrapper), `queryKeys.ts`, `errors.ts`, `forms.ts`,
   `utils.ts` (`cn()`), `uploadApi.ts`.
-- `src/stores/` — Zustand (`authStore`, `uiStore`). `src/providers/` — React context
+- `src/stores/` — Zustand (`authStore`). `src/providers/` — React context
   providers. `src/middleware.ts` — route gating.
 
 ### 5.2 Data fetching
@@ -306,7 +306,7 @@ access log (`[HTTP] METHOD url status durationms - ip`), excluding `/stockfish` 
 
 react-hook-form + `zodResolver`, schema from `@nexa-chess/types` or
 `features/*/validation/`. Use `components/forms/` (`Form`, `FormInput`,
-`FormSelect`, `FormCheckbox`) and `components/ui/FormField`. `useTouchedFields`
+`FormSelect`) and `components/ui/FormField`. `useTouchedFields`
 helper for dirty-state UX.
 
 ### 5.5 UI / styling rules
@@ -322,10 +322,9 @@ helper for dirty-state UX.
 - Dark mode is the `[data-theme="dark"]` selector (managed by `ThemeProvider` /
   `ThemeToggle` / `ThemeSettings`). Always provide both light and dark treatment.
 - Icon-only buttons: `aria-label` **and** a visible Tooltip/Popover label.
-- Table row actions: `Button variant="outline" size="icon"` +
-  `className="size-8 rounded-full border-[color] p-0 text-app-text transition-colors
-  hover:bg-[color] hover:text-white"`, icon `strokeWidth={2.5}`.
-- Button variants: `primary` | `destructive` | `ghost` | `outline` | `secondary`.
+- Table row actions: `Button variant="neutral" size="icon"` + `className="size-8"`,
+  icon `strokeWidth={2.5}`. A tone colours the icon only, as in `RowActions`.
+- Button variants: `primary` | `neutral` | `outline` | `ghost` | `secondary` | `destructive` | `danger-soft`.
 - Toasts via `sonner`. Confirmations via `AlertDialog` / `ConfirmationModal`.
 - `"use client"` only where required (hooks, events, browser APIs). Keep pages RSC.
 
@@ -403,6 +402,16 @@ helper for dirty-state UX.
   `live-board-sync.spec.ts` is opt-in (`RUN_LIVE_BOARD_E2E=1`): it needs a real
   LiveKit (`docker compose up -d livekit postgres redis`) and the web server run
   with `NEXT_PUBLIC_E2E=1` (mounts the `window.__nexaBoard` test harness).
+- Safari engine: `E2E_WEBKIT=1 npx playwright test --project=webkit` adds a
+  Desktop Safari (WebKit) project. WebKit needs system libraries most Linux
+  boxes lack; run it in the official image instead of installing them, e.g.
+  `docker run --rm --network host -v "$PWD:$PWD" -w "$PWD" -e E2E_WEBKIT=1 …
+  mcr.microsoft.com/playwright:v<same version as @playwright/test>-noble npx
+  playwright test --project=webkit`. WebKit has no fake camera, so rooms are
+  joined with camera and mic off; the fake-device flags live on the chromium
+  project only (WebKit refuses to launch with them). It is not a real iPhone:
+  real touch drags, iOS camera prompts and Safari's tracking prevention still
+  need a device.
 - No web component unit tests today — don't retrofit a framework without agreement;
   add Playwright coverage for critical flows instead.
 

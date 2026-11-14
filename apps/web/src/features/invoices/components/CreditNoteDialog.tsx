@@ -161,7 +161,7 @@ export function CreditNoteDialog({
         {submitError ? <Alert variant="error">{submitError}</Alert> : null}
 
         <DialogFooter>
-          <Button onClick={onClose} variant="outline">
+          <Button onClick={onClose} variant="neutral">
             Cancel
           </Button>
           <Button

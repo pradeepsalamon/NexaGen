@@ -7,6 +7,7 @@ import { LiveClassModerationService } from "../live-class/live-class-moderation.
 import { LiveClassRecordingService } from "../live-class/live-class-recording.service";
 import { LiveClassScreenShareService } from "../live-class/live-class-screen-share.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { getTenantContext } from "../tenancy/tenant-context";
 
 /**
  * The LiveKit webhook is the one unauthenticated entry point into attendance and
@@ -16,7 +17,10 @@ import { PrismaService } from "../prisma/prisma.service";
 describe("AttendanceWebhookController signature handling", () => {
   let controller: AttendanceWebhookController;
   let recording: { handleEgressEnded: jest.Mock };
-  let prisma: { processedWebhookEvent: { create: jest.Mock; delete: jest.Mock } };
+  let prisma: {
+    liveSession: { findUnique: jest.Mock };
+    processedWebhookEvent: { create: jest.Mock; delete: jest.Mock };
+  };
   let receiver: { receive: jest.Mock };
 
   const requestWith = (body: string, authorization?: string) =>
@@ -28,6 +32,7 @@ describe("AttendanceWebhookController signature handling", () => {
   beforeEach(() => {
     recording = { handleEgressEnded: jest.fn().mockResolvedValue(undefined) };
     prisma = {
+      liveSession: { findUnique: jest.fn().mockResolvedValue({ tenantId: "tenant_room" }) },
       processedWebhookEvent: {
         create: jest.fn().mockResolvedValue({}),
         delete: jest.fn().mockResolvedValue({})
@@ -89,6 +94,23 @@ describe("AttendanceWebhookController signature handling", () => {
     expect(recording.handleEgressEnded).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: "egress_ended", roomName: "class_1" })
     );
+  });
+
+  it("runs the event as the academy of the room's LiveSession", async () => {
+    const event = { event: "egress_ended", id: "evt-3", egressInfo: { roomName: "class_1" } };
+    receiver.receive.mockResolvedValue(event);
+    let tenantId: string | null | undefined;
+    recording.handleEgressEnded.mockImplementation(async () => {
+      tenantId = getTenantContext()?.tenantId;
+    });
+
+    await controller.handleWebhook(requestWith(JSON.stringify(event), "valid-signature"));
+
+    expect(prisma.liveSession.findUnique).toHaveBeenCalledWith({
+      select: { tenantId: true },
+      where: { roomName: "class_1" }
+    });
+    expect(tenantId).toBe("tenant_room");
   });
 
   it("fails a processing error with 503 and releases the dedupe claim so the retry runs", async () => {

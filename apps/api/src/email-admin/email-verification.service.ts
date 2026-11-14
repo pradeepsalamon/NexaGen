@@ -5,8 +5,16 @@ import { UserRole, type User } from "@prisma/client";
 import { createOpaqueToken, hashOpaqueToken } from "../auth/auth.utils";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { requireTenantId, singletonRowId } from "../tenancy/tenant-sql";
 
-const SETTINGS_ID = "default";
+/**
+ * This academy's row (one per academy, docs/SAAS_MULTI_TENANCY.md § "Phase 3
+ * plan", slice 5): found by `tenantId`, created with its own id.
+ */
+function settingsRow() {
+  const tenantId = requireTenantId("emailSettings");
+  return { create: { id: singletonRowId(tenantId), tenantId }, where: { tenantId } };
+}
 const LINK_TTL_MS = 24 * 60 * 60_000;
 const SIGN_IN_RESEND_COOLDOWN_MS = 5 * 60_000;
 
@@ -23,15 +31,15 @@ export class EmailVerificationService {
   ) {}
 
   async policy(): Promise<EmailVerificationPolicy> {
-    const settings = await this.prisma.emailSettings.findUnique({ where: { id: SETTINGS_ID } });
+    const settings = await this.prisma.emailSettings.findUnique({ where: settingsRow().where });
     return settings?.verificationPolicy ?? "OFF";
   }
 
   async setPolicy(policy: EmailVerificationPolicy, updatedById: string) {
     await this.prisma.emailSettings.upsert({
-      create: { id: SETTINGS_ID, updatedById, verificationPolicy: policy },
+      create: { ...settingsRow().create, updatedById, verificationPolicy: policy },
       update: { updatedById, verificationPolicy: policy },
-      where: { id: SETTINGS_ID }
+      where: settingsRow().where
     });
   }
 

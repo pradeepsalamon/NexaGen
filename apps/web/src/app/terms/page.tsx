@@ -14,9 +14,9 @@ export default function TermsPage() {
   return (
     <LegalPage
       intro="The terms for taking classes with Nexa Chess Academy and using its platform."
-      other={{ href: "/privacy", label: "Privacy Policy" }}
+      other={{ href: "/privacy", label: "Privacy policy" }}
       sections={TERMS_SECTIONS}
-      title="Terms of Service"
+      title="Terms of service"
     />
   );
 }

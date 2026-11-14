@@ -99,7 +99,7 @@ export function DeployAssignmentDialog({ open, onOpenChange, assignment, coachBa
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={deployMutation.isPending}>
+          <Button variant="neutral" onClick={() => onOpenChange(false)} disabled={deployMutation.isPending}>
             Cancel
           </Button>
           <Button

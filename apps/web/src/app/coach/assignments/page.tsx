@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { PageLoading } from "@/components/layout/PageLoading";
 import { CoachAssignmentsClient } from "@/features/assignments/components/CoachAssignmentsClient";
 import { pageTitle } from "@/lib/pageTitles";
 
@@ -8,7 +9,7 @@ export const metadata = {
 
 export default function CoachAssignmentsPage() {
   return (
-    <Suspense fallback={<div className="p-8">Loading assignments...</div>}>
+    <Suspense fallback={<PageLoading />}>
       <CoachAssignmentsClient />
     </Suspense>
   );

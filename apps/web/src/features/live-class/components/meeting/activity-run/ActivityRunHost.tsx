@@ -13,7 +13,7 @@ export function ActivityRunHost() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {/* No backdrop blur: blurring over live <video> flashes black on mobile GPUs. */}
-      <DialogContent className="max-h-[94dvh] max-w-3xl overflow-y-auto" overlayClassName="bg-black/60 backdrop-blur-none">
+      <DialogContent className="max-h-[94dvh] max-w-3xl overflow-y-auto" overlayClassName="bg-scrim/60 backdrop-blur-none">
         <DialogHeader>
           <DialogTitle>{run.title}</DialogTitle>
           <div className="flex flex-wrap items-center gap-2 pt-1">

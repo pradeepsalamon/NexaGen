@@ -15,17 +15,18 @@ import {
   type PaymentListQuery,
   type PaymentStatus
 } from "@nexa-chess/types";
-import { getWebEnv } from "@nexa-chess/config/web";
+import { apiBaseUrl } from "@/lib/apiBase";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterChips, FilterField, FilterPopover, type ActiveFilter } from "@/components/ui/FilterPopover";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { formatDateTime } from "@/lib/datetime";
+import { formatDateTime, formatFullDate } from "@/lib/datetime";
 import {
   useAdminPayments,
   useReconcilePayment
@@ -53,11 +54,17 @@ const STATUS_VARIANT: Record<
   REFUNDED: "secondary"
 };
 
-const API_BASE_URL = getWebEnv({
-  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
-}).NEXT_PUBLIC_API_URL;
 
 /** The admin payment table (§16) with its filters, export and refund action. */
+type PaymentFilters = Pick<Partial<PaymentListQuery>, "from" | "method" | "provider" | "status" | "to">;
+const EMPTY_PAYMENT_FILTERS: PaymentFilters = {
+  from: undefined,
+  method: undefined,
+  provider: undefined,
+  status: undefined,
+  to: undefined
+};
+
 export function PaymentsTablePanel() {
   const timeZone = useUserTimeZone();
   const [filters, setFilters] = useState<Partial<PaymentListQuery>>({
@@ -84,8 +91,15 @@ export function PaymentsTablePanel() {
 
   const set = (patch: Partial<PaymentListQuery>) =>
     setFilters((current) => ({ ...current, ...patch, page: patch.page ?? 1 }));
+  const activeFilters = [
+    filters.status && { key: "status", label: PAYMENT_STATUS_LABELS[filters.status], onRemove: () => set({ status: undefined }) },
+    filters.provider && { key: "provider", label: PAYMENT_SOURCE_LABELS[filters.provider], onRemove: () => set({ provider: undefined }) },
+    filters.method && { key: "method", label: PAYMENT_METHOD_LABELS[filters.method], onRemove: () => set({ method: undefined }) },
+    filters.from && { key: "from", label: `From ${formatFullDate(filters.from, "UTC")}`, onRemove: () => set({ from: undefined }) },
+    filters.to && { key: "to", label: `To ${formatFullDate(filters.to, "UTC")}`, onRemove: () => set({ to: undefined }) },
+  ].filter((filter): filter is ActiveFilter => Boolean(filter));
 
-  const exportHref = `${API_BASE_URL}${API_ROUTES.adminPayments.export}?${new URLSearchParams(
+  const exportHref = `${apiBaseUrl()}${API_ROUTES.adminPayments.export}?${new URLSearchParams(
     Object.entries(filters)
       .filter(([, value]) => value !== undefined && value !== "")
       .map(([key, value]) => [key, String(value)])
@@ -93,8 +107,9 @@ export function PaymentsTablePanel() {
 
   return (
     <div className="space-y-4">
-      <Card className="flex flex-wrap items-end justify-end gap-3 p-4">
-        <div className="min-w-48 flex-1">
+      <Card className="grid gap-2 p-4">
+      <div className="flex items-center justify-end gap-2">
+        <div className="min-w-0 flex-1">
           <Input
             aria-label="Search payments"
             onChange={(event) => set({ search: event.target.value })}
@@ -103,91 +118,86 @@ export function PaymentsTablePanel() {
           />
         </div>
 
-        <div className="min-w-36">
-          <Select
-            aria-label="Filter by gateway"
-            onChange={(event) =>
-              set({
-                provider: (event.target.value ||
-                  undefined) as PaymentListQuery["provider"]
-              })
-            }
-            options={PAYMENT_SOURCES.map((provider) => ({
-              label: PAYMENT_SOURCE_LABELS[provider],
-              value: provider
-            }))}
-            placeholder="Any gateway"
-            value={filters.provider ?? ""}
-          />
-        </div>
-
-        <div className="min-w-36">
-          <Select
-            aria-label="Filter by status"
-            onChange={(event) =>
-              set({
-                status: (event.target.value ||
-                  undefined) as PaymentListQuery["status"]
-              })
-            }
-            options={PAYMENT_STATUSES.map((status) => ({
-              label: PAYMENT_STATUS_LABELS[status],
-              value: status
-            }))}
-            placeholder="Any status"
-            value={filters.status ?? ""}
-          />
-        </div>
-
-        <div className="min-w-36">
-          <Select
-            aria-label="Filter by method"
-            onChange={(event) =>
-              set({
-                method: (event.target.value ||
-                  undefined) as PaymentListQuery["method"]
-              })
-            }
-            options={PAYMENT_METHOD_KINDS.map((method) => ({
-              label: PAYMENT_METHOD_LABELS[method],
-              value: method
-            }))}
-            placeholder="Any method"
-            value={filters.method ?? ""}
-          />
-        </div>
-
-        <div className="min-w-36">
-          <DateStringPicker
-            aria-label="From date"
-            onChange={(value) => set({ from: value || undefined })}
-            
-            value={filters.from ?? ""} placeholder="From date"
-          />
-        </div>
-
-        <div className="min-w-36">
-          <DateStringPicker
-            aria-label="To date"
-            onChange={(value) => set({ to: value || undefined })}
-            
-            value={filters.to ?? ""} placeholder="To date"
-          />
-        </div>
+        <FilterPopover
+          activeCount={activeFilters.length}
+          emptyValue={EMPTY_PAYMENT_FILTERS}
+          onApply={(next) => set(next)}
+          value={{ from: filters.from, method: filters.method, provider: filters.provider, status: filters.status, to: filters.to }}
+        >
+          {(draft, update) => (
+            <>
+              <FilterField htmlFor="payment-filter-status" label="Status">
+                <Select
+                  id="payment-filter-status"
+                  onChange={(event) =>
+                    update({ status: (event.target.value || undefined) as PaymentListQuery["status"] })
+                  }
+                  options={PAYMENT_STATUSES.map((status) => ({ label: PAYMENT_STATUS_LABELS[status], value: status }))}
+                  placeholder="Any status"
+                  value={draft.status ?? ""}
+                />
+              </FilterField>
+              <div className="grid grid-cols-2">
+                <FilterField htmlFor="payment-filter-gateway" label="Gateway">
+                  <Select
+                    id="payment-filter-gateway"
+                    onChange={(event) =>
+                      update({ provider: (event.target.value || undefined) as PaymentListQuery["provider"] })
+                    }
+                    options={PAYMENT_SOURCES.map((provider) => ({ label: PAYMENT_SOURCE_LABELS[provider], value: provider }))}
+                    placeholder="Any gateway"
+                    value={draft.provider ?? ""}
+                  />
+                </FilterField>
+                <FilterField htmlFor="payment-filter-method" label="Method">
+                  <Select
+                    id="payment-filter-method"
+                    onChange={(event) =>
+                      update({ method: (event.target.value || undefined) as PaymentListQuery["method"] })
+                    }
+                    options={PAYMENT_METHOD_KINDS.map((method) => ({ label: PAYMENT_METHOD_LABELS[method], value: method }))}
+                    placeholder="Any method"
+                    value={draft.method ?? ""}
+                  />
+                </FilterField>
+              </div>
+              <div className="grid grid-cols-2">
+                <FilterField label="From">
+                  <DateStringPicker
+                    aria-label="From date"
+                    onChange={(value) => update({ from: value || undefined })}
+                    placeholder="Any"
+                    value={draft.from ?? ""}
+                  />
+                </FilterField>
+                <FilterField label="To">
+                  <DateStringPicker
+                    aria-label="To date"
+                    onChange={(value) => update({ to: value || undefined })}
+                    placeholder="Any"
+                    value={draft.to ?? ""}
+                  />
+                </FilterField>
+              </div>
+            </>
+          )}
+        </FilterPopover>
 
         <SimpleTooltip label="Download these rows as CSV">
           <Button
             aria-label="Export payments as CSV"
             asChild
-            className="size-10 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+            className="size-10"
             size="icon"
-            variant="outline"
+            variant="neutral"
           >
             <a download href={exportHref}>
               <Download className="size-4" strokeWidth={2.5} />
             </a>
           </Button>
         </SimpleTooltip>
+      </div>
+        <FilterChips filters={activeFilters} onClearAll={activeFilters.length > 1 ? () => set(EMPTY_PAYMENT_FILTERS) : undefined} />
       </Card>
 
       {isLoading ? (
@@ -273,12 +283,12 @@ export function PaymentsTablePanel() {
                         <SimpleTooltip label="Re-read this payment from the gateway">
                           <Button
                             aria-label="Reconcile with the gateway"
-                            className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                            className="size-8"
                             disabled={reconcile.isPending}
                             onClick={() => reconcile.mutate(payment.id)}
                             size="icon"
                             type="button"
-                            variant="ghost"
+                            variant="neutral"
                           >
                             <RotateCw className="size-3.5" strokeWidth={2.5} />
                           </Button>
@@ -289,11 +299,11 @@ export function PaymentsTablePanel() {
                           <SimpleTooltip label="Refund this payment">
                             <Button
                               aria-label="Refund this payment"
-                              className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                              className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                               onClick={() => setRefunding(payment)}
                               size="icon"
                               type="button"
-                              variant="ghost"
+                              variant="neutral"
                             >
                               <Undo2 className="size-3.5" strokeWidth={2.5} />
                             </Button>

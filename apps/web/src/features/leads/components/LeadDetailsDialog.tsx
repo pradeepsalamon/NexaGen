@@ -7,6 +7,7 @@ import {
   Calendar,
   CalendarClock,
   Globe,
+  Mail,
   MessageSquare,
   Monitor,
   Phone,
@@ -116,6 +117,15 @@ export function LeadDetailsDialog({ leadId, isOpen, onOpenChange }: LeadDetailsD
                   <span className="min-w-[100px] font-semibold">Phone:</span>
                   <span>{lead.phone}</span>
                 </div>
+                {lead.email ? (
+                  <div className="flex items-center gap-2 text-sm text-app-text">
+                    <Mail className="size-4 text-app-muted" />
+                    <span className="min-w-[100px] font-semibold">Email:</span>
+                    <a className="break-all text-primary-ink hover:underline" href={`mailto:${lead.email}`}>
+                      {lead.email}
+                    </a>
+                  </div>
+                ) : null}
                 <div className="flex items-center gap-2 text-sm text-app-text">
                   <Calendar className="size-4 text-app-muted" />
                   <span className="min-w-[100px] font-semibold">Received:</span>
@@ -152,6 +162,7 @@ export function LeadDetailsDialog({ leadId, isOpen, onOpenChange }: LeadDetailsD
                   </div>
                 ) : null}
                 <Select
+                  aria-label="Assign a demo class"
                   disabled={assignDemoClassMutation.isPending || demoClassOptions.length === 0}
                   onChange={(event) => {
                     if (!event.target.value) return;

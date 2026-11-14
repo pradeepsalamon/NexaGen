@@ -2,9 +2,9 @@
 
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
-import { type FormEvent, useState } from "react";
-import { AtSign, CheckCircle2, Lock, Phone, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { type FormEvent, useRef, useState } from "react";
+import { AtSign, Lock, Phone, ShieldCheck, UserRound } from "lucide-react";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -18,6 +18,9 @@ import type {
   RegisterCoachRequest
 } from "@nexa-chess/types";
 import { AcquisitionSourceSelect } from "./AcquisitionSourceSelect";
+import { AuthStatus } from "./AuthStatus";
+import { LoginPrompt, TERMS_REQUIRED_MESSAGE, TermsConsent } from "./RegistrationConsent";
+import { RegistrationFieldset } from "./RegistrationFieldset";
 
 const titleOptions: { label: string; value: string }[] = [
   { label: "None", value: "NONE" },
@@ -27,7 +30,8 @@ const titleOptions: { label: string; value: string }[] = [
   { label: "Grandmaster (GM)", value: "GM" }
 ];
 
-const initialValues: RegisterCoachRequest = {
+// The checkbox is its own state; the request gets `acceptedTerms: true` once it is ticked.
+const initialValues: Omit<RegisterCoachRequest, "acceptedTerms"> = {
   coachName: "",
   contactNumber: "",
   email: "",
@@ -38,15 +42,19 @@ const initialValues: RegisterCoachRequest = {
 
 export function CoachRegisterForm() {
   const toast = useToast();
-  const [values, setValues] = useState<RegisterCoachRequest>(initialValues);
+
+  const [values, setValues] = useState<Omit<RegisterCoachRequest, "acceptedTerms">>(initialValues);
   const [acquisitionSource, setAcquisitionSource] = useState<
     AcquisitionSourceValue | ""
   >("");
   const [acquisitionDetail, setAcquisitionDetail] = useState("");
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsError, setTermsError] = useState<string | undefined>();
+  const termsRef = useRef<HTMLButtonElement>(null);
 
-  // Registration is an application, not a sign-in: the API issues no session
-  // until an admin approves the coach, so there is nothing to redirect to.
+  const hasFideTitle = Boolean(values.title && values.title !== "NONE");
+
   const registerMutation = useMutation({
     mutationFn: registerCoach,
     onError: (error) => {
@@ -71,6 +79,15 @@ export function CoachRegisterForm() {
     setValues((currentValues) => ({ ...currentValues, [field]: value }));
   }
 
+  function handleTitleChange(nextTitle: RegisterCoachRequest["title"]) {
+    setValues((currentValues) => ({
+      ...currentValues,
+      title: nextTitle,
+      // Clear FIDE ID and FIDE Rating if user switches back to "NONE"
+      ...(nextTitle === "NONE" ? { fideId: undefined, fideRating: undefined } : {})
+    }));
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -88,9 +105,16 @@ export function CoachRegisterForm() {
 
     if (!acquisitionSource) return;
 
+    if (!acceptedTerms) {
+      setTermsError(TERMS_REQUIRED_MESSAGE);
+      termsRef.current?.focus();
+      return;
+    }
+
     registerMutation.mutate({
       ...values,
       ...getStoredAcquisition(),
+      acceptedTerms: true,
       acquisitionSource,
       acquisitionDetail: acquisitionDetail.trim() || undefined
     });
@@ -98,128 +122,106 @@ export function CoachRegisterForm() {
 
   if (submittedEmail) {
     return (
-      <div className="grid gap-4 text-center">
-        <CheckCircle2
-          aria-hidden="true"
-          className="mx-auto size-12 text-primary-ink"
-          strokeWidth={2.5}
-        />
-        <div className="grid gap-1.5">
-          <h2 className="text-lg font-semibold text-app-text">
-            Application received
-          </h2>
-          <p className="text-sm text-app-muted">
-            We have your application for{" "}
-            <span className="font-medium text-app-text">{submittedEmail}</span>.
-            An admin reviews every coach account before it is activated — you
-            will be able to sign in once yours is approved.
-          </p>
-        </div>
-        <Link href="/login">
-          <Button fullWidth variant="outline">
-            Back to sign in
+      <AuthStatus
+        actions={
+          <Button asChild variant="neutral">
+            <Link href="/login">Back to log in</Link>
           </Button>
-        </Link>
-      </div>
+        }
+        headingLevel="h2"
+        title="Application received"
+        tone="success"
+      >
+        We have your application for{" "}
+        <span className="font-semibold text-app-text">{submittedEmail}</span>. An admin
+        reviews every coach account before it is activated. You can sign in once yours is
+        approved.
+      </AuthStatus>
     );
   }
 
   return (
-    <form className="grid gap-3 [@media(max-height:700px)]:gap-2" onSubmit={handleSubmit}>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
-        <FormField id="coach-name" label="Full Name" required>
+    <form className="grid gap-6" onSubmit={handleSubmit}>
+      <RegistrationFieldset legend="About you">
+        <FormField id="coach-name" label="Full name" required>
           <Input
             autoComplete="name"
             id="coach-name"
-            leadingIcon={<UserRound strokeWidth={2.25} />}
-            onChange={(event) => updateField("coachName", event.target.value)}
-            placeholder="John Doe"
+            leadingIcon={<UserRound />}
+            onChange={(e) => updateField("coachName", e.target.value)}
+            placeholder="e.g. John Doe"
             required
+            type="text"
             value={values.coachName}
           />
         </FormField>
-        <FormField id="email" label="Email Address" required>
-          <Input
-            autoComplete="email"
-            id="email"
-            inputMode="email"
-            leadingIcon={<AtSign strokeWidth={2.25} />}
-            onChange={(event) => updateField("email", event.target.value)}
-            placeholder="coach@example.com"
-            required
-            type="email"
-            value={values.email}
-          />
-        </FormField>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
-        <FormField id="contact-number" label="WhatsApp / Phone Number" required>
-          <Input
-            autoComplete="tel"
-            id="contact-number"
-            inputMode="tel"
-            leadingIcon={<Phone strokeWidth={2.25} />}
-            onChange={(event) =>
-              updateField("contactNumber", event.target.value)
-            }
-            placeholder="98765 43210"
-            required
-            type="tel"
-            value={values.contactNumber}
-          />
-        </FormField>
-        <FormField id="title" label="FIDE Title">
+
+        <FormField id="title" label="FIDE title">
           <Select
             id="title"
-            onChange={(event) =>
-              updateField(
-                "title",
-                event.target.value as RegisterCoachRequest["title"]
-              )
+            onChange={(e) =>
+              handleTitleChange(e.target.value as RegisterCoachRequest["title"])
             }
             options={titleOptions}
-            placeholder="Choose Title"
             value={values.title ?? "NONE"}
           />
         </FormField>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
-        <FormField id="fide-id" label="FIDE ID (Optional)">
-          <Input
-            id="fide-id"
-            onChange={(event) => updateField("fideId", event.target.value)}
-            placeholder="123456"
-            value={values.fideId ?? ""}
-          />
-        </FormField>
-        <FormField id="fide-rating" label="FIDE Rating (Optional)">
-          <Input
-            id="fide-rating"
-            inputMode="numeric"
-            onChange={(event) => {
-              const val = parseInt(event.target.value, 10);
-              updateField("fideRating", Number.isNaN(val) ? undefined : val);
-            }}
-            placeholder="e.g. 2000"
-            type="number"
-            value={values.fideRating ?? ""}
-          />
-        </FormField>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
-        <FormField id="years-of-experience" label="Years of Experience">
+
+        {/* FIDE ID and rating only once a title is chosen. */}
+        {hasFideTitle && (
+          <>
+            <FormField id="fide-id" label="FIDE ID (optional)">
+              <Input
+                id="fide-id"
+                inputMode="numeric"
+                onChange={(e) => {
+                  const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 12);
+                  updateField("fideId", digitsOnly);
+                }}
+                pattern="[0-9]*"
+                placeholder="123456"
+                type="text"
+                value={values.fideId ?? ""}
+              />
+            </FormField>
+
+            <FormField id="fide-rating" label="FIDE rating (optional)">
+              <Input
+                id="fide-rating"
+                inputMode="numeric"
+                onChange={(e) => {
+                  const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  const val = parseInt(digitsOnly, 10);
+                  updateField("fideRating", Number.isNaN(val) ? undefined : val);
+                }}
+                pattern="[0-9]*"
+                placeholder="e.g. 2000"
+                type="text"
+                value={values.fideRating ?? ""}
+              />
+            </FormField>
+          </>
+        )}
+
+        <FormField id="years-of-experience" label="Years of experience">
           <Input
             id="years-of-experience"
             inputMode="numeric"
-            onChange={(event) => {
-              const val = parseInt(event.target.value, 10);
-              updateField("yearsOfExperience", Number.isNaN(val) ? undefined : val);
+            onChange={(e) => {
+              const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 2);
+              const val = parseInt(digitsOnly, 10);
+              updateField(
+                "yearsOfExperience",
+                Number.isNaN(val) ? undefined : val
+              );
             }}
+            pattern="[0-9]*"
             placeholder="e.g. 5"
-            type="number"
+            type="text"
             value={values.yearsOfExperience ?? ""}
           />
         </FormField>
+
         <AcquisitionSourceSelect
           detail={acquisitionDetail}
           onDetailChange={setAcquisitionDetail}
@@ -227,38 +229,96 @@ export function CoachRegisterForm() {
           required
           value={acquisitionSource}
         />
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
-        <FormField id="password" label="Password" required>
+      </RegistrationFieldset>
+
+      <RegistrationFieldset legend="Contact and account">
+        <FormField id="email" label="Email address" required>
+          <Input
+            autoComplete="email"
+            id="email"
+            inputMode="email"
+            leadingIcon={<AtSign />}
+            onChange={(e) => updateField("email", e.target.value)}
+            placeholder="name@example.com"
+            required
+            type="email"
+            value={values.email}
+          />
+        </FormField>
+
+        <FormField id="contact-number" label="WhatsApp or phone number" required>
+          <Input
+            autoComplete="tel"
+            id="contact-number"
+            inputMode="numeric"
+            leadingIcon={<Phone />}
+            maxLength={15}
+            onChange={(e) => {
+              const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 15);
+              updateField("contactNumber", digitsOnly);
+            }}
+            pattern="[0-9]*"
+            placeholder="9876543210"
+            required
+            type="tel"
+            value={values.contactNumber}
+          />
+        </FormField>
+
+        <FormField id="coach-password" label="Password" required>
           <PasswordInput
             autoComplete="new-password"
-            id="password"
-            leadingIcon={<Lock strokeWidth={2.25} />}
-            onChange={(event) => updateField("password", event.target.value)}
-            placeholder="8+ chars, letters & numbers"
+            id="coach-password"
+            leadingIcon={<Lock />}
+            onChange={(e) => updateField("password", e.target.value)}
+            placeholder="Create a secure password"
             required
             value={values.password}
           />
         </FormField>
-        <FormField id="confirm-password" label="Confirm Password" required>
+
+        <FormField id="coach-confirm-password" label="Confirm password" required>
           <PasswordInput
             autoComplete="new-password"
-            id="confirm-password"
-            leadingIcon={<Lock strokeWidth={2.25} />}
+            id="coach-confirm-password"
+            leadingIcon={<Lock />}
             name="confirmPassword"
-            onChange={(event) => {
-              event.target.setCustomValidity("");
-              updateField("confirmPassword", event.target.value);
+            onChange={(e) => {
+              e.target.setCustomValidity("");
+              updateField("confirmPassword", e.target.value);
             }}
-            placeholder="Confirm password"
+            placeholder="Confirm your password"
             required
             value={values.confirmPassword}
           />
         </FormField>
+      </RegistrationFieldset>
+
+      <TermsConsent
+        checked={acceptedTerms}
+        error={termsError}
+        id="coach-accept-terms"
+        onCheckedChange={(checked) => {
+          setAcceptedTerms(checked);
+          if (checked) setTermsError(undefined);
+        }}
+        ref={termsRef}
+      />
+
+      <div className="grid gap-3">
+        <Button fullWidth isLoading={registerMutation.isPending} size="lg" type="submit">
+          {registerMutation.isPending ? "Submitting…" : "Submit application"}
+        </Button>
+        <p className="flex items-start justify-center gap-2 text-center text-sm text-app-muted">
+          <ShieldCheck
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 text-success-ink"
+            strokeWidth={2.25}
+          />
+          Our team reviews every application. You will be notified by email.
+        </p>
+        <LoginPrompt />
       </div>
-      <Button className="mt-1 [@media(max-height:700px)]:mt-0" fullWidth isLoading={registerMutation.isPending} type="submit">
-        {registerMutation.isPending ? "Submitting..." : "Submit application"}
-      </Button>
     </form>
   );
 }

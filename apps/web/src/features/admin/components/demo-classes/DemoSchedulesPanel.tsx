@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Pencil, Plus, Repeat, Trash2 } from "lucide-react";
+import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import { DEMO_CLASS_ACCESS_MODE_LABELS, type DemoScheduleDto } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -86,7 +86,7 @@ export function DemoSchedulesPanel() {
         </div>
       ) : schedules.length === 0 ? (
         <EmptyState
-          icon={Repeat}
+          illustration="schedule"
           title="No demo schedules yet"
           description="Create one to get a permanent demo link like /demo/free-trial."
         />

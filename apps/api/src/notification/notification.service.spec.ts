@@ -41,7 +41,7 @@ describe("NotificationService", () => {
   });
 
   it("rejects an unauthenticated list request", async () => {
-    await expect(service.list(undefined)).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.list(undefined, { limit: 30 })).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it("returns items with an unread count", async () => {
@@ -58,9 +58,42 @@ describe("NotificationService", () => {
     ]);
     prisma.notification.count.mockResolvedValue(1);
 
-    const res = await service.list(TOKEN);
+    const res = await service.list(TOKEN, { limit: 30 });
     expect(res.unreadCount).toBe(1);
     expect(res.notifications[0]).toMatchObject({ id: "n1", linkPath: "/coach/assignments" });
+    expect(res.nextCursor).toBeNull();
+  });
+
+  it("pages with a keyset cursor: probes one extra row and continues after the last one", async () => {
+    const row = (id: string, iso: string) => ({
+      id,
+      type: "ASSIGNMENT_GRADED",
+      title: "t",
+      body: "b",
+      linkPath: null,
+      readAt: null,
+      createdAt: new Date(iso)
+    });
+    prisma.notification.findMany.mockResolvedValueOnce([
+      row("n3", "2026-11-09T03:00:00Z"),
+      row("n2", "2026-11-09T02:00:00Z"),
+      row("n1", "2026-11-09T01:00:00Z")
+    ]);
+
+    const first = await service.list(TOKEN, { limit: 2 });
+    expect(prisma.notification.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ take: 3, where: { userId: USER_ID } })
+    );
+    expect(first.notifications.map((n) => n.id)).toEqual(["n3", "n2"]);
+    expect(first.nextCursor).toEqual(expect.any(String));
+
+    await service.list(TOKEN, { cursor: first.nextCursor as string, limit: 2 });
+    const at = new Date("2026-11-09T02:00:00Z");
+    expect(prisma.notification.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { userId: USER_ID, OR: [{ createdAt: { lt: at } }, { createdAt: at, id: { lt: "n2" } }] }
+      })
+    );
   });
 
   it("marks all unread read when no ids are given", async () => {

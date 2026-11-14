@@ -1,0 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ───────────────────────── Design tokens ───────────────────────── */
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+  --c-bg: 250 248 242; /* warm ivory     #FAF8F2 */
+  --c-surface: 255 255 255; /* pure white     #FFFFFF */
+  --c-ink: 23 35 61; /* deep navy      #17233D */
+  --c-gold: 201 151 54; /* champagne gold #C99736 */
+  --c-gold-ink: 143 102 20; /* AA-legible gold for small text on ivory */
+  --c-sand: 233 223 204; /* soft beige     #E9DFCC */
+
+  --g1: #a87a1e;
+  --g2: #e6b94f;
+  --g3: #b8861f;
+
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 18px 40px -18px rgb(23 35 61 / 0.22),
+    0 2px 6px rgb(23 35 61 / 0.05);
+  --shadow-card-hover: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 30px 60px -22px rgb(143 102 20 / 0.38),
+    0 4px 12px rgb(23 35 61 / 0.07);
+  --shadow-glow: 0 10px 30px -8px rgb(201 151 54 / 0.55);
+  --stage-glow: 232 190 98;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --c-bg: 16 19 29; /* midnight charcoal #10131D */
+  --c-surface: 27 32 48; /* deep navy charcoal #1B2030 */
+  --c-ink: 245 234 212; /* warm ivory        #F5EAD4 */
+  --c-gold: 227 183 92; /* champagne gold    #E3B75C */
+  --c-gold-ink: 227 183 92;
+  --c-sand: 52 51 68; /* muted violet      #343344 */
+
+  --g1: #e9c26f;
+  --g2: #fff0c4;
+  --g3: #d9a93f;
+
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 22px 44px -18px rgb(0 0 0 / 0.65),
+    0 2px 6px rgb(0 0 0 / 0.3);
+  --shadow-card-hover: 0 1px 0 rgb(255 255 255 / 0.07) inset, 0 32px 64px -22px rgb(227 183 92 / 0.28),
+    0 4px 14px rgb(0 0 0 / 0.4);
+  --shadow-glow: 0 10px 34px -8px rgb(227 183 92 / 0.5);
+  --stage-glow: 227 183 92;
+}
+
+/* ───────────────────────── Base ───────────────────────── */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+  body {
+    @apply bg-bg font-sans text-ink antialiased;
+    margin: 0;
+  }
+  ::selection {
+    background: rgb(var(--c-gold) / 0.35);
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-gold));
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+  section[id] {
+    scroll-margin-top: 6rem;
+  }
+}
+
+@layer components {
+  .font-display-soft {
+    font-family: Fraunces, Georgia, serif;
+    font-variation-settings: 'SOFT' 60, 'opsz' 144;
+  }
+  .text-gold-gradient {
+    background-image: linear-gradient(100deg, var(--g1) 0%, var(--g2) 35%, var(--g3) 60%, var(--g2) 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .nx-card-glow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+    background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), rgb(var(--c-gold) / 0.2), transparent 60%);
+  }
+  .nx-card-glow:hover::before {
+    opacity: 1;
+  }
+}
+
+/* ─────────────── Cinematic theme transition plumbing ───────────────
+   The reveal itself is a clip-path animation on ::view-transition-new(root),
+   driven from JS (see src/theme/transition.ts). Here we only neutralise the
+   browser's default cross-fade and keep the FX canvas on its own layer so the
+   golden ring is never clipped by the reveal circle. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+}
+.nx-fx {
+  view-transition-name: nx-fx;
+}
+::view-transition-group(nx-fx),
+::view-transition-new(nx-fx) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(nx-fx) {
+  display: none;
+}
+
+/* While the wipe runs, colours must flip instantly underneath it (the wipe *is*
+   the transition) — otherwise revealed pixels would still be mid-fade. */
+html[data-switching] *,
+html[data-switching] *::before,
+html[data-switching] *::after {
+  transition: none !important;
+}
+
+/* Reduced-motion users get a calm cross-fade instead of the cinematic wipe. */
+html.nx-fade,
+html.nx-fade *,
+html.nx-fade *::before,
+html.nx-fade *::after {
+  transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, fill 0.35s ease,
+    stroke 0.35s ease, box-shadow 0.35s ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

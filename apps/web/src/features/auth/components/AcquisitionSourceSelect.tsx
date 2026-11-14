@@ -14,7 +14,7 @@ export const ACQUISITION_OPTIONS: {
   { label: "Facebook", value: "facebook" },
   { label: "YouTube", value: "youtube" },
   { label: "WhatsApp", value: "whatsapp" },
-  { label: "NexaChess website", value: "website" },
+  { label: "Our website", value: "website" },
   { label: "Friend or family referral", value: "referral" },
   { label: "School / Institution", value: "school" },
   { label: "A coach recommended it", value: "coach_referral" },
@@ -30,6 +30,8 @@ type Props = {
   onValueChange: (value: AcquisitionSourceValue | "") => void;
   onDetailChange: (detail: string) => void;
   required?: boolean;
+  /** Passed to the Select and the detail Input. */
+  density?: "default" | "compact";
 };
 
 export function AcquisitionSourceSelect({
@@ -37,7 +39,8 @@ export function AcquisitionSourceSelect({
   detail,
   onValueChange,
   onDetailChange,
-  required
+  required,
+  density
 }: Props) {
   const showDetail = DETAIL_SOURCES.includes(value as AcquisitionSourceValue);
   const detailLabel =
@@ -47,6 +50,7 @@ export function AcquisitionSourceSelect({
     <div className="grid gap-3">
       <FormField id="acquisition-source" label="How did you hear about us?" required={required}>
         <Select
+          density={density}
           id="acquisition-source"
           onChange={(event) =>
             onValueChange(event.target.value as AcquisitionSourceValue | "")
@@ -60,6 +64,7 @@ export function AcquisitionSourceSelect({
       {showDetail ? (
         <FormField id="acquisition-detail" label={detailLabel}>
           <Input
+            density={density}
             id="acquisition-detail"
             maxLength={200}
             onChange={(event) => onDetailChange(event.target.value)}

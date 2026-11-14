@@ -124,7 +124,7 @@ export function AttendanceAnalyticsSection({
                     <TableRow key={s.studentId}>
                       <TableCell className="text-left py-2 font-medium text-app-text">{s.name}</TableCell>
                       <TableCell className="text-left py-2 text-app-muted">{s.batchName ?? "—"}</TableCell>
-                      <TableCell className="py-2 text-right font-semibold text-app-danger">
+                      <TableCell className="py-2 text-right font-semibold text-app-danger-ink">
                         {formatPercent(s.attendancePercent)}
                       </TableCell>
                       <TableCell className="py-2 text-right">

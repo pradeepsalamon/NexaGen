@@ -4,16 +4,16 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   ArrowDownToLine,
   Crosshair,
-  Crown,
   FolderOpen,
-  Loader2,
   Puzzle as PuzzleIcon,
   StepBack,
   StepForward
 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { SendPositionButton } from "@/features/assignments/components/SendPositionButton";
+import { BoardFrame } from "@/features/chessboard/components/board/BoardFrame";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { PromotionDialog } from "@/features/chessboard/components/dialogs/PromotionDialog";
 import { SetupPositionWorkspace } from "@/features/chessboard/components/layout/SetupPositionWorkspace";
@@ -35,13 +35,14 @@ import {
   useCoachBoardActions
 } from "../../../lib/coachBoardShortcuts";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
-import { PuzzleAssignModal } from "../PuzzleAssignModal";
-import { SharePositionDialog } from "../SharePositionDialog";
+import { PuzzleAssignModal, SharePositionDialog } from "../lazyViews";
 import { FlipBoardButton } from "../video-grid/FlipBoardButton";
 import { RequestControlButton } from "../video-grid/RequestControlButton";
 import { ROOM_ROW_QUERY } from "./roomLayout";
 import { ClassroomSidebar } from "./sidebar/ClassroomSidebar";
+import { StageHeader } from "./StageHeader";
 import { useMemberClassId } from "../../../providers/LiveRoomContext";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** Board shortcuts plus Space = engine move and S = setup position (also offered to the toolbar). */
 function CoachBoardShortcuts() {
@@ -176,38 +177,30 @@ export function ClassroomBoard({
   useEffect(() => () => setIsSetupPositionOpen(false), [setIsSetupPositionOpen]);
 
   return (
-    // Side by side: bottom padding clears the floating toolbar (stacked, it floats over the panel).
-    <section className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2 px-3 pb-3 pt-3 room:px-6 room:pb-24">
+    // Bottom padding clears the control bar floating over the stage.
+    <section className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-3 px-3 pb-24 pt-3 room:px-6">
       <PromotionDialog />
       {isCoach ? <CoachBoardShortcuts /> : null}
 
-      {/* Wraps on a narrow stage instead of running under the side panel. */}
-      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-        <div className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-app-text">
-          <Crown className="size-4 text-secondary-ink" />
-          Shared Board
-          {isCoach ? <SendPositionButton fen={fen} className="ml-1" /> : null}
-        </div>
-        <SetupOnlyNotice />
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 overflow-x-auto">
-          <ChessClock layout="horizontal" />
-          {!isCoach ? <RequestControlButton surface /> : null}
-          {!isCoach && activePuzzle ? (
-            <button
-              type="button"
-              onClick={() => setPuzzleSolverOpen(true)}
-              className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary px-2.5 py-1 text-[11px] font-semibold text-white shadow-card transition active:scale-95"
-            >
-              <PuzzleIcon className="size-3" strokeWidth={2.5} />
-              Solve puzzle
-            </button>
-          ) : null}
-        </div>
-        {isCoach ? <IllegalMovesToggle /> : <IllegalMovesBadge />}
-        {isCoach ? <DrawingToolbar /> : null}
-        <FlipBoardButton className="size-8 shrink-0" />
-        {stageSwitch}
-      </div>
+      <StageHeader
+        nav={stageSwitch}
+        actions={
+          <>
+            {isCoach ? <SendPositionButton fen={fen} /> : null}
+            <SetupOnlyNotice />
+            {/* Clock chips beside the board, in the stage header. */}
+            <ChessClock layout="horizontal" />
+            {!isCoach ? <RequestControlButton surface /> : null}
+            {!isCoach && activePuzzle ? (
+              <Button size="sm" onClick={() => setPuzzleSolverOpen(true)}>
+                <PuzzleIcon aria-hidden="true" className="size-4" strokeWidth={2} />
+                Solve puzzle
+              </Button>
+            ) : null}
+            {isCoach ? <IllegalMovesToggle /> : <IllegalMovesBadge />}
+          </>
+        }
+      />
 
       <div className="flex min-h-0 flex-1" style={{ gap: SIDE_COLUMN_GAP }}>
         {/* Setting up a position is brief and needs the room: the side column steps aside. */}
@@ -225,25 +218,27 @@ export function ClassroomBoard({
         {/* Hidden, not unmounted, while setting up: the side-column fit keeps observing the board box. */}
         <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-2", settingUp && "hidden")}>
           <div ref={boardBoxRef} className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
-            <div className="relative shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
+            {/* Board frame (spec component 11), sized in code, never by centring. */}
+            <BoardFrame style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
               <ChessgroundBoard />
               {waiting ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-app-background/60 backdrop-blur-[2px]">
                   <span className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-4 py-2 text-sm font-semibold text-app-muted shadow-card">
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner className="size-4" />
                     Waiting for your coach&apos;s board…
                   </span>
                 </div>
               ) : null}
-            </div>
+            </BoardFrame>
           </div>
 
-          {isCoach ? (
-            <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
-              <BoardNavigation />
-              <CoachPuzzleButtons />
-            </div>
-          ) : null}
+          {/* Board tools (spec component 12) under the board: navigation, brushes, flip; students get flip only. */}
+          <div className="flex shrink-0 flex-wrap items-center justify-center gap-2" role="toolbar" aria-label="Board tools">
+            {isCoach ? <BoardNavigation /> : null}
+            {isCoach ? <DrawingToolbar /> : null}
+            <FlipBoardButton className="size-8 shrink-0" />
+            {isCoach ? <CoachPuzzleButtons /> : null}
+          </div>
         </div>
       </div>
     </section>
@@ -265,8 +260,8 @@ type MenuItem = {
  */
 const MENU_TONES = {
   // Lichess-style: blue shares to the class, green only loads the board.
-  info: { idle: "border-info/50 bg-info/10 text-info-ink hover:bg-info hover:text-white", open: "bg-info text-white" },
-  success: { idle: "border-success/50 bg-success/10 text-success-ink hover:bg-success hover:text-white", open: "bg-success text-white" }
+  info: { idle: "border-info/50 bg-info/10 text-info-ink hover:bg-info hover:text-on-info", open: "bg-info text-on-info" },
+  success: { idle: "border-success/50 bg-success/10 text-success-ink hover:bg-success hover:text-on-success", open: "bg-success text-on-success" }
 } as const;
 
 function HoverMenuButton({
@@ -312,7 +307,7 @@ function HoverMenuButton({
           onPointerEnter={onHover}
           onPointerLeave={onLeave}
           className={cn(
-            "grid size-9 place-items-center rounded-full border shadow-card transition-colors disabled:opacity-50",
+            "grid size-8 place-items-center rounded-control border transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
             MENU_TONES[tone].idle,
             open && MENU_TONES[tone].open
           )}
@@ -346,7 +341,7 @@ function HoverMenuButton({
               <span className="block text-xs text-app-muted">{item.hint}</span>
             </span>
             {item.shortcut ? (
-              <kbd className="mt-0.5 shrink-0 rounded border border-app-border px-1.5 font-mono text-[11px] font-semibold text-app-muted">
+              <kbd className="mt-0.5 shrink-0 rounded border border-app-border px-1.5 font-mono text-xs font-semibold text-app-muted">
                 {item.shortcut}
               </kbd>
             ) : null}
@@ -406,12 +401,12 @@ function CoachPuzzleButtons() {
   }, [share, load]);
 
   return (
-    <div className="mt-4 flex items-center gap-2 text-app-muted">
+    <div className="flex items-center gap-2 text-app-muted">
       <HoverMenuButton
         label="Share puzzle"
         tone="info"
         disabled={loading}
-        icon={loading ? <Loader2 className="size-4 animate-spin" /> : <PuzzleIcon className="size-4" strokeWidth={2.5} />}
+        icon={loading ? <Spinner className="size-4" /> : <PuzzleIcon className="size-4" strokeWidth={2.5} />}
         items={[
           {
             label: "Share previous",

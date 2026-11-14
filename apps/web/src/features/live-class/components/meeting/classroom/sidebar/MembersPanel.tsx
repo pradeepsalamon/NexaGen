@@ -168,11 +168,11 @@ const MemberRow = memo(function MemberRow({
         <StatusDot participant={member.participant} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium text-app-text">{member.name}</span>
+        <span className="block truncate text-[0.8125rem] font-medium text-app-text">{member.name}</span>
         {member.isCoach ? (
-          <span className="block text-[10px] font-semibold text-primary-ink">Coach</span>
+          <span className="block text-xs font-semibold text-primary-ink">Coach</span>
         ) : member.identities.length > 1 ? (
-          <span className="block text-[10px] text-app-muted">{member.identities.length} tabs open</span>
+          <span className="block text-xs text-app-muted">{member.identities.length} tabs open</span>
         ) : null}
       </span>
       {member.isCoach ? null : (
@@ -228,8 +228,8 @@ function AwayRow({ student }: { student: PullRosterStudent }) {
         />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium text-app-text">{student.name}</span>
-        <span className="block truncate text-[10px] text-app-muted">{presenceLabel(student)}</span>
+        <span className="block truncate text-[0.8125rem] font-medium text-app-text">{student.name}</span>
+        <span className="block truncate text-xs text-app-muted">{presenceLabel(student)}</span>
       </span>
     </div>
   );

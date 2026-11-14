@@ -52,7 +52,10 @@ import { ProgressModule } from "./progress/progress.module";
 import { RevisionModule } from "./revision/revision.module";
 import { DemoClassModule } from "./demo-class/demo-class.module";
 import { LeadModule } from "./lead/lead.module";
+import { ReferralModule } from "./referral/referral.module";
+import { TournamentModule } from "./tournament/tournament.module";
 import { HealthModule } from "./health/health.module";
+import { CspReportModule } from "./csp-report/csp-report.module";
 import { RetentionModule } from "./retention/retention.module";
 import { GameAnalysisModule } from "./game-analysis/game-analysis.module";
 import { GameLibraryModule } from "./game-library/game-library.module";
@@ -60,13 +63,18 @@ import { EmailAdminModule } from "./email-admin/email-admin.module";
 import { GameSourcesModule } from "./game-sources/game-sources.module";
 import { ChatModule } from "./chat/chat.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
+import { BrandingModule } from "./branding/branding.module";
 import { PlatformModule } from "./platform/platform.module";
+import { PlatformBillingModule } from "./platform-billing/platform-billing.module";
+import { TenantIntegrityModule } from "./tenancy/integrity/tenant-integrity.module";
 import { FeatureGateGuard } from "./platform/feature-gate.guard";
+import { TenancyModule } from "./tenancy/tenancy.module";
 
 @Module({
   imports: [
     SentryModule.forRoot(),
     LoggerModule.forRoot(buildLoggerParams(getApiEnv())),
+    TenancyModule,
     ThrottlerModule.forRootAsync({
       useFactory: () => {
         const storage = createThrottlerStorage();
@@ -80,6 +88,9 @@ import { FeatureGateGuard } from "./platform/feature-gate.guard";
     QueueModule.forRoot(),
     PrismaModule, 
     PlatformModule,
+    BrandingModule,
+    PlatformBillingModule,
+    TenantIntegrityModule,
     AuthModule, 
     BatchModule,
     BatchScheduleModule,
@@ -122,12 +133,15 @@ import { FeatureGateGuard } from "./platform/feature-gate.guard";
     TypographyModule,
     DemoClassModule,
     LeadModule,
+    ReferralModule,
+    TournamentModule,
     FeedbackModule,
     ApprovalModule,
     PrivacyModule,
     ProgressModule,
     RevisionModule,
     HealthModule,
+    CspReportModule,
     RetentionModule
   ],
   providers: [

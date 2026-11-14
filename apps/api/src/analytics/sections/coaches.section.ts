@@ -12,6 +12,7 @@ import {
 } from "../../common/time";
 import { densifySeries, roundTo, toCategoryCounts } from "../analytics-math";
 import { buildMeta, pct, sqlTimestamp, type AnalyticsContext } from "../analytics-support";
+import { tenantFilter } from "../../tenancy/tenant-sql";
 
 type CoachAggRow = {
   coach_id: string;
@@ -55,7 +56,7 @@ export class CoachesAnalyticsSection {
        AND c."startsAt" >= ${sqlTimestamp(start)} AND c."startsAt" < ${sqlTimestamp(end)}
       LEFT JOIN "coach_attendance" cca ON cca."classId" = c.id
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
-      WHERE u.role = 'COACH' AND u."isDeleted" = false
+      WHERE ${tenantFilter("u")} AND u.role = 'COACH' AND u."isDeleted" = false
       ${coachId ? Prisma.sql`AND u.id = ${coachId}` : Prisma.empty}
       GROUP BY 1, 2, 3, 4, 5
     `;
@@ -66,7 +67,7 @@ export class CoachesAnalyticsSection {
       SELECT bc."coachId" AS coach_id, count(DISTINCT bs."studentId")::bigint AS students
       FROM "batch_coaches" bc
       JOIN "batch_students" bs ON bs."batchId" = bc."batchId" AND bs."isDeleted" = false
-      WHERE bc."isDeleted" = false
+      WHERE ${tenantFilter("bc")} AND bc."isDeleted" = false
       GROUP BY 1
     `);
     return new Map(rows.map((r) => [r.coach_id, Number(r.students)]));
@@ -81,7 +82,7 @@ export class CoachesAnalyticsSection {
              count(*)::bigint AS total
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
-      WHERE c.status = 'COMPLETED'
+      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED'
         AND c."startsAt" >= ${sqlTimestamp(start)} AND c."startsAt" < ${sqlTimestamp(end)}
       GROUP BY 1
     `);
@@ -226,7 +227,7 @@ export class CoachesAnalyticsSection {
       FROM "classes" c
       LEFT JOIN "coach_attendance" cca ON cca."classId" = c.id
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
-      WHERE c.status = 'COMPLETED'
+      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED'
         AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1 ORDER BY 1
     `);
@@ -248,7 +249,7 @@ export class CoachesAnalyticsSection {
       FROM "classes" c
       LEFT JOIN "coach_attendance" cca ON cca."classId" = c.id
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
-      WHERE c.status = 'COMPLETED'
+      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED'
         AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1
     `);
@@ -324,7 +325,7 @@ export class CoachesAnalyticsSection {
       LEFT JOIN "batches" b ON b.id = c."batchId"
       LEFT JOIN "coach_attendance" cca ON cca."classId" = c.id
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
-      WHERE c.status = 'COMPLETED' AND c."coachId" = ${coachId}
+      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED' AND c."coachId" = ${coachId}
         AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1, 2
     `);

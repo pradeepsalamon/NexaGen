@@ -13,6 +13,7 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatTime } from "@/lib/datetime";
 import { useLiveClassesMonitor } from "../hooks/useLiveMonitor";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 /** "12 min" / "1 h 05 min" since `iso`, against a ticking clock. */
 export function formatElapsed(iso: string | null, now: number): string {
@@ -107,20 +108,17 @@ export function LiveClassesMonitorClient() {
   const classes = data?.classes ?? [];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Live now</h1>
-          <p className="mt-1 text-app-muted">
-            Every class running right now. Watch any of them silently — the coach and students won&apos;t see
-            you, and you can&apos;t be heard or change anything in the room.
-          </p>
-        </div>
-        <Button disabled={isFetching} onClick={() => void refetch()} variant="outline">
-          <RefreshCw aria-hidden className={isFetching ? "size-4 motion-safe:animate-spin" : "size-4"} />
-          Refresh
-        </Button>
-      </div>
+    <div className="animate-fade-in space-y-6 pb-10">
+      <PageHeader
+        actions={
+          <Button disabled={isFetching} onClick={() => void refetch()} variant="outline">
+            <RefreshCw aria-hidden className={isFetching ? "size-4 motion-safe:animate-spin" : "size-4"} strokeWidth={2.5} />
+            Refresh
+          </Button>
+        }
+        description="Every class running right now. Watch any of them silently — the coach and students won't see you, and you can't be heard or change anything in the room."
+        title="Live now"
+      />
 
       {error ? (
         <WidgetError message="Couldn't load the live classes." onRetry={() => void refetch()} />

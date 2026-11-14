@@ -101,4 +101,7 @@ web `features/admin/components/DemoClass*` + `demo-classes/*`, public page
   **unbooked** future occurrences and re-generates; booked ones are kept. A
   cancelled occurrence keeps its row, so it is not re-created. Rescheduling an
   occurrence by hand detaches it from the schedule.
-- None of these models are soft-deletable or Trash-registered.
+- `DemoSchedule` is a Trash entity: a delete pauses it, removes its unbooked
+  future occurrences (booked ones stay as one-off demo classes) and moves it
+  to Trash; a restored schedule stays paused until an admin turns it on.
+  Registrations and invites are not Trash entities.

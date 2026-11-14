@@ -3,7 +3,9 @@
 import type { AnalyticsRangeQuery } from "@nexa-chess/types";
 import type { ReactNode } from "react";
 import { Download, RefreshCw } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
+import type { Crumb } from "@/components/ui/Breadcrumbs";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import {
   DropdownMenu,
@@ -15,11 +17,15 @@ import { analyticsExportUrl } from "../api/analyticsApi";
 import { useRefreshAnalytics } from "../hooks/useAnalyticsApi";
 import { useAnalyticsRange } from "../hooks/useAnalyticsRange";
 
+export type AnalyticsExport = { report: string; label: string };
+
 interface Props {
   title: string;
   description?: string;
+  /** Where a detail page sits; the last crumb is the current page. */
+  breadcrumbs?: Crumb[];
   /** report slugs offered in the Export menu for this page */
-  exports?: { report: string; label: string }[];
+  exports?: readonly AnalyticsExport[];
   showFilters?: ReactNode;
   children: (
     query: AnalyticsRangeQuery,
@@ -27,69 +33,85 @@ interface Props {
   ) => ReactNode;
 }
 
+/** The analytics template: page header, date range, refresh and CSV export. */
 export function AnalyticsPageShell({
   title,
   description,
+  breadcrumbs,
   exports = [],
   showFilters,
   children
 }: Props) {
   const { query, update } = useAnalyticsRange({ preset: "last30" });
+
+  return (
+    <div className="animate-fade-in pb-10">
+      <PageHeader
+        actions={<AnalyticsToolbar exports={exports} query={query} update={update} />}
+        breadcrumbs={breadcrumbs}
+        description={description}
+        title={title}
+      />
+      <div className="space-y-5">
+        {showFilters}
+        {children(query, update)}
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsToolbar({
+  exports,
+  query,
+  update
+}: {
+  exports: readonly AnalyticsExport[];
+  query: AnalyticsRangeQuery;
+  update: ReturnType<typeof useAnalyticsRange>["update"];
+}) {
   const refresh = useRefreshAnalytics();
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1 className="text-xl font-extrabold text-app-text sm:text-2xl">{title}</h1>
-          {description ? (
-            <p className="text-sm text-app-muted">{description}</p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <DateRangePicker
-            onChange={(next) =>
-              update({
-                preset: next.preset ?? null,
-                from: next.from ?? null,
-                to: next.to ?? null,
-                compare: next.compare ?? null
-              })
-            }
-            value={{
-              preset: query.preset,
-              from: query.from,
-              to: query.to,
-              compare: query.compare
-            }}
-          />
-          <Button className="gap-2" onClick={() => refresh()} size="sm" variant="outline">
-            <RefreshCw className="size-4" strokeWidth={2.5} />
-            <span className="hidden sm:inline">Refresh</span>
-          </Button>
-          {exports.length > 0 ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="gap-2" size="sm" variant="outline">
-                  <Download className="size-4" strokeWidth={2.5} />
-                  <span className="hidden sm:inline">Export</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {exports.map((e) => (
-                  <DropdownMenuItem asChild key={e.report}>
-                    <a href={analyticsExportUrl(e.report, query)} rel="noopener" target="_blank">
-                      {e.label} (CSV)
-                    </a>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-        </div>
-      </header>
-      {showFilters}
-      {children(query, update)}
-    </div>
+    <>
+      <DateRangePicker
+        onChange={(next) =>
+          update({
+            preset: next.preset ?? null,
+            from: next.from ?? null,
+            to: next.to ?? null,
+            compare: next.compare ?? null
+          })
+        }
+        value={{
+          preset: query.preset,
+          from: query.from,
+          to: query.to,
+          compare: query.compare
+        }}
+      />
+      <Button aria-label="Refresh" onClick={() => refresh()} size="sm" variant="outline">
+        <RefreshCw aria-hidden="true" className="size-4" strokeWidth={2.5} />
+        <span className="hidden sm:inline">Refresh</span>
+      </Button>
+      {exports.length > 0 ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button aria-label="Export" size="sm" variant="outline">
+              <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {exports.map((e) => (
+              <DropdownMenuItem asChild key={e.report}>
+                <a href={analyticsExportUrl(e.report, query)} rel="noopener" target="_blank">
+                  {e.label} (CSV)
+                </a>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+    </>
   );
 }

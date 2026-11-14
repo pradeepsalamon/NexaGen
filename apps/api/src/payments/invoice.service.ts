@@ -36,6 +36,7 @@ import {
 import { BillingProfileService } from "./billing-profile.service";
 import { InvoiceSettingsService } from "./invoice-settings.service";
 import { assertOwnerOrAdmin, fullName, isAdminRole } from "./payments-auth.helper";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 type InvoiceRow = Prisma.InvoiceGetPayload<{
   include: {
@@ -140,8 +141,9 @@ export class InvoiceService {
 
     const year = financialYear(input.paidAt);
     const sequence = await tx.invoiceSequence.upsert({
-      where: { year },
-      create: { year, lastNumber: 1 },
+      // Each academy numbers its own documents (slice 5).
+      where: { tenantId_year: { tenantId: requireTenantId("invoiceSequence"), year } },
+      create: { lastNumber: 1, tenantId: requireTenantId("invoiceSequence"), year },
       update: { lastNumber: { increment: 1 } }
     });
 
@@ -218,7 +220,7 @@ export class InvoiceService {
   ): InvoiceLine[] {
     const items = input.items.length
       ? input.items
-      : [{ description: "NexaChess purchase", unitAmount: 0, quantity: 1 }];
+      : [{ description: "Purchase", unitAmount: 0, quantity: 1 }];
 
     const gross = items.map(
       (item) => (item.quantity ?? 1) * item.unitAmount

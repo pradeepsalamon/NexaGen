@@ -21,6 +21,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "studentName",
         enableColumnFilter: true,
+        meta: { label: "Student" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Student"
@@ -29,7 +30,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
         ),
         cell: ({ row }) => (
           <div className="min-w-40">
-            <p className="font-extrabold text-app-text">{row.original.studentName}</p>
+            <p className="font-semibold text-app-text">{row.original.studentName}</p>
             <p className="mt-1 text-xs text-app-muted">
               Age {row.original.studentAge} · {row.original.experienceLevel}
             </p>
@@ -43,6 +44,9 @@ export function useLeadColumns(handlers: RowActionHandlers) {
           <div>
             <p className="text-app-text">{row.original.parentName}</p>
             <p className="text-xs text-app-muted">{row.original.phone}</p>
+            {row.original.email ? (
+              <p className="break-all text-xs text-app-muted">{row.original.email}</p>
+            ) : null}
           </div>
         )
       },
@@ -61,6 +65,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "status",
         enableColumnFilter: true,
+        meta: { label: "Status" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
@@ -79,6 +84,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "createdAt",
         enableColumnFilter: true,
+        meta: { label: "Received" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Received"

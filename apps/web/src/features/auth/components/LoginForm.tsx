@@ -1,12 +1,17 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { useMutation } from "@tanstack/react-query";
-import { type AuthUser, isMfaChallenge, type MfaChallengeResponse } from "@nexa-chess/types";
+import {
+  type AuthUser,
+  isMfaChallenge,
+  type MfaChallengeResponse
+} from "@nexa-chess/types";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Lock, Mail } from "lucide-react";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
@@ -17,11 +22,11 @@ import { useTouchedFields } from "@/hooks/useTouchedFields";
 import type { LoginFormValues } from "../types/auth";
 import { validateLoginForm } from "../validation/authValidation";
 import { login } from "../api/authApi";
-import { AuthHeader } from "./AuthHeader";
 import { MfaCodeStep } from "./mfa/MfaCodeStep";
 import { MfaEnrollment } from "./mfa/MfaEnrollment";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
-
+import { AuthHeader } from "./AuthHeader";
+import { AuthSplitShell } from "./AuthSplitShell";
 
 const initialValues: LoginFormValues = {
   email: "",
@@ -30,6 +35,7 @@ const initialValues: LoginFormValues = {
 };
 
 export function LoginForm() {
+  const brandName = useBrandName();
   const router = useRouter();
   const toast = useToast();
   const setUser = useAuthStore((state) => state.setUser);
@@ -40,6 +46,7 @@ export function LoginForm() {
     () => validateLoginForm(values, touched),
     [touched, values]
   );
+
   const loginMutation = useMutation({
     mutationFn: login,
     onError: (error) => {
@@ -60,45 +67,15 @@ export function LoginForm() {
   function finishLogin(user: AuthUser) {
     setUser(user);
     toast.success({
-      message: "Welcome back to Nexa Chess.",
+      message: `Welcome back to ${brandName}.`,
       title: "Login successful"
     });
-
     router.push(getRoleDashboardHref(user.role));
   }
 
   function resetChallenge() {
     setChallenge(null);
     setValues((currentValues) => ({ ...currentValues, password: "" }));
-  }
-
-  if (challenge) {
-    const enrolling = challenge.mfaRequired === "SETUP";
-    return (
-      <Card className="w-full max-w-[430px] animate-slide-up p-5 sm:p-6">
-        <h1 className="mb-1 text-2xl font-extrabold leading-tight text-app-text">
-          {enrolling ? "Set up two-factor sign-in" : "Two-factor sign-in"}
-        </h1>
-        <p className="mb-4 text-sm leading-6 text-app-muted">
-          {enrolling
-            ? "Your account needs a second step at sign-in. This takes a minute."
-            : "One more step to confirm it's you."}
-        </p>
-        {enrolling ? (
-          <MfaEnrollment
-            challengeToken={challenge.challengeToken}
-            onCancel={resetChallenge}
-            onComplete={(result) => (result.user ? finishLogin(result.user) : resetChallenge())}
-          />
-        ) : (
-          <MfaCodeStep
-            challengeToken={challenge.challengeToken}
-            onCancel={resetChallenge}
-            onVerified={finishLogin}
-          />
-        )}
-      </Card>
-    );
   }
 
   function updateField<TField extends keyof LoginFormValues>(
@@ -119,55 +96,107 @@ export function LoginForm() {
     loginMutation.mutate(values);
   }
 
-  return (
-    <Card className="w-full max-w-[430px] animate-slide-up p-5 sm:p-6">
+  if (challenge) {
+    const enrolling = challenge.mfaRequired === "SETUP";
+    return (
+      <AuthSplitShell variant="login">
         <AuthHeader
-          actionHref="/register"
-          actionLabel="Create account"
-          helperText="New to Nexa Chess?"
-          title="Log in"
+          description={
+            enrolling
+              ? "Your account needs a second step at sign-in. This takes a minute."
+              : "One more step to confirm it's you."
+          }
+          title={enrolling ? "Set up two-factor sign-in" : "Two-factor sign-in"}
         />
-        <form className="grid gap-4" noValidate onSubmit={handleSubmit}>
+        {enrolling ? (
+          <MfaEnrollment
+            challengeToken={challenge.challengeToken}
+            onCancel={resetChallenge}
+            onComplete={(result) =>
+              result.user ? finishLogin(result.user) : resetChallenge()
+            }
+          />
+        ) : (
+          <MfaCodeStep
+            challengeToken={challenge.challengeToken}
+            onCancel={resetChallenge}
+            onVerified={finishLogin}
+          />
+        )}
+      </AuthSplitShell>
+    );
+  }
 
-          <FormField error={errors.email} id="email" label="Email">
-            <Input
-              autoComplete="email"
-              hasError={Boolean(errors.email)}
-              id="email"
-              inputMode="email"
-              onBlur={() => touchField("email")}
-              onChange={(event) => updateField("email", event.target.value)}
-              placeholder="student@example.com"
-              type="email"
-              value={values.email}
-            />
-          </FormField>
-          <FormField error={errors.password} id="password" label="Password">
-            <PasswordInput
-              autoComplete="current-password"
-              hasError={Boolean(errors.password)}
-              id="password"
-              onBlur={() => touchField("password")}
-              onChange={(event) => updateField("password", event.target.value)}
-              placeholder="Enter your password"
-              value={values.password}
-            />
-          </FormField>
-          <div className="flex flex-wrap items-center justify-between gap-2">
+  return (
+    <AuthSplitShell variant="login">
+      <AuthHeader
+        description="Continue your chess journey with expert coaching and a global community."
+        title="Welcome back"
+      />
+
+      <form className="grid gap-4" noValidate onSubmit={handleSubmit}>
+        <FormField error={errors.email} id="email" label="Email address">
+          <Input
+            autoComplete="email"
+            aria-describedby={errors.email ? "email-error" : undefined}
+            id="email"
+            hasError={Boolean(errors.email)}
+            inputMode="email"
+            leadingIcon={<Mail strokeWidth={2.25} />}
+            onBlur={() => touchField("email")}
+            onChange={(e) => updateField("email", e.target.value)}
+            placeholder="name@example.com"
+            type="email"
+            value={values.email}
+          />
+        </FormField>
+
+        <FormField error={errors.password} id="password" label="Password">
+          <PasswordInput
+            autoComplete="current-password"
+            aria-describedby={errors.password ? "password-error" : undefined}
+            id="password"
+            hasError={Boolean(errors.password)}
+            leadingIcon={<Lock strokeWidth={2.25} />}
+            onBlur={() => touchField("password")}
+            onChange={(e) => updateField("password", e.target.value)}
+            placeholder="Enter your password"
+            value={values.password}
+          />
+        </FormField>
+
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <label
+            className="inline-flex min-h-[var(--control-h-sm)] cursor-pointer items-center gap-2 text-sm text-app-text"
+            htmlFor="remember-me"
+          >
             <Checkbox
               checked={values.rememberMe}
               id="remember-me"
-              label="Remember me"
-              onCheckedChange={(checked) =>
-                updateField("rememberMe", !!checked)
-              }
+              onCheckedChange={(checked) => updateField("rememberMe", checked === true)}
             />
-            <Link href="/forgot-password">Forgot password?</Link>
-          </div>
-          <Button fullWidth isLoading={loginMutation.isPending} type="submit">
-            {loginMutation.isPending ? "Logging in..." : "Log in"}
-          </Button>
-        </form>
-      </Card>
+            Remember me
+          </label>
+
+          <Link
+            className="text-sm font-medium text-primary-ink hover:underline"
+            href="/forgot-password"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
+        <Button fullWidth isLoading={loginMutation.isPending} size="lg" type="submit">
+          {loginMutation.isPending ? "Logging in…" : "Log in"}
+        </Button>
+
+        <p className="text-center text-sm text-app-muted">
+          Don&apos;t have an account?{" "}
+          <Link className="font-medium text-primary-ink hover:underline" href="/register">
+            Create account
+          </Link>
+        </p>
+      </form>
+    </AuthSplitShell>
   );
 }

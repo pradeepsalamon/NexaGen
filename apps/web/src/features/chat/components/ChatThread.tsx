@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { CHAT_MESSAGE_MAX_LENGTH, type ChatMessageDto } from "@nexa-chess/types";
-import { AlertCircle, ArrowLeft, Loader2, RotateCw, SendHorizontal, Users } from "lucide-react";
+import { AlertCircle, ArrowLeft, RotateCw, SendHorizontal, Users } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { LinkedText } from "@/components/ui/FormattedText";
@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ import { useConversation, useLatestMessages, useMarkConversationRead, useSendMes
 import { CHAT_TYPE_LABELS, chatDayLabel, newChatClientId } from "../lib/chatFormat";
 import { ChatMembersDialog } from "./ChatMembersDialog";
 import { ConversationAvatar } from "./ConversationList";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Pending = { body: string; clientId: string; failed: boolean };
 
@@ -42,6 +44,8 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
   const [knownMessages, setKnownMessages] = useState<Map<string, ChatMessageDto>>(new Map());
   const [olderCursor, setOlderCursor] = useState<string | null | undefined>(undefined);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  // A failed page stops auto-loading until the reader clicks the button again.
+  const [olderFailed, setOlderFailed] = useState(false);
   const [pending, setPending] = useState<Pending[]>([]);
   // The parent keys this component by conversation, so the carried draft only ever seeds a fresh mount.
   const [draft, setDraft] = useState(initialDraft ?? "");
@@ -93,6 +97,7 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
     const el = scrollRef.current;
     const fromBottom = el ? el.scrollHeight - el.scrollTop : 0;
     setLoadingOlder(true);
+    setOlderFailed(false);
     stickToBottom.current = false;
     try {
       const page = await listMessages(conversationId, cursor);
@@ -107,11 +112,23 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
         if (el) el.scrollTop = el.scrollHeight - fromBottom;
       });
     } catch {
+      setOlderFailed(true);
       toast.error({ title: "Could not load older messages" });
     } finally {
       setLoadingOlder(false);
     }
   }, [conversationId, cursor, toast]);
+
+  // Reverse infinite scroll: earlier messages load as the reader nears the top.
+  // Waits for the first page so the initial jump to the bottom happens first.
+  const olderSentinelRef = useInfiniteScroll({
+    disabled: olderFailed || latest.isLoading || messages.length === 0,
+    hasNextPage: !!cursor,
+    isFetchingNextPage: loadingOlder,
+    onLoadMore: loadOlder,
+    root: scrollRef,
+    rootMargin: "160px 0px 0px 0px"
+  });
 
   // Follow new messages only while the reader is already at the bottom.
   const newestId = messages[messages.length - 1]?.id;
@@ -184,7 +201,7 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
             <>
               <h2 className="truncate text-sm font-bold text-app-text">{detail.title}</h2>
               <p className="flex items-center gap-2 text-xs text-app-muted">
-                <Badge className="px-1.5 py-0 text-[10px]" variant="secondary">
+                <Badge className="px-1.5 py-0" variant="secondary">
                   {CHAT_TYPE_LABELS[detail.type]}
                 </Badge>
                 {detail.type === "DIRECT"
@@ -217,9 +234,9 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
         aria-label="Messages"
       >
         {cursor && (
-          <div className="flex justify-center pb-2">
+          <div className="flex justify-center pb-2" ref={olderSentinelRef}>
             <Button disabled={loadingOlder} onClick={() => void loadOlder()} size="sm" variant="outline">
-              {loadingOlder && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+              {loadingOlder && <Spinner className="mr-1.5 size-4" />}
               Load earlier messages
             </Button>
           </div>
@@ -244,7 +261,7 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
             <Fragment key={m.id}>
               {showDay && (
                 <div className="flex justify-center py-2">
-                  <span className="rounded-full bg-app-soft px-3 py-0.5 text-[11px] font-semibold text-app-muted">{day}</span>
+                  <span className="rounded-full bg-app-soft px-3 py-0.5 text-xs font-semibold text-app-muted">{day}</span>
                 </div>
               )}
               <Bubble
@@ -305,7 +322,7 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
               value={draft}
             />
             <SimpleTooltip label="Send (Enter)">
-              <Button aria-label="Send message" className="rounded-full" disabled={!draft.trim() || !detail} size="icon" type="submit">
+              <Button aria-label="Send message" disabled={!draft.trim() || !detail} size="icon" type="submit">
                 <SendHorizontal className="size-5" strokeWidth={2.5} />
               </Button>
             </SimpleTooltip>
@@ -335,16 +352,16 @@ function Bubble({
 }) {
   return (
     <div className={cn("flex flex-col", mine ? "items-end" : "items-start", name && "pt-2")}>
-      {name && <span className="mb-0.5 px-1 text-[11px] font-semibold text-app-muted">{name}</span>}
+      {name && <span className="mb-0.5 px-1 text-xs font-semibold text-app-muted">{name}</span>}
       <div
         className={cn(
           "max-w-[85%] whitespace-pre-wrap break-words rounded-app px-3 py-2 text-sm sm:max-w-[70%]",
-          mine ? "rounded-br-md bg-primary text-white" : "rounded-bl-md border border-app-border bg-app-surface text-app-text",
+          mine ? "rounded-br-md bg-primary text-on-primary" : "rounded-bl-md border border-app-border bg-app-surface text-app-text",
         )}
       >
         <LinkedText onColour={mine} text={body} />
       </div>
-      <span className="mt-0.5 px-1 text-[10px] text-app-muted">{status ?? time}</span>
+      <span className="mt-0.5 px-1 text-xs text-app-muted">{status ?? time}</span>
     </div>
   );
 }

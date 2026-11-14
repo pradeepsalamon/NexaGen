@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Post, Req } from "@nestjs/common";
+import { Body, Controller, Get, Post, Query, Req } from "@nestjs/common";
 import type { Request } from "express";
 import {
   API_ROUTES,
+  cursorPageQuerySchema,
   markNotificationsReadRequestSchema,
+  type CursorPageParams,
   type MarkNotificationsReadRequest
 } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
@@ -14,8 +16,8 @@ export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
   @Get(API_ROUTES.notifications.list)
-  list(@Req() request: Request) {
-    return this.notificationService.list(this.getAccessToken(request));
+  list(@Query(new ZodBodyPipe(cursorPageQuerySchema)) query: CursorPageParams, @Req() request: Request) {
+    return this.notificationService.list(this.getAccessToken(request), query);
   }
 
   @Post(API_ROUTES.notifications.markRead)

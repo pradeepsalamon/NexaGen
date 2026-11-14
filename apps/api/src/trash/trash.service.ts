@@ -250,13 +250,15 @@ export class TrashService {
 
     // One sweeper across instances, held across all chunks (AUDIT M11 — the
     // whole delete used to run in one long transaction).
-    const outcome = await this.jobLocks.runExclusive(JOB_LOCKS.trashCleanup, async () => {
+    // Per academy (docs/SAAS_MULTI_TENANCY.md § "Phase 3 plan", slice 2).
+    let deleted = 0;
+    const outcome = await this.jobLocks.runForEachTenant(JOB_LOCKS.trashCleanup, async () => {
       const items = await this.withoutRetainedHistory(
         await this.trashRepository.findExpired(cutoff)
       );
-      return this.hardDeleteInChunks(items, null, "AUTOMATIC_CLEANUP");
+      deleted += await this.hardDeleteInChunks(items, null, "AUTOMATIC_CLEANUP");
     });
-    return outcome.acquired ? outcome.result : 0;
+    return outcome.acquired ? deleted : 0;
   }
 
   /**

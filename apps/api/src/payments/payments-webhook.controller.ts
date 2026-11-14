@@ -1,4 +1,4 @@
-import { Controller, HttpCode, Post, Req } from "@nestjs/common";
+import { Controller, HttpCode, Param, Post, Req } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { API_ROUTES, type PaymentProvider } from "@nexa-chess/types";
 import type { Request } from "express";
@@ -39,7 +39,27 @@ export class PaymentsWebhookController {
     return this.handle("STRIPE", request);
   }
 
-  private handle(provider: PaymentProvider, request: Request) {
+  // Another academy's own gateway account (SaaS Phase 6): the last segment
+  // names the academy, and its stored secret verifies the event.
+  @Post(API_ROUTES.payments.webhookRazorpayAcademy())
+  @HttpCode(200)
+  razorpayAcademy(@Req() request: Request, @Param("tenantKey") tenantKey: string) {
+    return this.handle("RAZORPAY", request, tenantKey);
+  }
+
+  @Post(API_ROUTES.payments.webhookCashfreeAcademy())
+  @HttpCode(200)
+  cashfreeAcademy(@Req() request: Request, @Param("tenantKey") tenantKey: string) {
+    return this.handle("CASHFREE", request, tenantKey);
+  }
+
+  @Post(API_ROUTES.payments.webhookStripeAcademy())
+  @HttpCode(200)
+  stripeAcademy(@Req() request: Request, @Param("tenantKey") tenantKey: string) {
+    return this.handle("STRIPE", request, tenantKey);
+  }
+
+  private handle(provider: PaymentProvider, request: Request, tenantKey?: string) {
     const rawBody =
       typeof request.body === "string"
         ? request.body
@@ -47,6 +67,6 @@ export class PaymentsWebhookController {
           // than verifying a re-serialised body that can never match.
           "";
 
-    return this.webhooks.handle(provider, rawBody, request.headers);
+    return this.webhooks.handle(provider, rawBody, request.headers, tenantKey);
   }
 }

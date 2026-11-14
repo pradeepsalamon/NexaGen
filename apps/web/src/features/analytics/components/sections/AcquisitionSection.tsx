@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import type { AnalyticsRangeQuery } from "@nexa-chess/types";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -11,8 +12,11 @@ import { useAcquisitionQuery } from "../../hooks/useAnalyticsApi";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { formatNumber } from "../../lib/format";
+import { TableSkeletonRows } from "@/components/ui/TableSkeletonRows";
 
 export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
+  const brandName = useBrandName();
   const searchParams = useSearchParams();
   const { data, isLoading, isError, refetch } = useAcquisitionQuery(query);
 
@@ -41,8 +45,8 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
 
   return (
     <SectionCard
-      description="How people discover NexaChess. 'Unknown' covers legacy accounts and anyone who skipped the question — it is never guessed."
-      title="How users discover NexaChess"
+      description={`How people discover ${brandName}. 'Unknown' covers legacy accounts and anyone who skipped the question — it is never guessed.`}
+      title={`How users discover ${brandName}`}
       updatedAt={data?.meta.generatedAt}
       onRefresh={() => refetch()}
     >
@@ -67,10 +71,10 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
         <div>
           <div className="mb-3 flex gap-3 text-sm">
             <span className="rounded-control bg-app-soft px-3 py-1.5 font-semibold text-app-text">
-              Known: {totalKnown.toLocaleString()}
+              Known: {formatNumber(totalKnown)}
             </span>
             <span className="rounded-control bg-app-soft px-3 py-1.5 font-semibold text-app-muted">
-              Unknown: {totalUnknown.toLocaleString()}
+              Unknown: {formatNumber(totalUnknown)}
             </span>
           </div>
           <div className="overflow-x-auto">
@@ -96,7 +100,7 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
                       </Link>
                     </TableCell>
                     <TableCell className="py-2 text-right font-semibold text-app-text">
-                      {s.users.toLocaleString()}
+                      {formatNumber(s.users)}
                     </TableCell>
                     <TableCell className="py-2 text-right text-app-muted">{s.percent}%</TableCell>
                     <TableCell className="py-2 text-right">
@@ -105,7 +109,7 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
                       ) : (
                         <span
                           className={
-                            s.deltaPct >= 0 ? "text-accent" : "text-app-danger"
+                            s.deltaPct >= 0 ? "text-success-ink" : "text-app-danger-ink"
                           }
                         >
                           {s.deltaPct > 0 ? "+" : ""}
@@ -116,11 +120,7 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
                   </TableRow>
                 ))}
                 {isLoading ? (
-                  <TableRow>
-                    <TableCell className="text-left py-3 text-app-muted" colSpan={4}>
-                      Loading…
-                    </TableCell>
-                  </TableRow>
+                  <TableSkeletonRows columns={4} />
                 ) : null}
               </TableBody>
             </Table>

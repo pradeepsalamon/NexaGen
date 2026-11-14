@@ -172,7 +172,7 @@ export function ReactionProvider({ children }: { children: ReactNode }) {
                     initial={{ opacity: 0, y: -12, scale: 0.9 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute inset-x-0 top-20 mx-auto w-fit rounded-full bg-primary px-5 py-2 text-sm font-bold text-white shadow-card"
+                    className="absolute inset-x-0 top-20 mx-auto w-fit rounded-full bg-primary px-5 py-2 text-sm font-bold text-on-primary shadow-card"
                   >
                     🎉 {banner.text}
                   </motion.div>
@@ -194,7 +194,7 @@ export function ReactionProvider({ children }: { children: ReactNode }) {
                 >
                   <span className="text-4xl drop-shadow-md sm:text-5xl">{f.emoji}</span>
                   {f.name ? (
-                    <span className="mt-0.5 max-w-[8rem] truncate rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">
+                    <span className="mt-0.5 max-w-[8rem] truncate rounded-full bg-scrim/60 px-2 py-0.5 text-xs font-semibold text-on-scrim">
                       {f.name}
                     </span>
                   ) : null}

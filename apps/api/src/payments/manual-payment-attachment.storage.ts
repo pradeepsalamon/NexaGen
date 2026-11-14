@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 import streamifier from "streamifier";
+import { tenantStorageRoot } from "../tenancy/tenant-paths";
 
 const EXTENSION_BY_MIME_TYPE: Record<string, string> = {
   "image/png": "png",
@@ -51,7 +52,7 @@ export class ManualPaymentAttachmentStorage {
       return null;
     }
 
-    const key = `nexa_chess/manual_payments/${recordId}`;
+    const key = `${tenantStorageRoot()}/manual_payments/${recordId}`;
 
     try {
       const result = await new Promise<UploadApiResponse>((resolve, reject) => {

@@ -37,11 +37,12 @@ and up.
 | `md:` | 768 px | Tablet portrait | Nav drawer widens 240 → 280 px. Shared board mounts |
 | `room:` | lg, or ≥ 768 px wide and ≤ 820 px tall | Live class only | Classroom panel beside the stage instead of under it. Listed before `lg` so `lg`/`xl` still win; JS checks use `ROOM_ROW_QUERY` (`classroom/roomLayout.ts`) |
 | `lg:` | 1024 px | Tablet landscape / small laptop | Dashboard multi-column grids (`lg:grid-cols-3`), header Dashboard CTA when `compact` |
-| `xl:` | 1280 px | Laptop / desktop | Extra column density where useful |
+| `xl:` | 1280 px | Laptop / desktop | **Role nav docks beside the page** (256 px, or a 64 px rail), so the page keeps ≥ 960 px, what `lg` layouts were built for. Extra column density where useful |
 | `2xl:` | 1536 px | Large desktop | Rarely needed; container max-width already caps content |
 
 **The load-bearing breakpoint is `md` (768 px)** for the shared-board
-experience. Navigation is the same off-canvas drawer at every width.
+experience. Navigation is an off-canvas drawer below `xl` and a docked,
+collapsible sidebar from `xl` (2026-11-04, replacing D2's drawer-at-every-width).
 
 Content width is capped by container max-widths, not by a `2xl:` breakpoint:
 
@@ -118,26 +119,43 @@ ipad-mini, ipad-air-landscape, laptop-13, laptop-15, desktop-1080`.
 ```
 ┌───────────────────────────────────────────────┐
 │ Header  fixed inset-x-0 top-0 z-40 h-16        │  ← always fixed, 64 px; ☰ opens the drawer
-├───────────────────────────────────────────────┤
-│ main  (full width — the drawer never reserves  │
-▐ space)  p-4 → md:p-6 → lg:p-8                  │
+├───────────────────────────────────────────────┤      (from xl: collapses / expands the docked nav)
+│ main  (full width below xl — the drawer never  │
+▐ reserves space)  p-4 → md:p-6 → lg:p-8         │
 │ mx-auto max-w-6xl / 7xl, overflow-x-hidden     │
 └───────────────────────────────────────────────┘
- ▐ = NavDrawer closed: fully off-screen; only its 20 px tab handle shows at
+ ▐ = below xl, NavDrawer closed: fully off-screen; only its tab handle shows at
      mid-height on the left edge.
-     Open: a floating card inset 12 px (w-[280px], max-md:w-[240px],
-     rounded-[24px]) slides over header + content with a bg-black/40 backdrop
-     (mounted only while open); the handle rides on the card's edge.
+     Open: a floating card inset 12 px (w-[268px], max-md:w-[248px]) slides
+     over header + content with a scrim (mounted only while open); the handle
+     rides on the card's edge.
+
+ From xl (1280 px):
+┌──────────┬────────────────────────────────────┐
+│ Header (full width; ☰ = collapse / expand)     │
+├──────────┼────────────────────────────────────┤
+│ NavDrawer│ AppShell content, xl:pl = --app-nav-w│
+│ docked   │                                    │
+│ 256 px,  │                                    │
+│ or 64 px │                                    │
+│ rail     │                                    │
+└──────────┴────────────────────────────────────┘
 ```
+
+The docked width is one CSS variable, `--app-nav-w` (`globals.css`, from
+`html[data-nav="expanded" | "collapsed"]`). The root layout's init script sets
+`data-nav` before first paint for a signed-in browser, from the saved choice
+(`localStorage` `nexa-sidebar`). `NavDrawer` then keeps it current. So the page
+column is reserved before the nav mounts, and nothing shifts on load.
 
 Key files:
 
 | Concern | File | Behaviour |
 |---|---|---|
-| App wrapper | [`AppShell.tsx`](../apps/web/src/components/layout/AppShell.tsx) | Renders `<RoleSidebar/>` + children, so every AppShell page (role dashboards, `/profile`, `/chess-board`, `/classes/[id]`) gets the drawer |
+| App wrapper | [`AppShell.tsx`](../apps/web/src/components/layout/AppShell.tsx) | Renders `<RoleSidebar/>` + children, so every AppShell page (role dashboards, `/profile`, `/chess-board`, `/classes/[id]`) gets the nav. From `xl` it offsets the children by `--app-nav-w` and paints the column's navy ground from first paint |
 | Role picker | [`RoleSidebar.tsx`](../apps/web/src/components/layout/RoleSidebar.tsx) | Admin / Super Admin → `AdminSidebar`, Coach → `CoachSidebar`, Student → `StudentSidebar`; nothing before auth hydrates |
-| Top bar | [`Header.tsx`](../apps/web/src/components/layout/Header.tsx) | `fixed h-16`; 3-col grid `minmax(0,1fr) auto minmax(0,1fr)`; title hidden below `sm` (the side columns fill a phone bar; pages carry their own title), `truncate` above; `compact` prop hides Dashboard CTA / bell / theme toggle on small screens for immersive pages. Shows a menu button only while a drawer is mounted (`useSidebarStore().available`) |
-| Drawer shell | [`Sidebar.tsx`](../apps/web/src/components/layout/Sidebar.tsx) | `NavDrawer` (floating off-canvas card, backdrop, edge tab handle, logo with the role chip on its right, scrolling nav between a pinned header and footer; footer = signed-in user unless overridden), `NavDrawerLink` (top-level row, current page = solid `bg-accent` emerald), `NavDrawerAccordion` (section row with an emerald tint + left rule while expanded, inset panel of child links, current child = solid emerald). The nav's direct children are `shrink-0`: it is a scrolling flex column, and without that an expanded section squeezes the other rows below their 40 px height. Opens from the header ☰, the handle, a click on the peeked slice, or by **dragging the handle / slice outward** (pointer events, so touch works too; past 35 % of the card it opens, otherwise it snaps back). On hover-capable devices a mouse at the left screen edge (`w-2` hot zone) slides 28 px of the card out as a peek. Closes on Escape, backdrop, link click and any route change; the hidden nav is `inert`. Open state is shared in [`stores/sidebarStore.ts`](../apps/web/src/stores/sidebarStore.ts), not persisted — it always starts closed |
+| Top bar | [`Header.tsx`](../apps/web/src/components/layout/Header.tsx) | `fixed h-16`; logo is always the full lockup (never cropped to the knight), 36 px tall from `sm` and 28 px below it (`Logo mobileSize`) so it fits a 320 px bar without changing the bar's height; every control button (menu, help, bell, account menu, Log in) is `--control-h` tall (36 px, 44 px on touch) and centred on one line; the theme toggle keeps its fixed 36 × 72 px pill and the account avatar its 28 px circle on every device; 3-col grid `minmax(0,1fr) auto minmax(0,1fr)`; title hidden below `sm` (the side columns fill a phone bar; pages carry their own title), `truncate` above; `compact` prop hides Dashboard CTA / bell / theme toggle on small screens for immersive pages. Shows a menu button only while a drawer is mounted (`useSidebarStore().available`). From `xl` that button collapses / expands the docked nav ("Collapse menu" / "Expand menu") and the bar spans the full width so it sits over the nav column |
+| Drawer shell | [`Sidebar.tsx`](../apps/web/src/components/layout/Sidebar.tsx) | `NavDrawer` (floating off-canvas card, backdrop, edge tab handle, logo with the role chip on its right, scrolling nav between a pinned header and footer; footer = signed-in user unless overridden), `NavDrawerLink` (top-level row, current page = solid `bg-accent` emerald), `NavDrawerAccordion` (section row with an emerald tint + left rule while expanded, inset panel of child links, current child = solid emerald). The nav's direct children are `shrink-0`: it is a scrolling flex column, and without that an expanded section squeezes the other rows below their 40 px height. Opens from the header ☰, the handle, a click on the peeked slice, or by **dragging the handle / slice outward** (pointer events, so touch works too; past 35 % of the card it opens, otherwise it snaps back). On hover-capable devices a mouse at the left screen edge (`w-2` hot zone) slides 28 px of the card out as a peek. Closes on Escape, backdrop, link click and any route change; the hidden nav is `inert`. Open state is shared in [`stores/sidebarStore.ts`](../apps/web/src/stores/sidebarStore.ts), not persisted — it always starts closed. **From `xl` (`NAV_DOCKED_QUERY`)** it is instead a fixed column under the header: no backdrop, peek, handle or drag; never `inert`; its head shows only the role chip (the header's logo is right above). `collapsed` (persisted, `nexa-sidebar`) turns it into a 64 px icon rail: labels become right-side tooltips and stay as screen-reader text, badges become a dot on the icon, and an admin section's icon expands the nav with that section open. Active link everywhere: `activeNavHref` (`navItems.ts`), the most specific matching href, so a nested page lights its section |
 | Admin sidebar | [`AdminSidebar.tsx`](../apps/web/src/components/layout/AdminSidebar.tsx) | "Dashboard" direct link, then accordion sections (Analytics / People / Classes / Learning / Finance / Settings / Super Admin — defined by `group` in `navItems.ts`, icons in `ADMIN_GROUP_ICONS`). **One section open at a time**; the section owning the current route opens itself on navigation |
 | Coach sidebar | [`CoachSidebar.tsx`](../apps/web/src/components/layout/CoachSidebar.tsx) | Flat direct links |
 | Student sidebar | [`StudentSidebar.tsx`](../apps/web/src/components/layout/StudentSidebar.tsx) | Flat direct links with live badges; rating + profile cards in the footer |
@@ -158,10 +176,10 @@ solves.
 | `Table` / `DataTable` | [`ui/Table.tsx`](../apps/web/src/components/ui/Table.tsx), [`ui/DataTable.tsx`](../apps/web/src/components/ui/DataTable.tsx) | Table is wrapped in `div.w-full.overflow-auto` — **wide tables scroll inside their own box, never the page**. Keep them in that wrapper |
 | `Dialog` | [`ui/Dialog.tsx`](../apps/web/src/components/ui/Dialog.tsx) | Centered modal; content should carry `max-h-[90vh] overflow-y-auto` and `sm:max-w-[…]` (full-bleed with margin on phone) |
 | `DatePicker` | [`ui/DatePicker.tsx`](../apps/web/src/components/ui/DatePicker.tsx) | Opens a `Dialog` (not a popover) so the calendar never clips on small screens; pass `className="w-full"` inside grids |
-| `TimePicker` | [`ui/TimePicker.tsx`](../apps/web/src/components/ui/TimePicker.tsx) | `Popover` with hour/minute/AM-PM selects, `min-h-11` trigger |
+| `TimePicker` | [`ui/TimePicker.tsx`](../apps/web/src/components/ui/TimePicker.tsx) | `Popover` with hour/minute/AM-PM selects, control-height trigger |
 | `Popover` / `DropdownMenu` | [`ui/Popover.tsx`](../apps/web/src/components/ui/Popover.tsx) | `collisionPadding={16}`, portalled; fine on tablet+; prefer `Dialog` when the panel is large or the anchor is near a screen edge on phones |
 | `Tabs` | [`ui/Tabs.tsx`](../apps/web/src/components/ui/Tabs.tsx) | Tab strip should be `overflow-x-auto` when it can exceed the width |
-| Buttons | [`ui/Button.tsx`](../apps/web/src/components/ui/Button.tsx) | `min-h-11` (44 px touch target) at default size; `size="sm"` = `min-h-9`; table-action buttons are `size-8 rounded-full` icon buttons |
+| Buttons | [`ui/Button.tsx`](../apps/web/src/components/ui/Button.tsx) | `--control-h`: 36 px with a mouse, 44 px on touch screens; `size="sm"` 32/40 px; table-action buttons are `size-8` `neutral` icon buttons |
 
 Design tokens (theme-aware, defined in
 [`styles/globals.css`](../apps/web/src/styles/globals.css)): `bg-app-surface`,
@@ -177,7 +195,7 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
 ### 6.1 Auth (`/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`)
 - `AuthLayout` centers a `max-w-[480px]` card; single column at every size.
 - No sidebar, no drawer. Header shows Login CTA (icon only < `sm`).
-- Verify: 320 px — card has side margin, inputs `min-h-11`, no field clipped.
+- Verify: 320 px — card has side margin, inputs at control height, no field clipped.
 
 ### 6.2 Dashboards (`/student`, `/coach`, `/admin`)
 - Card grids: `grid-cols-1` → `lg:grid-cols-2` / `lg:grid-cols-3` (hero + rail),
@@ -217,7 +235,7 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
   stacked phone view is readable.
 - "Ends" = **By date** (`DatePicker`) or **By count** (number → computed end date
   shown as a hint).
-- Delete-rule button: `size-8 rounded-full` danger icon, centered in its column
+- Delete-rule button: `size-8` neutral icon button with a danger icon, centered in its column
   on `sm+`.
 - Preview panel: stat grid `grid-cols-2 sm:grid-cols-4`, occurrence list
   `max-h-72 overflow-y-auto`.
@@ -326,8 +344,8 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
    diagrams, tab strips get `overflow-x-auto` on a wrapper with `min-w-0`.
 3. **`min-w-0` on flex/grid children** that contain text or tables, so they can
    shrink instead of pushing the layout wide. (`main` already has it.)
-4. **Touch targets ≥ 44 px** on interactive controls (`min-h-11`); `size="sm"`
-   (36 px) only for dense desktop toolbars.
+4. **Touch targets ≥ 44 px** on touch screens (`--control-h` does this for
+   controls); `size="sm"` only for dense toolbars.
 5. **Use `dvh`, not `vh`**, for every viewport-relative height (meeting, board,
    dialog caps, page `min-h`). iPad/Android `vh` ignores the browser toolbar,
    so a `90vh` dialog hides its own buttons behind it.
@@ -462,6 +480,12 @@ Run against `index.html` (or a real device / DevTools device mode).
 - [ ] Fixed header + any floating toolbar leave enough usable height.
 - [ ] Meeting toolbar stays above the bottom edge; video grid still usable.
 - [ ] Open drawer scrolls on a short screen; every link reachable.
+
+### Laptop / desktop (≥ 1280)
+- [ ] Nav docked and expanded on first visit; content starts beside it with no shift on load.
+- [ ] Header button collapses it to the rail and back; the choice survives a reload.
+- [ ] Rail icons show their label on hover and on keyboard focus; the current page keeps its gold bar.
+- [ ] At 1279 px the drawer is back (handle, ☰, Escape).
 
 ### Tablet portrait (768–834)
 - [ ] Drawer opens at 280 px; content never reflows when it opens.

@@ -71,7 +71,7 @@ describe("RetentionPolicyService", () => {
     expect(prisma.retentionPolicy.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: { category: "CHAT_MESSAGES", changedAt: now, days: 365, updatedById: "super" },
-        where: { category: "CHAT_MESSAGES" }
+        where: { tenantId_category: { category: "CHAT_MESSAGES", tenantId: "tenant_nexa" } }
       })
     );
     expect(item).toMatchObject({ days: 365, eligibleCount: 42, updatedByName: "Sam Admin" });

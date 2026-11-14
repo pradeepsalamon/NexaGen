@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 import streamifier from "streamifier";
+import { tenantStorageRoot } from "../tenancy/tenant-paths";
 
 /**
  * Private storage for invoice PDFs (§13).
@@ -38,7 +39,7 @@ export class InvoiceStorageService {
   buildKey(documentNumber: string, issuedAt: Date, folder = "invoices"): string {
     const year = issuedAt.getUTCFullYear();
     const month = String(issuedAt.getUTCMonth() + 1).padStart(2, "0");
-    return `nexa_chess/${folder}/${year}/${month}/${sanitize(documentNumber)}`;
+    return `${tenantStorageRoot()}/${folder}/${year}/${month}/${sanitize(documentNumber)}`;
   }
 
   /**

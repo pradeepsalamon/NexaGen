@@ -172,7 +172,7 @@ export class ProviderHealthService {
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async pruneOldEvents(): Promise<void> {
-    await this.jobLocks.runExclusive(JOB_LOCKS.paymentProviderEventPrune, () => this.pruneOldEventsNow());
+    await this.jobLocks.runForEachTenant(JOB_LOCKS.paymentProviderEventPrune, () => this.pruneOldEventsNow());
   }
 
   private async pruneOldEventsNow(): Promise<void> {

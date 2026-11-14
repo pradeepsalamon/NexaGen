@@ -25,8 +25,10 @@ export class TypographyService {
     private readonly jwtService: JwtService,
   ) {}
 
+  // SALES may read and set its own display preferences (the app shell loads
+  // them for every account); the global settings still require an admin.
   private getAuthenticatedUser(accessToken: string | undefined) {
-    return authenticateUser(this.jwtService, this.prisma, accessToken);
+    return authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
   }
 
   private assertAdmin(user: AuthUser) {

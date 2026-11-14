@@ -12,6 +12,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { zonedMonthBounds } from "../../common/time";
 import { densifySeries, roundTo } from "../analytics-math";
 import { buildMeta, pct, sqlTimestamp, type AnalyticsContext } from "../analytics-support";
+import { tenantFilter } from "../../tenancy/tenant-sql";
 
 @Injectable()
 export class BatchesAnalyticsSection {
@@ -81,7 +82,7 @@ export class BatchesAnalyticsSection {
              count(*)::bigint AS total
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
-      WHERE c.status = 'COMPLETED' AND c."batchId" IN (${Prisma.join(ids)})
+      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED' AND c."batchId" IN (${Prisma.join(ids)})
       GROUP BY 1
     `);
     return new Map(
@@ -103,7 +104,7 @@ export class BatchesAnalyticsSection {
       FROM "classes" c
       LEFT JOIN "coach_attendance" cca ON cca."classId" = c.id
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
-      WHERE c.status = 'COMPLETED' AND c."batchId" IN (${Prisma.join(ids)})
+      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED' AND c."batchId" IN (${Prisma.join(ids)})
       GROUP BY 1
     `);
     return new Map(rows.map((r) => [r.batch_id, roundTo(r.hours, 1)]));
@@ -156,7 +157,7 @@ export class BatchesAnalyticsSection {
                count(*)::bigint AS total
         FROM "class_attendance" ca
         JOIN "classes" c ON c.id = ca."classId"
-        WHERE c.status = 'COMPLETED' AND c."batchId" = ${batchId}
+        WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED' AND c."batchId" = ${batchId}
           AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
         GROUP BY 1 ORDER BY 1
       `),
@@ -218,7 +219,7 @@ export class BatchesAnalyticsSection {
       LEFT JOIN "classes" c ON c."batchId" = bs."batchId" AND c.status = 'COMPLETED'
         AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       LEFT JOIN "class_attendance" ca ON ca."classId" = c.id AND ca."studentId" = u.id
-      WHERE bs."batchId" = ${batchId} AND bs."isDeleted" = false AND u."isDeleted" = false
+      WHERE ${tenantFilter("bs")} AND bs."batchId" = ${batchId} AND bs."isDeleted" = false AND u."isDeleted" = false
       GROUP BY 1, 2, 3, 4
       ORDER BY attended DESC
     `);
@@ -321,7 +322,7 @@ export class BatchesAnalyticsSection {
     const rows = await this.prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
       SELECT count(DISTINCT u.id)::bigint AS count
       FROM "users" u
-      WHERE u.role = 'STUDENT' AND u."isDeleted" = false
+      WHERE ${tenantFilter("u")} AND u.role = 'STUDENT' AND u."isDeleted" = false
         AND (
           (u."lastActiveAt" >= ${sqlTimestamp(start)} AND u."lastActiveAt" < ${sqlTimestamp(end)})
           OR EXISTS (
@@ -336,7 +337,7 @@ export class BatchesAnalyticsSection {
   private async countStudentsInBatch(): Promise<number> {
     const rows = await this.prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
       SELECT count(DISTINCT "studentId")::bigint AS count
-      FROM "batch_students" WHERE "isDeleted" = false
+      FROM "batch_students" WHERE ${tenantFilter()} AND "isDeleted" = false
     `);
     return Number(rows[0]?.count ?? 0);
   }
@@ -346,7 +347,7 @@ export class BatchesAnalyticsSection {
       SELECT count(DISTINCT ca."studentId")::bigint AS count
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
-      WHERE ca.status IN ('PRESENT','LATE') AND c.status = 'COMPLETED'
+      WHERE ${tenantFilter("c")} AND ca.status IN ('PRESENT','LATE') AND c.status = 'COMPLETED'
         AND c."startsAt" >= ${sqlTimestamp(start)} AND c."startsAt" < ${sqlTimestamp(end)}
     `);
     return Number(rows[0]?.count ?? 0);
@@ -357,7 +358,7 @@ export class BatchesAnalyticsSection {
       SELECT count(DISTINCT ca."studentId")::bigint AS count
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
-      WHERE c."isDemo" = true AND c.status = 'COMPLETED'
+      WHERE ${tenantFilter("c")} AND c."isDemo" = true AND c.status = 'COMPLETED'
         AND ca.status IN ('PRESENT','LATE')
     `);
     return Number(rows[0]?.count ?? 0);
@@ -368,7 +369,7 @@ export class BatchesAnalyticsSection {
       SELECT count(DISTINCT ca."studentId")::bigint AS count
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
-      WHERE c."isDemo" = true AND c.status = 'COMPLETED' AND ca.status IN ('PRESENT','LATE')
+      WHERE ${tenantFilter("c")} AND c."isDemo" = true AND c.status = 'COMPLETED' AND ca.status IN ('PRESENT','LATE')
         AND EXISTS (
           SELECT 1 FROM "batch_students" bs
           WHERE bs."studentId" = ca."studentId" AND bs."isDeleted" = false
@@ -381,7 +382,7 @@ export class BatchesAnalyticsSection {
     const rows = await this.prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
       SELECT count(*)::bigint AS count
       FROM "users" u
-      WHERE u.role = 'STUDENT' AND u."isDeleted" = false
+      WHERE ${tenantFilter("u")} AND u.role = 'STUDENT' AND u."isDeleted" = false
         AND EXISTS (
           SELECT 1 FROM "batch_students" bs WHERE bs."studentId" = u.id AND bs."isDeleted" = false
         )
@@ -416,7 +417,7 @@ export class BatchesAnalyticsSection {
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
       JOIN "users" u ON u.id = ca."studentId"
-      WHERE c.status = 'COMPLETED' AND u."isDeleted" = false
+      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED' AND u."isDeleted" = false
         AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1, 2, 3, 4
       HAVING count(*) >= 3
@@ -464,7 +465,7 @@ export class BatchesAnalyticsSection {
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
       JOIN "users" u ON u.id = ca."studentId"
-      WHERE c.status = 'COMPLETED' AND u."isDeleted" = false
+      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED' AND u."isDeleted" = false
         AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1, 2, 3, 4
       ORDER BY attended DESC, seconds DESC

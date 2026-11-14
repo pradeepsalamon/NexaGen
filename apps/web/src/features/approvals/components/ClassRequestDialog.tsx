@@ -196,7 +196,7 @@ export function ClassRequestDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+          <Button type="button" variant="neutral" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancel
           </Button>
           <Button type="button" onClick={submit} disabled={isPending}>

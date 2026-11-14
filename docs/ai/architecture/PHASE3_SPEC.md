@@ -28,8 +28,12 @@ Labels:
 
 ## 0a. Owner scope change, 2026-10-31: v1 is a student recap from the coach's voice
 
-**Planning only. Nothing is built, and v1 doesn't start until the open items
-below are decided.** On 2026-10-31 the owner narrowed v1. Where this section
+**Steps 1 and 2 of the pipeline below are built (2026-11-12): the coach's
+Chrome transcribes, the API stores the lines for 30 days
+(docs/LIVE_CLASS.md § "Class transcript"). Steps 3 to 5 (the summary) are
+not built; the next step is to test a summary on a real stored transcript.**
+The rest of this section is still planning, and v1 doesn't go further until
+the open items below are decided. On 2026-10-31 the owner narrowed v1. Where this section
 conflicts with §1–§14, it wins for v1. The rest of the spec stays the target
 for later versions, which will add evidence.
 
@@ -84,9 +88,8 @@ recognises only the coach's microphone, never the room mix.
 
 **Open owner decisions for v1:**
 
-- **OD-13 (revised):** allow transcription of the coach's voice only, with
-  each coach's written consent. Choosing option A implies it; it isn't yet
-  recorded as approved.
+- ~~**OD-13 (revised):**~~ approved 2026-11-12 (DECISIONS.md): the coach's
+  voice only, with each coach's recorded consent.
 - **OD-5:** does a coach still approve each recap before students see it?
   The recommendation stays **yes**, even more so for transcripts.
 - **Recap language:** English, Tamil, or the student's choice.
@@ -345,7 +348,10 @@ the game by `formatSummaryLine`.
 
 Checks (`checkClassSummaryOutput`), each per item:
 
-1. Zod-parse; on a failure, `SCHEMA`. A model-written `san` is a schema error.
+1. Zod-parse; on a failure, `SCHEMA`. A variation must point at a code-built
+   line (`line`/`fromMove`/`toMove`); a model-written `san` is dropped, never
+   shown: the SAN always comes from `formatSummaryLine`. (Strict parsing would
+   fail a whole summary over any stray key.)
 2. Every `E#` exists in the bundle.
 3. Every variation names an existing line and starts inside it, in order.
    Its end is shortened to the game's last move and to 6 moves
@@ -361,8 +367,10 @@ Checks (`checkClassSummaryOutput`), each per item:
    is removed, never rewritten. A READY summary's whole student view must pass
    `studentViewPrivacyViolations`, which the publish route (§7) reuses for its
    400.
-6. Every quoted chat span (text in "…") is a substring of a cited `ROOM_CHAT`
-   ref. *(Not yet in the module; add it with OD-12.)*
+6. Every quoted chat span (text in "…") is an exact substring of a cited
+   `ROOM_CHAT` ref, with a regression test that a fabricated quote is rejected.
+   *(Not yet in the module. Until this check ships, `ROOM_CHAT` stays out of the
+   evidence bundle even though OD-12 is approved.)*
 
 **Retry, then remove.**
 

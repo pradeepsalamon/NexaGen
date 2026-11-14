@@ -53,4 +53,24 @@ describe("createOriginCheckMiddleware", () => {
   it("normalizes a trailing slash in the configured origin", () => {
     expect(run("/live-class/abc/kick", { origin: "https://nexa.example" }).next).toHaveBeenCalled();
   });
+
+  it("asks for an academy's own domain before refusing", async () => {
+    const isAcademyOrigin = jest.fn(async (origin: string) => origin === "https://chess.acme.example");
+    const middleware = createOriginCheckMiddleware(["https://nexa.example"], [], isAcademyOrigin);
+    const call = async (origin: string) => {
+      const next = jest.fn();
+      const json = jest.fn();
+      const response = { status: jest.fn().mockReturnValue({ json }) };
+      middleware({ headers: { origin }, method: "POST", path: "/batches" } as never, response as never, next);
+      await new Promise((resolve) => setImmediate(resolve));
+      return { next, response };
+    };
+    expect((await call("https://chess.acme.example")).next).toHaveBeenCalledWith();
+    const refused = await call("https://evil.example");
+    expect(refused.next).not.toHaveBeenCalled();
+    expect(refused.response.status).toHaveBeenCalledWith(403);
+    // An opaque origin is never looked up.
+    await call("null");
+    expect(isAcademyOrigin).not.toHaveBeenCalledWith("null");
+  });
 });

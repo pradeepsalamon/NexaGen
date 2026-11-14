@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -11,9 +12,12 @@ import {
   MESSAGING_EVENTS,
   MESSAGING_EVENT_DEFINITIONS,
   markdownToWhatsApp,
+  normalizeWhatsAppTemplate,
   renderFormattedTemplate,
   renderMessageTemplate,
+  resolveWhatsAppTemplate,
   sampleVariablesFor,
+  whatsappTemplateIssues,
   type MessageDeliveryItem,
   type MessageDeliveryListResponse,
   type MessageDeliveryQuery,
@@ -31,11 +35,13 @@ import {
   type MessagingRule,
   type User
 } from "@prisma/client";
+import { CREATED_AT_DESC_ORDER, createdAtCursorWhere, toCursorPage } from "../common/cursor-pagination";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { maskEmail, maskPhoneNumber } from "./messaging.format";
 import { authenticateUser } from "../auth/authenticate";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 /**
  * Admin-facing CRUD over the one-row-per-event rule table, plus the delivery
@@ -44,6 +50,7 @@ import { authenticateUser } from "../auth/authenticate";
  */
 @Injectable()
 export class MessagingRuleService {
+  private readonly logger = new Logger(MessagingRuleService.name);
 
   constructor(
     private readonly jwtService: JwtService,
@@ -77,7 +84,7 @@ export class MessagingRuleService {
     dto: UpdateMessagingRuleRequest
   ): Promise<MessagingRuleItem> {
     const admin = await this.assertAdmin(accessToken);
-    await this.getRule(event);
+    const current = await this.getRule(event);
 
     const definition = MESSAGING_EVENT_DEFINITIONS[event];
     if (dto.audience && !definition.audiences.includes(dto.audience)) {
@@ -90,9 +97,25 @@ export class MessagingRuleService {
         `"${definition.label}" already has its own email under System messages.`
       );
     }
+    // Only when the template is part of this save; an omitted field keeps the saved value.
+    const touchesTemplate =
+      dto.whatsappTemplateName !== undefined ||
+      dto.whatsappTemplateLanguage !== undefined ||
+      dto.whatsappTemplateParams !== undefined;
+    const template = touchesTemplate
+      ? normalizeWhatsAppTemplate({
+          language: dto.whatsappTemplateLanguage === undefined ? current.whatsappTemplateLanguage : dto.whatsappTemplateLanguage,
+          name: dto.whatsappTemplateName === undefined ? current.whatsappTemplateName : dto.whatsappTemplateName,
+          params: dto.whatsappTemplateParams ?? current.whatsappTemplateParams
+        })
+      : null;
+    if (template) {
+      const issues = whatsappTemplateIssues(template, definition.variables);
+      if (issues.length > 0) throw new BadRequestException(issues.join(" "));
+    }
 
     const row = await this.prisma.messagingRule.update({
-      where: { event },
+      where: { tenantId_event: { event, tenantId: requireTenantId("messagingRule") } },
       data: {
         ...(dto.enabled === undefined ? {} : { enabled: dto.enabled }),
         ...(dto.whatsappEnabled === undefined
@@ -121,15 +144,13 @@ export class MessagingRuleService {
         ...(dto.weekdaysOnly === undefined ? {} : { weekdaysOnly: dto.weekdaysOnly }),
         ...(dto.title === undefined ? {} : { title: dto.title }),
         ...(dto.body === undefined ? {} : { body: dto.body }),
-        ...(dto.whatsappTemplateName === undefined
-          ? {}
-          : { whatsappTemplateName: dto.whatsappTemplateName || null }),
-        ...(dto.whatsappTemplateLanguage === undefined
-          ? {}
-          : { whatsappTemplateLanguage: dto.whatsappTemplateLanguage || null }),
-        ...(dto.whatsappTemplateParams === undefined
-          ? {}
-          : { whatsappTemplateParams: dto.whatsappTemplateParams }),
+        ...(template
+          ? {
+              whatsappTemplateLanguage: template.language,
+              whatsappTemplateName: template.name,
+              whatsappTemplateParams: [...template.params]
+            }
+          : {}),
         updatedById: admin.id
       },
       include: { updatedBy: { select: { firstName: true, lastName: true } } }
@@ -175,7 +196,15 @@ export class MessagingRuleService {
       };
     }
 
-    const outcome = await this.whatsapp.trySendText({ to, body: markdownToWhatsApp(preview) });
+    // The rule's approved template when it has one, so the test proves the template works.
+    const template = resolveWhatsAppTemplate(
+      { language: rule.whatsappTemplateLanguage, name: rule.whatsappTemplateName, params: rule.whatsappTemplateParams },
+      sampleVariablesFor(event)
+    );
+    const outcome = await this.whatsapp.trySendMessage({ template, text: markdownToWhatsApp(preview), to });
+    if (!outcome.ok && template) {
+      this.logger.warn(`Test of ${event} with WhatsApp template "${template.name}" failed: ${outcome.error.message}`);
+    }
 
     await this.prisma.messageDelivery.create({
       data: {
@@ -185,6 +214,7 @@ export class MessagingRuleService {
         recipientId: admin.id,
         recipientPhone: to,
         body: preview,
+        templateName: template?.name ?? null,
         providerMessageId: outcome.ok ? outcome.result.messageId : null,
         error: outcome.ok ? null : outcome.error.message
       }
@@ -249,11 +279,12 @@ export class MessagingRuleService {
       ...(query.channel ? { channel: query.channel } : {})
     };
 
+    // Keyset-paged newest first; the counts describe the whole filter, not the page.
     const [rows, pending, sent, failed, skipped] = await Promise.all([
       this.prisma.messageDelivery.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        take: query.limit,
+        where: { ...where, ...createdAtCursorWhere(query.cursor) },
+        orderBy: [...CREATED_AT_DESC_ORDER],
+        take: query.limit + 1,
         include: {
           recipient: { select: { email: true, firstName: true, lastName: true } }
         }
@@ -264,9 +295,11 @@ export class MessagingRuleService {
       this.prisma.messageDelivery.count({ where: { ...where, status: "SKIPPED" } })
     ]);
 
+    const page = toCursorPage(rows, query.limit);
     return {
-      deliveries: rows.map((row) => this.toDeliveryItem(row)),
-      counts: { pending, sent, failed, skipped }
+      deliveries: page.items.map((row) => this.toDeliveryItem(row)),
+      counts: { pending, sent, failed, skipped },
+      nextCursor: page.nextCursor
     };
   }
 
@@ -310,7 +343,7 @@ export class MessagingRuleService {
   /** The rule for an event, seeding it from the shared defaults on first use. */
   async getRule(event: MessagingEvent): Promise<MessagingRule> {
     const existing = await this.prisma.messagingRule.findUnique({
-      where: { event }
+      where: { tenantId_event: { event, tenantId: requireTenantId("messagingRule") } }
     });
     if (existing) return existing;
 
@@ -320,6 +353,7 @@ export class MessagingRuleService {
         data: {
           event,
           enabled: defaults.enabled,
+          emailEnabled: defaults.emailEnabled ?? false,
           whatsappEnabled: defaults.whatsappEnabled,
           inAppEnabled: defaults.inAppEnabled,
           audience: defaults.audience,
@@ -336,7 +370,7 @@ export class MessagingRuleService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
-        return this.prisma.messagingRule.findUniqueOrThrow({ where: { event } });
+        return this.prisma.messagingRule.findUniqueOrThrow({ where: { tenantId_event: { event, tenantId: requireTenantId("messagingRule") } } });
       }
       throw error;
     }
@@ -354,6 +388,7 @@ export class MessagingRuleService {
       data: missing.map((event) => ({
         event,
         enabled: DEFAULT_MESSAGING_RULES[event].enabled,
+        emailEnabled: DEFAULT_MESSAGING_RULES[event].emailEnabled ?? false,
         whatsappEnabled: DEFAULT_MESSAGING_RULES[event].whatsappEnabled,
         inAppEnabled: DEFAULT_MESSAGING_RULES[event].inAppEnabled,
         audience: DEFAULT_MESSAGING_RULES[event].audience,

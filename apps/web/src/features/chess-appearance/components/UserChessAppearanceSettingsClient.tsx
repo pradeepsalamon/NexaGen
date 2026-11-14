@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Alert } from "@/components/ui/Alert";
 import { DEFAULT_CHESS_APPEARANCE, type ChessAppearance } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -72,13 +73,10 @@ export function UserChessAppearanceSettingsClient() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-app-text">Chess board</h1>
-        <p className="mt-1 text-sm text-app-muted">
-          Choose how every chessboard looks for you — puzzles, practice, live classes and game
-          review all use this same appearance.
-        </p>
-      </div>
+      <PageHeader
+        description="Choose how every chessboard looks for you — puzzles, practice, live classes and game review all use this same appearance."
+        title="Chess board"
+      />
 
       {isLoading ? (
         <Card className="p-5 sm:p-6">
@@ -92,13 +90,10 @@ export function UserChessAppearanceSettingsClient() {
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
             {resolved.locked && (
-              <div className="flex items-start gap-2.5 rounded-app border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_6%,var(--color-surface))] p-3.5 text-sm text-app-text">
-                <Lock className="mt-0.5 size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
-                <p>
-                  Your administrator has locked board settings for everyone — you&apos;re seeing
-                  the platform default and can&apos;t set a personal preference right now.
-                </p>
-              </div>
+              <Alert variant="info">
+                Your administrator has locked board settings for everyone — you&apos;re seeing
+                the platform default and can&apos;t set a personal preference right now.
+              </Alert>
             )}
 
             <fieldset disabled={resolved.locked} className="space-y-5">

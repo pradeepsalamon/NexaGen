@@ -235,7 +235,7 @@ export class StudentService {
         topic: c.topic || "Untitled Class",
         status: c.status
       })),
-      courses: courses.map((cp: any) => {
+      courses: courses.map((cp) => {
         const nextModule = cp.course.modules.find(
           (m: { id: string }) => !completedModuleIds.has(m.id)
         );
@@ -248,14 +248,14 @@ export class StudentService {
         };
       }),
       practices: [
-        ...assignments.map((a: any) => ({
+        ...assignments.map((a) => ({
           id: a.id,
           title: a.assignmentBatch.assignment.title,
           difficulty: a.assignmentBatch.assignment.difficulty,
           dueDate: a.assignmentBatch.dueDate.toISOString(),
           status: a.status
         })),
-        ...practices.map((p: any) => ({
+        ...practices.map((p) => ({
           id: p.practice.id,
           title: p.practice.title,
           difficulty: p.practice.difficulty,
@@ -265,20 +265,20 @@ export class StudentService {
       ]
         .sort((x, y) => x.dueDate.localeCompare(y.dueDate))
         .slice(0, 5),
-      activities: activities.map((a: any) => ({
+      activities: activities.map((a) => ({
         id: a.id,
         type: a.type,
         title: a.title,
         createdAt: a.createdAt.toISOString()
       })),
-      announcements: announcements.map((a: any) => ({
+      announcements: announcements.map((a) => ({
         id: a.id,
         title: a.title,
         description: a.description,
         type: a.type,
         createdAt: a.createdAt.toISOString()
       })),
-      pastClasses: pastClasses.map((c: any) => ({
+      pastClasses: pastClasses.map((c) => ({
         id: c.id,
         topic: c.topic || "Untitled Class",
         coachName: c.coach.firstName,

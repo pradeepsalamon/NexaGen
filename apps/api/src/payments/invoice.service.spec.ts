@@ -441,8 +441,8 @@ describe("describePurchase", () => {
 
   it("falls back to a generic label when the plan is gone", () => {
     // Plan deletion is SetNull, so a very old order can have none.
-    expect(describePurchase(null)).toBe("NexaChess purchase");
-    expect(describePurchase(undefined)).toBe("NexaChess purchase");
+    expect(describePurchase(null)).toBe("Purchase");
+    expect(describePurchase(undefined)).toBe("Purchase");
   });
 
   /**
@@ -454,7 +454,7 @@ describe("describePurchase", () => {
     expect(describePurchase({ name: "Term fee" })).toBe("Term fee");
     expect(describePurchase({ name: "Term fee", interval: null })).toBe("Term fee");
     expect(describePurchase({ name: "  ", interval: "MONTHLY" })).toBe(
-      "NexaChess purchase"
+      "Purchase"
     );
     expect(
       describePurchase({ name: "Term fee", batch: { name: null } })

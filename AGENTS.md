@@ -28,6 +28,13 @@ Any autonomous / VPS-side tooling MUST honour
 containers and LiveKit/Postgres infra are never touched, and nothing pushes,
 merges or deploys without explicit human approval.
 
+## API Rules
+
+Every API change follows [docs/API_DEVELOPMENT_RULES.md](docs/API_DEVELOPMENT_RULES.md)
+(strict). The one most often missed: an id from a request is loaded through a
+scoped query before it is stored as a foreign key, so it can never link two
+academies.
+
 ## Prisma Models Rule
 
 Whenever you add a new model to `apps/api/prisma/schema.prisma`, you MUST also

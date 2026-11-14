@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, Loader2, Play } from "lucide-react";
+import { Bot, Play } from "lucide-react";
 import type { RunAssistantToolResponse } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -14,6 +14,7 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { useToast } from "@/providers/ToastProvider";
 import { runAssistantTool } from "../../api/knowledgeApi";
 import { useAssistantTools } from "../../hooks/useKnowledgeApi";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * Super admin: the tools a future AI assistant may call, and a dry run of one
@@ -90,7 +91,7 @@ export function AssistantToolsPanel() {
           </Label>
           <Textarea className="min-h-[100px] font-mono text-sm" id="kb-tool-args" onChange={(e) => setArgs(e.target.value)} value={args} />
           <Button disabled={busy} onClick={() => void run(selected)}>
-            {busy ? <Loader2 aria-hidden className="mr-2 size-4 animate-spin" /> : <Play aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
+            {busy ? <Spinner aria-hidden className="mr-2 size-4" /> : <Play aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
             Run as me
           </Button>
           {result && (

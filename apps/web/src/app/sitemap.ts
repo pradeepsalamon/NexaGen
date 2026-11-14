@@ -4,8 +4,7 @@ import { SITE_URL } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
-    { changeFrequency: "weekly", path: "/academy", priority: 1 },
-    { changeFrequency: "monthly", path: "/", priority: 0.8 },
+    { changeFrequency: "weekly", path: "/", priority: 1 },
     { changeFrequency: "yearly", path: "/register", priority: 0.5 },
     { changeFrequency: "yearly", path: "/login", priority: 0.3 },
     // Listed once they're final: while drafts they are noindex.

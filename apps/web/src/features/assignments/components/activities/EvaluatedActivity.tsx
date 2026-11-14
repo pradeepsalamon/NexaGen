@@ -462,7 +462,18 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
 
             <MoveList moves={moves} />
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
+              {config.allowHints && activityType === "SOLVE_LINE" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy || hint?.level === 3}
+                  onClick={() => void requestHint()}
+                >
+                  <Lightbulb className="mr-1.5 size-4" strokeWidth={2.5} />
+                  {!hint ? "Hint" : hint.level === 3 ? "Hint shown" : "More hint"}
+                </Button>
+              )}
               {activityType === "FREE_ANALYSIS" && (
                 <>
                   <Button variant="outline" size="sm" onClick={takeback} disabled={moves.length === 0}>
@@ -494,17 +505,6 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
                 <Button size="sm" disabled={busy} onClick={() => void doSubmit(moves)}>
                   <Send className="mr-1.5 size-4" strokeWidth={2.5} />
                   Submit
-                </Button>
-              )}
-              {config.allowHints && activityType === "SOLVE_LINE" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy || hint?.level === 3}
-                  onClick={() => void requestHint()}
-                >
-                  <Lightbulb className="mr-1.5 size-4" strokeWidth={2.5} />
-                  {!hint ? "Hint" : hint.level === 3 ? "Hint shown" : "More hint"}
                 </Button>
               )}
             </div>

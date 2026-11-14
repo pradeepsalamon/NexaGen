@@ -114,8 +114,7 @@ describe("SaaS plan enforcement (real app, real Postgres)", () => {
     expect(await t.call(superAdmin, "GET", API_ROUTES.subscription.admin)).toMatchObject({ status: 200 });
   });
 
-  it("platform staff change the plan; it applies at once and is logged", async () => {
-    await t.prisma.platformStaff.create({ data: { userId: superAdmin.id } });
+  it("a platform operator (Nexa's super admin) changes the plan; it applies at once and is logged", async () => {
     const res = await t.call(superAdmin, "PUT", API_ROUTES.platform.tenantSubscription(DEFAULT_TENANT_ID), {
       note: "Downgrade test",
       planCode: "GROWTH"

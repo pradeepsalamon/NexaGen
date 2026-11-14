@@ -338,7 +338,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                                               }
                                             });
                                           }}
-                                          className="flex size-8 items-center justify-center rounded-full border border-app-danger text-app-text transition-colors hover:bg-app-danger hover:text-white"
+                                          className="flex size-8 items-center justify-center rounded-control border border-app-line-strong bg-app-surface transition-colors text-app-danger-ink hover:bg-app-danger-soft"
                                         >
                                           <UserMinus className="size-4" />
                                         </button>
@@ -428,7 +428,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                                               }
                                             });
                                           }}
-                                          className="flex size-8 items-center justify-center rounded-full border border-app-danger text-app-text transition-colors hover:bg-app-danger hover:text-white"
+                                          className="flex size-8 items-center justify-center rounded-control border border-app-line-strong bg-app-surface transition-colors text-app-danger-ink hover:bg-app-danger-soft"
                                         >
                                           <UserMinus className="size-4" />
                                         </button>

@@ -13,7 +13,7 @@ import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
-import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { JobLockService } from "../prisma/job-lock.service";
 import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
@@ -70,7 +70,7 @@ describe("LiveClassService.startClass start window", () => {
         { provide: RecordingStorageService, useValue: {} },
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
-        { provide: SystemMessageRenderer, useValue: {} },
+        { provide: SystemNotifier, useValue: { send: jest.fn() } },
         { provide: LiveClassSettingsService, useValue: {} },
         { provide: AnalyticsEventService, useValue: {} }
       ]
@@ -117,5 +117,50 @@ describe("LiveClassService.startClass start window", () => {
     expect((error as BadRequestException).getResponse()).toMatchObject({
       code: "CLASS_START_WINDOW_PASSED"
     });
+  });
+});
+
+describe("LiveClassService.getLiveClass top-bar fields", () => {
+  it("returns the batch name for the room's top bar, never the batch roster", async () => {
+    const classFindUnique = jest.fn().mockResolvedValue({
+      id: "class-1",
+      batchId: "batch-1",
+      coachId: "coach-1",
+      status: ClassStatus.LIVE,
+      startsAt: new Date(),
+      endsAt: new Date(Date.now() + 60 * MINUTE),
+      liveSession: null,
+      batch: { id: "batch-1", name: "Batch A", students: [{ studentId: "student-1" }] }
+    });
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({ id: "coach-1", role: UserRole.COACH, status: UserStatus.ACTIVE })
+      },
+      coachClass: { findUnique: classFindUnique },
+      liveClassPull: { findFirst: jest.fn().mockResolvedValue(null) }
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ...LIVE_CLASS_SERVICES,
+        { provide: JobLockService, useValue: createJobLockStub() },
+        { provide: PrismaService, useValue: prisma },
+        { provide: JwtService, useValue: { verifyAsync: jest.fn().mockResolvedValue({ sub: "coach-1", type: "access" }) } },
+        { provide: LiveKitService, useValue: {} },
+        { provide: AttendanceService, useValue: {} },
+        { provide: BackupService, useValue: {} },
+        { provide: RecordingStorageService, useValue: {} },
+        { provide: WhatsAppService, useValue: {} },
+        { provide: MailService, useValue: {} },
+        { provide: SystemNotifier, useValue: { send: jest.fn() } },
+        { provide: LiveClassSettingsService, useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: null }) } },
+        { provide: AnalyticsEventService, useValue: {} }
+      ]
+    }).compile();
+    const service = module.get(LiveClassService);
+
+    const result = await service.getLiveClass("token", "class-1");
+
+    expect(result).toMatchObject({ id: "class-1", batchName: "Batch A" });
+    expect(result).not.toHaveProperty("batch");
   });
 });

@@ -19,6 +19,7 @@ import {
   buildMeta,
   type AnalyticsContext
 } from "../analytics-support";
+import { tenantFilter } from "../../tenancy/tenant-sql";
 
 @Injectable()
 export class RecordingsAnalyticsSection {
@@ -151,7 +152,7 @@ export class RecordingsAnalyticsSection {
       SELECT to_char(date_trunc('month', (("recordingCompletedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
              count(*)::bigint AS count
       FROM "live_sessions"
-      WHERE "recordingUrl" IS NOT NULL AND "recordingCompletedAt" IS NOT NULL
+      WHERE ${tenantFilter()} AND "recordingUrl" IS NOT NULL AND "recordingCompletedAt" IS NOT NULL
         AND "recordingCompletedAt" >= (now() - interval '12 months')
       GROUP BY 1 ORDER BY 1
     `);

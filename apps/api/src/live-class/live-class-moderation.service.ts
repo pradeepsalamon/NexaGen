@@ -19,6 +19,8 @@ import {
   type ModerateAllResponse,
   type KickParticipantRequest,
   type KickParticipantResponse,
+  type LowerHandRequest,
+  type LowerHandResponse,
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
   type ModerationNotice,
@@ -183,6 +185,48 @@ export class LiveClassModerationService {
     }
 
     return { mutedCount };
+  }
+
+  /**
+   * Coach lowers one participant's raised hand. Hand raise is a peer topic
+   * where each participant announces only their own hand, so this goes out on
+   * the API-injected moderation topic to the whole room: the owner's client
+   * puts its hand down (and re-announces that on the peer topic), everyone
+   * else drops it from their list straight away. Delivery is the whole
+   * effect, so a failed broadcast is an error the coach sees.
+   */
+  async lowerHand(
+    accessToken: string | undefined,
+    classId: string,
+    body: LowerHandRequest
+  ): Promise<LowerHandResponse> {
+    const { user, liveSession } = await this.resolveModerator(accessToken, classId);
+    if (isCoachParticipant(body.identity, liveSession.coachId)) {
+      throw new BadRequestException("Use your own Raise hand button to lower yours.");
+    }
+
+    const participants = await this.livekit.listParticipants(liveSession.roomName);
+    const participant = participants.find((p) => p.identity === body.identity);
+    if (!participant) {
+      throw new NotFoundException("That participant is no longer in the class.");
+    }
+
+    const notice: ModerationNotice = {
+      type: "LOWER_HAND",
+      identity: participant.identity,
+      byName: [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || "The coach",
+    };
+    try {
+      await this.livekit.broadcastData(
+        liveSession.roomName,
+        new TextEncoder().encode(JSON.stringify(notice)),
+        LIVE_CLASS_MODERATION_TOPIC
+      );
+    } catch (error) {
+      this.logger.warn(`Failed to send a lower-hand notice in ${liveSession.roomName}`, error as Error);
+      throw new ServiceUnavailableException("Couldn't reach the class right now. Try again.");
+    }
+    return { identity: participant.identity };
   }
 
   /** Coach-owner / admin of a LIVE class — the only people who may switch someone's track off. */

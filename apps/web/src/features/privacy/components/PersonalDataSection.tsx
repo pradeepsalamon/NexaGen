@@ -17,7 +17,7 @@ export function PersonalDataSection() {
       className="mx-auto mt-5 max-w-4xl rounded-panel border border-app-border bg-app-surface p-5 shadow-card"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-2xl">
+        <div className="min-w-0 flex-1 basis-64">
           <h2 className="text-lg font-bold text-app-text" id="personal-data-heading">
             Your data
           </h2>
@@ -27,6 +27,7 @@ export function PersonalDataSection() {
           </p>
         </div>
         <Button
+          className="ml-auto shrink-0"
           disabled={download.isPending}
           onClick={() =>
             download.mutate(undefined, {

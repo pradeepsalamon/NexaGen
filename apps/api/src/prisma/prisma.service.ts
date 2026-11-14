@@ -1,8 +1,26 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
-import { PrismaClient } from "@prisma/client";
-import { softDeleteExtension } from "./soft-delete.extension";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { applySoftDeleteArgs } from "./soft-delete.extension";
+import { applyTenantScope, tenantScopeExtension } from "./tenant-scope.extension";
 
-const createPrismaClient = (base: PrismaClient) => base.$extends(softDeleteExtension);
+/**
+ * The main client's query pipeline: tenant scope (docs/SAAS_MULTI_TENANCY.md §E),
+ * then the soft-delete filter, as one extension: every stacked `$extends` layer
+ * adds to tsc's memory, which is already near the limit on a cold typecheck.
+ */
+const dataLayerExtension = Prisma.defineExtension({
+  name: "data-layer",
+  query: {
+    $allModels: {
+      async $allOperations({ args, model, operation, query }) {
+        const scoped = applyTenantScope(model, operation, args) as typeof args;
+        return query(applySoftDeleteArgs(model, operation, scoped));
+      }
+    }
+  }
+});
+
+const createPrismaClient = (base: PrismaClient) => base.$extends(dataLayerExtension);
 
 export type ExtendedPrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -20,9 +38,14 @@ export type PrismaTransactionClient = Omit<
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
   private readonly base = new PrismaClient();
   private readonly client = createPrismaClient(this.base);
-  // The unextended client (same connection pool). Layering another extension on
-  // `client` cannot undo the soft-delete filter, which runs after it.
-  readonly withDeleted = this.base;
+  // Same connection pool, without the soft-delete filter but still
+  // tenant-scoped. Layering another extension on `client` cannot undo the
+  // soft-delete filter, which runs after it.
+  readonly withDeleted = this.base.$extends(tenantScopeExtension);
+
+  get tenantDomain() {
+    return this.client.tenantDomain;
+  }
 
   get user() {
     return this.client.user;
@@ -54,6 +77,54 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get emailSettings() {
     return this.client.emailSettings;
+  }
+
+  get tenantBranding() {
+    return this.client.tenantBranding;
+  }
+
+  get tenantPaymentCredential() {
+    return this.client.tenantPaymentCredential;
+  }
+
+  get tenantUsage() {
+    return this.client.tenantUsage;
+  }
+
+  get tenantUsageDay() {
+    return this.client.tenantUsageDay;
+  }
+
+  get uploadedFile() {
+    return this.client.uploadedFile;
+  }
+
+  get tenantIntegrityRun() {
+    return this.client.tenantIntegrityRun;
+  }
+
+  get platformCheckout() {
+    return this.client.platformCheckout;
+  }
+
+  get platformInvoice() {
+    return this.client.platformInvoice;
+  }
+
+  get platformInvoiceCounter() {
+    return this.client.platformInvoiceCounter;
+  }
+
+  get platformSellerSettings() {
+    return this.client.platformSellerSettings;
+  }
+
+  get platformWebhookEvent() {
+    return this.client.platformWebhookEvent;
+  }
+
+  get whatsAppSettings() {
+    return this.client.whatsAppSettings;
   }
 
   get directEmail() {
@@ -174,6 +245,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get liveChatMessage() {
     return this.client.liveChatMessage;
+  }
+
+  get liveClassTranscriptSegment() {
+    return this.client.liveClassTranscriptSegment;
   }
 
   get attendanceLog() {
@@ -584,6 +659,114 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.feedbackResponse;
   }
 
+  get referral() {
+    return this.client.referral;
+  }
+
+  get referralCode() {
+    return this.client.referralCode;
+  }
+
+  get referralCreditEntry() {
+    return this.client.referralCreditEntry;
+  }
+
+  get referralRedemption() {
+    return this.client.referralRedemption;
+  }
+
+  get tournament() {
+    return this.client.tournament;
+  }
+
+  get tournamentHost() {
+    return this.client.tournamentHost;
+  }
+
+  get tournamentPlayer() {
+    return this.client.tournamentPlayer;
+  }
+
+  get tournamentSettings() {
+    return this.client.tournamentSettings;
+  }
+
+  get tournamentAuditLog() {
+    return this.client.tournamentAuditLog;
+  }
+
+  get tournamentRound() {
+    return this.client.tournamentRound;
+  }
+
+  get tournamentGame() {
+    return this.client.tournamentGame;
+  }
+
+  get tournamentKnockoutMatch() {
+    return this.client.tournamentKnockoutMatch;
+  }
+
+  get tournamentCommentary() {
+    return this.client.tournamentCommentary;
+  }
+
+  get certificateTemplate() {
+    return this.client.certificateTemplate;
+  }
+
+  get tournamentCertificateRule() {
+    return this.client.tournamentCertificateRule;
+  }
+
+  get tournamentCertificate() {
+    return this.client.tournamentCertificate;
+  }
+
+  get referralRewardRule() {
+    return this.client.referralRewardRule;
+  }
+
+  get referralReward() {
+    return this.client.referralReward;
+  }
+
+  get referralPointsConversion() {
+    return this.client.referralPointsConversion;
+  }
+
+  get referralPointsTransfer() {
+    return this.client.referralPointsTransfer;
+  }
+
+  get referralSettings() {
+    return this.client.referralSettings;
+  }
+
+  get referralStage() {
+    return this.client.referralStage;
+  }
+
+  get referralStageEvent() {
+    return this.client.referralStageEvent;
+  }
+
+  get referralStageReach() {
+    return this.client.referralStageReach;
+  }
+
+  get referralVisit() {
+    return this.client.referralVisit;
+  }
+
+  get referralWithdrawal() {
+    return this.client.referralWithdrawal;
+  }
+
+  get referralVoucher() {
+    return this.client.referralVoucher;
+  }
+
   get lead() {
     return this.client.lead;
   }
@@ -614,6 +797,30 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get platformStaff() {
     return this.client.platformStaff;
+  }
+
+  get platformAuditLog() {
+    return this.client.platformAuditLog;
+  }
+
+  get platformPlanVersion() {
+    return this.client.platformPlanVersion;
+  }
+
+  get platformPayment() {
+    return this.client.platformPayment;
+  }
+
+  get platformSupportSession() {
+    return this.client.platformSupportSession;
+  }
+
+  get contentPack() {
+    return this.client.contentPack;
+  }
+
+  get contentPackItem() {
+    return this.client.contentPackItem;
   }
 
   async $connect() {

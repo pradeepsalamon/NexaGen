@@ -92,6 +92,7 @@ because migrations are additive.
 Approved 2026-10-19 (OD-6a, OD-19). The harness is `scripts/ai/benchmark/`:
 
 ```bash
+npm run build -w @nexa-chess/types                              # once: the scorer loads its dist/
 node scripts/ai/benchmark/bench.mjs --self-test                 # validator checks, no model, safe anywhere
 node --test scripts/ai/benchmark/bench.stub.test.mjs            # whole scorer against a stub Ollama
 scripts/ai/benchmark/run-capacity-benchmark.sh --confirm-off-hours [--model qwen2.5:3b] [--no-think]
@@ -171,7 +172,9 @@ What changed since §4.2 (branch `feat/ai-summary-grounded-lines`):
   `L1`, `L2`, …. The model gets the lines as numbered moves. A variation it
   returns is `{ line, fromMove, toMove, comment }`, at most 6 moves, with no
   moves in it. The SAN a coach sees is rendered by `formatSummaryLine` from
-  the game. A model-written `san` is a schema error.
+  the game. A model-written `san` is dropped by the parse (a variation without
+  `line`/`fromMove`/`toMove` is a schema error); the shown SAN is always
+  `formatSummaryLine`'s.
 - **Chess tokens in prose are checked.** Every move, square, signed engine
   score (`+1.5`), game result (`1-0`) and puzzle id the model writes must
   appear in the evidence. A square counts if a piece stands on it in the

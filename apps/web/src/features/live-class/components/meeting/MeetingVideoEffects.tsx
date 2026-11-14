@@ -3,7 +3,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { VideoTrack, useLocalParticipant } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { Ban, Check, ImagePlus, Loader2, ScanFace, Sparkles, VideoOff } from "lucide-react";
+import { Ban, Check, ImagePlus, ScanFace, Sparkles, VideoOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Switch } from "@/components/ui/Switch";
@@ -17,6 +17,7 @@ import {
   type VideoBackground,
 } from "../../lib/videoEffects/prefs";
 import { useVideoEffects } from "../../providers/VideoEffectsProvider";
+import { Spinner } from "@/components/ui/Spinner";
 
 function Tile({
   children,
@@ -46,7 +47,7 @@ function Tile({
       >
         {children}
         {selected && (
-          <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-primary text-white">
+          <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-primary text-on-primary">
             <Check className="size-3" strokeWidth={3} />
           </span>
         )}
@@ -87,14 +88,14 @@ function SelfPreview({ busy }: { busy: boolean }) {
   }
 
   return (
-    <div className="relative aspect-video overflow-hidden rounded-control bg-black">
+    <div className="relative aspect-video overflow-hidden rounded-control bg-scrim">
       <VideoTrack
         trackRef={{ participant: localParticipant, publication: cameraTrack, source: Track.Source.Camera }}
         className="h-full w-full -scale-x-100 object-cover"
       />
       {busy && (
-        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 text-xs font-semibold text-white">
-          <Loader2 className="size-4 animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-scrim/40 text-xs font-semibold text-on-scrim">
+          <Spinner className="size-4" />
           Loading effects…
         </div>
       )}
@@ -162,11 +163,11 @@ export function MeetingVideoEffects() {
               style={{ backgroundImage: "url(/video-backgrounds/studio-thumb.jpg)" }}
             >
               <span
-                className="absolute inset-0 bg-white/20"
+                className="absolute inset-0 bg-on-scrim/20"
                 style={{ backdropFilter: `blur(${level.radius / 4}px)` }}
                 aria-hidden="true"
               />
-              <span className="relative rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              <span className="relative rounded-full bg-scrim/50 px-1.5 py-0.5 text-xs font-semibold text-on-scrim">
                 {level.label}
               </span>
             </Tile>
@@ -189,7 +190,7 @@ export function MeetingVideoEffects() {
             />
           )}
           <Tile label="Upload an image" onClick={() => fileInput.current?.click()} selected={false}>
-            {uploading ? <Loader2 className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
+            {uploading ? <Spinner className="size-5" /> : <ImagePlus className="size-5" />}
           </Tile>
         </div>
         <input
@@ -207,7 +208,7 @@ export function MeetingVideoEffects() {
             <ScanFace className="size-3.5 text-app-muted" />
             Auto-framing
           </p>
-          <p className="mt-0.5 text-[11px] leading-snug text-app-muted">
+          <p className="mt-0.5 text-xs leading-snug text-app-muted">
             Zooms in and follows your face so you stay centred, like Zoom and Center Stage.
           </p>
         </div>
@@ -219,11 +220,11 @@ export function MeetingVideoEffects() {
       </div>
 
       {status === "error" && (
-        <p role="alert" className="text-[11px] text-app-danger-ink">
+        <p role="alert" className="text-xs text-app-danger-ink">
           Effects couldn&apos;t start on this device. Your camera works normally without them.
         </p>
       )}
-      <p className="text-[11px] leading-snug text-app-muted">
+      <p className="text-xs leading-snug text-app-muted">
         Everyone in the class sees the effect. Saved on this device. Effects use extra battery on
         phones and older laptops.
       </p>

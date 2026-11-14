@@ -24,7 +24,7 @@ export function ApprovalRequestSummary({
         <span className="font-semibold text-app-text">{request.actionLabel}</span>
         <ApprovalStatusBadge status={request.status} />
         {request.urgent && request.status === "PENDING" ? (
-          <Badge variant="destructive" className="gap-1">
+          <Badge variant="warning" className="gap-1">
             <AlertTriangle aria-hidden="true" className="size-3" strokeWidth={2.5} />
             Urgent
           </Badge>
