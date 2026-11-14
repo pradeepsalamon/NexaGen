@@ -1,4 +1,4 @@
-import { Controller, Get, Header, HttpCode, Post, Query, Req } from "@nestjs/common";
+import { Controller, Get, Header, HttpCode, Param, Post, Query, Req } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { API_ROUTES } from "@nexa-chess/types";
 import type { Request } from "express";
@@ -25,18 +25,40 @@ export class WhatsAppWebhookController {
     @Query("hub.verify_token") token: string | undefined,
     @Query("hub.challenge") challenge: string | undefined
   ) {
-    return this.webhooks.verifySubscription(
-      typeof mode === "string" ? mode : undefined,
-      typeof token === "string" ? token : undefined,
-      typeof challenge === "string" ? challenge : undefined
-    );
+    return this.webhooks.verifySubscription(text(mode), text(token), text(challenge));
   }
 
   @Post(API_ROUTES.whatsappWebhook)
   @HttpCode(200)
   receive(@Req() request: Request) {
-    // A parser other than express.text would hand us an object whose bytes can never verify.
-    const rawBody = typeof request.body === "string" ? request.body : "";
-    return this.webhooks.receive(rawBody, request.headers["x-hub-signature-256"]);
+    return this.webhooks.receive(rawBodyOf(request), request.headers["x-hub-signature-256"]);
   }
+
+  // Another academy's own number (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §6): the
+  // last segment names the academy; its verify token and app secret decide.
+  @Get(API_ROUTES.whatsappWebhookAcademy())
+  @Header("Content-Type", "text/plain")
+  verifyAcademy(
+    @Param("webhookKey") webhookKey: string,
+    @Query("hub.mode") mode: string | undefined,
+    @Query("hub.verify_token") token: string | undefined,
+    @Query("hub.challenge") challenge: string | undefined
+  ) {
+    return this.webhooks.verifySubscription(text(mode), text(token), text(challenge), webhookKey);
+  }
+
+  @Post(API_ROUTES.whatsappWebhookAcademy())
+  @HttpCode(200)
+  receiveAcademy(@Req() request: Request, @Param("webhookKey") webhookKey: string) {
+    return this.webhooks.receive(rawBodyOf(request), request.headers["x-hub-signature-256"], webhookKey);
+  }
+}
+
+function text(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+/** A parser other than express.text would hand us an object whose bytes can never verify. */
+function rawBodyOf(request: Request): string {
+  return typeof request.body === "string" ? request.body : "";
 }

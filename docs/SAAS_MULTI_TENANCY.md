@@ -1168,6 +1168,9 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
   `WhatsAppCredentialsService` (decrypted per academy in memory, loaded at boot, on save, and on every process every 60 s).
   `WhatsAppService.isConfigured()` and every send pick the request's academy: Nexa and work
   outside an academy use the env number; any other academy only its own, else WhatsApp is off.
+  Incoming (2026-11-14): the academy also saves its app secret and gets its own webhook URL
+  `/webhooks/whatsapp/<webhookKey>` + verify token; `phoneNumberId` is unique
+  ([WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0 "Per academy").
 - **5e (partial, 2026-11-05):** `useBrandName()` replaces "Nexa Chess" in the auth pages,
   sidebars, sign-out dialog, checkout (also the gateway's merchant name), referrals, payroll,
   class titles and acquisition analytics. Opt-in smoke test `e2e/white-label.spec.ts`

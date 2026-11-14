@@ -10,6 +10,7 @@ import { SupportConversationService } from "./support-conversation.service";
 import { SupportFollowUpService } from "./support-follow-up.service";
 import { SupportOutboxService } from "./support-outbox.service";
 import { SupportSavedRepliesService } from "./support-saved-replies.service";
+import { SupportSettingsService } from "./support-settings.service";
 import { SupportTicketsService } from "./support-tickets.service";
 import { SupportUnansweredService } from "./support-unanswered.service";
 import { WhatsAppWebhookController } from "./whatsapp-webhook.controller";
@@ -25,6 +26,7 @@ import { WhatsAppWebhookService } from "./whatsapp-webhook.service";
     SupportFollowUpService,
     SupportOutboxService,
     SupportSavedRepliesService,
+    SupportSettingsService,
     SupportTicketsService,
     SupportUnansweredService,
     WhatsAppWebhookService

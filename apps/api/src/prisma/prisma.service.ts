@@ -159,6 +159,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.supportUnansweredQuestion;
   }
 
+  get supportSettings() {
+    return this.client.supportSettings;
+  }
+
   get directEmail() {
     return this.client.directEmail;
   }

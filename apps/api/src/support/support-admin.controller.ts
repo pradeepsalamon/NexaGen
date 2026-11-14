@@ -8,23 +8,46 @@ import {
   type SupportNoteRequest,
   type SupportReplyRequest,
   type SupportSavedReplyInput,
+  updateSupportSettingsRequestSchema,
+  type UpdateSupportSettingsRequest,
   type UpdateSupportTicketRequest
 } from "@nexa-chess/types";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
+import { RequireFeature } from "../platform/require-feature.decorator";
 import { SupportAdminService } from "./support-admin.service";
 import { SupportSavedRepliesService } from "./support-saved-replies.service";
+import { SupportSettingsService } from "./support-settings.service";
 import { SupportUnansweredService } from "./support-unanswered.service";
 
-/** The WhatsApp support inbox (`/admin/support`). Admins and super admins. */
+/**
+ * The WhatsApp support inbox (`/admin/support`). Admins and super admins.
+ * Plan feature `whatsappSupport`; without it the inbox stays readable
+ * (old tickets) and the bot is off (`SupportSettingsService.forBot`).
+ */
 @Controller()
+@RequireFeature("whatsappSupport", { allowReads: true })
 export class SupportAdminController {
   constructor(
     private readonly savedReplies: SupportSavedRepliesService,
+    private readonly settings: SupportSettingsService,
     private readonly support: SupportAdminService,
     private readonly unanswered: SupportUnansweredService
   ) {}
+
+  @Get(API_ROUTES.adminSupport.settings)
+  getSettings(@Req() request: Request) {
+    return this.settings.get(this.getAccessToken(request));
+  }
+
+  @Put(API_ROUTES.adminSupport.settings)
+  updateSettings(
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(updateSupportSettingsRequestSchema)) body: UpdateSupportSettingsRequest
+  ) {
+    return this.settings.update(this.getAccessToken(request), body);
+  }
 
   private getAccessToken(request: Request) {
     return request.cookies?.[AUTH_COOKIE_NAMES.accessToken];

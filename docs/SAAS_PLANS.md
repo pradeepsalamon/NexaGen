@@ -57,6 +57,7 @@ attendance, assignments, the puzzle library, announcements, notifications.
 | `smartRevision` | `RevisionController` |
 | `tournaments` | `TournamentAdminController` (academy tournament settings); every tournament controller added by later phases (docs/TOURNAMENTS.md). Enterprise only for now |
 | `studentPayments` | payments, invoices, admin payments/invoices, manual payments (never the provider webhooks) |
+| `whatsappSupport` | `SupportAdminController` (the `/admin/support` inbox, saved answers, bot settings) — **writes only** (`allowReads`, old tickets stay readable); without it the bot doesn't answer (`SupportSettingsService.forBot`). Business + Enterprise |
 | `whiteLabel` | `PUT /admin/branding/white-label`; with it, "Powered by NexaChess" is hidden unless the academy shows it |
 
 **Rule:** a key exists in `PLAN_FEATURE_KEYS` only if some route enforces it.
