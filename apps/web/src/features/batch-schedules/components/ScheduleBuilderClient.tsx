@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { CalendarPlus, Eye, Plus, X } from "lucide-react";
 import type {
   CreateBatchScheduleRequest,

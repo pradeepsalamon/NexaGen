@@ -15,7 +15,7 @@ import {
   Wallet
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import {
   formatMoney,
   INVOICE_STATUS_LABELS,

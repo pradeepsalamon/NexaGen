@@ -2,7 +2,7 @@
 
 import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { Lock, ShieldCheck } from "lucide-react";
 import {
   BILLING_INTERVAL_LABELS,

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { describeDiagramSource, type PuzzleSummary } from "@nexa-chess/types";
 import { BookmarkPlus, MonitorPlay } from "lucide-react";
 import {

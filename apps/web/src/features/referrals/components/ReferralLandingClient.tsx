@@ -2,7 +2,7 @@
 
 import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { Crown, Gift } from "lucide-react";
 import { formatReferralPoints, type ReferralBenefitItem } from "@nexa-chess/types";
 import { recordReferralVisit } from "../api/referralApi";

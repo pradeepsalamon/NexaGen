@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import type { AssignmentAttemptStatus } from "@nexa-chess/types";
 import { CheckCircle2, Download, Play, SearchX, Timer } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";

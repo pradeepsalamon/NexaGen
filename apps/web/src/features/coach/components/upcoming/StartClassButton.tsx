@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Play, Video } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { getClassStartAvailability, type CoachClass } from "@nexa-chess/types";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { Button } from "@/components/ui/Button";

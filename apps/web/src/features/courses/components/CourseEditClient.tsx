@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { Save } from "lucide-react";
 import { FormPageShell } from "@/components/layout/FormPageShell";
 import { Badge } from "@/components/ui/Badge";

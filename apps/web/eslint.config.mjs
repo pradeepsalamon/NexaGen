@@ -49,6 +49,12 @@ export default [
               importNames: ["Chess"],
               message:
                 "Import Chess from @/lib/chess — it drops castling rights the position can't support (a stale KQkq from a set-up position would otherwise offer O-O from a mid-board king)."
+            },
+            {
+              name: "next/navigation",
+              importNames: ["useRouter"],
+              message:
+                "Import useRouter from @/lib/navigation — its push/replace also start the navigation progress bar."
             }
           ]
         }
@@ -77,7 +83,7 @@ export default [
     rules: { "no-restricted-syntax": ["error", ...DATE_RULES] }
   },
   {
-    files: ["src/lib/chess.ts"],
+    files: ["src/lib/chess.ts", "src/lib/navigation.ts"],
     rules: { "no-restricted-imports": "off" }
   }
 ];

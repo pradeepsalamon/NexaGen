@@ -9,7 +9,7 @@ import {
   isMfaChallenge,
   type MfaChallengeResponse
 } from "@nexa-chess/types";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { type FormEvent, useMemo, useState } from "react";
 import { Lock, Mail } from "lucide-react";
 import { Checkbox } from "@/components/ui/Checkbox";

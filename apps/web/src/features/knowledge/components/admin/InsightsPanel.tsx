@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { BarChart3, FilePlus2, Search, SearchX, X } from "lucide-react";
 import type { KnowledgeQueryInsight } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";

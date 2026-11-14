@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { Archive, ArchiveRestore, Copy, Eye, FolderInput, ListChecks, Pencil, Puzzle as PuzzleIcon, Send, Swords, Trash2, Undo2 } from "lucide-react";
 import {
   LIBRARY_ITEM_KIND_LABELS,

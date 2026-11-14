@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { NAVIGATION_START_EVENT } from "@/lib/navigation";
 
 type Phase = "idle" | "start" | "loading" | "done";
 
@@ -33,7 +34,8 @@ function navigationTarget(event: MouseEvent): string | null {
 /**
  * A thin gold bar at the top of the window that starts the moment an internal link is clicked and
  * finishes when the new page is on screen, so a slow connection never looks like a dead click.
- * Mounted once in `AppProviders`. Navigation started in code (`router.push`) isn't covered.
+ * Mounted once in `AppProviders`. Navigation started in code is covered when it goes through
+ * `useRouter` from `@/lib/navigation` (its `push`/`replace` fire `NAVIGATION_START_EVENT`).
  */
 export function NavigationProgress() {
   const pathname = usePathname();
@@ -56,8 +58,7 @@ export function NavigationProgress() {
   };
 
   useEffect(() => {
-    const onClick = (event: MouseEvent) => {
-      if (!navigationTarget(event)) return;
+    const start = () => {
       clearTimers();
       set("start");
       // Two frames: the bar must paint at zero width before it starts to grow.
@@ -68,9 +69,14 @@ export function NavigationProgress() {
       );
       timers.current.push(window.setTimeout(finish, SAFETY_TIMEOUT_MS));
     };
+    const onClick = (event: MouseEvent) => {
+      if (navigationTarget(event)) start();
+    };
     document.addEventListener("click", onClick, true);
+    window.addEventListener(NAVIGATION_START_EVENT, start);
     return () => {
       document.removeEventListener("click", onClick, true);
+      window.removeEventListener(NAVIGATION_START_EVENT, start);
       clearTimers();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

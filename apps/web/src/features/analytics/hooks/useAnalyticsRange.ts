@@ -1,7 +1,8 @@
 "use client";
 
 import type { AnalyticsRangeQuery } from "@nexa-chess/types";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { useCallback, useMemo } from "react";
 
 const KEYS = [

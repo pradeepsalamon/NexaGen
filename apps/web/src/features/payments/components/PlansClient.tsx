@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { Check } from "lucide-react";
 import {
   BILLING_INTERVAL_LABELS,

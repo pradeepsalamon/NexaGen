@@ -2,7 +2,8 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { useEffect, useRef } from "react";
 import { getCurrentUser } from "../features/auth/api/authApi";
 import { ApiError } from "../lib/api";
