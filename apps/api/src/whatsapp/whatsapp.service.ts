@@ -19,6 +19,7 @@ import type {
   WhatsAppApiSuccess,
   WhatsAppDocumentMessage,
   WhatsAppFailure,
+  WhatsAppInteractiveMessage,
   WhatsAppMediaUploadResult,
   WhatsAppOutboundMessage,
   WhatsAppSendOutcome,
@@ -29,6 +30,7 @@ import type {
 import {
   WHATSAPP_TEXT_BODY_LIMIT,
   buildDocumentPayload,
+  buildInteractivePayload,
   buildTemplatePayload,
   buildTextPayload,
   describeWhatsAppFailure,
@@ -109,6 +111,20 @@ export class WhatsAppService {
 
     const to = this.resolveRecipient(message.to);
     return this.send(buildTemplatePayload(message, to), to);
+  }
+
+  /** Reply buttons or a list (the support bot). Only deliverable inside the 24h window. */
+  async sendInteractive(message: WhatsAppInteractiveMessage): Promise<WhatsAppSendResult> {
+    if (!message.body?.trim()) {
+      throw new BadRequestException("WhatsApp message body is empty.");
+    }
+    const to = this.resolveRecipient(message.to);
+    return this.send(buildInteractivePayload(message, to), to);
+  }
+
+  /** Best-effort interactive send. See {@link trySendText}. */
+  async trySendInteractive(message: WhatsAppInteractiveMessage): Promise<WhatsAppSendOutcome> {
+    return this.attempt(() => this.sendInteractive(message));
   }
 
   /** Best-effort text send for paths that must not fail because WhatsApp did. */

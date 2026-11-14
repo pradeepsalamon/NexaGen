@@ -67,6 +67,17 @@ export const queryKeys = {
     coachRatings: ["feedback", "coach-ratings"] as const,
     mine: ["feedback", "mine"] as const,
   },
+  support: {
+    all: ["support"] as const,
+    list: (params: Record<string, unknown>) => ["support", "list", params] as const,
+    counts: ["support", "counts"] as const,
+    agents: ["support", "agents"] as const,
+    detail: (id: string) => ["support", "detail", id] as const,
+    messages: (id: string) => ["support", "messages", id] as const,
+    savedReplies: ["support", "saved-replies"] as const,
+    unanswered: (params: Record<string, unknown>) => ["support", "unanswered", params] as const,
+    unansweredAll: ["support", "unanswered"] as const,
+  },
   leads: {
     all: ["leads"] as const,
     list: (params?: Record<string, any>) => ["leads", "list", params ?? null] as const,

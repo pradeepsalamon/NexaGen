@@ -27,6 +27,7 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
     API_ROUTES.payments.webhookCashfree,
     API_ROUTES.payments.webhookStripe,
     API_ROUTES.platformBilling.webhookRazorpay,
+    API_ROUTES.whatsappWebhook,
     // Browsers send CSP reports without a page Origin, and with no academy.
     API_ROUTES.security.cspReport
   ];
@@ -54,6 +55,8 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
   ]) {
     app.use(path, express.text({ type: "*/*", limit: "1mb" }));
   }
+  // Meta signs the exact bytes of every WhatsApp webhook (X-Hub-Signature-256).
+  app.use(API_ROUTES.whatsappWebhook, express.text({ type: "*/*", limit: "1mb" }));
   // CSP reports arrive as application/csp-report (report-uri) or
   // application/reports+json (Reporting API), which the JSON parser skips.
   app.use(

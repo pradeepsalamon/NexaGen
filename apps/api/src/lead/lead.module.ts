@@ -12,6 +12,7 @@ import { TrashModule } from "../trash/trash.module";
 @Module({
   imports: [DemoClassModule, JwtModule.register({}), PrismaModule, MailModule, ReferralModule, TrashModule, WhatsAppModule],
   controllers: [LeadController],
-  providers: [LeadService]
+  providers: [LeadService],
+  exports: [LeadService]
 })
 export class LeadModule {}

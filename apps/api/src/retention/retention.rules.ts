@@ -44,6 +44,21 @@ export const RETENTION_RULES: readonly FixedRetentionRuleDef[] = [
     table: "live_class_transcript_segments"
   },
   { column: "createdAt", days: 365, label: "Emails sent by staff", table: "direct_emails" },
+  // WhatsApp support (docs/WHATSAPP_SUPPORT.md §9): the raw webhook items only
+  // matter while Meta may still retry them; a conversation (with its transcript
+  // and tickets, by cascade) goes 12 months after it closed, unless a ticket on
+  // it is still unresolved. Open ones stay.
+  { column: "receivedAt", days: 30, label: "WhatsApp webhook events", table: "whatsapp_webhook_events" },
+  // Parents' questions the bot couldn't answer (free text, redacted): only the
+  // recent ones tell admins which saved answers to write.
+  { column: "lastAskedAt", days: 90, label: "WhatsApp questions the bot couldn't answer", table: "support_unanswered_questions" },
+  {
+    column: "closedAt",
+    days: 365,
+    label: "Closed WhatsApp support conversations (transcripts and tickets)",
+    table: "support_conversations",
+    where: `t."status" = 'CLOSED' AND NOT EXISTS (SELECT 1 FROM "support_tickets" st WHERE st."conversationId" = t."id" AND st."status" <> 'RESOLVED')`
+  },
   // One row per referral-link hit; the referral itself (and its stage history)
   // stays, so only the raw visit counts age out.
   { column: "createdAt", days: 365, label: "Referral link visits", table: "referral_visits" },

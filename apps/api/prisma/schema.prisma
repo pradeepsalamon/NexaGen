@@ -273,7 +273,7 @@ model User {
 
   isEmailVerified Boolean @default(false)
 
-  emailVerifiedAt     DateTime?
+  emailVerifiedAt           DateTime?
   // Set = this person turned off messaging-rule ("notification") emails; system emails
   // (password reset, verification, invoices) still send. docs/MESSAGING.md "Email channel".
   notificationEmailOptOutAt DateTime?
@@ -281,18 +281,18 @@ model User {
   emailUnsubscribeToken     String?   @unique
   // Self-registration's Terms of Service + Privacy Policy checkbox: when it was ticked and which
   // version (`LEGAL_TERMS_VERSION`). Null for accounts an admin created or made before it existed.
-  termsAcceptedAt     DateTime?
-  termsVersion        String?
-  lastLoginAt         DateTime?
+  termsAcceptedAt           DateTime?
+  termsVersion              String?
+  lastLoginAt               DateTime?
   // Wrong passwords since the last sign-in; the Nth sets loginLockedUntil.
-  failedLoginAttempts Int       @default(0)
-  loginLockedUntil    DateTime?
+  failedLoginAttempts       Int       @default(0)
+  loginLockedUntil          DateTime?
   // Throttled recency signal (updated at most once / 10 min by ActivityTrackingInterceptor).
   // Null = never seen since the feature shipped; analytics treats it as "unknown", not inactive.
-  lastActiveAt        DateTime?
+  lastActiveAt              DateTime?
   // In-app presence: bumped by the web app's /presence/heartbeat (~15s) while
   // any tab is open. "Online" = seen within the last minute.
-  lastSeenAt          DateTime?
+  lastSeenAt                DateTime?
 
   // ── Acquisition attribution (captured at registration; see analytics module) ──
   acquisitionSource AcquisitionSource @default(UNKNOWN)
@@ -312,6 +312,11 @@ model User {
   coachProfile                    CoachProfile?                    @relation("UserCoachProfile")
   approvedCoaches                 CoachProfile[]                   @relation("CoachApprovedBy")
   createdBatches                  Batch[]                          @relation("BatchCreatedBy")
+  assignedSupportTickets          SupportTicket[]                  @relation("SupportTicketAssignee")
+  supportTicketEvents             SupportTicketEvent[]             @relation("SupportTicketEventActor")
+  sentSupportMessages             SupportMessage[]                 @relation("SupportMessageSender")
+  updatedSupportSavedReplies      SupportSavedReply[]              @relation("SupportSavedReplyUpdatedBy")
+  dismissedSupportQuestions       SupportUnansweredQuestion[]      @relation("SupportUnansweredDismissedBy")
   coachedBatches                  BatchCoach[]                     @relation("BatchCoaches")
   studentBatches                  BatchStudent[]                   @relation("BatchStudents")
   classes                         CoachClass[]                     @relation("ClassCoach")
@@ -1288,6 +1293,8 @@ model Lead {
   notes             LeadNote[]
   demoRegistrations DemoClassRegistration[]
   referral          Referral?
+  /// WhatsApp support tickets for this lead (a demo booked through the bot).
+  supportTickets    SupportTicket[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8493,4 +8500,288 @@ model TournamentCertificate {
   @@unique([tenantId, serialNumber])
   @@index([userId])
   @@map("tournament_certificates")
+}
+
+//
+// WHATSAPP SUPPORT BOT (docs/WHATSAPP_SUPPORT.md)
+//
+
+enum SupportConversationStatus {
+  BOT
+  WAITING_AGENT
+  AGENT
+  CLOSED
+}
+
+enum SupportMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum SupportMessageAuthor {
+  CUSTOMER
+  BOT
+  AGENT
+}
+
+enum SupportMessageStatus {
+  RECEIVED
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum SupportCategory {
+  COURSE
+  REFUND
+  CLASS
+  PAYMENT
+  TECH
+  OTHER
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum SupportTicketEventKind {
+  CREATED
+  ASSIGNED
+  STATUS_CHANGED
+  NOTE
+  HANDOFF
+  TAKEN_OVER
+  RETURNED_TO_BOT
+}
+
+/// One incoming WhatsApp webhook item (a message, or a status update for one we
+/// sent). Written before the 200 so Meta's retries collide on `dedupeKey`
+/// (`msg:<wamid>` / `status:<wamid>:<status>`), then processed after the
+/// response under a `claimedAt` lease. Message text is redacted before insert;
+/// the raw payload is never stored. Kept 30 days (RETENTION_RULES).
+model WhatsAppWebhookEvent {
+  id                String    @id @default(cuid())
+  tenantId          String    @default("tenant_nexa")
+  dedupeKey         String    @unique
+  /// "message" | "status"
+  kind              String
+  /// The customer's WhatsApp id (digits with country code).
+  waId              String
+  /// wamid of the message (ours, for a status).
+  providerMessageId String
+  /// text | interactive | button | image | audio | … (messages only)
+  messageType       String?
+  /// Redacted text, or the tapped option's title.
+  text              String?
+  /// Id of the tapped reply button / list row.
+  replyId           String?
+  /// sent | delivered | read | failed (statuses only)
+  status            String?
+  statusError       String?
+  profileName       String?
+  occurredAt        DateTime
+  receivedAt        DateTime  @default(now())
+  claimedAt         DateTime?
+  processedAt       DateTime?
+  /// Recorded but deliberately not acted on (bot off, number not on the allowlist).
+  ignoredAt         DateTime?
+  attempts          Int       @default(0)
+  error             String?
+
+  @@index([processedAt, ignoredAt, receivedAt])
+  @@index([receivedAt])
+  @@map("whatsapp_webhook_events")
+}
+
+/// A WhatsApp number that messaged the academy. Not an account: WhatsApp proves
+/// control of the number, not who the student is (docs/WHATSAPP_SUPPORT.md §9).
+model WhatsAppContact {
+  id            String    @id @default(cuid())
+  tenantId      String    @default("tenant_nexa")
+  waId          String
+  profileName   String?
+  /// Starts the 24-hour customer-service window.
+  lastInboundAt DateTime?
+  /// "STOP": no proactive WhatsApp (rules, system messages). Support replies still go.
+  optedOutAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  conversations SupportConversation[]
+  tickets       SupportTicket[]
+
+  @@unique([tenantId, waId])
+  @@map("whatsapp_contacts")
+}
+
+/// One support conversation with a contact. At most one is not CLOSED per
+/// contact (partial unique index in the migration).
+model SupportConversation {
+  id            String                    @id @default(cuid())
+  tenantId      String                    @default("tenant_nexa")
+  contactId     String
+  contact       WhatsAppContact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  /// A SupportFlowState (@nexa-chess/types support-flows.ts).
+  state         String                    @default("START")
+  flowVersion   Int                       @default(1)
+  /// SupportDraft: what the bot has collected so far.
+  draft         Json                      @default("{}")
+  status        SupportConversationStatus @default(BOT)
+  lastInboundAt DateTime?
+  /// When the bot sent its one follow-up to a parent who asked about classes but didn't book.
+  nudgedAt      DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  messages SupportMessage[]
+  tickets  SupportTicket[]
+
+  @@index([contactId, status])
+  @@index([status, lastInboundAt])
+  @@map("support_conversations")
+}
+
+/// The transcript: every message in and out. An outgoing row is written PENDING
+/// before the send and carries `clientKey` so a retry never sends twice.
+model SupportMessage {
+  id                String                  @id @default(cuid())
+  tenantId          String                  @default("tenant_nexa")
+  conversationId    String
+  conversation      SupportConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction         SupportMessageDirection
+  author            SupportMessageAuthor
+  /// Redacted plain text (an interactive message is flattened for the transcript).
+  body              String
+  /// The interactive payload to send (SupportReply), outgoing bot messages only.
+  payload           Json?
+  /// Id of the tapped option, incoming only.
+  interactiveId     String?
+  /// wamid; null until Meta accepts an outgoing message.
+  providerMessageId String?                 @unique
+  /// Local idempotency key of an outgoing message.
+  clientKey         String?                 @unique
+  status            SupportMessageStatus
+  attempts          Int                     @default(0)
+  nextAttemptAt     DateTime?
+  claimedAt         DateTime?
+  error             String?
+  sentById          String?
+  sentBy            User?                   @relation("SupportMessageSender", fields: [sentById], references: [id], onDelete: SetNull)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+  @@map("support_messages")
+}
+
+/// A request for staff: created by the bot (form finished or hand-off). The
+/// reference (NXS-2026-000123) comes from the support_ticket_reference_seq sequence.
+model SupportTicket {
+  id             String              @id @default(cuid())
+  tenantId       String              @default("tenant_nexa")
+  reference      String              @unique
+  contactId      String
+  contact        WhatsAppContact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  category       SupportCategory
+  status         SupportTicketStatus @default(OPEN)
+  /// The customer asked for a person instead of finishing a form.
+  handoff        Boolean             @default(false)
+  studentName    String?
+  /// What the customer wrote (redacted).
+  details        String?
+  /// tenant + contact + category + 7-day window: a repeat within a week shows the same reference.
+  dedupeKey      String              @unique
+  assignedToId   String?
+  assignedTo     User?               @relation("SupportTicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  /// The lead a free-demo booking created or matched.
+  leadId         String?
+  lead           Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  /// Staff reminders sent while nobody had replied (support-follow-up.service.ts).
+  remindersSent  Int                 @default(0)
+  lastReminderAt DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  events SupportTicketEvent[]
+
+  @@index([status, updatedAt])
+  @@index([contactId, createdAt])
+  @@index([assignedToId, status])
+  @@index([leadId])
+  @@index([status, createdAt])
+  @@map("support_tickets")
+}
+
+/// Append-only ticket history: creation, assignment, status, notes, hand-offs.
+model SupportTicketEvent {
+  id        String                 @id @default(cuid())
+  tenantId  String                 @default("tenant_nexa")
+  ticketId  String
+  ticket    SupportTicket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  kind      SupportTicketEventKind
+  body      String?
+  actorId   String?
+  actor     User?                  @relation("SupportTicketEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt DateTime               @default(now())
+
+  @@index([ticketId, createdAt])
+  @@map("support_ticket_events")
+}
+
+/// An answer admins write once (fees, timings, levels…). The bot sends it when
+/// a customer taps it or types one of its keywords (`showInBot`), and staff
+/// insert it into their replies (docs/WHATSAPP_SUPPORT.md §0).
+model SupportSavedReply {
+  id          String   @id @default(cuid())
+  tenantId    String   @default("tenant_nexa")
+  /// The list-row title on WhatsApp (24 characters at most).
+  title       String
+  /// The list-row description (72 characters at most).
+  description String?
+  body        String
+  /// Lower-cased words or phrases that pick this answer from a typed question.
+  keywords    String[] @default([])
+  showInBot   Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  updatedById String?
+  updatedBy   User?    @relation("SupportSavedReplyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, sortOrder])
+  @@map("support_saved_replies")
+}
+
+/// A question the WhatsApp bot couldn't answer from the saved answers, so
+/// admins can see what to add (docs/WHATSAPP_SUPPORT.md §0). Repeats of the
+/// same wording count on one row. No contact is stored: only the (redacted) text.
+model SupportUnansweredQuestion {
+  id            String    @id @default(cuid())
+  tenantId      String    @default("tenant_nexa")
+  /// normalizeSupportText of the question (at most 200 characters): the grouping key.
+  normalized    String
+  /// The latest wording, redacted like every stored message.
+  text          String
+  timesAsked    Int       @default(1)
+  firstAskedAt  DateTime  @default(now())
+  lastAskedAt   DateTime  @default(now())
+  /// Hidden from the list until it is asked again.
+  dismissedAt   DateTime?
+  dismissedById String?
+  dismissedBy   User?     @relation("SupportUnansweredDismissedBy", fields: [dismissedById], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, normalized])
+  @@index([tenantId, dismissedAt, timesAsked])
+  @@index([lastAskedAt])
+  @@map("support_unanswered_questions")
 }

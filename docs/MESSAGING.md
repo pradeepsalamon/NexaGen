@@ -20,7 +20,12 @@ return outcomes instead of throwing, for paths that must survive WhatsApp being
 down. **Per academy (SaaS §F):** the env number is Nexa's; another academy sends
 only from its own number (`whatsapp_settings`, `/admin/branding`), so
 `isConfigured()` answers for the request's academy and must be called inside it
-(`runInTenant` in jobs). Walkthrough below.
+(`runInTenant` in jobs). **Opt-out:** a number that replied STOP to the support
+bot (`whatsapp_contacts."optedOutAt"`) gets no rule or system-message WhatsApp
+— `WhatsAppOptOutService.isOptedOut`, checked at send time by
+`MessagingDeliveryWorker` (row `SKIPPED`) and `SystemNotifier` (channel
+`SKIPPED`). Incoming messages and the support bot: [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0.
+Walkthrough below.
 
 ## 3.6e Admin messaging rules
 

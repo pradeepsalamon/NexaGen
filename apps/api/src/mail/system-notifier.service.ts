@@ -10,6 +10,7 @@ import {
 import { UserRole, UserStatus } from "@prisma/client";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { WhatsAppOptOutService } from "../whatsapp/whatsapp-opt-out.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService, type MailAttachment } from "./mail.service";
 import { SystemMessageRenderer } from "./system-message-renderer.service";
@@ -48,7 +49,8 @@ export class SystemNotifier {
     private readonly notifications: NotificationService,
     private readonly prisma: PrismaService,
     private readonly renderer: SystemMessageRenderer,
-    private readonly whatsapp: WhatsAppService
+    private readonly whatsapp: WhatsAppService,
+    private readonly whatsappOptOut: WhatsAppOptOutService
   ) {}
 
   async send(
@@ -95,7 +97,8 @@ export class SystemNotifier {
         }
       }
 
-      if (channels.includes("WHATSAPP") && recipient.phone) {
+      // A number that replied STOP gets no proactive WhatsApp: the channel stays SKIPPED.
+      if (channels.includes("WHATSAPP") && recipient.phone && !(await this.whatsappOptOut.isOptedOut(recipient.phone))) {
         // The academy's approved template when it set one (delivers outside the 24h window),
         // else free text. One code path for every WhatsApp send: WhatsAppService.trySendMessage.
         const template = message.whatsappTemplate;
