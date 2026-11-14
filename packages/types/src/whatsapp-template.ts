@@ -111,3 +111,42 @@ export function resolveWhatsAppTemplate(
     name
   };
 }
+
+// ── Template status from WhatsApp Manager (docs/MESSAGING.md "WhatsApp templates") ──
+
+/** A template as Meta lists it for the academy's WhatsApp Business Account. */
+export interface WhatsAppTemplateInfo {
+  name: string;
+  language: string;
+  /** APPROVED, PENDING, REJECTED, PAUSED, DISABLED, … as Meta reports it. */
+  status: string;
+  /** MARKETING, UTILITY, AUTHENTICATION. */
+  category: string;
+}
+
+export interface WhatsAppTemplateListResponse {
+  /** False when the account can't be read: no WABA ID saved, or Meta refused. */
+  available: boolean;
+  reason: string | null;
+  templates: WhatsAppTemplateInfo[];
+  fetchedAt: string | null;
+}
+
+export type WhatsAppTemplateCheck =
+  | { kind: "found"; status: string; category: string }
+  | { kind: "other-language"; languages: string[] }
+  | { kind: "missing" };
+
+/** What WhatsApp Manager says about a template name + language a rule or setting uses. */
+export function checkWhatsAppTemplate(
+  templates: readonly WhatsAppTemplateInfo[],
+  name: string,
+  language: string | null | undefined
+): WhatsAppTemplateCheck {
+  const wanted = (language || DEFAULT_WHATSAPP_TEMPLATE_LANGUAGE).trim();
+  const named = templates.filter((template) => template.name === name.trim());
+  const exact = named.find((template) => template.language === wanted);
+  if (exact) return { category: exact.category, kind: "found", status: exact.status };
+  if (named.length > 0) return { kind: "other-language", languages: named.map((template) => template.language) };
+  return { kind: "missing" };
+}

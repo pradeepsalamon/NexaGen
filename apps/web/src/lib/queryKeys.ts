@@ -111,6 +111,7 @@ export const queryKeys = {
   messaging: {
     all: ["messaging"] as const,
     rules: ["messaging", "rules"] as const,
+    whatsappTemplates: ["messaging", "whatsapp-templates"] as const,
     deliveries: (params?: Record<string, unknown>) =>
       ["messaging", "deliveries", params ?? null] as const,
     announcements: ["messaging", "announcements"] as const,

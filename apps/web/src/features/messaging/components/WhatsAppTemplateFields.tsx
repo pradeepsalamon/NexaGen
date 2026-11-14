@@ -10,6 +10,7 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
+import { WhatsAppTemplateStatus } from "./WhatsAppTemplateStatus";
 
 export interface WhatsAppTemplateDraft {
   name: string;
@@ -87,6 +88,9 @@ export function WhatsAppTemplateFields({
             value={draft.language}
           />
         </FormField>
+      </div>
+      <div className="mt-2">
+        <WhatsAppTemplateStatus language={draft.language} name={draft.name} />
       </div>
       <FormField
         hint={`One per line, at most ${WHATSAPP_TEMPLATE_LIMITS.maxParams}; each may use this message's placeholders. The count must match the template's slots.`}

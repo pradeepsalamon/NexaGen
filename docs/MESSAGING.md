@@ -261,6 +261,14 @@ sent as before. Saved as `whatsappTemplateName` / `whatsappTemplateLanguage` /
   error>`) in the delivery log / `SystemNotifier` result and the API log.
 - Editor: `features/messaging/components/WhatsAppTemplateFields.tsx`, shared by both
   editors, with a preview of each slot's value.
+- **Status from WhatsApp Manager** (2026-11-14): `GET /admin/whatsapp/templates`
+  (admins; `WhatsAppTemplatesService`, cached 5 minutes per academy, `?refresh=1`
+  bypasses) lists the academy's templates from its WhatsApp Business Account
+  (Nexa: `WHATSAPP_BUSINESS_ACCOUNT_ID`; another academy: the WABA ID under
+  Branding → WhatsApp). `WhatsAppTemplateStatus` shows Approved / Pending /
+  Rejected beside every template-name field, or says the name or language isn't
+  there (`checkWhatsAppTemplate`). Read-only: templates are still created in
+  WhatsApp Manager, and a send never waits on this list.
 
 ## Email channel
 

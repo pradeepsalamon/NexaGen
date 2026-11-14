@@ -29,6 +29,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { TimePicker } from "@/components/ui/TimePicker";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { getTimezoneOptions } from "@/features/auth/components/profile-form/profileForm.utils";
+import { WhatsAppTemplateStatus } from "@/features/messaging/components/WhatsAppTemplateStatus";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import { useAuthStore } from "@/stores/authStore";
@@ -171,6 +172,8 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
   const days = useWatch({ control, name: "days" });
   const timezone = useWatch({ control, name: "timezone" });
   const zoneOptions = useMemo(() => getTimezoneOptions(timezone), [timezone]);
+  const templateName = useWatch({ control, name: "agentReplyTemplate" });
+  const templateLanguage = useWatch({ control, name: "agentReplyTemplateLanguage" });
 
   return (
     <form
@@ -332,6 +335,9 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
           <FormField error={errors.agentReplyTemplateLanguage?.message} id="support-template-language" label="Template language" required>
             <Input autoComplete="off" id="support-template-language" placeholder="en" {...register("agentReplyTemplateLanguage")} />
           </FormField>
+        </div>
+        <div className="mt-2">
+          <WhatsAppTemplateStatus language={templateLanguage} name={templateName} />
         </div>
       </SectionCard>
 

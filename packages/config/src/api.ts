@@ -179,6 +179,8 @@ const apiEnvSchema = z.object({
     .optional()
     .or(z.literal("").transform(() => undefined)),
   WHATSAPP_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+  // Nexa's WhatsApp Business Account id: reads template status (other academies save theirs under Branding).
+  WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   // Incoming WhatsApp: the support bot (docs/WHATSAPP_SUPPORT.md). The webhook
   // checks X-Hub-Signature-256 with the Meta app secret; the verify token
   // answers Meta's subscription handshake.

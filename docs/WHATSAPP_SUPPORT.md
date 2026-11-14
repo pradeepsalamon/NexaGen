@@ -136,6 +136,8 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   replied STOP keeps a bare row (number + opt-out) so automatic messages stay
   off. A lead made from it stays (a CRM record; delete it from Leads). Each
   erasure is logged in `support_contact_erasures` (who, when, counts; no personal data).
+- *Template status* (Phase C): the reply-template field on the settings page
+  shows whether WhatsApp Manager approved it ([MESSAGING.md](MESSAGING.md) "WhatsApp templates").
 - *Delivery status for rules and system messages* (Phase C): a status webhook
   for a `message_deliveries` row sets `deliveredAt` / `readAt` (read implies
   delivered), and a late `failed` marks it FAILED with Meta's reason. The

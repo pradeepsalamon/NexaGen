@@ -912,6 +912,8 @@ export const API_ROUTES = {
     adjustCredits: "/admin/referrals/credits/adjust",
     settings: "/admin/referrals/settings"
   },
+  /** The academy's message templates as WhatsApp Manager lists them (admins; read-only). */
+  whatsappTemplates: "/admin/whatsapp/templates",
   /** Meta's WhatsApp Cloud API callbacks (GET = subscription handshake, POST = events). */
   whatsappWebhook: "/webhooks/whatsapp",
   /** Another academy's own number (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §6): the key names the academy, its app secret signs. */
