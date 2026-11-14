@@ -104,6 +104,18 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   bot off whatever was saved.
 - *Follow-ups* run academy by academy (`forEachTenant`) with each academy's
   minutes and hours.
+- *Team hours* (Phase C, D12): optional weekly hours in the academy's time zone
+  (`hours` = `{ timezone, days: [{ day, open, close }] }`, one window per day;
+  null = 24/7). `supportHoursOpen` (`@nexa-chess/types` `support-hours.ts`) is
+  the one rule; an unknown zone counts as open. Outside hours the bot still
+  answers, and a message that hands the conversation to staff also gets the
+  academy's `outOfHoursMessage` (default: "Our team is away right now…", never
+  a time it didn't write), once per hand-off. Staff reminders wait until
+  opening time.
+- *Delivery status for rules and system messages* (Phase C): a status webhook
+  for a `message_deliveries` row sets `deliveredAt` / `readAt` (read implies
+  delivered), and a late `failed` marks it FAILED with Meta's reason. The
+  delivery log shows DELIVERED / READ.
 
 **Consent.** `STOP` sets `WhatsAppContact.optedOutAt`; messaging rules and
 system messages then skip that number (`SKIPPED`, checked at send time, so
@@ -170,12 +182,10 @@ version 2).** Owner's priority: answer leads at once and follow up quickly.
   still starts the booking.
 
 **Not built / known gaps.** No account linking or account-aware answers, no
-Frappe push (Phase 3); no AI (Phase 4); no out-of-hours reply (§12 item 8), so
-reminders also fire at night. No
+Frappe push (Phase 3); no AI (Phase 4). No
 privacy-export section and no erase action for a WhatsApp contact: contacts are
 not accounts, and a phone number is not proof of identity (§9), so an erasure
-request is handled by hand for now (docs/BACKLOG.md). Message status updates
-don't reach `message_deliveries` rows. No nginx IP limit on the webhook yet.
+request is handled by hand for now (docs/BACKLOG.md). No nginx IP limit on the webhook yet.
 
 **Before switching it on** (owner): Meta app secret + verify token; webhook
 URL `https://api.nexachess.in/webhooks/whatsapp` subscribed to `messages`;

@@ -1,9 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
+  DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE,
   SUPPORT_FLOW_STATES,
   SUPPORT_FLOW_VERSION,
   SUPPORT_TICKET_REFERENCE_PLACEHOLDER,
+  supportHoursOpen,
   supportReplyText,
   transitionSupport,
   type SupportBotAnswer,
@@ -11,11 +13,12 @@ import {
   type SupportFlowState,
   type SupportInput
 } from "@nexa-chess/types";
-import { Prisma, type Lead, type SupportConversation, type SupportTicket, type WhatsAppContact, type WhatsAppWebhookEvent } from "@prisma/client";
+import { MessageChannel, MessageDeliveryStatus, Prisma, type Lead, type SupportConversation, type SupportTicket, type WhatsAppContact, type WhatsAppWebhookEvent } from "@prisma/client";
 import { LeadService } from "../lead/lead.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 import { SupportOutboxService } from "./support-outbox.service";
+import { SupportSettingsService } from "./support-settings.service";
 import { SupportTicketsService } from "./support-tickets.service";
 import { SupportUnansweredService } from "./support-unanswered.service";
 
@@ -56,6 +59,7 @@ export class SupportConversationService {
     private readonly leads: LeadService,
     private readonly outbox: SupportOutboxService,
     private readonly prisma: PrismaService,
+    private readonly settings: SupportSettingsService,
     private readonly tickets: SupportTicketsService,
     private readonly unanswered: SupportUnansweredService
   ) {}
@@ -76,6 +80,7 @@ export class SupportConversationService {
     const tenantId = requireTenantId("whatsapp contact");
     const academy = await this.prisma.tenant.findUnique({ select: { name: true }, where: { id: tenantId } });
     const answers = await this.botAnswers();
+    const settings = await this.settings.current();
     const contact = await this.prisma.whatsAppContact.upsert({
       create: { lastInboundAt: event.occurredAt, profileName: event.profileName, waId: event.waId },
       update: {
@@ -178,8 +183,14 @@ export class SupportConversationService {
         where: { id: conversation.id }
       });
 
+      // Handed to staff by this message while the team is away: say so, in the
+      // academy's own words (docs/WHATSAPP_SUPPORT_MODES_PLAN.md D12).
+      const replies =
+        next.status === "WAITING_AGENT" && conversation.status !== "WAITING_AGENT" && !supportHoursOpen(settings.hours, now)
+          ? [...next.replies, { body: settings.outOfHoursMessage ?? DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE, kind: "text" as const }]
+          : next.replies;
       const reference = ticket?.reference ?? "";
-      for (const [index, reply] of next.replies.entries()) {
+      for (const [index, reply] of replies.entries()) {
         const filled = fillReference(reply, reference);
         await tx.supportMessage.create({
           data: {
@@ -207,11 +218,19 @@ export class SupportConversationService {
     else if (outcome.announce && outcome.ticket) await this.tickets.announce(outcome.ticket, contact);
   }
 
-  /** A delivery update for one of our messages: only ever moves forward (FAILED always wins). */
+  /**
+   * A delivery update for one of our messages: only ever moves forward (FAILED
+   * always wins). Not a support message: a messaging-rule or system message
+   * (`message_deliveries`), which gets the same news.
+   */
   async handleStatus(event: WhatsAppWebhookEvent): Promise<void> {
     const status = (event.status ?? "").toUpperCase();
     const message = await this.prisma.supportMessage.findUnique({ where: { providerMessageId: event.providerMessageId } });
-    if (!message || message.direction !== "OUTBOUND") return;
+    if (!message) {
+      await this.recordDeliveryStatus(event.providerMessageId, status, event.statusError, event.occurredAt);
+      return;
+    }
+    if (message.direction !== "OUTBOUND") return;
 
     if (status === "FAILED") {
       await this.prisma.supportMessage.update({
@@ -226,6 +245,22 @@ export class SupportConversationService {
       data: { status: status as "DELIVERED" | "READ" | "SENT" },
       where: { id: message.id }
     });
+  }
+
+  /** A status for a `message_deliveries` row (rules, announcements): read implies delivered; a late failure marks it FAILED. */
+  private async recordDeliveryStatus(providerMessageId: string, status: string, error: string | null, at: Date): Promise<void> {
+    const where = { channel: MessageChannel.WHATSAPP, providerMessageId, status: MessageDeliveryStatus.SENT };
+    if (status === "FAILED") {
+      await this.prisma.messageDelivery.updateMany({
+        data: { error: `WhatsApp couldn't deliver it: ${error ?? "no reason given"}`.slice(0, 500), status: MessageDeliveryStatus.FAILED },
+        where
+      });
+    } else if (status === "DELIVERED") {
+      await this.prisma.messageDelivery.updateMany({ data: { deliveredAt: at }, where: { ...where, deliveredAt: null } });
+    } else if (status === "READ") {
+      await this.prisma.messageDelivery.updateMany({ data: { deliveredAt: at }, where: { ...where, deliveredAt: null } });
+      await this.prisma.messageDelivery.updateMany({ data: { readAt: at }, where: { ...where, readAt: null } });
+    }
   }
 
   /**

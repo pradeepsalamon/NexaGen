@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SUPPORT_OUT_OF_HOURS_MAX, supportHoursSchema, type SupportHours } from "./support-hours";
 import {
   SUPPORT_CATEGORIES,
   SUPPORT_CONVERSATION_STATUSES,
@@ -257,7 +258,11 @@ export const updateSupportSettingsRequestSchema = z.object({
   agentReplyTemplateLanguage: z
     .string()
     .trim()
-    .regex(/^[a-z]{2,3}(_[A-Z]{2})?$/, "A language code such as en or en_US.")
+    .regex(/^[a-z]{2,3}(_[A-Z]{2})?$/, "A language code such as en or en_US."),
+  /** null = the team answers any time (24/7). */
+  hours: supportHoursSchema.nullable(),
+  /** Sent after a hand-off outside hours; empty = DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE. */
+  outOfHoursMessage: z.string().trim().max(SUPPORT_OUT_OF_HOURS_MAX)
 });
 export type UpdateSupportSettingsRequest = z.infer<typeof updateSupportSettingsRequestSchema>;
 
@@ -271,6 +276,10 @@ export interface SupportSettingsValues {
   /** null = none. */
   agentReplyTemplate: string | null;
   agentReplyTemplateLanguage: string;
+  /** null = 24/7. */
+  hours: SupportHours | null;
+  /** null = the default out-of-hours message. */
+  outOfHoursMessage: string | null;
 }
 
 export interface SupportSettingsResponse extends SupportSettingsValues {

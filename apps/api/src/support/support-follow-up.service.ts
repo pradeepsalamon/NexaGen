@@ -4,6 +4,7 @@ import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
   DEFAULT_TENANT_ID,
   SUPPORT_CATEGORY_LABELS,
+  supportHoursOpen,
   supportNudgeMessage,
   supportReplyText,
   type SupportFlowState
@@ -109,7 +110,10 @@ export class SupportFollowUpService {
   async remindStaff(now: Date): Promise<number> {
     let sent = 0;
     await forEachTenant(this.prisma, "job:support.staff-reminders", async () => {
-      sent += await this.remindStaffInAcademy(now, (await this.settings.current()).staffReminderMinutes);
+      const settings = await this.settings.current();
+      // Outside the academy's hours reminders wait; the first one goes at opening time.
+      if (!supportHoursOpen(settings.hours, now)) return;
+      sent += await this.remindStaffInAcademy(now, settings.staffReminderMinutes);
     });
     return sent;
   }

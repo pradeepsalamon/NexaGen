@@ -234,6 +234,26 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
     await say(textFrom(ALLOWED_NUMBER, "STOP"));
     const contact = await db(() => t.prisma.whatsAppContact.findFirstOrThrow({ where: { waId: ALLOWED_NUMBER } }));
     expect(contact.optedOutAt).not.toBeNull();
+
+    // A messaging-rule message gets the same news: read implies delivered, a late failure marks it FAILED.
+    const delivery = (providerMessageId: string) =>
+      db(() =>
+        t.prisma.messageDelivery.create({
+          data: { body: "Class at 5", channel: "WHATSAPP", event: "ANNOUNCEMENT", providerMessageId, recipientPhone: ALLOWED_NUMBER, status: "SENT" }
+        })
+      );
+    const ruleStatus = (providerMessageId: string, state: string) =>
+      status(state).replace(String(out.providerMessageId), providerMessageId);
+    const read = await delivery("wamid.rule.read");
+    const failed = await delivery("wamid.rule.failed");
+    await say(ruleStatus("wamid.rule.read", "read"));
+    await say(ruleStatus("wamid.rule.failed", "failed"));
+    const [readRow, failedRow] = await db(() =>
+      Promise.all([read, failed].map((row) => t.prisma.messageDelivery.findUniqueOrThrow({ where: { id: row.id } })))
+    );
+    expect([readRow.status, Boolean(readRow.deliveredAt), Boolean(readRow.readAt)]).toEqual(["SENT", true, true]);
+    expect(failedRow.status).toBe("FAILED");
+    expect(failedRow.error).toMatch(/^WhatsApp couldn't deliver it/);
   });
 
   describe("staff inbox", () => {
@@ -482,6 +502,37 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       await db(() => t.prisma.supportTicket.update({ data: { remindersSent: 0 }, where: { id: ticket.id } }));
       await t.call(admin, "POST", API_ROUTES.adminSupport.reply(ticket.id), { body: "Hello!" });
       expect(await followUps.remindStaff(new Date(Date.now() + 16 * 60_000))).toBe(0);
+    });
+
+    it("outside the team's hours: the academy's away message after a hand-off, reminders wait", async () => {
+      const followUps = t.app.get(SupportFollowUpService);
+      // No open day at all: always outside hours, whatever time the suite runs.
+      const settings = {
+        agentReplyTemplate: "",
+        agentReplyTemplateLanguage: "en",
+        botEnabled: true,
+        hours: { days: [], timezone: "Asia/Kolkata" },
+        leadNudgeHours: 20,
+        outOfHoursMessage: "We're back on Monday at 9.",
+        staffReminderMinutes: 15,
+        testNumbers: [ALLOWED_NUMBER]
+      };
+      expect((await t.call(admin, "PUT", API_ROUTES.adminSupport.settings, settings)).status).toBe(200);
+      await say(textFrom(ALLOWED_NUMBER, "hi"));
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "agent"));
+      expect(sent.at(-1)?.body).toBe("We're back on Monday at 9.");
+
+      // Said once, at the hand-off: another message while waiting gets nothing.
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "hello?"));
+      expect(sent).toEqual([]);
+      expect(await followUps.remindStaff(new Date(Date.now() + 16 * 60_000))).toBe(0);
+
+      // Open every day, all day: the waiting reminder goes.
+      const allDay = [0, 1, 2, 3, 4, 5, 6].map((day) => ({ close: "23:59", day, open: "00:00" }));
+      await t.call(admin, "PUT", API_ROUTES.adminSupport.settings, { ...settings, hours: { days: allDay, timezone: "Asia/Kolkata" } });
+      expect(await followUps.remindStaff(new Date(Date.now() + 16 * 60_000))).toBe(1);
     });
 
     it("nudges a quiet course enquiry once, inside the reply window, and never after STOP", async () => {

@@ -3443,6 +3443,9 @@ model MessageDelivery {
   /// Provider handle ("wamid.…") for a delivered WhatsApp message.
   providerMessageId String?
   error             String?
+  /// WhatsApp status webhooks (docs/WHATSAPP_SUPPORT.md §0): reached the phone / opened.
+  deliveredAt       DateTime?
+  readAt            DateTime?
 
   /// Idempotency key so a scheduler never double-sends. Null = always insert.
   dedupeKey String?
@@ -8586,6 +8589,10 @@ model SupportSettings {
   /// Approved template for staff replies after the 24-hour window; null = such replies are refused.
   agentReplyTemplate         String?
   agentReplyTemplateLanguage String   @default("en")
+  /// SupportHours ({ timezone, days: [{ day, open, close }] }); null = the team answers any time.
+  hours                      Json?
+  /// Sent after a hand-off outside hours; null = DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE.
+  outOfHoursMessage          String?
   updatedById                String?
   updatedBy                  User?    @relation("SupportSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt                  DateTime @default(now())

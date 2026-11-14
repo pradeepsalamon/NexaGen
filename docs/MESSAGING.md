@@ -24,7 +24,9 @@ only from its own number (`whatsapp_settings`, `/admin/branding`), so
 bot (`whatsapp_contacts."optedOutAt"`) gets no rule or system-message WhatsApp
 — `WhatsAppOptOutService.isOptedOut`, checked at send time by
 `MessagingDeliveryWorker` (row `SKIPPED`) and `SystemNotifier` (channel
-`SKIPPED`). Incoming messages and the support bot: [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0.
+`SKIPPED`). Meta's status webhooks fill `message_deliveries."deliveredAt"` /
+`"readAt"` and turn a late failure into FAILED (once the webhook is set up; the
+log shows DELIVERED / READ). Incoming messages and the support bot: [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0.
 Walkthrough below.
 
 ## 3.6e Admin messaging rules

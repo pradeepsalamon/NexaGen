@@ -126,7 +126,7 @@ time to first reply, handoff rate); a health view for the integration.
 | G3 | ~~`phoneNumberId` not unique.~~ **Fixed in Phase B** (unique index + 409, Nexa's env number refused) | — | — |
 | G4 | ~~Bot settings are server env.~~ **Fixed in Phase B** (`SupportSettings`; env = Nexa's defaults until saved; session timeout stays server-wide) | — | — |
 | G5 | Staging shares production's WhatsApp number and token (checked by hash 2026-11-14) | High: dev could answer real customers | Phase A (owner) |
-| G6 | No out-of-hours behaviour; reminders at night | Low–medium | Phase C |
+| G6 | ~~No out-of-hours behaviour.~~ **Fixed in Phase C** (team hours, away message, reminders wait) | — | — |
 | G7 | Contacts can't be exported or erased (not accounts) | Compliance (DPDP) | Phase C |
 | G8 | Demo booking takes a free-text time instead of a real slot | Product | Phase C |
 | G9 | An external helpdesk and Nexa both replying on one number (if both have a token or a bot) | High in External/Hybrid | §5 rules + D4, D10 |

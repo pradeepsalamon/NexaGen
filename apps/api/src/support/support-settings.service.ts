@@ -3,11 +3,14 @@ import { JwtService } from "@nestjs/jwt";
 import { type ApiEnv, getApiEnv } from "@nexa-chess/config/api";
 import {
   DEFAULT_TENANT_ID,
+  isKnownTimeZone,
+  supportHoursSchema,
+  type SupportHours,
   type SupportSettingsResponse,
   type SupportSettingsValues,
   type UpdateSupportSettingsRequest
 } from "@nexa-chess/types";
-import { type SupportSettings, UserRole } from "@prisma/client";
+import { Prisma, type SupportSettings, UserRole } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
 import { EntitlementService } from "../platform/entitlement.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -43,7 +46,14 @@ function parseNumbers(raw: string | undefined, countryCode: string | undefined):
 export function resolveSupportSettings(
   row: Pick<
     SupportSettings,
-    "agentReplyTemplate" | "agentReplyTemplateLanguage" | "botEnabled" | "leadNudgeHours" | "staffReminderMinutes" | "testNumbers"
+    | "agentReplyTemplate"
+    | "agentReplyTemplateLanguage"
+    | "botEnabled"
+    | "hours"
+    | "leadNudgeHours"
+    | "outOfHoursMessage"
+    | "staffReminderMinutes"
+    | "testNumbers"
   > | null,
   tenantId: string,
   env: ServerDefaults
@@ -53,7 +63,9 @@ export function resolveSupportSettings(
       agentReplyTemplate: row.agentReplyTemplate,
       agentReplyTemplateLanguage: row.agentReplyTemplateLanguage,
       botEnabled: row.botEnabled,
+      hours: storedHours(row.hours),
       leadNudgeHours: row.leadNudgeHours,
+      outOfHoursMessage: row.outOfHoursMessage,
       source: "ACADEMY",
       staffReminderMinutes: row.staffReminderMinutes,
       testNumbers: row.testNumbers
@@ -64,7 +76,9 @@ export function resolveSupportSettings(
       agentReplyTemplate: env.SUPPORT_AGENT_REPLY_TEMPLATE || null,
       agentReplyTemplateLanguage: env.SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE,
       botEnabled: env.SUPPORT_BOT_ENABLED,
+      hours: null,
       leadNudgeHours: env.SUPPORT_LEAD_NUDGE_HOURS,
+      outOfHoursMessage: null,
       source: "SERVER",
       staffReminderMinutes: env.SUPPORT_STAFF_REMINDER_MINUTES,
       testNumbers: parseNumbers(env.SUPPORT_TEST_NUMBERS_ALLOWLIST, env.WHATSAPP_DEFAULT_COUNTRY_CODE)
@@ -74,11 +88,19 @@ export function resolveSupportSettings(
     agentReplyTemplate: null,
     agentReplyTemplateLanguage: "en",
     botEnabled: false,
+    hours: null,
     leadNudgeHours: 20,
+    outOfHoursMessage: null,
     source: "ACADEMY",
     staffReminderMinutes: 15,
     testNumbers: []
   };
+}
+
+/** The stored hours, or null (24/7) when the column is empty or unreadable. */
+function storedHours(value: unknown): SupportHours | null {
+  const parsed = supportHoursSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 /** Whether the bot may act on (or write first to) this number: switched on, and on the test list while one is set. */
@@ -133,11 +155,16 @@ export class SupportSettingsService {
       if (!number) throw new BadRequestException(`"${raw.slice(0, 30)}" is not a phone number. Use the full number with country code.`);
       if (!testNumbers.includes(number)) testNumbers.push(number);
     }
+    if (body.hours && !isKnownTimeZone(body.hours.timezone)) {
+      throw new BadRequestException(`"${body.hours.timezone.slice(0, 64)}" is not a time zone this server knows.`);
+    }
     const data = {
       agentReplyTemplate: body.agentReplyTemplate || null,
       agentReplyTemplateLanguage: body.agentReplyTemplateLanguage,
       botEnabled: body.botEnabled,
+      hours: body.hours ? { days: [...body.hours.days].sort((a, b) => a.day - b.day), timezone: body.hours.timezone } : Prisma.DbNull,
       leadNudgeHours: body.leadNudgeHours,
+      outOfHoursMessage: body.outOfHoursMessage || null,
       staffReminderMinutes: body.staffReminderMinutes,
       testNumbers,
       updatedById: user.id

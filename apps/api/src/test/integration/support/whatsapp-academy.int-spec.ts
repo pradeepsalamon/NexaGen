@@ -38,7 +38,9 @@ const BOT_ON: UpdateSupportSettingsRequest = {
   agentReplyTemplate: "",
   agentReplyTemplateLanguage: "en",
   botEnabled: true,
+  hours: null,
   leadNudgeHours: 20,
+  outOfHoursMessage: "",
   staffReminderMinutes: 15,
   testNumbers: []
 };
