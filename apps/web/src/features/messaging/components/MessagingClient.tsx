@@ -10,19 +10,18 @@ import { SystemMessagesPanel } from "./SystemMessagesPanel";
 export function MessagingClient() {
   return (
     <div className="space-y-6">
+      <PageHeader
+        description="Choose which moments send a message, what each one says, and who receives it."
+        title="Messaging rules"
+      />
+
       <Tabs defaultValue="rules">
-        <PageHeader
-          description="Choose which moments send a message, what each one says, and who receives it."
-          tabs={
-            <TabsList>
-              <TabsTrigger value="rules">Message rules</TabsTrigger>
-              <TabsTrigger value="system">System messages</TabsTrigger>
-              <TabsTrigger value="announcements">Announcements</TabsTrigger>
-              <TabsTrigger value="log">Delivery log</TabsTrigger>
-            </TabsList>
-          }
-          title="Messaging rules"
-        />
+        <TabsList className="justify-self-end">
+          <TabsTrigger value="rules">Message rules</TabsTrigger>
+          <TabsTrigger value="system">System messages</TabsTrigger>
+          <TabsTrigger value="announcements">Announcements</TabsTrigger>
+          <TabsTrigger value="log">Delivery log</TabsTrigger>
+        </TabsList>
 
         <TabsContent value="rules">
           <MessagingRulesPanel />

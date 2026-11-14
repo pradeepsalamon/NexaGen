@@ -58,7 +58,7 @@ export function ClassBoardDiagramImport({ activityNote, libraryBasePath, onLoad 
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel asChild>
-              <Button variant="neutral">Cancel</Button>
+              <Button variant="outline">Cancel</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button

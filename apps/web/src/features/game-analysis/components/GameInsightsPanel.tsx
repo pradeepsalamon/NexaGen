@@ -36,7 +36,7 @@ const sourceLabel = (source: string) =>
     ? EXTERNAL_CHESS_PROVIDER_LABELS[source as keyof typeof EXTERNAL_CHESS_PROVIDER_LABELS]
     : source === "IMPORT"
       ? "Uploaded PGN"
-      : "Class games";
+      : "NexaGen class games";
 
 const pct = (n: number | null) => (n === null ? "—" : `${n}%`);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -52,7 +52,7 @@ export function GameInsightsPanel({ studentId }: { studentId: string | null }) {
 
   if (insights.isLoading) {
     return (
-      <div aria-busy="true" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div aria-busy="true" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton className="h-32 w-full rounded-app" key={i} />
         ))}
@@ -71,7 +71,6 @@ export function GameInsightsPanel({ studentId }: { studentId: string | null }) {
             ? "No analysed games yet. Games appear here once they have been analysed from the Game Library."
             : "Analyse a few of your games from the Game Library — upload a PGN or open a class game and press “Analyse game”."
         }
-        illustration="reports"
         title="No analysed games yet"
       />
     );
@@ -97,7 +96,7 @@ function InsightsBody({ data, studentId }: { data: StudentGameInsights; studentI
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile icon={Activity} label="Games analysed" tone="primary" value={String(data.gamesAnalysed)} />
         <StatTile
           context={plural(data.byColor.white.games, "game")}
@@ -155,7 +154,7 @@ function InsightsBody({ data, studentId }: { data: StudentGameInsights; studentI
 
       <Card className="space-y-3 p-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <Crosshair className="size-4 text-success-ink" aria-hidden strokeWidth={2.25} />
+          <Crosshair className="size-4 text-accent-ink" aria-hidden strokeWidth={2.25} />
           Tactics
         </h3>
         {data.motifs.length === 0 ? (

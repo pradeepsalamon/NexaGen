@@ -44,7 +44,7 @@ export function LogoutButton() {
         aria-label="Logout"
         disabled={logoutMutation.isPending}
         onClick={() => setIsConfirmOpen(true)}
-        variant="neutral"
+        variant="secondary"
       >
         <LogOut aria-hidden="true" className="size-4" strokeWidth={2.5} />
         <span>{logoutMutation.isPending ? "Logging out..." : "Logout"}</span>

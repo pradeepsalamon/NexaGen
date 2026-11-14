@@ -97,7 +97,7 @@ export function OpeningOfTheDayTool({ isManager }: ToolContext) {
     <SimpleTooltip label={label}>
       <button
         aria-label={label}
-        className="flex size-10 items-center justify-center rounded-control border border-app-border bg-app-surface text-app-text transition-colors hover:bg-app-soft disabled:opacity-40"
+        className="flex size-10 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-text transition-colors hover:bg-app-soft disabled:opacity-40"
         disabled={disabled}
         onClick={onClick}
         type="button"
@@ -111,7 +111,7 @@ export function OpeningOfTheDayTool({ isManager }: ToolContext) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-bold text-accent-ink">
+          <p className="text-xs font-bold uppercase tracking-wide text-secondary-ink">
             {opening.id === daily.id ? "Today's opening" : "Opening"}
           </p>
           <h3 className="text-lg font-extrabold leading-tight text-app-text">
@@ -187,7 +187,7 @@ export function OpeningOfTheDayTool({ isManager }: ToolContext) {
               className={cn(
                 "rounded-control px-1.5 py-0.5 transition-colors enabled:hover:bg-app-soft",
                 i === at - 1
-                  ? "bg-primary font-bold text-on-primary hover:bg-primary"
+                  ? "bg-primary font-bold text-white hover:bg-primary"
                   : "text-app-text",
               )}
               disabled={watching}

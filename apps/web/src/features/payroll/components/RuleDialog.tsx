@@ -251,7 +251,7 @@ export function RuleDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="neutral">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button disabled={!canSubmit} isLoading={create.isPending} onClick={handleSubmit} type="button">

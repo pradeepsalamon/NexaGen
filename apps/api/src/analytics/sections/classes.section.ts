@@ -16,7 +16,6 @@ import {
   sqlTimestamp,
   type AnalyticsContext
 } from "../analytics-support";
-import { tenantFilter } from "../../tenancy/tenant-sql";
 
 type CompletedClassRow = {
   id: string;
@@ -213,7 +212,7 @@ export class ClassesAnalyticsSection {
         count(DISTINCT ca."classId")::bigint AS classes
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
-      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED'
+      WHERE c.status = 'COMPLETED'
         AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
         ${filter}
     `);
@@ -237,7 +236,7 @@ export class ClassesAnalyticsSection {
         SELECT DISTINCT ca."studentId" AS student_id
         FROM "class_attendance" ca
         JOIN "classes" c ON c.id = ca."classId"
-        WHERE ${tenantFilter("c")} AND c."isDemo" = true AND c.status = 'COMPLETED'
+        WHERE c."isDemo" = true AND c.status = 'COMPLETED'
           AND ca.status IN ('PRESENT','LATE')
           AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       )
@@ -245,7 +244,7 @@ export class ClassesAnalyticsSection {
         (SELECT count(*)::bigint FROM demo_students) AS demo_students,
         (SELECT count(DISTINCT bs."studentId")::bigint
            FROM "batch_students" bs
-           WHERE ${tenantFilter("bs")} AND bs."isDeleted" = false
+           WHERE bs."isDeleted" = false
              AND bs."studentId" IN (SELECT student_id FROM demo_students)) AS converted
     `);
     const demo = Number(rows[0]?.demo_students ?? 0);
@@ -332,7 +331,7 @@ export class ClassesAnalyticsSection {
              count(*)::bigint AS total
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
-      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED'
+      WHERE c.status = 'COMPLETED'
         AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1 ORDER BY 1
     `);
@@ -358,7 +357,7 @@ export class ClassesAnalyticsSection {
              count(DISTINCT ca."classId")::bigint AS classes
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
-      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED'
+      WHERE c.status = 'COMPLETED'
         AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
         AND ${Prisma.raw(idCol)} IS NOT NULL
       GROUP BY 1
@@ -418,7 +417,7 @@ export class ClassesAnalyticsSection {
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
       JOIN "users" u ON u.id = ca."studentId"
-      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED' AND u."isDeleted" = false
+      WHERE c.status = 'COMPLETED' AND u."isDeleted" = false
         AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1, 2, 3
       HAVING count(*) >= 3

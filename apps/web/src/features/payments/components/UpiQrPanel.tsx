@@ -1,12 +1,11 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { formatMoney, type CheckoutHandoff } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { usePaymentStatus } from "../hooks/usePaymentsApi";
-import { Spinner } from "@/components/ui/Spinner";
 
 type Props = {
   handoff: CheckoutHandoff;
@@ -52,11 +51,11 @@ export function UpiQrPanel({
         <SimpleTooltip label="Close the QR and go back">
           <Button
             aria-label="Close the QR code"
-            className="size-8"
+            className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
             onClick={onClose}
             size="icon"
             type="button"
-            variant="neutral"
+            variant="ghost"
           >
             <X className="size-4" strokeWidth={2.5} />
           </Button>
@@ -70,7 +69,7 @@ export function UpiQrPanel({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           alt="UPI QR code for this payment"
-          className="mx-auto aspect-square w-full max-w-[240px] rounded-app border border-app-border bg-paper p-3"
+          className="mx-auto aspect-square w-full max-w-[240px] rounded-app border border-app-border bg-white p-3"
           src={handoff.qrImageUrl}
         />
       ) : (
@@ -97,7 +96,7 @@ export function UpiQrPanel({
           status?.message
         ) : (
           <>
-            <Spinner aria-hidden className="size-4" />
+            <Loader2 aria-hidden className="size-4 animate-spin" />
             Waiting for payment…
           </>
         )}

@@ -113,7 +113,7 @@ export class BatchService {
     ]);
 
     return {
-      batches: batches.map((batch) => this.toBatch(batch, user)),
+      batches: batches.map((batch) => this.toBatch(batch)),
       pagination: paginationMeta(total, page, pageSize)
     };
   }
@@ -164,7 +164,7 @@ export class BatchService {
       throw new NotFoundException("Batch not found.");
     }
 
-    return { batch: this.toBatch(batch, user) };
+    return { batch: this.toBatch(batch) };
   }
 
   async create(
@@ -200,7 +200,7 @@ export class BatchService {
       });
     });
 
-    return { batch: this.toBatch(batch, user) };
+    return { batch: this.toBatch(batch) };
   }
 
   async update(
@@ -315,7 +315,7 @@ export class BatchService {
       return updated;
     });
 
-    return { batch: this.toBatch(batch, user) };
+    return { batch: this.toBatch(batch) };
   }
 
   /**
@@ -368,7 +368,7 @@ export class BatchService {
       where: { id: batchId }
     });
 
-    return { batch: this.toBatch(batch, user) };
+    return { batch: this.toBatch(batch) };
   }
 
   async restore(
@@ -386,7 +386,7 @@ export class BatchService {
       where: { id: batchId }
     });
 
-    return { batch: this.toBatch(batch, user) };
+    return { batch: this.toBatch(batch) };
   }
 
   async delete(accessToken: string | undefined, batchId: string) {
@@ -478,12 +478,12 @@ export class BatchService {
     }
   }
 
-  private toBatch(batch: BatchWithAssignments, viewer: Pick<User, "id" | "role">): Batch {
+  private toBatch(batch: BatchWithAssignments): Batch {
     return {
       batchType: batch.batchType,
       coachCount: batch.coaches.length,
       coaches: batch.coaches.map((assignment) =>
-        this.toBatchUser(assignment.coach, viewer)
+        this.toBatchUser(assignment.coach)
       ),
       createdAt: batch.createdAt.toISOString(),
       description: batch.description,
@@ -496,17 +496,15 @@ export class BatchService {
       status: batch.status,
       studentCount: batch.students.length,
       students: batch.students.map((assignment) =>
-        this.toBatchUser(assignment.student, viewer)
+        this.toBatchUser(assignment.student)
       ),
       updatedAt: batch.updatedAt.toISOString()
     };
   }
 
-  /** A student sees only their own email; classmates are minors too. */
-  private toBatchUser(user: User, viewer?: Pick<User, "id" | "role">): BatchUserSummary {
-    const hideEmail = viewer?.role === UserRole.STUDENT && viewer.id !== user.id;
+  private toBatchUser(user: User): BatchUserSummary {
     return {
-      email: hideEmail ? null : user.email,
+      email: user.email,
       firstName: user.firstName,
       id: user.id,
       lastName: user.lastName,

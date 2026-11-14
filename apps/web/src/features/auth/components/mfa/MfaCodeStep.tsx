@@ -52,7 +52,7 @@ export function MfaCodeStep({ challengeToken, onCancel, onVerified }: MfaCodeSte
       <Button fullWidth isLoading={verify.isPending} type="submit">
         Verify
       </Button>
-      <Button fullWidth onClick={onCancel} type="button" variant="neutral">
+      <Button fullWidth onClick={onCancel} type="button" variant="ghost">
         Use a different account
       </Button>
     </form>

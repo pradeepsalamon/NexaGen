@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useChatUnreadCount } from "../../../../providers/ChatProvider";
+import { useLiveClassChat } from "../../../../providers/ChatProvider";
 import { useLiveClassState } from "../../../../providers/LiveClassProvider";
 import { useLiveClassChapters } from "../../../../hooks/useLiveClassChapters";
 import { MeetingChat } from "../../MeetingChat";
@@ -69,7 +69,7 @@ export function ClassroomSidebar({ classId, width }: { classId: string; width: n
     "setActiveSidebar",
     "setClassroomChatOpen"
   );
-  const unreadCount = useChatUnreadCount();
+  const { unreadCount } = useLiveClassChat();
   const chapters = useLiveClassChapters(classId);
   const members = useRoomMembers();
 
@@ -103,7 +103,7 @@ export function ClassroomSidebar({ classId, width }: { classId: string; width: n
             { count: members.length, id: "members", label: "Members" }
           ]}
         />
-        <div className="min-h-0 flex-1 motion-safe:[&>*]:animate-tab-panel-in" role="tabpanel">
+        <div className="min-h-0 flex-1" role="tabpanel">
           {tabs.top === "chapters" ? (
             <ChaptersPanel classId={classId} activePuzzleId={activePuzzle?.puzzleId ?? null} />
           ) : (
@@ -125,7 +125,7 @@ export function ClassroomSidebar({ classId, width }: { classId: string; width: n
             { badge: tabs.bottom === "chat" ? 0 : unreadCount, id: "chat", label: "Chat" }
           ]}
         />
-        <div className="min-h-0 flex-1 overflow-hidden motion-safe:[&>*]:animate-tab-panel-in" role="tabpanel">
+        <div className="min-h-0 flex-1 overflow-hidden" role="tabpanel">
           {tabs.bottom === "leaderboard" ? <SidebarClassLeaderboard classId={classId} isCoach /> : <MeetingChat />}
         </div>
       </section>

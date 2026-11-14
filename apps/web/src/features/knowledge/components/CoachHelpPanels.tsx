@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Lightbulb, Pencil, Trash2, TrendingUp } from "lucide-react";
+import { Lightbulb, Loader2, Pencil, Trash2, TrendingUp } from "lucide-react";
 import type { KnowledgeArticleKind, KnowledgeSubmissionDto, KnowledgeVersionStatus } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -20,7 +20,6 @@ import { useToast } from "@/providers/ToastProvider";
 import { suggestArticle, updateSuggestion, withdrawSuggestion } from "../api/knowledgeApi";
 import { useCoachTrends, useInvalidateKnowledge, useMySuggestions } from "../hooks/useKnowledgeApi";
 import { ContentEditor, EMPTY_CONTENT, contentPayload, type ContentDraft } from "./ContentEditor";
-import { Spinner } from "@/components/ui/Spinner";
 
 const STATUS_BADGE: Record<KnowledgeVersionStatus, { label: string; variant: "info" | "success" | "destructive" | "secondary" }> = {
   DRAFT: { label: "Draft", variant: "secondary" },
@@ -82,14 +81,14 @@ export function CoachSuggestionsPanel() {
                     {s.version.status === "SUBMITTED" && (
                       <>
                         <SimpleTooltip label="Edit suggestion">
-                          <Button aria-label="Edit suggestion" onClick={() => setEditing(s)} size="icon" variant="neutral">
+                          <Button aria-label="Edit suggestion" className="rounded-full" onClick={() => setEditing(s)} size="icon" variant="outline">
                             <Pencil className="size-4" strokeWidth={2.5} />
                           </Button>
                         </SimpleTooltip>
                         <SimpleTooltip label="Withdraw suggestion">
                           <Button
                             aria-label="Withdraw suggestion"
-                            className="bg-app-danger text-on-danger hover:bg-app-danger/85"
+                            className="rounded-full bg-app-danger text-white hover:bg-app-danger/85"
                             onClick={() => void withdraw.run(s.version.id)}
                             size="icon"
                             variant="ghost"
@@ -196,11 +195,11 @@ export function SuggestionDialog({
         </DialogHeader>
         <ContentEditor kind={kind} onChange={setValue} previewRole="STUDENT" showChangeNote={!!articleId || !!suggestion} value={value} />
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} variant="neutral">
+          <Button onClick={() => onOpenChange(false)} variant="outline">
             Cancel
           </Button>
           <Button disabled={saving} onClick={() => void submit()}>
-            {saving && <Spinner aria-hidden className="mr-2 size-4" />}
+            {saving && <Loader2 aria-hidden className="mr-2 size-4 animate-spin" />}
             {suggestion ? "Save" : "Send suggestion"}
           </Button>
         </DialogFooter>

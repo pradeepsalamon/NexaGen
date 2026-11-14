@@ -12,7 +12,7 @@ import { useRemoveModule, useReorderModules } from "../hooks/useCoursesApi";
 import { AttachModuleModal } from "./AttachModuleModal";
 
 const iconBtn =
-  "size-8";
+  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
 
 export function ModuleList({
   courseId,
@@ -38,9 +38,9 @@ export function ModuleList({
   return (
     <Card className="grid gap-4 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold tracking-tight text-app-text">Modules</h2>
-        <Button size="sm" onClick={() => setAttachOpen(true)} variant="outline">
-          <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+        <h2 className="text-lg font-extrabold tracking-tight text-app-text">Modules</h2>
+        <Button size="sm" onClick={() => setAttachOpen(true)}>
+          <Plus className="mr-2 size-4" />
           Add module
         </Button>
       </div>
@@ -76,7 +76,7 @@ export function ModuleList({
                 <SimpleTooltip label="Move up">
                   <Button
                     aria-label="Move module up"
-                    variant="neutral"
+                    variant="outline"
                     size="icon"
                     className={iconBtn}
                     disabled={index === 0 || reorder.isPending}
@@ -88,7 +88,7 @@ export function ModuleList({
                 <SimpleTooltip label="Move down">
                   <Button
                     aria-label="Move module down"
-                    variant="neutral"
+                    variant="outline"
                     size="icon"
                     className={iconBtn}
                     disabled={index === sorted.length - 1 || reorder.isPending}
@@ -100,9 +100,9 @@ export function ModuleList({
                 <SimpleTooltip label="Remove">
                   <Button
                     aria-label="Remove module"
-                    variant="neutral"
+                    variant="ghost"
                     size="icon"
-                    className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
+                    className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                     onClick={() => runRemove(m.id)}
                   >
                     <Trash2 className="size-4" strokeWidth={2.5} />

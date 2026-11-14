@@ -3,9 +3,7 @@ import { JwtModule } from "@nestjs/jwt";
 import { AnalyticsEventModule } from "../analytics/analytics-event.module";
 import { EmailAdminModule } from "../email-admin/email-admin.module";
 import { MailModule } from "../mail/mail.module";
-import { MessagingModule } from "../messaging/messaging.module";
 import { PrismaModule } from "../prisma/prisma.module";
-import { ReferralModule } from "../referral/referral.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { MfaController } from "./mfa/mfa.controller";
@@ -16,10 +14,8 @@ import { MfaService } from "./mfa/mfa.service";
     JwtModule.register({}),
     EmailAdminModule,
     MailModule,
-    MessagingModule,
     PrismaModule,
-    AnalyticsEventModule,
-    ReferralModule
+    AnalyticsEventModule
   ],
   controllers: [AuthController, MfaController],
   providers: [AuthService, MfaService],

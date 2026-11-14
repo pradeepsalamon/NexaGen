@@ -222,7 +222,7 @@ export function CompensationProfileDialog({
                             })
                           }
                           size="sm"
-                          variant="neutral"
+                          variant="ghost"
                         >
                           End rate
                         </Button>
@@ -332,7 +332,7 @@ export function CompensationProfileDialog({
         )}
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="neutral">
+          <Button onClick={onClose} type="button" variant="outline">
             Close
           </Button>
         </DialogFooter>

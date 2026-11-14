@@ -39,7 +39,7 @@ export function CatalogPreviewDialog({
           <DialogDescription>
             {puzzle
               ? `Rated ${puzzle.rating} · ${puzzle.sideToMove === "white" ? "White" : "Black"} to move after ${puzzle.setupMove.san}`
-              : <Skeleton as="span" className="h-3.5 w-56" />}
+              : "Loading…"}
           </DialogDescription>
         </DialogHeader>
 

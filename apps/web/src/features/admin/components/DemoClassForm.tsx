@@ -166,7 +166,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
           <FormSelect
             name="coachId"
             id="coachId"
-            label="Assign coach"
+            label="Assign Coach"
             options={coachOptions}
             disabled={isLoadingUsers}
             placeholder="Select a coach..."
@@ -179,7 +179,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <BaseFormField
               id="startsAt"
-              label="Start time"
+              label="Start Time"
               error={form.formState.errors.startsAt?.message}
             >
               <DatePicker
@@ -218,7 +218,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
                       ].map(option => (
                         <li
                           key={option.value}
-                          className="px-3 py-2 hover:bg-primary hover:text-on-primary cursor-pointer transition-colors"
+                          className="px-3 py-2 hover:bg-primary hover:text-white cursor-pointer transition-colors"
                           onMouseDown={(e) => {
                             e.preventDefault();
                             setDuration(option.value);
@@ -285,7 +285,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
           <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-app-border">
             <Button
               type="button"
-              variant="neutral"
+              variant="outline"
               onClick={() => onSuccess?.()}
               disabled={isPending}
             >

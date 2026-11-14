@@ -141,7 +141,7 @@ export function RefundDialog({ payment, onClose }: Props) {
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="neutral">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button

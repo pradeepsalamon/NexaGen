@@ -97,7 +97,7 @@ export function DemoAccessFields({
             <SimpleTooltip label="Generate a new passcode">
               <Button
                 type="button"
-                variant="neutral"
+                variant="outline"
                 size="icon"
                 aria-label="Generate a new passcode"
                 onClick={() => onPasscodeChange(generateDemoPasscode())}

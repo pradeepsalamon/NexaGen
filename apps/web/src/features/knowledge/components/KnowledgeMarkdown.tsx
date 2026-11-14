@@ -164,7 +164,7 @@ export function PgnViewer({ pgn }: { pgn: string }) {
 
   const nav = (label: string, onClick: () => void, disabled: boolean, icon: ReactNode) => (
     <SimpleTooltip label={label}>
-      <Button aria-label={label} disabled={disabled} onClick={onClick} size="icon" type="button" variant="neutral">
+      <Button aria-label={label} className="rounded-full" disabled={disabled} onClick={onClick} size="icon" type="button" variant="outline">
         {icon}
       </Button>
     </SimpleTooltip>
@@ -190,7 +190,7 @@ export function PgnViewer({ pgn }: { pgn: string }) {
               <button
                 className={cn(
                   "rounded px-1.5 py-0.5 hover:bg-primary/10",
-                  idx + 1 === ply ? "bg-primary text-on-primary hover:bg-primary" : "text-app-text",
+                  idx + 1 === ply ? "bg-primary text-white hover:bg-primary" : "text-app-text",
                 )}
                 onClick={() => setPly(idx + 1)}
                 type="button"

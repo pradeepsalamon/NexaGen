@@ -10,7 +10,6 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { useBatchAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 import { asKpi, formatHours, formatPercent } from "../../lib/format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
-import { TableSkeletonRows } from "@/components/ui/TableSkeletonRows";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Badge } from "@/components/ui/Badge";
@@ -93,7 +92,7 @@ export function BatchAnalyticsSection({ query }: { query: AnalyticsRangeQuery })
                   </TableRow>
                 ))}
                 {isLoading ? (
-                  <TableSkeletonRows columns={8} />
+                  <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={8}>Loading…</TableCell></TableRow>
                 ) : null}
                 {!isLoading && (data?.batches.length ?? 0) === 0 ? (
                   <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={8}>No batches yet.</TableCell></TableRow>

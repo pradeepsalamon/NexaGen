@@ -158,7 +158,7 @@ export function ChessBalanceTool() {
         </div>
         <div className="grid grid-cols-3 items-center text-center">
           <p>
-            <span className="block text-xs font-bold text-app-muted">
+            <span className="block text-xs font-bold uppercase text-app-muted">
               White
             </span>
             <span className="text-2xl font-extrabold text-app-text">
@@ -169,7 +169,7 @@ export function ChessBalanceTool() {
             <Scale aria-hidden="true" className="size-6" strokeWidth={2.25} />
           </p>
           <p>
-            <span className="block text-xs font-bold text-app-muted">
+            <span className="block text-xs font-bold uppercase text-app-muted">
               Black
             </span>
             <span className="text-2xl font-extrabold text-app-text">
@@ -215,7 +215,7 @@ export function ChessBalanceTool() {
                       >
                         <button
                           aria-label={`Remove a ${side} ${NAMES[p].toLowerCase()}`}
-                          className="flex size-8 items-center justify-center rounded-control border border-app-border text-app-muted transition-colors hover:bg-app-soft disabled:opacity-40"
+                          className="flex size-8 items-center justify-center rounded-full border border-app-border text-app-muted transition-colors hover:bg-app-soft disabled:opacity-40"
                           disabled={scale[side][p] === 0}
                           onClick={() => change(side, p, -1)}
                           type="button"
@@ -235,7 +235,7 @@ export function ChessBalanceTool() {
                       >
                         <button
                           aria-label={`Add a ${side} ${NAMES[p].toLowerCase()}`}
-                          className="flex size-8 items-center justify-center rounded-control bg-primary text-on-primary transition-colors hover:bg-primary/85 disabled:opacity-40"
+                          className="flex size-8 items-center justify-center rounded-full bg-primary text-white transition-colors hover:bg-primary/85 disabled:opacity-40"
                           disabled={scale[side][p] >= MAX[p]}
                           onClick={() => change(side, p, 1)}
                           type="button"

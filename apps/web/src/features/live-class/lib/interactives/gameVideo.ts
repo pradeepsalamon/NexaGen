@@ -187,7 +187,7 @@ function drawChrome(
   ctx.fillStyle = c.secondary;
   ctx.fillRect(0, 0, SIZE, 10);
   ctx.textBaseline = "middle";
-  ctx.fillStyle = c.onPrimary;
+  ctx.fillStyle = "white";
   ctx.font = bodyFont(800, 46);
   ctx.fillText(wrapText(ctx, opts.title, SIZE - 120, 1)[0] ?? "", 60, 64);
   ctx.globalAlpha = 0.85;
@@ -230,7 +230,7 @@ function drawCard(
   ctx.globalAlpha = 0.72;
   ctx.fillRect(BOARD_X, BOARD_Y, BOARD, BOARD);
   ctx.globalAlpha = 1;
-  ctx.fillStyle = c.surface;
+  ctx.fillStyle = "white";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = bodyFont(800, 64);

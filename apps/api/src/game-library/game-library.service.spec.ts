@@ -3,7 +3,6 @@ import type { JwtService } from "@nestjs/jwt";
 import { UserStatus } from "@prisma/client";
 import { gameLibraryQuerySchema } from "@nexa-chess/types";
 import type { PrismaService } from "../prisma/prisma.service";
-import type { TrashRepository } from "../trash/trash.repository";
 import { GameLibraryService } from "./game-library.service";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -50,9 +49,7 @@ describe("GameLibraryService", () => {
       updateMany: jest.Mock;
     };
     user: { findUnique: jest.Mock };
-    $transaction: jest.Mock;
   };
-  let trash: { softDelete: jest.Mock };
   let service: GameLibraryService;
   const as = (id: string, role: string) =>
     prisma.user.findUnique.mockResolvedValue({ id, role, status: UserStatus.ACTIVE, timezone: "Asia/Kolkata" });
@@ -69,15 +66,9 @@ describe("GameLibraryService", () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       user: { findUnique: jest.fn() },
-      $transaction: jest.fn((run: (tx: unknown) => unknown) => run("tx")),
     };
     const jwt = { verifyAsync: jest.fn().mockResolvedValue({ sub: "u", type: "access" }) };
-    trash = { softDelete: jest.fn().mockResolvedValue({}) };
-    service = new GameLibraryService(
-      jwt as unknown as JwtService,
-      prisma as unknown as PrismaService,
-      trash as unknown as TrashRepository
-    );
+    service = new GameLibraryService(jwt as unknown as JwtService, prisma as unknown as PrismaService);
   });
 
   const query = (extra: Record<string, unknown> = {}) => gameLibraryQuerySchema.parse(extra);
@@ -217,8 +208,6 @@ describe("GameLibraryService", () => {
     await expect(service.remove("t", "game-1")).rejects.toBeInstanceOf(ForbiddenException);
     prisma.chessGame.findFirst.mockResolvedValue(row({ createdById: "coach-1", source: "IMPORT" }));
     await expect(service.remove("t", "game-1")).resolves.toEqual({ id: "game-1" });
-    // To the trash, not a hard delete.
-    expect(trash.softDelete).toHaveBeenCalledWith("tx", "ChessGame", "game-1", "coach-1");
-    expect(prisma.chessGame.delete).not.toHaveBeenCalled();
+    expect(prisma.chessGame.delete).toHaveBeenCalledWith({ where: { id: "game-1" } });
   });
 });

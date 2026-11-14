@@ -7,7 +7,7 @@ import {
   type GameAutoSyncRule,
   type StudentGameSources,
 } from "@nexa-chess/types";
-import { RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
@@ -21,7 +21,6 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import { useAuthStore } from "@/stores/authStore";
 import { useSetStudentAutoSyncRule, useStudentGameSources, useSyncAccount } from "../hooks/useGameAnalysis";
-import { Spinner } from "@/components/ui/Spinner";
 
 const STUDENT_CHOICE = "STUDENT_CHOICE";
 const RULE_OPTIONS = [
@@ -126,7 +125,7 @@ function SyncedAccount({ account, data }: { account: ExternalChessAccountDto; da
             }
             variant="outline"
           >
-            {sync.isPending ? <Spinner className="mr-2 size-4" aria-hidden /> : <RefreshCw className="mr-2 size-4" aria-hidden />}
+            {sync.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : <RefreshCw className="mr-2 size-4" aria-hidden />}
             Sync now
           </Button>
         )}

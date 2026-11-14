@@ -142,14 +142,7 @@ export function RoutingPanel() {
           </p>
         ) : null}
 
-        <div className="mt-4 flex justify-end gap-2">
-          <Button
-            onClick={() => setDraft(data.config)}
-            type="button"
-            variant="neutral"
-          >
-            Reset
-          </Button>
+        <div className="mt-4 flex gap-2">
           <Button
             disabled={save.isPending}
             isLoading={save.isPending}
@@ -158,6 +151,13 @@ export function RoutingPanel() {
             variant="primary"
           >
             Save routing
+          </Button>
+          <Button
+            onClick={() => setDraft(data.config)}
+            type="button"
+            variant="outline"
+          >
+            Reset
           </Button>
         </div>
       </Card>

@@ -12,7 +12,6 @@ import {
   type MessagingEvent
 } from "@nexa-chess/types";
 import { Prisma } from "@prisma/client";
-import { BrandingService } from "../branding/branding.service";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
@@ -96,7 +95,7 @@ describe("MessagingDispatchService", () => {
   let getRule: jest.Mock;
   let verificationPolicy: jest.Mock;
 
-  const setup = async (rule = makeRule(), student = makeStudent(), academyName?: string) => {
+  const setup = async (rule = makeRule(), student = makeStudent()) => {
     getRule = jest.fn().mockResolvedValue(rule);
     verificationPolicy = jest.fn().mockResolvedValue("OFF");
     prisma = {
@@ -136,8 +135,7 @@ describe("MessagingDispatchService", () => {
         {
           provide: MessagingRuleService,
           useValue: { getRule, usesLeadTime: () => false }
-        },
-        ...(academyName ? [{ provide: BrandingService, useValue: { nameFor: jest.fn().mockResolvedValue(academyName) } }] : [])
+        }
       ]
     }).compile();
 
@@ -197,17 +195,6 @@ describe("MessagingDispatchService", () => {
     expect(row.body).toContain("Rook Endgames");
     // 12:30 UTC is 6:00 pm in the student's saved zone, not the server's.
     expect(row.body).toContain("6:00 pm");
-  });
-
-  it("names the recipient's own academy, Nexa's by default", async () => {
-    await setup(makeRule({ body: "Welcome to {{academy.name}}" }), makeStudent(), "Rook Academy");
-    await service.dispatch({ event: "CLASS_SCHEDULED", classId: CLASS_ID });
-    expect(queuedRows(prisma.messageDelivery.create)[0].body).toBe("Welcome to Rook Academy");
-
-    jest.clearAllMocks();
-    await setup(makeRule({ body: "Welcome to {{academy.name}}" }));
-    await service.dispatch({ event: "CLASS_SCHEDULED", classId: CLASS_ID });
-    expect(queuedRows(prisma.messageDelivery.create)[0].body).toBe("Welcome to Nexa Chess");
   });
 
   it("holds a scheduled rule until its next send time", async () => {
@@ -483,70 +470,6 @@ describe("MessagingDispatchService", () => {
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({ dedupeKey: "APPROVAL_DECIDED:apr_1", recipientId: "coach_a" });
       expect(rows[0].body).toContain("|rejected|Reason: Too late");
-    });
-  });
-
-  describe("REGISTRATION_PENDING_ADMIN", () => {
-    const person = (id: string, role: string, status = "ACTIVE") => ({
-      id,
-      firstName: id,
-      lastName: null,
-      phoneNumber: null,
-      isEmailVerified: true,
-      role,
-      status,
-      isDeleted: false,
-      timezone: "UTC"
-    });
-    const withApplicant = async (applicant: ReturnType<typeof person>) => {
-      await setup(
-        makeRule({
-          audience: "ADMINS",
-          body: "{{applicant.name}}|{{applicant.role}}|{{links.approvals}}",
-          event: "REGISTRATION_PENDING_ADMIN",
-          inAppEnabled: true,
-          whatsappEnabled: false
-        })
-      );
-      const extra = prisma as unknown as { user: { findMany: jest.Mock; findUnique: jest.Mock } };
-      extra.user = {
-        findMany: jest.fn().mockResolvedValue([person("super_1", "SUPER_ADMIN")]),
-        findUnique: jest.fn().mockResolvedValue(applicant)
-      };
-      return extra;
-    };
-
-    it("tells only super admins about a coach application, with a link to the approvals page", async () => {
-      const extra = await withApplicant(person("ravi", "COACH", "PENDING"));
-
-      await service.dispatch({ event: "REGISTRATION_PENDING_ADMIN", userId: "ravi" });
-
-      expect(extra.user.findMany.mock.calls[0][0].where).toMatchObject({
-        isPlatformSupport: false,
-        role: { in: ["SUPER_ADMIN"] },
-        status: "ACTIVE"
-      });
-      const rows = queuedRows(prisma.messageDelivery.create);
-      expect(rows.map((r) => r.dedupeKey)).toEqual(["REGISTRATION_PENDING_ADMIN:ravi:super_1"]);
-      expect(rows[0]).toMatchObject({ linkPath: "/admin/approvals" });
-      expect(rows[0].body).toContain("ravi|coach|");
-    });
-
-    it("lets admins review a student application too", async () => {
-      const extra = await withApplicant(person("asha", "STUDENT", "PENDING"));
-
-      await service.dispatch({ event: "REGISTRATION_PENDING_ADMIN", userId: "asha" });
-
-      expect(extra.user.findMany.mock.calls[0][0].where.role).toEqual({ in: ["ADMIN", "SUPER_ADMIN"] });
-    });
-
-    it("says nothing once the account is no longer pending", async () => {
-      const extra = await withApplicant(person("asha", "STUDENT", "ACTIVE"));
-
-      await service.dispatch({ event: "REGISTRATION_PENDING_ADMIN", userId: "asha" });
-
-      expect(extra.user.findMany).not.toHaveBeenCalled();
-      expect(prisma.messageDelivery.create).not.toHaveBeenCalled();
     });
   });
 

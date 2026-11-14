@@ -10,7 +10,6 @@ import { JwtService } from "@nestjs/jwt";
 import { Prisma, UserRole, UserStatus } from "@prisma/client";
 import { FeedbackService } from "./feedback.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { RECORDING_TRASH } from "../trash/trash.testing";
 
 const ACCESS_TOKEN = "access-token";
 const STUDENT_ID = "student-1";
@@ -97,8 +96,7 @@ describe("FeedbackService", () => {
       providers: [
         FeedbackService,
         { provide: JwtService, useValue: jwtService },
-        { provide: PrismaService, useValue: prisma },
-        RECORDING_TRASH
+        { provide: PrismaService, useValue: prisma }
       ]
     }).compile();
 

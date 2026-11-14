@@ -15,7 +15,6 @@ import type {
   MfaSetupResponse,
   MfaStatusResponse
 } from "@nexa-chess/types";
-import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
 import { UserRole, UserStatus, type User } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { authenticateUser } from "../authenticate";
@@ -136,14 +135,7 @@ export class MfaService {
       where: { userId: user.id }
     });
 
-    return { otpauthUrl: buildOtpauthUrl(secret, user.email, await this.issuerFor(user)), secret };
-  }
-
-  /** The authenticator-app entry names the academy only (§F "Nexa disappears"); Nexa's stays "Nexa Chess". */
-  private async issuerFor(user: User): Promise<string> {
-    if (user.tenantId === DEFAULT_TENANT_ID) return ISSUER;
-    const tenant = await this.prisma.tenant.findUnique({ select: { name: true }, where: { id: user.tenantId } });
-    return tenant?.name.replace(/:/g, " ").trim() || ISSUER;
+    return { otpauthUrl: buildOtpauthUrl(secret, user.email, ISSUER), secret };
   }
 
   /** Confirms the first code and returns the recovery codes (shown once). */
@@ -267,13 +259,13 @@ export class MfaService {
       }
       return { challenge, user };
     }
-    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
     this.assertNotStudent(user);
     return { challenge: null, user };
   }
 
   getAuthenticatedUser(accessToken: string | undefined) {
-    return authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
+    return authenticateUser(this.jwtService, this.prisma, accessToken);
   }
 
   assertNotStudent(user: User) {

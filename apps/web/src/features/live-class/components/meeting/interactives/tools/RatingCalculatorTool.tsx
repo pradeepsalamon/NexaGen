@@ -155,7 +155,7 @@ export function RatingCalculatorTool() {
                   g.change === null
                     ? "text-app-muted"
                     : g.change >= 0
-                      ? "text-success-ink"
+                      ? "text-accent-ink"
                       : "text-app-danger-ink",
                 )}
               >
@@ -165,7 +165,7 @@ export function RatingCalculatorTool() {
                 <SimpleTooltip label="Remove game">
                   <button
                     aria-label={`Remove game ${i + 1}`}
-                    className="flex size-8 items-center justify-center rounded-control bg-app-danger text-on-danger transition-colors hover:bg-app-danger/85 disabled:opacity-40"
+                    className="flex size-8 items-center justify-center rounded-full bg-app-danger text-white transition-colors hover:bg-app-danger/85 disabled:opacity-40"
                     disabled={saved.games.length === 1}
                     onClick={() =>
                       update({
@@ -214,7 +214,7 @@ export function RatingCalculatorTool() {
         {allValid ? (
           <div className="grid grid-cols-3 items-center text-center">
             <p>
-              <span className="block text-xs font-bold text-app-muted">
+              <span className="block text-xs font-bold uppercase text-app-muted">
                 Before
               </span>
               <span className="text-2xl font-extrabold text-app-text">
@@ -224,13 +224,13 @@ export function RatingCalculatorTool() {
             <p
               className={cn(
                 "text-lg font-extrabold",
-                total >= 0 ? "text-success-ink" : "text-app-danger-ink",
+                total >= 0 ? "text-accent-ink" : "text-app-danger-ink",
               )}
             >
               {fmt(total)}
             </p>
             <p>
-              <span className="block text-xs font-bold text-app-muted">
+              <span className="block text-xs font-bold uppercase text-app-muted">
                 After
               </span>
               <span className="text-2xl font-extrabold text-primary-ink">

@@ -23,7 +23,6 @@ import { formatRelativeDay } from "@/lib/datetime";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { completeDeletionRequest, rejectDeletionRequest } from "../api/privacyApi";
 import { PRIVACY_INVALIDATES, useDeletionRequests } from "../hooks/usePrivacyApi";
-import { PageHeader } from "@/components/layout/PageHeader";
 
 type Decision = { request: AccountDeletionRequestItem; complete: boolean };
 
@@ -59,11 +58,14 @@ export function AdminPrivacyClient() {
   const noteRequired = deciding ? !deciding.complete : false;
 
   return (
-    <div className="animate-fade-in space-y-6 pb-10">
-      <PageHeader
-        description="Account deletion requests. Completing one soft-deletes the account (restorable from Trash for 30 days); invoices and payroll are always kept."
-        title="Privacy requests"
-      />
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Privacy requests</h1>
+        <p className="mt-1 text-app-muted">
+          Account deletion requests. Completing one soft-deletes the account (restorable from Trash for
+          30 days); invoices and payroll are always kept.
+        </p>
+      </div>
 
       {isLoading ? (
         <div className="space-y-3">
@@ -105,14 +107,14 @@ export function AdminPrivacyClient() {
                   <SimpleTooltip label="Delete the account">
                     <Button
                       aria-label="Delete the account"
-                      className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
+                      className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                       onClick={() => {
                         setNote("");
                         setDeciding({ complete: true, request: r });
                       }}
                       size="icon"
                       type="button"
-                      variant="neutral"
+                      variant="ghost"
                     >
                       <Check aria-hidden="true" className="size-4" strokeWidth={2.5} />
                     </Button>
@@ -120,7 +122,7 @@ export function AdminPrivacyClient() {
                   <SimpleTooltip label="Decline">
                     <Button
                       aria-label="Decline the request"
-                      className="size-8 border border-app-border bg-app-soft p-0 text-app-text shadow-none transition-colors hover:bg-app-border"
+                      className="size-8 rounded-full border border-app-border bg-app-soft p-0 text-app-text shadow-none transition-colors hover:bg-app-border"
                       onClick={() => {
                         setNote("");
                         setDeciding({ complete: false, request: r });

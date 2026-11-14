@@ -77,7 +77,7 @@ export function useResetTypographyAdminMutation() {
   return useMutation({
     mutationFn: resetTypographyAdmin,
     onSuccess: (data) => {
-      toast.success({ title: "Platform fonts reset to Inter" });
+      toast.success({ title: "Platform fonts reset to Outfit + Nunito Sans" });
       qc.setQueryData(queryKeys.typography.admin, data);
       qc.invalidateQueries({ queryKey: queryKeys.typography.resolved });
     },

@@ -44,7 +44,6 @@ import { Prisma, UserRole } from "@prisma/client";
 import { authenticateUser, isAdminRole } from "../auth/authenticate";
 import { parseOrBadRequest } from "../common/zod-body.pipe";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
-import { TrashRepository } from "../trash/trash.repository";
 import { uniqueKnowledgeSlug } from "./knowledge.service";
 import {
   personName,
@@ -99,7 +98,6 @@ export class KnowledgeAdminService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly trash: TrashRepository,
   ) {}
 
   // ── Articles ──────────────────────────────────────────────────────────────
@@ -423,15 +421,14 @@ export class KnowledgeAdminService {
     return this.loadDetail(id);
   }
 
-  /** To the trash (restorable there for 30 days); purging it removes every version, log and vote. Super admin only. */
+  /** Permanent: the article, every version, its change log and votes. Super admin only. */
   async remove(accessToken: string | undefined, id: string): Promise<{ ok: true }> {
     const user = await this.getStaff(accessToken);
     if (user.role !== UserRole.SUPER_ADMIN) {
-      throw new ForbiddenException("Only a super admin can delete an article. Archive it instead.");
+      throw new ForbiddenException("Only a super admin can delete an article permanently. Archive it instead.");
     }
-    const article = await this.prisma.knowledgeArticle.findUnique({ select: { id: true }, where: { id } });
-    if (!article) throw new NotFoundException("That article could not be found.");
-    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "KnowledgeArticle", id, user.id));
+    const { count } = await this.prisma.knowledgeArticle.deleteMany({ where: { id } });
+    if (!count) throw new NotFoundException("That article could not be found.");
     return { ok: true };
   }
 
@@ -520,7 +517,7 @@ export class KnowledgeAdminService {
   }
 
   async deleteCategory(accessToken: string | undefined, id: string): Promise<{ ok: true }> {
-    const user = await this.getStaff(accessToken);
+    await this.getStaff(accessToken);
     const row = await this.prisma.knowledgeCategory.findUnique({
       include: { _count: { select: { articles: true } } },
       where: { id },
@@ -529,7 +526,7 @@ export class KnowledgeAdminService {
     if (row._count.articles) {
       throw new ConflictException("Move this category's articles first, or archive the category instead.");
     }
-    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "KnowledgeCategory", id, user.id));
+    await this.prisma.knowledgeCategory.delete({ where: { id } });
     return { ok: true };
   }
 

@@ -1,4 +1,4 @@
-import { lazy, type ComponentType } from "react";
+import type { ComponentType } from "react";
 import {
   Award,
   BookOpen,
@@ -18,23 +18,20 @@ import {
 } from "lucide-react";
 import type { LiveClassInteractiveId } from "@nexa-chess/types";
 import type { ToolContext } from "./shared";
-
-// Each tool is its own download, fetched when someone opens it: a class uses
-// one or two of the fourteen, and a student only ever needs the one on stage.
-const ChessBalanceTool = lazy(() => import("./tools/ChessBalanceTool").then((m) => ({ default: m.ChessBalanceTool })));
-const ChessLegendsTool = lazy(() => import("./tools/ChessLegendsTool").then((m) => ({ default: m.ChessLegendsTool })));
-const ClassroomTimerTool = lazy(() => import("./tools/ClassroomTimerTool").then((m) => ({ default: m.ClassroomTimerTool })));
-const GrandmasterMapperTool = lazy(() => import("./tools/GrandmasterMapperTool").then((m) => ({ default: m.GrandmasterMapperTool })));
-const MysteryBoxTool = lazy(() => import("./tools/MysteryBoxTool").then((m) => ({ default: m.MysteryBoxTool })));
-const OpeningOfTheDayTool = lazy(() => import("./tools/OpeningOfTheDayTool").then((m) => ({ default: m.OpeningOfTheDayTool })));
-const PickStudentTool = lazy(() => import("./tools/PickStudentTool").then((m) => ({ default: m.PickStudentTool })));
-const PuzzleRacerTool = lazy(() => import("./tools/PuzzleRacerTool").then((m) => ({ default: m.PuzzleRacerTool })));
-const PuzzleStormTool = lazy(() => import("./tools/PuzzleStormTool").then((m) => ({ default: m.PuzzleStormTool })));
-const RatingCalculatorTool = lazy(() => import("./tools/RatingCalculatorTool").then((m) => ({ default: m.RatingCalculatorTool })));
-const TeamGeneratorTool = lazy(() => import("./tools/TeamGeneratorTool").then((m) => ({ default: m.TeamGeneratorTool })));
-const VideoGeneratorTool = lazy(() => import("./tools/VideoGeneratorTool").then((m) => ({ default: m.VideoGeneratorTool })));
-const WallOfMomentsTool = lazy(() => import("./tools/WallOfMomentsTool").then((m) => ({ default: m.WallOfMomentsTool })));
-const WhiteOrBlackTool = lazy(() => import("./tools/WhiteOrBlackTool").then((m) => ({ default: m.WhiteOrBlackTool })));
+import { ChessBalanceTool } from "./tools/ChessBalanceTool";
+import { ChessLegendsTool } from "./tools/ChessLegendsTool";
+import { ClassroomTimerTool } from "./tools/ClassroomTimerTool";
+import { GrandmasterMapperTool } from "./tools/GrandmasterMapperTool";
+import { MysteryBoxTool } from "./tools/MysteryBoxTool";
+import { OpeningOfTheDayTool } from "./tools/OpeningOfTheDayTool";
+import { PickStudentTool } from "./tools/PickStudentTool";
+import { PuzzleRacerTool } from "./tools/PuzzleRacerTool";
+import { PuzzleStormTool } from "./tools/PuzzleStormTool";
+import { RatingCalculatorTool } from "./tools/RatingCalculatorTool";
+import { TeamGeneratorTool } from "./tools/TeamGeneratorTool";
+import { VideoGeneratorTool } from "./tools/VideoGeneratorTool";
+import { WallOfMomentsTool } from "./tools/WallOfMomentsTool";
+import { WhiteOrBlackTool } from "./tools/WhiteOrBlackTool";
 
 /** Persisted in the PRESENTING tool state — the id list lives in @nexa-chess/types. */
 export type InteractiveToolId = LiveClassInteractiveId;
@@ -47,7 +44,6 @@ export type InteractiveTool = {
   icon: LucideIcon;
   /** Tailwind classes for the round icon chip (token tints only). */
   tone: string;
-  /** Lazy: render it inside a `<Suspense>` (see `InteractiveStage`). */
   Component: ComponentType<ToolContext>;
   /** Students play it on a board: their stage uses the full width, not a reading column. */
   wide?: boolean;
@@ -69,7 +65,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Gift,
     id: "mystery-box",
     label: "Mystery Box",
-    tone: "bg-accent/20 text-accent-ink",
+    tone: "bg-secondary/20 text-secondary-ink",
   },
   {
     Component: WallOfMomentsTool,
@@ -77,7 +73,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Award,
     id: "wall-of-moments",
     label: "Wall of Moments",
-    tone: "bg-primary/15 text-primary-ink",
+    tone: "bg-warm/15 text-warm-ink",
   },
   {
     Component: TeamGeneratorTool,
@@ -85,7 +81,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: UsersRound,
     id: "team-generator",
     label: "Team Generator",
-    tone: "bg-success/15 text-success-ink",
+    tone: "bg-accent/15 text-accent-ink",
   },
   {
     Component: GrandmasterMapperTool,
@@ -93,7 +89,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Crown,
     id: "grandmaster-mapper",
     label: "Grandmaster Mapper",
-    tone: "bg-accent/20 text-accent-ink",
+    tone: "bg-secondary/20 text-secondary-ink",
   },
   {
     Component: ChessBalanceTool,
@@ -117,7 +113,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: BookOpen,
     id: "chess-legends",
     label: "Chess Legends",
-    tone: "bg-primary/15 text-primary-ink",
+    tone: "bg-warm/15 text-warm-ink",
   },
   {
     Component: OpeningOfTheDayTool,
@@ -125,7 +121,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Sunrise,
     id: "opening-of-the-day",
     label: "Opening of the Day",
-    tone: "bg-accent/20 text-accent-ink",
+    tone: "bg-secondary/20 text-secondary-ink",
   },
   {
     Component: VideoGeneratorTool,
@@ -141,7 +137,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Calculator,
     id: "rating-calculator",
     label: "Rating Calculator",
-    tone: "bg-success/15 text-success-ink",
+    tone: "bg-accent/15 text-accent-ink",
   },
   {
     Component: ClassroomTimerTool,
@@ -149,7 +145,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Timer,
     id: "classroom-timer",
     label: "Classroom Timer",
-    tone: "bg-primary/15 text-primary-ink",
+    tone: "bg-warm/15 text-warm-ink",
   },
   {
     Component: PuzzleStormTool,
@@ -166,7 +162,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     icon: Flag,
     id: "puzzle-racer",
     label: "Puzzle Racer",
-    tone: "bg-success/15 text-success-ink",
+    tone: "bg-accent/15 text-accent-ink",
     wide: true,
   },
 ];

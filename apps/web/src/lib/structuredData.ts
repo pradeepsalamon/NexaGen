@@ -65,9 +65,14 @@ function website() {
   };
 }
 
-/** `/` (the academy home page): the organization, its three programs as courses, and the FAQ shown on the page. */
+/** `/`: who we are and the site itself. */
+export function homeJsonLd() {
+  return { "@context": "https://schema.org", "@graph": [organization(), website()] };
+}
+
+/** `/academy`: the organization, its three programs as courses, and the FAQ shown on the page. */
 export function academyJsonLd() {
-  const pageUrl = `${SITE_URL}/`;
+  const pageUrl = `${SITE_URL}/academy`;
   return {
     "@context": "https://schema.org",
     "@graph": [

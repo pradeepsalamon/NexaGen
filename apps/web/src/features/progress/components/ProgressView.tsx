@@ -22,19 +22,19 @@ export function ProgressView({ progress }: { progress: StudentProgressDto }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           context={`Peak ${progress.peakRating}`}
           icon={TrendingUp}
           label="Puzzle rating"
-          tone="reward"
+          tone="primary"
           value={String(progress.puzzleRating)}
         />
         <StatTile
           context={`Best ${progress.longestStreak}`}
           icon={Flame}
           label="Day streak"
-          tone="reward"
+          tone="warm"
           value={`${progress.currentStreak} ${progress.currentStreak === 1 ? "day" : "days"}`}
         />
         <StatTile
@@ -90,19 +90,19 @@ export function ProgressView({ progress }: { progress: StudentProgressDto }) {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Badge variant={p.solved ? "success" : "warning"}>{p.solved ? "Solved" : "Missed"}</Badge>
+                  <Badge variant={p.solved ? "success" : "destructive"}>{p.solved ? "Solved" : "Missed"}</Badge>
                   {p.ratingChange !== null ? (
                     <span
                       className={`w-12 text-right text-sm font-bold ${
-                        p.ratingChange >= 0 ? "text-success-ink" : "text-warning-ink"
+                        p.ratingChange >= 0 ? "text-accent-ink" : "text-warning-ink"
                       }`}
                     >
                       {p.ratingChange >= 0 ? `+${p.ratingChange}` : p.ratingChange}
                     </span>
                   ) : (
-                    <Badge title="Repeat attempt, rating unchanged" variant="secondary">
+                    <span className="rounded-full bg-app-soft px-2 py-0.5 text-[11px] font-semibold text-app-muted" title="Repeat attempt — rating unchanged">
                       Repeat
-                    </Badge>
+                    </span>
                   )}
                 </div>
               </li>

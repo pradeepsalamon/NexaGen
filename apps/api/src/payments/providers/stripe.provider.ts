@@ -1,5 +1,5 @@
 import { createHash, createHmac } from "node:crypto";
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
 import type {
   PaymentMethodKind,
@@ -8,7 +8,6 @@ import type {
   SubscriptionStatus,
   UpiFlow
 } from "@nexa-chess/types";
-import { GatewayCredentialsService } from "../gateway-credentials.service";
 import { ProviderHealthService } from "../provider-health.service";
 import {
   PaymentProviderError,
@@ -51,20 +50,9 @@ const API_BASE = "https://api.stripe.com/v1";
 export class StripeProvider implements PaymentProviderAdapter {
   readonly id = "STRIPE" as const;
 
-  private readonly baseEnv = getApiEnv();
+  private readonly env = getApiEnv();
 
-  constructor(
-    private readonly health: ProviderHealthService,
-    @Optional() private readonly credentials?: GatewayCredentialsService
-  ) {}
-
-  /**
-   * The server env with the current academy's own gateway keys (SaaS Phase 6,
-   * `GatewayCredentialsService`). Nexa's academy: the server env, unchanged.
-   */
-  private get env() {
-    return this.credentials?.envFor(this.baseEnv) ?? this.baseEnv;
-  }
+  constructor(private readonly health: ProviderHealthService) {}
 
   isConfigured(): boolean {
     return Boolean(this.env.STRIPE_SECRET_KEY);

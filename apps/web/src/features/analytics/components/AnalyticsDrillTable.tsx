@@ -12,7 +12,6 @@ import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
-import { formatNumber } from "../lib/format";
 
 export interface DrillColumn<Row> {
   key: string;
@@ -178,7 +177,7 @@ export function AnalyticsDrillTable<Row>({
       <div className="flex items-center justify-between gap-2 border-t border-app-border p-3 text-sm text-app-muted">
         <span>
           {meta
-            ? `${formatNumber(meta.total)} total · page ${meta.page} of ${meta.totalPages}`
+            ? `${meta.total.toLocaleString()} total · page ${meta.page} of ${meta.totalPages}`
             : ""}
         </span>
         <div className="flex gap-2">

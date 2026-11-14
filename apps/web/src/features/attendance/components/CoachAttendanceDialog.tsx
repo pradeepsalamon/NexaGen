@@ -81,7 +81,7 @@ export function CoachAttendanceDialog({
               {error}
             </div>
           ) : data ? (
-            <CoachAttendanceView data={data} />
+            <CoachAttendanceView data={data} hideHeading />
           ) : null}
         </div>
       </DialogContent>

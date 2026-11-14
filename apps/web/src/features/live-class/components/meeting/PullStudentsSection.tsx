@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/ToastProvider";
 import { cancelPull, getPullRoster, pullStudent } from "../../api/live-class";
 import { ParticipantAvatar } from "./ParticipantAvatar";
-import { Spinner } from "@/components/ui/Spinner";
 
 function lastSeenLabel(iso: string | null): string {
   if (!iso) return "Offline";
@@ -47,7 +46,7 @@ const PullRow = memo(function PullRow({
     >
       <div className="flex min-w-0 items-center gap-2.5">
         <span className="relative shrink-0">
-          <ParticipantAvatar name={student.name} size="sm" className="size-8 text-xs" />
+          <ParticipantAvatar name={student.name} size="sm" className="size-8 text-[10px]" />
           <span
             aria-hidden="true"
             className={cn(
@@ -60,17 +59,17 @@ const PullRow = memo(function PullRow({
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="truncate text-sm font-medium text-app-text">{student.name}</span>
             {student.username ? (
-              <span className="min-w-0 shrink truncate text-xs text-app-muted">@{student.username}</span>
+              <span className="min-w-0 shrink truncate text-[11px] text-app-muted">@{student.username}</span>
             ) : null}
             {!student.inBatch ? (
-              <span className="shrink-0 rounded-full bg-app-soft px-1.5 py-0.5 text-xs font-semibold text-app-muted">
+              <span className="shrink-0 rounded-full bg-app-soft px-1.5 py-0.5 text-[10px] font-semibold text-app-muted">
                 Other batch
               </span>
             ) : null}
           </div>
           <div
             className={cn(
-              "truncate text-xs font-semibold",
+              "truncate text-[11px] font-semibold",
               pending ? "text-warning-ink" : student.online ? "text-success-ink" : "text-app-muted"
             )}
           >
@@ -106,7 +105,7 @@ const PullRow = memo(function PullRow({
               type="button"
               aria-label={`Ask an admin to let ${student.name} join`}
               disabled={busy}
-              className="grid size-8 shrink-0 place-items-center rounded-control border border-app-border p-0 text-app-text transition-colors hover:bg-app-soft disabled:opacity-50"
+              className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-text transition-colors hover:bg-app-soft disabled:opacity-50"
               onClick={() => onAsk(student)}
             >
               <Send className="size-4" strokeWidth={2.5} />
@@ -119,7 +118,7 @@ const PullRow = memo(function PullRow({
             type="button"
             aria-label={`Cancel pull for ${student.name}`}
             disabled={busy}
-            className="grid size-8 shrink-0 place-items-center rounded-control border border-app-border p-0 text-app-muted transition-colors hover:bg-app-danger hover:text-on-danger disabled:opacity-50"
+            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-muted transition-colors hover:bg-app-danger hover:text-white disabled:opacity-50"
             onClick={() => onCancel(student)}
           >
             <X className="size-4" strokeWidth={2.5} />
@@ -131,7 +130,7 @@ const PullRow = memo(function PullRow({
             type="button"
             aria-label={`Pull ${student.name} into class`}
             disabled={busy}
-            className="grid size-8 shrink-0 place-items-center rounded-control border border-primary p-0 text-primary-ink transition-colors hover:bg-primary hover:text-on-primary disabled:opacity-50"
+            className="grid size-8 shrink-0 place-items-center rounded-full border border-primary p-0 text-primary-ink transition-colors hover:bg-primary hover:text-white disabled:opacity-50"
             onClick={() => onPull(student)}
           >
             <Magnet className="size-4" strokeWidth={2.5} />
@@ -212,14 +211,7 @@ export function PullStudentsSection({ classId }: { classId: string }) {
   }, [absent, query, searching, search.data]);
   const onlineIdle = absent.filter((s) => s.online && !s.needsApproval && s.pull?.status !== "PENDING");
 
-  if (!roster.data) {
-    return roster.isError ? null : (
-      <p className="flex items-center gap-2 py-3 text-sm text-app-muted" role="status">
-        <Spinner />
-        Loading students…
-      </p>
-    );
-  }
+  if (!roster.data) return null;
 
   const busyId = pull.isPending ? pull.variables?.studentId : cancel.isPending ? cancel.variables?.studentId : null;
 
@@ -238,7 +230,7 @@ export function PullStudentsSection({ classId }: { classId: string }) {
         {open && onlineIdle.length > 1 ? (
           <button
             type="button"
-            className="text-xs font-bold text-primary-ink hover:underline disabled:opacity-50"
+            className="text-[11px] font-bold text-primary-ink hover:underline disabled:opacity-50"
             disabled={pull.isPending}
             onClick={() => onlineIdle.forEach((s) => pull.mutate(s))}
           >
@@ -257,7 +249,7 @@ export function PullStudentsSection({ classId }: { classId: string }) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search name or username…"
-                className="w-full bg-transparent text-[0.8125rem] font-medium text-app-text outline-none placeholder:text-app-muted"
+                className="w-full bg-transparent text-[13px] font-medium text-app-text outline-none placeholder:text-app-muted"
               />
             </div>
           </div>

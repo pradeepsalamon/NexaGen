@@ -116,7 +116,7 @@ export function ClassroomTimerTool({ isManager, timer }: ToolContext) {
               <SimpleTooltip label="Remove phase">
                 <button
                   aria-label={`Remove phase ${i + 1}`}
-                  className="flex size-8 items-center justify-center rounded-control bg-app-danger text-on-danger transition-colors hover:bg-app-danger/85 disabled:opacity-40"
+                  className="flex size-8 items-center justify-center rounded-full bg-app-danger text-white transition-colors hover:bg-app-danger/85 disabled:opacity-40"
                   disabled={phases.length === 1}
                   onClick={() => set(phases.filter((x) => x.id !== p.id))}
                   type="button"
@@ -184,7 +184,7 @@ export function ClassroomTimerTool({ isManager, timer }: ToolContext) {
   return (
     <div className="space-y-4">
       <div className="rounded-app border border-app-border bg-app-soft p-5 text-center">
-        <p className="text-xs font-bold text-app-muted">
+        <p className="text-xs font-bold uppercase tracking-wide text-app-muted">
           {state.status === "DONE"
             ? "All phases done"
             : `Phase ${state.index + 1} of ${state.phases.length}${state.status === "PAUSED" ? " · paused" : state.status === "IDLE" ? " · ready" : ""}`}
@@ -216,7 +216,7 @@ export function ClassroomTimerTool({ isManager, timer }: ToolContext) {
       {isManager ? (
         <div className="flex flex-wrap justify-center gap-2">
           {state.status === "RUNNING" ? (
-            <Button onClick={() => save.mutate(t.pause())} variant="neutral">
+            <Button onClick={() => save.mutate(t.pause())} variant="secondary">
               <Pause aria-hidden="true" className="size-4" strokeWidth={2.5} />
               Pause
             </Button>

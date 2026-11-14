@@ -45,7 +45,6 @@ export function StudentPuzzleSet({ assignment }: { assignment: StudentAssignment
           icon={Target}
           title="No puzzles in this set"
           description="Your coach hasn't added any puzzles yet, or they were removed. Check back later."
-          variant="inline"
         />
       </Card>
     );
@@ -276,7 +275,7 @@ function FinishedPuzzle({
         className={cn(
           "flex items-start gap-2 rounded-control border p-3 text-sm",
           item.status === "SOLVED"
-            ? "border-success/40 bg-success/10 text-success-ink"
+            ? "border-accent/40 bg-accent/10 text-accent-ink"
             : "border-app-border bg-app-soft text-app-text"
         )}
       >
@@ -297,16 +296,16 @@ function FinishedPuzzle({
         <Fact label="Hints" value={String(item.hintsUsed ?? 0)} />
         <Fact label="Time" value={formatSeconds(item.durationSeconds)} />
       </dl>
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" size="sm" onClick={onNext}>
+          {hasNext ? "Next puzzle" : "See my results"}
+        </Button>
         {canRetry ? (
           <Button type="button" variant="outline" size="sm" onClick={onRetry}>
             <RotateCcw className="mr-1.5 size-4" strokeWidth={2.5} />
             Try again
           </Button>
         ) : null}
-        <Button type="button" size="sm" onClick={onNext}>
-          {hasNext ? "Next puzzle" : "See my results"}
-        </Button>
       </div>
     </div>
   );
@@ -326,7 +325,7 @@ function MyResults({
   return (
     <Card className="space-y-3 p-4 sm:p-5">
       {allDone ? (
-        <p className="flex items-center gap-2 rounded-control border border-success/40 bg-success/10 p-3 text-sm font-semibold text-success-ink">
+        <p className="flex items-center gap-2 rounded-control border border-accent/40 bg-accent/10 p-3 text-sm font-semibold text-accent-ink">
           <CheckCircle2 className="size-4 shrink-0" strokeWidth={2.5} />
           Set complete! You can still retry any unsolved puzzle that has tries left.
         </p>
@@ -369,10 +368,10 @@ function MyResults({
                   <SimpleTooltip label={item.status === "NOT_STARTED" ? "Start" : "Open"}>
                     <Button
                       type="button"
-                      variant="neutral"
+                      variant="ghost"
                       size="icon"
                       aria-label={`Open puzzle ${item.position + 1}`}
-                      className="size-8"
+                      className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                       onClick={() => onOpen(item.position)}
                     >
                       <Play className="size-4" strokeWidth={2.5} />

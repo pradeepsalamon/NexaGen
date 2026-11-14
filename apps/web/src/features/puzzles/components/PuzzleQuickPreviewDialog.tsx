@@ -86,7 +86,7 @@ export function PuzzleQuickPreviewDialog({
           <DialogDescription>
             {puzzle
               ? `${puzzle.sideToMove === "white" ? "White" : "Black"} to move · ${puzzle.solutionLength}-move solution`
-              : <Skeleton as="span" className="h-3.5 w-48" />}
+              : "Loading the puzzle…"}
           </DialogDescription>
         </DialogHeader>
 
@@ -135,17 +135,17 @@ export function PuzzleQuickPreviewDialog({
               <div className="space-y-2">
                 <div className="flex items-center justify-center gap-2">
                   <SimpleTooltip label="Start position">
-                    <Button aria-label="Start position" disabled={ply === 0} onClick={() => setPly(0)} size="icon" type="button" variant="neutral">
+                    <Button aria-label="Start position" disabled={ply === 0} onClick={() => setPly(0)} size="icon" type="button" variant="outline">
                       <ChevronsLeft className="size-4" strokeWidth={2.5} />
                     </Button>
                   </SimpleTooltip>
                   <SimpleTooltip label="Previous move">
-                    <Button aria-label="Previous move" disabled={ply === 0} onClick={() => setPly(ply - 1)} size="icon" type="button" variant="neutral">
+                    <Button aria-label="Previous move" disabled={ply === 0} onClick={() => setPly(ply - 1)} size="icon" type="button" variant="outline">
                       <ChevronLeft className="size-4" strokeWidth={2.5} />
                     </Button>
                   </SimpleTooltip>
                   <SimpleTooltip label="Next move">
-                    <Button aria-label="Next move" disabled={ply >= steps.length} onClick={() => setPly(ply + 1)} size="icon" type="button" variant="neutral">
+                    <Button aria-label="Next move" disabled={ply >= steps.length} onClick={() => setPly(ply + 1)} size="icon" type="button" variant="outline">
                       <ChevronRight className="size-4" strokeWidth={2.5} />
                     </Button>
                   </SimpleTooltip>
@@ -157,7 +157,7 @@ export function PuzzleQuickPreviewDialog({
                         aria-current={i === ply - 1 ? "step" : undefined}
                         className={cn(
                           "rounded-control px-1.5 py-0.5 transition-colors hover:bg-app-soft",
-                          i === ply - 1 ? "bg-primary font-bold text-on-primary hover:bg-primary" : "text-app-text"
+                          i === ply - 1 ? "bg-primary font-bold text-white hover:bg-primary" : "text-app-text"
                         )}
                         onClick={() => setPly(i + 1)}
                         type="button"
@@ -221,7 +221,7 @@ export function PuzzleQuickPreviewDialog({
               </Button>
             </div>
           ) : null}
-          <Button onClick={() => onOpenChange(false)} type="button" variant="neutral">
+          <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
             Close
           </Button>
           {action ? (

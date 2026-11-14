@@ -9,7 +9,7 @@ import {
   type PuzzleDifficulty,
   type PuzzleType
 } from "@nexa-chess/types";
-import { FileUp } from "lucide-react";
+import { FileUp, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import {
@@ -33,7 +33,6 @@ import {
   puzzleTopicOptions
 } from "../lib/puzzleMeta";
 import { sideToMove } from "./solver/puzzleSolverEngine";
-import { Spinner } from "@/components/ui/Spinner";
 
 interface Props {
   open: boolean;
@@ -294,7 +293,7 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
               onClick={submit}
               disabled={importMut.isPending || chosen.length === 0 || tooMany}
             >
-              {importMut.isPending ? <Spinner className="mr-1.5 size-4" /> : null}
+              {importMut.isPending ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : null}
               Import {chosen.length} puzzle{chosen.length === 1 ? "" : "s"}
             </Button>
           </DialogFooter>

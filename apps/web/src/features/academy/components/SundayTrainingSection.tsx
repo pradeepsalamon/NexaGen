@@ -1,269 +1,134 @@
 "use client";
 
-import Image from "next/image";
-import {
-  Trophy,
-  Users,
-  Award,
-  GraduationCap,
-  ArrowRight,
-  Check,
-  type LucideIcon
-} from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { Trophy, TrendingUp, CalendarDays, Target } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { useIsVisible } from "../hooks/useIsVisible";
 
-const COLOSSEUM_BG_LIGHT = "/sunday/01_day_chess_colosseum.webp";
-const COLOSSEUM_BG_DARK = "/sunday/02_night_chess_colosseum.webp";
-
-interface TournamentStat {
-  value: string;
-  label: string;
-  Icon: LucideIcon;
-}
-
-const tournamentStats: TournamentStat[] = [
-  { value: "50+", label: "Weekly Players", Icon: Users },
-  { value: "75+", label: "Tournaments Hosted", Icon: Trophy },
-  { value: "45+", label: "Expert Coaches", Icon: Award },
-  { value: "100+", label: "Students Trained", Icon: GraduationCap }
+const achievements: { value: number; suffix: string; label: string; Icon: LucideIcon }[] = [
+  { value: 50, suffix: "+", label: "Tournament Players", Icon: Trophy },
+  { value: 75, suffix: "%", label: "Win Rate Improvement", Icon: TrendingUp },
+  { value: 48, suffix: "+", label: "Sunday Sessions/Year", Icon: CalendarDays },
+  { value: 100, suffix: "+", label: "Tournaments Covered", Icon: Target }
 ];
 
-// Desktop 2x2 order vs Mobile 1-column order (matches image_c6a5e5.png)
-const desktopHighlights = [
-  "Tournament Simulation",
-  "Grandmaster Game Analysis",
-  "Rapid Tactics Sparring",
-  "Competitive Rating Prep"
-];
+function AnimatedCounter({ target, suffix, isInView }: { target: number; suffix: string; isInView: boolean }) {
+  const [count, setCount] = useState(0);
 
-const mobileHighlights = [
-  "Tournament Simulation",
-  "Rapid Tactics Sparring",
-  "Grandmaster Game Analysis",
-  "Competitive Rating Prep"
-];
-
-export function SundayTrainingSection() {
+  useEffect(() => {
+    if (!isInView) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setCount(target);
+      return;
+    }
+    let start = 0;
+    const duration = 2000;
+    const increment = target / (duration / 16);
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= target) {
+        setCount(target);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(start));
+      }
+    }, 16);
+    return () => clearInterval(timer);
+  }, [isInView, target]);
 
   return (
-    <section
-      id="sunday-training"
-      className="relative flex flex-col lg:flex-row lg:items-center lg:min-h-[560px] lg:py-20 overflow-hidden select-none transition-colors duration-300 bg-app-surface text-app-text"
-    >
-      {/* ================= DESKTOP COLOSSEUM ARTWORK (FULL KING VISIBLE) ================= */}
-      <div
-        className="pointer-events-none hidden lg:block absolute inset-0 z-0 overflow-hidden"
-        aria-hidden="true"
-      >
-        <div className="absolute inset-y-0 right-0 w-[75%] xl:w-[72%]">
-          {/* Light Mode Colosseum */}
-          <Image
-            src={COLOSSEUM_BG_LIGHT}
-            alt="Nexa Chess Sunday Tournament Colosseum Light"
-            fill
-            sizes="75vw"
-            className="object-cover object-[right_center] dark:hidden"
-          />
+    <span className="text-3xl sm:text-4xl font-bold gold-text font-[family-name:var(--font-playfair)] tabular-nums">
+      {count}
+      {suffix}
+    </span>
+  );
+}
 
-          {/* Dark Mode Colosseum */}
-          <Image
-            src={COLOSSEUM_BG_DARK}
-            alt="Nexa Chess Sunday Tournament Colosseum Dark"
-            fill
-            sizes="75vw"
-            className="object-cover object-[right_center] hidden dark:block"
-          />
+export function SundayTrainingSection() {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useIsVisible(ref);
 
-          {/* Smooth Left-to-Right Fade */}
-          <div
-            className="absolute inset-y-0 left-0 w-[52%] bg-gradient-to-r from-app-surface via-app-surface/[0.92] to-transparent"
-          />
-        </div>
+  return (
+    <section id="sunday-training" className="relative py-24 sm:py-32 overflow-hidden">
+      <div className="absolute inset-0 chess-pattern opacity-15" />
+      <div className="absolute inset-0 mesh-soft" />
+      <div className="absolute top-0 left-0 right-0 hairline" />
 
-        {/* Subtle Top & Bottom Feathering */}
-        <div
-          className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-app-surface to-transparent"
-        />
-        <div
-          className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-app-surface to-transparent"
-        />
-      </div>
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" ref={ref}>
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <div className="reveal reveal-up" style={{ transitionDelay: "0s" }}>
+            <span className="eyebrow mb-5">
+              <span className="eyebrow-dot" />
+              Special Sunday Sessions
+            </span>
+            <h2 className="section-title font-[family-name:var(--font-playfair)] mb-6">
+              Sunday <span className="gold-text">Tournament</span> Training
+            </h2>
+            <p className="text-text-secondary text-lg leading-relaxed mb-8">
+              Special Sunday sessions focused on tournament preparation, practical gameplay, analysis,
+              rapid chess improvement, and competitive confidence. Take your game to the next level
+              with intensive weekend training.
+            </p>
 
-      {/* ================= MOBILE TOP COLOSSEUM BANNER ================= */}
-      <div
-        className="relative lg:hidden h-56 sm:h-64 w-full shrink-0 overflow-hidden"
-        aria-hidden="true"
-      >
-        {/* Focused on the Golden King on the right side of your Colosseum image */}
-        <Image
-          src={COLOSSEUM_BG_LIGHT}
-          alt="Sunday Tournament King Light"
-          fill
-          sizes="100vw"
-          className="object-cover object-[90%_top] sm:object-[86%_center] scale-110 dark:hidden"
-        />
-        <Image
-          src={COLOSSEUM_BG_DARK}
-          alt="Sunday Tournament King Dark"
-          fill
-          sizes="100vw"
-          className="object-cover object-[90%_top] sm:object-[86%_center] scale-110 hidden dark:block"
-        />
-
-        {/* Soft bottom gradient blending into the overlapping mobile card */}
-        <div
-          className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-app-surface via-app-surface/60 to-transparent"
-        />
-      </div>
-
-      {/* ================= FOREGROUND CONTAINER ================= */}
-      <div className="relative z-10 w-full max-w-[1280px] mx-auto px-0 sm:px-6 lg:px-8 -mt-7 lg:mt-0">
-        <div
-          className="rounded-t-[28px] lg:rounded-none px-5 pt-6 pb-10 sm:px-8 lg:p-0 shadow-[0_-12px_32px_rgb(var(--rgb-scrim)/0.08)] lg:shadow-none bg-app-surface lg:bg-transparent border-t border-app-border lg:border-none"
-        >
-          {/* 12-Column Grid on Desktop / Stacked Single Column on Mobile */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-6 items-center">
-            {/* LEFT COLUMN (Cols 1-6): Eyebrow, Heading, Description, Features & Desktop CTA */}
-            <div className="lg:col-span-6 text-center lg:text-left">
-              {/* Pill Eyebrow: [• WEEKEND SPECIAL] */}
-              <div
-                className="inline-flex items-center gap-2 px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-full border text-[10px] sm:text-xs font-bold uppercase tracking-[0.16em] mb-3.5 shadow-2xs bg-accent-soft border-accent/45 text-app-text"
-              >
-                <span className="size-1.5 sm:size-2 rounded-full bg-accent" />
-                <span>WEEKEND SPECIAL</span>
-              </div>
-
-              {/* Two-Tone Serif Heading */}
-              <h2 className="font-[family-name:var(--font-playfair)] font-bold text-[1.75rem] sm:text-4xl lg:text-[46px] xl:text-[50px] leading-[1.12] tracking-[-0.02em] mb-3 sm:mb-4">
-                <span className="text-app-text">
-                  Sunday Tournament
-                </span>
-                <span className="block text-accent-ink mt-0.5">
-                  Training
-                </span>
-              </h2>
-
-              {/* Description */}
-              <p
-                className="text-xs sm:text-[15px] leading-[1.6] max-w-[330px] sm:max-w-[490px] mx-auto lg:mx-0 mb-5 sm:mb-6 text-app-muted"
-              >
-                Students practice tournament skills, analyze games and prepare
-                for competitive play in live supervised arena battles and
-                master-reviewed matches.
-              </p>
-
-              {/* MOBILE Checkmark Features (1-Column Left-Aligned, Exact Mobile Order) */}
-              <div className="grid grid-cols-1 gap-2.5 sm:hidden max-w-[320px] mx-auto mb-1 text-left">
-                {mobileHighlights.map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-center gap-2.5 text-xs font-medium text-app-text"
-                  >
-                    <span className="size-4 rounded-full bg-gradient-to-b from-accent to-accent-hover text-on-accent flex items-center justify-center shrink-0 shadow-2xs">
-                      <Check className="size-2.5 stroke-[3.2]" />
-                    </span>
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* DESKTOP/TABLET Checkmark Features (2x2 Grid) */}
-              <div className="hidden sm:grid sm:grid-cols-2 gap-x-4 gap-y-3 max-w-[490px] mx-auto lg:mx-0 mb-4 lg:mb-8 text-left">
-                {desktopHighlights.map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-center gap-2.5 text-[13.5px] font-semibold whitespace-nowrap text-app-text"
-                  >
-                    <span className="size-4 rounded-full bg-gradient-to-b from-accent to-accent-hover text-on-accent flex items-center justify-center shrink-0 shadow-2xs">
-                      <Check className="size-2.5 stroke-[3.2]" />
-                    </span>
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop CTA Button */}
-              <div className="hidden lg:block">
-                <a
-                  href="#demo"
-                  className="
-                    inline-flex items-center justify-center gap-2.5
-                    min-h-[48px] px-7 py-3 rounded-xl
-                    bg-gradient-to-r from-accent via-accent to-accent-hover
-                    hover:from-accent hover:to-accent-hover
-                    text-on-accent font-bold text-sm
-                    shadow-[0_8px_24px_rgb(var(--rgb-accent)/0.35)]
-                    hover:shadow-[0_10px_28px_rgb(var(--rgb-accent)/0.48)]
-                    transition-all duration-200 hover:-translate-y-0.5
-                  "
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3.5 mb-8">
+              {[
+                "Tournament Simulation",
+                "Game Analysis",
+                "Rapid Improvement",
+                "Competitive Play",
+                "Opening Prep",
+                "Endgame Drills"
+              ].map((feature, i) => (
+                <div
+                  key={feature}
+                  className="flex items-center gap-2.5 text-sm text-text-secondary reveal reveal-up"
+                  style={{ transitionDelay: `${0.3 + i * 0.1}s` }}
                 >
-                  <span>Join Sunday Training</span>
-                  <ArrowRight className="size-4 stroke-[2.4]" />
-                </a>
-              </div>
-            </div>
-
-            {/* MIDDLE-RIGHT COLUMN (Cols 7-10): 2x2 Stat Cards + Mobile Bottom CTA */}
-            <div className="lg:col-span-4 w-full">
-              {/* Outer Tray on Mobile Light Mode to match the mockup */}
-              <div
-                className="max-w-[390px] mx-auto lg:mx-0 rounded-[20px] p-2.5 sm:p-0 bg-app-background sm:bg-transparent border border-app-border sm:border-none"
-              >
-                <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
-                  {tournamentStats.map((stat) => {
-                    const Icon = stat.Icon;
-                    return (
-                      <div
-                        key={stat.label}
-                        className="group rounded-[16px] sm:rounded-[20px] px-3 py-4 sm:px-5 sm:py-6 text-center border transition-all duration-300 lg:hover:-translate-y-1 bg-app-surface lg:bg-accent-soft/95 border-app-border lg:border-accent/45 hover:border-accent shadow-[0_4px_14px_rgb(var(--rgb-brand-800)/0.04)] lg:shadow-[0_12px_32px_-8px_rgb(var(--rgb-accent)/0.12)]"
-                      >
-                        {/* Circular Soft Gold Icon Badge */}
-                        <div
-                          className="size-9 sm:size-11 rounded-full mx-auto mb-2 sm:mb-3 flex items-center justify-center border transition-transform duration-200 group-hover:scale-105 bg-accent-soft border-accent/45 text-accent-ink"
-                        >
-                          <Icon className="size-4 sm:size-5" strokeWidth={2} />
-                        </div>
-
-                        {/* Stat Number */}
-                        <div
-                          className="font-[family-name:var(--font-playfair)] font-bold text-xl sm:text-[28px] leading-tight mb-0.5 sm:mb-1 text-app-text"
-                        >
-                          {stat.value}
-                        </div>
-
-                        {/* Stat Label */}
-                        <div
-                          className="text-[11px] sm:text-xs font-medium sm:font-semibold text-app-muted"
-                        >
-                          {stat.label}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1a3a52] shrink-0" />
+                  {feature}
                 </div>
-              </div>
-
-              {/* Mobile Full-Width CTA Button */}
-              <div className="mt-5 lg:hidden max-w-[390px] mx-auto">
-                <a
-                  href="#demo"
-                  className="
-                    w-full inline-flex items-center justify-center gap-2
-                    min-h-[46px] px-6 py-3 rounded-xl
-                    bg-gradient-to-r from-accent via-accent to-accent-hover
-                    active:scale-[0.99]
-                    text-on-accent font-bold text-xs sm:text-sm
-                    shadow-[0_8px_24px_rgb(var(--rgb-accent)/0.35)]
-                    transition-transform
-                  "
-                >
-                  <span>Join Sunday Training</span>
-                  <ArrowRight className="size-4 stroke-[2.4]" />
-                </a>
-              </div>
+              ))}
             </div>
 
-            {/* FAR RIGHT SPACER COLUMN (Cols 11-12): Keeps the 3D Golden King completely unobstructed on Desktop */}
-            <div className="hidden lg:block lg:col-span-2" aria-hidden="true" />
+            <a
+              href="#demo"
+              className="btn-gold inline-flex items-center gap-2.5 !px-8 !py-3.5 rounded-full text-base font-semibold tracking-wide hover:scale-105 active:scale-95 transition-transform"
+            >
+              <Trophy className="w-4 h-4" strokeWidth={2} /> Join Sunday Training
+            </a>
+          </div>
+
+          <div className="reveal reveal-up" style={{ transitionDelay: "0.2s" }}>
+            <div className="grid grid-cols-2 gap-4">
+              {achievements.map((item, i) => (
+                <div
+                  key={item.label}
+                  className="group u-card p-6 hover:border-gold/20 card-lift text-center reveal reveal-scale"
+                  style={{ transitionDelay: `${0.4 + i * 0.1}s` }}
+                >
+                  <div className="flex justify-center mb-4">
+                    <span className="icon-tile icon-tile-lg">
+                      <item.Icon className="w-5 h-5" strokeWidth={1.75} />
+                    </span>
+                  </div>
+                  <AnimatedCounter target={item.value} suffix={item.suffix} isInView={isInView} />
+                  <div className="text-[0.6875rem] text-text-muted mt-2 uppercase tracking-[0.12em] font-medium">
+                    {item.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              className="mt-6 p-8 rounded-2xl bg-gradient-to-br from-[#d4a843]/10 to-[#b8912e]/5 border border-[#d4a843]/25 text-center reveal reveal-up"
+              style={{ transitionDelay: "0.8s" }}
+            >
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#d4a843]/20 to-[#b8912e]/5 border border-[#d4a843]/35 text-[#b8912e] mb-3 animate-float-slow shadow-[0_14px_30px_-18px_rgba(184,145,46,0.5)]">
+                <Trophy className="w-8 h-8" strokeWidth={1.5} />
+              </div>
+              <div className="text-sm text-[#b8912e] font-semibold">Every Sunday</div>
+              <div className="text-xs text-text-muted mt-1">Competitive Tournament Practice</div>
+            </div>
           </div>
         </div>
       </div>

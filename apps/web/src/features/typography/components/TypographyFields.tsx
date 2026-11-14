@@ -47,7 +47,7 @@ function FontPicker({
                 aria-hidden="true"
                 className={cn(
                   "flex size-11 shrink-0 items-center justify-center rounded-control text-xl",
-                  active ? "bg-primary text-on-primary" : "bg-app-soft text-app-text"
+                  active ? "bg-primary text-white" : "bg-app-soft text-app-text"
                 )}
                 style={{ fontFamily: fontFamilyOf(font.id) }}
               >
@@ -113,9 +113,9 @@ export function TypographyFields({
                 <button
                   aria-checked={active}
                   className={cn(
-                    "min-h-9 rounded-md px-4 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:cursor-not-allowed disabled:opacity-60",
+                    "min-h-9 rounded-full px-4 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:cursor-not-allowed disabled:opacity-60",
                     active
-                      ? "bg-primary text-on-primary"
+                      ? "bg-secondary text-black shadow-card"
                       : "text-app-muted hover:bg-app-surface hover:text-app-text"
                   )}
                   key={size}

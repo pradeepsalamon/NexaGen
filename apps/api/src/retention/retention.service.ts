@@ -9,11 +9,9 @@ import {
   RETENTION_RULES,
   RETENTION_SWEEP_HOUR_UTC,
   deleteBatchSql,
-  retentionParams,
   retentionCutoff,
   type RetentionRule
 } from "./retention.rules";
-import { sqlTenantId } from "../tenancy/tenant-sql";
 
 @Injectable()
 export class RetentionService {
@@ -27,7 +25,7 @@ export class RetentionService {
 
   @Cron(`0 ${RETENTION_SWEEP_HOUR_UTC} * * *`, { timeZone: "UTC" })
   async sweep(): Promise<void> {
-    await this.jobLocks.runForEachTenant(JOB_LOCKS.retentionSweep, () => this.pruneAll());
+    await this.jobLocks.runExclusive(JOB_LOCKS.retentionSweep, () => this.pruneAll());
   }
 
   /** Fixed rules first, then every admin-set window. Keyed by table. */
@@ -66,7 +64,7 @@ export class RetentionService {
     const sql = deleteBatchSql(rule);
     let total = 0;
     for (;;) {
-      const count = await this.prisma.$executeRawUnsafe(sql, cutoff, ...retentionParams(rule, sqlTenantId()));
+      const count = await this.prisma.$executeRawUnsafe(sql, cutoff);
       total += count;
       if (count < RETENTION_BATCH_SIZE) return total;
     }

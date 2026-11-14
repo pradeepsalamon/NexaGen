@@ -12,10 +12,8 @@ const PRIVATE_PATHS = [
   "/live-class",
   "/plans",
   "/profile",
-  "/r/",
   "/recorder",
   "/reset-password",
-  "/sales",
   "/student",
   "/verify-email"
 ];

@@ -31,11 +31,6 @@ export default defineConfig({
 
   use: {
     baseURL: resolveBaseUrl(),
-    // A browser always sends its page's Origin to the API, and the API reads
-    // the academy from it (docs/SAAS_MULTI_TENANCY.md §B). The specs' direct
-    // API calls (`context.request`) send none, so under TENANT_SCOPE_MODE=enforce
-    // (staging) they'd have no academy and be refused. Send the web origin.
-    extraHTTPHeaders: { Origin: new URL(resolveBaseUrl()).origin },
     headless: true,
     screenshot: "only-on-failure",
     trace: "on-first-retry",
@@ -46,14 +41,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: {
-        ...devices["Desktop Chrome"],
-        // A fake camera/mic for the live-class specs. Chromium-only flags.
-        launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] },
-      },
+      use: { ...devices["Desktop Chrome"] },
     },
-    // Opt-in Safari engine: E2E_WEBKIT=1 npx playwright test --project=webkit.
-    // WebKit has no fake camera, so a room is joined with camera and mic off.
-    ...(process.env.E2E_WEBKIT === "1" ? [{ name: "webkit", use: { ...devices["Desktop Safari"] } }] : []),
   ],
 });

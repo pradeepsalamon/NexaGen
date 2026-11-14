@@ -11,12 +11,6 @@ import type { PrismaService } from "../../../prisma/prisma.service";
 import { createUser } from "../db";
 
 const HOUR = 60 * 60 * 1000;
-
-/** The last day of a `YYYY-MM` month (UTC). */
-function monthEnd(month: string): Date {
-  const [year, index] = month.split("-").map(Number);
-  return new Date(Date.UTC(year, index, 0));
-}
 const FEN = "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1";
 
 async function activeUser(prisma: PrismaService, role: UserRole) {
@@ -297,100 +291,8 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     data: { articleId: kbSuggestionArticle.id, authorId: coach.id, body: "Idea", number: 1, status: "SUBMITTED", title: `Suggestion ${label}` }
   });
 
-  // Referral rows (docs/REFERRALS.md): the coach's payout request and the
-  // student's pending voucher redemption are ids their owner acts on.
-  const referralWithdrawal = await prisma.referralWithdrawal.create({
-    data: { amountMinor: 50000, currency: "INR", payoutDetails: `upi-${label}@bank`, userId: coach.id }
-  });
-  const referralVoucher = await prisma.referralVoucher.create({
-    data: { freeDays: 7, name: `Free week ${label}`, pointsCost: 100, requiresApproval: true, type: "FREE_DAYS" }
-  });
-  const referralRedemption = await prisma.referralRedemption.create({
-    data: {
-      currency: "INR",
-      freeDays: 7,
-      pointsCost: 100,
-      type: "FREE_DAYS",
-      userId: student.id,
-      voucherId: referralVoucher.id,
-      voucherName: referralVoucher.name
-    }
-  });
-  await prisma.referralCreditEntry.create({
-    data: { amountMinor: -100, currency: "INR", redemptionId: referralRedemption.id, type: "REDEMPTION", userId: student.id, wallet: "POINTS" }
-  });
-
-  // A published PRIVATE tournament the coach hosts, with the student entered
-  // (docs/TOURNAMENTS.md): its players and management are this side's only.
-  const tournament = await prisma.tournament.create({
-    data: {
-      clockInitialMs: 300_000,
-      format: "SWISS",
-      name: `Tournament ${label}`,
-      publishedAt: new Date(),
-      rounds: 3,
-      slug: `tournament-${label.toLowerCase()}`,
-      startsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      status: "PUBLISHED",
-      visibility: "PRIVATE"
-    }
-  });
-  await prisma.tournamentHost.create({ data: { role: "HOST", tournamentId: tournament.id, userId: coach.id } });
-  const tournamentPlayer = await prisma.tournamentPlayer.create({
-    data: { status: "APPROVED", tournamentId: tournament.id, userId: student.id }
-  });
-  const tournamentOpponent = await activeUser(prisma, UserRole.STUDENT);
-  const opponentPlayer = await prisma.tournamentPlayer.create({
-    data: { status: "APPROVED", tournamentId: tournament.id, userId: tournamentOpponent.id }
-  });
-  const tournamentGame = await prisma.tournamentGame.create({
-    data: {
-      blackClockMs: 300_000,
-      blackPlayerId: opponentPlayer.id,
-      boardNumber: 1,
-      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-      roundNumber: 1,
-      startFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-      tournamentId: tournament.id,
-      whiteClockMs: 300_000,
-      whitePlayerId: tournamentPlayer.id
-    }
-  });
-
-  const certificateTemplate = await prisma.certificateTemplate.create({
-    data: { accentColor: "#1F4FA8", body: "{{player.name}} took part.", name: `Template ${label}`, title: "Certificate" }
-  });
-  const certificateRule = await prisma.tournamentCertificateRule.create({
-    data: { kind: "PARTICIPATION", minGames: 0, templateId: certificateTemplate.id, tournamentId: tournament.id }
-  });
-  const certificate = await prisma.tournamentCertificate.create({
-    data: {
-      playerId: tournamentPlayer.id,
-      ruleId: certificateRule.id,
-      serialNumber: `2026-${label}`,
-      snapshotJson: {
-        academyName: "Academy",
-        ageGroup: null,
-        date: "2026-11-09",
-        placement: "Participant",
-        playerName: `Student ${label}`,
-        points: "1",
-        template: { accentColor: "#1F4FA8", body: "{{player.name}} took part.", borderStyle: "CLASSIC", orientation: "LANDSCAPE", title: "Certificate" },
-        tournamentName: `Tournament ${label}`
-      },
-      templateId: certificateTemplate.id,
-      tournamentId: tournament.id,
-      userId: student.id,
-      verificationCode: `${label.toLowerCase().padEnd(16, "0").slice(0, 16)}`
-    }
-  });
-
   return {
     externalAccount,
-    certificate,
-    tournament,
-    tournamentGame,
-    tournamentPlayer,
     activityQueue,
     assignment,
     attempt,
@@ -411,8 +313,6 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     payrollRecord,
     privatePuzzle,
     playoutGame,
-    referralRedemption,
-    referralWithdrawal,
     playoutRun,
     rush,
     setDeployment,
@@ -428,25 +328,18 @@ export type Side = Awaited<ReturnType<typeof createSide>>;
  * Two mirror-image sides (A and B) that share nothing, plus an ADMIN and a
  * SUPER_ADMIN. Every cross-user test asks "can A reach B's row?".
  */
-/**
- * `prefix` keeps a second world's unique values apart (codes, numbers, slugs);
- * `periodMonth` its payroll period, which is globally unique until §D5.
- */
-export async function createWorld(
-  prisma: PrismaService,
-  { periodMonth = "2026-09", prefix = "" }: { periodMonth?: string; prefix?: string } = {}
-) {
+export async function createWorld(prisma: PrismaService) {
   const superAdmin = await activeUser(prisma, UserRole.SUPER_ADMIN);
   const admin = await activeUser(prisma, UserRole.ADMIN);
-  const topic = await prisma.puzzleTopic.create({ data: { name: `${prefix}Mates`, slug: `${prefix.toLowerCase()}mates` } });
+  const topic = await prisma.puzzleTopic.create({ data: { name: "Mates", slug: "mates" } });
   const period = await prisma.payrollPeriod.create({
     data: {
-      endDate: monthEnd(periodMonth),
+      endDate: new Date("2026-09-30"),
       periodType: PayrollPeriodType.MONTHLY,
-      startDate: new Date(`${periodMonth}-01`)
+      startDate: new Date("2026-09-01")
     }
   });
-  const a = await createSide(prisma, `${prefix}A`, topic.id, period.id);
-  const b = await createSide(prisma, `${prefix}B`, topic.id, period.id);
+  const a = await createSide(prisma, "A", topic.id, period.id);
+  const b = await createSide(prisma, "B", topic.id, period.id);
   return { a, admin, b, superAdmin };
 }

@@ -24,7 +24,6 @@ import { useDemoClassColumns } from "./demo-classes/useDemoClassColumns";
 import { ColumnVisibilityMenu } from "./demo-classes/ColumnVisibilityMenu";
 import { DemoSchedulesPanel } from "./demo-classes/DemoSchedulesPanel";
 import { demoShareText } from "../lib/demoLinks";
-import { PageHeader } from "@/components/layout/PageHeader";
 
 type DemoClassManagementTab = "all" | "schedules" | "create";
 
@@ -123,8 +122,8 @@ export function DemoClassesClient() {
   });
 
   return (
-    <div className="animate-fade-in pb-10">
-      <div className="grid grid-cols-[minmax(0,1fr)]">
+    <div>
+      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-5">
         <Tabs
           onValueChange={(value) => {
             if (value === "create") {
@@ -136,12 +135,19 @@ export function DemoClassesClient() {
           }}
           value={activeTab}
         >
-          <PageHeader
-            actions={
-            <TabsList aria-label="Demo classes view">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-extrabold text-primary-ink">
+                Demo Class management
+              </p>
+              <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
+                Demo classes
+              </h1>
+            </div>
+            <TabsList className="w-full justify-start overflow-x-auto sm:w-fit">
               <TabsTrigger value="all">
                 <CalendarDays aria-hidden="true" className="size-4" />
-                All classes
+                All Classes
               </TabsTrigger>
               <TabsTrigger value="schedules">
                 <Repeat aria-hidden="true" className="size-4" />
@@ -156,18 +162,14 @@ export function DemoClassesClient() {
                 {editingClassId ? "Edit" : "Create"}
               </TabsTrigger>
             </TabsList>
-            }
-            description="Free trial classes for prospective students and their guests."
-            title="Demo classes"
-          />
+          </header>
 
-          <TabsContent value="all" className="outline-none">
+          <TabsContent value="all" className="mt-6 outline-none">
             <Card className="grid gap-4 p-4">
               <DataTableToolbar
                 actions={<ColumnVisibilityMenu table={table} />}
                 filters={
                   <Select
-                    aria-label="Filter by status"
                     className="w-40"
                     onChange={(event) => serverTable.setStatus(event.target.value)}
                     options={[{ label: "All status", value: "ALL" }, ...statusOptions]}
@@ -185,12 +187,11 @@ export function DemoClassesClient() {
                 noDataText={
                   <div className="flex flex-col items-center justify-center space-y-4 py-4">
                     <p>No demo classes found.</p>
-                    <Button onClick={() => setActiveTab("create")} size="sm" variant="outline">
-                      <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} /> Create demo class
+                    <Button onClick={() => setActiveTab("create")} size="sm">
+                      <Plus className="mr-2 size-4" /> Create Demo Class
                     </Button>
                   </div>
                 }
-                stackOnMobile
                 table={table}
               />
 
@@ -201,11 +202,11 @@ export function DemoClassesClient() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="schedules" className="outline-none">
+          <TabsContent value="schedules" className="mt-6 outline-none">
             <DemoSchedulesPanel />
           </TabsContent>
 
-          <TabsContent value="create" className="outline-none">
+          <TabsContent value="create" className="mt-6 outline-none">
             <DemoClassForm
               key={editingClassId ?? "new"}
               selectedClass={selectedClass}

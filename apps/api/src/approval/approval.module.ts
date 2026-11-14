@@ -19,7 +19,6 @@ import { ClassExtraHandler, ClassRescheduleHandler } from "./handlers/class-chan
 import { ClassSubstituteHandler } from "./handlers/class-substitute.handler";
 import { LiveClassGuestStudentHandler } from "./handlers/live-class-guest-student.handler";
 import { LiveSettingExceptionHandler } from "./handlers/live-setting-exception.handler";
-import { TournamentPublishHandler } from "./handlers/tournament-publish.handler";
 
 /**
  * Generic admin approvals (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md §2.3).
@@ -44,7 +43,6 @@ import { TournamentPublishHandler } from "./handlers/tournament-publish.handler"
     LiveClassGuestStudentHandler,
     LiveSettingExceptionHandler,
     RequestQueuesService,
-    TournamentPublishHandler,
     {
       provide: APPROVAL_HANDLERS,
       useFactory: (...handlers: unknown[]) => handlers,
@@ -59,8 +57,7 @@ import { TournamentPublishHandler } from "./handlers/tournament-publish.handler"
         ClassRescheduleHandler,
         ClassSubstituteHandler,
         LiveClassGuestStudentHandler,
-        LiveSettingExceptionHandler,
-        TournamentPublishHandler
+        LiveSettingExceptionHandler
       ]
     }
   ],

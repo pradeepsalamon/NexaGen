@@ -20,37 +20,23 @@ export function PlansClient() {
   const router = useRouter();
   const { data, isLoading } = usePlans();
 
-  const header = (
-    <PageHeader
-      description="Pick a plan to get started. You can pay by UPI, card, net banking or wallet."
-      title="Plans"
-    />
-  );
-
-  if (isLoading) {
-    return (
-      <div>
-        {header}
-        <Skeleton className="h-80 w-full" />
-      </div>
-    );
-  }
+  if (isLoading) return <Skeleton className="h-80 w-full" />;
 
   if (!data || data.plans.length === 0) {
     return (
-      <div>
-        {header}
-        <EmptyState
-          description="The academy has not published any plans yet."
-          title="Nothing available yet"
-        />
-      </div>
+      <EmptyState
+        description="The academy has not published any plans yet."
+        title="Nothing available yet"
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      {header}
+      <PageHeader
+        description="Pick a plan to get started. You can pay by UPI, card, net banking or wallet."
+        title="Plans"
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {data.plans.map((plan) => (
@@ -64,7 +50,7 @@ export function PlansClient() {
               ) : null}
             </div>
 
-            <p className="mt-3 font-display text-2xl font-bold tabular-nums text-app-text">
+            <p className="mt-3 text-2xl font-bold text-primary-ink">
               {formatMoney(plan.amount, plan.currency)}
               {isRecurringInterval(plan.interval) ? (
                 <span className="text-sm font-semibold text-app-muted">

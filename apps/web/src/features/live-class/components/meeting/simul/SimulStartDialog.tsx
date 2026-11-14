@@ -12,7 +12,6 @@ import { queryKeys } from "@/lib/queryKeys";
 import { getPullRoster } from "../../../api/live-class";
 import { useStartLiveSimul } from "../../../hooks/useLiveSimul";
 import { useSimul } from "../../../providers/SimulProvider";
-import { Spinner } from "@/components/ui/Spinner";
 
 const COLOR_OPTIONS: { value: SimulColorMode; label: string }[] = [
   { value: "WHITE", label: "I play White" },
@@ -83,7 +82,7 @@ export function SimulStartDialog() {
 
   return (
     <Dialog open={startOpen} onOpenChange={setStartOpen}>
-      <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto" overlayClassName="bg-scrim/60 backdrop-blur-none">
+      <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto" overlayClassName="bg-black/60 backdrop-blur-none">
         <DialogHeader>
           <DialogTitle>Play a simul</DialogTitle>
         </DialogHeader>
@@ -117,10 +116,7 @@ export function SimulStartDialog() {
             </div>
             <div className="max-h-64 space-y-1 overflow-y-auto rounded-app border border-app-border p-2">
               {roster.isLoading ? (
-                <p className="flex items-center gap-2 p-2 text-sm text-app-muted" role="status">
-                  <Spinner />
-                  Loading students…
-                </p>
+                <p className="p-2 text-sm text-app-muted">Loading students…</p>
               ) : students.length === 0 ? (
                 <p className="p-2 text-sm text-app-muted">No students are enrolled in this class.</p>
               ) : (

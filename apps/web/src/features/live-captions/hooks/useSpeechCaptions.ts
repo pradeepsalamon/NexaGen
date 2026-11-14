@@ -33,12 +33,6 @@ export type CaptionStatus = "idle" | "starting" | "listening" | "stopping";
 export type CaptionOptions = {
   fixChessTerms: boolean;
   lang: string;
-  /**
-   * Called with each batch of finished phrases as they arrive. With it the
-   * phrases are handed over and not kept in `segments`, so a whole class of
-   * speech doesn't pile up in memory.
-   */
-  onFinal?: (segments: CaptionSegment[]) => void;
 };
 
 // Chrome ends a continuous session on its own after silence or about a minute;
@@ -78,9 +72,7 @@ export function useSpeechCaptions() {
     const finals: CaptionSegment[] = [];
     let interimText = "";
 
-    // The caption is every current non-final result, including ones before
-    // resultIndex that didn't change in this event; finals are only the new ones.
-    for (let i = 0; i < event.results.length; i += 1) {
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
       const result = event.results[i];
       const best = result[0];
       if (!best) continue;
@@ -88,7 +80,6 @@ export function useSpeechCaptions() {
         interimText += best.transcript;
         continue;
       }
-      if (i < event.resultIndex) continue;
       const raw = best.transcript.trim();
       if (!raw) continue;
       const fix = options.fixChessTerms && isEnglishLang(options.lang);
@@ -111,10 +102,7 @@ export function useSpeechCaptions() {
       lastInterimRef.current = now;
     }
     failuresRef.current = 0;
-    if (finals.length > 0) {
-      if (options.onFinal) options.onFinal(finals);
-      else setSegments((previous) => [...previous, ...finals]);
-    }
+    if (finals.length > 0) setSegments((previous) => [...previous, ...finals]);
     setInterim(interimText);
   }, []);
 

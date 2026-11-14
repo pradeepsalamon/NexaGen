@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Pencil } from "lucide-react";
 import {
-  SYSTEM_MESSAGE_CHANNEL_LABELS,
   SYSTEM_MESSAGE_DEFINITIONS,
   SYSTEM_MESSAGE_GROUP_LABELS,
   markdownToPlainText,
@@ -21,15 +20,7 @@ import { SystemMessageEditor } from "./SystemMessageEditor";
 
 const GROUPS: SystemMessageGroup[] = ["ACCOUNT", "BILLING", "DEMO", "ADMIN"];
 
-function MessageRow({
-  emailConfigured,
-  message,
-  whatsappConfigured
-}: {
-  emailConfigured: boolean;
-  message: SystemMessageItem;
-  whatsappConfigured: boolean;
-}) {
+function MessageRow({ message }: { message: SystemMessageItem }) {
   const definition = SYSTEM_MESSAGE_DEFINITIONS[message.key];
   const [editing, setEditing] = useState(false);
 
@@ -39,11 +30,7 @@ function MessageRow({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold text-app-text">{definition.label}</p>
-            {message.channels.map((channel) => (
-              <Badge key={channel} variant="outline">
-                {SYSTEM_MESSAGE_CHANNEL_LABELS[channel]}
-              </Badge>
-            ))}
+            <Badge variant="outline">{definition.channel === "EMAIL" ? "Email" : "WhatsApp"}</Badge>
             {message.isCustomized ? <Badge variant="info">Edited</Badge> : null}
           </div>
           <p className="mt-1 text-xs text-app-muted">To: {definition.sentTo}</p>
@@ -53,24 +40,18 @@ function MessageRow({
         <SimpleTooltip label="Edit message">
           <Button
             aria-label={`Edit ${definition.label}`}
-            className="size-8 shrink-0"
+            className="size-8 shrink-0 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
             onClick={() => setEditing(true)}
             size="icon"
             type="button"
-            variant="neutral"
+            variant="ghost"
           >
             <Pencil className="size-4" strokeWidth={2.5} />
           </Button>
         </SimpleTooltip>
       </div>
 
-      <SystemMessageEditor
-        emailConfigured={emailConfigured}
-        message={message}
-        onOpenChange={setEditing}
-        open={editing}
-        whatsappConfigured={whatsappConfigured}
-      />
+      <SystemMessageEditor message={message} onOpenChange={setEditing} open={editing} />
     </>
   );
 }
@@ -86,13 +67,13 @@ export function SystemMessagesPanel() {
   return (
     <div className="space-y-6">
       <p className="text-sm text-app-muted">
-        Messages the platform always sends. You can change the wording and switch each one&apos;s email,
-        WhatsApp and in-app channels on or off, but not when they go out or who receives them.
+        Messages the platform always sends. You can change the wording here, but not when they go out or
+        who receives them.
       </p>
 
       {!data.emailConfigured ? (
-        <Card className="border-warning/40 bg-warning/5 p-4 text-sm text-app-text">
-          Email is not configured on this server, so the email channel can&apos;t send until the{" "}
+        <Card className="border-app-warning/40 bg-app-warning/5 p-4 text-sm text-app-text">
+          Email is not configured on this server, so these emails can&apos;t be sent until the{" "}
           <code className="text-xs">SMTP_*</code> variables are set.
         </Card>
       ) : null}
@@ -104,12 +85,7 @@ export function SystemMessagesPanel() {
             {data.messages
               .filter((message) => SYSTEM_MESSAGE_DEFINITIONS[message.key].group === group)
               .map((message) => (
-                <MessageRow
-                  emailConfigured={data.emailConfigured}
-                  key={message.key}
-                  message={message}
-                  whatsappConfigured={data.whatsappConfigured}
-                />
+                <MessageRow key={message.key} message={message} />
               ))}
           </Card>
         </section>

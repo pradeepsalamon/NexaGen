@@ -7,7 +7,6 @@ import type { PlanFeatureKey } from "@nexa-chess/types";
  */
 const FEATURE_ROUTES: { prefix: string; feature: PlanFeatureKey }[] = [
   { feature: "advancedAnalytics", prefix: "/admin/analytics" },
-  { feature: "brandIdentity", prefix: "/admin/branding" },
   { feature: "coachFeedback", prefix: "/admin/feedback" },
   { feature: "coachFeedback", prefix: "/coach/feedback" },
   { feature: "coachPayroll", prefix: "/admin/finance/coach-payroll" },
@@ -22,10 +21,6 @@ const FEATURE_ROUTES: { prefix: string; feature: PlanFeatureKey }[] = [
   { feature: "gameLibrary", prefix: "/games" },
   { feature: "leadsCrm", prefix: "/admin/leads" },
   { feature: "messagingAutomation", prefix: "/admin/messaging" },
-  { feature: "referralProgram", prefix: "/admin/referrals" },
-  { feature: "referralProgram", prefix: "/coach/referrals" },
-  { feature: "referralProgram", prefix: "/sales" },
-  { feature: "referralProgram", prefix: "/student/referrals" },
   { feature: "smartRevision", prefix: "/student/revision" },
   { feature: "studentPayments", prefix: "/admin/finance/invoices" },
   { feature: "studentPayments", prefix: "/admin/payments" },
@@ -33,8 +28,6 @@ const FEATURE_ROUTES: { prefix: string; feature: PlanFeatureKey }[] = [
   { feature: "studentPayments", prefix: "/coach/payments" },
   { feature: "studentPayments", prefix: "/plans" },
   { feature: "studentPayments", prefix: "/student/billing" },
-  { feature: "tournaments", prefix: "/admin/tournaments" },
-  { feature: "tournaments", prefix: "/tournaments" },
 ];
 
 const matches = (path: string, prefix: string) => path === prefix || path.startsWith(`${prefix}/`);

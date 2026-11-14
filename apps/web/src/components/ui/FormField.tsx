@@ -19,7 +19,7 @@ export function FormField({
   required = false
 }: FormFieldProps) {
   return (
-    <div className="grid gap-1">
+    <div className="grid gap-1.5">
       <Label htmlFor={id}>
         {label}
         {required && (

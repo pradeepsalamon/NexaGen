@@ -1,7 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "./prisma.service";
-import { forEachTenant } from "../tenancy/for-each-tenant";
 
 /** Every cron's lock name lives here, so two jobs can never share one. */
 export const JOB_LOCKS = {
@@ -24,14 +23,8 @@ export const JOB_LOCKS = {
   paymentReconciliation: "payments.reconciliation",
   paymentWebhookRecovery: "payments.webhook-recovery",
   payslipPdfSweep: "payroll.payslip-pdf-sweep",
-  platformCheckoutReconcile: "platform.checkout-reconcile",
-  platformSubscriptionLapse: "platform.subscription-lapse",
-  referralPointsExpiry: "referrals.points-expiry",
   refundReconciliation: "payments.refund-reconciliation",
   retentionSweep: "retention.sweep",
-  tenantIntegrity: "platform.tenant-integrity",
-  tenantUsageSnapshot: "platform.tenant-usage",
-  tournamentTick: "tournaments.tick",
   trashCleanup: "trash.cleanup"
 } as const;
 
@@ -98,24 +91,6 @@ export class JobLockService {
         this.logger.warn(`Could not release job lock ${name}: ${(error as Error).message}`)
       );
     }
-  }
-
-  /**
-   * `runExclusive`, then the job once per academy inside `runInTenant`
-   * (docs/SAAS_MULTI_TENANCY.md § "Phase 3 plan", slice 2). Every cron that
-   * touches academy-owned rows uses this, so its queries are scoped and its
-   * per-academy settings resolve. One lock covers all academies.
-   */
-  runForEachTenant(
-    name: JobLockName,
-    run: (signal: AbortSignal, tenantId: string) => Promise<unknown>,
-    options: { ttlMs?: number } = {}
-  ): Promise<JobLockOutcome<void>> {
-    return this.runExclusive(
-      name,
-      (signal) => forEachTenant(this.prisma, `job:${name}`, (tenantId) => run(signal, tenantId)),
-      options
-    );
   }
 
   // Database time throughout (naive UTC, like every other timestamp column), so

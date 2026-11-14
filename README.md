@@ -572,9 +572,7 @@ A daily sweep (`apps/api/src/retention/`, 4 AM, single-runner via the `retention
 
 ## Trash And Soft Delete
 
-Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, `PuzzleTopic`, `LibraryActivity`, `Course`, `CourseModule`, `Assignment`, `Announcement`, `Lead`, `FeedbackForm`, `KnowledgeArticle`, `KnowledgeCategory`, `ChessGame`, `LiveClassPreset`, `DemoSchedule` and `Tournament` (its hosts and players are hidden with it through `parentScopedWhere`).
-
-Nested list filters check the real target model through Prisma's schema metadata (`Prisma.dmmf`), not just the relation name (`Assignment.puzzles` is `AssignmentPuzzle`, which has no `isDeleted`). Rows with no `isDeleted` of their own can be hidden with their parent through `parentScopedWhere`: a trashed `Assignment` hides its `AssignmentBatch` deployments and every `StudentAssignment`, and purging it removes them through the existing cascade. Not Trash entities, on purpose: discounts and other financial models (never soft-deleted, docs/PAYMENTS.md), referrals and their stages/reward rules (wallet money and the pipeline, docs/REFERRALS.md), and live-class chapters and activity queues (in-room state, docs/LIVE_CLASS.md).
+Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, `PuzzleTopic`, `LibraryActivity`, `Course`, and `CourseModule`.
 
 When adding a new trash-enabled model:
 
@@ -764,7 +762,7 @@ Developers should always prefer existing shadcn/ui components before creating cu
 **Data Display**
 
 - BulkActionsBar + `BulkResultDialog` + `useBulkAction` (floating bar for selected table rows, per-row result summary)
-- RowActions (table action column as neutral icon buttons; optional `inline` groups the rest behind a "⋮" menu)
+- RowActions (table action column as round icon buttons; optional `inline` groups the rest behind a "⋮" menu)
 - DatePicker / `DateStringPicker` / TimePicker (never a native `type="date|time|datetime-local"` input; `DateStringPicker` takes the `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` strings those inputs used)
 - Switch (on/off settings: "Lock …", "Enabled", "Send WhatsApp", preferences). Use `Checkbox` only for multi-select lists, table row selection and consent/acknowledgement ticks. Same `checked` / `onCheckedChange` / `label` API as `Checkbox`
 - Alert (tinted `error` / `warning` / `info` / `success` inline message with the right `role`/`aria-live`; `WidgetError` is built on it)

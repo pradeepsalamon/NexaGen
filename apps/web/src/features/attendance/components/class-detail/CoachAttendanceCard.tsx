@@ -34,7 +34,7 @@ export const CoachAttendanceCard = memo(function CoachAttendanceCard({
           </div>
           <div>
             <p className="text-xs font-medium text-app-muted">
-              Total duration
+              Total Duration
             </p>
             <p className="text-sm font-medium text-app-text">
               {coach.totalDuration ? formatDuration(coach.totalDuration) : "—"}
@@ -53,7 +53,7 @@ export const CoachAttendanceCard = memo(function CoachAttendanceCard({
         {coach.logs.length > 0 && (
           <div className="border-t border-app-border pt-4">
             <h4 className="text-sm font-semibold text-app-text mb-3">
-              Event timeline
+              Event Timeline
             </h4>
             <EventTimeline logs={coach.logs} className="space-y-2" />
           </div>

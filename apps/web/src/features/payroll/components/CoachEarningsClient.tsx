@@ -2,7 +2,6 @@
 
 import { Download } from "lucide-react";
 import { formatMoney } from "@nexa-chess/types";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -36,10 +35,13 @@ export function CoachEarningsClient() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        description="Your payroll history, computed from your teaching activity. Only an admin can change a rate or add an adjustment."
-        title="Earnings"
-      />
+      <div>
+        <h1 className="text-xl font-bold text-app-text">Earnings</h1>
+        <p className="text-sm text-app-muted">
+          Your payroll history, computed from your teaching activity. Only an admin can
+          change a rate or add an adjustment.
+        </p>
+      </div>
 
       {isLoading ? <Skeleton className="h-64 w-full" /> : null}
 
@@ -84,7 +86,7 @@ export function CoachEarningsClient() {
                       <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-text">
                         {formatMoney(record.grossEarningsMinor, "INR")}
                       </TableCell>
-                      <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-app-text">
+                      <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-primary-ink">
                         {formatMoney(record.netPayableMinor, "INR")}
                       </TableCell>
                       <TableCell className="text-left px-4 py-3">
@@ -96,13 +98,13 @@ export function CoachEarningsClient() {
                             <Button
                               aria-label={`Download payslip ${payslip.documentNumber}`}
                               asChild
-                              className="size-8"
+                              className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                               size="icon"
-                              variant="neutral"
+                              variant="ghost"
                             >
                               <a
                                 href={myPayslipPdfUrl(payslip.id)}
-                                rel="noopener"
+                                rel="noopener noreferrer"
                                 target="_blank"
                               >
                                 <Download className="size-4" strokeWidth={2.5} />

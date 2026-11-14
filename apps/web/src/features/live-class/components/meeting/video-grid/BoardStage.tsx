@@ -1,7 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
-
 import { useMemo, useRef, useState, type RefObject } from "react";
 import { motion } from "framer-motion";
 import {
@@ -14,9 +12,6 @@ import { Crown, LayoutGrid, Minus, Puzzle as PuzzleIcon, Video } from "lucide-re
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
-import { BoardNavigation } from "@/features/chessboard/components/toolbars/BoardNavigation";
-import { IllegalMovesBadge, IllegalMovesToggle } from "@/features/chessboard/components/toolbars/IllegalMovesToggle";
-import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useSpotlightTrack } from "../../../hooks/useSpotlightTrack";
 import { isHumanParticipant } from "../../../lib/participants";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
@@ -26,10 +21,8 @@ import { RequestControlButton } from "./RequestControlButton";
 import { getRole } from "./videoGrid.utils";
 
 /**
- * Full-stage board on a phone (the Board tab or the grid tile's expand
- * button). Students see the coach's camera in a draggable popup; the coach
- * drives the board here — move navigation under it, Allow Illegal Moves in
- * the header — and sees whoever is speaking in the popup.
+ * Opt-in full-screen board for a student on a phone (the grid tile's expand
+ * button); the coach's camera floats in a draggable popup.
  */
 export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -37,28 +30,29 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
     "activePuzzle",
     "setPuzzleSolverOpen",
   );
-  const role = useAuthStore((state) => state.user?.role);
-  const isCoach = role === "COACH" || isStaffRole(role);
 
   return (
     <div
       ref={stageRef}
-      className="relative flex min-h-0 w-full flex-1 flex-col gap-2 px-2 pt-2 pb-28 motion-safe:animate-stage-in sm:px-4 sm:pt-3 sm:pb-24"
+      className="relative flex min-h-0 w-full flex-1 flex-col gap-2 px-2 pt-2 pb-28 sm:px-4 sm:pt-3 sm:pb-24"
     >
       <div className="flex shrink-0 items-center gap-1.5">
         <div className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-app-text sm:flex">
-          <Crown className="size-4 text-accent-ink" />
+          <Crown className="size-4 text-secondary-ink" />
           Shared Board
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto sm:justify-center">
           <ChessClock layout="horizontal" />
           <RequestControlButton surface />
-          {isCoach ? <IllegalMovesToggle /> : <IllegalMovesBadge />}
-          {activePuzzle && !isCoach ? (
-            <Button size="sm" className="shrink-0" onClick={() => setPuzzleSolverOpen(true)}>
-              <PuzzleIcon aria-hidden="true" className="size-4" strokeWidth={2} />
+          {activePuzzle ? (
+            <button
+              type="button"
+              onClick={() => setPuzzleSolverOpen(true)}
+              className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary px-2.5 py-1 text-[11px] font-semibold text-white shadow-card transition active:scale-95"
+            >
+              <PuzzleIcon className="size-3" strokeWidth={2.5} />
               Solve puzzle
-            </Button>
+            </button>
           ) : null}
         </div>
         <FlipBoardButton className="size-8 shrink-0" />
@@ -67,7 +61,7 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
             type="button"
             aria-label="Back to video grid"
             onClick={onShowGrid}
-            className="flex size-8 shrink-0 items-center justify-center rounded-control border border-app-border bg-app-surface/80 text-app-text shadow-card transition hover:bg-app-surface"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text shadow-card transition hover:bg-app-surface"
           >
             <LayoutGrid className="size-3.5" strokeWidth={2.5} />
           </button>
@@ -83,39 +77,20 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
         </div>
       </div>
 
-      {isCoach ? (
-        <div className="flex shrink-0 flex-wrap items-center justify-center gap-2" role="toolbar" aria-label="Board tools">
-          <BoardNavigation />
-        </div>
-      ) : null}
-
-      <CoachVideoPopup constraintsRef={stageRef} preferSpeaker={isCoach} />
+      <CoachVideoPopup constraintsRef={stageRef} />
     </div>
   );
 }
 
-function CoachVideoPopup({
-  constraintsRef,
-  preferSpeaker = false,
-}: {
-  constraintsRef: RefObject<HTMLDivElement | null>;
-  /** The coach would only see themselves: show the speaker (else a student) instead. */
-  preferSpeaker?: boolean;
-}) {
+function CoachVideoPopup({ constraintsRef }: { constraintsRef: RefObject<HTMLDivElement | null> }) {
   const [minimized, setMinimized] = useState(false);
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }], {
     onlySubscribed: false,
   }).filter((t) => isHumanParticipant(t.participant));
   const spotlight = useSpotlightTrack(null);
   const trackRef = useMemo(
-    () =>
-      preferSpeaker
-        ? // Never the coach's own camera: whoever is speaking, else the first student.
-          spotlight && !spotlight.participant.isLocal
-          ? spotlight
-          : tracks.find((t) => !t.participant.isLocal) ?? null
-        : tracks.find((t) => getRole(t.participant)?.toUpperCase() === "COACH") ?? spotlight,
-    [preferSpeaker, tracks, spotlight],
+    () => tracks.find((t) => getRole(t.participant)?.toUpperCase() === "COACH") ?? spotlight,
+    [tracks, spotlight],
   );
 
   if (!trackRef) return null;
@@ -155,7 +130,7 @@ function CoachVideoPopup({
         </div>
       )}
       <div className="absolute inset-x-1 bottom-1 flex items-center justify-between gap-1">
-        <span className="truncate rounded-chip bg-scrim/80 px-1.5 py-0.5 text-xs font-medium text-on-scrim">
+        <span className="truncate rounded-control bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white/90">
           {name}
         </span>
         <button
@@ -163,7 +138,7 @@ function CoachVideoPopup({
           aria-label="Hide video"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => setMinimized(true)}
-          className="flex size-6 shrink-0 items-center justify-center rounded-chip bg-scrim/80 text-on-scrim"
+          className="flex size-6 shrink-0 items-center justify-center rounded-full bg-black/60 text-white"
         >
           <Minus className="size-3.5" strokeWidth={2.5} />
         </button>

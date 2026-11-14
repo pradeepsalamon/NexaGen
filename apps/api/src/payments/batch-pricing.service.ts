@@ -8,7 +8,6 @@ import type {
 import { Prisma, SubscriptionStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { isUniqueViolation, toPlanItem } from "./payments.util";
-import { requireTenantId } from "../tenancy/tenant-sql";
 
 const PLAN_INCLUDE = {
   batch: { select: { name: true } },
@@ -177,7 +176,7 @@ export class BatchPricingService {
 
     for (let suffix = 0; suffix < 50; suffix += 1) {
       const code = suffix === 0 ? base : `${base}-${suffix + 1}`;
-      const taken = await this.prisma.plan.findUnique({ where: { tenantId_code: { code, tenantId: requireTenantId("plan") } } });
+      const taken = await this.prisma.plan.findUnique({ where: { code } });
       if (!taken) return code;
     }
 

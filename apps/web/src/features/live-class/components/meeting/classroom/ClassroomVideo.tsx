@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { isTrackReference, ParticipantTile } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { ChevronDown, ChevronUp, Hand, LayoutGrid, Maximize2, UserSquare2 } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useSpotlightTrack } from "../../../hooks/useSpotlightTrack";
@@ -97,12 +96,12 @@ export function ClassroomVideo({
   return (
     <div className={cn("shrink-0 border-b border-app-border/60", fill && "room:flex room:h-full room:flex-col")}>
       <div className="flex h-10 shrink-0 items-center justify-between px-3">
-        <span className="flex items-center gap-1.5 text-xs font-semibold text-app-muted">
+        <span className="flex items-center gap-1.5 text-xs font-bold text-app-muted">
           Video
-          <Badge variant="secondary" className="tabular-nums">{tracks.length}</Badge>
+          <span className="rounded-full bg-app-soft px-1.5 py-0.5 text-[10px] tabular-nums">{tracks.length}</span>
         </span>
         <div className="flex items-center gap-1">
-          <div role="group" aria-label="Video layout" className="flex h-8 items-center gap-0.5 rounded-control bg-app-soft p-0.5">
+          <div role="group" aria-label="Video layout" className="flex items-center rounded-full bg-app-soft p-0.5">
             {LAYOUTS.map(({ value, label, hint, Icon }) => (
               <SimpleTooltip key={value} label={hint}>
                 <button
@@ -114,13 +113,13 @@ export function ClassroomVideo({
                     if (collapsed) onCollapsedChange(false);
                   }}
                   className={cn(
-                    "flex h-7 items-center gap-1 rounded-chip px-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus",
+                    "flex h-6 items-center gap-1 rounded-full px-2 text-xs font-semibold transition-colors",
                     layout === value
-                      ? "bg-primary text-on-primary shadow-card"
-                      : "text-app-muted hover:bg-app-surface hover:text-app-text"
+                      ? "bg-app-surface text-primary-ink shadow-soft"
+                      : "text-app-muted hover:text-app-text"
                   )}
                 >
-                  <Icon aria-hidden="true" className="size-3.5" strokeWidth={2} />
+                  <Icon className="size-3.5" strokeWidth={2.5} />
                   <span className="hidden lg:inline">{label}</span>
                 </button>
               </SimpleTooltip>
@@ -132,7 +131,7 @@ export function ClassroomVideo({
                 type="button"
                 aria-label="Show everyone on the main stage"
                 onClick={onOpenGallery}
-                className="flex size-8 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus"
+                className="flex size-7 items-center justify-center rounded-full text-app-muted transition hover:bg-app-soft hover:text-app-text"
               >
                 <Maximize2 className="size-3.5" strokeWidth={2.5} />
               </button>
@@ -144,7 +143,7 @@ export function ClassroomVideo({
               aria-label={collapsed ? "Show video" : "Hide video"}
               aria-expanded={!collapsed}
               onClick={() => onCollapsedChange(!collapsed)}
-              className="flex size-8 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus"
+              className="flex size-7 items-center justify-center rounded-full text-app-muted transition hover:bg-app-soft hover:text-app-text"
             >
               {collapsed ? <ChevronDown className="size-4" strokeWidth={2.5} /> : <ChevronUp className="size-4" strokeWidth={2.5} />}
             </button>
@@ -162,7 +161,7 @@ export function ClassroomVideo({
         <div className={cn("space-y-2 px-3 pb-3", fill && "room:flex room:min-h-0 room:flex-1 room:flex-col room:gap-2 room:space-y-0")}>
           <div
             className={cn(
-              "group relative aspect-video w-full overflow-hidden rounded-app border border-app-border bg-brand-900",
+              "group relative aspect-video w-full overflow-hidden rounded-control border border-app-border bg-app-soft",
               fill && "room:aspect-auto room:min-h-0 room:flex-1"
             )}
           >
@@ -182,7 +181,7 @@ export function ClassroomVideo({
             )}
             {spotlightHand && !isScreen ? (
               <span
-                className="absolute left-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-warning text-on-warning shadow-card"
+                className="absolute left-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-warning text-white shadow-card"
                 aria-label="Hand raised"
               >
                 <Hand className="size-3.5" strokeWidth={2.5} />
@@ -193,15 +192,15 @@ export function ClassroomVideo({
                 <TileModerationControls participant={spotlight.participant} name={name} screenShare={isScreen} size="sm" />
               </div>
             ) : null}
-            <span className="absolute bottom-1.5 left-1.5 max-w-[80%] truncate rounded-chip bg-scrim/80 px-1.5 py-0.5 text-xs font-medium text-on-scrim">
+            <span className="absolute bottom-1.5 left-1.5 max-w-[80%] truncate rounded-control bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white/90">
               {isScreen ? `${name} · screen` : name}
             </span>
           </div>
 
           {others.length > 0 ? (
             <div className="custom-scrollbar flex shrink-0 gap-2 overflow-x-auto pb-1">
-              {others.map((trackRef, index) => (
-                <CompactVideoTile key={getTrackKey(trackRef)} layoutKey={`${index}:${others.length}`} trackRef={trackRef} />
+              {others.map((trackRef) => (
+                <CompactVideoTile key={getTrackKey(trackRef)} trackRef={trackRef} />
               ))}
             </div>
           ) : null}

@@ -23,11 +23,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import type { Tone } from "@/lib/tone";
 import { cn, enumLabel } from "@/lib/utils";
-import { SupportVisitsTable } from "@/features/platform/components/SupportVisitsTable";
-import { useAcademySupportVisits } from "@/features/platform/hooks/usePlatformApi";
-import { useAuthStore } from "@/stores/authStore";
 import { useAdminSubscription } from "../hooks/useSubscription";
-import { AcademyBillingSection } from "./AcademyBillingSection";
 
 const LIMIT_TILES: Record<PlanLimitKey, { icon: LucideIcon; tone: Tone }> = {
   maxBatches: { icon: Layers3, tone: "primary" },
@@ -104,7 +100,7 @@ function CurrentPlan({ data }: { data: AdminSubscriptionResponse }) {
 
 function Usage({ data }: { data: AdminSubscriptionResponse }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {PLAN_LIMIT_KEYS.map((key) => {
         const limit = data.limits[key];
         const used = data.usage[key];
@@ -132,8 +128,7 @@ function PlanComparison({ data }: { data: AdminSubscriptionResponse }) {
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-bold text-app-text">Compare plans</h2>
-      <div className="overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card">
-        {/* The table scrolls inside its own ScrollShadow (keyboard-reachable while it overflows). */}
+      <div className="overflow-x-auto rounded-app border border-app-border bg-app-surface shadow-card">
         <Table className="min-w-[640px]">
           <TableHeader>
             <TableRow>
@@ -181,7 +176,7 @@ function PlanComparison({ data }: { data: AdminSubscriptionResponse }) {
                   return (
                     <TableCell className={cn("text-center", highlight(plan))} key={plan.id}>
                       {included ? (
-                        <Check aria-label="Included" className="mx-auto size-4 text-success-ink" strokeWidth={2.5} />
+                        <Check aria-label="Included" className="mx-auto size-4 text-accent-ink" strokeWidth={2.5} />
                       ) : (
                         <Minus aria-label="Not included" className="mx-auto size-4 text-app-muted" strokeWidth={2.5} />
                       )}
@@ -197,25 +192,6 @@ function PlanComparison({ data }: { data: AdminSubscriptionResponse }) {
         Every plan includes batches, scheduling, live classes, attendance, assignments, the puzzle library,
         announcements and notifications.
       </p>
-    </section>
-  );
-}
-
-/** Super admins see every NexaChess support visit to their academy, with its reason (§I). */
-function SupportVisitHistory() {
-  const isSuperAdmin = useAuthStore((state) => state.user?.role === "SUPER_ADMIN");
-  const visits = useAcademySupportVisits(isSuperAdmin);
-  if (!isSuperAdmin || !visits.data) return null;
-  return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="text-lg font-bold text-app-text">Support visits</h2>
-        <p className="text-sm text-app-muted">
-          Each time the NexaChess team opened your academy to help, with the reason they gave and how many changes they
-          made.
-        </p>
-      </div>
-      <SupportVisitsTable visits={visits.data.sessions} />
     </section>
   );
 }
@@ -241,9 +217,7 @@ export function SubscriptionClient() {
           <StatusAlert data={data} />
           <CurrentPlan data={data} />
           <Usage data={data} />
-          <AcademyBillingSection data={data} />
           <PlanComparison data={data} />
-          <SupportVisitHistory />
         </>
       )}
     </div>

@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, Inbox, X } from "lucide-react";
 import type { ApprovalRequestDto, ApprovalStatus } from "@nexa-chess/types";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { cn } from "@/lib/utils";
@@ -67,9 +68,15 @@ export function AdminRequestsClient() {
   const rejectTooShort = deciding !== null && !deciding.approve && text.trim().length < 3;
 
   return (
-    <div className="animate-fade-in space-y-5 pb-10">
-      <PageHeader
-        actions={
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Requests</h1>
+          <p className="mt-1 text-app-muted">
+            Coaches ask here for things beyond their own authority: schedule changes, a substitute, a student joining
+            or leaving a batch, an attendance correction or a locked class setting.
+          </p>
+        </div>
         <Select
           aria-label="Filter by status"
           className="w-full sm:w-48"
@@ -80,75 +87,78 @@ export function AdminRequestsClient() {
             ...APPROVAL_STATUS_OPTIONS.map((s) => ({ label: APPROVAL_STATUS_LABELS[s], value: s }))
           ]}
         />
-        }
-        description="Coaches ask here for things beyond their own authority: schedule changes, a substitute, a student joining or leaving a batch, an attendance correction or a locked class setting."
-        title="Requests"
-      />
+      </div>
 
       <OtherRequestQueues />
 
       {isLoading ? (
         <div className="space-y-3">
-          <Skeleton className="h-24 rounded-app" />
-          <Skeleton className="h-24 rounded-app" />
+          <Skeleton className="h-24 w-full rounded-app" />
+          <Skeleton className="h-24 w-full rounded-app" />
         </div>
       ) : isError && !data ? (
-        <WidgetError message="Couldn't load requests. Check your connection and try again." onRetry={() => void refetch()} />
+        <WidgetError message="Couldn't load requests." onRetry={() => void refetch()} />
       ) : requests.length === 0 ? (
-        <EmptyState
-          description="Requests from coaches appear here."
-          icon={Inbox}
-          title={status === "PENDING" ? "Nothing waiting" : "No requests"}
-        />
+        <Card>
+          <EmptyState
+            variant="inline"
+            icon={Inbox}
+            title={status === "PENDING" ? "Nothing waiting" : "No requests"}
+            description="Requests from coaches appear here."
+          />
+        </Card>
       ) : (
-        <ul className="divide-y divide-app-border overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card">
+        <div className="space-y-3">
           {requests.map((r) => {
             // Never your own request (the API refuses it too).
             const canDecide = r.status === "PENDING" && r.requesterId !== me?.id;
             return (
-              <li
-                aria-current={highlight === r.id ? "true" : undefined}
+              <Card
                 key={r.id}
                 className={cn(
                   "flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between",
-                  highlight === r.id && "bg-primary-soft"
+                  highlight === r.id && "ring-2 ring-primary"
                 )}
               >
                 <ApprovalRequestSummary request={r} showRequester />
                 {canDecide ? (
-                  <div className="flex shrink-0 justify-end gap-2">
-                    <Button
-                      aria-label="Reject request"
-                      onClick={() => {
-                        setText("");
-                        setDeciding({ request: r, approve: false });
-                      }}
-                      size="sm"
-                      type="button"
-                      variant="neutral"
-                    >
-                      <X aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
-                      Reject
-                    </Button>
-                    <Button
-                      aria-label="Approve request"
-                      onClick={() => {
-                        setText("");
-                        setDeciding({ request: r, approve: true });
-                      }}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      <Check aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
-                      Approve
-                    </Button>
+                  <div className="flex shrink-0 gap-2">
+                    <SimpleTooltip label="Approve">
+                      <Button
+                        aria-label="Approve request"
+                        className="size-8 rounded-full border border-accent bg-accent p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-white"
+                        onClick={() => {
+                          setText("");
+                          setDeciding({ request: r, approve: true });
+                        }}
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Check aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                      </Button>
+                    </SimpleTooltip>
+                    <SimpleTooltip label="Reject">
+                      <Button
+                        aria-label="Reject request"
+                        className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                        onClick={() => {
+                          setText("");
+                          setDeciding({ request: r, approve: false });
+                        }}
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <X aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                      </Button>
+                    </SimpleTooltip>
                   </div>
                 ) : null}
-              </li>
+              </Card>
             );
           })}
-        </ul>
+        </div>
       )}
 
       <Dialog open={deciding !== null} onOpenChange={(open) => !open && setDeciding(null)}>
@@ -170,7 +180,7 @@ export function AdminRequestsClient() {
             placeholder={deciding?.approve ? "Note to the coach (optional)" : "Why (the coach sees this)"}
           />
           <DialogFooter>
-            <Button type="button" variant="neutral" onClick={() => setDeciding(null)}>
+            <Button type="button" variant="outline" onClick={() => setDeciding(null)}>
               Cancel
             </Button>
             <Button

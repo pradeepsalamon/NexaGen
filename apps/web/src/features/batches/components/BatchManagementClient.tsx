@@ -15,7 +15,6 @@ import {
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Batch, BatchUserSummary } from "@nexa-chess/types";
 
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -41,6 +40,7 @@ import { useBulkAction } from "@/hooks/useBulkAction";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useServerTable } from "@/hooks/useServerTable";
 import { queryKeys } from "@/lib/queryKeys";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 
 import { BatchForm } from "./BatchForm";
@@ -63,6 +63,7 @@ const statusOptions = [
 ];
 
 export function BatchManagementClient() {
+  const timeZone = useUserTimeZone();
   const [activeTab, setActiveTab] = useState<BatchManagementTab>("all");
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
 
@@ -164,7 +165,7 @@ export function BatchManagementClient() {
         ),
         cell: ({ row }) => (
           <div className="min-w-44">
-            <p className="font-semibold text-app-text">{row.original.name}</p>
+            <p className="font-extrabold text-app-text">{row.original.name}</p>
             {row.original.description && (
               <p className="mt-1 line-clamp-2 text-xs text-app-muted">
                 {row.original.description}
@@ -187,12 +188,12 @@ export function BatchManagementClient() {
           <div className="min-w-36 text-sm text-app-text">
             <div>
               <span className="font-semibold">From: </span>
-              {formatDate(row.original.startsAt)}
+              {formatDate(row.original.startsAt, timeZone)}
             </div>
             {row.original.endsAt && (
               <div className="mt-1">
                 <span className="font-semibold">To: </span>
-                {formatDate(row.original.endsAt)}
+                {formatDate(row.original.endsAt, timeZone)}
               </div>
             )}
           </div>
@@ -297,7 +298,8 @@ export function BatchManagementClient() {
       handleArchive,
       handleDelete,
       handleRestore,
-      isRestoring
+      isRestoring,
+      timeZone
     ]
   );
 
@@ -331,8 +333,8 @@ export function BatchManagementClient() {
   };
 
   return (
-    <div className="animate-fade-in pb-10">
-      <div className="grid grid-cols-[minmax(0,1fr)]">
+    <div>
+      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-5">
         <Tabs
           onValueChange={(value) => {
             if (value === "create") {
@@ -344,12 +346,19 @@ export function BatchManagementClient() {
           }}
           value={activeTab}
         >
-          <PageHeader
-            actions={
-            <TabsList aria-label="Batches view">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-extrabold text-primary-ink">
+                Batch management
+              </p>
+              <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
+                Batches
+              </h1>
+            </div>
+            <TabsList className="w-full justify-start overflow-x-auto sm:w-fit">
               <TabsTrigger value="all">
                 <UsersRound aria-hidden="true" className="size-4" />
-                All batches
+                All Batches
               </TabsTrigger>
               <TabsTrigger value="create">
                 {editingBatchId ? (
@@ -364,18 +373,14 @@ export function BatchManagementClient() {
                 Settings
               </TabsTrigger>
             </TabsList>
-            }
-            description="Every batch, its coaches and students, and its dates."
-            title="Batches"
-          />
+          </header>
 
-          <TabsContent value="all" className="outline-none">
+          <TabsContent value="all" className="mt-6 outline-none">
             <Card className="grid gap-4 p-4">
               <DataTableToolbar
                 actions={<ColumnVisibilityMenu table={table} />}
                 filters={
                   <Select
-                    aria-label="Filter by status"
                     className="w-40"
                     onChange={(event) => serverTable.setStatus(event.target.value)}
                     options={[{ label: "All status", value: "ALL" }, ...statusOptions]}
@@ -394,8 +399,8 @@ export function BatchManagementClient() {
                 noDataText={
                   <div className="flex flex-col items-center justify-center space-y-4 py-4">
                     <p>No batches found.</p>
-                    <Button onClick={handleNewBatch} size="sm" variant="outline">
-                      <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} /> Create batch
+                    <Button onClick={handleNewBatch} size="sm">
+                      <Plus className="mr-2 size-4" /> Create Batch
                     </Button>
                   </div>
                 }
@@ -409,7 +414,7 @@ export function BatchManagementClient() {
 
               <BulkActionsBar
                 actions={[
-                  { disabled: bulk.isPending, icon: Archive, label: "Archive", onSelect: () => setBulkConfirm("archive"), tone: "warning" },
+                  { disabled: bulk.isPending, icon: Archive, label: "Archive", onSelect: () => setBulkConfirm("archive") },
                   { disabled: bulk.isPending, icon: Trash2, label: "Delete", onSelect: () => setBulkConfirm("delete"), tone: "danger" }
                 ]}
                 count={selectedRows.length}
@@ -433,7 +438,7 @@ export function BatchManagementClient() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="create" className="outline-none">
+          <TabsContent value="create" className="mt-6 outline-none">
             <BatchForm
               key={editingBatchId ?? "new"}
               selectedBatch={selectedBatch}
@@ -441,7 +446,7 @@ export function BatchManagementClient() {
             />
           </TabsContent>
 
-          <TabsContent value="settings" className="outline-none">
+          <TabsContent value="settings" className="mt-6 outline-none">
             <BatchSettings
               columnVisibility={columnVisibility}
               pageSize={serverTable.pagination.pageSize}
@@ -472,8 +477,8 @@ function ColumnVisibilityMenu<TData>({ table }: { table: import("@tanstack/react
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="neutral">
-          <SlidersHorizontal aria-hidden="true" className="size-4" strokeWidth={2.5} />
+        <Button type="button" variant="outline">
+          <SlidersHorizontal aria-hidden="true" className="size-4" />
           View
         </Button>
       </DropdownMenuTrigger>
@@ -497,7 +502,7 @@ function ColumnVisibilityMenu<TData>({ table }: { table: import("@tanstack/react
 function UserSummary({ count, users }: { count: number; users: BatchUserSummary[] }) {
   return (
     <div className="min-w-32">
-      <p className="font-semibold text-app-text">{count}</p>
+      <p className="font-extrabold text-app-text">{count}</p>
       <p className="mt-1 line-clamp-1 text-xs text-app-muted">
         {users.map(formatUserName).join(", ") || "Unassigned"}
       </p>
@@ -509,10 +514,9 @@ function formatUserName(user: BatchUserSummary) {
   return [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
 }
 
-/** Batch dates are date-only columns, so they format in UTC, never the viewer's zone. */
-function formatDate(value?: string | null) {
+function formatDate(value?: string | null, timeZone = "UTC") {
   if (!value) return "Not set";
-  return formatFullDate(value, "UTC") || "Not set";
+  return formatFullDate(value, timeZone) || "Not set";
 }
 
 function formatColumnLabel(columnId: string) {

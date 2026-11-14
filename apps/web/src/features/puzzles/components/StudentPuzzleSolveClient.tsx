@@ -126,7 +126,7 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
               <Card
                 className={`flex items-start gap-2 p-3 text-sm ${
                   result.solved
-                    ? "border-success/40 bg-success/10 text-success-ink"
+                    ? "border-accent/40 bg-accent/10 text-accent-ink"
                     : "text-app-text"
                 }`}
               >

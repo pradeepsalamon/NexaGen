@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, lazy, type ComponentType } from "react";
-import { Skeleton } from "@/components/ui/Skeleton";
 
 /**
  * Chart components, code-split: recharts is ~400 kB of JavaScript, so it is
@@ -23,7 +22,11 @@ function lazyChart<P extends { height?: number }>(
     return (
       <Suspense
         fallback={
-          <Skeleton className="w-full" style={{ height: props.height ?? defaultHeight }} />
+          <div
+            aria-hidden="true"
+            className="w-full animate-pulse rounded-control bg-app-soft/60"
+            style={{ height: props.height ?? defaultHeight }}
+          />
         }
       >
         <Lazy {...props} />

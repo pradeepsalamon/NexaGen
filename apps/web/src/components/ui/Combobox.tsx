@@ -17,7 +17,6 @@ import {
 } from "react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-import { fieldClasses } from "./fieldStyles";
 
 type ComboboxContextValue = {
   disabled: boolean;
@@ -217,8 +216,7 @@ export function ComboboxInput({
   return (
     <div
       className={cn(
-        "flex min-h-[var(--control-h)] w-full items-center gap-2 px-3",
-        fieldClasses({ within: true }),
+        "flex min-h-11 w-full items-center gap-2 rounded-full border border-app-border bg-app-surface px-4 text-sm text-app-text shadow-[inset_0_1px_2px_rgb(var(--rgb-text)/0.06)] transition hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] focus-within:border-primary focus-within:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-primary)_16%,transparent)]",
         isDisabled && "cursor-not-allowed opacity-60"
       )}
     >
@@ -227,7 +225,7 @@ export function ComboboxInput({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={cn(
-          "min-h-8 min-w-0 flex-1 bg-transparent text-sm text-app-text outline-none placeholder:text-app-subtle focus-visible:outline-none",
+          "min-h-10 min-w-0 flex-1 bg-transparent text-sm font-medium text-app-text outline-none placeholder:text-app-muted focus-visible:outline-none",
           className
         )}
         disabled={isDisabled}

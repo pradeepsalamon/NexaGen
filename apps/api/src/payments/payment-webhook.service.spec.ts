@@ -4,7 +4,6 @@ import { Prisma, WebhookEventStatus } from "@prisma/client";
 import { JobLockService } from "../prisma/job-lock.service";
 import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
-import { GatewayCredentialsService } from "./gateway-credentials.service";
 import { PaymentWebhookService } from "./payment-webhook.service";
 import { PaymentService } from "./payment.service";
 import type { WebhookResult } from "./providers/payment-provider.interface";
@@ -72,7 +71,6 @@ describe("PaymentWebhookService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentWebhookService,
-        { provide: GatewayCredentialsService, useValue: { tenantForWebhookKey: jest.fn() } },
         { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,

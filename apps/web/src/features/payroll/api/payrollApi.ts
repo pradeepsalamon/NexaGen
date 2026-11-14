@@ -25,9 +25,12 @@ import type {
   UpdateCompensationProfileRequest,
   UpdatePayrollRuleRequest
 } from "@nexa-chess/types";
-import { apiBaseUrl } from "@/lib/apiBase";
+import { getWebEnv } from "@nexa-chess/config/web";
 import { apiFetch } from "@/lib/api";
 
+const API_BASE_URL = getWebEnv({
+  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
+}).NEXT_PUBLIC_API_URL;
 
 // ── Coach (own data, read-only) ──
 
@@ -44,7 +47,7 @@ export function getMyPayslips(): Promise<{ payslips: PayslipItem[] }> {
 }
 
 export function myPayslipPdfUrl(id: string): string {
-  return `${apiBaseUrl()}${API_ROUTES.payroll.payslipPdf(id)}`;
+  return `${API_BASE_URL}${API_ROUTES.payroll.payslipPdf(id)}`;
 }
 
 // ── Admin: periods ──
@@ -215,7 +218,7 @@ export function markPayoutPaid(
 // ── Admin: payslip PDFs ──
 
 export function adminPayslipPdfUrl(id: string): string {
-  return `${apiBaseUrl()}${API_ROUTES.adminPayroll.payslipPdf(id)}`;
+  return `${API_BASE_URL}${API_ROUTES.adminPayroll.payslipPdf(id)}`;
 }
 
 export function retryPayslipPdf(id: string): Promise<{ queued: boolean }> {

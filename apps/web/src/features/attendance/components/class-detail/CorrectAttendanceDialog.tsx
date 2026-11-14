@@ -133,7 +133,7 @@ export function CorrectAttendanceDialog({
           />
         </FormField>
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="neutral">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button

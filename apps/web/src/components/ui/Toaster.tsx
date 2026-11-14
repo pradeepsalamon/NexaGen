@@ -6,21 +6,21 @@ import { useTheme } from "@/providers/ThemeProvider";
 
 type ToasterProps = ComponentProps<typeof Sonner>;
 
-// Solid fills, the same as the bulk-action bar: deep colours with white text in
-// both themes (`.solid-status`), gold for warnings. A neutral toast inverts the page.
+// Theme status tokens. Warning text is black: white on amber is unreadable.
+// A neutral toast inverts the page (text colour as its background).
 const toastColorVars = {
-  "--error-bg": "rgb(var(--rgb-danger))",
-  "--error-border": "rgb(var(--rgb-danger))",
-  "--error-text": "rgb(var(--rgb-on-danger))",
-  "--success-bg": "rgb(var(--rgb-success))",
-  "--success-border": "rgb(var(--rgb-success))",
-  "--success-text": "rgb(var(--rgb-on-success))",
-  "--warning-bg": "rgb(var(--rgb-accent))",
-  "--warning-border": "rgb(var(--rgb-accent))",
-  "--warning-text": "rgb(var(--rgb-on-accent))",
-  "--info-bg": "rgb(var(--rgb-info))",
-  "--info-border": "rgb(var(--rgb-info))",
-  "--info-text": "rgb(var(--rgb-on-info))",
+  "--error-bg": "var(--color-danger)",
+  "--error-border": "color-mix(in srgb, var(--color-danger) 60%, white)",
+  "--error-text": "white",
+  "--success-bg": "var(--color-success)",
+  "--success-border": "color-mix(in srgb, var(--color-success) 60%, white)",
+  "--success-text": "white",
+  "--warning-bg": "var(--color-warning)",
+  "--warning-border": "color-mix(in srgb, var(--color-warning) 60%, white)",
+  "--warning-text": "black",
+  "--info-bg": "var(--color-info)",
+  "--info-border": "color-mix(in srgb, var(--color-info) 60%, white)",
+  "--info-text": "white",
   "--normal-bg": "rgb(var(--rgb-text))",
   "--normal-border": "rgb(var(--rgb-text-muted))",
   "--normal-text": "rgb(var(--rgb-surface))"
@@ -31,7 +31,7 @@ export function Toaster({ ...props }: ToasterProps) {
 
   return (
     <Sonner
-      className="toaster solid-status group"
+      className="toaster group"
       closeButton
       position="top-right"
       richColors
@@ -41,10 +41,11 @@ export function Toaster({ ...props }: ToasterProps) {
         classNames: {
           closeButton:
             "!bg-app-surface !border-app-border !text-app-text hover:!bg-app-soft",
-          actionButton: "!bg-primary !text-on-primary hover:!bg-primary-hover !rounded-control border-none font-medium",
+          actionButton: "!bg-white !text-black hover:!bg-white/90 border-none font-bold",
+          description: "text-current/90",
           toast:
-            "top-16 rounded-app border p-4 shadow-lift",
-          title: "font-semibold"
+            "top-16 rounded-app border p-4 text-white shadow-[0_24px_70px_rgba(16,24,40,0.22)]",
+          title: "font-extrabold"
         }
       }}
       {...props}

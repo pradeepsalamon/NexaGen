@@ -30,37 +30,39 @@ export function SidebarTabs() {
 
       {/* Tabs Section */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mb-4 w-full justify-start">
+        <TabsList className="w-full justify-start bg-transparent border-b border-app-border rounded-none h-auto p-0 space-x-4 mb-4 overflow-x-auto">
           <TabsTrigger 
-            value="moves">
+            value="moves" 
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap"
+          >
             Moves
           </TabsTrigger>
           {isCoach && (
-            <TabsTrigger value="engine">
+            <TabsTrigger value="engine" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               Engine
             </TabsTrigger>
           )}
           {isCoach && (
-            <TabsTrigger value="pgn">
+            <TabsTrigger value="pgn" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               PGN
             </TabsTrigger>
           )}
           {isCoach && liveClassState && (
-             <TabsTrigger value="class">
-              Live class
+             <TabsTrigger value="class" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
+              Live Class
             </TabsTrigger>
           )}
           {isCoach && liveClassState && (
-            <TabsTrigger value="puzzles">
+            <TabsTrigger value="puzzles" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               Puzzles
             </TabsTrigger>
           )}
           {isCoach && liveClassState && (
-            <TabsTrigger value="response">
+            <TabsTrigger value="response" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               Response
             </TabsTrigger>
           )}
-          <TabsTrigger value="masterbase">
+          <TabsTrigger value="masterbase" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
             Masterbase
           </TabsTrigger>
         </TabsList>
@@ -141,7 +143,7 @@ function LiveClassControlPanel() {
   return (
     <div className="flex flex-col h-full gap-4 p-2 text-sm">
       <div className="flex items-center justify-between border-b border-app-border pb-2">
-        <h3 className="font-semibold">Board control</h3>
+        <h3 className="font-bold">Board Control</h3>
         {grantedIds.length > 0 && (
           <button
             type="button"
