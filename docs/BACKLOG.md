@@ -137,8 +137,11 @@ code on 2026-10-31.
 
 ### Needs someone with `vps_dev` / production access
 
-- Confirm `LiveKit webhook: event=…` lines in the API logs during a real class
-  (§ "Runtime open question" below).
+- ~~Confirm `LiveKit webhook: event=…` lines in the API logs during a real class
+  (§ "Runtime open question" below).~~ **Confirmed 2026-11-14 from production's
+  `processed_webhook_events`:** 1,382 events in the 30 days to 2026-11-13
+  (participant_joined/left 287 each, track published/unpublished 274 each,
+  room_started/finished 107 each, participant_connection_aborted 46).
 - Run `npm run audit:reliability -w apps/api -- --days 90` against real data
   ([RELIABILITY_DESIGN.md](RELIABILITY_DESIGN.md) §6.1). It has only been run
   against local dev.
