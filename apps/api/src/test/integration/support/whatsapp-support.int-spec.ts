@@ -15,10 +15,12 @@ import {
   DEFAULT_SUPPORT_MENU,
   DEFAULT_TENANT_ID,
   type LeadDetailResponse,
+  type PersonalDataExport,
   type SupportContactExport,
   type SupportSavedReplyItem,
   type SupportUnansweredQuestionListResponse,
   type SupportAnalyticsResponse,
+  type SupportLinkCodeResponse,
   type SupportTicketDetail,
   type SupportTicketListResponse
 } from "@nexa-chess/types";
@@ -665,6 +667,83 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       }
     });
 
+    it("links a parent's number with a staff code, then tells only that number the next class", async () => {
+      const settings = {
+        accountAnswers: true,
+        agentReplyTemplate: "",
+        agentReplyTemplateLanguage: "en",
+        botEnabled: true,
+        hours: null,
+        leadNudgeHours: 20,
+        menu: DEFAULT_SUPPORT_MENU,
+        outOfHoursMessage: "",
+        staffReminderMinutes: 15,
+        testNumbers: []
+      };
+      expect((await t.call(admin, "PUT", API_ROUTES.adminSupport.settings, settings)).status).toBe(200);
+      const coach = await db(() => createUser(t.prisma, UserRole.COACH));
+      const batch = await db(() =>
+        t.prisma.batch.create({ data: { name: "Knights Tuesday", students: { create: { studentId: student.id } } } })
+      );
+      const startsAt = new Date(Date.now() + 26 * 60 * 60_000);
+      await db(() =>
+        t.prisma.coachClass.create({
+          data: { batchId: batch.id, coachId: coach.id, endsAt: new Date(startsAt.getTime() + 3_600_000), startsAt, status: "SCHEDULED" }
+        })
+      );
+
+      // Not linked yet: no account data, only how to link.
+      await say(textFrom(ALLOWED_NUMBER, "hi"));
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "next class"));
+      expect(sent.map((message) => message.body).join("\n")).toContain("isn't linked to a student yet");
+      expect(sent.map((message) => message.body).join("\n")).not.toContain("Knights");
+
+      // Only admins make codes, only for this academy's students.
+      expect((await t.call(student, "POST", API_ROUTES.adminSupport.linkCodes, { studentId: student.id })).status).toBe(403);
+      expect((await t.call(admin, "POST", API_ROUTES.adminSupport.linkCodes, { studentId: admin.id })).status).toBe(404);
+      const made = await t.call(admin, "POST", API_ROUTES.adminSupport.linkCodes, { studentId: student.id });
+      expect(made.status).toBe(200);
+      const { code } = made.body as SupportLinkCodeResponse;
+      expect(code).toMatch(/^[2-9A-Z]{4}-[2-9A-Z]{4}$/);
+      expect(await db(() => t.prisma.supportLinkCode.count({ where: { codeHash: code } }))).toBe(0);
+
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, `link ${code.toLowerCase().replace("-", "")}`));
+      expect(sent.at(-1)?.body).toContain("now linked to");
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "Next class"));
+      expect(sent.at(-1)?.body).toContain("(Knights Tuesday)");
+
+      // The code is spent: another number can't reuse it.
+      sent = [];
+      await say(textFrom(OTHER_ALLOWED_NUMBER, `LINK ${code}`));
+      expect(sent.at(-1)?.body).toContain("didn't work");
+      sent = [];
+      await say(textFrom(OTHER_ALLOWED_NUMBER, "next class"));
+      expect(sent.at(-1)?.body).not.toContain("Knights");
+
+      // Too many wrong codes: the number has to wait.
+      for (let i = 0; i < 5; i += 1) await say(textFrom(OTHER_ALLOWED_NUMBER, "LINK ZZZZ-ZZZZ"));
+      const another = (await t.call(admin, "POST", API_ROUTES.adminSupport.linkCodes, { studentId: student.id })).body as SupportLinkCodeResponse;
+      sent = [];
+      await say(textFrom(OTHER_ALLOWED_NUMBER, `LINK ${another.code}`));
+      expect(sent.at(-1)?.body).toContain("Too many codes");
+
+      // Staff see the link on the ticket page and can remove it.
+      await say(textFrom(ALLOWED_NUMBER, "agent"));
+      const ticket = await db(() => t.prisma.supportTicket.findFirstOrThrow({ where: { contact: { waId: ALLOWED_NUMBER } } }));
+      const detail = (await t.call(admin, "GET", API_ROUTES.adminSupport.ticket(ticket.id))).body as SupportTicketDetail;
+      expect(detail.contact.linkedStudents.map((link) => link.id)).toEqual([student.id]);
+      // The student's own data export lists the linked number.
+      const exported = await t.call(student, "GET", API_ROUTES.privacy.dataExport);
+      expect((exported.body as PersonalDataExport).sections.whatsAppLinks).toEqual([expect.objectContaining({ whatsAppNumber: ALLOWED_NUMBER })]);
+      const unlink = await t.call(admin, "DELETE", API_ROUTES.adminSupport.contactLink(detail.contact.id, student.id));
+      expect(unlink.status).toBe(200);
+      expect(await db(() => t.prisma.supportContactLink.count())).toBe(0);
+      expect((await t.call(admin, "DELETE", API_ROUTES.adminSupport.contactLink(detail.contact.id, student.id))).status).toBe(404);
+    });
+
     it("books a real demo time: a registration, the join link, and nothing left for staff", async () => {
       const coach = await db(() => createUser(t.prisma, UserRole.COACH));
       const schedule = await db(() =>
@@ -760,6 +839,7 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
 
     it("shows the academy's own main menu: hidden options, new order and titles", async () => {
       const base = {
+        accountAnswers: false,
         agentReplyTemplate: "",
         agentReplyTemplateLanguage: "en",
         botEnabled: true,
@@ -806,6 +886,7 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       const followUps = t.app.get(SupportFollowUpService);
       // No open day at all: always outside hours, whatever time the suite runs.
       const settings = {
+        accountAnswers: false,
         agentReplyTemplate: "",
         agentReplyTemplateLanguage: "en",
         botEnabled: true,

@@ -172,7 +172,11 @@ export type SupportAction =
   | { kind: "OPT_OUT" }
   | { kind: "OPT_IN" }
   /** A question no saved answer matched (or the customer said No to a guess): listed for admins. */
-  | { kind: "UNANSWERED"; text: string };
+  | { kind: "UNANSWERED"; text: string }
+  /** "LINK <code>": the API checks the code and links this number to its student (Phase D). */
+  | { kind: "LINK_ACCOUNT"; code: string }
+  /** "NEXT CLASS" from a number: the API answers only if it is linked to a student. */
+  | { kind: "ACCOUNT_QUERY" };
 
 export interface SupportConversationSnapshot {
   state: SupportFlowState;
@@ -195,6 +199,27 @@ export interface SupportTransitionContext {
   demoSlots?: SupportDemoSlot[];
   /** The academy's main menu (`supportMenuEntries`); absent = the built-in one. */
   menu?: SupportMenuEntry[];
+  /** The academy lets linked numbers ask for their next class (Phase D). */
+  accountAnswers?: boolean;
+}
+
+/** Characters of a link code: no 0/O, 1/I/L, so it can be read out on the phone. */
+export const SUPPORT_LINK_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+export const SUPPORT_LINK_CODE_LENGTH = 8;
+
+/** The code in "LINK ABCD-2345" (any case, dash or space optional), normalized; null otherwise. */
+export function supportLinkCodeIn(text: string): string | null {
+  const match = /^\s*link\s+([a-z0-9][a-z0-9\s-]{5,20})\s*$/i.exec(text);
+  if (!match) return null;
+  const code = match[1].replace(/[\s-]/g, "").toUpperCase();
+  return code.length === SUPPORT_LINK_CODE_LENGTH ? code : null;
+}
+
+/** Typed questions a linked number can ask about its student. */
+const ACCOUNT_WORDS = new Set(["next class", "my class", "my classes", "class time", "class timing", "batch timing", "when is my class", "when is the next class"]);
+
+export function isSupportAccountQuestion(text: string): boolean {
+  return ACCOUNT_WORDS.has(normalizeSupportText(text));
 }
 
 function menuOf(ctx: Pick<SupportTransitionContext, "menu">): SupportMenuEntry[] {
@@ -994,6 +1019,14 @@ export function transitionSupport(
   if (current.status === "CLOSED") {
     // A closed conversation is never resumed: the API opens a new one.
     return result(current, []);
+  }
+
+  // Existing students (Phase D): only where the academy switched it on. The
+  // API answers; the conversation stays where it was.
+  if (ctx.accountAnswers && input.kind === "text") {
+    const code = supportLinkCodeIn(input.text);
+    if (code) return result(current, [], [{ code, kind: "LINK_ACCOUNT" }]);
+    if (isSupportAccountQuestion(input.text)) return result(current, [], [{ kind: "ACCOUNT_QUERY" }]);
   }
 
   if (command === "START") {

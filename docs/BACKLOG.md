@@ -186,7 +186,8 @@ its precondition, the student training surface, now exists).
   `feat/whatsapp-native-complete`, PR into `feat/whatsapp-multi-academy`): every
   academy's own number, team hours, delivery status, real demo slots, contact
   export/erase, template status, images/PDFs, the Frappe push, ownership events,
-  `/admin/support/insights` and the configurable main menu. The questions that
+  `/admin/support/insights`, the configurable main menu and Phase D (staff-issued
+  WhatsApp link codes, "next class" for linked families). The questions that
   run left are under "Questions for the owner" below (2026-11-14 entry).
   **Next phases are planned in [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md)
   (2026-11-14, proposal; open decisions in its §0 come first; D3, D6, D12,
@@ -226,7 +227,7 @@ its precondition, the student training surface, now exists).
   1. **D5 was still open; I built option (a)** (the plan's recommendation): fixed flows in code, and on Support → Settings each academy turns main-menu options on/off, reorders and renames them. "Talk to our team" can't be switched off. No flow builder. Change of mind = say so, nothing else depends on it.
   2. **Routing per intent was not built.** With no helpdesk connected, every hand-off has one destination (the Nexa inbox), so a routing table would have nothing to choose. It comes with Phase E (Crisp), which waits on D1.
   3. **Frappe push: only new leads the WhatsApp bot makes**, Nexa's academy only, one way. Should website-form leads go too? Should a booked real demo time set Frappe's status to "Demo Scheduled"? (Today every push uses `FRAPPE_CRM_LEAD_STATUS`, default "New Inquiry", and source "Direct WhatsApp", both names that exist on crm.nexachess.in.) **To switch it on:** create an API key/secret in Frappe for a user allowed to create CRM Lead and FCRM Note, then set `FRAPPE_CRM_URL=https://crm.nexachess.in`, `FRAPPE_CRM_API_KEY`, `FRAPPE_CRM_API_SECRET` on the API.
-  4. **Phase D (account linking, D8) not started**: it decides how a WhatsApp number proves it belongs to a parent's account (minors' data), so it needs your answer to D8 first (recommended: a one-time link code shown in the app).
+  4. **Phase D built in its narrowest form, D8 assumed "link code only"**: there are no parent accounts, so a code shown to a student's own login would let a minor link any number. Instead **only an admin** makes a one-time code for a student (Admin → Users → student → WhatsApp link code) and gives it to a family they have checked; the family sends `LINK <code>`. A linked number can only ask "next class" (time + batch name). Off until Support → Settings → "Answer linked families". Please confirm: is staff-issued OK, should coaches issue codes too, and may the bot later say more (join link, homework, fees due)?
   5. **Phases E/F (Crisp) skipped**: D1 says wait. **Phase G (AI answers) skipped**: needs a decision (plan §12, D12 AI).
   6. **Privacy text**: `features/legal/content.ts` doesn't yet mention that files customers send on WhatsApp are kept (private Cloudinary storage) or that WhatsApp leads are copied to Frappe CRM (self-hosted). Needs the DPDP review already pending before the bot is switched on.
   7. **Insights history starts 2026-11-14**: hand-off and first-reply figures come from the new `support_conversation_events` table, so older conversations count in volume but not in hand-offs.

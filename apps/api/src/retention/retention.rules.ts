@@ -22,6 +22,7 @@ export const RETENTION_RULES: readonly FixedRetentionRuleDef[] = [
   { column: "expiresAt", days: 1, label: "Expired sign-in sessions", table: "auth_sessions" },
   { column: "expiresAt", days: 1, label: "Expired password reset links", table: "password_reset_tokens" },
   { column: "expiresAt", days: 1, label: "Expired email verification links", table: "email_verification_tokens" },
+  { column: "expiresAt", days: 30, label: "Expired WhatsApp link codes", table: "support_link_codes" },
   // LiveKit dedupe only matters while it is still retrying (minutes).
   { column: "processedAt", days: 30, label: "Video webhook dedupe records", table: "processed_webhook_events" },
   // Anonymous IP/user-agent rows; a lead's attribution keeps its own.

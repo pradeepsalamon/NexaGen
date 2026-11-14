@@ -1,5 +1,6 @@
 import { API_ROUTES } from "@nexa-chess/types";
 import type {
+  SupportLinkCodeResponse,
   SupportAnalyticsDays,
   SupportAnalyticsResponse,
   SupportContactErasureResult,
@@ -118,4 +119,12 @@ export function eraseSupportContact(contactId: string): Promise<SupportContactEr
 
 export function getSupportAnalytics(days: SupportAnalyticsDays, tz: string): Promise<SupportAnalyticsResponse> {
   return apiFetch<SupportAnalyticsResponse>(`${API_ROUTES.adminSupport.analytics}?${new URLSearchParams({ days, tz })}`);
+}
+
+export function createSupportLinkCode(studentId: string): Promise<SupportLinkCodeResponse> {
+  return apiFetch<SupportLinkCodeResponse>(API_ROUTES.adminSupport.linkCodes, { body: { studentId }, method: "POST" });
+}
+
+export function unlinkSupportContact(contactId: string, studentId: string): Promise<{ removed: true }> {
+  return apiFetch<{ removed: true }>(API_ROUTES.adminSupport.contactLink(contactId, studentId), { method: "DELETE" });
 }

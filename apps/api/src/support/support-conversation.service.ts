@@ -19,6 +19,7 @@ import { DEFAULT_TIME_ZONE } from "../common/time";
 import { DemoInviteService, demoInvitePath } from "../demo-class/demo-invite.service";
 import { FrappeCrmPushService } from "../lead/frappe-crm-push.service";
 import { LeadService } from "../lead/lead.service";
+import { SupportAccountService } from "./support-account.service";
 import { botOwnerChangeReason, recordOwnerChange } from "./support-ownership";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
@@ -78,6 +79,7 @@ export class SupportConversationService {
   private readonly logger = new Logger(SupportConversationService.name);
 
   constructor(
+    private readonly account: SupportAccountService,
     private readonly attachments: SupportAttachmentsService,
     private readonly crmPush: FrappeCrmPushService,
     private readonly demoInvites: DemoInviteService,
@@ -165,6 +167,7 @@ export class SupportConversationService {
           answers,
           demoSlots,
           idle,
+          accountAnswers: settings.accountAnswers,
           menu: supportMenuEntries(settings.menu),
           privacyUrl: `${origin ?? getFrontendUrl(this.env)}/privacy`,
           redacted: wasRedacted(event.text)
@@ -176,6 +179,7 @@ export class SupportConversationService {
       let announce = false;
       let newLead: Lead | null = null;
       const unansweredTexts: string[] = [];
+      const accountReplies: string[] = [];
       for (const action of next.actions) {
         if (action.kind === "TICKET") {
           const lead = action.demo
@@ -208,6 +212,10 @@ export class SupportConversationService {
           await tx.whatsAppContact.update({ data: { optedOutAt: now }, where: { id: contact.id } });
         } else if (action.kind === "OPT_IN") {
           await tx.whatsAppContact.update({ data: { optedOutAt: null }, where: { id: contact.id } });
+        } else if (action.kind === "LINK_ACCOUNT") {
+          accountReplies.push(await this.account.linkFromWhatsApp(tx, contact.id, action.code, now));
+        } else if (action.kind === "ACCOUNT_QUERY") {
+          accountReplies.push(await this.account.nextClassReply(tx, contact.id, now));
         }
       }
 
@@ -239,7 +247,7 @@ export class SupportConversationService {
       const replies =
         next.status === "WAITING_AGENT" && conversation.status !== "WAITING_AGENT" && !supportHoursOpen(settings.hours, now)
           ? [...next.replies, { body: settings.outOfHoursMessage ?? DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE, kind: "text" as const }]
-          : next.replies;
+          : [...next.replies, ...accountReplies.map((body) => ({ body, kind: "text" as const }))];
       const reference = ticket?.reference ?? "";
       for (const [index, reply] of replies.entries()) {
         const filled = fillReference(reply, reference);

@@ -13,6 +13,8 @@ import type {
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
 import {
+  createSupportLinkCode,
+  unlinkSupportContact,
   getSupportAnalytics,
   addSupportNote,
   createSupportSavedReply,
@@ -226,5 +228,28 @@ export function useSupportAnalyticsQuery(days: SupportAnalyticsDays, tz: string)
     placeholderData: keepPreviousData,
     queryFn: () => getSupportAnalytics(days, tz),
     queryKey: queryKeys.support.analytics(days, tz)
+  });
+}
+
+// ── Existing students: WhatsApp link codes ──
+
+export function useCreateSupportLinkCode() {
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (studentId: string) => createSupportLinkCode(studentId),
+    onError: (error: Error) => toast.error({ message: error.message, title: "No link code made" })
+  });
+}
+
+export function useUnlinkSupportContact(ticketId: string) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: ({ contactId, studentId }: { contactId: string; studentId: string }) => unlinkSupportContact(contactId, studentId),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Not unlinked" }),
+    onSuccess: async () => {
+      toast.success({ title: "Number unlinked from the student" });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.support.detail(ticketId) });
+    }
   });
 }

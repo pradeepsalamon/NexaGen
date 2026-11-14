@@ -13,6 +13,7 @@ const SERVER = {
 };
 
 const ROW = {
+  accountAnswers: false,
   agentReplyTemplate: null,
   agentReplyTemplateLanguage: "en_US",
   botEnabled: false,
@@ -27,6 +28,7 @@ const ROW = {
 describe("resolveSupportSettings", () => {
   it("keeps Nexa's academy on the server's values until its page is saved", () => {
     expect(resolveSupportSettings(null, "tenant_nexa", SERVER)).toEqual({
+      accountAnswers: false,
       agentReplyTemplate: "agent_reply",
       agentReplyTemplateLanguage: "en",
       botEnabled: true,

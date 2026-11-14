@@ -51,6 +51,14 @@ export interface SupportContactSummary {
   optedOut: boolean;
   /** When the 24-hour customer-service window closes; null = closed (only a template can be sent). */
   replyWindowEndsAt: string | null;
+  /** Students this number is linked to by a staff-issued code (Phase D). */
+  linkedStudents: SupportLinkedStudent[];
+}
+
+export interface SupportLinkedStudent {
+  id: string;
+  name: string;
+  linkedAt: string;
 }
 
 export interface SupportTicketListItem {
@@ -295,7 +303,9 @@ export const updateSupportSettingsRequestSchema = z.object({
   /** Sent after a hand-off outside hours; empty = DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE. */
   outOfHoursMessage: z.string().trim().max(SUPPORT_OUT_OF_HOURS_MAX),
   /** The main menu (DEFAULT_SUPPORT_MENU until changed). */
-  menu: supportMenuSchema
+  menu: supportMenuSchema,
+  /** Numbers linked to a student by a staff-issued code may ask for its next class. */
+  accountAnswers: z.boolean()
 });
 export type UpdateSupportSettingsRequest = z.infer<typeof updateSupportSettingsRequestSchema>;
 
@@ -315,6 +325,7 @@ export interface SupportSettingsValues {
   outOfHoursMessage: string | null;
   /** All six options in the academy's order, including switched-off ones. */
   menu: SupportMenuItem[];
+  accountAnswers: boolean;
 }
 
 export interface SupportSettingsResponse extends SupportSettingsValues {
@@ -336,6 +347,8 @@ export interface SupportSettingsResponse extends SupportSettingsValues {
 /** Everything stored about one WhatsApp number, for a parent's access request. */
 export interface SupportContactExport {
   exportedAt: string;
+  /** Students this number was linked to (Phase D). */
+  linkedStudents: Array<{ name: string; linkedAt: string }>;
   contact: { waId: string; profileName: string | null; firstSeenAt: string; optedOutAt: string | null };
   conversations: Array<{
     startedAt: string;
@@ -385,4 +398,16 @@ export interface SupportAnalyticsResponse {
   newLeads: number;
   /** Per local day (the `tz` asked for), oldest first. */
   daily: Array<{ date: string; conversations: number; handoffs: number }>;
+}
+
+// ── Existing students: link a WhatsApp number to a student (Phase D) ──
+
+export const supportLinkCodeRequestSchema = z.object({ studentId: z.string().trim().min(1).max(64) });
+export type SupportLinkCodeRequest = z.infer<typeof supportLinkCodeRequestSchema>;
+
+/** Shown once to the admin who made it; only a hash is stored. */
+export interface SupportLinkCodeResponse {
+  code: string;
+  expiresAt: string;
+  studentName: string;
 }

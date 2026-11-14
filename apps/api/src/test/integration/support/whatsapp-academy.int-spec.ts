@@ -36,6 +36,7 @@ const BISHOP = "tenant_int_wa_bishop";
 const BISHOP_ORIGIN = "https://academy-bishop.int.test";
 
 const BOT_ON: UpdateSupportSettingsRequest = {
+  accountAnswers: false,
   agentReplyTemplate: "",
   agentReplyTemplateLanguage: "en",
   botEnabled: true,

@@ -192,6 +192,23 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   option isn't guessed from words either, and each option keeps its row id, so
   a renamed one still means the same thing. "Talk to our team" can't be
   switched off. The flows themselves stay in code (no flow builder).
+- *Existing students* (Phase D; D8 assumed "link code only"): off until
+  Support → Settings → "Answer linked families" is on. An admin opens
+  Admin → Users → the student and makes a **WhatsApp link code**
+  (`POST /admin/support/link-codes`: 8 characters without 0/O/1/I/L, shown once
+  as `ABCD-2345`, only its SHA-256 stored, 24 hours, one use) and gives it to
+  a family they have checked. The family sends `LINK ABCD-2345`; the bot
+  links that number to the student (`support_contact_links`). Then
+  `NEXT CLASS` (also "my class", "batch timing"…) answers each linked
+  student's next scheduled batch class, in the student's time zone, with the
+  batch name, and nothing else. An unlinked number is told how to link and
+  gets no account data. 5 wrong codes in an hour block that number for the
+  hour. Codes are per academy (another academy's code is "didn't work").
+  Staff see linked students on the ticket page's "Contact's data" card and can
+  unlink them; erasing the contact removes its links; the student's own data
+  export lists linked numbers (`whatsAppLinks`). A phone number typed in a
+  profile never links anything (D8). Only while the bot has the conversation:
+  with staff it stays silent as always.
 - *Template status* (Phase C): the reply-template field on the settings page
   shows whether WhatsApp Manager approved it ([MESSAGING.md](MESSAGING.md) "WhatsApp templates").
 - *Delivery status for rules and system messages* (Phase C): a status webhook
@@ -263,7 +280,7 @@ version 2).** Owner's priority: answer leads at once and follow up quickly.
   has a lead from the last 90 days. A tap on it after the conversation expired
   still starts the booking.
 
-**Not built / known gaps.** No account linking or account-aware answers; no
+**Not built / known gaps.** Account answers are only "next class"; no
 AI (Phase 4). The Frappe push covers WhatsApp leads only. A contact's export and erasure are
 staff actions on the ticket page, not self-service: a phone number is not proof
 of identity (§9), so staff confirm who is asking first. No nginx IP limit on the webhook yet.

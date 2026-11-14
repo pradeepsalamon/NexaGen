@@ -52,6 +52,7 @@ const dayRowSchema = z.object({ close: z.string(), enabled: z.boolean(), open: z
 
 /** Numbers stay text in the form (one per line for the test list) and become the API body on save. */
 const formSchema = z.object({
+  accountAnswers: z.boolean(),
   days: z
     .array(dayRowSchema)
     .length(7)
@@ -93,6 +94,7 @@ const DEFAULT_DAY = (day: number) => ({ close: "18:00", enabled: day !== 0, open
 
 function toForm(data: SupportSettingsResponse, fallbackZone: string): FormValues {
   return {
+    accountAnswers: data.accountAnswers,
     agentReplyTemplate: data.agentReplyTemplate ?? "",
     agentReplyTemplateLanguage: data.agentReplyTemplateLanguage,
     botEnabled: data.botEnabled,
@@ -113,6 +115,7 @@ function toForm(data: SupportSettingsResponse, fallbackZone: string): FormValues
 
 function toRequest(values: FormValues): UpdateSupportSettingsRequest {
   return {
+    accountAnswers: values.accountAnswers,
     agentReplyTemplate: values.agentReplyTemplate,
     agentReplyTemplateLanguage: values.agentReplyTemplateLanguage,
     botEnabled: values.botEnabled,
@@ -217,6 +220,19 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
           >
             <Textarea id="support-test-numbers" placeholder="+91 90000 00000" rows={3} {...register("testNumbers")} />
           </FormField>
+          <div className="grid gap-1">
+            <Controller
+              control={control}
+              name="accountAnswers"
+              render={({ field }) => (
+                <Switch checked={field.value} id="support-account-answers" label="Answer linked families" onCheckedChange={field.onChange} />
+              )}
+            />
+            <p className="text-xs text-app-muted">
+              A family whose number you linked to a student (Admin → Users → the student → WhatsApp link code) can send NEXT CLASS and
+              get that student&apos;s next class time. Nothing else about the account is ever sent, and other numbers get nothing.
+            </p>
+          </div>
         </div>
       </SectionCard>
 

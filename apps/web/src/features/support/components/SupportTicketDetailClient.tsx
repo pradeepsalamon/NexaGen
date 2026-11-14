@@ -45,6 +45,7 @@ import { exportSupportContact } from "../api/supportAdminApi";
 import {
   useAddSupportNote,
   useEraseSupportContact,
+  useUnlinkSupportContact,
   useReplyToSupportTicket,
   useReturnSupportTicketToBot,
   useSupportAgentsQuery,
@@ -459,6 +460,7 @@ function ContactData({ ticket }: { ticket: SupportTicketDetail }) {
   const toast = useToast();
   const isSuperAdmin = useAuthStore((state) => state.user?.role === "SUPER_ADMIN");
   const erase = useEraseSupportContact();
+  const unlink = useUnlinkSupportContact(ticket.id);
   const [downloading, setDownloading] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -486,6 +488,30 @@ function ContactData({ ticket }: { ticket: SupportTicketDetail }) {
         For a parent who asks what you hold about them, or asks you to delete it. This WhatsApp number isn&apos;t an account, so it
         isn&apos;t in the account privacy tools.
       </p>
+      {ticket.contact.linkedStudents.length > 0 ? (
+        <div className="grid gap-2">
+          <h3 className="text-sm font-semibold text-app-text">Linked students</h3>
+          <p className="text-xs text-app-muted">This number may ask the assistant for these students&apos; next class.</p>
+          <ul className="grid gap-1.5">
+            {ticket.contact.linkedStudents.map((student) => (
+              <li className="flex items-center justify-between gap-2 text-sm" key={student.id}>
+                <Link className="truncate text-primary-ink hover:underline" href={`/admin/students/${student.id}`}>
+                  {student.name}
+                </Link>
+                <Button
+                  disabled={unlink.isPending}
+                  onClick={() => unlink.mutate({ contactId: ticket.contact.id, studentId: student.id })}
+                  size="sm"
+                  type="button"
+                  variant="neutral"
+                >
+                  Unlink
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div className="flex flex-wrap justify-end gap-2">
         <Button isLoading={downloading} onClick={() => void download()} variant="outline">
           <Download className="mr-1.5 size-4" strokeWidth={2.25} />

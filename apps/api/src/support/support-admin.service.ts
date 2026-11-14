@@ -300,7 +300,7 @@ export class SupportAdminService {
     await this.getStaff(accessToken);
     const contact = await this.prisma.whatsAppContact.findFirst({ where: { id: contactId } });
     if (!contact) throw new NotFoundException("Contact not found.");
-    const [conversations, tickets] = await Promise.all([
+    const [conversations, tickets, links] = await Promise.all([
       this.prisma.supportConversation.findMany({
         include: { messages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
         orderBy: { createdAt: "asc" },
@@ -308,6 +308,11 @@ export class SupportAdminService {
       }),
       this.prisma.supportTicket.findMany({
         include: { events: { orderBy: { createdAt: "asc" } } },
+        orderBy: { createdAt: "asc" },
+        where: { contactId }
+      }),
+      this.prisma.supportContactLink.findMany({
+        include: { student: { select: { firstName: true, lastName: true } } },
         orderBy: { createdAt: "asc" },
         where: { contactId }
       })
@@ -331,6 +336,7 @@ export class SupportAdminService {
         startedAt: conversation.createdAt.toISOString()
       })),
       exportedAt: new Date().toISOString(),
+      linkedStudents: links.map((link) => ({ linkedAt: link.createdAt.toISOString(), name: `${link.student.firstName} ${link.student.lastName ?? ""}`.trim() })),
       tickets: tickets.map((ticket) => ({
         category: ticket.category,
         details: ticket.details,
@@ -368,9 +374,13 @@ export class SupportAdminService {
       await tx.supportTicket.deleteMany({ where: { contactId } });
       await tx.supportConversation.deleteMany({ where: { contactId } });
       await tx.whatsAppWebhookEvent.deleteMany({ where: { waId: contact.waId } });
+      await tx.supportContactLink.deleteMany({ where: { contactId } });
       const keptOptOut = contact.optedOutAt !== null;
       if (keptOptOut) {
-        await tx.whatsAppContact.update({ data: { lastInboundAt: null, profileName: null }, where: { id: contact.id } });
+        await tx.whatsAppContact.update({
+          data: { lastInboundAt: null, linkFailures: 0, linkFailuresFrom: null, profileName: null },
+          where: { id: contact.id }
+        });
       } else {
         await tx.whatsAppContact.delete({ where: { id: contact.id } });
       }
@@ -443,7 +453,15 @@ export class SupportAdminService {
     const row = await this.prisma.supportTicket.findFirst({
       include: {
         ...TICKET_LIST_INCLUDE,
-        contact: true,
+        contact: {
+          include: {
+            studentLinks: {
+              include: { student: { select: { firstName: true, id: true, lastName: true } } },
+              orderBy: { createdAt: "asc" },
+              where: { student: { isDeleted: false } }
+            }
+          }
+        },
         events: { include: { actor: { select: PERSON_SELECT } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
         lead: { select: { id: true, isDeleted: true, status: true, studentName: true } }
       },
@@ -455,6 +473,11 @@ export class SupportAdminService {
       ...this.toListItem(row),
       contact: {
         id: row.contact.id,
+        linkedStudents: row.contact.studentLinks.map((link) => ({
+          id: link.student.id,
+          linkedAt: link.createdAt.toISOString(),
+          name: `${link.student.firstName} ${link.student.lastName ?? ""}`.trim()
+        })),
         optedOut: row.contact.optedOutAt !== null,
         profileName: row.contact.profileName,
         replyWindowEndsAt: windowEnds ? windowEnds.toISOString() : null,

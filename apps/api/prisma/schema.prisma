@@ -320,6 +320,9 @@ model User {
   updatedSupportSettings          SupportSettings[]                @relation("SupportSettingsUpdatedBy")
   supportContactErasures          SupportContactErasure[]          @relation("SupportContactErasedBy")
   supportConversationEvents       SupportConversationEvent[]       @relation("SupportConversationEventActor")
+  supportContactLinks             SupportContactLink[]             @relation("SupportContactLinkStudent")
+  supportLinkCodes                SupportLinkCode[]                @relation("SupportLinkCodeStudent")
+  issuedSupportLinkCodes          SupportLinkCode[]                @relation("SupportLinkCodeIssuedBy")
   coachedBatches                  BatchCoach[]                     @relation("BatchCoaches")
   studentBatches                  BatchStudent[]                   @relation("BatchStudents")
   classes                         CoachClass[]                     @relation("ClassCoach")
@@ -8599,6 +8602,8 @@ model SupportSettings {
   outOfHoursMessage          String?
   /// The main menu: SupportMenuItem[] (supportMenuSchema); null = DEFAULT_SUPPORT_MENU.
   menu                       Json?
+  /// A number linked to a student (staff-issued code) may ask for its next class.
+  accountAnswers             Boolean  @default(false)
   updatedById                String?
   updatedBy                  User?    @relation("SupportSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt                  DateTime @default(now())
@@ -8718,11 +8723,15 @@ model WhatsAppContact {
   lastInboundAt DateTime?
   /// "STOP": no proactive WhatsApp (rules, system messages). Support replies still go.
   optedOutAt    DateTime?
+  /// Wrong LINK codes since `linkFailuresFrom` (a rate limit: docs/WHATSAPP_SUPPORT.md §0 "Existing students").
+  linkFailures     Int       @default(0)
+  linkFailuresFrom DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   conversations SupportConversation[]
   tickets       SupportTicket[]
+  studentLinks  SupportContactLink[]
 
   @@unique([tenantId, waId])
   @@map("whatsapp_contacts")
@@ -8965,4 +8974,44 @@ model SupportConversationEvent {
   @@index([createdAt, toStatus])
   @@index([actorId])
   @@map("support_conversation_events")
+}
+
+/// A WhatsApp number linked to a student of the academy, by a code staff
+/// gave the family (plan Phase D, D8: a code, never a phone-number match).
+/// Only then may the bot tell that number the student's next class.
+model SupportContactLink {
+  id        String          @id @default(cuid())
+  tenantId  String          @default("tenant_nexa")
+  contactId String
+  contact   WhatsAppContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User            @relation("SupportContactLinkStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  /// The code that made it (kept for the audit trail; the code itself is spent).
+  codeId    String?
+  createdAt DateTime        @default(now())
+
+  @@unique([contactId, studentId])
+  @@index([studentId])
+  @@map("support_contact_links")
+}
+
+/// A one-time code staff create for one student and give the family, who send
+/// "LINK <code>" from WhatsApp. Only its SHA-256 is stored; 24 hours; one use.
+model SupportLinkCode {
+  id              String    @id @default(cuid())
+  tenantId        String    @default("tenant_nexa")
+  studentId       String
+  student         User      @relation("SupportLinkCodeStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  codeHash        String    @unique
+  expiresAt       DateTime
+  usedAt          DateTime?
+  usedByContactId String?
+  createdById     String?
+  createdBy       User?     @relation("SupportLinkCodeIssuedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+
+  @@index([studentId])
+  @@index([createdById])
+  @@index([expiresAt])
+  @@map("support_link_codes")
 }

@@ -49,6 +49,7 @@ function parseNumbers(raw: string | undefined, countryCode: string | undefined):
 export function resolveSupportSettings(
   row: Pick<
     SupportSettings,
+    | "accountAnswers"
     | "agentReplyTemplate"
     | "agentReplyTemplateLanguage"
     | "botEnabled"
@@ -64,6 +65,7 @@ export function resolveSupportSettings(
 ): EffectiveSupportSettings {
   if (row) {
     return {
+      accountAnswers: row.accountAnswers,
       agentReplyTemplate: row.agentReplyTemplate,
       agentReplyTemplateLanguage: row.agentReplyTemplateLanguage,
       botEnabled: row.botEnabled,
@@ -78,6 +80,7 @@ export function resolveSupportSettings(
   }
   if (tenantId === DEFAULT_TENANT_ID) {
     return {
+      accountAnswers: false,
       agentReplyTemplate: env.SUPPORT_AGENT_REPLY_TEMPLATE || null,
       agentReplyTemplateLanguage: env.SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE,
       botEnabled: env.SUPPORT_BOT_ENABLED,
@@ -91,6 +94,7 @@ export function resolveSupportSettings(
     };
   }
   return {
+    accountAnswers: false,
     agentReplyTemplate: null,
     agentReplyTemplateLanguage: "en",
     botEnabled: false,
@@ -172,6 +176,7 @@ export class SupportSettingsService {
       throw new BadRequestException(`"${body.hours.timezone.slice(0, 64)}" is not a time zone this server knows.`);
     }
     const data = {
+      accountAnswers: body.accountAnswers,
       agentReplyTemplate: body.agentReplyTemplate || null,
       agentReplyTemplateLanguage: body.agentReplyTemplateLanguage,
       botEnabled: body.botEnabled,

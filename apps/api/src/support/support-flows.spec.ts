@@ -1,4 +1,5 @@
 import {
+  supportLinkCodeIn,
   DEFAULT_SUPPORT_MENU,
   supportMainMenu,
   supportMenuEntries,
@@ -499,5 +500,29 @@ describe("supportMenuEntries (the academy's main menu)", () => {
     expect(entries[0].row).toMatchObject({ id: "menu.human", title: "A person, please" });
     expect(entries[2].row).toEqual({ id: "menu.class", title: "Class problem" });
     expect(supportMainMenu(undefined, entries).body).toContain("(1–5)");
+  });
+});
+
+describe("existing students (LINK and NEXT CLASS)", () => {
+  const menu = { draft: {}, state: "MAIN_MENU" as const, status: "BOT" as const };
+
+  it("reads a link code with or without the dash, in any case", () => {
+    expect(supportLinkCodeIn("LINK ABCD-2345")).toBe("ABCD2345");
+    expect(supportLinkCodeIn("  link abcd 2345 ")).toBe("ABCD2345");
+    expect(supportLinkCodeIn("link abc")).toBeNull();
+    expect(supportLinkCodeIn("please link my account")).toBeNull();
+  });
+
+  it("hands both to the API only where the academy switched it on, without moving the conversation", () => {
+    const on = { ...ctx, accountAnswers: true };
+    expect(transitionSupport(menu, text("LINK ABCD-2345"), on)).toMatchObject({ actions: [{ code: "ABCD2345", kind: "LINK_ACCOUNT" }], replies: [], state: "MAIN_MENU" });
+    expect(transitionSupport(menu, text("Next class"), on)).toMatchObject({ actions: [{ kind: "ACCOUNT_QUERY" }], replies: [] });
+    expect(transitionSupport(menu, text("next class"), ctx).actions.map((action) => action.kind)).not.toContain("ACCOUNT_QUERY");
+    expect(transitionSupport(menu, text("LINK ABCD-2345"), ctx).actions.map((action) => action.kind)).not.toContain("LINK_ACCOUNT");
+  });
+
+  it("never answers for an account while staff have the conversation", () => {
+    const on = { ...ctx, accountAnswers: true };
+    expect(transitionSupport({ ...menu, status: "AGENT" }, text("next class"), on)).toMatchObject({ actions: [], replies: [] });
   });
 });

@@ -934,6 +934,10 @@ export const API_ROUTES = {
     dismissUnanswered: (id: string = ":id") => `/admin/support/unanswered/${id}/dismiss`,
     settings: "/admin/support/settings",
     analytics: "/admin/support/analytics",
+    /** POST: a one-time WhatsApp link code for a student (admins). */
+    linkCodes: "/admin/support/link-codes",
+    /** DELETE: unlink a WhatsApp contact from a student. */
+    contactLink: (contactId: string = ":id", studentId: string = ":studentId") => `/admin/support/contacts/${contactId}/links/${studentId}`,
     /** DELETE: erase a WhatsApp contact (super admins). */
     contact: (id: string = ":id") => `/admin/support/contacts/${id}`,
     contactExport: (id: string = ":id") => `/admin/support/contacts/${id}/export`,
