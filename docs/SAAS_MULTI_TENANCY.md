@@ -575,7 +575,9 @@ with per-domain DKIM; it's later.
 An academy connects its **own** WhatsApp Business credentials, as it does its
 payment gateway. Without them, WhatsApp is off for that academy and email still
 works. Nexa keeps today's number. *(builder's call: the shared Nexa number would
-show Nexa's business name.)*
+show Nexa's business name.)* Incoming messages per academy (own webhook URL and
+app secret, or Nexa as Meta Tech Provider) and the support modes are proposed in
+[WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md).
 
 ---
 

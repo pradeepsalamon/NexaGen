@@ -19,6 +19,8 @@ export const SUPPORT_SEND_MAX_ATTEMPTS = 4;
 const CLAIM_TIMEOUT_MS = 2 * 60_000;
 const RETRY_MINUTES = [1, 5, 15];
 const SWEEP_CONVERSATIONS = 100;
+/** Shown in the inbox ("Not delivered: …") for a bot reply staff overtook. */
+export const SUPPORT_BOT_REPLY_SUPERSEDED = "Not sent: staff took over this conversation before the bot's reply went out.";
 
 export function supportRetryAt(attempts: number, now: Date): Date {
   const minutes = RETRY_MINUTES[Math.min(attempts - 1, RETRY_MINUTES.length - 1)] ?? 15;
@@ -44,6 +46,9 @@ export class SupportOutboxService {
   /**
    * Sends the conversation's due PENDING messages in order. Stops at the first
    * one that has to wait for a retry, so a later message never overtakes it.
+   * A bot reply that staff overtook (they took over or replied after it was
+   * written) is never sent, even when it was only waiting for a retry: the bot
+   * and a person must not both answer (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §5.3).
    * Call inside the conversation's academy. Never throws.
    */
   async sendPending(conversationId: string): Promise<void> {
@@ -56,9 +61,18 @@ export class SupportOutboxService {
           where: { conversationId, direction: "OUTBOUND", status: "PENDING" }
         });
         if (!next) return;
-        if (next.nextAttemptAt && next.nextAttemptAt > now) return;
 
         const stale = new Date(now.getTime() - CLAIM_TIMEOUT_MS);
+        if (next.author === "BOT" && (await this.staffOvertook(next.conversation.status, conversationId, next.createdAt))) {
+          const dropped = await this.prisma.supportMessage.updateMany({
+            data: { claimedAt: null, error: SUPPORT_BOT_REPLY_SUPERSEDED, nextAttemptAt: null, status: "FAILED" },
+            where: { id: next.id, OR: [{ claimedAt: null }, { claimedAt: { lt: stale } }], status: "PENDING" }
+          });
+          if (dropped.count === 0) return; // another process holds it
+          continue;
+        }
+        if (next.nextAttemptAt && next.nextAttemptAt > now) return;
+
         const claim = await this.prisma.supportMessage.updateMany({
           data: { attempts: { increment: 1 }, claimedAt: now },
           where: { id: next.id, OR: [{ claimedAt: null }, { claimedAt: { lt: stale } }], status: "PENDING" }
@@ -90,6 +104,27 @@ export class SupportOutboxService {
     } catch (error) {
       this.logger.warn(`Support outbox for conversation ${conversationId} failed: ${(error as Error).message}`);
     }
+  }
+
+  /**
+   * Whether staff took charge after a bot reply was written. The bot writes
+   * nothing while staff own the conversation (AGENT), so AGENT now means a
+   * take-over came later; a staff reply or a take-over event after the row
+   * covers a hand-back to the bot in between.
+   */
+  private async staffOvertook(status: string, conversationId: string, writtenAt: Date): Promise<boolean> {
+    if (status === "AGENT") return true;
+    const [reply, takeOver] = await Promise.all([
+      this.prisma.supportMessage.findFirst({
+        select: { id: true },
+        where: { author: "AGENT", conversationId, createdAt: { gt: writtenAt }, direction: "OUTBOUND" }
+      }),
+      this.prisma.supportTicketEvent.findFirst({
+        select: { id: true },
+        where: { createdAt: { gt: writtenAt }, kind: "TAKEN_OVER", ticket: { conversationId } }
+      })
+    ]);
+    return reply !== null || takeOver !== null;
   }
 
   private async deliver(to: string, body: string, payload: Prisma.JsonValue | null): Promise<WhatsAppSendOutcome> {

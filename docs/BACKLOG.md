@@ -183,6 +183,9 @@ its precondition, the student training surface, now exists).
   admin "erase this WhatsApp contact" action for erasure requests (contacts
   aren't accounts, so the privacy export can't include them); an nginx IP
   limit on `/webhooks/whatsapp`; status updates for `message_deliveries`.
+  **Next phases are planned in [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md)
+  (2026-11-14, proposal; open decisions in its §0 come first; D3, D6, D12,
+  D13 answered).** Its G1 finding is fixed: a bot reply staff overtook is no longer sent.
 
 - **Unused asset: `apps/web/public/auth/auth_light.webp`** (2026-11-03). Since the
   M4 auth redesign the auth panel is navy in both themes and shows only

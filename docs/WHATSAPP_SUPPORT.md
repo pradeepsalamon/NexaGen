@@ -4,7 +4,9 @@ Status: **Phases 1–2 built 2026-11-14**, plus saved answers, demo bookings as
 leads and quick follow-ups (the lead part of Phase 3), on `feat/whatsapp-support-bot` (§0),
 switched off (`SUPPORT_BOT_ENABLED=false`). Phases 3–4 not started. The plan
 below (written 2026-10-25) is kept as the design record; where the build
-differs, §0 wins.
+differs, §0 wins. **Next phases:** [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md)
+(proposal 2026-11-14: multi-academy inbound, conversation ownership,
+Native / External helpdesk / Hybrid modes). It replaces §10 Phases 3–4 below.
 
 ## 0. As built (Phases 1–2)
 
@@ -70,7 +72,10 @@ failures (`ignoredAt` + `error`). With the bot off, or a number outside
 replayed. Status updates move a sent message forward only (`FAILED` always
 wins). Outgoing rows are written `PENDING` in the deciding transaction, sent
 after commit oldest-first per conversation; retryable failures back off 1/5/15
-minutes, 4 attempts (`JOB_LOCKS.supportOutbox`).
+minutes, 4 attempts (`JOB_LOCKS.supportOutbox`). A bot reply is never sent once
+staff overtook it (conversation `AGENT`, or a staff reply / take-over after it
+was written). It is marked not delivered ("Not sent: staff took over…"), even
+while waiting for a retry, so it never holds back the staff reply.
 
 **Consent.** `STOP` sets `WhatsAppContact.optedOutAt`; messaging rules and
 system messages then skip that number (`SKIPPED`, checked at send time, so
