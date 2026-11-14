@@ -18,6 +18,7 @@ import { DEFAULT_TIME_ZONE } from "../common/time";
 import { DemoInviteService, demoInvitePath } from "../demo-class/demo-invite.service";
 import { FrappeCrmPushService } from "../lead/frappe-crm-push.service";
 import { LeadService } from "../lead/lead.service";
+import { botOwnerChangeReason, recordOwnerChange } from "./support-ownership";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 import { SupportAttachmentsService, supportFileKindOf } from "./support-attachments.service";
@@ -226,6 +227,10 @@ export class SupportConversationService {
         },
         where: { id: conversation.id }
       });
+      const ownerReason = botOwnerChangeReason(conversation.status, next.status);
+      if (ownerReason) {
+        await recordOwnerChange(tx, { conversationId: conversation.id, from: conversation.status, reason: ownerReason, ticketId: ticket?.id, to: next.status });
+      }
 
       // Handed to staff by this message while the team is away: say so, in the
       // academy's own words (docs/WHATSAPP_SUPPORT_MODES_PLAN.md D12).
@@ -317,10 +322,13 @@ export class SupportConversationService {
       });
       if (!booked) return;
       // Nothing left for staff: the bot has the conversation again.
-      await tx.supportConversation.updateMany({
+      const handedBack = await tx.supportConversation.updateMany({
         data: { draft: {}, state: "DONE", status: "BOT" },
         where: { id: booking.conversationId, status: "WAITING_AGENT" }
       });
+      if (handedBack.count === 1) {
+        await recordOwnerChange(tx, { conversationId: booking.conversationId, from: "WAITING_AGENT", reason: "DEMO_BOOKED", ticketId: booking.ticketId, to: "BOT" });
+      }
       await tx.supportTicket.update({ data: { resolvedAt: new Date(), status: "RESOLVED" }, where: { id: booking.ticketId } });
       await tx.supportTicketEvent.create({
         data: { body: `The WhatsApp bot booked this demo class: ${booked.when}.`, kind: "STATUS_CHANGED", ticketId: booking.ticketId }
@@ -388,6 +396,7 @@ export class SupportConversationService {
         now.getTime() - open.lastInboundAt.getTime() > SUPPORT_CONVERSATION_EXPIRY_MS;
       if (!expired) return open;
       await tx.supportConversation.update({ data: { closedAt: now, status: "CLOSED" }, where: { id: open.id } });
+      await recordOwnerChange(tx, { conversationId: open.id, from: "BOT", reason: "BOT_IDLE", to: "CLOSED" });
     }
     return tx.supportConversation.create({ data: { contactId, flowVersion: SUPPORT_FLOW_VERSION, state: "START" } });
   }

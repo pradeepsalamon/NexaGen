@@ -17,6 +17,7 @@ import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { RequireFeature } from "../platform/require-feature.decorator";
 import { SupportAdminService } from "./support-admin.service";
+import { SupportAnalyticsService } from "./support-analytics.service";
 import { SupportAttachmentsService } from "./support-attachments.service";
 import { SupportSavedRepliesService } from "./support-saved-replies.service";
 import { SupportSettingsService } from "./support-settings.service";
@@ -31,12 +32,18 @@ import { SupportUnansweredService } from "./support-unanswered.service";
 @RequireFeature("whatsappSupport", { allowReads: true })
 export class SupportAdminController {
   constructor(
+    private readonly analytics: SupportAnalyticsService,
     private readonly attachments: SupportAttachmentsService,
     private readonly savedReplies: SupportSavedRepliesService,
     private readonly settings: SupportSettingsService,
     private readonly support: SupportAdminService,
     private readonly unanswered: SupportUnansweredService
   ) {}
+
+  @Get(API_ROUTES.adminSupport.analytics)
+  getAnalytics(@Req() request: Request, @Query() query: Record<string, unknown>) {
+    return this.analytics.summary(this.getAccessToken(request), query);
+  }
 
   @Get(API_ROUTES.adminSupport.attachment())
   attachment(@Req() request: Request, @Param("id") id: string, @Res() res: Response) {

@@ -319,6 +319,7 @@ model User {
   dismissedSupportQuestions       SupportUnansweredQuestion[]      @relation("SupportUnansweredDismissedBy")
   updatedSupportSettings          SupportSettings[]                @relation("SupportSettingsUpdatedBy")
   supportContactErasures          SupportContactErasure[]          @relation("SupportContactErasedBy")
+  supportConversationEvents       SupportConversationEvent[]       @relation("SupportConversationEventActor")
   coachedBatches                  BatchCoach[]                     @relation("BatchCoaches")
   studentBatches                  BatchStudent[]                   @relation("BatchStudents")
   classes                         CoachClass[]                     @relation("ClassCoach")
@@ -8747,6 +8748,7 @@ model SupportConversation {
 
   messages SupportMessage[]
   tickets  SupportTicket[]
+  events   SupportConversationEvent[]
 
   @@index([contactId, status])
   @@index([status, lastInboundAt])
@@ -8921,4 +8923,44 @@ model CrmLeadPush {
 
   @@index([status, nextAttemptAt])
   @@map("crm_lead_pushes")
+}
+
+/// Why a conversation changed hands (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §5.2).
+enum SupportOwnerChangeReason {
+  /// The bot handed it to staff (form sent, "agent", too many unreadable replies).
+  HANDOFF
+  /// The customer typed MENU (or similar) while waiting, so the bot has it again.
+  CUSTOMER_MENU
+  STAFF_REPLY
+  STAFF_TAKE_OVER
+  STAFF_RETURN
+  /// The bot booked a real demo class time; nothing left for staff.
+  DEMO_BOOKED
+  /// Its last open ticket was resolved.
+  TICKET_RESOLVED
+  /// A bot conversation silent for a day.
+  BOT_IDLE
+}
+
+/// Who owns a WhatsApp conversation, over time: one row per status change,
+/// written in the same transaction as the change. Feeds the support analytics
+/// (hand-off rate, first staff reply). No personal data.
+model SupportConversationEvent {
+  id             String                     @id @default(cuid())
+  tenantId       String                     @default("tenant_nexa")
+  conversationId String
+  conversation   SupportConversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  fromStatus     SupportConversationStatus
+  toStatus       SupportConversationStatus
+  reason         SupportOwnerChangeReason
+  /// Staff member who caused it; null for the bot or the customer.
+  actorId        String?
+  actor          User?                      @relation("SupportConversationEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  ticketId       String?
+  createdAt      DateTime                   @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([createdAt, toStatus])
+  @@index([actorId])
+  @@map("support_conversation_events")
 }

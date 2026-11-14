@@ -1,5 +1,6 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  SupportAnalyticsDays,
   SupportMessagePage,
   SupportNoteRequest,
   SupportReplyRequest,
@@ -12,6 +13,7 @@ import type {
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
 import {
+  getSupportAnalytics,
   addSupportNote,
   createSupportSavedReply,
   deleteSupportSavedReply,
@@ -214,5 +216,15 @@ export function useEraseSupportContact() {
       // Mark stale without refetching: the open ticket page is about to leave, and its ticket is gone.
       await queryClient.invalidateQueries({ queryKey: queryKeys.support.all, refetchType: "none" });
     }
+  });
+}
+
+// ── Analytics ──
+
+export function useSupportAnalyticsQuery(days: SupportAnalyticsDays, tz: string) {
+  return useQuery({
+    placeholderData: keepPreviousData,
+    queryFn: () => getSupportAnalytics(days, tz),
+    queryKey: queryKeys.support.analytics(days, tz)
   });
 }

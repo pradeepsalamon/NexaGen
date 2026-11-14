@@ -30,7 +30,8 @@ The G1 fix (§3) was approved and is done. Everything else is still open.
 **Progress (2026-11-14, branch `feat/whatsapp-native-complete`):** Phase B
 (every academy's own number) and, from Phase C: hours + away message,
 delivery status on rule messages, real demo slots, contact export/erase,
-template status, images/PDFs (D13), the Frappe push (D6). As built:
+template status, images/PDFs (D13), the Frappe push (D6), conversation
+ownership events, analytics. As built:
 [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0. Phase C items still to come are
 marked in §12.
 

@@ -168,6 +168,21 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   number only adds to the NexaGen lead; nothing is sent again, and nothing
   comes back from Frappe. Off unless `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY`
   and `FRAPPE_CRM_API_SECRET` are set; other academies never push.
+- *Who has the conversation* (Phase C, plan §5.2): every status change
+  (`BOT` / `WAITING_AGENT` / `AGENT` / `CLOSED`) writes a
+  `support_conversation_events` row in the same transaction: from, to, reason
+  (`HANDOFF`, `CUSTOMER_MENU`, `STAFF_REPLY`, `STAFF_TAKE_OVER`,
+  `STAFF_RETURN`, `DEMO_BOOKED`, `TICKET_RESOLVED`, `BOT_IDLE`), the staff
+  member and the ticket (`support/support-ownership.ts`, `recordOwnerChange`).
+  Return to bot and resolving now take the contact's lock like every other
+  change. The helpdesk states of the plan (`EXTERNAL_PENDING`/`EXTERNAL`) wait
+  for Phase E.
+- *Analytics* (Phase C): `/admin/support/insights` (Insights on the inbox;
+  `GET /admin/support/analytics?days=7|30|90&tz=<zone>`): conversations
+  started, the share handed to staff, minutes from each hand-off to the team's
+  first reply (median and 90th percentile, plus how many still wait), new leads,
+  requests by topic, and a per-day chart in the viewer's time zone. Built from
+  the events above, so hand-off figures start on 2026-11-14.
 - *Template status* (Phase C): the reply-template field on the settings page
   shows whether WhatsApp Manager approved it ([MESSAGING.md](MESSAGING.md) "WhatsApp templates").
 - *Delivery status for rules and system messages* (Phase C): a status webhook

@@ -17,7 +17,7 @@ import {
   type SupportTicketListResponse,
   type UpdateSupportTicketRequest
 } from "@nexa-chess/types";
-import { Prisma, UserRole, UserStatus, type User } from "@prisma/client";
+import { Prisma, UserRole, UserStatus, type SupportOwnerChangeReason, type User } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
 import { CREATED_AT_DESC_ORDER, createdAtCursorWhere, toCursorPage } from "../common/cursor-pagination";
 import { paginationMeta, resolvePagination } from "../common/pagination";
@@ -26,6 +26,7 @@ import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.se
 import { replyWindowEndsAt } from "./support-conversation.service";
 import type { SupportOutboundPayload } from "./support-outbox.service";
 import { SupportOutboxService } from "./support-outbox.service";
+import { recordOwnerChange } from "./support-ownership";
 import { SupportSettingsService } from "./support-settings.service";
 
 type StaffUser = Pick<User, "id" | "role">;
@@ -170,7 +171,7 @@ export class SupportAdminService {
         };
 
     const { conversationId, message } = await this.prisma.$transaction(async (tx) => {
-      const conversationId = await this.claimConversation(tx, ticket, "AGENT");
+      const conversationId = await this.claimConversation(tx, ticket, "AGENT", { actorId: user.id, reason: "STAFF_REPLY" });
       const message = await tx.supportMessage.create({
         data: {
           author: "AGENT",
@@ -245,7 +246,7 @@ export class SupportAdminService {
         data.status = body.status;
         data.resolvedAt = body.status === "RESOLVED" ? now : null;
         events.push({ actorId: user.id, body: `Status: ${ticket.status} → ${body.status}.`, kind: "STATUS_CHANGED", ticketId: ticket.id });
-        if (body.status === "RESOLVED") await this.closeIfDone(tx, ticket.id, ticket.conversationId, now);
+        if (body.status === "RESOLVED") await this.closeIfDone(tx, ticket, now, user.id);
       }
       if (events.length === 0) return;
       await tx.supportTicket.update({ data, where: { id: ticket.id } });
@@ -259,7 +260,7 @@ export class SupportAdminService {
     const user = await this.getStaff(accessToken);
     const ticket = await this.findTicket(id);
     await this.prisma.$transaction(async (tx) => {
-      await this.claimConversation(tx, ticket, "AGENT");
+      await this.claimConversation(tx, ticket, "AGENT", { actorId: user.id, reason: "STAFF_TAKE_OVER" });
       await tx.supportTicket.update({
         data: {
           ...(ticket.assignedToId ? {} : { assignedToId: user.id }),
@@ -277,6 +278,7 @@ export class SupportAdminService {
     const user = await this.getStaff(accessToken);
     const ticket = await this.findTicket(id);
     await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`support-contact:${ticket.contactId}`}))`;
       const conversation = await tx.supportConversation.findFirst({ where: { id: ticket.conversationId } });
       if (!conversation || conversation.status === "CLOSED") {
         throw new ConflictException("This conversation has ended; the bot answers the customer's next message anyway.");
@@ -285,6 +287,7 @@ export class SupportAdminService {
         data: { draft: {}, state: "MAIN_MENU", status: "BOT" },
         where: { id: conversation.id }
       });
+      await recordOwnerChange(tx, { actorId: user.id, conversationId: conversation.id, from: conversation.status, reason: "STAFF_RETURN", ticketId: ticket.id, to: "BOT" });
       await tx.supportTicketEvent.create({ data: { actorId: user.id, body: "Handed back to the bot.", kind: "RETURNED_TO_BOT", ticketId: ticket.id } });
     });
     return this.loadDetail(ticket.id);
@@ -389,35 +392,45 @@ export class SupportAdminService {
   private async claimConversation(
     tx: PrismaTransactionClient,
     ticket: { id: string; contactId: string; conversationId: string },
-    status: "AGENT" | "WAITING_AGENT"
+    status: "AGENT" | "WAITING_AGENT",
+    why: { actorId: string; reason: SupportOwnerChangeReason }
   ): Promise<string> {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`support-contact:${ticket.contactId}`}))`;
     const own = await tx.supportConversation.findFirst({ where: { id: ticket.conversationId } });
     if (!own) throw new NotFoundException("Conversation not found.");
 
-    let targetId = own.id;
+    let target = own;
     if (own.status === "CLOSED") {
       const current = await tx.supportConversation.findFirst({ where: { contactId: ticket.contactId, status: { not: "CLOSED" } } });
       if (current) {
-        targetId = current.id;
+        target = current;
         await tx.supportTicket.update({ data: { conversationId: current.id }, where: { id: ticket.id } });
       }
     }
     await tx.supportConversation.update({
       data: { closedAt: null, draft: {}, state: "DONE", status },
-      where: { id: targetId }
+      where: { id: target.id }
     });
-    return targetId;
+    await recordOwnerChange(tx, { ...why, conversationId: target.id, from: target.status, ticketId: ticket.id, to: status });
+    return target.id;
   }
 
   /** Resolving the last open ticket of a conversation ends it; the next message gets a fresh greeting. */
-  private async closeIfDone(tx: PrismaTransactionClient, ticketId: string, conversationId: string, now: Date) {
-    const others = await tx.supportTicket.count({ where: { conversationId, id: { not: ticketId }, status: { not: "RESOLVED" } } });
-    if (others > 0) return;
-    await tx.supportConversation.updateMany({
-      data: { closedAt: now, status: "CLOSED" },
-      where: { id: conversationId, status: { in: ["AGENT", "WAITING_AGENT"] } }
+  private async closeIfDone(
+    tx: PrismaTransactionClient,
+    ticket: { contactId: string; conversationId: string; id: string },
+    now: Date,
+    actorId: string
+  ) {
+    const others = await tx.supportTicket.count({
+      where: { conversationId: ticket.conversationId, id: { not: ticket.id }, status: { not: "RESOLVED" } }
     });
+    if (others > 0) return;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`support-contact:${ticket.contactId}`}))`;
+    const conversation = await tx.supportConversation.findFirst({ select: { status: true }, where: { id: ticket.conversationId } });
+    if (conversation?.status !== "AGENT" && conversation?.status !== "WAITING_AGENT") return;
+    await tx.supportConversation.update({ data: { closedAt: now, status: "CLOSED" }, where: { id: ticket.conversationId } });
+    await recordOwnerChange(tx, { actorId, conversationId: ticket.conversationId, from: conversation.status, reason: "TICKET_RESOLVED", ticketId: ticket.id, to: "CLOSED" });
   }
 
   private async findTicket(id: string) {

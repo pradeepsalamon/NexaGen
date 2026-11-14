@@ -1,5 +1,7 @@
 import { API_ROUTES } from "@nexa-chess/types";
 import type {
+  SupportAnalyticsDays,
+  SupportAnalyticsResponse,
   SupportContactErasureResult,
   SupportContactExport,
   SupportMessageItem,
@@ -112,4 +114,8 @@ export function exportSupportContact(contactId: string): Promise<SupportContactE
 
 export function eraseSupportContact(contactId: string): Promise<SupportContactErasureResult> {
   return apiFetch<SupportContactErasureResult>(API_ROUTES.adminSupport.contact(contactId), { method: "DELETE" });
+}
+
+export function getSupportAnalytics(days: SupportAnalyticsDays, tz: string): Promise<SupportAnalyticsResponse> {
+  return apiFetch<SupportAnalyticsResponse>(`${API_ROUTES.adminSupport.analytics}?${new URLSearchParams({ days, tz })}`);
 }

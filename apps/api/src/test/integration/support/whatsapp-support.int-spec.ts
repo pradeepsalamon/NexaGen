@@ -17,6 +17,7 @@ import {
   type SupportContactExport,
   type SupportSavedReplyItem,
   type SupportUnansweredQuestionListResponse,
+  type SupportAnalyticsResponse,
   type SupportTicketDetail,
   type SupportTicketListResponse
 } from "@nexa-chess/types";
@@ -325,6 +326,26 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       sent = [];
       await say(textFrom(ALLOWED_NUMBER, "thanks"));
       expect(sent[0]).toMatchObject({ type: "list" });
+
+      // Who had the conversation, in order (plan §5.2).
+      const changes = await db(() =>
+        t.prisma.supportConversationEvent.findMany({ orderBy: { createdAt: "asc" }, where: { conversationId: ticket.conversationId } })
+      );
+      expect(changes.map((change) => [change.fromStatus, change.toStatus, change.reason, change.actorId])).toEqual([
+        ["BOT", "WAITING_AGENT", "HANDOFF", null],
+        ["WAITING_AGENT", "AGENT", "STAFF_REPLY", admin.id],
+        ["AGENT", "CLOSED", "TICKET_RESOLVED", admin.id]
+      ]);
+
+      const analytics = await t.call(admin, "GET", `${API_ROUTES.adminSupport.analytics}?days=7&tz=Asia/Kolkata`);
+      expect(analytics.status).toBe(200);
+      const summary = analytics.body as SupportAnalyticsResponse;
+      expect(summary).toMatchObject({ conversations: 3, days: 7, handedToStaff: 2, tickets: { opened: 2, resolved: 1 } });
+      expect(summary.firstReply).toMatchObject({ answered: 1, waiting: 1 });
+      expect(summary.daily).toHaveLength(8);
+      expect(summary.daily.reduce((sum, day) => sum + day.handoffs, 0)).toBe(2);
+      expect((await t.call(admin, "GET", `${API_ROUTES.adminSupport.analytics}?days=12`)).status).toBe(400);
+      expect((await t.call(admin, "GET", `${API_ROUTES.adminSupport.analytics}?tz=Mars/Base`)).status).toBe(400);
     });
 
     it("keeps an image a parent sends for staff, never reads it, and deletes the copy with the contact", async () => {
@@ -424,6 +445,10 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       expect((await t.call(admin, "POST", API_ROUTES.adminSupport.takeOver(ticket.id))).status).toBe(201);
       const back = await t.call(admin, "POST", API_ROUTES.adminSupport.returnToBot(ticket.id));
       expect((back.body as SupportTicketDetail).conversationStatus).toBe("BOT");
+      const reasons = await db(() =>
+        t.prisma.supportConversationEvent.findMany({ orderBy: { createdAt: "asc" }, select: { reason: true }, where: { conversationId: ticket.conversationId } })
+      );
+      expect(reasons.map((row) => row.reason)).toEqual(["HANDOFF", "STAFF_TAKE_OVER", "STAFF_RETURN"]);
       sent = [];
       await say(textFrom(ALLOWED_NUMBER, "2"));
       expect(sent[0].body).toContain("student's name");
@@ -685,8 +710,11 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       expect(sent.at(-1)?.body).toContain(`/demo/${first.id}?invite=${registration.inviteToken}`);
       const ticket = await db(() => t.prisma.supportTicket.findFirstOrThrow({ where: { leadId: lead.id } }));
       expect(ticket.status).toBe("RESOLVED");
-      const conversation = await db(() => t.prisma.supportConversation.findFirstOrThrow({ where: { id: ticket.conversationId } }));
+      const conversation = await db(() =>
+        t.prisma.supportConversation.findFirstOrThrow({ include: { events: { orderBy: { createdAt: "asc" } } }, where: { id: ticket.conversationId } })
+      );
       expect(conversation.status).toBe("BOT");
+      expect(conversation.events.map((event) => event.reason)).toEqual(["HANDOFF", "DEMO_BOOKED"]);
 
       // The class is cancelled between the pick and the confirm: never "booked", staff fix the time.
       await upToTime(OTHER_ALLOWED_NUMBER);

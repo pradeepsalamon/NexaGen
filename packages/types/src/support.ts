@@ -336,3 +336,28 @@ export interface SupportContactErasureResult {
   /** The number replied STOP: it is kept, bare, so automatic messages stay off. */
   keptOptOut: boolean;
 }
+
+// ── Support analytics (docs/WHATSAPP_SUPPORT.md §0 "Analytics") ──
+
+/** The windows the analytics card offers, in days. */
+export const SUPPORT_ANALYTICS_DAYS = ["7", "30", "90"] as const;
+export type SupportAnalyticsDays = (typeof SUPPORT_ANALYTICS_DAYS)[number];
+
+export interface SupportAnalyticsResponse {
+  days: number;
+  from: string;
+  to: string;
+  /** WhatsApp conversations started in the window. */
+  conversations: number;
+  /** Conversations the bot handed to staff in the window (each counted once). */
+  handedToStaff: number;
+  /** handedToStaff / conversations, 0–1; null without conversations. */
+  handoffRate: number | null;
+  /** From each hand-off to the first staff reply in that conversation. */
+  firstReply: { answered: number; waiting: number; medianMinutes: number | null; p90Minutes: number | null };
+  tickets: { opened: number; resolved: number; byCategory: Array<{ category: SupportCategory; count: number }> };
+  /** New leads the bot made (demo bookings) in the window. */
+  newLeads: number;
+  /** Per local day (the `tz` asked for), oldest first. */
+  daily: Array<{ date: string; conversations: number; handoffs: number }>;
+}
