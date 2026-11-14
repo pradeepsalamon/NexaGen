@@ -127,6 +127,15 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   again. If the class has started, changed or gone, the parent is told staff
   will fix a time and the request stays OPEN for staff. The privacy link in the
   greeting also uses the academy's own address now.
+- *A contact's data* (Phase C, G7): the ticket page's "Contact's data" card.
+  **Download data** (admins, `GET /admin/support/contacts/:id/export`) gives the
+  number's conversations, transcript and requests as JSON for an access
+  request. **Erase contact** (super admins, `DELETE /admin/support/contacts/:id`)
+  deletes its conversations, messages, requests with their history, and its
+  webhook items, in one transaction under the contact's lock. A number that
+  replied STOP keeps a bare row (number + opt-out) so automatic messages stay
+  off. A lead made from it stays (a CRM record; delete it from Leads). Each
+  erasure is logged in `support_contact_erasures` (who, when, counts; no personal data).
 - *Delivery status for rules and system messages* (Phase C): a status webhook
   for a `message_deliveries` row sets `deliveredAt` / `readAt` (read implies
   delivered), and a late `failed` marks it FAILED with Meta's reason. The
@@ -197,10 +206,9 @@ version 2).** Owner's priority: answer leads at once and follow up quickly.
   still starts the booking.
 
 **Not built / known gaps.** No account linking or account-aware answers, no
-Frappe push (Phase 3); no AI (Phase 4). No
-privacy-export section and no erase action for a WhatsApp contact: contacts are
-not accounts, and a phone number is not proof of identity (§9), so an erasure
-request is handled by hand for now (docs/BACKLOG.md). No nginx IP limit on the webhook yet.
+Frappe push (Phase 3); no AI (Phase 4). A contact's export and erasure are
+staff actions on the ticket page, not self-service: a phone number is not proof
+of identity (§9), so staff confirm who is asking first. No nginx IP limit on the webhook yet.
 
 **Before switching it on** (owner): Meta app secret + verify token; webhook
 URL `https://api.nexachess.in/webhooks/whatsapp` subscribed to `messages`;

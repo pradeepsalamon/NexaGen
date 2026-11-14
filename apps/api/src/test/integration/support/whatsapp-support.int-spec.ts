@@ -12,6 +12,7 @@ import {
   API_ROUTES,
   DEFAULT_TENANT_ID,
   type LeadDetailResponse,
+  type SupportContactExport,
   type SupportSavedReplyItem,
   type SupportUnansweredQuestionListResponse,
   type SupportTicketDetail,
@@ -308,6 +309,45 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       expect(sent[0]).toMatchObject({ type: "list" });
     });
 
+    it("exports a contact's data, and a super admin erases it (keeping only a STOP)", async () => {
+      const ticket = await handoff();
+      const exported = await t.call(admin, "GET", API_ROUTES.adminSupport.contactExport(ticket.contactId));
+      expect(exported.status).toBe(200);
+      const data = exported.body as SupportContactExport;
+      expect(data.contact.waId).toBe(ALLOWED_NUMBER);
+      expect(data.tickets.map((row) => row.reference)).toEqual([ticket.reference]);
+      expect(data.conversations[0].messages.map((message) => message.direction)).toContain("INBOUND");
+
+      // Erasing is for super admins only.
+      expect((await t.call(admin, "DELETE", API_ROUTES.adminSupport.contact(ticket.contactId))).status).toBe(403);
+      const owner = await db(async () => {
+        const user = await createUser(t.prisma, UserRole.SUPER_ADMIN);
+        return t.prisma.user.update({ data: { status: "ACTIVE" }, where: { id: user.id } });
+      });
+      const erased = await t.call(owner, "DELETE", API_ROUTES.adminSupport.contact(ticket.contactId));
+      expect(erased.status).toBe(200);
+      expect(erased.body).toMatchObject({ keptOptOut: false, tickets: 1 });
+      const left = await db(() =>
+        Promise.all([
+          t.prisma.whatsAppContact.count({ where: { waId: ALLOWED_NUMBER } }),
+          t.prisma.supportTicket.count(),
+          t.prisma.supportMessage.count(),
+          t.prisma.whatsAppWebhookEvent.count({ where: { waId: ALLOWED_NUMBER } }),
+          t.prisma.supportContactErasure.count({ where: { contactId: ticket.contactId, erasedById: owner.id } })
+        ])
+      );
+      expect(left).toEqual([0, 0, 0, 0, 1]);
+
+      // A number that said STOP stays, bare, so automatic messages stay off.
+      const other = await handoff(OTHER_ALLOWED_NUMBER);
+      await say(textFrom(OTHER_ALLOWED_NUMBER, "STOP"));
+      const keep = await t.call(owner, "DELETE", API_ROUTES.adminSupport.contact(other.contactId));
+      expect(keep.body).toMatchObject({ keptOptOut: true });
+      const bare = await db(() => t.prisma.whatsAppContact.findFirstOrThrow({ where: { waId: OTHER_ALLOWED_NUMBER } }));
+      expect([bare.profileName, bare.optedOutAt === null]).toEqual([null, false]);
+      expect(await db(() => t.prisma.supportConversation.count({ where: { contactId: bare.id } }))).toBe(0);
+    });
+
     it("returns a conversation to the bot", async () => {
       const ticket = await handoff();
       expect((await t.call(admin, "POST", API_ROUTES.adminSupport.takeOver(ticket.id))).status).toBe(201);
@@ -359,10 +399,17 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
           ["POST", API_ROUTES.adminSupport.returnToBot(otherTicket.id), undefined],
           ["PUT", API_ROUTES.adminSupport.savedReply(otherAnswer.id), ANSWER],
           ["DELETE", API_ROUTES.adminSupport.savedReply(otherAnswer.id), undefined],
-          ["POST", API_ROUTES.adminSupport.dismissUnanswered(otherQuestion.id), undefined]
+          ["POST", API_ROUTES.adminSupport.dismissUnanswered(otherQuestion.id), undefined],
+          ["GET", API_ROUTES.adminSupport.contactExport(otherTicket.contactId), undefined]
         ] as const) {
           expect({ path, status: (await t.call(admin, method, path, body)).status }).toEqual({ path, status: 404 });
         }
+        // Erasing is super-admin only (an admin gets 403 first); even Nexa's super admin can't reach another academy's contact.
+        const owner = await db(async () => {
+          const user = await createUser(t.prisma, UserRole.SUPER_ADMIN);
+          return t.prisma.user.update({ data: { status: "ACTIVE" }, where: { id: user.id } });
+        });
+        expect((await t.call(owner, "DELETE", API_ROUTES.adminSupport.contact(otherTicket.contactId))).status).toBe(404);
         const list = await t.call(admin, "GET", API_ROUTES.adminSupport.tickets);
         expect((list.body as SupportTicketListResponse).items.map((item) => item.id)).toEqual([ticket.id]);
         const answers = await t.call(admin, "GET", API_ROUTES.adminSupport.savedReplies);

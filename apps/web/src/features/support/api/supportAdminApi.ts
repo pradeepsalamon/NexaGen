@@ -1,5 +1,7 @@
 import { API_ROUTES } from "@nexa-chess/types";
 import type {
+  SupportContactErasureResult,
+  SupportContactExport,
   SupportMessageItem,
   SupportMessagePage,
   SupportNoteRequest,
@@ -102,4 +104,12 @@ export function getSupportSettings(): Promise<SupportSettingsResponse> {
 
 export function updateSupportSettings(body: UpdateSupportSettingsRequest): Promise<SupportSettingsResponse> {
   return apiFetch<SupportSettingsResponse>(API_ROUTES.adminSupport.settings, { body, method: "PUT" });
+}
+
+export function exportSupportContact(contactId: string): Promise<SupportContactExport> {
+  return apiFetch<SupportContactExport>(API_ROUTES.adminSupport.contactExport(contactId));
+}
+
+export function eraseSupportContact(contactId: string): Promise<SupportContactErasureResult> {
+  return apiFetch<SupportContactErasureResult>(API_ROUTES.adminSupport.contact(contactId), { method: "DELETE" });
 }

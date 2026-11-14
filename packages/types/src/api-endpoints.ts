@@ -930,7 +930,10 @@ export const API_ROUTES = {
     savedReply: (id: string = ":id") => `/admin/support/saved-replies/${id}`,
     unanswered: "/admin/support/unanswered",
     dismissUnanswered: (id: string = ":id") => `/admin/support/unanswered/${id}/dismiss`,
-    settings: "/admin/support/settings"
+    settings: "/admin/support/settings",
+    /** DELETE: erase a WhatsApp contact (super admins). */
+    contact: (id: string = ":id") => `/admin/support/contacts/${id}`,
+    contactExport: (id: string = ":id") => `/admin/support/contacts/${id}/export`
   },
   leads: {
     create: "/leads",

@@ -295,3 +295,34 @@ export interface SupportSettingsResponse extends SupportSettingsValues {
   };
   updatedAt: string | null;
 }
+
+// ── A WhatsApp contact's data (privacy requests; docs/WHATSAPP_SUPPORT.md §0) ──
+
+/** Everything stored about one WhatsApp number, for a parent's access request. */
+export interface SupportContactExport {
+  exportedAt: string;
+  contact: { waId: string; profileName: string | null; firstSeenAt: string; optedOutAt: string | null };
+  conversations: Array<{
+    startedAt: string;
+    closedAt: string | null;
+    messages: Array<{ at: string; direction: SupportMessageDirection; author: SupportMessageAuthor; body: string; status: SupportMessageStatus }>;
+  }>;
+  tickets: Array<{
+    reference: string;
+    category: SupportCategory;
+    status: SupportTicketStatus;
+    studentName: string | null;
+    details: string | null;
+    openedAt: string;
+    resolvedAt: string | null;
+    history: Array<{ at: string; kind: SupportTicketEventKind; body: string | null }>;
+  }>;
+}
+
+export interface SupportContactErasureResult {
+  conversations: number;
+  messages: number;
+  tickets: number;
+  /** The number replied STOP: it is kept, bare, so automatic messages stay off. */
+  keptOptOut: boolean;
+}

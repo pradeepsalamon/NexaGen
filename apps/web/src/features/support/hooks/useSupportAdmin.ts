@@ -15,6 +15,7 @@ import {
   addSupportNote,
   createSupportSavedReply,
   deleteSupportSavedReply,
+  eraseSupportContact,
   dismissSupportUnanswered,
   getSupportUnanswered,
   getSupportSavedReplies,
@@ -193,6 +194,25 @@ export function useUpdateSupportSettings() {
     onSuccess: (data) => {
       toast.success({ title: "WhatsApp bot settings saved" });
       queryClient.setQueryData(queryKeys.support.settings, data);
+    }
+  });
+}
+
+// ── A contact's data (privacy requests) ──
+
+export function useEraseSupportContact() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (contactId: string) => eraseSupportContact(contactId),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Contact not erased" }),
+    onSuccess: async (result) => {
+      toast.success({
+        message: result.keptOptOut ? "The number is kept only to remember it replied STOP." : undefined,
+        title: "WhatsApp contact erased"
+      });
+      // Mark stale without refetching: the open ticket page is about to leave, and its ticket is gone.
+      await queryClient.invalidateQueries({ queryKey: queryKeys.support.all, refetchType: "none" });
     }
   });
 }

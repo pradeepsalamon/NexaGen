@@ -36,6 +36,16 @@ export class SupportAdminController {
     private readonly unanswered: SupportUnansweredService
   ) {}
 
+  @Get(API_ROUTES.adminSupport.contactExport())
+  exportContact(@Req() request: Request, @Param("id") id: string) {
+    return this.support.exportContact(this.getAccessToken(request), id);
+  }
+
+  @Delete(API_ROUTES.adminSupport.contact())
+  eraseContact(@Req() request: Request, @Param("id") id: string) {
+    return this.support.eraseContact(this.getAccessToken(request), id);
+  }
+
   @Get(API_ROUTES.adminSupport.settings)
   getSettings(@Req() request: Request) {
     return this.settings.get(this.getAccessToken(request));

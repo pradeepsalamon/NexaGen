@@ -318,6 +318,7 @@ model User {
   updatedSupportSavedReplies      SupportSavedReply[]              @relation("SupportSavedReplyUpdatedBy")
   dismissedSupportQuestions       SupportUnansweredQuestion[]      @relation("SupportUnansweredDismissedBy")
   updatedSupportSettings          SupportSettings[]                @relation("SupportSettingsUpdatedBy")
+  supportContactErasures          SupportContactErasure[]          @relation("SupportContactErasedBy")
   coachedBatches                  BatchCoach[]                     @relation("BatchCoaches")
   studentBatches                  BatchStudent[]                   @relation("BatchStudents")
   classes                         CoachClass[]                     @relation("ClassCoach")
@@ -8599,6 +8600,25 @@ model SupportSettings {
   updatedAt                  DateTime @updatedAt
 
   @@map("support_settings")
+}
+
+/// A WhatsApp contact a super admin erased (privacy request). No personal
+/// data: who did it, when, and how much went (docs/WHATSAPP_SUPPORT.md §0).
+model SupportContactErasure {
+  id            String   @id @default(cuid())
+  tenantId      String   @default("tenant_nexa")
+  /// The erased contact's id (the row itself is gone, or bare when it opted out).
+  contactId     String
+  erasedById    String?
+  erasedBy      User?    @relation("SupportContactErasedBy", fields: [erasedById], references: [id], onDelete: SetNull)
+  conversations Int
+  messages      Int
+  tickets       Int
+  keptOptOut    Boolean
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("support_contact_erasures")
 }
 
 /// One incoming WhatsApp webhook item (a message, or a status update for one we

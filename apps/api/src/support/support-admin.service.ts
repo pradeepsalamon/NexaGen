@@ -3,6 +3,8 @@ import { JwtService } from "@nestjs/jwt";
 import {
   cursorPageQuerySchema,
   supportTicketListQuerySchema,
+  type SupportContactErasureResult,
+  type SupportContactExport,
   type SupportMessageItem,
   type SupportMessagePage,
   type SupportNoteRequest,
@@ -281,6 +283,94 @@ export class SupportAdminService {
       await tx.supportTicketEvent.create({ data: { actorId: user.id, body: "Handed back to the bot.", kind: "RETURNED_TO_BOT", ticketId: ticket.id } });
     });
     return this.loadDetail(ticket.id);
+  }
+
+  // ── Privacy requests for a WhatsApp contact (docs/WHATSAPP_SUPPORT.md §0) ──
+
+  /** Everything stored about one WhatsApp number, oldest first, for a parent's access request. */
+  async exportContact(accessToken: string | undefined, contactId: string): Promise<SupportContactExport> {
+    await this.getStaff(accessToken);
+    const contact = await this.prisma.whatsAppContact.findFirst({ where: { id: contactId } });
+    if (!contact) throw new NotFoundException("Contact not found.");
+    const [conversations, tickets] = await Promise.all([
+      this.prisma.supportConversation.findMany({
+        include: { messages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
+        orderBy: { createdAt: "asc" },
+        where: { contactId }
+      }),
+      this.prisma.supportTicket.findMany({
+        include: { events: { orderBy: { createdAt: "asc" } } },
+        orderBy: { createdAt: "asc" },
+        where: { contactId }
+      })
+    ]);
+    return {
+      contact: {
+        firstSeenAt: contact.createdAt.toISOString(),
+        optedOutAt: contact.optedOutAt?.toISOString() ?? null,
+        profileName: contact.profileName,
+        waId: contact.waId
+      },
+      conversations: conversations.map((conversation) => ({
+        closedAt: conversation.closedAt?.toISOString() ?? null,
+        messages: conversation.messages.map((message) => ({
+          at: message.createdAt.toISOString(),
+          author: message.author,
+          body: message.body,
+          direction: message.direction,
+          status: message.status
+        })),
+        startedAt: conversation.createdAt.toISOString()
+      })),
+      exportedAt: new Date().toISOString(),
+      tickets: tickets.map((ticket) => ({
+        category: ticket.category,
+        details: ticket.details,
+        history: ticket.events.map((event) => ({ at: event.createdAt.toISOString(), body: event.body, kind: event.kind })),
+        openedAt: ticket.createdAt.toISOString(),
+        reference: ticket.reference,
+        resolvedAt: ticket.resolvedAt?.toISOString() ?? null,
+        status: ticket.status,
+        studentName: ticket.studentName
+      }))
+    };
+  }
+
+  /**
+   * Erases a WhatsApp contact (super admins): conversations, transcript,
+   * tickets and their history, and the stored webhook items. A number that
+   * replied STOP keeps a bare row (number + opt-out, nothing else) so
+   * automatic messages stay off. A lead made from it is a CRM record and stays
+   * (staff delete it from Leads). The erasure itself is recorded without
+   * personal data.
+   */
+  async eraseContact(accessToken: string | undefined, contactId: string): Promise<SupportContactErasureResult> {
+    const user = await this.getStaff(accessToken);
+    if (user.role !== UserRole.SUPER_ADMIN) throw new ForbiddenException("Only a super admin can erase a WhatsApp contact.");
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`support-contact:${contactId}`}))`;
+      const contact = await tx.whatsAppContact.findFirst({ where: { id: contactId } });
+      if (!contact) throw new NotFoundException("Contact not found.");
+      const [conversations, messages, tickets] = await Promise.all([
+        tx.supportConversation.count({ where: { contactId } }),
+        tx.supportMessage.count({ where: { conversation: { contactId } } }),
+        tx.supportTicket.count({ where: { contactId } })
+      ]);
+      // Tickets, messages and ticket history go with their conversations (cascade).
+      await tx.supportTicket.deleteMany({ where: { contactId } });
+      await tx.supportConversation.deleteMany({ where: { contactId } });
+      await tx.whatsAppWebhookEvent.deleteMany({ where: { waId: contact.waId } });
+      const keptOptOut = contact.optedOutAt !== null;
+      if (keptOptOut) {
+        await tx.whatsAppContact.update({ data: { lastInboundAt: null, profileName: null }, where: { id: contact.id } });
+      } else {
+        await tx.whatsAppContact.delete({ where: { id: contact.id } });
+      }
+      await tx.supportContactErasure.create({
+        data: { contactId, conversations, erasedById: user.id, keptOptOut, messages, tickets }
+      });
+      return { conversations, keptOptOut, messages, tickets };
+    });
   }
 
   // ── Internals ──
