@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, Res } from "@nestjs/common";
 import {
   API_ROUTES,
   supportNoteRequestSchema,
@@ -12,11 +12,12 @@ import {
   type UpdateSupportSettingsRequest,
   type UpdateSupportTicketRequest
 } from "@nexa-chess/types";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { RequireFeature } from "../platform/require-feature.decorator";
 import { SupportAdminService } from "./support-admin.service";
+import { SupportAttachmentsService } from "./support-attachments.service";
 import { SupportSavedRepliesService } from "./support-saved-replies.service";
 import { SupportSettingsService } from "./support-settings.service";
 import { SupportUnansweredService } from "./support-unanswered.service";
@@ -30,11 +31,17 @@ import { SupportUnansweredService } from "./support-unanswered.service";
 @RequireFeature("whatsappSupport", { allowReads: true })
 export class SupportAdminController {
   constructor(
+    private readonly attachments: SupportAttachmentsService,
     private readonly savedReplies: SupportSavedRepliesService,
     private readonly settings: SupportSettingsService,
     private readonly support: SupportAdminService,
     private readonly unanswered: SupportUnansweredService
   ) {}
+
+  @Get(API_ROUTES.adminSupport.attachment())
+  attachment(@Req() request: Request, @Param("id") id: string, @Res() res: Response) {
+    return this.attachments.stream(this.getAccessToken(request), id, res);
+  }
 
   @Get(API_ROUTES.adminSupport.contactExport())
   exportContact(@Req() request: Request, @Param("id") id: string) {

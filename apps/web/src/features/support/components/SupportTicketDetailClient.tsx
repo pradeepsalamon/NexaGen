@@ -2,8 +2,9 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Bot, Download, Hand, MessageSquareText, Send, Trash2 } from "lucide-react";
+import { Bot, Download, Hand, MessageSquareText, Paperclip, Send, Trash2 } from "lucide-react";
 import {
+  API_ROUTES,
   SUPPORT_REPLY_MAX,
   type SupportMessageItem,
   type SupportTicketDetail,
@@ -34,6 +35,7 @@ import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { chatDayLabel } from "@/features/chat/lib/chatFormat";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { apiUrl } from "@/lib/apiBase";
 import { formatDateTime, formatTime } from "@/lib/datetime";
 import { useRouter } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -332,12 +334,37 @@ function MessageBubble({ message, showName, time }: { message: SupportMessageIte
         )}
       >
         <LinkedText onColour={message.author === "AGENT"} text={message.body} />
+        {message.attachment ? <AttachmentLink attachment={message.attachment} /> : null}
       </div>
       <span className={cn("mt-0.5 px-1 text-xs", message.status === "FAILED" ? "text-app-danger-ink" : "text-app-muted")}>
         {[time, status].filter(Boolean).join(" · ")}
         {message.status === "FAILED" && message.error ? `: ${message.error}` : ""}
       </span>
     </div>
+  );
+}
+
+/** An image or PDF the customer sent, opened through the API (admins only; never a storage URL). */
+function AttachmentLink({ attachment }: { attachment: NonNullable<SupportMessageItem["attachment"]> }) {
+  const label = attachment.kind === "pdf" ? "Download PDF" : "Open image";
+  if (attachment.status === "STORED") {
+    return (
+      <a
+        className="mt-1.5 flex items-center gap-1.5 font-semibold text-primary-ink underline-offset-2 hover:underline"
+        href={apiUrl(API_ROUTES.adminSupport.attachment(attachment.id))}
+        rel="noopener"
+        target="_blank"
+      >
+        <Paperclip className="size-4" strokeWidth={2.25} />
+        {attachment.filename ?? label}
+      </a>
+    );
+  }
+  return (
+    <p className={cn("mt-1.5 flex items-center gap-1.5 text-xs", attachment.status === "FAILED" ? "text-app-danger-ink" : "text-app-muted")}>
+      <Paperclip className="size-3.5" strokeWidth={2.25} />
+      {attachment.status === "PENDING" ? "Saving the file…" : `File not kept: ${attachment.error ?? "unknown reason"}`}
+    </p>
   );
 }
 

@@ -103,7 +103,17 @@ export interface SupportMessageItem {
   status: SupportMessageStatus;
   error: string | null;
   sentBy: SupportPerson | null;
+  /** An image or PDF the customer sent: open it through `API_ROUTES.adminSupport.attachment(id)` once STORED. */
+  attachment: SupportAttachmentItem | null;
   createdAt: string;
+}
+
+export interface SupportAttachmentItem {
+  id: string;
+  kind: "image" | "pdf";
+  filename: string | null;
+  status: "PENDING" | "STORED" | "FAILED";
+  error: string | null;
 }
 
 export interface SupportMessagePage {

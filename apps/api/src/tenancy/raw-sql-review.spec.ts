@@ -67,8 +67,8 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "retention/retention.service.ts": { calls: 1, kind: "tenant-filtered", why: "retentionParams on academy tables" },
   "revision/revision.service.ts": { calls: 2, kind: "id-keyed", why: "one student's attempts; one item lock" },
   "student-match/live-class-match.service.ts": { calls: 1, kind: "id-keyed", why: "locks one round" },
-  "support/support-admin.service.ts": { calls: 1, kind: "infra", why: "advisory lock per WhatsApp contact id (global cuid)" },
-  "support/support-conversation.service.ts": { calls: 1, kind: "infra", why: "advisory lock per WhatsApp contact id (global cuid)" },
+  "support/support-admin.service.ts": { calls: 2, kind: "infra", why: "advisory lock per WhatsApp contact id (global cuid)" },
+  "support/support-conversation.service.ts": { calls: 2, kind: "infra", why: "advisory lock per WhatsApp contact id (global cuid)" },
   "support/support-follow-up.service.ts": { calls: 1, kind: "infra", why: "advisory lock per WhatsApp contact id (global cuid)" },
   "support/support-tickets.service.ts": { calls: 1, kind: "infra", why: "nextval of the ticket reference sequence" },
   "tenancy/integrity/tenant-integrity.service.ts": {

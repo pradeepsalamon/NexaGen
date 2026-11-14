@@ -32,6 +32,11 @@ type StaffUser = Pick<User, "id" | "role">;
 
 const PERSON_SELECT = { firstName: true, id: true, lastName: true } as const;
 
+const MESSAGE_INCLUDE = {
+  attachment: { select: { error: true, filename: true, id: true, mimeType: true, status: true } },
+  sentBy: { select: PERSON_SELECT }
+} as const;
+
 const TICKET_LIST_INCLUDE = {
   assignedTo: { select: PERSON_SELECT },
   contact: { select: { profileName: true, waId: true } },
@@ -127,7 +132,7 @@ export class SupportAdminService {
     const { cursor, limit } = parseOrBadRequest(cursorPageQuerySchema, rawQuery, "query");
     const ticket = await this.findTicket(id);
     const rows = await this.prisma.supportMessage.findMany({
-      include: { sentBy: { select: PERSON_SELECT } },
+      include: MESSAGE_INCLUDE,
       orderBy: [...CREATED_AT_DESC_ORDER],
       take: limit + 1,
       where: { AND: [{ conversationId: ticket.conversationId }, createdAtCursorWhere(cursor)] }
@@ -176,7 +181,7 @@ export class SupportAdminService {
           sentById: user.id,
           status: "PENDING"
         },
-        include: { sentBy: { select: PERSON_SELECT } }
+        include: MESSAGE_INCLUDE
       });
       await tx.supportTicket.update({
         data: {
@@ -189,7 +194,7 @@ export class SupportAdminService {
     });
 
     await this.outbox.sendPending(conversationId);
-    const sent = await this.prisma.supportMessage.findFirst({ include: { sentBy: { select: PERSON_SELECT } }, where: { id: message.id } });
+    const sent = await this.prisma.supportMessage.findFirst({ include: MESSAGE_INCLUDE, where: { id: message.id } });
     return this.toMessage(sent ?? message);
   }
 
@@ -478,9 +483,19 @@ export class SupportAdminService {
   }
 
   private toMessage(
-    row: Prisma.SupportMessageGetPayload<{ include: { sentBy: { select: typeof PERSON_SELECT } } }>
+    row: Prisma.SupportMessageGetPayload<{ include: typeof MESSAGE_INCLUDE }>
   ): SupportMessageItem {
+    const file = row.attachment;
     return {
+      attachment: file
+        ? {
+            error: file.error,
+            filename: file.filename,
+            id: file.id,
+            kind: (file.mimeType ?? "") === "application/pdf" ? "pdf" : "image",
+            status: file.status
+          }
+        : null,
       author: row.author,
       body: row.body,
       createdAt: row.createdAt.toISOString(),

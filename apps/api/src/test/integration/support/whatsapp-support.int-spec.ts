@@ -8,6 +8,8 @@ import {
   restoreWhatsAppEnv
 } from "./whatsapp-env";
 import { createHmac } from "node:crypto";
+import { PassThrough } from "node:stream";
+import { v2 as cloudinary } from "cloudinary";
 import {
   API_ROUTES,
   DEFAULT_TENANT_ID,
@@ -20,6 +22,7 @@ import {
 } from "@nexa-chess/types";
 import { UserRole, type User } from "@prisma/client";
 import { setTenantScopeModeForTesting } from "../../../prisma/tenant-scope.extension";
+import { SupportAttachmentsService } from "../../../support/support-attachments.service";
 import { SupportFollowUpService } from "../../../support/support-follow-up.service";
 import { asPlatform, runInTenant } from "../../../tenancy/tenant-context";
 import { createTestApp, type TestApp } from "../app";
@@ -29,6 +32,9 @@ import { createUser, resetDatabase } from "../db";
 // webhooks into the real app and database, Meta's send API stubbed.
 
 type Sent = { to: string; type: string; body: string };
+
+/** The smallest valid PNG header: what the attachment check looks for. */
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
 
 describe("WhatsApp support bot (real app, real Postgres)", () => {
   let t: TestApp;
@@ -41,7 +47,18 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
   beforeAll(async () => {
     global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      // A customer's image: Meta's file, and the private copy read back for staff (both stubbed, never fetched).
+      if (url.startsWith("https://media.int.test/") || url.startsWith("https://api.cloudinary.com/")) {
+        return new Response(new Uint8Array(PNG), { status: 200 });
+      }
       if (!url.startsWith(TEST_GRAPH_BASE)) return realFetch(input, init);
+      if (!url.endsWith("/messages")) {
+        const mediaId = url.split("/").pop();
+        return new Response(JSON.stringify({ file_size: PNG.length, id: mediaId, mime_type: "image/png", url: `https://media.int.test/${mediaId}` }), {
+          headers: { "Content-Type": "application/json" },
+          status: 200
+        });
+      }
       expect(url).toBe(`${TEST_GRAPH_BASE}/v21.0/${TEST_PHONE_NUMBER_ID}/messages`);
       const payload = JSON.parse(String(init?.body)) as {
         interactive?: { body?: { text?: string }; type: string };
@@ -307,6 +324,59 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       sent = [];
       await say(textFrom(ALLOWED_NUMBER, "thanks"));
       expect(sent[0]).toMatchObject({ type: "list" });
+    });
+
+    it("keeps an image a parent sends for staff, never reads it, and deletes the copy with the contact", async () => {
+      // Fake storage credentials and a stubbed upload: nothing reaches a real Cloudinary account.
+      const saved = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"].map((key) => [key, process.env[key]] as const);
+      Object.assign(process.env, { CLOUDINARY_API_KEY: "int-key", CLOUDINARY_API_SECRET: "int-secret", CLOUDINARY_CLOUD_NAME: "int-cloud" });
+      cloudinary.config({ api_key: "int-key", api_secret: "int-secret", cloud_name: "int-cloud" });
+      const upload = jest.spyOn(cloudinary.uploader, "upload_stream").mockImplementation(((options: { public_id: string }, done: (error: unknown, result: unknown) => void) => {
+        const stream = new PassThrough();
+        stream.on("finish", () => done(undefined, { bytes: PNG.length, public_id: options.public_id }));
+        stream.resume();
+        return stream;
+      }) as never);
+      const destroy = jest.spyOn(cloudinary.uploader, "destroy").mockResolvedValue({ result: "ok" } as never);
+      try {
+        const ticket = await handoff();
+        sent = [];
+        await say(messageBody(ALLOWED_NUMBER, { image: { caption: "fees paid", id: "img-1", mime_type: "image/png" }, type: "image" }));
+        expect(sent).toEqual([]); // staff have it: the bot stays quiet
+        const attachment = await db(() => t.prisma.supportAttachment.findFirstOrThrow());
+        expect(attachment).toMatchObject({ bytes: PNG.length, mediaId: "img-1", mimeType: "image/png", status: "STORED" });
+        expect(attachment.storageKey).toContain(`support/${attachment.id}`);
+
+        const page = await t.call(admin, "GET", API_ROUTES.adminSupport.messages(ticket.id));
+        const items = (page.body as { items: Array<{ body: string; attachment: unknown }> }).items;
+        expect(items.find((item) => item.attachment)).toMatchObject({ attachment: { id: attachment.id, kind: "image", status: "STORED" }, body: "[Image] fees paid" });
+        expect((await t.call(admin, "GET", API_ROUTES.adminSupport.attachment(attachment.id))).status).toBe(200);
+        expect((await t.call(student, "GET", API_ROUTES.adminSupport.attachment(attachment.id))).status).toBe(403);
+
+        // While the bot has the conversation it thanks the parent but never reads the file.
+        await say(textFrom(OTHER_ALLOWED_NUMBER, "hi"));
+        sent = [];
+        await say(messageBody(OTHER_ALLOWED_NUMBER, { image: { id: "img-2", mime_type: "image/png" }, type: "image" }));
+        expect(sent[0]?.body).toContain("kept your file for our team");
+
+        // Erasing the contact leaves the file without a message; the sweep deletes the copy, then the row.
+        const owner = await db(async () => {
+          const user = await createUser(t.prisma, UserRole.SUPER_ADMIN);
+          return t.prisma.user.update({ data: { status: "ACTIVE" }, where: { id: user.id } });
+        });
+        expect((await t.call(owner, "DELETE", API_ROUTES.adminSupport.contact(ticket.contactId))).status).toBe(200);
+        const removed = await db(() => t.app.get(SupportAttachmentsService).removeOrphans());
+        expect(removed).toBe(1);
+        expect(destroy).toHaveBeenCalledWith(attachment.storageKey, { resource_type: "raw", type: "authenticated" });
+        expect(await db(() => t.prisma.supportAttachment.count({ where: { id: attachment.id } }))).toBe(0);
+      } finally {
+        upload.mockRestore();
+        destroy.mockRestore();
+        for (const [key, value] of saved) {
+          if (value === undefined) delete process.env[key];
+          else process.env[key] = value;
+        }
+      }
     });
 
     it("exports a contact's data, and a super admin erases it (keeping only a STOP)", async () => {

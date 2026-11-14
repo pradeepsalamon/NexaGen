@@ -29,6 +29,7 @@ export const JOB_LOCKS = {
   referralPointsExpiry: "referrals.points-expiry",
   refundReconciliation: "payments.refund-reconciliation",
   retentionSweep: "retention.sweep",
+  supportAttachments: "support.attachments",
   supportFollowUps: "support.follow-ups",
   supportOutbox: "support.outbox",
   supportWebhookSweep: "support.webhook-sweep",

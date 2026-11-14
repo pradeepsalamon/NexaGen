@@ -8602,6 +8602,40 @@ model SupportSettings {
   @@map("support_settings")
 }
 
+enum SupportAttachmentStatus {
+  PENDING
+  STORED
+  FAILED
+}
+
+/// An image or PDF a customer sent (docs/WHATSAPP_SUPPORT.md §0, D13): fetched
+/// from Meta once and kept privately (Cloudinary `authenticated`) for staff
+/// only; the bot never reads it. When its message goes (retention, erasure)
+/// `messageId` becomes null and a sweep deletes the stored file, then the row.
+model SupportAttachment {
+  id         String                  @id @default(cuid())
+  tenantId   String                  @default("tenant_nexa")
+  messageId  String?                 @unique
+  message    SupportMessage?         @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  mediaId    String
+  mimeType   String?
+  filename   String?
+  status     SupportAttachmentStatus @default(PENDING)
+  attempts   Int                     @default(0)
+  claimedAt  DateTime?
+  error      String?
+  /// Cloudinary public id of the stored file (authenticated, raw).
+  storageKey String?
+  /// Stored size, for the academy's storage usage.
+  bytes      Int?
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+
+  @@index([status, createdAt])
+  @@index([messageId])
+  @@map("support_attachments")
+}
+
 /// A WhatsApp contact a super admin erased (privacy request). No personal
 /// data: who did it, when, and how much went (docs/WHATSAPP_SUPPORT.md §0).
 model SupportContactErasure {
@@ -8644,6 +8678,12 @@ model WhatsAppWebhookEvent {
   text              String?
   /// Id of the tapped reply button / list row.
   replyId           String?
+  /// An image or document: Meta's media id (downloaded once for staff, never read by the bot).
+  mediaId           String?
+  mediaMimeType     String?
+  mediaFilename     String?
+  /// The media's caption, redacted. Not bot input.
+  mediaCaption      String?
   /// sent | delivered | read | failed (statuses only)
   status            String?
   statusError       String?
@@ -8737,6 +8777,7 @@ model SupportMessage {
   error             String?
   sentById          String?
   sentBy            User?                   @relation("SupportMessageSender", fields: [sentById], references: [id], onDelete: SetNull)
+  attachment        SupportAttachment?
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
 

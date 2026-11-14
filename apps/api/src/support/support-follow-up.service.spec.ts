@@ -1,3 +1,4 @@
+import { sniffSupportFile, supportFileKindOf } from "./support-attachments.service";
 import { supportSlotTitle } from "./support-demo-slots.service";
 import { leadPhoneFromWaId } from "./support-conversation.service";
 import { supportNudgeDue, supportReminderDue } from "./support-follow-up.service";
@@ -85,5 +86,23 @@ describe("supportSlotTitle", () => {
     expect(title).toBe("Wed 18 Nov, 5:00 pm");
     expect(title.length).toBeLessThanOrEqual(24);
     expect(supportSlotTitle(new Date("2026-11-18T11:30:00Z"), "Mars/Olympus")).toBe("Wed 18 Nov, 5:00 pm"); // falls back to India
+  });
+});
+
+describe("sniffSupportFile", () => {
+  it("knows an image or PDF by its bytes, whatever it claims to be", () => {
+    expect(sniffSupportFile(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]))?.contentType).toBe("image/jpeg");
+    expect(sniffSupportFile(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]))?.kind).toBe("image");
+    expect(sniffSupportFile(Buffer.from("RIFF\0\0\0\0WEBPVP8 ", "latin1"))?.contentType).toBe("image/webp");
+    expect(sniffSupportFile(Buffer.from("%PDF-1.7\n"))?.kind).toBe("pdf");
+    expect(sniffSupportFile(Buffer.from("<html><script>"))).toBeNull();
+    expect(sniffSupportFile(Buffer.alloc(0))).toBeNull();
+  });
+
+  it("decides from the declared type which media go in the transcript as files", () => {
+    expect(supportFileKindOf("image/png")).toBe("image");
+    expect(supportFileKindOf("application/pdf")).toBe("pdf");
+    expect(supportFileKindOf("image/gif")).toBeNull();
+    expect(supportFileKindOf(null)).toBeNull();
   });
 });

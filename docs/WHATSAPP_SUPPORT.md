@@ -47,7 +47,8 @@ bot can't use add "reply AGENT". After 30 idle minutes mid-form it asks
 next message starts fresh. Numbers, titles and a few keywords ("refund",
 "paid twice") pick menu options. Card numbers (Luhn) and codes after
 OTP/PIN/password are replaced before anything is stored, and the customer is
-warned. Image, voice, etc. get "I can only read text".
+warned. An image (JPEG/PNG/WebP) or PDF is kept for staff (below, *Files*);
+voice, video, stickers etc. get "I can only read text".
 
 **Staff.** A new ticket sends the `SUPPORT_TICKET_ADMIN` system message
 (email to `ADMIN_EMAILS`, in-app to admins by default; editable in
@@ -136,6 +137,22 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   replied STOP keeps a bare row (number + opt-out) so automatic messages stay
   off. A lead made from it stays (a CRM record; delete it from Leads). Each
   erasure is logged in `support_contact_erasures` (who, when, counts; no personal data).
+- *Files* (Phase C, D13): an image or PDF a customer sends shows in the
+  transcript as "[Image] caption" / "[PDF: name]" with a link, and the bot
+  answers "Thanks, I've kept your file for our team…" without reading it.
+  After the message's transaction, `SupportAttachmentsService.store` downloads
+  it from Meta with the academy's token (`WhatsAppService.downloadMedia`, up to
+  10 MB), checks its first bytes (the declared type is never trusted), and keeps
+  it in Cloudinary as a private (`authenticated`, raw) file under the academy's
+  folder. A per-minute sweep (`JOB_LOCKS.supportAttachments`, each academy)
+  retries up to 3 times within a day, then marks it FAILED; with no Cloudinary
+  keys it fails at once. Admins open it through
+  `GET /admin/support/attachments/:id`, which streams it (re-checked, `nosniff`,
+  PDFs as downloads); no storage URL reaches the browser. When its message is
+  deleted (contact erasure) the row loses its message and the sweep deletes
+  the stored file, then the row. Stored bytes count toward the academy's
+  document storage in usage history. A contact's export shows the "[Image]" /
+  "[PDF: …]" lines, not the files themselves.
 - *Template status* (Phase C): the reply-template field on the settings page
   shows whether WhatsApp Manager approved it ([MESSAGING.md](MESSAGING.md) "WhatsApp templates").
 - *Delivery status for rules and system messages* (Phase C): a status webhook

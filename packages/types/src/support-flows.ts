@@ -130,7 +130,9 @@ export type SupportInput =
   /** A tap on a reply button or list row: its id, as sent in our payload. */
   | { kind: "reply"; id: string }
   /** An image, voice note, sticker, location… — nothing the bot can read. */
-  | { kind: "unsupported" };
+  | { kind: "unsupported" }
+  /** An image or PDF the API kept for staff (a payment screenshot…). The bot never reads it. */
+  | { kind: "media" };
 
 export interface SupportReplyButton {
   id: string;
@@ -997,6 +999,15 @@ export function transitionSupport(
   if (input.kind === "unsupported") {
     return result(current, [
       { body: "Sorry, I can only read text messages for now.", kind: "text" },
+      questionFor(current.state, draft, ctx)
+    ]);
+  }
+  if (input.kind === "media") {
+    return result(current, [
+      {
+        body: "Thanks, I've kept your file for our team. I can only read text myself, so please type your question too, or reply AGENT to reach a person.",
+        kind: "text"
+      },
       questionFor(current.state, draft, ctx)
     ]);
   }

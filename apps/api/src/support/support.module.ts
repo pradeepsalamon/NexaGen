@@ -7,6 +7,7 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { WhatsAppModule } from "../whatsapp/whatsapp.module";
 import { SupportAdminController } from "./support-admin.controller";
 import { SupportAdminService } from "./support-admin.service";
+import { SupportAttachmentsService } from "./support-attachments.service";
 import { SupportConversationService } from "./support-conversation.service";
 import { SupportDemoSlotsService } from "./support-demo-slots.service";
 import { SupportFollowUpService } from "./support-follow-up.service";
@@ -24,6 +25,7 @@ import { WhatsAppWebhookService } from "./whatsapp-webhook.service";
   imports: [DemoClassModule, JwtModule.register({}), LeadModule, MailModule, PrismaModule, WhatsAppModule],
   providers: [
     SupportAdminService,
+    SupportAttachmentsService,
     SupportConversationService,
     SupportDemoSlotsService,
     SupportFollowUpService,

@@ -19,6 +19,7 @@ import { DemoInviteService, demoInvitePath } from "../demo-class/demo-invite.ser
 import { LeadService } from "../lead/lead.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
+import { SupportAttachmentsService, supportFileKindOf } from "./support-attachments.service";
 import { SupportDemoSlotsService, supportSlotTitle } from "./support-demo-slots.service";
 import { SupportOutboxService } from "./support-outbox.service";
 import { SupportSettingsService } from "./support-settings.service";
@@ -39,15 +40,25 @@ function isFlowState(value: string): value is SupportFlowState {
   return (SUPPORT_FLOW_STATES as readonly string[]).includes(value);
 }
 
+/** An image or PDF the API keeps for staff (supportFileKindOf on Meta's declared type; the bytes are checked on download). */
+function keptMedia(event: WhatsAppWebhookEvent): boolean {
+  return Boolean(event.mediaId && supportFileKindOf(event.mediaMimeType));
+}
+
 function inputOf(event: WhatsAppWebhookEvent): SupportInput {
   if (event.replyId) return { id: event.replyId, kind: "reply" };
   if (event.text) return { kind: "text", text: event.text };
+  if (keptMedia(event)) return { kind: "media" };
   return { kind: "unsupported" };
 }
 
 /** The transcript line for an incoming message. */
 function inboundBody(event: WhatsAppWebhookEvent): string {
   if (event.text) return event.text;
+  if (keptMedia(event)) {
+    const label = supportFileKindOf(event.mediaMimeType) === "pdf" ? `[PDF${event.mediaFilename ? `: ${event.mediaFilename}` : ""}]` : "[Image]";
+    return event.mediaCaption ? `${label} ${event.mediaCaption}` : label;
+  }
   return `[${event.messageType ?? "message"}]`;
 }
 
@@ -64,6 +75,7 @@ export class SupportConversationService {
   private readonly logger = new Logger(SupportConversationService.name);
 
   constructor(
+    private readonly attachments: SupportAttachmentsService,
     private readonly demoInvites: DemoInviteService,
     private readonly demoSlots: SupportDemoSlotsService,
     private readonly leads: LeadService,
@@ -114,7 +126,7 @@ export class SupportConversationService {
         conversation.lastInboundAt !== null &&
         now.getTime() - conversation.lastInboundAt.getTime() > this.env.SUPPORT_SESSION_TIMEOUT_MINUTES * 60_000;
 
-      await tx.supportMessage.create({
+      const inbound = await tx.supportMessage.create({
         data: {
           author: "CUSTOMER",
           body: inboundBody(event),
@@ -125,6 +137,14 @@ export class SupportConversationService {
           status: "RECEIVED"
         }
       });
+      // Fetched from Meta after commit; staff open it from the transcript.
+      const attachment =
+        keptMedia(event) && event.mediaId
+          ? await tx.supportAttachment.create({
+              data: { filename: event.mediaFilename, mediaId: event.mediaId, messageId: inbound.id, mimeType: event.mediaMimeType },
+              select: { id: true }
+            })
+          : null;
 
       // Real demo times, read only while a booking is under way.
       const state = isFlowState(conversation.state) ? conversation.state : "MAIN_MENU";
@@ -224,11 +244,12 @@ export class SupportConversationService {
         });
       }
 
-      return { announce, booking, conversationId: conversation.id, newLead, ticket, unansweredTexts };
+      return { announce, attachmentId: attachment?.id ?? null, booking, conversationId: conversation.id, newLead, ticket, unansweredTexts };
     });
 
     if (!outcome) return;
     await this.outbox.sendPending(outcome.conversationId);
+    if (outcome.attachmentId) await this.attachments.store(outcome.attachmentId);
     if (outcome.booking) await this.bookDemoSlot(outcome.booking, contact.id, origin);
     // Best effort, outside the bot's transaction: a lost count never costs a reply.
     if (outcome.unansweredTexts.length > 0) await this.unanswered.record(outcome.unansweredTexts, now);

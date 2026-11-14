@@ -175,6 +175,11 @@ describe("transitionSupport", () => {
     const media = transitionSupport(at("ASK_STUDENT", { category: "CLASS" }), { kind: "unsupported" }, ctx);
     expect(media.state).toBe("ASK_STUDENT");
     expect(media.replies[0].body).toContain("only read text");
+    // A kept image or PDF: thanked for, never read, and the same question again.
+    const file = transitionSupport(at("ASK_STUDENT", { category: "PAYMENT" }), { kind: "media" }, ctx);
+    expect(file).toMatchObject({ actions: [], state: "ASK_STUDENT" });
+    expect(file.replies[0].body).toContain("kept your file for our team");
+    expect(transitionSupport(at("DONE", {}, "WAITING_AGENT"), { kind: "media" }, ctx).replies).toEqual([]);
   });
 
   it("flattens interactive replies for the transcript", () => {

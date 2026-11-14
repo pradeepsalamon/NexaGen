@@ -935,7 +935,9 @@ export const API_ROUTES = {
     settings: "/admin/support/settings",
     /** DELETE: erase a WhatsApp contact (super admins). */
     contact: (id: string = ":id") => `/admin/support/contacts/${id}`,
-    contactExport: (id: string = ":id") => `/admin/support/contacts/${id}/export`
+    contactExport: (id: string = ":id") => `/admin/support/contacts/${id}/export`,
+    /** GET: an image or PDF a customer sent (streamed; admins). */
+    attachment: (id: string = ":id") => `/admin/support/attachments/${id}`
   },
   leads: {
     create: "/leads",

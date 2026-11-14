@@ -282,7 +282,7 @@ delivered to <provider>".
 - **Statuses:** sent → delivered → read move forward only; `FAILED` wins
   (built). 🆕 The same status also updates `message_deliveries` by
   `providerMessageId`, so rules and system messages show real delivery.
-- **Media (D13):** 🆕 inbound image/PDF → download through the media endpoint
+- **Media (D13):** ✅ built 2026-11-14 ([WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0 *Files*): inbound image/PDF → download through the media endpoint
   with the academy's token, store privately, attach to the transcript; size
   and type limits; never passed to the bot or to AI; deleted with the transcript.
 - **Handoff:** §5.
