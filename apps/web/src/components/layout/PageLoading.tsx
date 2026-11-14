@@ -10,10 +10,10 @@ export function PageLoading() {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }, (_, i) => (
-          <Skeleton className="h-24 rounded-app" key={i} />
+          <Skeleton className="h-24 rounded-panel" key={i} />
         ))}
       </div>
-      <Skeleton className="h-72 rounded-app" />
+      <Skeleton className="h-72 rounded-panel" />
     </div>
   );
 }

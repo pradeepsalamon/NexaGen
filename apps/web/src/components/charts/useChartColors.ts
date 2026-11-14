@@ -1,11 +1,12 @@
 "use client";
 
-import { startTransition, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 export interface ChartColors {
   primary: string;
   secondary: string;
   accent: string;
+  warm: string;
   danger: string;
   muted: string;
   border: string;
@@ -16,31 +17,54 @@ export interface ChartColors {
 }
 
 function read(): ChartColors {
-  // Before the browser can resolve them, charts paint straight from the CSS variables.
-  const styles = typeof window === "undefined" ? null : getComputedStyle(document.documentElement);
-  const v = (name: string) => styles?.getPropertyValue(name).trim() || `var(${name})`;
-  const colors = {
-    primary: v("--color-primary"),
-    secondary: v("--color-accent"),
-    accent: v("--color-success"),
-    danger: v("--color-danger"),
-    muted: v("--color-text-muted"),
-    border: v("--color-border"),
-    surface: v("--color-surface"),
-    text: v("--color-text")
+  const fallback: ChartColors = {
+    primary: "#2447a0",
+    secondary: "#f4b63f",
+    accent: "#1f9d78",
+    warm: "#e0685a",
+    danger: "#d92d20",
+    muted: "#5e6784",
+    border: "#dde1f0",
+    surface: "#ffffff",
+    text: "#172049",
+    categorical: []
   };
-  return {
-    ...colors,
-    categorical: [
-      colors.primary,
-      colors.secondary,
-      colors.accent,
-      v("--color-chart-1"),
-      v("--color-chart-2"),
-      v("--color-chart-3"),
-      v("--color-chart-4")
-    ]
+  if (typeof window === "undefined") {
+    fallback.categorical = [
+      fallback.primary,
+      fallback.secondary,
+      fallback.accent,
+      fallback.warm,
+      "#7c5cd6",
+      "#12b5a5"
+    ];
+    return fallback;
+  }
+  const s = getComputedStyle(document.documentElement);
+  const v = (name: string, fb: string) => s.getPropertyValue(name).trim() || fb;
+  const colors: ChartColors = {
+    primary: v("--color-primary", fallback.primary),
+    secondary: v("--color-secondary", fallback.secondary),
+    accent: v("--color-accent", fallback.accent),
+    warm: v("--color-warm", fallback.warm),
+    danger: v("--color-danger", fallback.danger),
+    muted: v("--color-text-muted", fallback.muted),
+    border: v("--color-border", fallback.border),
+    surface: v("--color-surface", fallback.surface),
+    text: v("--color-text", fallback.text),
+    categorical: []
   };
+  colors.categorical = [
+    colors.primary,
+    colors.secondary,
+    colors.accent,
+    colors.warm,
+    "#7c5cd6",
+    "#12b5a5",
+    "#f2749b",
+    "#8a94a6"
+  ];
+  return colors;
 }
 
 /** Resolves the theme's CSS-variable palette to concrete colors for recharts,
@@ -51,24 +75,16 @@ export function useChartColors(): ChartColors {
   useEffect(() => {
     const refresh = () => setColors(read());
     refresh();
-    // Re-read after the new theme has painted: reading styles inside the
-    // mutation callback forced a whole-page style pass before that paint.
-    let frame = 0;
-    const refreshLater = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => window.setTimeout(() => startTransition(refresh), 0));
-    };
-    const observer = new MutationObserver(refreshLater);
+    const observer = new MutationObserver(refresh);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["data-theme", "style"]
     });
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    media.addEventListener("change", refreshLater);
+    media.addEventListener("change", refresh);
     return () => {
-      window.cancelAnimationFrame(frame);
       observer.disconnect();
-      media.removeEventListener("change", refreshLater);
+      media.removeEventListener("change", refresh);
     };
   }, []);
 

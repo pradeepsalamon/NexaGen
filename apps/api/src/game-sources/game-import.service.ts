@@ -15,7 +15,6 @@ import { ChessGameSource, ChessGameStatus, type ExternalChessProvider } from '@p
 import { createMoveTreeChess } from '../common/chess/move-tree-chess';
 import { gameFingerprint } from '../game-analysis/report-builder';
 import { PrismaService } from '../prisma/prisma.service';
-import { TrashRepository } from '../trash/trash.repository';
 import { chessComOpeningName } from './providers/chess-com.provider';
 import { pgnPlayedAt } from './providers/provider';
 
@@ -50,10 +49,7 @@ const clip = (value: string | undefined, max: number) => (value?.trim() ? value.
  */
 @Injectable()
 export class GameImportService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly trash: TrashRepository
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async importText(input: Omit<StoreGameInput, 'pgn' | 'external'> & { text: string }): Promise<ImportPgnResponse> {
     if (input.text.length > PGN_IMPORT_LIMITS.maxChars) {
@@ -97,10 +93,8 @@ export class GameImportService {
 
     const contentHash = gameFingerprint({ movesUci: mainline.map((n) => n.uci), startFen: parsed.tree.rootFen });
     if (input.ownerId) {
-      // Trashed rows too: the unique (owner, contentHash) still holds them, and re-importing a
-      // game someone deleted brings it back rather than failing.
-      const existing = await this.prisma.withDeleted.chessGame.findFirst({
-        select: { id: true, isDeleted: true },
+      const existing = await this.prisma.chessGame.findFirst({
+        select: { id: true },
         where: {
           OR: [
             { contentHash, ownerId: input.ownerId },
@@ -110,10 +104,6 @@ export class GameImportService {
           ],
         },
       });
-      if (existing?.isDeleted) {
-        await this.trash.restore('ChessGame', existing.id, input.createdById);
-        return { gameId: existing.id, kind: 'IMPORTED', sideMatched: true };
-      }
       if (existing) return { gameId: existing.id, kind: 'DUPLICATE' };
     }
 
@@ -160,7 +150,7 @@ export class GameImportService {
       return { gameId: row.id, kind: 'IMPORTED', sideMatched: ownSide !== null };
     } catch (error) {
       if ((error as { code?: string }).code === 'P2002') {
-        const dup = await this.prisma.withDeleted.chessGame.findFirst({ select: { id: true }, where: { contentHash, ownerId: input.ownerId } });
+        const dup = await this.prisma.chessGame.findFirst({ select: { id: true }, where: { contentHash, ownerId: input.ownerId } });
         if (dup) return { gameId: dup.id, kind: 'DUPLICATE' };
       }
       throw error;

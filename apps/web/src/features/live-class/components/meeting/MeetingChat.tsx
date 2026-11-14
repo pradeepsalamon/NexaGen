@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Lock } from "lucide-react";
-import { ROOM_THREAD, useChatDraft, useLiveClassChat } from "../../providers/ChatProvider";
+import { ROOM_THREAD, useLiveClassChat } from "../../providers/ChatProvider";
 import { ChatMessage } from "./chat/ChatMessage";
 import { ChatEmptyState } from "./chat/ChatEmptyState";
 import { ChatComposer } from "./chat/ChatComposer";
@@ -14,13 +14,13 @@ export function MeetingChat() {
   const {
     activeThread,
     chatEnabled,
+    draft,
     isSending,
     send,
     setDraft,
     threadMessages,
     threads,
   } = useLiveClassChat();
-  const draft = useChatDraft();
 
   const isPrivate = activeThread !== ROOM_THREAD;
   const threadLabel = threads.find((t) => t.id === activeThread)?.label ?? "Everyone";
@@ -71,9 +71,11 @@ export function MeetingChat() {
       <ChatThreadBar />
 
       {isPrivate && (
-        <div className="flex shrink-0 items-center gap-2 border-b border-app-border bg-info-soft px-4 py-2 text-xs font-medium text-info-ink" role="note">
-          <Lock aria-hidden="true" className="size-3.5 shrink-0" strokeWidth={2} />
-          <span className="min-w-0">Private: only you and {threadLabel} can see these messages.</span>
+        <div className="flex shrink-0 items-center gap-2 border-b border-app-border/40 bg-secondary/10 px-4 py-2 text-[11px] font-semibold text-app-text">
+          <Lock className="size-3.5 shrink-0 text-app-text/70" />
+          <span className="min-w-0 truncate">
+            Private — only you and {threadLabel} can see this.
+          </span>
         </div>
       )}
 
@@ -87,10 +89,12 @@ export function MeetingChat() {
           <ChatEmptyState />
         ) : (
           <div className="flex flex-col pb-4">
-            <div className="my-3 flex items-center justify-center" role="separator" aria-label="Today">
-              <div className="h-px flex-1 bg-app-border" />
-              <span className="px-3 text-xs font-medium text-app-muted">Today</span>
-              <div className="h-px flex-1 bg-app-border" />
+            <div className="flex items-center justify-center my-4 opacity-70">
+              <div className="h-px flex-1 bg-app-border/50" />
+              <span className="px-3 text-[10px] font-bold text-app-muted uppercase tracking-wider">
+                Today
+              </span>
+              <div className="h-px flex-1 bg-app-border/50" />
             </div>
 
             {messages.map((msg, index) => {
@@ -108,15 +112,15 @@ export function MeetingChat() {
         <AnimatePresence>
           {isScrolledUp && (
             <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, y: 15, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 15, scale: 0.9 }}
               onClick={scrollToBottom}
-              className="sticky bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-control bg-primary px-3 py-2 text-xs font-semibold text-on-primary shadow-lift transition-colors hover:bg-primary-hover"
+              className="sticky bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-primary/95 text-white px-4 py-2 shadow-lift shadow-primary/20 text-xs font-semibold hover:bg-primary transition-colors z-20 backdrop-blur-md"
               type="button"
             >
               <ChevronDown className="size-4" />
-              New messages
+              New Messages
             </motion.button>
           )}
         </AnimatePresence>
@@ -130,8 +134,8 @@ export function MeetingChat() {
         placeholder={
           chatEnabled
             ? isPrivate
-              ? `Message ${threadLabel} privately…`
-              : "Message everyone…"
+              ? `Message ${threadLabel} privately...`
+              : "Message room..."
             : "Chat is turned off for this class"
         }
         onDraftChange={setDraft}

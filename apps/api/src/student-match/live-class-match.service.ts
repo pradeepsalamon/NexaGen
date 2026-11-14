@@ -44,17 +44,6 @@ import {
   UserStatus
 } from "@prisma/client";
 import { Chess } from "../common/chess/chess";
-import {
-  clockAfterMove,
-  type GameOutcome,
-  outcomeAfterMove,
-  playUciMove,
-  remainingClockMs,
-  replayGame,
-  resignationOutcome,
-  sideToMove,
-  timeoutOutcome
-} from "../common/chess/game-engine";
 import { GameRecorderService } from "../game-library/game-recorder.service";
 import { LiveClassService } from "../live-class/live-class.service";
 import { LiveKitService } from "../live-class/livekit.service";
@@ -87,7 +76,7 @@ const roundInclude = {
 
 type RoundRow = Prisma.LiveClassMatchRoundGetPayload<{ include: typeof roundInclude }>;
 
-type Outcome = GameOutcome;
+type Outcome = { result: MatchGameResult | null; endReason: MatchEndReason };
 type Actor = { id: string; role: UserRole };
 type Eligible = Map<string, { name: string; inClass: boolean }>;
 type PrismaTx = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
@@ -370,13 +359,25 @@ export class LiveClassMatchService {
     }
 
     const chess = this.replay(game);
-    const move = playUciMove(chess, dto.uci);
-    if (!move) throw new BadRequestException("That move is not legal.");
+    let played;
+    try {
+      played = chess.move({
+        from: dto.uci.slice(0, 2),
+        promotion: dto.uci.slice(4) || undefined,
+        to: dto.uci.slice(2, 4)
+      });
+    } catch {
+      played = null;
+    }
+    if (!played) throw new BadRequestException("That move is not legal.");
 
+    const move: MatchMove = { san: played.san, uci: `${played.from}${played.to}${played.promotion ?? ""}` };
     const clockField = color === "white" ? "whiteClockMs" : "blackClockMs";
-    const clockAfter = clockAfterMove(left, game.ply, game.round.clockIncrementMs, MATCH_CLOCK_START_PLY);
-    const clockUpdate = clockAfter === null ? {} : { [clockField]: clockAfter };
-    const outcome = outcomeAfterMove(chess, color);
+    const clockUpdate =
+      left === null
+        ? {}
+        : { [clockField]: left + (game.ply >= MATCH_CLOCK_START_PLY ? game.round.clockIncrementMs : 0) };
+    const outcome = this.outcomeAfter(chess, color);
 
     const updated = await this.prisma.liveClassMatchGame.updateMany({
       data: {
@@ -430,7 +431,15 @@ export class LiveClassMatchService {
 
     switch (dto.action) {
       case "RESIGN":
-        return this.finishGame(roomName, game, resignationOutcome(color), now);
+        return this.finishGame(
+          roomName,
+          game,
+          {
+            endReason: MatchEndReason.RESIGNATION,
+            result: color === "white" ? MatchGameResult.BLACK_WON : MatchGameResult.WHITE_WON
+          },
+          now
+        );
       case "OFFER_DRAW":
         if (game.drawOfferedBy === theirs) {
           return this.finishGame(roomName, game, { endReason: MatchEndReason.DRAW_AGREED, result: MatchGameResult.DRAW }, now);
@@ -617,22 +626,58 @@ export class LiveClassMatchService {
     color: MatchColorDto,
     now: Date
   ): number | null {
-    return remainingClockMs(
-      { ...game, ongoing: game.status === MatchGameStatus.ONGOING },
-      color,
-      now,
-      MATCH_CLOCK_START_PLY
-    );
+    const base = color === "white" ? game.whiteClockMs : game.blackClockMs;
+    if (base === null) return null;
+    if (game.ply < MATCH_CLOCK_START_PLY || this.turnOf(game) !== color) return base;
+    return base - (now.getTime() - game.turnSince.getTime());
   }
 
   /** The flagged side loses — unless the other side has no mating material. */
   private timeoutOutcome(game: GameRow, flagged: MatchColorDto): Outcome {
-    return timeoutOutcome(game.fen, flagged);
+    const winner: MatchColorDto = flagged === "white" ? "black" : "white";
+    if (!this.hasMatingMaterial(game.fen, winner)) {
+      return { endReason: MatchEndReason.TIMEOUT, result: MatchGameResult.DRAW };
+    }
+    return {
+      endReason: MatchEndReason.TIMEOUT,
+      result: winner === "white" ? MatchGameResult.WHITE_WON : MatchGameResult.BLACK_WON
+    };
+  }
+
+  private hasMatingMaterial(fen: string, color: MatchColorDto): boolean {
+    const board = fen.split(" ")[0];
+    const pieces = color === "white" ? board.replace(/[^A-Z]/g, "") : board.replace(/[^a-z]/g, "").toUpperCase();
+    if (/[PRQ]/.test(pieces)) return true;
+    return pieces.replace(/K/g, "").length >= 2;
   }
 
   /** Rebuilt from the start so threefold repetition sees the whole game. */
   private replay(game: GameRow): Chess {
-    return replayGame(game.round.startFen, this.movesOf(game.movesJson), game.fen);
+    try {
+      const chess = new Chess(game.round.startFen);
+      for (const m of this.movesOf(game.movesJson)) {
+        chess.move({ from: m.uci.slice(0, 2), promotion: m.uci.slice(4) || undefined, to: m.uci.slice(2, 4) });
+      }
+      if (chess.fen() === game.fen) return chess;
+    } catch {
+      // Fall through to the stored position.
+    }
+    return new Chess(game.fen);
+  }
+
+  private outcomeAfter(chess: Chess, mover: MatchColorDto): Outcome | null {
+    if (chess.isCheckmate()) {
+      return {
+        endReason: MatchEndReason.CHECKMATE,
+        result: mover === "white" ? MatchGameResult.WHITE_WON : MatchGameResult.BLACK_WON
+      };
+    }
+    const draw = (endReason: MatchEndReason): Outcome => ({ endReason, result: MatchGameResult.DRAW });
+    if (chess.isStalemate()) return draw(MatchEndReason.STALEMATE);
+    if (chess.isInsufficientMaterial()) return draw(MatchEndReason.INSUFFICIENT_MATERIAL);
+    if (chess.isThreefoldRepetition()) return draw(MatchEndReason.THREEFOLD_REPETITION);
+    if (chess.isDraw()) return draw(MatchEndReason.FIFTY_MOVE_RULE);
+    return null;
   }
 
   private resolveStartFen(input: string | undefined): string {
@@ -646,7 +691,8 @@ export class LiveClassMatchService {
   }
 
   private turnOf(game: { status: MatchGameStatus; fen: string }): MatchColorDto | null {
-    return sideToMove({ fen: game.fen, ongoing: game.status === MatchGameStatus.ONGOING });
+    if (game.status !== MatchGameStatus.ONGOING) return null;
+    return game.fen.split(" ")[1] === "b" ? "black" : "white";
   }
 
   private movesOf(value: Prisma.JsonValue): MatchMove[] {

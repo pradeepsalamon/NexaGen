@@ -8,8 +8,6 @@ import { getApiEnv } from "@nexa-chess/config/api";
 import { AppModule } from "../../app.module";
 import { configureApp } from "../../app.setup";
 import { PrismaService } from "../../prisma/prisma.service";
-import { runInTenant } from "../../tenancy/tenant-context";
-import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
 
 export type TestApp = Awaited<ReturnType<typeof createTestApp>>;
 
@@ -37,10 +35,9 @@ export async function createTestApp() {
 
   // authenticateUser rejects a token whose session is missing or revoked, so
   // each signed-in user gets a live session row like a real login leaves.
-  const tokenFor = async (user: Pick<User, "email" | "id" | "role"> & { tenantId?: string }) => {
+  const tokenFor = async (user: Pick<User, "email" | "id" | "role">) => {
     const sessionId = `int-${user.id}`;
-    // The session belongs to the user's academy, as a real login leaves it.
-    await runInTenant(user.tenantId ?? DEFAULT_TENANT_ID, "test:tokenFor", () => prisma.authSession.upsert({
+    await prisma.authSession.upsert({
       create: {
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         id: sessionId,
@@ -49,7 +46,7 @@ export async function createTestApp() {
       },
       update: {},
       where: { id: sessionId }
-    }));
+    });
     return jwt.signAsync(
       { email: user.email, role: user.role, sessionId, sub: user.id, type: "access" },
       { expiresIn: "15m", secret: ACCESS_SECRET }
@@ -58,20 +55,13 @@ export async function createTestApp() {
 
   /** Calls the API as `user` (or anonymously) with a real signed access cookie. */
   const call = async (
-    user: (Pick<User, "email" | "id" | "role"> & { tenantId?: string }) | null,
+    user: Pick<User, "email" | "id" | "role"> | null,
     method: string,
     path: string,
-    body?: unknown,
-    /** `origin: null` sends no Origin header, like curl or a script. */
-    options: { origin?: string | null } = {}
+    body?: unknown
   ): Promise<CallResult> => {
-    const headers: Record<string, string> = {};
-    if (options.origin !== null) headers.Origin = options.origin ?? ORIGIN;
-    if (user) {
-      // Both names: Nexa's hosts read the first, an academy's own address the host-only one (§E).
-      const token = await tokenFor(user);
-      headers.Cookie = `nexa_access_token=${token}; nexa_h_access_token=${token}`;
-    }
+    const headers: Record<string, string> = { Origin: ORIGIN };
+    if (user) headers.Cookie = `nexa_access_token=${await tokenFor(user)}`;
     if (body !== undefined) headers["Content-Type"] = "application/json";
     const res = await fetch(`${baseUrl.replace("[::1]", "127.0.0.1")}${path}`, {
       body: body === undefined ? undefined : JSON.stringify(body),

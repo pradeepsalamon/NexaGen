@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, Inbox, X } from "lucide-react";
+import { Check, Inbox, Loader2, X } from "lucide-react";
 import type { KnowledgeSubmissionDto } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -19,7 +19,6 @@ import { useToast } from "@/providers/ToastProvider";
 import { rejectKnowledge } from "../../api/knowledgeApi";
 import { useInvalidateKnowledge, useKnowledgeSubmissions } from "../../hooks/useKnowledgeApi";
 import { KnowledgeMarkdown } from "../KnowledgeMarkdown";
-import { Spinner } from "@/components/ui/Spinner";
 
 /** Coach suggestions waiting for an admin. Publishing happens in the article editor (audience first). */
 export function SubmissionsPanel() {
@@ -52,7 +51,7 @@ export function SubmissionsPanel() {
                   Review & publish
                 </Link>
               </Button>
-              <Button onClick={() => setRejecting(s)} size="sm" variant="neutral">
+              <Button onClick={() => setRejecting(s)} size="sm" variant="outline">
                 <X aria-hidden className="mr-1.5 size-4" strokeWidth={2.5} />
                 Decline
               </Button>
@@ -104,11 +103,11 @@ function RejectDialog({ submission, onClose }: { submission: KnowledgeSubmission
           <Textarea id="kb-reject-note" maxLength={1000} onChange={(e) => setNote(e.target.value)} value={note} />
         </div>
         <DialogFooter>
-          <Button onClick={onClose} variant="neutral">
+          <Button onClick={onClose} variant="outline">
             Cancel
           </Button>
           <Button disabled={busy || !note.trim()} onClick={() => void submit()} variant="destructive">
-            {busy && <Spinner aria-hidden className="mr-2 size-4" />}
+            {busy && <Loader2 aria-hidden className="mr-2 size-4 animate-spin" />}
             Decline
           </Button>
         </DialogFooter>

@@ -6,12 +6,6 @@ export const AUTH_COOKIES = {
   refreshToken: "nexa_refresh_token"
 } as const;
 
-/** On an academy's own address the API sets host-only cookies under these names (API `auth-cookies.ts`). */
-export const HOST_ONLY_AUTH_COOKIES = {
-  accessToken: "nexa_h_access_token",
-  refreshToken: "nexa_h_refresh_token"
-} as const;
-
 const STAFF_ROLES = ["SUPER_ADMIN", "ADMIN"] as const;
 
 type RouteRule = {
@@ -26,13 +20,9 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/admin/classes", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/data-retention", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/demo-classes", roles: ["SUPER_ADMIN"] },
-  // Platform console: Nexa's super admins only (the API refuses any other academy's).
-  { prefix: "/admin/platform", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/trash", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin", roles: STAFF_ROLES },
   { prefix: "/coach", roles: ["COACH"] },
-  // Referral-only accounts: the referral board and their own profile, nothing else.
-  { prefix: "/sales", roles: ["SALES"] },
   { prefix: "/student", roles: ["STUDENT"] },
   { prefix: "/checkout", roles: null },
   // One class page for every role; it renders the view the role may use.
@@ -44,9 +34,7 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/help", roles: null },
   { prefix: "/messages", roles: null },
   { prefix: "/plans", roles: null },
-  { prefix: "/profile", roles: null },
-  // Tournaments: every role; the API decides what each one may see and do.
-  { prefix: "/tournaments", roles: null }
+  { prefix: "/profile", roles: null }
 ];
 
 function matchRule(pathname: string): RouteRule | undefined {
@@ -58,25 +46,15 @@ function matchRule(pathname: string): RouteRule | undefined {
 // Pages an anonymous visitor routinely lands on: no session probe, no "session expired" toast.
 const PUBLIC_PREFIXES = [
   "/academy",
-  // Certificate verification links printed on tournament certificates.
-  "/certificates",
   "/demo",
   "/forgot-password",
   "/login",
   "/privacy",
-  // Referral links: /r/<code> records the visit, then opens the academy page.
-  "/r",
   "/register",
   "/reset-password",
   "/signup",
-  // A platform support visit's one-time link (§I): signs in on the academy's host.
-  "/support",
   "/terms",
-  // The link in a notification email; works signed in or out.
-  "/unsubscribe",
-  "/verify-email",
-  // Public tournament spectating (docs/TOURNAMENTS.md §4.1).
-  "/watch"
+  "/verify-email"
 ] as const;
 
 export function isPublicPath(pathname: string): boolean {
@@ -90,17 +68,10 @@ export function isProtectedPath(pathname: string): boolean {
   return matchRule(pathname) !== undefined;
 }
 
-/** The only protected pages a SALES account opens (the API refuses it everything else). */
-const SALES_PREFIXES = ["/sales", "/profile"] as const;
-
 /** True when the path is public, or the role may open it. */
 export function canAccessPath(pathname: string, role: string | undefined): boolean {
   const rule = matchRule(pathname);
-  if (!rule) return true;
-  if (role === "SALES") {
-    return SALES_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-  }
-  if (rule.roles === null) return true;
+  if (!rule || rule.roles === null) return true;
   return role !== undefined && rule.roles.includes(role);
 }
 
@@ -112,7 +83,6 @@ export function getRoleDashboardHref(role?: string): string {
   if (isStaffRole(role)) return "/admin";
   if (role === "COACH") return "/coach";
   if (role === "STUDENT") return "/student";
-  if (role === "SALES") return "/sales";
   return "/";
 }
 

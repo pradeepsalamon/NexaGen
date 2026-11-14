@@ -15,13 +15,11 @@ const MIN_AI_SECRET_LENGTH = 32;
 const AI_RUNTIME_HOSTS = new Set(["ai-runtime", "localhost", "127.0.0.1"]);
 
 // Mirrors the Prisma UserRole enum (this package has no Prisma dependency).
-const MFA_ROLE_NAMES = ["ADMIN", "COACH", "SALES", "STUDENT", "SUPER_ADMIN"];
+const MFA_ROLE_NAMES = ["ADMIN", "COACH", "STUDENT", "SUPER_ADMIN"];
 
 const apiEnvSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
   FRONTEND_URL: optionalUrlSchema,
-  /** Academies get `<slug>.<PLATFORM_ROOT_DOMAIN>` (docs/SAAS_MULTI_TENANCY.md §H). */
-  PLATFORM_ROOT_DOMAIN: z.string().trim().toLowerCase().default("nexachess.in"),
   JWT_ACCESS_SECRET: z.string().default("change-this-access-token-secret"),
   JWT_ACCESS_TTL: durationSchema.default("15m"),
   JWT_REFRESH_SECRET: z.string().default("change-this-refresh-token-secret"),
@@ -37,21 +35,11 @@ const apiEnvSchema = z.object({
     .min(32, "MFA_ENCRYPTION_KEY must be at least 32 characters.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
-  // Encrypts academies' own WhatsApp tokens and payment gateway keys at rest (SaaS §F, §G). Unset = MFA_ENCRYPTION_KEY is used.
-  CREDENTIALS_ENCRYPTION_KEY: z
-    .string()
-    .min(32, "CREDENTIALS_ENCRYPTION_KEY must be at least 32 characters.")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
   // Roles that must sign in with two-factor (comma-separated; empty = none).
   MFA_REQUIRED_ROLES: z.string().default("SUPER_ADMIN,ADMIN"),
   NODE_ENV: z.string().default("development"),
   PASSWORD_RESET_RESPONSE_DELAY: durationSchema.default("5s"),
   PORT: z.coerce.number().int().positive().default(3001),
-  // Multi-tenancy data layer (docs/SAAS_MULTI_TENANCY.md §E): `audit` logs a
-  // query with no academy in context, `enforce` refuses it. Reads are filtered
-  // by the context's academy in both modes.
-  TENANT_SCOPE_MODE: z.enum(["audit", "enforce"]).default("audit"),
   TRASH_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   SMTP_FROM: z.string().optional(),
   SMTP_HOST: z.string().optional(),
@@ -119,13 +107,6 @@ const apiEnvSchema = z.object({
   // Web and API are same-site subdomains, so Lax is enough and blocks cross-site form posts.
   // "none" only for a deployment where the API sits on a different registrable domain.
   COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
-  // Nexa's own hosts also get host-only `nexa_h_*` session cookies (docs/AUTHORIZATION.md
-  // "Cookies"). Turn on with the web build's NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API, after
-  // nexachess.in's nginx `location /api/` rule (docs/DEPLOYMENT.md).
-  PLATFORM_HOST_ONLY_COOKIES: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
   RECORDING_STORAGE_DIR: z.string().default("/recordings"),
   RECORDING_STORAGE_LIMIT_GB: z.coerce.number().positive().default(130),
@@ -217,10 +198,6 @@ const apiEnvSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
-  // The owner's own Razorpay account: academies paying their plan (SaaS Phase 6).
-  PLATFORM_RAZORPAY_KEY_ID: z.string().optional(),
-  PLATFORM_RAZORPAY_KEY_SECRET: z.string().optional(),
-  PLATFORM_RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 
   CASHFREE_APP_ID: z.string().optional(),
   CASHFREE_SECRET_KEY: z.string().optional(),

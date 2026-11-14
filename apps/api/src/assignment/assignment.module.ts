@@ -13,12 +13,10 @@ import { AssignmentReminderService } from "./assignment-reminder.service";
 import { AssignmentController } from "./assignment.controller";
 import { AssignmentService } from "./assignment.service";
 import { MessagingModule } from "../messaging/messaging.module";
-import { TrashModule } from "../trash/trash.module";
 
 @Module({
   controllers: [AssignmentController],
   imports: [
-    TrashModule,
     AnalyticsEventModule,
     JwtModule,
     MessagingModule,

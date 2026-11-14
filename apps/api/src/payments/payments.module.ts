@@ -31,7 +31,6 @@ import { PaymentWebhookService } from "./payment-webhook.service";
 import { PaymentService } from "./payment.service";
 import { PaymentsAdminController } from "./payments-admin.controller";
 import { PaymentsAdminService } from "./payments-admin.service";
-import { GatewayCredentialsService } from "./gateway-credentials.service";
 import { PaymentsWebhookController } from "./payments-webhook.controller";
 import { PaymentsController } from "./payments.controller";
 import { PlanService } from "./plan.service";
@@ -42,7 +41,6 @@ import { RazorpayProvider } from "./providers/razorpay.provider";
 import { StripeProvider } from "./providers/stripe.provider";
 import { RefundService } from "./refund.service";
 import { SubscriptionService } from "./subscription.service";
-import { TenantGatewaysController, TenantGatewaysService } from "./tenant-gateways.controller";
 
 /**
  * Payments.
@@ -62,8 +60,7 @@ import { TenantGatewaysController, TenantGatewaysService } from "./tenant-gatewa
     ManualPaymentController,
     PaymentsController,
     PaymentsAdminController,
-    PaymentsWebhookController,
-    TenantGatewaysController
+    PaymentsWebhookController
   ],
   imports: [
     JwtModule,
@@ -83,7 +80,6 @@ import { TenantGatewaysController, TenantGatewaysService } from "./tenant-gatewa
     CreditNoteService,
     DiscountService,
     EntitlementService,
-    GatewayCredentialsService,
     InvoiceAuditService,
     InvoiceEmailService,
     InvoiceGenerationService,
@@ -106,12 +102,10 @@ import { TenantGatewaysController, TenantGatewaysService } from "./tenant-gatewa
     RazorpayProvider,
     RefundService,
     StripeProvider,
-    SubscriptionService,
-    TenantGatewaysService
+    SubscriptionService
   ],
   exports: [
     BatchPricingService,
-    DiscountService,
     EntitlementService,
     InvoiceService,
     PaymentService,

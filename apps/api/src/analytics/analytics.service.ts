@@ -45,7 +45,6 @@ import { RecordingsAnalyticsSection } from "./sections/recordings.section";
 import { UsersAnalyticsSection } from "./sections/users.section";
 import { authenticateUser } from "../auth/authenticate";
 import { parseOrBadRequest } from "../common/zod-body.pipe";
-import { tenantFilter } from "../tenancy/tenant-sql";
 
 @Injectable()
 export class AnalyticsService {
@@ -262,7 +261,7 @@ export class AnalyticsService {
       ), 0)::float / 3600 AS hours
       FROM "classes" c
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
-      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED'
+      WHERE c.status = 'COMPLETED'
         AND c."startsAt" >= ${sqlTimestamp(start)} AND c."startsAt" < ${sqlTimestamp(end)}
     `;
     return roundTo(rows[0]?.hours ?? 0, 1);
@@ -276,7 +275,7 @@ export class AnalyticsService {
              count(*)::bigint AS total
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
-      WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED'
+      WHERE c.status = 'COMPLETED'
         AND c."startsAt" >= ${sqlTimestamp(start)} AND c."startsAt" < ${sqlTimestamp(end)}
     `;
     return pct(Number(rows[0]?.attended ?? 0), Number(rows[0]?.total ?? 0));

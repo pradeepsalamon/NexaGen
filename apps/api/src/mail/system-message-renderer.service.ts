@@ -1,20 +1,13 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import {
-  composeWhatsAppText,
-  effectiveSystemChannels,
   renderFormattedTemplate,
   renderMessageTemplate,
-  resolveWhatsAppTemplate,
   SYSTEM_MESSAGE_DEFINITIONS,
   type MessageVariables,
-  type ResolvedWhatsAppTemplate,
-  type SystemMessageChannel,
   type SystemMessageKey
 } from "@nexa-chess/types";
-import { BrandingService } from "../branding/branding.service";
 import { ACADEMY_NAME } from "../messaging/messaging.format";
 import { PrismaService } from "../prisma/prisma.service";
-import { requireTenantId } from "../tenancy/tenant-sql";
 
 export interface RenderedSystemMessage {
   subject: string;
@@ -23,78 +16,28 @@ export interface RenderedSystemMessage {
   action: { label: string; url: string } | null;
 }
 
-export interface RenderedSystemMessageAllChannels extends RenderedSystemMessage {
-  /** Formatted source for WhatsApp, with the action link written in. */
-  whatsapp: string;
-  /** The channels switched on (saved switches, else the defaults). */
-  channels: SystemMessageChannel[];
-  /** The academy's approved template with its values rendered, sent instead of `whatsapp`; null = free text. */
-  whatsappTemplate: ResolvedWhatsAppTemplate | null;
-}
-
 /** A system message in the admin's saved wording, or the default when there is none. */
 @Injectable()
 export class SystemMessageRenderer {
-  constructor(
-    private readonly prisma: PrismaService,
-    @Optional() private readonly branding?: BrandingService
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async render(key: SystemMessageKey, values: MessageVariables): Promise<RenderedSystemMessage> {
-    const { channels: _channels, whatsapp: _whatsapp, whatsappTemplate: _template, ...email } = await this.renderAll(
-      key,
-      values
-    );
-    return email;
-  }
-
-  /** Every channel's text, in the saved wording (a null part falls back to the default). */
-  async renderAll(key: SystemMessageKey, values: MessageVariables): Promise<RenderedSystemMessageAllChannels> {
     const definition = SYSTEM_MESSAGE_DEFINITIONS[key];
-    const saved = await this.prisma.systemMessageTemplate.findUnique({
-      where: { tenantId_key: { key, tenantId: requireTenantId("systemMessageTemplate") } }
-    });
-    const academyName = this.branding ? await this.branding.nameFor() : ACADEMY_NAME;
-    const variables: MessageVariables = { "academy.name": academyName, ...values };
+    const template =
+      (await this.prisma.systemMessageTemplate.findUnique({ where: { key } })) ?? definition.defaults;
+    const variables: MessageVariables = { "academy.name": ACADEMY_NAME, ...values };
 
-    const subject = saved?.subject ?? definition.defaults.subject;
-    const body = saved?.body ?? definition.defaults.body;
-    const whatsappBody = saved?.whatsappBody ?? definition.defaults.whatsappBody ?? body;
     const url = definition.actionVariable ? variables[definition.actionVariable] : "";
-    const label = saved?.actionLabel ?? definition.defaults.actionLabel;
-    const action = url && label ? { label, url } : null;
+    const label = template.actionLabel ?? definition.defaults.actionLabel;
 
     return {
-      action,
-      body: this.formatted(body, variables),
-      channels: effectiveSystemChannels(key, {
-        EMAIL: saved?.emailEnabled ?? null,
-        IN_APP: saved?.inAppEnabled ?? null,
-        WHATSAPP: saved?.whatsappEnabled ?? null
-      }),
-      subject: renderMessageTemplate(subject, variables).replace(/\s+/g, " ").trim(),
-      whatsapp: composeWhatsAppText(this.formatted(whatsappBody, variables), action),
-      // Only where WhatsApp is a channel of this message; values see the same variables as the text.
-      whatsappTemplate: definition.channels.includes("WHATSAPP")
-        ? resolveWhatsAppTemplate(
-            saved
-              ? {
-                  language: saved.whatsappTemplateLanguage,
-                  name: saved.whatsappTemplateName,
-                  params: saved.whatsappTemplateParams
-                }
-              : null,
-            variables
-          )
-        : null
+      subject: renderMessageTemplate(template.subject ?? "", variables).replace(/\s+/g, " ").trim(),
+      // An empty optional value shouldn't leave a gap where its line was.
+      body: renderFormattedTemplate(template.body, variables)
+        .replace(/[ \t]+$/gm, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim(),
+      action: url && label ? { label, url } : null
     };
-  }
-
-  private formatted(template: string, variables: MessageVariables) {
-    // An empty optional value shouldn't leave a gap where its line was.
-    return renderFormattedTemplate(template, variables)
-      .replace(/[ \t]+$/gm, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
   }
 }

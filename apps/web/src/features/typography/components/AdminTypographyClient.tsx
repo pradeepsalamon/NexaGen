@@ -14,7 +14,6 @@ import {
 } from "../hooks/useTypographyApi";
 import { TypographyFields } from "./TypographyFields";
 import { Switch } from "@/components/ui/Switch";
-import { PageHeader } from "@/components/layout/PageHeader";
 
 export function AdminTypographyClient() {
   const { data, isLoading, isError, refetch } = useTypographyAdminQuery();
@@ -36,11 +35,14 @@ export function AdminTypographyClient() {
   const isBusy = updateMutation.isPending || resetMutation.isPending;
 
   return (
-    <div className="animate-fade-in space-y-5 pb-10">
-      <PageHeader
-        description="The platform-wide fonts and text size. Everyone sees these unless they pick their own in their profile."
-        title="Fonts & text"
-      />
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-xl font-bold text-app-text">Fonts &amp; text</h1>
+        <p className="mt-1 text-sm text-app-muted">
+          The platform-wide fonts and text size. Everyone sees these unless they pick their own in
+          their profile.
+        </p>
+      </div>
 
       {isLoading ? (
         <Card className="p-5 sm:p-6">

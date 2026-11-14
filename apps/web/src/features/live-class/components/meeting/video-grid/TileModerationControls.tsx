@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useIsMuted, type TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { Mic, MicOff, MonitorOff, Video, VideoOff } from "lucide-react";
+import { Loader2, Mic, MicOff, MonitorOff, Video, VideoOff } from "lucide-react";
 import { MODERATED_SOURCE_LABEL, type ModeratableSource } from "@nexa-chess/types";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,6 @@ import { meetingToast } from "../../../lib/meetingToasts";
 import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider";
 import { getRole } from "./videoGrid.utils";
 import { useMemberClassId } from "../../../providers/LiveRoomContext";
-import { Spinner } from "@/components/ui/Spinner";
 
 type Participant = TrackReferenceOrPlaceholder["participant"];
 type Pending = "microphone" | "camera" | "screen_share" | null;
@@ -117,7 +116,7 @@ function Controls({
   };
 
   const icon = size === "sm" ? "size-3" : "size-3.5";
-  const spinner = <Spinner className={cn(icon,"")} />;
+  const spinner = <Loader2 className={cn(icon, "animate-spin")} strokeWidth={2.5} />;
 
   if (screenShare) {
     return (
@@ -197,11 +196,11 @@ function TileButton({
           onClick();
         }}
         className={cn(
-          "pointer-events-auto flex touch-manipulation items-center justify-center rounded-full border border-on-scrim/10 shadow-card backdrop-blur-sm transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60",
+          "pointer-events-auto flex touch-manipulation items-center justify-center rounded-full border border-white/10 shadow-card backdrop-blur-sm transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60",
           size === "sm" ? "size-6" : "size-8",
-          tone === "on" && "bg-scrim/55 text-on-scrim hover:bg-app-danger",
-          tone === "off" && "bg-app-danger/90 text-on-danger hover:bg-app-danger",
-          tone === "danger" && "bg-app-danger/90 text-on-danger hover:bg-app-danger"
+          tone === "on" && "bg-black/55 text-white hover:bg-app-danger",
+          tone === "off" && "bg-app-danger/90 text-white hover:bg-app-danger",
+          tone === "danger" && "bg-app-danger/90 text-white hover:bg-app-danger"
         )}
       >
         {children}

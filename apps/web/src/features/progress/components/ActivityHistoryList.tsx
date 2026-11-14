@@ -8,8 +8,9 @@ import {
   type StudentActivityScope,
   type StudentActivityStatusFilter
 } from "@nexa-chess/types";
+import { History } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { InfiniteScrollTrigger } from "@/components/ui/InfiniteScrollTrigger";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
@@ -150,7 +151,7 @@ export function ActivityHistoryList({
             ? "Nothing matches these filters. Try a longer period or clear a filter."
             : "Puzzles, class questions and assignments will appear here once they're attempted."
         }
-        illustration={hasFilters ? "search-results" : "activity"}
+        icon={History}
         title={hasFilters ? "No matching activity" : "No activity yet"}
       />
     );
@@ -167,7 +168,20 @@ export function ActivityHistoryList({
           <ActivityRow entry={entry} key={entry.id} />
         ))}
       </ul>
-      <InfiniteScrollTrigger query={query} />
+      {query.isFetchNextPageError ? (
+        <WidgetError onRetry={() => query.fetchNextPage()} />
+      ) : query.hasNextPage ? (
+        <div className="flex justify-center">
+          <Button
+            disabled={query.isFetchingNextPage}
+            onClick={() => query.fetchNextPage()}
+            type="button"
+            variant="outline"
+          >
+            {query.isFetchingNextPage ? "Loading…" : "Load more"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

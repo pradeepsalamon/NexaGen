@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Play, Square } from "lucide-react";
 import type { SoundThemeId, SoundThemeMeta } from "@nexa-chess/types";
-import { choiceTileClass } from "@/components/ui/ChoiceTile";
+import { cn } from "@/lib/utils";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { getSoundUrl } from "@/features/chessboard/audio/sounds";
 
@@ -39,14 +39,19 @@ export function SoundThemePicker({ soundThemes, selectedId, onSelect }: SoundThe
         return (
           <div
             key={theme.id}
-            className={choiceTileClass(isSelected, "flex items-center gap-3")}
+            className={cn(
+              "flex items-center gap-3 rounded-app border-2 p-2.5 transition",
+              isSelected
+                ? "border-primary bg-[color-mix(in_srgb,var(--color-primary)_8%,var(--color-surface))]"
+                : "border-app-border hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))]",
+            )}
           >
             <SimpleTooltip label={isPlaying ? "Stop preview" : "Preview this sound"}>
               <button
                 type="button"
                 aria-label={isPlaying ? `Stop previewing ${theme.name}` : `Preview ${theme.name} sound`}
                 onClick={() => handlePreview(theme.id)}
-                className="flex size-9 shrink-0 items-center justify-center rounded-control border border-app-line-strong bg-app-surface text-app-text transition-colors hover:border-primary/50 hover:text-primary-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-text transition hover:border-primary/50 hover:text-primary-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 {isPlaying ? (
                   <Square className="size-3.5" strokeWidth={2.5} />
@@ -60,7 +65,7 @@ export function SoundThemePicker({ soundThemes, selectedId, onSelect }: SoundThe
               aria-label={`Select ${theme.name} sound theme`}
               aria-pressed={isSelected}
               onClick={() => onSelect(theme.id)}
-              className="min-w-0 flex-1 rounded-control text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+              className="min-w-0 flex-1 text-left rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <p className="truncate text-sm font-semibold text-app-text">{theme.name}</p>
               <p className="truncate text-xs text-app-muted">{theme.description}</p>

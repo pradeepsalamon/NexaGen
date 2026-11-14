@@ -179,7 +179,7 @@ export function AdminInvoicesPanel() {
       ) : null}
 
       <Card className="space-y-3 p-4">
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-48 flex-1">
             <Search
               aria-hidden="true"
@@ -412,7 +412,7 @@ export function AdminInvoicesPanel() {
                               window.open(
                                 adminInvoicePdfUrl(invoice.id),
                                 "_blank",
-                                "noopener"
+                                "noopener,noreferrer"
                               )
                           },
                           ...(invoice.pdfStatus === "FAILED"
@@ -511,7 +511,7 @@ function InvoiceStatsRow({ stats }: { stats: InvoiceStats }) {
   const currencies = Object.keys(stats.revenueByCurrency).sort();
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <StatTile
         icon={FileText}
         label="Total invoices"

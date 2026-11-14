@@ -43,11 +43,11 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
             <TooltipTrigger asChild>
               <Button
                 aria-label={`Copy link for ${demoClass.topic}`}
-                className="size-8"
+                className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                 onClick={() => onCopyLink(demoClass)}
                 size="icon"
                 type="button"
-                variant="neutral"
+                variant="ghost"
               >
                 <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
               </Button>
@@ -63,17 +63,17 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
             <TooltipTrigger asChild>
               <Button
                 aria-label="Restore demo class"
-                className="size-8 text-warning-ink hover:bg-warning-soft"
+                className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
                 disabled={restorePending}
                 onClick={() => onRestore(demoClass.id)}
                 size="icon"
                 type="button"
-                variant="neutral"
+                variant="ghost"
               >
                 <RotateCcw aria-hidden="true" className="size-4" strokeWidth={2.5} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Restore demo class</TooltipContent>
+            <TooltipContent>Restore Demo Class</TooltipContent>
           </Tooltip>
         )}
 
@@ -81,11 +81,11 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
           <TooltipTrigger asChild>
             <Button
               aria-label={`Details and guests for ${demoClass.topic}`}
-              className="size-8"
+              className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
               onClick={() => onViewDetails(demoClass.id)}
               size="icon"
               type="button"
-              variant="neutral"
+              variant="ghost"
             >
               <Users aria-hidden="true" className="size-4" strokeWidth={2.5} />
             </Button>
@@ -99,11 +99,11 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
               <TooltipTrigger asChild>
                 <Button
                   aria-label={`Edit ${demoClass.topic}`}
-                  className="size-8 text-warning-ink hover:bg-warning-soft"
+                  className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
                   onClick={() => onEdit(demoClass)}
                   size="icon"
                   type="button"
-                  variant="neutral"
+                  variant="ghost"
                 >
                   <Pencil aria-hidden="true" className="size-4" strokeWidth={2.5} />
                 </Button>
@@ -115,12 +115,12 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
               <TooltipTrigger asChild>
                 <Button
                   aria-label={`Cancel ${demoClass.topic}`}
-                  className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
+                  className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                   disabled={cancelPending}
                   onClick={() => onCancel(demoClass.id)}
                   size="icon"
                   type="button"
-                  variant="neutral"
+                  variant="ghost"
                 >
                   <Ban aria-hidden="true" className="size-4" strokeWidth={2.5} />
                 </Button>

@@ -2,22 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { PendingFeedbackItem } from "@nexa-chess/types";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle
-} from "@/components/ui/Dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/Dialog";
 import { usePendingFeedbackQuery } from "../hooks/useFeedbackApi";
 import { FeedbackItemCard, FeedbackItemHeading } from "./FeedbackItemCard";
 import { FeedbackQuestionnaire } from "./FeedbackQuestionnaire";
-import { useDashboardPopup } from "@/lib/dashboardPopup";
 
 const DISMISSED_KEY = "nexa-feedback-popup-dismissed";
 
-const itemKey = (item: PendingFeedbackItem) =>
-  `${item.formId}|${item.coachId}|${item.contextKey}`;
+const itemKey = (item: PendingFeedbackItem) => `${item.formId}|${item.coachId}|${item.contextKey}`;
 
+/** Closing the pop-up (without answering) hides it for the rest of this browser session. */
 function readDismissed(): string[] {
   try {
     const raw = window.sessionStorage.getItem(DISMISSED_KEY);
@@ -35,47 +29,42 @@ function writeDismissed(keys: string[]) {
   }
 }
 
-const POPUP_ID = "feedback";
-
+/**
+ * Student dashboard placements: a "Dashboard pop-up" opens the newest pending
+ * request in a dialog — at most once per visit, so answering one never chains
+ * straight into the next; "Dashboard card" requests sit at the top of the page
+ * until answered. An item placed in both only shows once at a time.
+ */
 export function DashboardFeedback() {
   const { data } = usePendingFeedbackQuery();
+  // null until sessionStorage is read (after mount, so SSR markup matches):
+  // the pop-up must not be picked before then, or a dismissed one reappears.
   const [dismissed, setDismissed] = useState<string[] | null>(null);
   const [popupKey, setPopupKey] = useState<string | null>(null);
   const [popupDone, setPopupDone] = useState(false);
 
   useEffect(() => setDismissed(readDismissed()), []);
 
-  // Waits its turn behind another dashboard pop-up (the homework reminder).
-  const popupOwner = useDashboardPopup((s) => s.owner);
-  const claimPopup = useDashboardPopup((s) => s.claim);
-  const releasePopup = useDashboardPopup((s) => s.release);
-  useEffect(() => () => releasePopup(POPUP_ID), [releasePopup]);
-
   const items = useMemo(() => data?.items ?? [], [data]);
 
+  // Pick the pop-up once, when data first arrives.
   useEffect(() => {
     if (popupDone || popupKey || dismissed === null) return;
     const first = items.find(
-      (item) =>
-        item.placements.includes("DASHBOARD_POPUP") &&
-        !dismissed.includes(itemKey(item))
+      (item) => item.placements.includes("DASHBOARD_POPUP") && !dismissed.includes(itemKey(item))
     );
-    if (first && claimPopup(POPUP_ID)) setPopupKey(itemKey(first));
-  }, [claimPopup, dismissed, items, popupDone, popupKey, popupOwner]);
+    if (first) setPopupKey(itemKey(first));
+  }, [dismissed, items, popupDone, popupKey]);
 
-  const popupItem = popupKey
-    ? items.find((item) => itemKey(item) === popupKey)
-    : undefined;
+  const popupItem = popupKey ? items.find((item) => itemKey(item) === popupKey) : undefined;
   const cardItems = items.filter(
-    (item) =>
-      item.placements.includes("DASHBOARD_CARD") && itemKey(item) !== popupKey
+    (item) => item.placements.includes("DASHBOARD_CARD") && itemKey(item) !== popupKey
   );
   const cardItem = cardItems[0];
 
   const closePopup = () => {
     setPopupKey(null);
     setPopupDone(true);
-    releasePopup(POPUP_ID);
   };
 
   const dismiss = (item: PendingFeedbackItem) => {
@@ -91,11 +80,8 @@ export function DashboardFeedback() {
         <div className="grid gap-2">
           <FeedbackItemCard item={cardItem} key={itemKey(cardItem)} />
           {cardItems.length > 1 ? (
-            <p
-              className="px-1 text-xs font-medium text-app-subtle"
-            >
-              {cardItems.length - 1} more feedback request
-              {cardItems.length > 2 ? "s" : ""} after this one
+            <p className="px-1 text-xs font-medium text-app-muted">
+              {cardItems.length - 1} more feedback request{cardItems.length > 2 ? "s" : ""} after this one
             </p>
           ) : null}
         </div>
@@ -109,7 +95,9 @@ export function DashboardFeedback() {
       >
         {popupItem ? (
           <DialogContent
-            className="max-h-[90dvh] overflow-y-auto sm:max-w-lg rounded-2xl border p-6 bg-app-surface border-app-border text-app-text"
+            className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"
+            // Don't land focus on the first star — its tooltip would pop open
+            // over the question before the student has done anything.
             onOpenAutoFocus={(event) => event.preventDefault()}
           >
             <DialogDescription className="sr-only">
@@ -118,16 +106,9 @@ export function DashboardFeedback() {
             <div className="grid gap-5">
               <FeedbackItemHeading
                 item={popupItem}
-                renderTitle={(className, text) => (
-                  <DialogTitle className={className}>{text}</DialogTitle>
-                )}
+                renderTitle={(className, text) => <DialogTitle className={className}>{text}</DialogTitle>}
               />
-              <FeedbackQuestionnaire
-                compact
-                item={popupItem}
-                key={itemKey(popupItem)}
-                onDone={closePopup}
-              />
+              <FeedbackQuestionnaire compact item={popupItem} key={itemKey(popupItem)} onDone={closePopup} />
             </div>
           </DialogContent>
         ) : null}

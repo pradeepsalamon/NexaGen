@@ -66,7 +66,6 @@ export function FeedbackResponsesPanel({
             description="Submitted feedback will show up here."
             icon={MessageSquareText}
             title="No responses yet"
-            variant="inline"
           />
         </Card>
       ) : (

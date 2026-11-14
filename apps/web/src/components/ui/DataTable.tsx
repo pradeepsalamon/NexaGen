@@ -5,8 +5,6 @@ import {
   type Table as ReactTable
 } from "@tanstack/react-table";
 import { type ReactNode } from "react";
-import { Skeleton } from "@/components/ui/Skeleton";
-import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -45,16 +43,11 @@ export function DataTable<TData>({
 
   return (
     <>
-      {isLoading ? (
-        <span className="sr-only" role="status">
-          {loadingText}
-        </span>
-      ) : null}
       <div
         className={
           stackOnMobile
-            ? "hidden overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card sm:block"
-            : "overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card"
+            ? "hidden overflow-hidden rounded-[20px] border border-app-border bg-app-surface shadow-card sm:block"
+            : "overflow-hidden rounded-[20px] border border-app-border bg-app-surface shadow-card"
         }
       >
         <Table>
@@ -76,15 +69,14 @@ export function DataTable<TData>({
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              SKELETON_ROWS.map((rowIndex) => (
-                <TableRow aria-hidden="true" className="hover:bg-transparent" key={`skeleton-${rowIndex}`}>
-                  {table.getVisibleLeafColumns().map((column, columnIndex) => (
-                    <TableCell key={column.id} pin={column.id === "actions" ? "end" : undefined}>
-                      <Skeleton className={cn("h-4", skeletonWidth(column.id, columnIndex, rowIndex))} />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              <TableRow>
+                <TableCell
+                  className="h-28 text-center font-semibold text-app-muted"
+                  colSpan={columnsLength}
+                >
+                  {loadingText}
+                </TableCell>
+              </TableRow>
             ) : rows.length ? (
               rows.map((row) => (
                 <TableRow
@@ -114,21 +106,9 @@ export function DataTable<TData>({
 
       {stackOnMobile ? (
         <div className="sm:hidden">
-          {isLoading ? (
-            <ul aria-hidden="true" className="flex flex-col gap-3">
-              {SKELETON_ROWS.slice(0, 3).map((rowIndex) => (
-                <li className="rounded-app border border-app-border bg-app-surface p-4 shadow-card" key={`skeleton-${rowIndex}`}>
-                  <Skeleton className="h-4 w-1/2" />
-                  <div className="mt-3 grid gap-2">
-                    <Skeleton className="h-3.5 w-full" />
-                    <Skeleton className="h-3.5 w-3/4" />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : !rows.length ? (
-            <div className="rounded-app border border-app-border bg-app-surface px-4 py-10 text-center text-sm font-semibold text-app-muted shadow-card">
-              {noDataText}
+          {isLoading || !rows.length ? (
+            <div className="rounded-[20px] border border-app-border bg-app-surface px-4 py-10 text-center text-sm font-semibold text-app-muted shadow-card">
+              {isLoading ? loadingText : noDataText}
             </div>
           ) : (
             <ul className="flex flex-col gap-3">
@@ -141,16 +121,6 @@ export function DataTable<TData>({
       ) : null}
     </>
   );
-}
-
-const SKELETON_ROWS = [0, 1, 2, 3, 4];
-const SKELETON_WIDTHS = ["w-3/4", "w-1/2", "w-2/3", "w-5/12"];
-
-/** Placeholder bar widths: varied per row and column so the rows read as text, not a grid. */
-function skeletonWidth(columnId: string, columnIndex: number, rowIndex: number) {
-  if (columnId === "select") return "size-4";
-  if (columnId === "actions") return "ml-auto w-16";
-  return SKELETON_WIDTHS[(columnIndex + rowIndex) % SKELETON_WIDTHS.length];
 }
 
 function columnLabel<TData>(cell: Cell<TData, unknown>) {
@@ -169,7 +139,7 @@ function StackedRow<TData>({ cells, selected }: { cells: Cell<TData, unknown>[];
 
   return (
     <li
-      className="selectable-card rounded-app border border-app-border bg-app-surface p-4 text-sm shadow-card"
+      className="rounded-[20px] border border-app-border bg-app-surface p-4 text-sm shadow-card data-[state=selected]:border-primary/50 data-[state=selected]:bg-primary/5"
       data-state={selected ? "selected" : undefined}
     >
       {primary ? (

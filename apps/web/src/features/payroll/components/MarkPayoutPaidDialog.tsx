@@ -1,6 +1,5 @@
 "use client";
 
-import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useState } from "react";
 import { formatMoney } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
@@ -27,7 +26,6 @@ type Props = {
 
 /** §22's "Mark as Paid Manually" — no bank-transfer integration yet. */
 export function MarkPayoutPaidDialog({ payoutId, amountMinor, currency, onClose }: Props) {
-  const brandName = useBrandName();
   const markPaid = useMarkPayoutPaid();
 
   const [reference, setReference] = useState("");
@@ -43,7 +41,7 @@ export function MarkPayoutPaidDialog({ payoutId, amountMinor, currency, onClose 
         <DialogHeader>
           <DialogTitle>Mark payout paid — {formatMoney(amountMinor, currency)}</DialogTitle>
           <DialogDescription>
-            Records that this was paid outside {brandName}. There is no bank-transfer
+            Records that this was paid outside NexaChess. There is no bank-transfer
             integration yet — this is the paper trail.
           </DialogDescription>
         </DialogHeader>
@@ -88,7 +86,7 @@ export function MarkPayoutPaidDialog({ payoutId, amountMinor, currency, onClose 
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="neutral">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button

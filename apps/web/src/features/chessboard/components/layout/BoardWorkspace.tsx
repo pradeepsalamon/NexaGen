@@ -1,7 +1,6 @@
 import { Crown } from "lucide-react";
 import { SendPositionButton } from "@/features/assignments/components/SendPositionButton";
 import { useBoardStore } from "../../context/BoardProvider";
-import { BoardFrame } from "../board/BoardFrame";
 import { ChessgroundBoard } from "../board/ChessgroundBoard";
 import { DrawingToolbar } from "../toolbars/DrawingToolbar";
 import { IllegalMovesToggle } from "../toolbars/IllegalMovesToggle";
@@ -35,7 +34,7 @@ export function BoardWorkspace() {
             {/* Header row — keeps the clock above the board instead of floating over it */}
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 pt-3 md:px-8">
               <div className="flex items-center gap-2 text-sm font-semibold text-app-text">
-                <Crown className="size-4 text-accent-ink" />
+                <Crown className="size-4 text-secondary-ink" />
                 <span>Shared Board</span>
                 <SendPositionButton fen={fen} className="ml-1" />
               </div>
@@ -53,14 +52,15 @@ export function BoardWorkspace() {
             >
               <div className="absolute inset-0 m-auto flex flex-col items-center justify-center">
                 {/* The board itself, bounded by a square */}
-                <BoardFrame
+                <div
+                  className="overflow-hidden bg-app-soft shadow-card"
                   style={{
                     width: "min(100cqw - 2rem, 100cqh - 5rem)",
                     height: "min(100cqw - 2rem, 100cqh - 5rem)",
                   }}
                 >
                   <ChessgroundBoard />
-                </BoardFrame>
+                </div>
 
                 {/* Board Navigation Row */}
                 <div className="mt-4 flex w-full flex-wrap items-center justify-center gap-3">

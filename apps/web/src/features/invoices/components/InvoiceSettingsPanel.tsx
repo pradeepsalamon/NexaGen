@@ -10,6 +10,7 @@ import {
   stateCodeFromGstin,
   type InvoiceSettings
 } from "@nexa-chess/types";
+import { Info } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -56,10 +57,13 @@ export function InvoiceSettingsPanel() {
   return (
     <div className="space-y-4">
       {!data?.configured ? (
-        <Alert variant="info">
-          These are placeholder values taken from the server environment. Save
-          them once and invoices will carry your registered details.
-        </Alert>
+        <Card className="flex items-start gap-2 border-primary/40 bg-primary/[0.06] p-4">
+          <Info className="mt-0.5 size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
+          <p className="text-sm text-app-text">
+            These are placeholder values taken from the server environment. Save
+            them once and invoices will carry your registered details.
+          </p>
+        </Card>
       ) : null}
 
       <Card className="space-y-5 p-5 sm:p-6">
@@ -322,7 +326,7 @@ export function InvoiceSettingsPanel() {
         <Button
           disabled={update.isPending}
           onClick={() => data && setForm(data.settings)}
-          variant="neutral"
+          variant="outline"
         >
           Reset
         </Button>

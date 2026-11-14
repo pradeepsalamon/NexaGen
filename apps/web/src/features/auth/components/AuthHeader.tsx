@@ -1,18 +1,31 @@
-import type { ReactNode } from "react";
+import Link from "next/link";
 
 type AuthHeaderProps = {
+  actionHref: string;
+  actionLabel: string;
+  helperText: string;
   title: string;
-  description?: ReactNode;
+  rightContent?: React.ReactNode;
 };
 
-/** The auth card's heading: the page's only `h1`. */
-export function AuthHeader({ title, description }: AuthHeaderProps) {
+export function AuthHeader({
+  actionHref,
+  actionLabel,
+  helperText,
+  title,
+  rightContent
+}: AuthHeaderProps) {
   return (
-    <div className="mb-6 grid gap-1.5">
-      <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-        {title}
-      </h1>
-      {description ? <p className="text-sm text-app-muted">{description}</p> : null}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 className="mb-1 text-2xl font-extrabold leading-tight text-app-text sm:whitespace-nowrap sm:text-3xl">
+          {title}
+        </h1>
+        <p className="m-0 text-sm leading-6 text-app-muted">
+          {helperText} <Link className="font-semibold text-primary-ink hover:underline" href={actionHref}>{actionLabel}</Link>
+        </p>
+      </div>
+      {rightContent && <div className="shrink-0 self-center sm:self-auto">{rightContent}</div>}
     </div>
   );
 }

@@ -9,8 +9,6 @@ import { LiveClassModerationService } from "./live-class-moderation.service";
 import { LiveClassPullService } from "./live-class-pull.service";
 import { LiveClassRecordingService } from "./live-class-recording.service";
 import { LiveClassScreenShareService } from "./live-class-screen-share.service";
-import { LiveClassTranscriptController } from "./live-class-transcript.controller";
-import { LiveClassTranscriptService } from "./live-class-transcript.service";
 import { LiveClassSpectateController } from "./live-class-spectate.controller";
 import { LiveClassSpectateService } from "./live-class-spectate.service";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
@@ -28,28 +26,23 @@ import { AnalyticsEventModule } from "../analytics/analytics-event.module";
 import { WhatsAppModule } from "../whatsapp/whatsapp.module";
 import { MailModule } from "../mail/mail.module";
 import { GameLibraryModule } from "../game-library/game-library.module";
-import { ReferralModule } from "../referral/referral.module";
-import { TrashModule } from "../trash/trash.module";
 
 @Module({
   imports: [
     PrismaModule,
-    TrashModule,
     JwtModule.register({}),
     forwardRef(() => AttendanceModule),
     BackupModule,
     AnalyticsEventModule,
     WhatsAppModule,
     MailModule,
-    GameLibraryModule,
-    ReferralModule
+    GameLibraryModule
   ],
   controllers: [
     LiveClassController,
     LiveClassSettingsController,
     LiveClassPresetController,
-    LiveClassSpectateController,
-    LiveClassTranscriptController
+    LiveClassSpectateController
   ],
   providers: [
     LiveClassService,
@@ -62,7 +55,6 @@ import { TrashModule } from "../trash/trash.module";
     LiveClassRecordingService,
     LiveClassScreenShareService,
     LiveClassSpectateService,
-    LiveClassTranscriptService,
     LiveClassWaitingRoomService,
     LiveClassSettingsService,
     LiveClassPresetService,

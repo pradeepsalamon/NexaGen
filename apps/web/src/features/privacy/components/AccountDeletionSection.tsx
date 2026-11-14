@@ -49,7 +49,7 @@ export function AccountDeletionSection() {
       className="mx-auto mt-5 max-w-4xl rounded-panel border border-app-border bg-app-surface p-5 shadow-card"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1 basis-64">
+        <div className="max-w-2xl">
           <h2 className="text-lg font-bold text-app-text" id="account-deletion-heading">
             Delete account
           </h2>
@@ -59,10 +59,9 @@ export function AccountDeletionSection() {
           </p>
         </div>
         {isLoading ? (
-          <Skeleton className="ml-auto h-10 w-40 shrink-0" />
+          <Skeleton className="h-10 w-40" />
         ) : pending ? (
           <Button
-            className="ml-auto shrink-0"
             disabled={withdraw.isPending}
             onClick={() =>
               withdraw.mutate(undefined, {
@@ -75,7 +74,7 @@ export function AccountDeletionSection() {
             Withdraw request
           </Button>
         ) : (
-          <Button className="ml-auto shrink-0" onClick={() => setOpen(true)} variant="destructive">
+          <Button onClick={() => setOpen(true)} variant="destructive">
             Delete my account
           </Button>
         )}

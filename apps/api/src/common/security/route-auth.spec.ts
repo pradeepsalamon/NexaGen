@@ -12,26 +12,10 @@ const PUBLIC_ROUTES = new Set([
   "auth/auth.controller.ts#forgotPassword",
   "auth/auth.controller.ts#resetPassword",
   "auth/auth.controller.ts#verifyEmail",
-  // The link in a notification email: the random token is the credential.
-  "email-admin/email-preferences.controller.ts#unsubscribe",
-  // Public by host: the academy's look before sign-in, and the domain check echo (§F, §H).
-  "branding/branding.controller.ts#publicConfig",
-  // Browsers post CSP violation reports with no session; nothing is stored.
-  "csp-report/csp-report.controller.ts#report",
   "health/health.controller.ts#live",
   "health/health.controller.ts#ready",
   "live-class/live-class.controller.ts#getDemoInfo",
-  "live-class/live-class.controller.ts#joinDemoClass",
-  // Anonymous tournament spectating (docs/TOURNAMENTS.md §4.1): a 404 unless the
-  // academy allows it; only the public projection (no user ids or personal data).
-  "tournament/tournament-public.controller.ts#commentary",
-  "tournament/tournament-public.controller.ts#game",
-  "tournament/tournament-public.controller.ts#get",
-  "tournament/tournament-public.controller.ts#list",
-  "tournament/tournament-public.controller.ts#live",
-  "tournament/tournament-public.controller.ts#realtimeToken",
-  "tournament/tournament-public.controller.ts#standings",
-  "tournament/tournament-public.controller.ts#verifyCertificate"
+  "live-class/live-class.controller.ts#joinDemoClass"
 ]);
 
 const SRC = path.resolve(__dirname, "../..");

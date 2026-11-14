@@ -2,28 +2,27 @@
 // Canvas can't read Tailwind classes, so colours come from the theme's CSS
 // variables at draw time — the export matches the brand in either theme.
 
-export function themeColor(name: string): string {
-  if (typeof window === "undefined") return "transparent";
+export function themeColor(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
   const value = getComputedStyle(document.documentElement)
     .getPropertyValue(name)
     .trim();
-  if (!value) return "transparent";
+  if (!value) return fallback;
   // `--rgb-*` tokens are bare "r g b" triples.
   return /^\d+\s+\d+\s+\d+$/.test(value) ? `rgb(${value})` : value;
 }
 
 export function brandColors() {
   return {
-    accent: themeColor("--rgb-success"),
-    border: themeColor("--rgb-border"),
-    muted: themeColor("--rgb-text-muted"),
-    /** Text on a `primary` fill: white in light, navy in dark (primary is pale there). */
-    onPrimary: themeColor("--rgb-on-primary"),
-    primary: themeColor("--rgb-primary"),
-    secondary: themeColor("--rgb-accent"),
-    soft: themeColor("--rgb-surface-soft"),
-    surface: themeColor("--rgb-surface"),
-    text: themeColor("--rgb-text"),
+    accent: themeColor("--rgb-accent", "rgb(31 157 120)"),
+    border: themeColor("--rgb-border", "rgb(221 225 240)"),
+    muted: themeColor("--rgb-text-muted", "rgb(94 103 132)"),
+    primary: themeColor("--rgb-primary", "rgb(36 71 160)"),
+    secondary: themeColor("--rgb-secondary", "rgb(244 182 63)"),
+    soft: themeColor("--rgb-surface-soft", "rgb(238 241 250)"),
+    surface: themeColor("--rgb-surface", "rgb(255 255 255)"),
+    text: themeColor("--rgb-text", "rgb(23 32 73)"),
+    warm: themeColor("--rgb-warm", "rgb(224 104 90)"),
   };
 }
 

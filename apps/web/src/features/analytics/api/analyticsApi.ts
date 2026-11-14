@@ -25,7 +25,7 @@ import type {
 } from "@nexa-chess/types";
 import { API_ROUTES } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
-import { apiBaseUrl } from "@/lib/apiBase";
+import { getWebEnv } from "@nexa-chess/config/web";
 
 /** Serialises the analytics range/filter query into a `?a=b` string. */
 export function analyticsQueryString(
@@ -101,6 +101,8 @@ export const analyticsApi = {
 
 /** Absolute URL for a CSV export, for an anchor-click download. */
 export function analyticsExportUrl(report: string, query?: Q): string {
-  const base = apiBaseUrl();
+  const base = getWebEnv({
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
+  }).NEXT_PUBLIC_API_URL;
   return base + API_ROUTES.analytics.export(report) + analyticsQueryString(query);
 }

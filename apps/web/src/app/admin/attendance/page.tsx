@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ChevronRight, ClipboardCheck, Download, Presentation, Radio, Timer, Users, XCircle, type LucideIcon } from "lucide-react";
+import { CheckCircle2, ChevronRight, ClipboardCheck, Download, Loader2, Presentation, Radio, Timer, Users, XCircle, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { SectionCard } from "@/components/ui/SectionCard";
@@ -10,7 +10,7 @@ import { StatTile } from "@/components/ui/StatTile";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { apiFetch } from "@/lib/api";
 import { API_ROUTES, type AdminAttendanceDashboard } from "@nexa-chess/types";
-import { apiUrl } from "@/lib/apiBase";
+import { getWebEnv } from "@nexa-chess/config/web";
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { useTableSort } from "@/hooks/useTableSort";
@@ -19,8 +19,10 @@ import { pageTitle } from "@/lib/pageTitles";
 import type { Tone } from "@/lib/tone";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDate } from "@/lib/datetime";
-import { Spinner } from "@/components/ui/Spinner";
 
+const attendanceExportUrl =
+  getWebEnv({ NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL })
+    .NEXT_PUBLIC_API_URL + API_ROUTES.attendance.adminExport;
 
 const MORE_REPORTS = [
   {
@@ -42,9 +44,6 @@ export default function AdminAttendanceDashboardPage() {
   const [data, setData] = useState<AdminAttendanceDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
-  // After hydration: an academy's own address downloads through its `/api` (lib/apiBase.ts).
-  const [attendanceExportUrl, setAttendanceExportUrl] = useState<string>(API_ROUTES.attendance.adminExport);
-  useEffect(() => setAttendanceExportUrl(apiUrl(API_ROUTES.attendance.adminExport)), []);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -77,7 +76,7 @@ export default function AdminAttendanceDashboardPage() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center min-h-[50dvh]">
-        <Spinner aria-label="Loading attendance reports" className="size-8 text-primary-ink" />
+        <Loader2 aria-label="Loading attendance reports" className="size-8 animate-spin text-primary-ink" />
       </div>
     );
   }
@@ -122,7 +121,7 @@ export default function AdminAttendanceDashboardPage() {
       />
 
       <section aria-labelledby="attendance-today" className="space-y-4">
-        <h2 className="text-lg font-bold text-app-text" id="attendance-today">Today</h2>
+        <h2 className="text-lg font-extrabold text-app-text" id="attendance-today">Today</h2>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
           {todayTiles.map((tile) => (
             <StatTile icon={tile.icon} key={tile.label} label={tile.label} tone={tile.tone} value={String(tile.value)} />
@@ -158,7 +157,7 @@ export default function AdminAttendanceDashboardPage() {
       </SectionCard>
 
       <section aria-labelledby="attendance-more" className="space-y-4">
-        <h2 className="text-lg font-bold text-app-text" id="attendance-more">More reports</h2>
+        <h2 className="text-lg font-extrabold text-app-text" id="attendance-more">More reports</h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {MORE_REPORTS.map(({ description, href, icon: Icon, title }) => (
             <Link

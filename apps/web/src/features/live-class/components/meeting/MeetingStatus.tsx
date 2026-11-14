@@ -11,18 +11,31 @@ import { cn } from "@/lib/utils";
 import { useMeetingTimer } from "../../hooks/useMeetingTimer";
 import { useRecordingState } from "../../hooks/useRecordingState";
 import { Z, useReducedMotion } from "../../lib/meetingUi";
-import { RefreshCw, Timer, TriangleAlert } from "lucide-react";
-import { StatusChip } from "../room-ui/StatusChip";
+import { Timer, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 
-// ─── Live + connection chips (top bar) ───────────────────────
+// ─── Connection quality → presentation ───────────────────────
 
-type ConnState = "good" | "weak" | "reconnecting" | "offline" | "measuring";
+type ConnState = "excellent" | "good" | "weak" | "reconnecting" | "offline";
 
-function useConnectionSummary(): { state: ConnState; label: string } {
+interface ConnectionSummary {
+  state: ConnState;
+  /** Pill text. Reads "Live" whenever we are actually in the room. */
+  label: string;
+  /** Human name for the current network strength, shown in the tooltip. */
+  quality: string;
+  /** Dot + text + chrome colours, so the pill itself carries the signal. */
+  dot: string;
+  text: string;
+  ring: string;
+  /** Reconnecting is the only state worth animating. */
+  pulse: boolean;
+}
+
+function useConnectionSummary(): ConnectionSummary {
   const connectionState = useConnectionState();
   const { localParticipant } = useLocalParticipant();
   const { quality } = useConnectionQualityIndicator({ participant: localParticipant });
@@ -32,49 +45,102 @@ function useConnectionSummary(): { state: ConnState; label: string } {
     connectionState === ConnectionState.SignalReconnecting ||
     connectionState === ConnectionState.Connecting
   ) {
-    return { state: "reconnecting", label: "Reconnecting…" };
+    return {
+      state: "reconnecting",
+      label: "Reconnecting",
+      quality: "Reconnecting",
+      dot: "bg-warning",
+      text: "text-warning-ink",
+      ring: "border-warning/40 bg-warning/10",
+      pulse: true,
+    };
   }
-  if (connectionState === ConnectionState.Disconnected) return { state: "offline", label: "Offline" };
-  if (quality === ConnectionQuality.Poor || quality === ConnectionQuality.Lost) {
-    return { state: "weak", label: "Weak connection" };
+  if (connectionState === ConnectionState.Disconnected) {
+    return {
+      state: "offline",
+      label: "Offline",
+      quality: "Offline",
+      dot: "bg-app-danger",
+      text: "text-app-danger-ink",
+      ring: "border-app-danger/40 bg-app-danger/10",
+      pulse: false,
+    };
   }
-  if (quality === ConnectionQuality.Unknown) return { state: "measuring", label: "Measuring connection" };
-  return { state: "good", label: quality === ConnectionQuality.Excellent ? "Good connection" : "Fair connection" };
-}
-
-/** Red-dot Live chip, shown while this tab is in the room. */
-export function LiveChip() {
-  const connectionState = useConnectionState();
-  if (connectionState !== ConnectionState.Connected && connectionState !== ConnectionState.Reconnecting && connectionState !== ConnectionState.SignalReconnecting) return null;
-  return (
-    <StatusChip tone="live" role="status" aria-label="Class is live">
-      Live
-    </StatusChip>
-  );
+  if (quality === ConnectionQuality.Poor) {
+    return {
+      state: "weak",
+      label: "Live",
+      quality: "Weak network",
+      dot: "bg-app-danger",
+      text: "text-app-danger-ink",
+      ring: "border-app-danger/40 bg-app-danger/10",
+      pulse: false,
+    };
+  }
+  if (quality === ConnectionQuality.Good) {
+    return {
+      state: "good",
+      label: "Live",
+      quality: "Good network",
+      dot: "bg-warning",
+      text: "text-warning-ink",
+      ring: "border-warning/40 bg-warning/10",
+      pulse: false,
+    };
+  }
+  if (quality === ConnectionQuality.Unknown) {
+    return {
+      state: "good",
+      label: "Live",
+      quality: "Measuring…",
+      dot: "bg-app-muted",
+      text: "text-app-muted",
+      ring: "border-app-border bg-app-surface",
+      pulse: false,
+    };
+  }
+  return {
+    state: "excellent",
+    label: "Live",
+    quality: "Excellent network",
+    dot: "bg-success",
+    text: "text-success-ink",
+    ring: "border-success/40 bg-success/10",
+    pulse: false,
+  };
 }
 
 /**
- * Connection chip: good (green), weak (amber), reconnecting (amber, the only
- * pulsing state). On phones a good connection shows just its dot, or nothing
- * with `onlyProblemsBelowMd` (a crowded bar), so weak/reconnecting/offline
- * always stay visible.
+ * The classroom's single "are we live, and is the network holding up?" chip.
+ * The word stays "Live" while connected — the colour is what carries network
+ * strength (green excellent / amber good / red weak), with the precise state
+ * spelled out in the tooltip. Full label on `sm+`, dot only below.
  */
-export function ConnectionChip({ className, onlyProblemsBelowMd = false }: { className?: string; onlyProblemsBelowMd?: boolean }) {
-  const { state, label } = useConnectionSummary();
-  const fine = state === "good" || state === "measuring";
-  const tone = state === "good" ? "success" : state === "measuring" ? "neutral" : "warning";
+export function ConnectionPill({ className }: { className?: string }) {
+  const { dot, label, pulse, quality, ring, text } = useConnectionSummary();
+
   return (
-    <StatusChip
-      tone={tone}
-      role="status"
-      aria-live="polite"
-      hideLabelBelowSm={fine}
-      pulse={state === "reconnecting"}
-      icon={state === "reconnecting" ? <RefreshCw aria-hidden="true" className="size-3.5 motion-safe:animate-spin" strokeWidth={2} /> : undefined}
-      className={cn(onlyProblemsBelowMd && fine && "max-md:hidden", className)}
-    >
-      {label}
-    </StatusChip>
+    <SimpleTooltip label={quality} side="bottom">
+      <div
+        className={cn(
+          "flex h-9 items-center gap-1.5 rounded-full border px-2 text-xs font-bold sm:px-2.5",
+          ring,
+          text,
+          className,
+        )}
+        role="status"
+        aria-label={quality}
+      >
+        <span
+          className={cn(
+            "size-2 shrink-0 rounded-full",
+            dot,
+            pulse && "motion-safe:animate-pulse",
+          )}
+        />
+        <span className="hidden sm:inline">{label}</span>
+      </div>
+    </SimpleTooltip>
   );
 }
 
@@ -134,8 +200,8 @@ export function NetworkQualityIndicator({ participant, className }: NetworkQuali
     quality === ConnectionQuality.Poor
       ? "bg-warning"
       : quality === ConnectionQuality.Good
-        ? "bg-on-scrim/70"
-        : "bg-on-scrim";
+        ? "bg-white/70"
+        : "bg-white";
 
   const qualityLabel = isUnknown ? "Calculating…" : quality;
 
@@ -151,7 +217,7 @@ export function NetworkQualityIndicator({ participant, className }: NetworkQuali
             key={level}
             className={cn(
               "w-[3px] rounded-full transition-colors",
-              level <= bars ? color : "bg-on-scrim/10",
+              level <= bars ? color : "bg-white/10",
               level === 1 ? "h-1.5" : level === 2 ? "h-2.5" : "h-3.5",
             )}
           />
@@ -201,37 +267,41 @@ export function TimerBadge({
 
   if (!isRunning) return null;
 
-  // Neutral while there is time; amber for the last five minutes and over time (red is for Live and destructive actions only).
-  const late = mode === "down" && (isOvertime || remainingSeconds <= 300);
-  const overBy = isOvertime ? formatted.replace(/^[-+]/, "") : null;
-  const text = mode === "up" ? formatted : isOvertime ? `Over by ${overBy}` : formatted;
-  const suffix = mode === "down" && !isOvertime ? " left" : "";
+  let colorClass = "text-app-muted border-app-border hover:bg-app-soft";
+  let isWarning = false;
+
+  if (mode === "down") {
+    if (isOvertime || remainingSeconds <= 60) {
+      colorClass = "text-app-danger-ink border-app-danger bg-app-danger/10 hover:bg-app-danger/20";
+      isWarning = true;
+    } else if (remainingSeconds <= 300) {
+      colorClass = "text-warning-ink border-warning bg-warning/10 hover:bg-warning/20";
+      isWarning = true;
+    } else {
+      colorClass = "text-primary-ink border-primary bg-primary/10 hover:bg-primary/20";
+    }
+  }
 
   const tooltipText =
     mode === "up"
-      ? "Time since the class started. Select to show time left"
+      ? "Elapsed time — tap to show time remaining"
       : isOvertime
-        ? "Past the scheduled end. Select to show elapsed time"
-        : "Time left. Select to show elapsed time";
+        ? "Overtime — tap to show elapsed time"
+        : "Time remaining — tap to show elapsed time";
 
   return (
     <SimpleTooltip label={tooltipText} side="bottom">
       <button
-        type="button"
         onClick={toggleMode}
         className={cn(
-          "inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-semibold tabular-nums transition-colors",
-          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
-          late ? "bg-warning-soft text-warning-ink" : "bg-app-soft text-app-text hover:bg-app-border",
+          "flex h-9 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold tabular-nums transition-colors",
+          colorClass,
           className,
         )}
-        aria-label={mode === "up" ? `Elapsed time ${formatted}` : isOvertime ? `Class is over time by ${overBy}` : `${formatted} left in class`}
+        aria-label={`Meeting duration: ${formatted}`}
       >
-        {late ? <TriangleAlert aria-hidden="true" className="size-3.5" strokeWidth={2} /> : <Timer aria-hidden="true" className="size-3.5" strokeWidth={2} />}
-        <span>
-          {text}
-          {suffix ? <span className="hidden sm:inline">{suffix}</span> : null}
-        </span>
+        {isWarning ? <TriangleAlert className="size-3.5" /> : <Timer className="size-3.5" />}
+        <span>{formatted}</span>
       </button>
     </SimpleTooltip>
   );
@@ -252,8 +322,16 @@ export function RecordingBadge({
   if (!isRecording) return null;
 
   return (
-    <StatusChip tone="recording" role="status" aria-label="Recording in progress" hideLabelBelowSm className={className}>
-      Recording
-    </StatusChip>
+    <span
+      className={cn(
+        "flex items-center gap-1.5 rounded-full bg-app-danger/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-app-danger-ink",
+        className,
+      )}
+      role="status"
+      aria-label="Recording in progress"
+    >
+      <span className="size-1.5 rounded-full bg-app-danger motion-safe:animate-pulse" />
+      Rec
+    </span>
   );
 }

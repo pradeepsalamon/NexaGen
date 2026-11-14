@@ -14,9 +14,9 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       intro="What we collect about students, parents and coaches, who we share it with, and the choices you have."
-      other={{ href: "/terms", label: "Terms of service" }}
+      other={{ href: "/terms", label: "Terms of Service" }}
       sections={PRIVACY_SECTIONS}
-      title="Privacy policy"
+      title="Privacy Policy"
     />
   );
 }

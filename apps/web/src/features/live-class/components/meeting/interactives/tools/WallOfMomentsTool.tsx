@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
-import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useToast } from "@/providers/ToastProvider";
 import {
   useClassroomTool,
@@ -53,7 +52,6 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
   const roster = useToolRoster(classId, isManager);
   const leaderboard = useClassLeaderboard(classId, isManager);
   const toast = useToast();
-  const brandName = useBrandName();
 
   const [studentId, setStudentId] = useState("");
   const [preset, setPreset] = useState("0");
@@ -104,7 +102,7 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
   };
 
   const exportImage = (mode: "download" | "print") => {
-    const canvas = renderWall(state, brandName);
+    const canvas = renderWall(state);
     if (mode === "print") {
       printImage(canvas.toDataURL("image/png"), state.title);
       return;
@@ -212,13 +210,13 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
         </CoachRunsThis>
       )}
 
-      <div className="rounded-app bg-primary p-4 text-on-primary">
+      <div className="rounded-app bg-primary p-4 text-white">
         <p className="flex items-center gap-2 text-lg font-extrabold">
           <Trophy aria-hidden="true" className="size-5" strokeWidth={2.5} />
           {state.title}
         </p>
         {state.moments.length === 0 ? (
-          <p className="mt-2 text-sm text-on-primary/80">
+          <p className="mt-2 text-sm text-white/80">
             No moments yet — great play earns a spot here.
           </p>
         ) : (
@@ -238,7 +236,7 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
                   <SimpleTooltip label="Remove">
                     <button
                       aria-label={`Remove ${m.title} for ${m.studentName}`}
-                      className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-control bg-app-danger text-on-danger transition-colors hover:bg-app-danger/85"
+                      className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-app-danger text-white transition-colors hover:bg-app-danger/85"
                       onClick={() =>
                         save.mutate({
                           ...state,
@@ -278,7 +276,7 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
 }
 
 /** Draws the wall as a 1600px-wide poster. */
-function renderWall(state: WallOfMomentsState, brandName: string): HTMLCanvasElement {
+function renderWall(state: WallOfMomentsState): HTMLCanvasElement {
   const c = brandColors();
   const W = 1600;
   const cols = state.moments.length > 4 ? 3 : 2;
@@ -300,14 +298,14 @@ function renderWall(state: WallOfMomentsState, brandName: string): HTMLCanvasEle
   ctx.fillStyle = c.secondary;
   ctx.fillRect(0, 0, W, 14);
 
-  ctx.fillStyle = c.onPrimary;
+  ctx.fillStyle = "white";
   ctx.font = bodyFont(800, 72);
   ctx.textBaseline = "top";
   ctx.fillText(`🏆 ${state.title}`, pad, 70);
   ctx.font = bodyFont(600, 28);
   ctx.globalAlpha = 0.8;
   ctx.fillText(
-    `${state.moments.length} moment${state.moments.length === 1 ? "" : "s"} · ${brandName}`,
+    `${state.moments.length} moment${state.moments.length === 1 ? "" : "s"} · Nexa Chess`,
     pad,
     168,
   );
@@ -344,10 +342,10 @@ function renderWall(state: WallOfMomentsState, brandName: string): HTMLCanvasEle
     }
   });
 
-  ctx.fillStyle = c.onPrimary;
+  ctx.fillStyle = "white";
   ctx.globalAlpha = 0.7;
   ctx.font = bodyFont(600, 24);
-  ctx.fillText(brandName, pad, H - 64);
+  ctx.fillText("NexaGen · Nexa Chess Academy", pad, H - 64);
   ctx.globalAlpha = 1;
   return canvas;
 }

@@ -19,10 +19,9 @@ import {
   sqlTimestamp,
   type AnalyticsContext
 } from "../analytics-support";
-import { tenantFilter } from "../../tenancy/tenant-sql";
 
 const ACQUISITION_LABELS: Record<string, string> = {
-  WEBSITE: "Our website",
+  WEBSITE: "NexaChess website",
   GOOGLE: "Google / Search",
   INSTAGRAM: "Instagram",
   FACEBOOK: "Facebook",
@@ -61,7 +60,7 @@ export class UsersAnalyticsSection {
     const rows = await this.prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
       SELECT count(DISTINCT u.id)::bigint AS count
       FROM "users" u
-      WHERE ${tenantFilter("u")} AND u."isDeleted" = false
+      WHERE u."isDeleted" = false
         AND (
           (u."lastActiveAt" >= ${sqlTimestamp(start)} AND u."lastActiveAt" < ${sqlTimestamp(end)})
           OR EXISTS (
@@ -225,7 +224,7 @@ export class UsersAnalyticsSection {
                "acquisitionSource"::text AS source,
                count(*)::bigint AS count
         FROM "users"
-        WHERE ${tenantFilter()} AND "isDeleted" = false
+        WHERE "isDeleted" = false
           AND "createdAt" >= (now() - interval '6 months')
         GROUP BY 1, 2
         ORDER BY 1
@@ -321,7 +320,7 @@ export class UsersAnalyticsSection {
       SELECT count(DISTINCT e."userId")::bigint AS count
       FROM "analytics_events" e
       JOIN "users" u ON u.id = e."userId"
-      WHERE ${tenantFilter("e")} AND e."occurredAt" >= ${sqlTimestamp(range.start)} AND e."occurredAt" < ${sqlTimestamp(range.end)}
+      WHERE e."occurredAt" >= ${sqlTimestamp(range.start)} AND e."occurredAt" < ${sqlTimestamp(range.end)}
         AND u."createdAt" >= ${sqlTimestamp(range.start)} AND u."createdAt" < ${sqlTimestamp(range.end)}
     `);
     const newActiveCount = Math.min(Number(newActive[0]?.count ?? 0), activeInRange);
@@ -365,7 +364,7 @@ export class UsersAnalyticsSection {
     const rows = await this.prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
       SELECT count(DISTINCT "userId")::bigint AS count
       FROM "analytics_events"
-      WHERE ${tenantFilter()} AND "occurredAt" >= ${sqlTimestamp(start)} AND "occurredAt" < ${sqlTimestamp(end)}
+      WHERE "occurredAt" >= ${sqlTimestamp(start)} AND "occurredAt" < ${sqlTimestamp(end)}
     `);
     return Number(rows[0]?.count ?? 0);
   }

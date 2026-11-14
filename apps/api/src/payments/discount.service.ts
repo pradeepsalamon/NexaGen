@@ -1,4 +1,3 @@
-import { randomBytes } from "crypto";
 import {
   BadRequestException,
   ConflictException,
@@ -23,14 +22,6 @@ import {
   type PrismaTransactionClient
 } from "../prisma/prisma.service";
 import { isUniqueViolation } from "./payments.util";
-import { requireTenantId } from "../tenancy/tenant-sql";
-
-const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-
-function randomCodeSuffix(length: number): string {
-  const bytes = randomBytes(length);
-  return Array.from(bytes, (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join("");
-}
 
 /** A code either applies, with a computed amount, or it does not, with a reason. */
 export type DiscountResolution =
@@ -74,14 +65,9 @@ export class DiscountService {
     const code = input.code.trim().toUpperCase();
     if (!code) return this.reject("NOT_FOUND");
 
-    const discount = await this.prisma.discount.findUnique({ where: { tenantId_code: { code, tenantId: requireTenantId("discount") } } });
+    const discount = await this.prisma.discount.findUnique({ where: { code } });
     if (!discount) return this.reject("NOT_FOUND");
     if (!discount.isActive) return this.reject("INACTIVE");
-    // A personal code (referral credits) exists for one account only; to anyone
-    // else it does not exist at all.
-    if (discount.restrictedToUserId && discount.restrictedToUserId !== input.userId) {
-      return this.reject("NOT_FOUND");
-    }
 
     const now = new Date();
     if (discount.startsAt && discount.startsAt > now) {
@@ -195,150 +181,11 @@ export class DiscountService {
     }
   }
 
-  // ── Personal codes (referral credits → fees, docs/REFERRALS.md) ──
-
-  /**
-   * A single-use FIXED code only `userId` can apply. Referral credits pay fees
-   * through this, so the price still changes by a discount and nothing else.
-   * Runs inside the caller's transaction, beside the ledger debit.
-   */
-  async createPersonalCode(
-    tx: PrismaTransactionClient,
-    input: { userId: string; amountMinor: number; currency: string; name: string; createdById: string }
-  ): Promise<Discount> {
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const code = `REF${randomCodeSuffix(8)}`;
-      try {
-        return await tx.discount.create({
-          data: {
-            code,
-            createdById: input.createdById,
-            currency: input.currency.toUpperCase(),
-            description: "Referral credits. One use, by this account only.",
-            maxPerUser: 1,
-            maxRedemptions: 1,
-            name: input.name,
-            restrictedToUserId: input.userId,
-            type: "FIXED",
-            value: input.amountMinor
-          }
-        });
-      } catch (error) {
-        if (!isUniqueViolation(error)) throw error;
-      }
-    }
-    throw new ConflictException("Could not create a payment code. Try again.");
-  }
-
-  /**
-   * A one-use percentage code only `userId` may apply (a referral welcome
-   * benefit). Same personal-code rules as `createPersonalCode`.
-   */
-  async createPersonalPercentCode(
-    tx: PrismaTransactionClient,
-    input: {
-      userId: string;
-      percent: number;
-      maxDiscountMinor: number | null;
-      endsAt: Date | null;
-      name: string;
-      createdById: string | null;
-    }
-  ): Promise<Discount> {
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const code = `WELCOME${randomCodeSuffix(6)}`;
-      try {
-        return await tx.discount.create({
-          data: {
-            code,
-            createdById: input.createdById,
-            description: "Referral welcome benefit. One use, by this account only.",
-            endsAt: input.endsAt,
-            maxDiscountAmount: input.maxDiscountMinor,
-            maxPerUser: 1,
-            maxRedemptions: 1,
-            name: input.name,
-            restrictedToUserId: input.userId,
-            type: "PERCENTAGE",
-            value: input.percent
-          }
-        });
-      } catch (error) {
-        if (!isUniqueViolation(error)) throw error;
-      }
-    }
-    throw new ConflictException("Could not create a discount code. Try again.");
-  }
-
-  /**
-   * A one-use personal code a student bought with referral points
-   * (docs/REFERRALS.md § Vouchers): a percentage (optional cap) or a fixed
-   * amount, with an optional minimum fee, plan scope and expiry. Same
-   * personal-code rules as `createPersonalCode`.
-   */
-  async createPersonalVoucherCode(
-    tx: PrismaTransactionClient,
-    input: {
-      userId: string;
-      type: "PERCENTAGE" | "FIXED";
-      value: number;
-      currency: string;
-      maxDiscountMinor: number | null;
-      minOrderMinor: number | null;
-      planIds: string[];
-      endsAt: Date | null;
-      name: string;
-      createdById: string | null;
-    }
-  ): Promise<Discount> {
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const code = `RWD${randomCodeSuffix(8)}`;
-      try {
-        return await tx.discount.create({
-          data: {
-            code,
-            createdById: input.createdById,
-            // A fixed amount is only meaningful in its own currency.
-            currency: input.type === "FIXED" ? input.currency.toUpperCase() : null,
-            description: "Referral reward voucher. One use, by this account only.",
-            endsAt: input.endsAt,
-            maxDiscountAmount: input.type === "PERCENTAGE" ? input.maxDiscountMinor : null,
-            maxPerUser: 1,
-            maxRedemptions: 1,
-            minOrderAmount: input.minOrderMinor,
-            name: input.name,
-            planIds: input.planIds,
-            restrictedToUserId: input.userId,
-            type: input.type,
-            value: input.value
-          }
-        });
-      } catch (error) {
-        if (!isUniqueViolation(error)) throw error;
-      }
-    }
-    throw new ConflictException("Could not create a voucher code. Try again.");
-  }
-
-  /**
-   * Switches off an unused personal code. False when it was already used or
-   * switched off (status-filtered claim, so a capture racing it wins).
-   */
-  async deactivateUnusedPersonalCode(tx: PrismaTransactionClient, id: string, userId: string): Promise<boolean> {
-    const { count } = await tx.discount.updateMany({
-      data: { isActive: false },
-      where: { id, isActive: true, redemptionCount: 0, restrictedToUserId: userId }
-    });
-    return count === 1;
-  }
-
   // ── Admin CRUD ──
 
   async list(): Promise<DiscountItem[]> {
-    // Personal referral-credit codes belong to the referral wallet, not here.
     const discounts = await this.prisma.discount.findMany({
-      orderBy: { createdAt: "desc" },
-      where: { restrictedToUserId: null }
+      orderBy: { createdAt: "desc" }
     });
 
     // Resolve scope names in two queries rather than N, so the table reads in
@@ -403,7 +250,7 @@ export class DiscountService {
 
   async update(id: string, dto: UpdateDiscountRequest): Promise<DiscountItem> {
     const existing = await this.prisma.discount.findUnique({ where: { id } });
-    if (!existing || existing.restrictedToUserId) throw new NotFoundException("Discount not found.");
+    if (!existing) throw new NotFoundException("Discount not found.");
 
     this.assertCoherent({
       type: dto.type ?? existing.type,
@@ -452,7 +299,7 @@ export class DiscountService {
       where: { id },
       include: { _count: { select: { redemptions: true, orders: true } } }
     });
-    if (!discount || discount.restrictedToUserId) throw new NotFoundException("Discount not found.");
+    if (!discount) throw new NotFoundException("Discount not found.");
 
     if (discount._count.redemptions > 0 || discount._count.orders > 0) {
       await this.prisma.discount.update({

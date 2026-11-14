@@ -41,7 +41,7 @@ export function FocusOverlay({
             <TileModerationControls participant={trackRef.participant} name={name} screenShare={isScreenShare} />
             <button
               type="button"
-              className="flex items-center gap-2 rounded-control border border-app-border bg-app-surface/50 px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface sm:px-4"
+              className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface/50 px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface sm:px-4"
               onClick={onClose}
               aria-label="Exit full screen"
             >
@@ -52,7 +52,7 @@ export function FocusOverlay({
         </div>
 
         {/* Video container */}
-        <div className="min-h-0 flex-1 overflow-hidden rounded-app border border-app-border bg-scrim shadow-soft">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-app border border-app-border bg-black shadow-soft">
           <ParticipantTile
             trackRef={trackRef}
             className={cn(

@@ -1,8 +1,6 @@
 import { createRequire } from "node:module";
 import * as path from "node:path";
-import { Injectable, Optional } from "@nestjs/common";
-import { BrandingService } from "../branding/branding.service";
-import { ACADEMY_NAME } from "../messaging/messaging.format";
+import { Injectable } from "@nestjs/common";
 import {
   formatMoney,
   PAYOUT_STATUS_LABELS,
@@ -44,12 +42,8 @@ type PdfPrinterLike = {
 export class PayslipPdfService {
   private printer: PdfPrinterLike | null = null;
 
-  constructor(@Optional() private readonly branding?: BrandingService) {}
-
   async renderPayslip(payslip: PayslipDocument): Promise<Buffer> {
-    // The academy that issues it (its own name on another academy's payslips).
-    const issuer = this.branding ? await this.branding.nameFor() : ACADEMY_NAME;
-    return this.render(this.payslipDefinition(payslip, issuer));
+    return this.render(this.payslipDefinition(payslip));
   }
 
   private getPrinter(): PdfPrinterLike {
@@ -96,7 +90,7 @@ export class PayslipPdfService {
     });
   }
 
-  private payslipDefinition(payslip: PayslipDocument, issuer: string): Record<string, unknown> {
+  private payslipDefinition(payslip: PayslipDocument): Record<string, unknown> {
     const money = (minor: number) => formatMoney(minor, payslip.currency);
     const title = PAYSLIP_DOCUMENT_KIND_LABELS[payslip.documentKind].toUpperCase();
 
@@ -105,12 +99,12 @@ export class PayslipPdfService {
       pageMargins: [PAGE_MARGIN_X, 44, PAGE_MARGIN_X, 56],
       info: {
         title: payslip.documentNumber,
-        author: issuer,
+        author: "NexaChess",
         subject: `${title} ${payslip.documentNumber}`
       },
       defaultStyle: { font: "Roboto", fontSize: 9.5, color: INK, lineHeight: 1.25 },
       styles: PDF_STYLES,
-      footer: this.footer(issuer),
+      footer: this.footer(),
       content: [
         this.documentHeader(payslip, title),
         this.metaBlock(payslip),
@@ -410,14 +404,14 @@ export class PayslipPdfService {
     };
   }
 
-  private footer(issuer: string) {
+  private footer() {
     return (currentPage: number, pageCount: number) => ({
       margin: [PAGE_MARGIN_X, 10, PAGE_MARGIN_X, 0],
       stack: [
         { canvas: [rule(0, 0, 511)] },
         {
           columns: [
-            { width: "*", text: issuer, style: "footer" },
+            { width: "*", text: "NexaChess", style: "footer" },
             {
               width: "auto",
               text: `Page ${currentPage} of ${pageCount}`,

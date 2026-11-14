@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useBoardStore } from "../../context/BoardProvider";
-import { formatNumber } from "@/features/analytics/lib/format";
-import { Spinner } from "@/components/ui/Spinner";
+import { Loader2 } from "lucide-react";
 
 interface MasterbaseMove {
   san: string;
@@ -87,7 +86,7 @@ export function MasterbasePanel() {
   if (isLoading && !data) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-sm text-app-muted p-4 text-center">
-        <Spinner className="mb-4 size-6" />
+        <Loader2 className="animate-spin mb-4" size={24} />
         <p>Searching master games…</p>
       </div>
     );
@@ -102,20 +101,20 @@ export function MasterbasePanel() {
   return (
     <div className="flex flex-col gap-4 p-2 text-sm">
       <div>
-        <h3 className="font-bold border-b border-app-border pb-2 mb-2">Master games</h3>
+        <h3 className="font-bold border-b border-app-border pb-2 mb-2">Master Games</h3>
         {data.opening?.name && (
           <p className="text-xs text-app-muted">
             <span className="font-medium">{data.opening.eco ? `${data.opening.eco} — ` : ""}{data.opening.name}</span>
           </p>
         )}
-        <p className="text-xs text-app-muted mt-1">{formatNumber(total)} games in the masters database</p>
+        <p className="text-xs text-app-muted mt-1">{total.toLocaleString()} games in the masters database</p>
 
         <div className="flex h-3 rounded-full overflow-hidden mt-2 bg-app-border">
-          <div className="bg-side-white border-r border-app-border" style={{ width: `${pct(data.white)}%` }} title={`White ${pct(data.white)}%`} />
-          <div className="bg-side-draw" style={{ width: `${pct(data.draws)}%` }} title={`Draws ${pct(data.draws)}%`} />
-          <div className="bg-side-black" style={{ width: `${pct(data.black)}%` }} title={`Black ${pct(data.black)}%`} />
+          <div className="bg-white border-r border-app-border" style={{ width: `${pct(data.white)}%` }} title={`White ${pct(data.white)}%`} />
+          <div className="bg-gray-400" style={{ width: `${pct(data.draws)}%` }} title={`Draws ${pct(data.draws)}%`} />
+          <div className="bg-gray-900" style={{ width: `${pct(data.black)}%` }} title={`Black ${pct(data.black)}%`} />
         </div>
-        <div className="flex justify-between text-xs text-app-muted mt-1">
+        <div className="flex justify-between text-[11px] text-app-muted mt-1">
           <span>White {pct(data.white)}%</span>
           <span>Draws {pct(data.draws)}%</span>
           <span>Black {pct(data.black)}%</span>
@@ -124,7 +123,7 @@ export function MasterbasePanel() {
 
       {data.moves.length > 0 && (
         <div>
-          <h4 className="text-xs font-semibold text-app-muted mb-2">Continuations</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-app-muted mb-2">Continuations</h4>
           <div className="flex flex-col gap-1.5 font-mono text-xs">
             {data.moves.slice(0, 8).map((m) => {
               const games = m.white + m.draws + m.black;
@@ -134,7 +133,7 @@ export function MasterbasePanel() {
                   <div className="flex-1 h-2 rounded-full overflow-hidden bg-app-soft">
                     <div className="h-full bg-primary/70" style={{ width: `${Math.max(4, (games / maxMoveGames) * 100)}%` }} />
                   </div>
-                  <span className="w-20 text-right tabular-nums text-app-muted">{formatNumber(games)}</span>
+                  <span className="w-20 text-right text-app-muted">{games.toLocaleString()}</span>
                 </div>
               );
             })}
@@ -144,7 +143,7 @@ export function MasterbasePanel() {
 
       {data.topGames.length > 0 && (
         <div>
-          <h4 className="text-xs font-semibold text-app-muted mb-2">Recent games</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-app-muted mb-2">Recent Games</h4>
           <div className="flex flex-col gap-1 text-xs">
             {data.topGames.map((g) => (
               <a

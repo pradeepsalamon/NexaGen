@@ -10,7 +10,6 @@ import { RoomServiceClient, AccessToken, TokenVerifier, Room, EgressClient, Enco
 import { LIVE_CLASS_SPECTATOR_ROLE, type DerivedLiveKitGrants, type LiveKitTrackSource } from "@nexa-chess/types";
 import { LiveKitTokenOptions } from "./types/live-class.types";
 import { getApiEnv } from "@nexa-chess/config/api";
-import { liveRoomName } from "../tenancy/tenant-paths";
 
 const LIVEKIT_TOKEN_TTL = "10m";
 
@@ -106,7 +105,7 @@ export class LiveKitService implements OnModuleInit {
   }
 
   generateRoomName(scheduleId: string): string {
-    return liveRoomName(scheduleId);
+    return `class_${scheduleId}`;
   }
 
   async createRoom(roomName: string): Promise<Room> {

@@ -21,24 +21,9 @@ nexa attach                              # attach to the nexa-dev tmux session
 - **dev** — `npm run dev:api` + `npm run dev -w apps/web` in watch mode.
 - **stage** — production builds (`build:prod` / `next build`) run with
   `NODE_ENV=production` in tmux; tests a production build without Docker.
-  The web is built with `NEXT_STANDALONE=false` (no `output: "standalone"`; Docker
-  keeps it) and served by `next start`. The standalone `server.js` ignores the Host
-  header behind nginx, which broke middleware cookie checks and redirects.
 - **prod** — `docker compose up -d --build` / `down`. On the production box use
   the deploy workflow instead (CLAUDE.md §6); never run this from an agent
   ([.agents/SAFETY.md](../.agents/SAFETY.md)).
-
-`start`/`restart stage` first fast-forwards the checkout to its branch's upstream
-(`git pull --ff-only`) — staging serves this checkout, so without it new pushes never
-show. It stops without rebuilding if the pull can't fast-forward (local commits, or
-uncommitted edits to files the pull touches); `NEXA_NO_PULL=1` builds the local code as is.
-Dev and stage then run `npm install` when `package-lock.json` is newer than the
-last install (`node_modules/.package-lock.json`), so new packages from a pull are there.
-
-Every dev/stage start or restart that launches the API (whole environment or
-`api`) first runs `npm run db:migrate:deploy` against `apps/api/.env`'s
-`DATABASE_URL`, so a pull that brings a new migration can't leave the API
-querying missing columns. A failed migration stops the launch.
 
 `stop` only kills the tmux session or window it started; anything else on
 3010/3011 is reported, never killed.

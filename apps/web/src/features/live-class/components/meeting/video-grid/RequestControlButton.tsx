@@ -37,7 +37,7 @@ export function RequestControlButton({ surface = false }: { surface?: boolean })
         : "You have control";
 
   const pill =
-    "flex items-center gap-1 rounded-control border px-2 py-1 text-xs font-semibold shadow-card backdrop-blur-md transition active:scale-95";
+    "flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold shadow-card backdrop-blur-md transition active:scale-95";
   const tone = surface
     ? {
         resync: "border-primary/40 bg-primary/10 text-primary-ink hover:border-primary",
@@ -45,9 +45,9 @@ export function RequestControlButton({ surface = false }: { surface?: boolean })
         request: "border-warning/40 bg-warning/10 text-warning-ink hover:border-warning",
       }
     : {
-        resync: "border-primary/40 bg-scrim/80 text-on-scrim hover:border-primary",
-        control: "border-success/40 bg-scrim/80 text-success",
-        request: "border-warning/40 bg-scrim/80 text-warning hover:border-warning",
+        resync: "border-primary/40 bg-black/80 text-white hover:border-primary",
+        control: "border-success/40 bg-black/80 text-success",
+        request: "border-warning/40 bg-black/80 text-warning hover:border-warning",
       };
 
   return (

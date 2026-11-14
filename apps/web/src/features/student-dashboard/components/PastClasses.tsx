@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Download, History, PlayCircle } from "lucide-react";
+
+import { Download, PlayCircle } from "lucide-react";
 import { toast } from "sonner";
-import { ClassRow, ClassRowList } from "@/components/ui/ClassRow";
+import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
@@ -30,7 +30,6 @@ type PastClassesProps = {
 
 export function PastClasses({ classes }: PastClassesProps) {
   const timeZone = useUserTimeZone();
-
   const [recordingPlayerConfig, setRecordingPlayerConfig] = useState<{
     isOpen: boolean;
     classId: string | null;
@@ -39,15 +38,10 @@ export function PastClasses({ classes }: PastClassesProps) {
 
   const handleDownload = async (classId: string) => {
     try {
-      await openInNewTab(
-        async () =>
-          (await getRecordingDownloadUrl(classId, { download: true }))?.url
-      );
+      await openInNewTab(async () => (await getRecordingDownloadUrl(classId, { download: true }))?.url);
     } catch (error) {
       console.error("Failed to download recording:", error);
-      toast.error(
-        "Failed to download recording. It may have expired or is unavailable."
-      );
+      toast.error("Failed to download recording. It may have expired or is unavailable.");
     }
   };
 
@@ -55,63 +49,58 @@ export function PastClasses({ classes }: PastClassesProps) {
     <>
       <div data-testid="past-classes">
         <SectionCard description="Rewatch a session any time." title="Past classes">
-          {classes.length === 0 ? (
-            <EmptyState icon={History} title="No past classes yet" variant="inline" />
-          ) : (
-            <ClassRowList>
-              {classes.map((c) => (
-                <ClassRow
-                  actions={
-                    c.hasRecording ? (
-                      <>
+          <ul className="-my-2 divide-y divide-app-border">
+            {classes.map((c) => (
+              <li
+                className="flex items-center justify-between gap-3 py-3"
+                data-testid={`past-class-${c.id}`}
+                key={c.id}
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-app-text">{c.topic}</p>
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-app-muted">
+                    <span>
+                      {c.coachName} · {formatFullDate(c.startsAt, timeZone)}
+                    </span>
+                    {/* Cancelled / Not held — a completed class needs no badge here. */}
+                    {c.status !== "COMPLETED" ? (
+                      <ClassStatusBadge endsAt={c.endsAt} status={c.status} />
+                    ) : null}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  {c.hasRecording ? (
+                    <>
+                      <Button
+                        onClick={() =>
+                          setRecordingPlayerConfig({ isOpen: true, classId: c.id, topic: c.topic })
+                        }
+                        size="sm"
+                        variant="outline"
+                      >
+                        <PlayCircle aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                        Watch
+                      </Button>
+                      <SimpleTooltip label="Download recording">
                         <Button
-                          onClick={() =>
-                            setRecordingPlayerConfig({
-                              isOpen: true,
-                              classId: c.id,
-                              topic: c.topic
-                            })
-                          }
-                          size="sm"
-                          variant="outline"
+                          aria-label={`Download recording for ${c.topic}`}
+                          className="size-8 rounded-full p-0 text-app-muted hover:text-app-text"
+                          onClick={() => handleDownload(c.id)}
+                          size="icon"
+                          variant="ghost"
                         >
-                          <PlayCircle
-                            aria-hidden="true"
-                            className="size-4"
-                            strokeWidth={2.5}
-                          />
-                          Watch
+                          <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
                         </Button>
-                        <SimpleTooltip label="Download recording">
-                          <Button
-                            aria-label={`Download recording for ${c.topic}`}
-                            className="size-8 p-0"
-                            onClick={() => handleDownload(c.id)}
-                            size="icon"
-                            variant="neutral"
-                          >
-                            <Download
-                              aria-hidden="true"
-                              className="size-4"
-                              strokeWidth={2.5}
-                            />
-                          </Button>
-                        </SimpleTooltip>
-                      </>
-                    ) : (
-                      <span className="text-xs text-app-muted">No recording</span>
-                    )
-                  }
-                  cls={{ ...c, title: c.topic, topic: null }}
-                  key={c.id}
-                  meta={`${c.coachName} · ${formatFullDate(c.startsAt, timeZone)}`}
-                  showDate={false}
-                  showStatus={c.status !== "COMPLETED"}
-                  testId={`past-class-${c.id}`}
-                />
-              ))}
-            </ClassRowList>
-          )}
+                      </SimpleTooltip>
+                    </>
+                  ) : (
+                    <span className="text-xs text-app-muted">No recording</span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         </SectionCard>
       </div>
 
@@ -119,9 +108,7 @@ export function PastClasses({ classes }: PastClassesProps) {
         isOpen={recordingPlayerConfig.isOpen}
         classId={recordingPlayerConfig.classId}
         topic={recordingPlayerConfig.topic}
-        onClose={() =>
-          setRecordingPlayerConfig({ isOpen: false, classId: null, topic: "" })
-        }
+        onClose={() => setRecordingPlayerConfig({ isOpen: false, classId: null, topic: "" })}
       />
     </>
   );

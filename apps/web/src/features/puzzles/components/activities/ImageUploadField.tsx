@@ -1,12 +1,11 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { useToast } from "@/providers/ToastProvider";
 import { uploadActivityImage } from "../../api/activityApi";
-import { Spinner } from "@/components/ui/Spinner";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -60,19 +59,19 @@ export function ImageUploadField({
         onChange={(e) => void pick(e.target.files?.[0])}
       />
       <Button type="button" size="sm" variant="outline" disabled={uploading} onClick={() => inputRef.current?.click()}>
-        {uploading ? <Spinner className="mr-1.5 size-4" /> : <ImagePlus className="mr-1.5 size-4" strokeWidth={2.5} />}
+        {uploading ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : <ImagePlus className="mr-1.5 size-4" strokeWidth={2.5} />}
         {value ? "Replace image" : "Add image"}
       </Button>
       {value ? (
         <span className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element -- uploaded CDN image of unknown size */}
-          <img src={value} alt="" className="h-12 w-12 rounded-control border border-app-border object-cover" decoding="async" loading="lazy" />
+          <img src={value} alt="" className="h-12 w-12 rounded-control border border-app-border object-cover" />
           <SimpleTooltip label="Remove image">
             <button
               type="button"
               aria-label={`Remove ${label.toLowerCase()}`}
               onClick={() => onChange(null)}
-              className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-app-danger text-on-danger"
+              className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-app-danger text-white"
             >
               <X className="size-3" strokeWidth={3} />
             </button>

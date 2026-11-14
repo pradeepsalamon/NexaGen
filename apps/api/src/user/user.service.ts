@@ -27,7 +27,6 @@ import { MessagingDispatchService } from "../messaging/messaging-dispatch.servic
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum } from "../common/query-params";
 import { EntitlementService } from "../platform/entitlement.service";
-import { requireTenantId } from "../tenancy/tenant-sql";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 type UserWithProfiles = Prisma.UserGetPayload<{ include: typeof userInclude }>;
@@ -57,8 +56,7 @@ export class UserService {
 
     const { page, pageSize, skip, take, search } = resolvePagination(query);
 
-    // The academy's hidden "Platform support" account is never listed (§I).
-    const where: Prisma.UserWhereInput = { isDeleted: false, isPlatformSupport: false };
+    const where: Prisma.UserWhereInput = { isDeleted: false };
     const status = queryEnum(query?.status, UserStatus, "status");
     if (status) {
       where.status = status;
@@ -94,7 +92,7 @@ export class UserService {
 
     const targetUser = await this.prisma.user.findUnique({
       include: userInclude,
-      where: { id, isDeleted: false, isPlatformSupport: false }
+      where: { id, isDeleted: false }
     });
 
     if (!targetUser) {
@@ -117,7 +115,7 @@ export class UserService {
     // indexed across deleted rows too, so a filtered read would miss the
     // conflict and the insert would fail with P2002 -> unhandled 500.
     const existingUser = await this.prisma.withDeleted.user.findUnique({
-      where: { tenantId_email: { email: data.email, tenantId: requireTenantId("user") } }
+      where: { email: data.email }
     });
 
     if (existingUser) {
@@ -180,7 +178,7 @@ export class UserService {
     this.assertCanManageUsers(authUser);
 
     const userToUpdate = await this.prisma.user.findUnique({
-      where: { id, isDeleted: false, isPlatformSupport: false },
+      where: { id, isDeleted: false },
       include: userInclude
     });
 
@@ -200,7 +198,7 @@ export class UserService {
     if (data.email && data.email !== userToUpdate.email) {
       // See create(): must include soft-deleted rows, the unique index does.
       const existingUser = await this.prisma.withDeleted.user.findUnique({
-        where: { tenantId_email: { email: data.email, tenantId: requireTenantId("user") } }
+        where: { email: data.email }
       });
       if (existingUser) {
         throw new BadRequestException("User with this email already exists.");
@@ -332,7 +330,7 @@ export class UserService {
 
     const userToArchive = await this.prisma.user.findUnique({
       include: userInclude,
-      where: { id, isDeleted: false, isPlatformSupport: false }
+      where: { id, isDeleted: false }
     });
 
     if (!userToArchive) {
@@ -346,7 +344,7 @@ export class UserService {
     this.assertCanModifyTarget(authUser, userToArchive);
 
     const updated = await this.prisma.user.update({
-      where: { id, isDeleted: false, isPlatformSupport: false },
+      where: { id, isDeleted: false },
       data: { status: UserStatus.ARCHIVED },
       include: userInclude
     });
@@ -360,7 +358,7 @@ export class UserService {
 
     const userToRestore = await this.prisma.user.findUnique({
       include: userInclude,
-      where: { id, isDeleted: false, isPlatformSupport: false }
+      where: { id, isDeleted: false }
     });
 
     if (!userToRestore) {
@@ -374,7 +372,7 @@ export class UserService {
         await this.entitlements.assertSeatAvailable(tx, userToRestore.role, id);
       }
       return tx.user.update({
-        where: { id, isDeleted: false, isPlatformSupport: false },
+        where: { id, isDeleted: false },
         data: { status: UserStatus.ACTIVE },
         include: userInclude
       });
@@ -397,7 +395,7 @@ export class UserService {
     this.assertCanManageUsers(authUser);
 
     const userToDelete = await this.prisma.user.findUnique({
-      where: { id, isDeleted: false, isPlatformSupport: false }
+      where: { id, isDeleted: false }
     });
 
     if (!userToDelete) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock } from "lucide-react";
+import { Info, Lock } from "lucide-react";
 import {
   BOARD_THEME_CATALOG,
   chessAppearanceSchema,
@@ -10,7 +10,6 @@ import {
   type ChessAppearance,
   type ChessAppearanceOverride,
 } from "@nexa-chess/types";
-import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -30,7 +29,6 @@ import {
   useUpdateChessAppearanceAdminMutation,
 } from "../hooks/useChessAppearanceApi";
 import { Switch } from "@/components/ui/Switch";
-import { PageHeader } from "@/components/layout/PageHeader";
 
 const PREVIEW_FEN = "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
 
@@ -100,11 +98,14 @@ export function AdminChessAppearanceClient() {
   const enabledSoundThemes = SOUND_THEME_CATALOG.filter((s) => !disabledSoundThemeIds.includes(s.id));
 
   return (
-    <div className="animate-fade-in space-y-5 pb-10">
-      <PageHeader
-        description="The platform-wide default board and piece set. Manage which built-in themes are available to everyone."
-        title="Chess appearance"
-      />
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-xl font-bold text-app-text">Chess appearance</h1>
+        <p className="mt-1 text-sm text-app-muted">
+          The platform-wide default board and piece set. Manage which built-in themes are available
+          to everyone.
+        </p>
+      </div>
 
       {isLoading ? (
         <Card className="p-5 sm:p-6">
@@ -117,10 +118,13 @@ export function AdminChessAppearanceClient() {
       ) : (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
-            <Alert variant="info">
-              This changes the default appearance for users who have not selected a personal board
-              preference. Users with their own preference are unaffected.
-            </Alert>
+            <div className="flex items-start gap-2.5 rounded-app border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_6%,var(--color-surface))] p-3.5 text-sm text-app-text">
+              <Info className="mt-0.5 size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
+              <p>
+                This changes the default appearance for users who have not selected a personal board
+                preference. Users with their own preference are unaffected.
+              </p>
+            </div>
 
             <Card className="space-y-1 p-5 sm:p-6">
               <div className="flex items-start justify-between gap-4">

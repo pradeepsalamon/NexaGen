@@ -32,16 +32,11 @@ export function ActivityQueueStatusPill() {
         <button
           type="button"
           aria-label={`${queue.title}: activity ${queue.currentNumber} of ${queue.total}. Show details`}
-          className="inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-primary-soft px-2.5 text-xs font-semibold text-primary-ink transition-colors hover:bg-primary/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary-ink transition-colors hover:bg-primary/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus"
         >
-          <ListOrdered className="size-3.5" strokeWidth={2} aria-hidden="true" />
-          <span className="hidden lg:inline">Queue ·</span>
+          <ListOrdered className="size-3.5" strokeWidth={2.5} aria-hidden="true" />
           <span className="tabular-nums">
-            <span className="hidden lg:inline">step </span>
-            {queue.currentNumber}
-            <span className="lg:hidden">/</span>
-            <span className="hidden lg:inline"> of </span>
-            {queue.total}
+            {queue.currentNumber}/{queue.total}
           </span>
         </button>
       </PopoverTrigger>

@@ -4,14 +4,12 @@ import { MailModule } from "../mail/mail.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { EmailAdminController } from "./email-admin.controller";
 import { EmailAdminService } from "./email-admin.service";
-import { EmailPreferencesController } from "./email-preferences.controller";
-import { EmailPreferencesService } from "./email-preferences.service";
 import { EmailVerificationService } from "./email-verification.service";
 
 @Module({
-  controllers: [EmailAdminController, EmailPreferencesController],
-  exports: [EmailPreferencesService, EmailVerificationService],
+  controllers: [EmailAdminController],
+  exports: [EmailVerificationService],
   imports: [JwtModule.register({}), MailModule, PrismaModule],
-  providers: [EmailAdminService, EmailPreferencesService, EmailVerificationService]
+  providers: [EmailAdminService, EmailVerificationService]
 })
 export class EmailAdminModule {}

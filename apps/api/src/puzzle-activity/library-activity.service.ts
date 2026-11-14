@@ -37,7 +37,6 @@ import { normalizeEngineFen } from "../stockfish/stockfish.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { isActivityImageUrl, UploadService } from "../upload/upload.service";
 import { playoutFacts } from "./playout-position";
-import { tenantFilter } from "../tenancy/tenant-sql";
 
 const include = {
   createdBy: { select: { firstName: true, lastName: true } },
@@ -167,9 +166,7 @@ export class LibraryActivityService {
 
     const shared = (alias: "p" | "a") => {
       const col = (name: string) => Prisma.raw(`${alias}."${name}"`);
-      // "GLOBAL" means academy-wide: raw SQL must name the academy itself
-      // (docs/SAAS_MULTI_TENANCY.md § "Phase 3 plan", slice 4).
-      const parts: Prisma.Sql[] = [tenantFilter(alias), Prisma.sql`${col("isDeleted")} = false`];
+      const parts: Prisma.Sql[] = [Prisma.sql`${col("isDeleted")} = false`];
       if (folderIds) parts.push(Prisma.sql`${col("topicId")} IN (${Prisma.join(folderIds)})`);
       if (hiddenIds.length) parts.push(Prisma.sql`${col("topicId")} NOT IN (${Prisma.join(hiddenIds)})`);
       if (query.difficulty) parts.push(Prisma.sql`${col("difficulty")}::text = ${query.difficulty}`);

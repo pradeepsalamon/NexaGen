@@ -70,7 +70,7 @@ function Calendar({
         ),
         weekdays: cn("flex gap-1", defaultClassNames.weekdays),
         weekday: cn(
-          "flex size-[--cell-size] select-none items-center justify-center rounded-control text-[0.8125rem] font-normal text-app-muted",
+          "flex size-[--cell-size] select-none items-center justify-center rounded-control text-[0.82rem] font-normal text-app-muted",
           defaultClassNames.weekday
         ),
         week: cn("mt-1.5 flex gap-1", defaultClassNames.week),
@@ -79,7 +79,7 @@ function Calendar({
           defaultClassNames.week_number_header
         ),
         week_number: cn(
-          "flex size-[--cell-size] items-center justify-center text-[0.8125rem] font-normal text-app-muted",
+          "flex size-[--cell-size] items-center justify-center text-[0.82rem] font-normal text-app-muted",
           defaultClassNames.week_number
         ),
         day: cn(
@@ -87,7 +87,7 @@ function Calendar({
           defaultClassNames.day
         ),
         today: cn("text-app-text", defaultClassNames.today),
-        selected: cn("text-on-primary", defaultClassNames.selected),
+        selected: cn("text-white", defaultClassNames.selected),
         outside: cn(
           "text-app-muted/50 opacity-80 aria-selected:text-app-muted/50",
           defaultClassNames.outside
@@ -97,9 +97,9 @@ function Calendar({
           defaultClassNames.disabled
         ),
         hidden: cn("invisible", defaultClassNames.hidden),
-        range_start: cn("text-on-primary", defaultClassNames.range_start),
+        range_start: cn("text-white", defaultClassNames.range_start),
         range_middle: cn("text-app-text", defaultClassNames.range_middle),
-        range_end: cn("text-on-primary", defaultClassNames.range_end),
+        range_end: cn("text-white", defaultClassNames.range_end),
         ...classNames
       }}
       components={{
@@ -167,7 +167,7 @@ function CalendarDayButton({
           !modifiers.selected &&
           "border-primary text-app-text ring-1 ring-primary ring-offset-0",
         modifiers.selected &&
-          "border-primary bg-primary text-on-primary hover:bg-primary hover:text-on-primary",
+          "border-primary bg-primary text-white hover:bg-primary hover:text-white",
         className
       )}
       data-day={`${day.date.getFullYear()}-${day.date.getMonth() + 1}-${day.date.getDate()}`}

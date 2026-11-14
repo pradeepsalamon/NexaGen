@@ -12,7 +12,6 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { zonedDayBounds } from "../../common/time";
 import { roundTo } from "../analytics-math";
 import { buildMeta, sqlTimestamp, type AnalyticsContext } from "../analytics-support";
-import { tenantFilter } from "../../tenancy/tenant-sql";
 
 @Injectable()
 export class OperationsAnalyticsSection {
@@ -333,7 +332,7 @@ export class OperationsAnalyticsSection {
         SELECT ca."studentId"
         FROM "class_attendance" ca
         JOIN "classes" c ON c.id = ca."classId"
-        WHERE ${tenantFilter("c")} AND c.status = 'COMPLETED'
+        WHERE c.status = 'COMPLETED'
           AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
         GROUP BY ca."studentId"
         HAVING count(*) >= 3
@@ -348,7 +347,7 @@ export class OperationsAnalyticsSection {
     const rows = await this.prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
       SELECT count(*)::bigint AS count
       FROM "users" u
-      WHERE ${tenantFilter("u")} AND u.role = 'STUDENT' AND u."isDeleted" = false
+      WHERE u.role = 'STUDENT' AND u."isDeleted" = false
         AND EXISTS (
           SELECT 1 FROM "batch_students" bs WHERE bs."studentId" = u.id AND bs."isDeleted" = false
         )

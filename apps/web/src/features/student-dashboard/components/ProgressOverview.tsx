@@ -1,6 +1,6 @@
-import { BookOpen, GraduationCap, Target, Trophy } from "lucide-react";
+import { BookOpen, CheckCircle2, Users, type LucideIcon } from "lucide-react";
 import { StatTile } from "@/components/ui/StatTile";
-import { cn } from "@/lib/utils";
+import type { Tone } from "@/lib/tone";
 
 interface ProgressMetric {
   label: string;
@@ -9,56 +9,48 @@ interface ProgressMetric {
 }
 
 interface ProgressOverviewProps {
-  chessRating?: number | null;
   metrics?: ProgressMetric[];
 }
 
-function metricValue(metrics: ProgressMetric[] | undefined, label: string, fallback: string) {
-  return metrics?.find((metric) => metric.label === label)?.value ?? fallback;
+const METRIC_STYLE: Record<string, { icon: LucideIcon; tone: Tone }> = {
+  "Classes Attended": { icon: Users, tone: "primary" },
+  Attendance: { icon: CheckCircle2, tone: "accent" },
+  "Lessons Completed": { icon: BookOpen, tone: "warm" }
+};
+
+const DEFAULT_METRICS: ProgressMetric[] = [
+  { label: "Classes Attended", value: "0" },
+  { label: "Lessons Completed", value: "0" },
+  { label: "Attendance", value: "0%" }
+];
+
+function percentOf(value: string): number | undefined {
+  const match = /^(\d+(?:\.\d+)?)\s*%$/.exec(value.trim());
+  return match ? Number(match[1]) : undefined;
 }
 
-export function ProgressOverview({ chessRating, metrics }: ProgressOverviewProps) {
-  const attendance = metricValue(metrics, "Attendance", "0%");
-  // A non-numeric value ("—") draws no bar rather than an invalid width.
-  const attendancePercent = Number.parseFloat(attendance);
-  const hasRating = typeof chessRating === "number";
+export function ProgressOverview({ metrics }: ProgressOverviewProps) {
+  const displayMetrics = (metrics?.length ? metrics : DEFAULT_METRICS).filter(
+    (metric) => metric.label in METRIC_STYLE
+  );
 
   return (
-    <div
-      className={cn(
-        "grid grid-cols-2 gap-3 sm:gap-4",
-        hasRating ? "lg:grid-cols-4" : "sm:grid-cols-3"
-      )}
-    >
-      {hasRating ? (
-        <StatTile
-          icon={Trophy}
-          label="Chess rating"
-          tone="reward"
-          value={String(chessRating)}
-        />
-      ) : null}
-      <StatTile
-        icon={GraduationCap}
-        label="Classes attended"
-        tone="primary"
-        value={metricValue(metrics, "Classes Attended", "0")}
-      />
-      <StatTile
-        icon={BookOpen}
-        label="Lessons completed"
-        tone="primary"
-        value={metricValue(metrics, "Lessons Completed", "0")}
-      />
-      <div className={cn(!hasRating && "col-span-2 sm:col-span-1")}>
-        <StatTile
-          icon={Target}
-          label="Attendance"
-          progress={Number.isFinite(attendancePercent) ? attendancePercent : undefined}
-          tone="accent"
-          value={attendance}
-        />
-      </div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {displayMetrics.map((metric) => {
+        const style = METRIC_STYLE[metric.label];
+
+        return (
+          <StatTile
+            icon={style.icon}
+            key={metric.label}
+            label={metric.label}
+            progress={percentOf(metric.value)}
+            tone={style.tone}
+            trend={metric.trend || undefined}
+            value={metric.value}
+          />
+        );
+      })}
     </div>
   );
 }

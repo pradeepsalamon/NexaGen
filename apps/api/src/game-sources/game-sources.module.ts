@@ -6,11 +6,10 @@ import { GameImportService } from './game-import.service';
 import { GameSourcesController } from './game-sources.controller';
 import { GameSourcesScheduler } from './game-sources.scheduler';
 import { GameSourcesService } from './game-sources.service';
-import { TrashModule } from '../trash/trash.module';
 
 @Module({
   controllers: [GameSourcesController],
-  imports: [GameAnalysisModule, JwtModule, PrismaModule, TrashModule],
+  imports: [GameAnalysisModule, JwtModule, PrismaModule],
   providers: [GameImportService, GameSourcesScheduler, GameSourcesService],
 })
 export class GameSourcesModule {}

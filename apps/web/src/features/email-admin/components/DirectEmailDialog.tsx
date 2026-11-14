@@ -171,7 +171,7 @@ export function DirectEmailDialog({
             </FormField>
 
             <DialogFooter>
-              <Button disabled={bulk.isPending} onClick={onClose} type="button" variant="neutral">
+              <Button disabled={bulk.isPending} onClick={onClose} type="button" variant="outline">
                 Cancel
               </Button>
               <Button disabled={bulk.isPending || recipients.length === 0 || tooMany || smtpMissing} type="submit">

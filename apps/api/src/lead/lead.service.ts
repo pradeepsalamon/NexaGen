@@ -28,10 +28,8 @@ import {
   resolvePagination
 } from "../common/pagination";
 import { DemoInviteService } from "../demo-class/demo-invite.service";
-import { SystemNotifier } from "../mail/system-notifier.service";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { TrashRepository } from "../trash/trash.repository";
-import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { parseUserAgent, parseVisitAttribution } from "./lead-tracking.util";
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum } from "../common/query-params";
@@ -47,7 +45,6 @@ type LeadRow = {
   studentAge: number;
   experienceLevel: string;
   phone: string;
-  email: string | null;
   status: LeadStatus;
   source: string | null;
   campaign: string | null;
@@ -63,10 +60,8 @@ export class LeadService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly demoInvites: DemoInviteService,
-    private readonly referrals: ReferralTrackerService,
-    private readonly notifier: SystemNotifier,
-    private readonly trash: TrashRepository
+    private readonly mailService: MailService,
+    private readonly demoInvites: DemoInviteService
   ) {}
 
   // ── Public ──
@@ -79,7 +74,7 @@ export class LeadService {
    */
   async createLead(
     body: CreateLeadRequest,
-    context: { sessionId: string | undefined; referralId?: string }
+    context: { sessionId: string | undefined }
   ): Promise<CreateLeadResponse> {
     const phone = body.phone.replace(/\D/g, "");
 
@@ -99,7 +94,6 @@ export class LeadService {
         studentAge: body.studentAge,
         experienceLevel: body.experienceLevel,
         phone,
-        email: body.email || null,
         source,
         campaign,
         visitorSessionId: visitorSession?.id ?? null,
@@ -113,36 +107,19 @@ export class LeadService {
       }
     });
 
-    // Referral attribution (cookie from a `/r/<code>` visit, else the code the
-    // page remembered). Never throws.
-    if (context.referralId || body.referralCode) {
-      await this.referrals.attachLead({
-        leadId: lead.id,
-        prospectName: lead.studentName,
-        referralCode: body.referralCode,
-        referralId: context.referralId
-      });
-    }
-
-    // Fire-and-forget (the notifier never throws): staff hear of the booking — ADMIN_EMAILS by
-    // email, the academy's admins by WhatsApp / in-app — and the parent gets a confirmation.
-    void this.notifier.adminAlertRecipients().then((recipients) =>
-      this.notifier.send("NEW_LEAD_ADMIN", recipients, {
-        "lead.campaign": lead.campaign ?? "-",
-        "lead.email": lead.email ?? "-",
-        "lead.experience": lead.experienceLevel,
-        "lead.parentName": lead.parentName,
-        "lead.phone": lead.phone,
-        "lead.source": lead.source ?? "Unknown",
-        "lead.studentAge": String(lead.studentAge),
-        "lead.studentName": lead.studentName
-      }, { dedupeKey: lead.id })
-    ).catch(() => undefined);
-    void this.notifier.send(
-      "DEMO_BOOKING",
-      { email: lead.email, phone: lead.phone },
-      { "lead.parentName": lead.parentName, "lead.studentName": lead.studentName }
-    );
+    // Fire-and-forget — a notification failure must never fail the public
+    // form submission. MailService logs its own failures.
+    this.mailService
+      .sendNewLeadNotification({
+        studentName: lead.studentName,
+        parentName: lead.parentName,
+        studentAge: lead.studentAge,
+        experienceLevel: lead.experienceLevel,
+        phone: lead.phone,
+        source: lead.source,
+        campaign: lead.campaign
+      })
+      .catch(() => undefined);
 
     return { lead: this.toLeadListItem(lead) };
   }
@@ -215,8 +192,7 @@ export class LeadService {
       where.OR = [
         { studentName: { contains: search, mode: "insensitive" } },
         { parentName: { contains: search, mode: "insensitive" } },
-        { phone: { contains: search } },
-        { email: { contains: search, mode: "insensitive" } }
+        { phone: { contains: search } }
       ];
     }
 
@@ -339,7 +315,6 @@ export class LeadService {
       }
     });
 
-    await this.referrals.onLeadStatus(id, body.status, user.id);
     return { lead: this.toLeadListItem(updated) };
   }
 
@@ -407,14 +382,14 @@ export class LeadService {
   }
 
   async delete(accessToken: string | undefined, id: string) {
-    const user = await this.getAuthorizedAdmin(accessToken);
+    await this.getAuthorizedAdmin(accessToken);
 
     const lead = await this.prisma.lead.findUnique({ where: { id } });
     if (!lead) {
       throw new NotFoundException("Lead not found.");
     }
 
-    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "Lead", id, user.id));
+    await this.prisma.lead.delete({ where: { id } });
     return { ok: true };
   }
 
@@ -472,7 +447,6 @@ export class LeadService {
       studentAge: lead.studentAge,
       experienceLevel: lead.experienceLevel,
       phone: lead.phone,
-      email: lead.email,
       status: lead.status,
       source: lead.source,
       campaign: lead.campaign,

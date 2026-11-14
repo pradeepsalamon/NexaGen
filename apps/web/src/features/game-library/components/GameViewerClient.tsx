@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   addMoveToTree,
@@ -20,12 +21,14 @@ import {
   type PgnHeaders,
 } from "@nexa-chess/types";
 import {
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   Copy,
   Download,
+  Loader2,
   RefreshCw,
   Repeat2,
   Save,
@@ -42,7 +45,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/AlertDialog";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -59,7 +61,6 @@ import { useGameAnalysisState } from "@/features/game-analysis/hooks/useGameAnal
 import { useAuthStore } from "@/stores/authStore";
 import { useDeleteGame, useGame, useSaveGameAnalysis } from "../hooks/useGameLibrary";
 import { downloadPgn } from "../lib/downloadPgn";
-import { Spinner } from "@/components/ui/Spinner";
 
 const DRAFT_KEY = (id: string) => `nexa-game-draft-${id}`;
 
@@ -116,11 +117,13 @@ export function GameViewerClient({ id }: { id: string }) {
   return <GameViewer key={`${data.id}:${data.version}`} game={data} />;
 }
 
-const LIBRARY_CRUMB = { href: "/games", label: "Game library" };
-
-/** Header for the loading and error states, before the game's title is known. */
 function BackLink() {
-  return <PageHeader breadcrumbs={[LIBRARY_CRUMB, { label: "Game" }]} title="Game" />;
+  return (
+    <Link href="/games" className="inline-flex items-center gap-1.5 text-sm font-medium text-app-muted hover:text-primary-ink">
+      <ArrowLeft className="size-4" aria-hidden />
+      Game Library
+    </Link>
+  );
 }
 
 function GameViewer({ game }: { game: GameLibraryDetail }) {
@@ -265,21 +268,21 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
 
   return (
     <div className="space-y-5 pb-10">
-      <PageHeader
-        breadcrumbs={[LIBRARY_CRUMB, { label: game.title }]}
-        description={
-          <>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <BackLink />
+          <h1 className="truncate text-2xl font-extrabold tracking-tight">{game.title}</h1>
+          <p className="text-sm text-app-muted">
             <span className="font-semibold text-app-text">{game.whiteName}</span> (White) vs{" "}
             <span className="font-semibold text-app-text">{game.blackName}</span> (Black)
-          </>
-        }
-        title={game.title}
-        actions={
-          <>
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <SimpleTooltip label="Copy PGN">
             <Button
-              variant="neutral"
+              variant="outline"
               size="icon"
+              className="rounded-full"
               aria-label="Copy PGN"
               onClick={() => {
                 void navigator.clipboard
@@ -291,12 +294,16 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
               <Copy className="size-4" strokeWidth={2.5} />
             </Button>
           </SimpleTooltip>
+          <Button variant="outline" onClick={() => downloadPgn(currentPgn, game.title)}>
+            <Download className="mr-2 size-4" aria-hidden />
+            Download PGN
+          </Button>
           {game.canDelete && (
             <SimpleTooltip label="Delete game">
               <Button
-                variant="neutral"
+                variant="ghost"
                 size="icon"
-                className="text-app-danger-ink"
+                className="rounded-full bg-app-danger text-white hover:bg-app-danger/85"
                 aria-label="Delete game"
                 onClick={() => setConfirmDelete(true)}
               >
@@ -304,13 +311,8 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
               </Button>
             </SimpleTooltip>
           )}
-          <Button variant="outline" onClick={() => downloadPgn(currentPgn, game.title)}>
-            <Download className="size-4" strokeWidth={2.5} aria-hidden />
-            Download PGN
-          </Button>
-          </>
-        }
-      />
+        </div>
+      </div>
 
       <div className={PRACTICE_BOARD_GRID}>
         <div className="space-y-3">
@@ -367,7 +369,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
                 </Button>
                 {editable && (
                   <Button onClick={saveAnalysis} disabled={save.isPending}>
-                    {save.isPending ? <Spinner className="mr-2 size-4" aria-hidden /> : <Save className="mr-2 size-4" aria-hidden />}
+                    {save.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : <Save className="mr-2 size-4" aria-hidden />}
                     Save analysis
                   </Button>
                 )}
@@ -425,13 +427,13 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
             <div className="space-y-2">
               <AlertDialogTitle>Delete this game?</AlertDialogTitle>
               <AlertDialogDescription>
-                The imported game leaves the library and moves to the trash, where a super admin can restore it for 30 days. Importing the same game again also brings it back.
+                The imported game and its analysis are removed from the library. This cannot be undone.
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel asChild>
-              <Button variant="neutral">Cancel</Button>
+              <Button variant="outline">Cancel</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
@@ -474,7 +476,7 @@ function NavButton({
 }) {
   return (
     <SimpleTooltip label={label}>
-      <Button variant="neutral" size="icon" aria-label={label} onClick={onClick} disabled={disabled}>
+      <Button variant="outline" size="icon" className="rounded-full" aria-label={label} onClick={onClick} disabled={disabled}>
         {children}
       </Button>
     </SimpleTooltip>

@@ -29,7 +29,6 @@ import { authenticateUser, isAdminRole } from "../auth/authenticate";
 import { createMoveTreeChess } from "../common/chess/move-tree-chess";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
-import { TrashRepository } from "../trash/trash.repository";
 
 export type GameActor = { id: string; role: UserRole; timezone: string | null };
 type Actor = GameActor;
@@ -60,7 +59,6 @@ export class GameLibraryService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly trash: TrashRepository,
   ) {}
 
   async list(accessToken: string | undefined, query: GameLibraryQuery): Promise<GameLibraryListResponse> {
@@ -223,7 +221,7 @@ export class GameLibraryService {
     if (!this.canDelete(user, row)) {
       throw new ForbiddenException("Only an imported game can be deleted, by whoever imported it or an admin.");
     }
-    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "ChessGame", row.id, user.id));
+    await this.prisma.chessGame.delete({ where: { id: row.id } });
     return { id: row.id };
   }
 

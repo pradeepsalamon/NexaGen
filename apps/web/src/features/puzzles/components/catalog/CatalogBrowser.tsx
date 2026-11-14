@@ -19,15 +19,13 @@ import {
   type CatalogThemeMode,
   type SolutionMove
 } from "@nexa-chess/types";
-import { Eye, FolderPlus, GraduationCap, ListPlus, Shuffle, X } from "lucide-react";
+import { Eye, FolderPlus, GraduationCap, Library, ListPlus, Loader2, Shuffle, X } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { InfiniteScrollTrigger } from "@/components/ui/InfiniteScrollTrigger";
-import { FilterChips, FilterField, FilterPopover, type ActiveFilter } from "@/components/ui/FilterPopover";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -42,7 +40,6 @@ import { getCatalogPreview } from "../../api/puzzleApi";
 import { useAdoptCatalogPuzzles, useCatalogPuzzles, usePuzzleTopics } from "../../hooks/usePuzzlesApi";
 import { puzzleTopicOptions } from "../../lib/puzzleMeta";
 import { CatalogPreviewDialog } from "./CatalogPreviewDialog";
-import { Spinner } from "@/components/ui/Spinner";
 
 const GROUP_ORDER = ["motif", "mate", "phase", "goal", "length", "origin", "special"] as const;
 const THEME_OPTIONS = [...LICHESS_THEMES]
@@ -60,24 +57,8 @@ const SORT_OPTIONS: { value: CatalogSort; label: string }[] = [
 const DEFAULT_MIN = String(CATALOG_DEFAULT_RATING_MIN);
 const DEFAULT_MAX = String(CATALOG_DEFAULT_RATING_MAX);
 
-type CatalogFilters = {
-  includeBelowGate: boolean;
-  ratingMax: string;
-  ratingMin: string;
-  themeMode: CatalogThemeMode;
-  themes: string[];
-};
-/** "Clear" in the Filters panel goes back to the defaults, not to "no window". */
-const EMPTY_CATALOG_FILTERS: CatalogFilters = {
-  includeBelowGate: false,
-  ratingMax: DEFAULT_MAX,
-  ratingMin: DEFAULT_MIN,
-  themeMode: "any",
-  themes: []
-};
-
 const iconBtn =
-  "size-8";
+  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
 
 const newSeed = () => Math.floor(Math.random() * 0x7fffffff);
 
@@ -106,7 +87,7 @@ interface Props {
 
 /**
  * The Lichess catalogue (spec §11): filter by rating / themes / opening, page
- * as the list scrolls (infinite scroll; there are no totals), preview with the solution, and —
+ * with "Load more" (there are no totals), preview with the solution, and —
  * by variant — adopt into a folder (admin), create homework, or share in class.
  */
 export function CatalogBrowser({
@@ -189,6 +170,10 @@ export function CatalogBrowser({
   const allVisibleSelected = puzzles.length > 0 && puzzles.every((p) => selected.has(p.sourceId));
   const overLimit = queueLimit !== undefined && selected.size > queueLimit;
 
+  const addTheme = (key: string) => {
+    if (!key || themes.includes(key) || themes.length >= CATALOG_MAX_THEMES) return;
+    setThemes([...themes, key]);
+  };
   const toggleSelected = (puzzle: CatalogPuzzleSummary, on: boolean) =>
     setSelected((prev) => {
       const next = new Map(prev);
@@ -244,35 +229,6 @@ export function CatalogBrowser({
     }
   };
 
-  const applyFilters = (next: CatalogFilters) => {
-    setRatingMin(next.ratingMin);
-    setRatingMax(next.ratingMax);
-    setThemes(next.themes.slice(0, CATALOG_MAX_THEMES));
-    setThemeMode(next.themeMode);
-    setIncludeBelowGate(next.includeBelowGate);
-  };
-  const ratingChanged = ratingMin !== DEFAULT_MIN || ratingMax !== DEFAULT_MAX;
-  const activeFilters: ActiveFilter[] = [
-    ...(ratingChanged
-      ? [{
-          key: "rating",
-          label: `Rating ${ratingMin || "any"}–${ratingMax || "any"}`,
-          onRemove: () => {
-            setRatingMin(DEFAULT_MIN);
-            setRatingMax(DEFAULT_MAX);
-          }
-        }]
-      : []),
-    ...themes.map((key) => ({
-      key: `theme-${key}`,
-      label: lichessThemeLabel(key),
-      onRemove: () => setThemes(themes.filter((t) => t !== key))
-    })),
-    ...(isAdmin && includeBelowGate
-      ? [{ key: "below-gate", label: "Low-confidence too", onRemove: () => setIncludeBelowGate(false) }]
-      : []),
-  ];
-
   /** Back to the defaults: 1,000–1,500, any theme, low to high. The selection is kept. */
   const clearFilters = () => {
     setRatingMin(DEFAULT_MIN);
@@ -285,134 +241,112 @@ export function CatalogBrowser({
 
   return (
     <Card className={compact ? "grid gap-3 border-0 p-0 shadow-none" : "grid gap-4 p-4"}>
-      <div className="grid gap-2">
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {!compact ? (
-            <Input
-              aria-label="Opening"
-              className="w-full sm:w-56"
-              onChange={(e) => setOpeningInput(e.target.value)}
-              placeholder="Opening, e.g. Sicilian Defense"
-              value={openingInput}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex items-center gap-1.5">
+          <Select
+            aria-label="Minimum rating"
+            className="w-28"
+            hasError={windowInvalid}
+            onChange={(e) => setRatingMin(e.target.value)}
+            options={RATING_OPTIONS}
+            placeholder="Min: any"
+            value={ratingMin}
+          />
+          <span className="text-app-muted">–</span>
+          <Select
+            aria-label="Maximum rating"
+            className="w-28"
+            hasError={windowInvalid}
+            onChange={(e) => setRatingMax(e.target.value)}
+            options={RATING_OPTIONS}
+            placeholder="Max: any"
+            value={ratingMax}
+          />
+        </div>
+        <Select
+          aria-label="Sort"
+          className="w-auto"
+          onChange={(e) => setSort(e.target.value as CatalogSort)}
+          options={SORT_OPTIONS}
+          value={sort}
+        />
+        <Select
+          aria-label="Add a theme"
+          className="w-auto max-w-52"
+          onChange={(e) => addTheme(e.target.value)}
+          options={THEME_OPTIONS.filter((o) => !themes.includes(o.value))}
+          placeholder={themes.length ? "Add a theme" : "Any theme"}
+          value=""
+        />
+        {!compact ? (
+          <Input
+            aria-label="Opening"
+            className="w-full sm:w-48"
+            onChange={(e) => setOpeningInput(e.target.value)}
+            placeholder="Opening, e.g. Sicilian Defense"
+            value={openingInput}
+          />
+        ) : null}
+        {/* Only admins' requests honour it (includeBelowGate is sent for admins only). */}
+        {isAdmin ? (
+          <label className="flex items-center gap-2 text-sm text-app-text">
+            <Checkbox
+              checked={includeBelowGate}
+              onCheckedChange={(v) => setIncludeBelowGate(v === true)}
+            />
+            Low-confidence too
+          </label>
+        ) : null}
+        <SimpleTooltip label="Shuffle">
+          <Button
+            aria-label="Shuffle"
+            variant="outline"
+            size="icon"
+            className={iconBtn}
+            onClick={() => {
+              setSort("shuffle");
+              setSeed(newSeed());
+            }}
+          >
+            <Shuffle className="size-4" strokeWidth={2.5} />
+          </Button>
+        </SimpleTooltip>
+        {hasFilters ? (
+          <Button variant="outline" size="sm" onClick={clearFilters}>
+            Reset filters
+          </Button>
+        ) : null}
+      </div>
+
+      {themes.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {themes.length > 1 ? (
+            <Select
+              aria-label="Theme match"
+              className="w-auto"
+              onChange={(e) => setThemeMode(e.target.value as CatalogThemeMode)}
+              options={[
+                { value: "any", label: "Any of" },
+                { value: "all", label: "All of" }
+              ]}
+              value={themeMode}
             />
           ) : null}
-          <Select
-            aria-label="Sort"
-            className="w-auto"
-            onChange={(e) => setSort(e.target.value as CatalogSort)}
-            options={SORT_OPTIONS}
-            value={sort}
-          />
-          <SimpleTooltip label="Shuffle">
-            <Button
-              aria-label="Shuffle"
-              variant="neutral"
-              size="icon"
-              className={iconBtn}
-              onClick={() => {
-                setSort("shuffle");
-                setSeed(newSeed());
-              }}
-            >
-              <Shuffle className="size-4" strokeWidth={2.5} />
-            </Button>
-          </SimpleTooltip>
-          <FilterPopover
-            activeCount={activeFilters.length}
-            emptyValue={EMPTY_CATALOG_FILTERS}
-            onApply={applyFilters}
-            value={{ includeBelowGate, ratingMax, ratingMin, themeMode, themes }}
-          >
-            {(draft, update) => {
-              const draftError = catalogRatingWindowError(
-                draft.ratingMin ? Number(draft.ratingMin) : undefined,
-                draft.ratingMax ? Number(draft.ratingMax) : undefined
-              );
-              return (
-                <>
-                  <div className="grid grid-cols-2">
-                    <FilterField htmlFor="catalog-filter-min" label="Min rating">
-                      <Select
-                        hasError={draftError !== null}
-                        id="catalog-filter-min"
-                        onChange={(e) => update({ ratingMin: e.target.value })}
-                        options={RATING_OPTIONS}
-                        placeholder="Any"
-                        value={draft.ratingMin}
-                      />
-                    </FilterField>
-                    <FilterField htmlFor="catalog-filter-max" label="Max rating">
-                      <Select
-                        hasError={draftError !== null}
-                        id="catalog-filter-max"
-                        onChange={(e) => update({ ratingMax: e.target.value })}
-                        options={RATING_OPTIONS}
-                        placeholder="Any"
-                        value={draft.ratingMax}
-                      />
-                    </FilterField>
-                  </div>
-                  {draftError ? <p className="text-xs text-app-danger-ink">{draftError}</p> : null}
-                  <FilterField htmlFor="catalog-filter-theme" label="Themes">
-                    <Select
-                      disabled={draft.themes.length >= CATALOG_MAX_THEMES}
-                      id="catalog-filter-theme"
-                      onChange={(e) => {
-                        const key = e.target.value;
-                        if (key && !draft.themes.includes(key)) update({ themes: [...draft.themes, key] });
-                      }}
-                      options={THEME_OPTIONS.filter((o) => !draft.themes.includes(o.value))}
-                      placeholder={draft.themes.length ? "Add a theme" : "Any theme"}
-                      value=""
-                    />
-                  </FilterField>
-                  {draft.themes.length > 0 ? (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {draft.themes.map((key) => (
-                        <Badge key={key} variant="default" className="gap-1 pr-1">
-                          {lichessThemeLabel(key)}
-                          <button
-                            type="button"
-                            aria-label={`Remove ${lichessThemeLabel(key)}`}
-                            className="rounded-full p-0.5 transition-colors hover:bg-primary/20"
-                            onClick={() => update({ themes: draft.themes.filter((t) => t !== key) })}
-                          >
-                            <X className="size-3" strokeWidth={2.5} />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : null}
-                  {draft.themes.length > 1 ? (
-                    <FilterField htmlFor="catalog-filter-mode" label="Match">
-                      <Select
-                        id="catalog-filter-mode"
-                        onChange={(e) => update({ themeMode: e.target.value as CatalogThemeMode })}
-                        options={[
-                          { value: "any", label: "Any of these themes" },
-                          { value: "all", label: "All of these themes" }
-                        ]}
-                        value={draft.themeMode}
-                      />
-                    </FilterField>
-                  ) : null}
-                  {/* Only admins' requests honour it (includeBelowGate is sent for admins only). */}
-                  {isAdmin ? (
-                    <label className="flex items-center gap-2 text-sm text-app-text">
-                      <Checkbox
-                        checked={draft.includeBelowGate}
-                        onCheckedChange={(v) => update({ includeBelowGate: v === true })}
-                      />
-                      Low-confidence too
-                    </label>
-                  ) : null}
-                </>
-              );
-            }}
-          </FilterPopover>
+          {themes.map((key) => (
+            <Badge key={key} variant="default" className="gap-1 pr-1">
+              {lichessThemeLabel(key)}
+              <button
+                type="button"
+                aria-label={`Remove ${lichessThemeLabel(key)}`}
+                className="rounded-full p-0.5 transition-colors hover:bg-primary/20"
+                onClick={() => setThemes(themes.filter((t) => t !== key))}
+              >
+                <X className="size-3" strokeWidth={2.5} />
+              </button>
+            </Badge>
+          ))}
         </div>
-        <FilterChips filters={activeFilters} onClearAll={hasFilters ? clearFilters : undefined} />
-      </div>
+      ) : null}
 
       {queueMode && (selected.size > 0 || puzzles.length > 0) ? (
         <div className="flex flex-wrap items-center justify-end gap-2 rounded-control border border-primary/30 bg-primary/5 p-2">
@@ -431,7 +365,7 @@ export function CatalogBrowser({
           {queueControls}
           <Button size="sm" onClick={() => void runAddToQueue()} disabled={selected.size === 0 || overLimit || addingToQueue}>
             {addingToQueue ? (
-              <Spinner className="mr-1.5 size-4" />
+              <Loader2 className="mr-1.5 size-4 animate-spin" />
             ) : (
               <ListPlus className="mr-1.5 size-4" strokeWidth={2.5} />
             )}
@@ -458,13 +392,13 @@ export function CatalogBrowser({
           />
           <Button size="sm" onClick={runAdopt} disabled={!targetFolder || adopt.isPending}>
             {adopt.isPending ? (
-              <Spinner className="mr-1.5 size-4" />
+              <Loader2 className="mr-1.5 size-4 animate-spin" />
             ) : (
               <FolderPlus className="mr-1.5 size-4" strokeWidth={2.5} />
             )}
             Add to folder
           </Button>
-          <Button variant="neutral" size="sm" onClick={() => setSelected(new Map())}>
+          <Button variant="outline" size="sm" onClick={() => setSelected(new Map())}>
             Clear
           </Button>
         </div>
@@ -486,7 +420,7 @@ export function CatalogBrowser({
         <Alert variant="error">{(catalog.error as Error).message}</Alert>
       ) : puzzles.length === 0 && !windowInvalid && !timedOut ? (
         <EmptyState
-          illustration="search-results"
+          icon={Library}
           title="No catalogue puzzles match"
           description="Widen the rating range or remove a theme. If nothing ever appears, the catalogue hasn't been loaded on this server yet."
           action={hasFilters ? { label: "Reset filters", onClick: clearFilters } : undefined}
@@ -527,12 +461,12 @@ export function CatalogBrowser({
               </div>
               <div className="flex min-h-6 flex-wrap gap-1">
                 {motifThemes(puzzle.themes).map((key) => (
-                  <Badge key={key} variant="secondary">
+                  <Badge key={key} variant="secondary" className="text-[0.7rem]">
                     {lichessThemeLabel(key)}
                   </Badge>
                 ))}
                 {puzzle.inLibrary?.adopted ? (
-                  <Badge variant="success">
+                  <Badge variant="success" className="text-[0.7rem]">
                     In {puzzle.inLibrary.topicName}
                   </Badge>
                 ) : null}
@@ -541,7 +475,7 @@ export function CatalogBrowser({
                 <SimpleTooltip label="Preview with solution">
                   <Button
                     aria-label="Preview with solution"
-                    variant="neutral"
+                    variant="outline"
                     size="icon"
                     className={iconBtn}
                     onClick={() => setPreviewId(puzzle.sourceId)}
@@ -562,14 +496,14 @@ export function CatalogBrowser({
                   <SimpleTooltip label="Create homework">
                     <Button
                       aria-label="Create homework"
-                      variant="neutral"
+                      variant="outline"
                       size="icon"
                       className={iconBtn}
                       disabled={homeworkLoading === puzzle.sourceId}
                       onClick={() => void openHomework(puzzle)}
                     >
                       {homeworkLoading === puzzle.sourceId ? (
-                        <Spinner className="size-4" />
+                        <Loader2 className="size-4 animate-spin" />
                       ) : (
                         <GraduationCap className="size-4" strokeWidth={2.5} />
                       )}
@@ -582,7 +516,18 @@ export function CatalogBrowser({
         </div>
       )}
 
-      <InfiniteScrollTrigger query={catalog} />
+      {catalog.hasNextPage ? (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            onClick={() => void catalog.fetchNextPage()}
+            disabled={catalog.isFetchingNextPage}
+          >
+            {catalog.isFetchingNextPage ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : null}
+            Load more
+          </Button>
+        </div>
+      ) : null}
 
       <CatalogPreviewDialog sourceId={previewId} onOpenChange={(open) => !open && setPreviewId(null)} />
       {!compact ? (

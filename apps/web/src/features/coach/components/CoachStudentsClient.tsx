@@ -1,13 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowLeftRight, Search, TrendingUp } from "lucide-react";
+import { ArrowLeftRight, TrendingUp, Users } from "lucide-react";
 import type { CoachStudent } from "@nexa-chess/types";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
-import { RowActions } from "@/components/ui/RowActions";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { Button } from "@/components/ui/Button";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { ChangeStudentBatchDialog } from "@/features/approvals/components/BatchStudentRequestDialogs";
 import { DataTable } from "@/components/ui/DataTable";
 import { DataTablePagination } from "@/components/ui/DataTablePagination";
@@ -46,9 +46,9 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
           const student = row.original;
           const fullName = `${student.firstName} ${student.lastName || ""}`.trim();
           return (
-            <div className="flex min-w-48 flex-col">
-              <span className="font-semibold text-app-text">{fullName}</span>
-              <span className="break-words text-xs text-app-muted">{student.email}</span>
+            <div className="flex flex-col">
+              <span className="font-medium">{fullName}</span>
+              <span className="text-xs text-app-muted">{student.email}</span>
             </div>
           );
         }
@@ -56,16 +56,18 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
       {
         accessorKey: "batches",
         header: "Batches",
-        meta: { label: "Batches" },
-        cell: ({ row }) => (
-          <div className="flex flex-wrap items-center gap-1">
-            {row.original.batches.map((b) => (
-              <Badge key={b.id} variant="secondary">
-                {b.name}
-              </Badge>
-            ))}
-          </div>
-        )
+        cell: ({ row }) => {
+          const batches = row.original.batches;
+          return (
+            <div className="flex flex-wrap gap-1 justify-center items-center">
+              {batches.map(b => (
+                <Badge key={b.id} variant="secondary" className="">
+                  {b.name}
+                </Badge>
+              ))}
+            </div>
+          );
+        }
       },
       {
         accessorKey: "chessRating", meta: { label: "Rating" },
@@ -76,7 +78,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
           />
         ),
         cell: ({ row }) => (
-          <span className={row.original.chessRating ? "font-medium tabular-nums text-app-text" : "text-app-muted"}>
+          <span className="font-medium">
             {row.original.chessRating || "Unrated"}
           </span>
         )
@@ -84,7 +86,6 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
       {
         accessorKey: "status",
         header: "Status",
-        meta: { label: "Status" },
         cell: ({ row }) => (
           <Badge
             variant={row.original.status === "ACTIVE" ? "success" : "secondary"}
@@ -95,26 +96,36 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
       },
       {
         id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
+        header: "Actions",
         cell: ({ row }) => {
           const name = `${row.original.firstName} ${row.original.lastName || ""}`.trim();
           return (
-            <RowActions
-              actions={[
-                {
-                  ariaLabel: `View ${name}'s progress and activity history`,
-                  href: `/coach/students/${row.original.id}`,
-                  icon: TrendingUp,
-                  label: "Progress & activity history"
-                },
-                {
-                  ariaLabel: `Ask to move or remove ${name}`,
-                  icon: ArrowLeftRight,
-                  label: "Ask to move or remove",
-                  onSelect: () => setChangingBatch(row.original)
-                }
-              ]}
-            />
+            <div className="flex items-center justify-center gap-2">
+              <SimpleTooltip label="Progress & activity history">
+                <Button
+                  asChild
+                  className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                  size="icon"
+                  variant="ghost"
+                >
+                  <Link aria-label={`View ${name}'s progress and activity history`} href={`/coach/students/${row.original.id}`}>
+                    <TrendingUp aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                  </Link>
+                </Button>
+              </SimpleTooltip>
+              <SimpleTooltip label="Ask to move or remove">
+                <Button
+                  aria-label={`Ask to move or remove ${name}`}
+                  className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                  onClick={() => setChangingBatch(row.original)}
+                  size="icon"
+                  type="button"
+                  variant="ghost"
+                >
+                  <ArrowLeftRight aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                </Button>
+              </SimpleTooltip>
+            </div>
           );
         }
       }
@@ -146,59 +157,51 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
     columns
   });
 
-  const batchOptions = [
-    { label: "All batches", value: "ALL" },
-    ...(batchesData?.batches.map((b) => ({ label: b.name, value: b.id })) || [])
-  ];
-
   return (
-    <div className="animate-fade-in pb-10">
-      <PageHeader description="Every student in the batches you teach." title="Students" />
-
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <div className="w-full sm:w-64">
-          <Input
-            aria-label="Search students"
-            leadingIcon={<Search aria-hidden="true" className="size-4" strokeWidth={2.25} />}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or email"
-            value={search}
-          />
-        </div>
-        <div className="w-full sm:w-56">
-          <Select
-            aria-label="Filter by batch"
-            onChange={(e) => setSelectedBatch(e.target.value)}
-            options={batchOptions}
-            value={selectedBatch}
-          />
-        </div>
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Students</h1>
+        <p className="text-app-muted mt-1">View and search for students across your assigned batches.</p>
       </div>
 
-      {studentsLoading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-12 rounded-app" />
-          <Skeleton className="h-12 rounded-app" />
-          <Skeleton className="h-12 rounded-app" />
-        </div>
-      ) : filteredStudents.length === 0 ? (
-        <EmptyState
-          description={
-            search || selectedBatch !== "ALL"
-              ? "Try another name or all batches."
-              : "Students appear here once an admin adds them to one of your batches."
-          }
-          illustration={search || selectedBatch !== "ALL" ? "search-results" : "students"}
-          title={search || selectedBatch !== "ALL" ? "No students match" : "No students yet"}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <Input
+          placeholder="Search students..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-xs"
         />
-      ) : (
-        <div className="overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card">
-          <DataTable columnsLength={columns.length} stackOnMobile table={table} />
-          <div className="border-t border-app-border p-4">
-            <DataTablePagination table={table} totalRows={filteredStudents.length} />
+        <Select
+          value={selectedBatch}
+          onChange={(e) => setSelectedBatch(e.target.value)}
+          options={[
+            { label: "All Batches", value: "ALL" },
+            ...(batchesData?.batches.map(b => ({ label: b.name, value: b.id })) || [])
+          ]}
+          className="w-full sm:w-[200px]"
+        />
+      </div>
+
+      <div className="rounded-app border border-app-border bg-app-surface shadow-card overflow-hidden">
+        {studentsLoading ? (
+          <div className="p-8 text-center text-app-muted">Loading students...</div>
+        ) : filteredStudents.length === 0 ? (
+          <div className="p-6 sm:p-12">
+            <EmptyState
+              icon={Users}
+              title="No students found"
+              description="There are no students matching your current filters."
+            />
           </div>
-        </div>
-      )}
+        ) : (
+          <>
+            <DataTable columnsLength={columns.length} stackOnMobile table={table as any} />
+            <div className="border-t border-app-border p-4 bg-app-soft">
+              <DataTablePagination table={table as any} totalRows={filteredStudents.length} />
+            </div>
+          </>
+        )}
+      </div>
 
       <ChangeStudentBatchDialog
         batches={batchesData?.batches ?? []}

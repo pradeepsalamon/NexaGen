@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
-import type { DemoInviteeInput } from "@nexa-chess/types";
+import { markdownToWhatsApp, type DemoInviteeInput } from "@nexa-chess/types";
 import {
   ClassStatus,
   DemoGuestApproval,
@@ -16,9 +16,9 @@ import {
   LeadStatus,
   Prisma
 } from "@prisma/client";
-import { SystemNotifier } from "../mail/system-notifier.service";
+import { MailService } from "../mail/mail.service";
+import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { formatDemoTime } from "../messaging/messaging.format";
-import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 
@@ -62,9 +62,9 @@ export class DemoInviteService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifier: SystemNotifier,
-    private readonly whatsapp: WhatsAppService,
-    private readonly referrals: ReferralTrackerService
+    private readonly mail: MailService,
+    private readonly messages: SystemMessageRenderer,
+    private readonly whatsapp: WhatsAppService
   ) {}
 
   /** Same normalization the public join page uses — the dedupe/match key. */
@@ -185,7 +185,6 @@ export class DemoInviteService {
       }
     });
 
-    await this.referrals.onLeadEvent(lead.id, "DEMO_BOOKED", actorId);
     if (created && notify) void this.sendInvitation(demoClass, target, inviteToken);
     return created;
   }
@@ -292,17 +291,23 @@ export class DemoInviteService {
     const topic = demoClass.topic ?? "Demo class";
     const joinUrl = `${getFrontendUrl(this.env)}${demoInvitePath(demoClass.id, inviteToken)}`;
     try {
-      await this.notifier.send(
-        "DEMO_INVITATION",
-        { email: target.email, phone: target.phoneNumber },
-        {
+      if (target.contactMethod === DemoRegistrationContactMethod.EMAIL && target.email) {
+        await this.mail.sendDemoClassInvitation({
+          to: target.email,
+          guestName: target.name,
+          classTopic: topic,
+          startsAt: demoClass.startsAt,
+          joinUrl
+        });
+      } else if (target.phoneNumber) {
+        const { body } = await this.messages.render("DEMO_INVITATION_WHATSAPP", {
           "demo.dateTime": formatDemoTime(demoClass.startsAt),
           "demo.topic": topic,
-          "guest.email": target.email ?? "",
           "guest.name": target.name,
           "links.join": joinUrl
-        }
-      );
+        });
+        await this.whatsapp.trySendText({ to: target.phoneNumber, body: markdownToWhatsApp(body) });
+      }
     } catch (error) {
       this.logger.warn(
         `Demo invitation for class ${demoClass.id} failed: ${(error as Error).message}`

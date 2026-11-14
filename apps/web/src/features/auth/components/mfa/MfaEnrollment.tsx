@@ -83,7 +83,7 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
         </ul>
         <div className="flex flex-wrap justify-end gap-2">
           <Button onClick={() => copyRecoveryCodes(enabled.recoveryCodes)} variant="outline">
-            <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
+            <Copy className="size-4" strokeWidth={2.5} />
             Copy codes
           </Button>
           <Button onClick={() => onComplete(enabled)}>I&apos;ve saved them</Button>
@@ -115,7 +115,7 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
       </p>
       {setup.data ? (
         <div className="flex flex-col items-center gap-3">
-          <div className="rounded-control bg-paper p-3">
+          <div className="rounded-control bg-white p-3">
             <QRCodeSVG aria-label="Authenticator setup QR code" size={168} value={setup.data.otpauthUrl} />
           </div>
           <div className="flex flex-col items-center gap-1.5 text-center text-xs text-app-muted">
@@ -126,12 +126,13 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
               </span>
             </p>
             <Button
+              className="h-7 text-xs"
               onClick={() => copySecret(setup.data.secret)}
               size="sm"
               type="button"
               variant="ghost"
             >
-              <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              <Copy className="mr-1.5 size-3.5" strokeWidth={2.5} />
               Copy key
             </Button>
           </div>
@@ -157,7 +158,7 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
       </FormField>
       <div className="flex flex-wrap justify-end gap-2">
         {onCancel && (
-          <Button onClick={onCancel} type="button" variant="neutral">
+          <Button onClick={onCancel} type="button" variant="ghost">
             Cancel
           </Button>
         )}

@@ -37,11 +37,7 @@ for India.
   `EntitlementService.grant` runs inside the capture transaction and is
   idempotent on the unique `(orderId, planId)`; batch enrolment is an `upsert`
   (BatchStudent is soft-deletable and its unique key spans deleted rows).
-  **Nothing else in the codebase may enrol a student off a payment.** The one
-  grant without a payment is `EntitlementService.grantFreeDays`: a referral
-  free-days voucher the student bought with points ([REFERRALS.md](REFERRALS.md)
-  § Vouchers). It extends their live time-limited access to the plan, or
-  creates access with `orderId: null`, inside the redemption's transaction.
+  **Nothing else in the codebase may enrol a student off a payment.**
 - **Double-payment protection is the unique index on `orders.idempotencyKey`**,
   not a check-then-insert. The web client holds one key per plan in
   `sessionStorage` (`features/payments/lib/checkoutKey.ts`), so a double click,
@@ -266,18 +262,6 @@ POST https://<api-host>/payments/webhooks/razorpay
 POST https://<api-host>/payments/webhooks/cashfree
 POST https://<api-host>/payments/webhooks/stripe
 ```
-
-**Other academies (SaaS Phase 6).** The env keys above are NexaChess's own
-academy's. Every other academy connects its own account under Payments →
-Gateways (super admins; `TenantPaymentCredential`, secrets encrypted with
-`CREDENTIALS_ENCRYPTION_KEY`, else `MFA_ENCRYPTION_KEY`). Adapters read the
-current academy's keys through `GatewayCredentialsService.envFor`; an academy
-without a connected gateway has online payments off and never uses NexaChess's
-keys. Its webhook URL is shown on that page:
-`POST https://<api-host>/payments/webhooks/<provider>/<academy key>`; the key
-names the academy and its own webhook secret verifies the event. Academies
-paying NexaChess for their plan are a separate flow (`platform-billing/`,
-docs/SAAS_MULTI_TENANCY.md "Phase 6 as built") that never touches this module.
 
 ### Pricing a batch
 

@@ -1,15 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { DEFAULT_TENANT_ID, markdownToWhatsApp, MESSAGE_MAX_ATTEMPTS } from "@nexa-chess/types";
+import { markdownToWhatsApp, MESSAGE_MAX_ATTEMPTS } from "@nexa-chess/types";
 import type { MessageDelivery } from "@prisma/client";
-import { EmailPreferencesService } from "../email-admin/email-preferences.service";
 import { MailService } from "../mail/mail.service";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { runInTenant } from "../tenancy/tenant-context";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { nextAttemptAt } from "./messaging.schedule";
-
 
 /** Rows claimed per sweep. Caps how long one tick can run. */
 const BATCH_SIZE = 200;
@@ -32,7 +29,6 @@ export class MessagingDeliveryWorker {
   private running = false;
 
   constructor(
-    private readonly emailPreferences: EmailPreferencesService,
     private readonly mail: MailService,
     private readonly notifications: NotificationService,
     private readonly prisma: PrismaService,
@@ -55,11 +51,7 @@ export class MessagingDeliveryWorker {
       for (const delivery of claimed) {
         // Unsent rows wait for their claim to go stale, then a later sweep takes them.
         if (Date.now() > deadline) break;
-        // The claim spans academies; each row is sent as its own academy
-        // (docs/SAAS_MULTI_TENANCY.md § "Phase 3 plan", slice 2).
-        const ok = await runInTenant(delivery.tenantId ?? DEFAULT_TENANT_ID, "job:messaging.outbox", () =>
-          this.deliver(delivery)
-        );
+        const ok = await this.deliver(delivery);
         if (ok) sent += 1;
         else failed += 1;
       }
@@ -149,21 +141,25 @@ export class MessagingDeliveryWorker {
             }
           : null;
 
-      // Template, document or text: WhatsAppService.trySendMessage makes the choice for every caller.
-      // A templated row with a document sends it as the template's DOCUMENT header, so the
-      // template must be approved with one or Meta rejects the payload.
-      const outcome = await this.whatsapp.trySendMessage({
-        document,
-        template: delivery.templateName
-          ? {
-              bodyParams: delivery.templateParams,
-              language: delivery.templateLanguage ?? undefined,
-              name: delivery.templateName
-            }
-          : null,
-        text: markdownToWhatsApp(delivery.body),
-        to
-      });
+      const outcome = delivery.templateName
+        ? await this.whatsapp.trySendTemplate({
+            to,
+            name: delivery.templateName,
+            language: delivery.templateLanguage ?? undefined,
+            bodyParams: delivery.templateParams,
+            // The template must be approved with a DOCUMENT header for this to
+            // be accepted; without one Meta rejects it as a payload mismatch.
+            headerDocument: document ?? undefined
+          })
+        : document
+          ? await this.whatsapp.trySendDocument({
+              to,
+              ...document,
+              // The rendered body rides along as the caption, so the recipient
+              // gets the words and the file in a single chat bubble.
+              caption: markdownToWhatsApp(delivery.body)
+            })
+          : await this.whatsapp.trySendText({ to, body: markdownToWhatsApp(delivery.body) });
 
       if (outcome.ok) {
         await this.markSent(delivery.id, attempts, outcome.result.messageId);
@@ -198,24 +194,13 @@ export class MessagingDeliveryWorker {
     }
 
     const recipient = delivery.recipientId
-      ? await this.emailPreferences.targetFor(delivery.recipientId)
+      ? await this.prisma.user.findUnique({
+          where: { id: delivery.recipientId },
+          select: { email: true }
+        })
       : null;
     if (!recipient) {
       await this.markFailed(delivery.id, attempts, "The recipient's account no longer exists.");
-      return false;
-    }
-    // Checked at send time, so unsubscribing also stops what is already queued.
-    if (recipient.optedOut) {
-      await this.prisma.messageDelivery.update({
-        where: { id: delivery.id },
-        data: {
-          status: "SKIPPED",
-          attempts,
-          claimedAt: null,
-          error: "The recipient turned off notification emails.",
-          lastAttemptAt: new Date()
-        }
-      });
       return false;
     }
 
@@ -223,8 +208,7 @@ export class MessagingDeliveryWorker {
       const messageId = await this.mail.sendRuleEmail({
         to: recipient.email,
         subject: delivery.title ?? delivery.body.slice(0, 120),
-        body: delivery.body,
-        unsubscribeUrl: recipient.unsubscribeUrl
+        body: delivery.body
       });
       await this.markSent(delivery.id, attempts, messageId);
       return true;

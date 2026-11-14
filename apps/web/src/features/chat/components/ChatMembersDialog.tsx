@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ChatConversationDetail } from "@nexa-chess/types";
-import { Crown } from "lucide-react";
+import { Crown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -16,7 +16,6 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { useChatContacts, useUpdateChatGroupMembers } from "../hooks/useChat";
-import { Spinner } from "@/components/ui/Spinner";
 
 type Props = {
   conversation: ChatConversationDetail;
@@ -99,14 +98,14 @@ export function ChatMembersDialog({ conversation, onOpenChange, open }: Props) {
               .filter((m) => m.owner)
               .map((m) => (
                 <div className="flex items-center gap-3 rounded-control px-2 py-2" key={m.id}>
-                  <Crown aria-hidden className="size-4 text-accent-ink" />
+                  <Crown aria-hidden className="size-4 text-secondary-ink" />
                   <span className="flex-1 text-sm font-semibold text-app-text">{m.name}</span>
                   <Badge variant="secondary">Owner</Badge>
                 </div>
               ))}
             {contacts.isLoading && (
               <p className="flex items-center gap-2 px-2 py-2 text-sm text-app-muted">
-                <Spinner className="size-4" /> Loading students…
+                <Loader2 className="size-4 animate-spin" /> Loading students…
               </p>
             )}
             {candidates.map((c) => (
@@ -151,7 +150,7 @@ export function ChatMembersDialog({ conversation, onOpenChange, open }: Props) {
           </Button>
           {manage && (
             <Button disabled={!dirty || update.isPending} onClick={save}>
-              {update.isPending && <Spinner className="mr-1.5 size-4" />}
+              {update.isPending && <Loader2 className="mr-1.5 size-4 animate-spin" />}
               Save
             </Button>
           )}

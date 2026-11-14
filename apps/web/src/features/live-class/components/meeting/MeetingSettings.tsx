@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Captions, ChevronDown, Keyboard, Mic, SlidersHorizontal, Sparkles } from "lucide-react";
+import { ChevronDown, Keyboard, Mic, SlidersHorizontal, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { InRoomClassControls } from "../../settings/InRoomClassControls";
-import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { MeetingDeviceSettings } from "./MeetingDeviceSettings";
-import { MeetingTranscriptSettings } from "./MeetingTranscriptSettings";
 import { MeetingVideoEffects } from "./MeetingVideoEffects";
 import { PanelHeader } from "./PanelHeader";
 
@@ -31,7 +29,7 @@ function PanelSection({
 
   const heading = (
     <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
-      <span className="flex items-center gap-2 text-xs font-bold text-app-muted">
+      <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-app-muted">
         <span className="text-app-muted">{icon}</span>
         {title}
       </span>
@@ -80,9 +78,6 @@ const SHORTCUTS = [
 export function MeetingSettings() {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
-  const { settings } = useLiveClassState("settings");
-  // Only the class's own coach is transcribed, so only they get the controls.
-  const showTranscript = user?.role === "COACH" && settings?.transcript === "ENABLED";
 
   return (
     <div className="flex h-full flex-col">
@@ -104,16 +99,6 @@ export function MeetingSettings() {
         >
           <MeetingVideoEffects />
         </PanelSection>
-
-        {showTranscript && (
-          <PanelSection
-            icon={<Captions className="size-3.5" />}
-            title="Class transcript"
-            description="Your speech kept as text. Only you are transcribed, and only you control it."
-          >
-            <MeetingTranscriptSettings />
-          </PanelSection>
-        )}
 
         {isCoach && (
           // Collapsed by default: it is the longest section in the panel and a

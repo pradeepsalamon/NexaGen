@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { CalendarX } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { API_ROUTES, type StudentAttendanceResponse, type StudentAttendanceHistory } from "@nexa-chess/types";
 import { AttendanceLogDialog } from "@/features/attendance/components/AttendanceLogDialog";
@@ -49,29 +48,20 @@ export default function StudentAttendancePage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto space-y-6 pb-10" role="status">
-        <span className="sr-only">Loading your attendance…</span>
+      <div className="max-w-7xl mx-auto space-y-6 pb-10">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="space-y-2">
-            <Skeleton className="h-8 w-64 max-w-full" />
-            <Skeleton className="h-4 w-80 max-w-full" />
+            <div className="h-8 w-64 bg-app-soft animate-pulse rounded-control" />
+            <div className="h-4 w-80 bg-app-soft animate-pulse rounded-control" />
           </div>
-          <Skeleton className="h-10 w-56 rounded-full" />
+          <div className="h-10 w-56 bg-app-soft animate-pulse rounded-full" />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex h-36 flex-col justify-between rounded-app border border-app-border bg-app-surface p-4 shadow-card">
-              <Skeleton className="h-3.5 w-2/3" />
-              <Skeleton className="h-8 w-1/2" />
-            </div>
+            <div key={i} className="h-36 bg-app-surface border border-app-border rounded-app animate-pulse" />
           ))}
         </div>
-        <div className="space-y-3 rounded-app border border-app-border bg-app-surface p-4 shadow-card">
-          <Skeleton className="h-5 w-48" />
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
+        <div className="h-96 w-full bg-app-surface border border-app-border rounded-app animate-pulse" />
       </div>
     );
   }
@@ -89,12 +79,14 @@ export default function StudentAttendancePage() {
 
   if (!data) {
     return (
-      <div className="mx-auto max-w-7xl pb-10">
-        <EmptyState
-          description="Join a live class and your attendance shows up here."
-          illustration="attendance"
-          title="No attendance yet"
-        />
+      <div className="flex flex-col items-center justify-center h-[50dvh] text-center">
+        <div className="p-4 bg-app-soft rounded-full mb-4">
+          <CalendarX className="h-10 w-10 text-app-muted" />
+        </div>
+        <h2 className="text-xl font-semibold mb-2">No Attendance Data</h2>
+        <p className="text-app-muted max-w-md">
+          There are no attendance records to display yet. Join a live class to start tracking your attendance.
+        </p>
       </div>
     );
   }

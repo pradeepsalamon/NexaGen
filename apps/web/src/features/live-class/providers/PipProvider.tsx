@@ -9,7 +9,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import {
   copyStylesTo,
   enterVideoPip,
@@ -56,9 +55,8 @@ interface PipContextValue {
 
 const PipContext = createContext<PipContextValue | undefined>(undefined);
 
-// The first size is the spec's 320 × 180 mini player (controls ride on the video).
 const SIZES = [
-  { width: 320, height: 180 },
+  { width: 360, height: 232 },
   { width: 480, height: 300 },
   { width: 640, height: 392 },
 ] as const;
@@ -98,7 +96,6 @@ export function PipProvider({
   // Detected lazily on the client: SSR has neither `window` nor `document`, and
   // a wrong first guess would hydrate a toolbar row that then disappears.
   const [mode, setMode] = useState<PipMode>(null);
-  const brandName = useBrandName();
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
   const [videoActive, setVideoActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -280,7 +277,7 @@ export function PipProvider({
     const session = navigator.mediaSession;
 
     try {
-      session.metadata = new MediaMetadata({ title: "Live class", artist: brandName });
+      session.metadata = new MediaMetadata({ title: "Live class", artist: "Nexa Chess" });
       session.playbackState = "playing";
     } catch {
       /* MediaMetadata / playbackState unsupported — the capture path still works */
@@ -312,7 +309,7 @@ export function PipProvider({
         /* nothing to reset */
       }
     };
-  }, [mode, autoEnabled, open, brandName]);
+  }, [mode, autoEnabled, open]);
 
   // Coming back to the class tab, the floating window is just clutter.
   useEffect(() => {

@@ -133,42 +133,8 @@ test("student answers in the dashboard pop-up and skips the dashboard card", asy
     data: { createdAt: new Date(Date.now() - 7 * 86_400_000) }
   });
 
-  // Classes other specs completed with this student would be asked about too
-  // (newest first): mark them skipped for this run's form only. cleanup()
-  // removes the form's responses afterwards.
-  const form = await prisma.feedbackForm.findFirstOrThrow({ where: { title: FORM_TITLE } });
-  const student = await prisma.user.findUniqueOrThrow({ where: { email: "student@nexa.test" } });
-  const others = await prisma.classAttendance.findMany({
-    where: {
-      studentId: student.id,
-      status: { not: "ABSENT" },
-      class: { batchId: { not: null }, id: { not: { startsWith: PREFIX } }, status: "COMPLETED" }
-    },
-    select: { class: { select: { coachId: true, id: true } } }
-  });
-  if (others.length > 0) {
-    await prisma.feedbackResponse.createMany({
-      data: others.map((a: { class: { coachId: string; id: string } }) => ({
-        classId: a.class.id,
-        coachId: a.class.coachId,
-        contextKey: `class:${a.class.id}`,
-        formId: form.id,
-        status: "SKIPPED",
-        studentId: student.id
-      })),
-      skipDuplicates: true
-    });
-  }
-
   const page = await pageAs(browser, "student");
   await page.goto("/student");
-
-  // One dashboard pop-up at a time: a homework reminder (when the student has
-  // overdue work) goes first, and the feedback pop-up follows once it closes.
-  const reminder = page.getByRole("dialog", { name: /don.t forget your homework/i });
-  if (await reminder.waitFor({ timeout: 5_000 }).then(() => true).catch(() => false)) {
-    await reminder.getByRole("button", { name: "Later" }).click();
-  }
 
   // Pop-up: the newest class.
   const popup = page.getByRole("dialog");
@@ -217,9 +183,7 @@ test("an answered request can't be submitted again", async ({ browser }) => {
   );
   expect(res.status()).toBe(404);
 
-  const stored = await prisma.feedbackResponse.findMany({
-    where: { classId: { startsWith: PREFIX }, formId: form.id }
-  });
+  const stored = await prisma.feedbackResponse.findMany({ where: { formId: form.id } });
   expect(stored.map((r: { status: string }) => r.status).sort()).toEqual(["SKIPPED", "SUBMITTED"]);
   expect(stored.find((r: { status: string }) => r.status === "SUBMITTED").overallRating).toBe(4.5);
 });

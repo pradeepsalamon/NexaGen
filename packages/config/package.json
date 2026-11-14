@@ -3,28 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",
-  "module": "dist/esm/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.esm.json",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/esm/index.js",
+      "import": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./api": {
       "types": "./dist/api.d.ts",
-      "import": "./dist/esm/api.js",
+      "import": "./dist/api.js",
       "require": "./dist/api.js",
       "default": "./dist/api.js"
     },
     "./web": {
       "types": "./dist/web.d.ts",
-      "import": "./dist/esm/web.js",
+      "import": "./dist/web.js",
       "require": "./dist/web.js",
       "default": "./dist/web.js"
     }

@@ -17,7 +17,7 @@ interface ContinueLearningProps {
 
 export function ContinueLearning({ courses }: ContinueLearningProps) {
   return (
-    <SectionCard title="Continue learning">
+    <SectionCard className="h-full" title="Continue learning">
       <ul className="-my-2 divide-y divide-app-border">
         {courses.map((course) => (
           <li key={course.id}>
@@ -26,10 +26,8 @@ export function ContinueLearning({ courses }: ContinueLearningProps) {
               href={`/student/courses/${course.id}`}
             >
               <span className="flex items-baseline justify-between gap-3">
-                <span className="truncate text-sm font-semibold text-app-text">
-                  {course.title}
-                </span>
-                <span className="shrink-0 text-xs font-semibold tabular-nums text-primary-ink">
+                <span className="truncate text-sm font-bold text-app-text">{course.title}</span>
+                <span className="shrink-0 text-xs font-bold text-app-text">
                   {course.progressPercent}%
                 </span>
               </span>
@@ -41,7 +39,7 @@ export function ContinueLearning({ courses }: ContinueLearningProps) {
                 aria-valuemax={100}
                 aria-valuemin={0}
                 aria-valuenow={course.progressPercent}
-                className="mt-2 block h-1.5 overflow-hidden rounded-full bg-app-border"
+                className="mt-2 block h-1.5 overflow-hidden rounded-full bg-app-soft"
                 role="progressbar"
               >
                 <span

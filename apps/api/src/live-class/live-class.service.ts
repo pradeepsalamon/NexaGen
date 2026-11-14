@@ -216,7 +216,7 @@ export class LiveClassService {
     const isCoach = user.role === UserRole.COACH && liveSession.coachId === user.id;
     const isStudent =
       user.role === UserRole.STUDENT &&
-      (liveSession.batch?.students.some((s) => s.studentId === user.id) ||
+      (liveSession.batch?.students.some((s: any) => s.studentId === user.id) ||
         !!(await this.prisma.liveClassPull.findFirst({
           where: { liveSessionId: liveSession.id, studentId: user.id, status: { in: ["PENDING", "JOINED"] } },
           select: { id: true },
@@ -591,7 +591,7 @@ export class LiveClassService {
   async handleStaleClasses() {
     try {
       // Only one instance should sweep stale classes per tick (AUDIT M21).
-      await this.jobLocks.runForEachTenant(JOB_LOCKS.liveClassStaleSweep, () =>
+      await this.jobLocks.runExclusive(JOB_LOCKS.liveClassStaleSweep, () =>
         this.sweepStaleClasses()
       );
     } catch (error) {
@@ -732,8 +732,7 @@ export class LiveClassService {
       this.logger.warn(`Failed to resolve pre-class settings for ${classId}`, error as Error);
     }
 
-    // Only the batch's name (the room's top bar), never its roster.
-    return { ...classWithoutBatch, batchName: scheduledClass.batch?.name ?? null, preClassSettings };
+    return { ...classWithoutBatch, preClassSettings };
   }
 
   async getParticipants(accessToken: string | undefined, classId: string) {

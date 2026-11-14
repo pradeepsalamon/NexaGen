@@ -159,11 +159,11 @@ export function DiscountsPanel() {
                 <SimpleTooltip label="Edit this code">
                   <Button
                     aria-label={`Edit ${discount.code}`}
-                    className="size-8"
+                    className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                     onClick={() => setEditing(discount)}
                     size="icon"
                     type="button"
-                    variant="neutral"
+                    variant="ghost"
                   >
                     <Pencil className="size-3.5" strokeWidth={2.5} />
                   </Button>
@@ -178,11 +178,11 @@ export function DiscountsPanel() {
                 >
                   <Button
                     aria-label={`Remove ${discount.code}`}
-                    className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
+                    className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                     onClick={() => void remove.run(discount.id)}
                     size="icon"
                     type="button"
-                    variant="neutral"
+                    variant="ghost"
                   >
                     <Trash2 className="size-3.5" strokeWidth={2.5} />
                   </Button>
@@ -555,10 +555,7 @@ function DiscountForm({
         Active
       </label>
 
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button onClick={onClose} type="button" variant="neutral">
-          Cancel
-        </Button>
+      <div className="flex flex-wrap gap-2">
         <Button
           disabled={
             Boolean(issue) ||
@@ -572,6 +569,9 @@ function DiscountForm({
           variant="primary"
         >
           {discount ? "Save code" : "Create code"}
+        </Button>
+        <Button onClick={onClose} type="button" variant="outline">
+          Cancel
         </Button>
       </div>
     </Card>

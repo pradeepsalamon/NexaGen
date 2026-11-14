@@ -144,7 +144,7 @@ export function AssignmentPuzzleSolver({
         {result && (
           <Card
             className={`flex items-start gap-2 p-3 text-sm ${
-              result.solved ? "border-success/40 bg-success/10 text-success-ink" : "text-app-text"
+              result.solved ? "border-accent/40 bg-accent/10 text-accent-ink" : "text-app-text"
             }`}
             role="status"
           >
@@ -195,7 +195,7 @@ export function AssignmentPuzzleSolver({
           </div>
         )}
 
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap gap-2">
           {phase === "solving" && (
             <Button disabled={submitting} type="button" variant="outline" size="sm" onClick={() => void giveUp()}>
               Give up this try

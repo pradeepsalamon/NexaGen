@@ -1,6 +1,5 @@
 import type { RegisterRequest } from "@nexa-chess/types";
 import {
-  Equals,
   IsEmail,
   IsIn,
   IsNotEmpty,
@@ -29,10 +28,6 @@ const acquisitionSources = [
 ] as const;
 
 export class RegisterDto implements RegisterRequest {
-  // The sign-up checkbox; the service stores LEGAL_TERMS_VERSION with the time.
-  @Equals(true, { message: "Accept the Terms of Service and Privacy Policy to continue." })
-  acceptedTerms!: true;
-
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)

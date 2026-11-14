@@ -1,6 +1,5 @@
 "use client";
 
-import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, ShieldCheck } from "lucide-react";
@@ -13,7 +12,6 @@ import {
   type CheckoutHandoff,
   type PaymentMethodKind
 } from "@nexa-chess/types";
-import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -46,7 +44,6 @@ type Props = { planId: string };
  * would produce.
  */
 export function CheckoutClient({ planId }: Props) {
-  const brandName = useBrandName();
   const router = useRouter();
   const toast = useToast();
 
@@ -180,8 +177,7 @@ export function CheckoutClient({ planId }: Props) {
         const outcome = await openGateway(session.handoff, {
           amount: session.amount,
           currency: session.currency,
-          description: config?.plan.name ?? brandName,
-          merchantName: brandName
+          description: config?.plan.name ?? "NexaChess"
         });
         if (outcome.kind === "completed") {
           await verify.mutateAsync({
@@ -205,7 +201,7 @@ export function CheckoutClient({ planId }: Props) {
         message: (mutationError as Error).message
       });
     }
-  }, [brandName, config?.plan.name, method, paymentId, retry, toast, verify]);
+  }, [config?.plan.name, method, paymentId, retry, toast, verify]);
 
   if (isLoading) {
     return <Skeleton className="mx-auto h-[520px] w-full max-w-lg" />;
@@ -274,10 +270,10 @@ export function CheckoutClient({ planId }: Props) {
       {!status?.accessGranted && !qrHandoff ? (
         <Card className="p-5 sm:p-6">
           <header className="mb-5 border-b border-app-border pb-4">
-            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
+            <h1 className="text-lg font-bold text-app-text">
               {config.plan.name}
             </h1>
-            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-app-text">
+            <p className="mt-1 text-2xl font-bold text-primary-ink">
               {formatMoney(config.plan.amount, config.currency)}
               {isRecurringInterval(config.plan.interval) ? (
                 <span className="text-sm font-semibold text-app-muted">
@@ -294,25 +290,25 @@ export function CheckoutClient({ planId }: Props) {
           </header>
 
           {config.recurring ? (
-            <Alert className="mb-4" variant="info">
+            <p className="mb-4 rounded-app border border-app-border bg-app-soft px-3 py-2 text-sm text-app-muted">
               This is a{" "}
               {BILLING_INTERVAL_LABELS[config.plan.interval].toLowerCase()}{" "}
               subscription. The gateway charges it each cycle until you cancel,
               and you can cancel any time from Billing.
-            </Alert>
+            </p>
           ) : null}
 
           {config.alreadySubscribed ? (
-            <Alert className="mb-4" variant="info">
+            <p className="mb-4 rounded-app border border-secondary bg-secondary/10 px-3 py-2 text-sm text-secondary-ink">
               You already have an active subscription to this plan.
-            </Alert>
+            </p>
           ) : null}
 
           {config.alreadyOwned ? (
-            <Alert className="mb-4" variant="success">
+            <p className="mb-4 rounded-app border border-accent bg-accent/10 px-3 py-2 text-sm text-accent-ink">
               You already have active access to this plan. Buying again will
               start a separate purchase.
-            </Alert>
+            </p>
           ) : null}
 
           <PaymentMethodPicker
@@ -342,8 +338,8 @@ export function CheckoutClient({ planId }: Props) {
             </div>
             {discount ? (
               <div className="flex justify-between">
-                <dt className="text-success-ink">Discount ({discount.code})</dt>
-                <dd className="text-success-ink">
+                <dt className="text-accent-ink">Discount ({discount.code})</dt>
+                <dd className="text-accent-ink">
                   -{formatMoney(discount.amount, config.currency)}
                 </dd>
               </div>
@@ -362,7 +358,7 @@ export function CheckoutClient({ planId }: Props) {
               <dt className="text-app-text">
                 {config.recurring ? "Total per cycle" : "Total"}
               </dt>
-              <dd className="tabular-nums text-app-text">
+              <dd className="text-app-text">
                 {formatMoney(total, config.currency)}
               </dd>
             </div>
@@ -386,7 +382,7 @@ export function CheckoutClient({ planId }: Props) {
 
           <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-app-muted">
             <ShieldCheck aria-hidden className="size-3.5" strokeWidth={2.5} />
-            Card and UPI details are entered on the payment gateway. {brandName}{" "}
+            Card and UPI details are entered on the payment gateway. NexaChess
             never sees them.
           </p>
         </Card>

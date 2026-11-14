@@ -91,13 +91,13 @@ export function MoveTreeView({
           className={cn(
             "inline-flex items-baseline gap-0.5 rounded px-1 py-0.5 font-mono transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
             main ? "font-semibold text-app-text" : "text-app-muted",
-            active ? "bg-primary text-on-primary" : "hover:bg-app-soft hover:text-primary-ink",
+            active ? "bg-primary text-white" : "hover:bg-app-soft hover:text-primary-ink",
           )}
         >
-          {label && <span className={cn("font-normal", active ? "text-on-primary/80" : "text-app-muted")}>{label}</span>}
+          {label && <span className={cn("font-normal", active ? "text-white/80" : "text-app-muted")}>{label}</span>}
           <span>{node.san}</span>
           {node.nags?.map((nag) => (
-            <span key={nag} className={active ? "text-on-primary" : "text-primary-ink"}>
+            <span key={nag} className={active ? "text-white" : "text-primary-ink"}>
               {nagSymbol(nag)}
             </span>
           ))}
@@ -122,19 +122,19 @@ export function MoveTreeView({
         aria-label={`${label} ${node.san}${evaluation ? `, evaluation ${evaluation}` : ""}`}
         className={cn(
           "flex min-w-0 items-baseline gap-1 px-2 py-1 text-left font-mono transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50",
-          active ? "bg-primary text-on-primary" : "text-app-text hover:bg-app-soft",
+          active ? "bg-primary text-white" : "text-app-text hover:bg-app-soft",
         )}
       >
         <span className="min-w-0 flex-1 truncate font-semibold">
           {node.san}
           {node.nags?.map((nag) => (
-            <span key={nag} className={active ? "text-on-primary" : "text-primary-ink"}>
+            <span key={nag} className={active ? "text-white" : "text-primary-ink"}>
               {nagSymbol(nag)}
             </span>
           ))}
         </span>
         {evaluation ? (
-          <span className={cn("shrink-0 text-xs tabular-nums", active ? "text-on-primary" : "text-app-muted")}>{evaluation}</span>
+          <span className={cn("shrink-0 text-[11px] tabular-nums", active ? "text-white" : "text-app-muted")}>{evaluation}</span>
         ) : null}
       </button>
     );
@@ -177,7 +177,7 @@ export function MoveTreeView({
   const closePair = (black: ReactNode | null) => {
     if (!pair) return;
     blocks.push(
-      <div key={`pair-${pair.key}`} className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)] text-[0.8125rem] leading-5">
+      <div key={`pair-${pair.key}`} className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)] text-sm">
         <span className="bg-app-soft/60 py-1 pr-1.5 text-right font-mono text-xs leading-5 text-app-muted">{pair.number}</span>
         {pair.white ?? <Gap />}
         {black ?? (pair.white ? <span /> : <Gap />)}
@@ -332,12 +332,12 @@ function VariationBar({
     <div className="flex flex-wrap items-center gap-1.5 border-b border-app-border bg-app-soft/60 px-2 py-1.5 text-xs">
       {inVariation && (
         <>
-          <span className="inline-flex items-center gap-1 font-semibold text-app-text">
+          <span className="inline-flex items-center gap-1 font-semibold text-primary-ink">
             <GitBranch className="size-3.5" strokeWidth={2.5} aria-hidden />
             Variation
           </span>
-          <Button variant="neutral" size="sm" className="h-7 min-h-7 px-2 text-xs" onClick={onBackToMainline}>
-            <CornerUpLeft className="size-3.5" strokeWidth={2.5} aria-hidden />
+          <Button variant="ghost" size="sm" className="h-7 min-h-7 px-2 text-xs" onClick={onBackToMainline}>
+            <CornerUpLeft className="mr-1 size-3.5" aria-hidden />
             Back to mainline
           </Button>
         </>
@@ -348,16 +348,16 @@ function VariationBar({
         )}
         {editable && inVariation && onPromote && (
           <Button variant="outline" size="sm" className="h-7 min-h-7 px-2 text-xs" onClick={() => setConfirm("promote")}>
-            <ArrowUpToLine className="size-3.5" strokeWidth={2.5} aria-hidden />
+            <ArrowUpToLine className="mr-1 size-3.5" aria-hidden />
             Promote to mainline
           </Button>
         )}
         {editable && inVariation && onDelete && (
           <SimpleTooltip label="Delete variation">
             <Button
-              variant="neutral"
+              variant="ghost"
               size="icon"
-              className="size-7 min-h-7 text-app-danger-ink"
+              className="size-7 min-h-7 rounded-full text-danger-ink"
               aria-label="Delete variation"
               onClick={() => setConfirm("delete")}
             >
@@ -414,8 +414,8 @@ function CommentEditor({ comment, onSave }: { comment: string; onSave: (text: st
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="neutral" size="sm" className="h-7 min-h-7 px-2 text-xs" aria-label="Comment on this move">
-          <MessageSquareText className="size-3.5" strokeWidth={2.5} aria-hidden />
+        <Button variant="ghost" size="sm" className="h-7 min-h-7 px-2 text-xs" aria-label="Comment on this move">
+          <MessageSquareText className="mr-1 size-3.5" aria-hidden />
           {comment ? "Edit comment" : "Comment"}
         </Button>
       </PopoverTrigger>

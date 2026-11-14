@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Play, Video } from "lucide-react";
+import { Loader2, Play, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getClassStartAvailability, type CoachClass } from "@nexa-chess/types";
@@ -11,7 +11,6 @@ import { useNow } from "@/hooks/useNow";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime, formatRelativeDay, formatTime } from "@/lib/datetime";
 import { useStartLiveClass } from "@/features/live-class/hooks/useLiveClassApi";
-import { Spinner } from "@/components/ui/Spinner";
 
 // Starting opens the LiveKit room and tells students the class is live, so a
 // start well ahead of time gets a confirmation. Inside this window it is one
@@ -19,19 +18,11 @@ import { Spinner } from "@/components/ui/Spinner";
 // server refuses outright, and the button says when it opens.)
 const EARLY_START_CONFIRM_MS = 15 * 60_000;
 
-interface StartClassButtonProps {
-  classItem: CoachClass;
-  /** A class row: small button, and nothing until the start window opens (the row shows the time). */
-  compact?: boolean;
-  /** Outlined, where another Start on the page is the primary action. */
-  quiet?: boolean;
-}
-
 /**
- * The coach's Start / Return action — the same start mutation and redirect as
- * `/classes/:id`, so the server's rules apply as-is.
+ * The coach's Start / Return action on a dashboard card — the same start
+ * mutation and redirect as `/classes/:id`, so the server's rules apply as-is.
  */
-export function StartClassButton({ classItem, compact = false, quiet = false }: StartClassButtonProps) {
+export function StartClassButton({ classItem }: { classItem: CoachClass }) {
   const router = useRouter();
   const timeZone = useUserTimeZone();
   const start = useStartLiveClass(classItem.id);
@@ -40,12 +31,7 @@ export function StartClassButton({ classItem, compact = false, quiet = false }: 
 
   if (classItem.status === "LIVE" || classItem.status === "IN_PROGRESS") {
     return (
-      <Button
-        asChild
-        className={compact ? undefined : "flex-1"}
-        size={compact ? "sm" : undefined}
-        variant={quiet ? "outline" : "primary"}
-      >
+      <Button asChild className="flex-1" variant="destructive">
         <Link href={`/live-class/${classItem.id}`}>
           <Video aria-hidden="true" className="size-4" strokeWidth={2.5} />
           Return to class
@@ -58,13 +44,13 @@ export function StartClassButton({ classItem, compact = false, quiet = false }: 
 
   const availability = getClassStartAvailability(classItem, now);
   if (!availability.canStart) {
-    if (compact || availability.reason !== "TOO_EARLY") return null;
+    if (availability.reason !== "TOO_EARLY") return null;
     const hintId = `start-hint-${classItem.id}`;
     return (
       <div className="flex flex-1 flex-col items-stretch gap-1">
         <Button aria-describedby={hintId} disabled variant="outline">
           <Play aria-hidden="true" className="size-4" strokeWidth={2.5} />
-          Start class
+          Start Class
         </Button>
         <span className="text-center text-xs text-app-muted" id={hintId}>
           {describeOpensAt(availability.opensAt, timeZone)}
@@ -87,19 +73,13 @@ export function StartClassButton({ classItem, compact = false, quiet = false }: 
 
   return (
     <>
-      <Button
-        className={compact ? undefined : "flex-1"}
-        disabled={start.isPending}
-        onClick={onClick}
-        size={compact ? "sm" : undefined}
-        variant={quiet ? "outline" : "primary"}
-      >
+      <Button className="flex-1" disabled={start.isPending} onClick={onClick}>
         {start.isPending ? (
-          <Spinner aria-hidden="true" className="size-4" />
+          <Loader2 aria-hidden="true" className="size-4 animate-spin" />
         ) : (
-          <Play aria-hidden="true" className={compact ? "size-3.5 fill-current" : "size-4 fill-current"} strokeWidth={2.5} />
+          <Play aria-hidden="true" className="size-4 fill-current" strokeWidth={2.5} />
         )}
-        {start.isPending ? "Starting..." : "Start class"}
+        {start.isPending ? "Starting..." : "Start Class"}
       </Button>
       <ConfirmationModal
         confirmLabel="Start now"

@@ -10,7 +10,6 @@ import {
   WEB_URL,
   api,
   cookieHeader,
-  findInDataTable,
   login,
   scheduleClass,
   seededBatchId,
@@ -311,11 +310,11 @@ test.describe("Full Attendance Flow", () => {
     await coachPage.waitForLoadState("networkidle");
 
     // Verify the page loaded
-    await expect(coachPage.getByRole("heading", { level: 1, name: "Attendance", exact: true })).toBeVisible();
+    await expect(coachPage.getByText(/teaching attendance/i)).toBeVisible();
 
-    // Check stat tiles exist
-    await expect(coachPage.getByText("Total teaching hours", { exact: true })).toBeVisible();
-    await expect(coachPage.getByText("Classes completed", { exact: true }).first()).toBeVisible();
+    // Check stat cards exist
+    await expect(coachPage.getByText(/total teaching hours/i)).toBeVisible();
+    await expect(coachPage.getByText(/classes completed/i)).toBeVisible();
 
     // Check the table has our class (the shared dev DB carries many rows with
     // this topic from earlier runs, so match the first).
@@ -336,15 +335,13 @@ test.describe("Full Attendance Flow", () => {
       studentPage.getByRole("heading", { level: 1, name: "Attendance", exact: true })
     ).toBeVisible();
 
-    // Check stat tiles
-    await expect(studentPage.getByText("Overall attendance", { exact: true })).toBeVisible();
+    // Check stat cards
+    await expect(studentPage.getByText(/^overall$/i)).toBeVisible();
 
     // Check the table shows our class
     await expect(studentPage.getByText(E2E_CLASS_TOPIC).first()).toBeVisible({ timeout: 10000 });
 
-    // Click the row to open the session-logs dialog. Playwright's pointer starts
-    // at (0,0), which hover-opens the sidebar drawer over the table's left edge.
-    await studentPage.mouse.move(800, 400);
+    // Click the row to open the session-logs dialog
     const classRow = studentPage.getByText(E2E_CLASS_TOPIC).first();
     await classRow.click();
     // Dialog appears — titled "Session Logs" with a "Connection Timeline" section.
@@ -367,9 +364,9 @@ test.describe("Full Attendance Flow", () => {
     await adminPage.goto("/admin/attendance");
     await adminPage.waitForLoadState("networkidle");
 
-    await expect(adminPage.getByRole("heading", { level: 1, name: "Attendance reports" })).toBeVisible();
+    await expect(adminPage.getByText(/platform attendance/i)).toBeVisible();
 
-    // Check the "More reports" links exist
+    // Check Quick Actions links exist
     await expect(adminPage.getByText(/completed classes/i).first()).toBeVisible();
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -381,8 +378,7 @@ test.describe("Full Attendance Flow", () => {
     await expect(adminPage.getByText(/completed classes/i).first()).toBeVisible();
 
     // Our class should appear
-    // Oldest first and 15 a page: on a shared DB today's class is pages in.
-    await expect(await findInDataTable(adminPage, E2E_CLASS_TOPIC, 30)).toBeVisible({ timeout: 10000 });
+    await expect(adminPage.getByText(E2E_CLASS_TOPIC).first()).toBeVisible({ timeout: 10000 });
 
     // Open the class detail via the row's "Details" button.
     await adminPage
@@ -404,10 +400,10 @@ test.describe("Full Attendance Flow", () => {
     await adminPage.goto("/admin/attendance/coaches");
     await adminPage.waitForLoadState("networkidle");
 
-    await expect(adminPage.getByRole("heading", { level: 1, name: /coach teaching report/i })).toBeVisible();
+    await expect(adminPage.getByText(/coach teaching report/i)).toBeVisible();
 
     // The coach should be listed
-    await expect(adminPage.getByText(/testcoach|Test Coach/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(adminPage.getByText(/testcoach|Test Coach/i)).toBeVisible({ timeout: 10000 });
     await adminCtx.close();
   });
 });
@@ -423,14 +419,13 @@ test.describe("Admin Attendance Pages", () => {
     await page.goto("/admin/attendance");
     await page.waitForLoadState("networkidle");
 
-    // Title (Design System v2 page header)
-    await expect(page.getByRole("heading", { level: 1, name: "Attendance reports" })).toBeVisible();
+    // Title
+    await expect(page.getByText(/platform attendance/i)).toBeVisible();
 
-    // Today's stat tiles
-    await expect(page.getByText("Active students", { exact: true })).toBeVisible();
+    // Stat cards
+    await expect(page.getByText(/total active students/i)).toBeVisible();
 
-    // "More reports" links
-    await expect(page.getByRole("heading", { name: "More reports" })).toBeVisible();
+    // Quick actions
     await expect(page.getByText(/completed classes/i).first()).toBeVisible();
     await expect(page.getByText(/coach teaching report/i).first()).toBeVisible();
   });
@@ -444,12 +439,9 @@ test.describe("Admin Attendance Pages", () => {
     // Title
     await expect(page.getByText(/completed classes/i).first()).toBeVisible();
 
-    // Filters. Scoped to <main>: while the page streams in, Next.js keeps a
-    // hidden copy in <div hidden id="S:0">, and WebKit holds it long enough for
-    // an unscoped getByText to match twice (strict mode).
-    const main = page.getByRole("main");
-    await expect(main.getByText(/^from$/i)).toBeVisible();
-    await expect(main.getByText(/^to$/i)).toBeVisible();
+    // Filters
+    await expect(page.getByText(/^from$/i)).toBeVisible();
+    await expect(page.getByText(/^to$/i)).toBeVisible();
   });
 
   test("coach teaching report page loads", async ({ page }) => {
@@ -458,7 +450,7 @@ test.describe("Admin Attendance Pages", () => {
     await page.goto("/admin/attendance/coaches");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByRole("heading", { level: 1, name: /coach teaching report/i })).toBeVisible();
+    await expect(page.getByText(/coach teaching report/i)).toBeVisible();
   });
 });
 
@@ -474,12 +466,12 @@ test.describe("Coach Attendance Page", () => {
     await page.waitForLoadState("networkidle");
 
     // Title
-    await expect(page.getByRole("heading", { level: 1, name: "Attendance", exact: true })).toBeVisible();
+    await expect(page.getByText(/teaching attendance/i)).toBeVisible();
 
-    // Stat tiles
-    await expect(page.getByText("Total teaching hours", { exact: true })).toBeVisible();
-    await expect(page.getByText("Classes completed", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("Avg session length", { exact: true })).toBeVisible();
+    // Stat cards
+    await expect(page.getByText(/total teaching hours/i)).toBeVisible();
+    await expect(page.getByText(/classes completed/i)).toBeVisible();
+    await expect(page.getByText(/avg session/i)).toBeVisible();
   });
 });
 
@@ -499,10 +491,11 @@ test.describe("Student Attendance Page", () => {
       page.getByRole("heading", { level: 1, name: "Attendance", exact: true })
     ).toBeVisible();
 
-    // Stat tiles (Design System v2 copy).
-    await expect(page.getByText("Overall attendance", { exact: true })).toBeVisible();
-    await expect(page.getByText("Classes attended", { exact: true })).toBeVisible();
-    await expect(page.getByText("Time in class", { exact: true })).toBeVisible();
+    // KPI cards (labels were shortened from the original "Overall Attendance" /
+    // "Classes Attended" / "Total Learning Time" copy).
+    await expect(page.getByText(/^overall$/i)).toBeVisible();
+    await expect(page.getByText(/^attended$/i)).toBeVisible();
+    await expect(page.getByText(/^total time$/i)).toBeVisible();
 
     // Class history section
     await expect(

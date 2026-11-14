@@ -1,166 +1,92 @@
-import { MessageCircle, Phone, Mail, BookOpen, Users, ArrowRight, Sparkles } from "lucide-react";
-import { ACADEMY_EMAIL, ACADEMY_PHONE, ACADEMY_WHATSAPP } from "../content";
+import { MessageCircle, Phone, Mail } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-// content.ts is the one source of the contact details (JSON-LD and llms.txt
-// read it too). "+91-7010854643" → "+91 7010854643" / "917010854643".
-const displayNumber = (value: string) => value.replace("-", " ");
-const digits = (value: string) => value.replace(/\D/g, "");
-const whatsappHref = `https://wa.me/${digits(ACADEMY_WHATSAPP)}`;
+const contactEmail = "nexachessacademy@gmail.com";
 
-const conversionOptions = [
+const contactMethods: {
+  Icon: LucideIcon;
+  label: string;
+  value: string;
+  href: string;
+  color: string;
+  borderHover: string;
+  iconClass: string;
+}[] = [
   {
-    title: "Book a Free Class",
-    subtitle: "Start your chess journey with a 1-on-1 evaluation session.",
-    href: "#demo",
-    cta: "Book Free Class",
-    primary: true,
-    Icon: Sparkles
-  },
-  {
-    title: "Explore Programs",
-    subtitle: "Find the right structured learning path for your current level.",
-    href: "#programs",
-    cta: "View Programs",
-    primary: false,
-    Icon: BookOpen
-  },
-  {
-    title: "Join Our Community",
-    subtitle: "Connect with fellow players, tournaments, and master workshops.",
-    href: whatsappHref,
-    cta: "Chat on WhatsApp",
-    primary: false,
-    Icon: Users
-  }
-];
-
-const directContacts = [
-  {
+    Icon: MessageCircle,
     label: "WhatsApp",
-    value: displayNumber(ACADEMY_WHATSAPP),
-    href: whatsappHref,
-    Icon: MessageCircle
+    value: "+91 93449 67940",
+    href: "https://api.whatsapp.com/send?phone=919344967940&text=Hi! I'm interested in chess classes",
+    color: "from-green-500/20 to-green-600/5",
+    borderHover: "hover:border-green-500/30",
+    iconClass: "!text-green-600 !bg-green-500/[0.1] !border-green-500/25"
   },
   {
-    label: "Direct Phone",
-    value: displayNumber(ACADEMY_PHONE),
-    href: `tel:+${digits(ACADEMY_PHONE)}`,
-    Icon: Phone
+    Icon: Phone,
+    label: "Phone",
+    value: "+91 70108 54643",
+    href: "tel:+917010854643",
+    color: "from-blue-500/20 to-blue-600/5",
+    borderHover: "hover:border-blue-500/30",
+    iconClass: "!text-blue-600 !bg-blue-500/[0.1] !border-blue-500/25"
   },
   {
-    label: "Email Support",
-    value: ACADEMY_EMAIL,
-    href: `mailto:${ACADEMY_EMAIL}`,
-    Icon: Mail
+    Icon: Mail,
+    label: "Email",
+    value: contactEmail,
+    href: `mailto:${contactEmail}`,
+    color: "from-gold/20 to-gold-dark/5",
+    borderHover: "hover:border-gold/30",
+    iconClass: "icon-tile-accent"
   }
 ];
-
-// Only real web links should open a new tab (not #anchors, tel: or mailto:)
-const isWebLink = (href: string) => href.startsWith("http");
 
 export function ContactSection() {
   return (
-    <section id="contact" className="relative py-20 sm:py-28 bg-app-background">
+    <section id="contact" className="relative py-24 sm:py-32 overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-white via-[#f8fafc] to-white" />
       <div className="absolute top-0 left-0 right-0 hairline" />
 
-      <div className="relative max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="section-head mb-14 text-center max-w-2xl mx-auto">
-          <span className="eyebrow mb-4">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="section-head mb-16 reveal reveal-up" style={{ transitionDelay: "0s" }}>
+          <span className="eyebrow mb-5">
             <span className="eyebrow-dot" />
-            Get Started
+            Get In Touch
           </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-[family-name:var(--font-playfair)] tracking-[-0.02em] text-app-text mb-4">
-            Ready to Start?
+          <h2 className="section-title font-[family-name:var(--font-playfair)] mb-4">
+            Ready to <span className="gold-text">Start</span>?
           </h2>
-          <p className="text-base sm:text-lg text-app-muted leading-relaxed">
-            Take the first step toward becoming a stronger chess player.
+          <p className="section-sub">
+            Reach out to us anytime — we&apos;re here to help you begin your chess journey
           </p>
         </div>
 
-        {/* 3 Conversion Option Cards: 1 col on phones, 2 + 1 full-width on tablets, 3 across on desktop */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16 items-stretch">
-          {conversionOptions.map((opt, idx) => {
-            const external = isWebLink(opt.href);
-            const isLast = idx === conversionOptions.length - 1;
-
-            return (
+        <div className="grid sm:grid-cols-3 gap-6 mb-12">
+          {contactMethods.map((method, i) => (
+            <a
+              key={method.label}
+              href={method.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`group relative u-card p-7 ${method.borderHover} card-lift text-center reveal reveal-up`}
+              style={{ transitionDelay: `${0.2 + i * 0.1}s` }}
+            >
               <div
-                key={opt.title}
-                className={`flex flex-col justify-between p-6 sm:p-8 rounded-2xl bg-app-surface border card-lift shadow-xs transition-all duration-200 ${isLast ? "sm:max-lg:col-span-2" : ""
-                  } ${opt.primary
-                    ? "border-accent ring-1 ring-accent/30"
-                    : "border-app-border hover:border-accent"
-                  }`}
-              >
-                <div>
-                  <div
-                    className={`size-12 rounded-[10px] flex items-center justify-center mb-5 ${opt.primary
-                      ? "bg-accent text-on-accent"
-                      : "bg-app-soft border border-app-border text-app-text"
-                      }`}
-                  >
-                    <opt.Icon className="size-6" strokeWidth={1.8} />
-                  </div>
-
-                  <h3 className="text-xl font-bold font-[family-name:var(--font-playfair)] text-app-text mb-2">
-                    {opt.title}
-                  </h3>
-                  <p className="text-sm text-app-muted mb-6 leading-relaxed">
-                    {opt.subtitle}
-                  </p>
+                className={`absolute inset-0 rounded-[1.25rem] bg-gradient-to-br ${method.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`}
+              />
+              <div className="relative">
+                <div className="flex justify-center mb-4">
+                  <span className={`icon-tile icon-tile-lg ${method.iconClass}`}>
+                    <method.Icon className="w-6 h-6" strokeWidth={1.75} />
+                  </span>
                 </div>
-
-                <a
-                  href={opt.href}
-                  {...(external
-                    ? { target: "_blank", rel: "noopener noreferrer" }
-                    : {})}
-                  className={`group/cta w-full flex items-center justify-center ${opt.primary ? "btn-gold" : "btn-outline-gold"
-                    } font-bold text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50`}
-                >
-                  {opt.cta}
-                  <ArrowRight className="size-4 ml-1 transition-transform duration-200 group-hover/cta:translate-x-0.5" />
-                </a>
+                <div className="text-[0.6875rem] text-text-muted uppercase tracking-[0.16em] font-semibold mb-1.5">
+                  {method.label}
+                </div>
+                <div className="text-text-primary font-medium text-sm break-words">{method.value}</div>
               </div>
-            );
-          })}
-        </div>
-
-        {/* Supporting Direct Contact Row */}
-        <div className="pt-10 border-t border-app-border">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {directContacts.map((contact, idx) => {
-              const external = isWebLink(contact.href);
-              const isLast = idx === directContacts.length - 1;
-
-              return (
-                <a
-                  key={contact.label}
-                  href={contact.href}
-                  {...(external
-                    ? { target: "_blank", rel: "noopener noreferrer" }
-                    : {})}
-                  className={`flex items-center gap-3.5 p-4 rounded-xl bg-app-surface border border-app-border hover:border-accent focus-visible:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40 transition-colors duration-200 group ${isLast ? "sm:max-lg:col-span-2" : ""
-                    }`}
-                >
-                  <div className="size-10 rounded-[10px] bg-app-soft border border-app-border flex items-center justify-center text-app-text group-hover:text-accent-ink group-hover:border-accent shrink-0 transition-colors">
-                    <contact.Icon className="size-5" strokeWidth={1.8} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-app-muted">
-                      {contact.label}
-                    </div>
-                    <div
-                      title={contact.value}
-                      className="text-xs sm:text-sm font-semibold text-app-text truncate"
-                    >
-                      {contact.value}
-                    </div>
-                  </div>
-                </a>
-              );
-            })}
-          </div>
+            </a>
+          ))}
         </div>
       </div>
     </section>

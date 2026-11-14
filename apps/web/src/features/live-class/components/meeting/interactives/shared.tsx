@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 import { getPullRoster } from "../../../api/live-class";
 import type { useClassroomTimer } from "../../../hooks/useClassroomTimer";
 import { useRoster } from "../../../hooks/useRoster";
-import { Spinner } from "@/components/ui/Spinner";
 
 type ClassroomTimer = ReturnType<typeof useClassroomTimer>;
 
@@ -200,10 +199,7 @@ export function RosterSourcePicker({
           Couldn&apos;t load the batch roster.
         </Alert>
       ) : roster.isLoading ? (
-        <p className="flex items-center gap-2 text-sm text-app-muted" role="status">
-          <Spinner />
-          Loading the roster…
-        </p>
+        <p className="text-sm text-app-muted">Loading the roster…</p>
       ) : roster.students.length === 0 ? (
         <Alert variant="info">
           {roster.source === "room"
@@ -231,12 +227,7 @@ export function CoachRunsThis({ children }: { children?: ReactNode }) {
 }
 
 export function ToolLoading() {
-  return (
-    <p className="flex items-center justify-center gap-2 py-6 text-center text-sm text-app-muted" role="status">
-      <Spinner />
-      Loading…
-    </p>
-  );
+  return <p className="py-6 text-center text-sm text-app-muted">Loading…</p>;
 }
 
 export function ToolLoadError({ onRetry }: { onRetry: () => void }) {
@@ -264,7 +255,7 @@ export function SectionTitle({
   return (
     <h3
       className={cn(
-        "text-xs font-bold text-app-muted",
+        "text-xs font-bold uppercase tracking-wide text-app-muted",
         className,
       )}
     >

@@ -45,21 +45,13 @@ import {
   ProviderRateLimitedError,
   type GameSourceProvider,
 } from './providers/provider';
-import { requireTenantId, singletonRowId } from '../tenancy/tenant-sql';
 
 /** A SYNCING row older than this is presumed abandoned (crashed process) and may be claimed again. */
 const SYNC_STALE_MS = 10 * 60_000;
 /** Just under a day, so an hourly pass that starts a little early doesn't push an account's turn back an hour. */
 const AUTO_SYNC_INTERVAL_MS = 23 * 60 * 60_000;
 const AUTO_SYNC_MAX_PER_PASS = 200;
-/**
- * This academy's row (one per academy, docs/SAAS_MULTI_TENANCY.md § "Phase 3
- * plan", slice 5): found by `tenantId`, created with its own id.
- */
-function settingsRow() {
-  const tenantId = requireTenantId('gameSourceSettings');
-  return { create: { id: singletonRowId(tenantId), tenantId }, where: { tenantId } };
-}
+const SETTINGS_ID = 'default';
 
 export const GAME_SOURCE_PROVIDERS = 'GAME_SOURCE_PROVIDERS';
 
@@ -246,9 +238,9 @@ export class GameSourcesService {
     const user = await this.auth(accessToken);
     if (!isAdminRole(user.role)) throw new ForbiddenException('Only an admin can change this.');
     await this.prisma.gameSourceSettings.upsert({
-      create: { autoSyncPolicy: policy, ...settingsRow().create, updatedById: user.id },
+      create: { autoSyncPolicy: policy, id: SETTINGS_ID, updatedById: user.id },
       update: { autoSyncPolicy: policy, updatedById: user.id },
-      where: settingsRow().where,
+      where: { id: SETTINGS_ID },
     });
     this.logger.log(`Auto-sync policy set to ${policy} by ${user.id}.`);
     return { policy };
@@ -413,7 +405,7 @@ export class GameSourcesService {
   }
 
   private async autoSyncPolicy(): Promise<GameAutoSyncPolicy> {
-    const settings = await this.prisma.gameSourceSettings.findUnique({ where: settingsRow().where });
+    const settings = await this.prisma.gameSourceSettings.findUnique({ where: { id: SETTINGS_ID } });
     return settings?.autoSyncPolicy ?? 'OFF';
   }
 

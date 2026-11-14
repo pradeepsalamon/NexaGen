@@ -28,10 +28,10 @@ export const getStatusLabel = (status: string) => {
  */
 export const CLASS_STATUS_DOT: Record<ClassDisplayStatus, string> = {
   SCHEDULED: "bg-primary",
-  LIVE: "bg-app-danger",
+  LIVE: "bg-success",
   COMPLETED: "bg-app-muted",
   NOT_HELD: "bg-warning",
-  CANCELLED: "border border-app-danger"
+  CANCELLED: "bg-app-danger"
 };
 
 export const CLASS_STATUS_LEGEND: { status: ClassDisplayStatus; label: string }[] = [

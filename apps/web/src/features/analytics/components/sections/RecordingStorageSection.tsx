@@ -6,7 +6,6 @@ import { ChartContainer } from "@/components/charts/ChartContainer";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { KpiCardRow } from "@/components/ui/KpiCardRow";
 import { SectionCard } from "@/components/ui/SectionCard";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { cn } from "@/lib/utils";
 import {
@@ -19,9 +18,9 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { METRIC_TOOLTIPS } from "../../lib/metricTooltips";
 
 const STATE_STYLES: Record<string, string> = {
-  normal: "text-success-ink",
-  warning: "text-warning-ink",
-  critical: "text-app-danger-ink",
+  normal: "text-accent",
+  warning: "text-warm",
+  critical: "text-app-danger",
   unknown: "text-app-muted"
 };
 
@@ -65,10 +64,7 @@ export function RecordingStorageSection({
         <div className="rounded-app border border-app-border bg-app-soft p-4">
           <p className="text-sm font-bold text-app-text">Disk usage</p>
           {storage.isLoading ? (
-            <div aria-label="Loading disk usage" className="mt-2 space-y-2" role="status">
-              <Skeleton className="h-2.5 w-full rounded-full" />
-              <Skeleton className="h-3.5 w-1/2" />
-            </div>
+            <p className="mt-2 text-sm text-app-muted">Loading…</p>
           ) : !s?.available ? (
             <p className="mt-2 text-sm text-app-muted">
               Data unavailable — the recordings directory could not be read.
@@ -90,8 +86,8 @@ export function RecordingStorageSection({
                     s.state === "critical"
                       ? "bg-app-danger"
                       : s.state === "warning"
-                        ? "bg-warning"
-                        : "bg-success"
+                        ? "bg-warm"
+                        : "bg-accent"
                   )}
                   style={{ width: `${Math.min(100, s.usagePercent ?? 0)}%` }}
                 />

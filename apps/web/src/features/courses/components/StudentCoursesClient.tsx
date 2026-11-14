@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PlayCircle } from "lucide-react";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { GraduationCap, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -15,20 +14,25 @@ export function StudentCoursesClient() {
   const courses = data?.courses ?? [];
 
   return (
-    <div className="animate-fade-in pb-10">
-      <PageHeader description="Playlists of lessons and puzzles from your coaches." title="My courses" />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">My courses</h1>
+        <p className="mt-1 text-sm text-app-muted">
+          Curated playlists of assignments and puzzles picked by your coaches.
+        </p>
+      </div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-40 w-full rounded-app" />
+            <Skeleton key={i} className="h-40 w-full" />
           ))}
         </div>
       ) : isError && !data ? (
         <WidgetError message="Couldn't load your courses." onRetry={() => void refetch()} />
       ) : courses.length === 0 ? (
         <EmptyState
-          illustration="courses"
+          icon={GraduationCap}
           title="No courses yet"
           description="Your coaches haven't published any courses yet — check back soon."
         />
@@ -37,7 +41,7 @@ export function StudentCoursesClient() {
           {courses.map((course) => (
             <Card key={course.id} className="flex flex-col gap-3 p-4">
               <div>
-                <h2 className="break-words text-base font-semibold text-app-text">{course.title}</h2>
+                <h2 className="font-extrabold tracking-tight text-app-text">{course.title}</h2>
                 {course.description && (
                   <p className="mt-1 line-clamp-2 text-sm text-app-muted">{course.description}</p>
                 )}
@@ -53,19 +57,19 @@ export function StudentCoursesClient() {
                   role="progressbar"
                 >
                   <div
-                    className="h-full rounded-full bg-primary transition-[width] duration-700 ease-out"
+                    className="h-full rounded-full bg-gradient-to-r from-warm to-primary transition-[width] duration-700 ease-out"
                     style={{ width: `${course.progressPercent}%` }}
                   />
                 </div>
-                <span className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-app-text">
+                <span className="w-10 shrink-0 text-right text-xs font-extrabold text-app-text">
                   {course.progressPercent}%
                 </span>
               </div>
               <p className="text-xs text-app-muted">
-                {course.completedModuleCount} of {course.moduleCount} {course.moduleCount === 1 ? "module" : "modules"} complete
+                {course.completedModuleCount} of {course.moduleCount} modules complete
               </p>
 
-              <Button asChild size="sm" variant="outline">
+              <Button asChild size="sm">
                 <Link href={`/student/courses/${course.id}`}>
                   <PlayCircle aria-hidden="true" className="size-4" strokeWidth={2.5} />
                   {course.progressPercent > 0 ? "Continue" : "Start"}

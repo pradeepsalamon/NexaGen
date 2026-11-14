@@ -2,7 +2,7 @@
 
 import { useIsBoardViewport } from "../../../hooks/useIsBoardViewport";
 import { useSimul } from "../../../providers/SimulProvider";
-import { LazyView, SimulCoachView } from "../lazyViews";
+import { SimulCoachView } from "./SimulCoachView";
 import { SimulStartDialog } from "./SimulStartDialog";
 import { SimulStudentBoard } from "./SimulStudentBoard";
 
@@ -14,11 +14,7 @@ export function SimulHost() {
   return (
     <>
       <SimulStartDialog />
-      {wide ? null : (
-        <LazyView>
-          <SimulCoachView />
-        </LazyView>
-      )}
+      {wide ? null : <SimulCoachView />}
     </>
   );
 }

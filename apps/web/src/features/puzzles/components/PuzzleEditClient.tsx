@@ -16,14 +16,9 @@ export function PuzzleEditClient({
 }) {
   const { data, isLoading, isError, refetch } = usePuzzle(id);
 
-  if (isLoading) return <Skeleton className="h-96 rounded-app" />;
+  if (isLoading) return <Skeleton className="h-96 w-full" />;
   if (isError || !data) {
-    return (
-      <WidgetError
-        message="Couldn't load this puzzle. Check your connection and try again."
-        onRetry={() => refetch()}
-      />
-    );
+    return <WidgetError message="Could not load this puzzle." onRetry={() => refetch()} />;
   }
   return <PuzzleForm mode="edit" basePath={basePath} role={role} puzzle={data.puzzle} />;
 }

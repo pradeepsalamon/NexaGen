@@ -12,7 +12,7 @@ import {
   type GameAutoSyncRule,
   type ImportPgnSide,
 } from "@nexa-chess/types";
-import { CheckCircle2, Link2, RefreshCw, Trash2, Upload } from "lucide-react";
+import { CheckCircle2, Link2, Loader2, RefreshCw, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
@@ -38,7 +38,6 @@ import {
   useVerifyAccount,
 } from "../hooks/useGameAnalysis";
 import { AutoSyncSwitch } from "./AutoSyncSwitch";
-import { Spinner } from "@/components/ui/Spinner";
 
 const SIDE_OPTIONS = [
   { label: "Find me by name", value: "AUTO" },
@@ -59,7 +58,7 @@ export function GameSourcesCard() {
           <h2 className="text-base font-bold">Your games</h2>
           <p className="text-sm text-app-muted">Add games you played anywhere, then analyse them here.</p>
         </div>
-        <Button className="self-end sm:self-auto" onClick={() => setUploading(true)}>
+        <Button onClick={() => setUploading(true)}>
           <Upload className="mr-2 size-4" aria-hidden />
           Upload PGN
         </Button>
@@ -172,11 +171,11 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} variant="neutral">
+          <Button onClick={() => onOpenChange(false)} variant="outline">
             Cancel
           </Button>
           <Button disabled={!pgn.trim() || tooBig || upload.isPending} onClick={submit}>
-            {upload.isPending && <Spinner className="mr-2 size-4" aria-hidden />}
+            {upload.isPending && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
             Import
           </Button>
         </DialogFooter>
@@ -294,19 +293,19 @@ function AccountRow({
               }
               variant="outline"
             >
-              {sync.isPending ? <Spinner className="mr-2 size-4" aria-hidden /> : <RefreshCw className="mr-2 size-4" aria-hidden />}
+              {sync.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : <RefreshCw className="mr-2 size-4" aria-hidden />}
               Import games
             </Button>
           )}
           <SimpleTooltip label="Unlink account">
             <Button
               aria-label="Unlink account"
-              className="size-8 p-0"
+              className="rounded-full bg-app-danger text-white hover:bg-app-danger/85"
               onClick={() => setConfirmUnlink(true)}
               size="icon"
-              variant="neutral"
+              variant="ghost"
             >
-              <Trash2 aria-hidden="true" className="size-4 text-app-danger-ink" strokeWidth={2.5} />
+              <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
             </Button>
           </SimpleTooltip>
         </div>
@@ -353,7 +352,7 @@ function AccountRow({
             <Switch checked={deleteGames} id={`delete-games-${account.id}`} onCheckedChange={setDeleteGames} />
           </div>
           <DialogFooter>
-            <Button onClick={() => setConfirmUnlink(false)} variant="neutral">
+            <Button onClick={() => setConfirmUnlink(false)} variant="outline">
               Cancel
             </Button>
             <Button

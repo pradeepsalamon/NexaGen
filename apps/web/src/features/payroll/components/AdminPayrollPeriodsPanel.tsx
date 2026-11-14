@@ -1,6 +1,5 @@
 "use client";
 
-import { PAYROLL_PERIOD_TYPE_LABELS } from "@nexa-chess/types";
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import Link from "next/link";
@@ -76,7 +75,7 @@ export function AdminPayrollPeriodsPanel() {
                 {periods.map((period) => (
                   <TableRow className="border-b border-app-border last:border-0" key={period.id}>
                     <TableCell className="text-left px-4 py-3 text-sm font-semibold text-app-text">
-                      {PAYROLL_PERIOD_TYPE_LABELS[period.periodType]}
+                      {period.periodType}
                     </TableCell>
                     <TableCell className="text-left px-4 py-3 text-sm text-app-muted">
                       {formatFullDate(period.startDate, "UTC")} – {formatFullDate(period.endDate, "UTC")}

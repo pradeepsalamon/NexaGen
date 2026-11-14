@@ -1,19 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleAlert, DoorClosed, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
+import { CircleAlert, DoorClosed, Loader2, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { getRoleDashboardHref, isStaffRole, useAuthStore } from "@/stores/authStore";
 import { getLiveClass, requestWaitingRoomAdmission, startLiveClass } from "../../api/live-class";
 import { EndClassButton } from "../EndClassButton";
-import { Spinner } from "@/components/ui/Spinner";
 
 const COACH_JOIN_POLL_INTERVAL_MS = 5000;
 const WAITING_FOR_ADMIT_POLL_INTERVAL_MS = 5000;
 
 interface StateLayoutProps {
   icon: React.ReactNode;
-  /** `warning` for a screen that stops you (removed, refused, lost connection). */
-  tone?: "neutral" | "warning";
+  tone?: "neutral" | "danger";
   title: string;
   message: string;
   children?: React.ReactNode;
@@ -25,15 +23,14 @@ function StateLayout({ icon, tone = "neutral", title, message, children }: State
   return (
     <div className="mx-auto flex w-full max-w-md flex-col items-center py-12 text-center">
       <div
-        aria-hidden="true"
         className={
-          "mb-5 flex size-14 items-center justify-center rounded-full " +
-          (tone === "warning" ? "bg-warning-soft text-warning-ink" : "bg-primary/10 text-primary-ink")
+          "mb-6 flex size-16 items-center justify-center rounded-app " +
+          (tone === "danger" ? "bg-app-danger/10 text-app-danger" : "bg-primary/10 text-primary-ink")
         }
       >
         {icon}
       </div>
-      <h2 className="mb-2 text-2xl font-extrabold leading-tight tracking-tight text-app-text">{title}</h2>
+      <h2 className="mb-2 text-xl font-bold tracking-tight text-app-text">{title}</h2>
       <p className="mb-7 text-sm leading-relaxed text-app-muted">{message}</p>
       {children && <div className="flex flex-wrap items-center justify-center gap-3">{children}</div>}
     </div>
@@ -67,15 +64,19 @@ export function ConnectionLost({
   const canEnd = Boolean(classId) && (role === "COACH" || isStaffRole(role));
   return (
     <StateLayout
-      icon={<WifiOff className="size-7" strokeWidth={2.25} />}
-      tone="warning"
+      icon={<WifiOff className="size-8" />}
+      tone="danger"
       title={title}
       message={message}
     >
-      <Button asChild variant={onRetry ? "neutral" : "primary"}>
+      {onRetry && (
+        <Button onClick={onRetry} variant="outline">
+          Try again
+        </Button>
+      )}
+      <Button asChild>
         <a href={dashboardUrl}>Return to dashboard</a>
       </Button>
-      {onRetry && <Button onClick={onRetry}>Try again</Button>}
       {canEnd && classId && (
         <div className="basis-full pt-2">
           <EndClassButton classId={classId} onEnded={onEnded ?? (() => window.location.reload())} />
@@ -90,8 +91,8 @@ export function RemovedFromClass() {
   const dashboardUrl = useDashboardHref();
   return (
     <StateLayout
-      icon={<DoorClosed className="size-7" strokeWidth={2.25} />}
-      tone="warning"
+      icon={<DoorClosed className="size-8" />}
+      tone="danger"
       title="Removed from class"
       message="Your coach removed you from this class. If you think this was a mistake, ask them to bring you back in."
     >
@@ -106,8 +107,8 @@ export function PermissionDenied() {
   const dashboardUrl = useDashboardHref();
   return (
     <StateLayout
-      icon={<LockKeyhole className="size-7" strokeWidth={2.25} />}
-      tone="warning"
+      icon={<LockKeyhole className="size-8" />}
+      tone="danger"
       title="Access denied"
       message="You don't have permission to join this class. Make sure you're signed in with the right account."
     >
@@ -122,7 +123,7 @@ export function RoomEnded() {
   const dashboardUrl = useDashboardHref();
   return (
     <StateLayout
-      icon={<CircleAlert className="size-7" strokeWidth={2.25} />}
+      icon={<CircleAlert className="size-8" />}
       title="Class ended"
       message="This live class has concluded. Thank you for participating."
     >
@@ -177,11 +178,12 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
   if (isCoach) {
     return (
       <StateLayout
-        icon={<Rocket className="size-7" strokeWidth={2.25} />}
+        icon={<Rocket className="size-8" />}
         title="Ready to begin?"
         message="Students are waiting in the waiting room. Start the class when you're ready."
       >
-        <Button isLoading={isStarting} onClick={handleStartClass} size="lg">
+        <Button onClick={handleStartClass} disabled={isStarting} size="lg">
+          {isStarting && <Loader2 className="mr-2 size-4 animate-spin" />}
           Start class now
         </Button>
       </StateLayout>
@@ -190,11 +192,11 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
 
   return (
     <StateLayout
-      icon={<Spinner className="size-7" />}
+      icon={<Loader2 className="size-8 animate-spin" />}
       title="Waiting room"
       message="Waiting for the coach to start the class. You'll join automatically once it begins."
     >
-      <Button asChild variant="neutral">
+      <Button asChild variant="outline">
         <a href={dashboardUrl}>Return to dashboard</a>
       </Button>
     </StateLayout>
@@ -224,11 +226,11 @@ export function WaitingForCoach({
 
   return (
     <StateLayout
-      icon={<PlugZap className="size-7" strokeWidth={2.25} />}
+      icon={<PlugZap className="size-8" />}
       title="Waiting for your coach"
       message="The class is live, but your coach hasn't joined the room yet. You'll be connected automatically the moment they do — no need to refresh."
     >
-      <Button asChild variant="neutral">
+      <Button asChild variant="outline">
         <a href={dashboardUrl}>Return to dashboard</a>
       </Button>
     </StateLayout>
@@ -259,11 +261,11 @@ export function WaitingForAdmit({
 
   return (
     <StateLayout
-      icon={<Spinner className="size-7" />}
+      icon={<Loader2 className="size-8 animate-spin" />}
       title="Waiting to be let in"
       message="Your coach needs to admit you before you can join. You'll be connected automatically as soon as they do."
     >
-      <Button asChild variant="neutral">
+      <Button asChild variant="outline">
         <a href={dashboardUrl}>Return to dashboard</a>
       </Button>
     </StateLayout>
@@ -289,16 +291,17 @@ export function JoinDenied({ roomId, onRequested }: { roomId: string; onRequeste
 
   return (
     <StateLayout
-      icon={<DoorClosed className="size-7" strokeWidth={2.25} />}
-      tone="warning"
+      icon={<DoorClosed className="size-8" />}
+      tone="danger"
       title="Not admitted"
       message="Your coach didn't let you into this class. You can ask again, or check with them directly."
     >
-      <Button asChild variant="neutral">
-        <a href={dashboardUrl}>Return to dashboard</a>
-      </Button>
-      <Button isLoading={isRequesting} onClick={handleRequestAgain}>
+      <Button onClick={handleRequestAgain} disabled={isRequesting}>
+        {isRequesting && <Loader2 className="mr-2 size-4 animate-spin" />}
         Request again
+      </Button>
+      <Button asChild variant="outline">
+        <a href={dashboardUrl}>Return to dashboard</a>
       </Button>
     </StateLayout>
   );

@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CreateBatchScheduleRequest,
   PreviewBatchScheduleRequest
@@ -33,13 +33,10 @@ export function useScheduleCalendarQuery(params: {
   to: string;
   batchId?: string;
   enabled?: boolean;
-  /** Keep showing the last result while another range loads, for paging. */
-  keepPrevious?: boolean;
 }) {
-  const { enabled = true, keepPrevious = false, ...rest } = params;
+  const { enabled = true, ...rest } = params;
   return useQuery({
     enabled,
-    placeholderData: keepPrevious ? keepPreviousData : undefined,
     queryFn: () => getScheduleCalendar(rest),
     queryKey: queryKeys.batchSchedules.calendar(rest)
   });

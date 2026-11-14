@@ -1,4 +1,3 @@
-import { NOOP_REFERRAL_TRACKER } from "../referral/referral.testing";
 import { Test, TestingModule } from "@nestjs/testing";
 import {
   BadRequestException,
@@ -9,7 +8,6 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { RegisterCoachRequest, RegisterRequest } from "@nexa-chess/types";
-import { LEGAL_TERMS_VERSION } from "@nexa-chess/types";
 import {
   ReferralSource,
   UserRole,
@@ -22,8 +20,6 @@ import type { LoginOutcome } from "./auth.service";
 import { MfaService } from "./mfa/mfa.service";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { MailService } from "../mail/mail.service";
-import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
-import { SystemNotifier } from "../mail/system-notifier.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 type MockPrismaService = {
@@ -71,7 +67,7 @@ type MockPrismaService = {
 
 describe("AuthService", () => {
   let service: AuthService;
-  let jwtService: { decode: jest.Mock; signAsync: jest.Mock; verifyAsync: jest.Mock };
+  let jwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
   let mailService: {
     sendPasswordResetLink: jest.Mock;
     sendEmailChangedNotice: jest.Mock;
@@ -80,8 +76,6 @@ describe("AuthService", () => {
   let prismaService: MockPrismaService;
   let analyticsEvents: { record: jest.Mock };
   let mfaService: { loginChallenge: jest.Mock };
-  let messaging: { dispatchInBackground: jest.Mock };
-  let notifierSend: jest.Mock;
   let emailVerification: {
     blocksSignIn: jest.Mock;
     policy: jest.Mock;
@@ -97,15 +91,12 @@ describe("AuthService", () => {
 
   beforeEach(async () => {
     jwtService = {
-      decode: jest.fn().mockReturnValue(null),
       signAsync: jest.fn(),
       verifyAsync: jest.fn()
     };
 
     analyticsEvents = { record: jest.fn().mockResolvedValue(undefined) };
     mfaService = { loginChallenge: jest.fn().mockResolvedValue(null) };
-    messaging = { dispatchInBackground: jest.fn() };
-    notifierSend = jest.fn().mockResolvedValue(undefined);
     emailVerification = {
       blocksSignIn: jest.fn().mockResolvedValue(false),
       policy: jest.fn().mockResolvedValue("OFF"),
@@ -168,10 +159,7 @@ describe("AuthService", () => {
         { provide: PrismaService, useValue: prismaService },
         { provide: AnalyticsEventService, useValue: analyticsEvents },
         { provide: MfaService, useValue: mfaService },
-        { provide: EmailVerificationService, useValue: emailVerification },
-        { provide: MessagingDispatchService, useValue: messaging },
-        { provide: SystemNotifier, useValue: { send: notifierSend } },
-        NOOP_REFERRAL_TRACKER
+        { provide: EmailVerificationService, useValue: emailVerification }
       ]
     }).compile();
 
@@ -183,7 +171,6 @@ describe("AuthService", () => {
   });
 
   const registerPayload: RegisterRequest = {
-    acceptedTerms: true,
     confirmPassword: "password123",
     contactNumber: "1234567890",
     email: "Test@Example.com",
@@ -246,7 +233,7 @@ describe("AuthService", () => {
       });
 
       expect(prismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { tenantId_email: { email: "test@example.com", tenantId: "tenant_nexa" } }
+        where: { email: "test@example.com" }
       });
 
       const createCall = prismaService.user.create.mock.calls[0][0];
@@ -259,15 +246,6 @@ describe("AuthService", () => {
       expect(createCall.data.studentProfile.create.referralSource).toBe(
         ReferralSource.ADS
       );
-      // The server's own version of the terms, with the time they were accepted.
-      expect(createCall.data.termsVersion).toBe(LEGAL_TERMS_VERSION);
-      expect(createCall.data.termsAcceptedAt).toBeInstanceOf(Date);
-      // "Registration received" to the applicant, "to review" to the admins.
-      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ event: "ACCOUNT_WELCOME", userId: expect.any(String) });
-      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({
-        event: "REGISTRATION_PENDING_ADMIN",
-        userId: expect.any(String)
-      });
 
       expect(prismaService.authSession.create).not.toHaveBeenCalled();
       expect(result).toEqual({
@@ -628,7 +606,6 @@ describe("AuthService", () => {
 
   describe("registerCoach", () => {
     const registerCoachPayload: RegisterCoachRequest = {
-      acceptedTerms: true,
       coachName: "Ada Coach",
       confirmPassword: "password123",
       contactNumber: "1234567890",
@@ -653,14 +630,6 @@ describe("AuthService", () => {
       expect(createCall.data.coachProfile.create.approvalStatus).toBe(
         UserStatus.PENDING
       );
-      expect(createCall.data.termsVersion).toBe(LEGAL_TERMS_VERSION);
-      expect(createCall.data.termsAcceptedAt).toBeInstanceOf(Date);
-      // "Registration received" to the applicant, "to review" to the admins.
-      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ event: "ACCOUNT_WELCOME", userId: expect.any(String) });
-      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({
-        event: "REGISTRATION_PENDING_ADMIN",
-        userId: expect.any(String)
-      });
 
       // No session may be created — the coach cannot be logged in yet.
       expect(prismaService.authSession.create).not.toHaveBeenCalled();
@@ -799,7 +768,7 @@ describe("AuthService", () => {
 
       expect(prismaService.user.update).toHaveBeenCalled();
       expect(prismaService.authSession.updateMany).not.toHaveBeenCalled();
-      expect(notifierSend).not.toHaveBeenCalledWith("EMAIL_CHANGED", expect.anything(), expect.anything());
+      expect(mailService.sendEmailChangedNotice).not.toHaveBeenCalled();
     });
 
     it("refuses an email change without the current password", async () => {
@@ -838,11 +807,9 @@ describe("AuthService", () => {
           NOT: { OR: [{ id: "fam-1" }, { familyId: "fam-1" }] }
         }
       });
-      // To the OLD address (and the account's phone and inbox, as switched on).
-      expect(notifierSend).toHaveBeenCalledWith(
-        "EMAIL_CHANGED",
-        expect.objectContaining({ email: "test@example.com" }),
-        { "email.new": "new@example.com" }
+      expect(mailService.sendEmailChangedNotice).toHaveBeenCalledWith(
+        "test@example.com",
+        "new@example.com"
       );
     });
 
@@ -876,7 +843,7 @@ describe("AuthService", () => {
           })
         ).rejects.toThrow("Enter your current password to change the parent contact.");
         expect(prismaService.user.update).not.toHaveBeenCalled();
-        expect(notifierSend).not.toHaveBeenCalledWith("PARENT_CONTACT_CHANGED", expect.anything(), expect.anything());
+        expect(mailService.sendParentContactChangedNotice).not.toHaveBeenCalled();
       });
 
       it("refuses a phone-only change with the wrong password", async () => {
@@ -900,11 +867,7 @@ describe("AuthService", () => {
         expect(prismaService.studentProfile.update).toHaveBeenCalledWith(
           expect.objectContaining({ data: expect.objectContaining({ parentEmail: "dad@example.com" }) })
         );
-        expect(notifierSend).toHaveBeenCalledWith(
-          "PARENT_CONTACT_CHANGED",
-          expect.objectContaining({ email: "mum@example.com" }),
-          { "student.fullName": "John Doe" }
-        );
+        expect(mailService.sendParentContactChangedNotice).toHaveBeenCalledWith("mum@example.com", "John Doe");
         expect(prismaService.trashAuditLog.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
             action: "PARENT_CONTACT_CHANGE",
@@ -924,7 +887,7 @@ describe("AuthService", () => {
             studentProfile: { ...keepRest, parentEmail: "dad@example.com", parentPhone: "111" }
           })
         ).rejects.toThrow("audit down");
-        expect(notifierSend).not.toHaveBeenCalledWith("PARENT_CONTACT_CHANGED", expect.anything(), expect.anything());
+        expect(mailService.sendParentContactChangedNotice).not.toHaveBeenCalled();
       });
 
       it("needs no password when the contact is unchanged (case and spacing ignored)", async () => {
@@ -934,7 +897,7 @@ describe("AuthService", () => {
         });
 
         expect(prismaService.studentProfile.update).toHaveBeenCalled();
-        expect(notifierSend).not.toHaveBeenCalledWith("PARENT_CONTACT_CHANGED", expect.anything(), expect.anything());
+        expect(mailService.sendParentContactChangedNotice).not.toHaveBeenCalled();
         expect(prismaService.trashAuditLog.create).not.toHaveBeenCalled();
       });
     });

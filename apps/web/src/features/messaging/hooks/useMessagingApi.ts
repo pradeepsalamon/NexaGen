@@ -1,14 +1,6 @@
-import {
-  keepPreviousData,
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
-  AnnouncementListResponse,
   CreateAnnouncementRequest,
-  MessageDeliveryListResponse,
   MessageDeliveryQuery,
   MessagingEvent,
   SystemMessageKey,
@@ -102,14 +94,10 @@ export function useTestSystemMessage() {
   });
 }
 
-/** Keyset-paged, newest first; the list grows as the user scrolls (`InfiniteScrollTrigger`). */
-export function useMessageDeliveries(params: Omit<Partial<MessageDeliveryQuery>, "cursor"> = {}) {
-  return useInfiniteQuery({
+export function useMessageDeliveries(params: Partial<MessageDeliveryQuery> = {}) {
+  return useQuery({
     queryKey: queryKeys.messaging.deliveries(params),
-    queryFn: ({ pageParam }) => getMessageDeliveries({ ...params, cursor: pageParam }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last: MessageDeliveryListResponse) => last.nextCursor ?? undefined,
-    placeholderData: keepPreviousData
+    queryFn: () => getMessageDeliveries(params)
   });
 }
 
@@ -127,13 +115,10 @@ export function useRetryMessageDelivery() {
   });
 }
 
-/** Keyset-paged, newest first; the list grows as the user scrolls (`InfiniteScrollTrigger`). */
 export function useAnnouncements() {
-  return useInfiniteQuery({
+  return useQuery({
     queryKey: queryKeys.messaging.announcements,
-    queryFn: ({ pageParam }) => getAnnouncements(pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last: AnnouncementListResponse) => last.nextCursor ?? undefined
+    queryFn: getAnnouncements
   });
 }
 

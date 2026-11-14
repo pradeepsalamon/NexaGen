@@ -57,8 +57,6 @@ Every request/response shape lives in `packages/types/src/index.ts` (often `z.in
 
 ### 3.2 API auth pattern (there are NO NestJS guards)
 
-**Before any API change read [docs/API_DEVELOPMENT_RULES.md](docs/API_DEVELOPMENT_RULES.md) (strict MUST/NEVER rules + definition of done).** Academy isolation: load every request id through a scoped query before linking it; jobs run in `runInTenant`; `asPlatform` only with a reason.
-
 1. **Controller** takes `@Req() request: Request`, has `private getAccessToken(request) { return request.cookies?.[AUTH_COOKIE_NAMES.accessToken]; }`, and passes the raw token as the service method's first argument.
 2. **Service** `private getAuthenticatedUser(accessToken)` calls **`authenticateUser(this.jwtService, this.prisma, accessToken)`** (`auth/authenticate.ts`; 4th arg `{ include }` for relations; `verifyAccessToken` is the no-DB variant). It turns every bad/expired/revoked/non-ACTIVE case into a 401. **Never hand-roll `jwtService.verifyAsync` for an access token.**
 3. **Role checks**: private `assertCanX(user)` / inline `ForbiddenException`. **Row visibility**: private `getXVisibilityWhere(user)` → `Prisma.WhereInput` (admins `{}`). Reference: `batch.service.ts`.
@@ -77,7 +75,7 @@ Web forms: react-hook-form + `zodResolver`, schemas from `@nexa-chess/types` or 
 
 - **New model → add its getter in `PrismaService`** (`apps/api/src/prisma/prisma.service.ts`) or the build breaks.
 - **Every schema change gets a migration** (`db:migrate:dev`), never `db push`. Never hand-write a migration folder timestamp; hand-bumped names (`20261016…`–`20261020…`) ran ahead of the real date, so until then name new ones after the latest folder. Never rename an applied migration.
-- Soft delete: `prisma/soft-delete.extension.ts` + `trash` module; models in `softDeleteModels` (people, batches, puzzles, courses, homework, announcements, leads, feedback forms, help articles, games, presets, demo schedules). A trashed assignment also hides its deployments and student copies (`parentScopedWhere`). Deletes go through `TrashRepository.softDelete(tx, "<Model>", id, userId)` in a `$transaction` (see `batch.service.ts#delete`). New trash model: 7-step checklist in `README.md` § "Trash And Soft Delete". Read deleted rows with `includeDeleted: true` or `prisma.withDeleted`.
+- Soft delete: `prisma/soft-delete.extension.ts` + `trash` module; models `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`. Deletes go through `TrashRepository.softDelete(tx, "<Model>", id, userId)` in a `$transaction` (see `batch.service.ts#delete`). New trash model: 7-step checklist in `README.md` § "Trash And Soft Delete". Read deleted rows with `includeDeleted: true` or `prisma.withDeleted`.
 - **Uniqueness pre-checks use `prisma.withDeleted`** (email/username are unique across deleted rows; otherwise P2002 → 500).
 - **Financial relations to `User` are `onDelete: Restrict`**, never Cascade (trash purge hard-deletes users); new financial models go in `TrashRepository.findUserIdsWithRetainedHistory`.
 - **Timestamps: UTC, `timestamp WITHOUT time zone`.** In raw SQL never bind a JS `Date` or `::timestamptz` next to these columns — bind `${d.toISOString()}::timestamp`; bucket with `(col AT TIME ZONE 'UTC') AT TIME ZONE tz`. Serialize with `.toISOString()`, never pre-format. Full rule: `AGENTS.md` "Date & Time Rule".
@@ -86,17 +84,15 @@ Web forms: react-hook-form + `zodResolver`, schemas from `@nexa-chess/types` or 
 
 Per feature in `apps/web/src/features/<feature>/`: `api/<x>Api.ts` (thin `apiFetch<T>(API_ROUTES…)` calls; `src/lib/api.ts` handles credentials, 401 → refresh → retry, error toasts), `hooks/use<X>Api.ts` (`useQuery`/`useMutation`, keys from `src/lib/queryKeys.ts`, invalidate on success), `components/`. Pages under `src/app/**` are thin server components rendering a `"use client"` `<XClient />`.
 
-**Lists are paged** ([docs/PAGINATION.md](docs/PAGINATION.md)): tables → `resolvePagination` + `useServerTable`; newest-first feeds → `common/cursor-pagination.ts` + `useInfiniteQuery` + `InfiniteScrollTrigger`; never a silent `take: N` cap.
-
 **Pages never check the auth cookie.** Route RBAC is one table, `src/lib/routeAccess.ts` `ROUTE_RULES`, applied by `middleware.ts` (unverified token peek — routing only; the API enforces roles) and by `SessionBootstrap` for refresh-only sessions. **New protected route = `ROUTE_RULES` entry + `middleware.ts` `matcher` entry + name in `lib/pageTitles.ts` `PAGE_TITLES`.** Session state: `useAuthStore` (Zustand, `localStorage` `nexa-auth`, only `user`).
 
 ### 3.6 UI conventions
 
 **Read [docs/UI_RULES.md](docs/UI_RULES.md) before any UI work** (tokens, which component per control, pre-PR checklist). Highlights:
 
-- Design System v2 tokens (`docs/ui-redesign/`): `primary` royal blue, `accent` gold, `success` green, `brand-*` navy, theme-switched by CSS variables; never pick colours from `useTheme()`. Theme tokens (`bg-app-surface`, `text-app-text`, `border-app-border`, `rounded-panel`, `shadow-card`, …; `src/styles/globals.css`, dark = `[data-theme="dark"]`), `-ink` for coloured text, no `dark:` colour overrides. **ESLint rejects hex, literal `rgb()`, palette classes and `dark:` colours**; only the files listed in UI_RULES §1 may hold literal values.
+- Navy/gold redesign: `nx-*` colours + `nx-cta`, theme-switched by CSS variables; never pick colours from `useTheme()`. Otherwise theme tokens (`bg-app-surface`, `text-app-text`, `border-app-border`, `rounded-panel`, `shadow-card`, …; `src/styles/globals.css`, dark = `[data-theme="dark"]`), `-ink` for coloured text, no `dark:` colour overrides. Marketing site (`features/academy`) exempt.
 - Reuse `components/ui/` primitives before creating. Buttons: `primary`/`destructive`/`ghost`/`outline`/`secondary`.
-- **Table row actions: `RowActions`** (`components/ui/RowActions.tsx`) — `neutral` icon buttons, `size-8`, `aria-label`, `strokeWidth={2.5}`; `tone` colours the icon only. Buttons are 8px-radius, 36px high (44px on touch, via `--control-h`).
+- **Table row actions: `RowActions`** (`components/ui/RowActions.tsx`) — `rounded-full`, `size="icon"`, `aria-label`, `strokeWidth={2.5}` (example in `AGENTS.md`).
 - Icon-only buttons: `aria-label` + **`SimpleTooltip`** (`components/ui/Tooltip.tsx`), not `title=` (except non-interactive nodes / existing Radix `asChild` triggers).
 - **Formatted text: `TextEditor` + `FormattedText`** (stored as readable text, never HTML); typed text with links: `LinkedText`. Message bodies are built with `renderFormattedTemplate` and sent through a channel converter ([docs/MESSAGING.md](docs/MESSAGING.md)).
 - **Never `window.confirm`.** Undo via `useUndoableMutation` (`lib/undo/`; `immediate` vs `defer`; exclusions in `lib/undo/README.md`). Toasts: `useToast()`.
@@ -112,7 +108,7 @@ Per feature in `apps/web/src/features/<feature>/`: `api/<x>Api.ts` (thin `apiFet
 
 ### 3.6e Admin messaging rules
 
-`messaging/`, page `/admin/messaging`; catalogue/defaults/renderer in `@nexa-chess/types` `messaging.ts`. **`MessagingDispatchService.dispatchInBackground(request)` is the only entry point**; a new trigger extends `DispatchRequest` + `resolveRecipients`; a new event = `MessagingEvent` + `NotificationType`. Fixed messages outside the rules go through `SystemNotifier.send` (catalogue `system-messages.ts`; email, WhatsApp and in-app, switchable per message), never hardcoded. A new placeholder gets a `MESSAGE_VARIABLE_DOCS` entry. [docs/MESSAGING.md](docs/MESSAGING.md).
+`messaging/`, page `/admin/messaging`; catalogue/defaults/renderer in `@nexa-chess/types` `messaging.ts`. **`MessagingDispatchService.dispatchInBackground(request)` is the only entry point**; a new trigger extends `DispatchRequest` + `resolveRecipients`; a new event = `MessagingEvent` + `NotificationType`. Fixed emails/texts outside the rules go through `SystemMessageRenderer` (catalogue `system-messages.ts`), never hardcoded. A new placeholder gets a `MESSAGE_VARIABLE_DOCS` entry. [docs/MESSAGING.md](docs/MESSAGING.md).
 
 ### 3.6e2 Admin email
 
@@ -143,31 +139,9 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 - **Knowledge base** (`knowledge/`, `/help`, `/admin/knowledge`): nothing pre-loaded; `canReadKnowledgeArticle` / `readerWhere` is the one visibility rule (hidden = 404); published versions immutable. [KNOWLEDGE_BASE](docs/KNOWLEDGE_BASE.md)
 - **Privacy** (`privacy/`): secrets never leave an export; **a new model storing personal data gets an export section**; deletions via `UserService.deleteAs`; `features/legal/content.ts` must stay true to the code.
 
-### 3.6l2 Referrals and the SALES role
-
-`referral/` + `features/referrals/`, contract `@nexa-chess/types` `referrals.ts`. Every stage change goes through `ReferralPipelineService` (automatic moves forward only; rewards = stage values + milestone bonuses, deduped by `dedupeKey`). **Students earn POINTS only, coaches/SALES earn CASH only** (`referralWalletForRole`); one append-only ledger debited under a per-user xact lock; points never move between users or become money. Students spend points on vouchers (`ReferralVouchersService`: voucher + user lock, terms snapshotted; discounts are personal one-use `Discount`s, free days only via `EntitlementService.grantFreeDays`). New-member points need `Referral.referredUserId`. **`authenticateUser` refuses SALES unless `{ allowSales: true }`**. [docs/REFERRALS.md](docs/REFERRALS.md)
-
 ### 3.6m SaaS plans
 
-`platform/` + `features/subscription/`, catalogue `@nexa-chess/types` `platform-plans.ts`. The API enforces every feature/limit: global `FeatureGateGuard` + `@RequireFeature("key")`, and `EntitlementService.assert*` inside the creating transaction; refusals are **402**. A new catalogued feature must be required by a route (a spec checks) and added to the Enterprise row by migration. Plan and academy changes are platform operators only (Nexa's `SUPER_ADMIN`s, `assertPlatformOperator`; every write in `PlatformAuditLog`); status changes go through `applySubscriptionTransition`. **Usage history** (`TenantUsageService`, `TenantUsageDay`, console Usage tab) is analytics only, never an enforcement or billing source; a file stored in Cloudinary records its size (`UploadService` → `UploadedFile`, or a `…Bytes` column). [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md)
-
-**Tenant integrity monitoring** (`tenancy/integrity/`): nightly read-only check of every FK between academy tables; reports, never blocks (no FKs/triggers; RLS is future). A link that may legitimately cross academies goes in `PLATFORM_OPERATOR_LINKS` (security review). [SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Tenant integrity monitoring"
-
-### 3.6m2 Multi-tenancy (Phases 2–3)
-
-`apps/api/src/tenancy/`. **Every model not in `PLATFORM_MODELS` gets `tenantId`** (a spec checks); the request's academy is in `TenantContext` (resolver middleware + `authenticateUser`) and the Prisma extension filters every query by it. Background work: `await runInTenant(tenantId, label, fn)`; cross-academy work only inside `asPlatform(reason, fn)` — both await inside, never return an unawaited query. `TENANT_SCOPE_MODE` `audit` logs gaps (`tenant-audit`), `enforce` refuses them. Per-academy keys the extension can't add (`tenantId_email`, a settings row by `tenantId` + `singletonRowId`) take `requireTenantId()`. **Raw SQL bypasses the extension**: put `tenantFilter(alias)` on the driving table and record the call in `tenancy/raw-sql-review.spec.ts`. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 2 as built", "Phase 3 plan"
-
-### 3.6m3 Academy branding and addresses (Phase 5)
-
-`branding/` + `features/branding/`, contract `@nexa-chess/types` `tenant-branding.ts`. Public config by host (`GET /tenant/public-config`); colours only via `brandColorIssue`/`deriveBrandPalette`; images PNG/JPEG/WebP checked by magic bytes. **An academy's own address calls the API at `/api` (`lib/apiBase.ts`) and gets host-only `nexa_h_*` cookies; Nexa's hosts are unchanged** — never read the auth cookie by another name. Brand copy via `useBrandName()`, Nexa-only markup `platform-brand-only`. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 5 plan", VPS: [DEPLOYMENT.md](docs/DEPLOYMENT.md) Step 4c.
-
-### 3.6m4 Platform billing and academy gateways (Phase 6)
-
-`platform-billing/` (academy → owner: checkout, pay link, owner's Razorpay webhook, GST invoices, usage) never touches `PaymentService`; only a provider read settles a `PlatformCheckout` (status-filtered claim). Student gateways per academy: adapters read keys only via `GatewayCredentialsService.envFor`; another academy never falls back to Nexa's env keys. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 6 as built"
-
-### 3.6m5 Tournaments
-
-`tournament/` (API), contract `@nexa-chess/types` `tournaments.ts`, feature `tournaments`. **Every permission decision goes through `tournament/tournament-policy.ts`** (pure; host rows count only on staff; its list filter is spec-checked against `canViewTournament`); sensitive actions write `TournamentAuditLog` in the same transaction. `TournamentPlayer.tenantId` is the player's academy (v1: must equal the organizer's). Game rules come from `common/chess/game-engine.ts`, shared with live-class matches. When a round starts is `resolveNextRoundAt` → `Tournament.nextRoundAt` only; a scheduler step that changes anything emits `stateChanged`; exact-time wake-ups go through `TournamentTimerService` (the cron is the safety net). Web: `features/tournaments/` (`/tournaments/**`, `/admin/tournaments`, public `/watch/**` and `/certificates/[code]`). [docs/TOURNAMENTS.md](docs/TOURNAMENTS.md)
+`platform/` + `features/subscription/`, catalogue `@nexa-chess/types` `platform-plans.ts`. The API enforces every feature/limit: global `FeatureGateGuard` + `@RequireFeature("key")`, and `EntitlementService.assert*` inside the creating transaction; refusals are **402**. A new catalogued feature must be required by a route (a spec checks) and added to the Enterprise row by migration. Plan changes are `platform_staff` only. [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md)
 
 ### 3.6n AI runtime (mock only)
 
@@ -184,7 +158,6 @@ NestJS `apps/api/src/ai/` is the only caller of stateless Python `services/ai-ru
 - In-class moves/answers go through REST with a status/ply-filtered `updateMany` claim (409 on lost race), then a server-injected packet — never peer data.
 - LiveKit webhook needs its raw body; identity → user id mapping skips `isSpectatorIdentity`. Pre-class settings resolver: `@nexa-chess/types` `live-class-settings.ts`; always pass `systemLocks`/`batchLocks` — an admin-locked field ignores lower layers and a class override can't change it.
 - **Never put follow-up work in a per-call `mutate(…, { onSuccess })`** in the room (the caller may unmount) — await `mutateAsync`.
-- **Class transcript** (`live-class-transcript.service.ts`, `features/live-captions/`): the coach's speech as text, stored only when the class setting is on, the caller is the class's own coach and that coach consented (`transcriptConsentIsCurrent`); never a student's audio; bump `TRANSCRIPT_CONSENT_VERSION` when the consent wording changes.
 
 ---
 
@@ -219,7 +192,7 @@ CI runs on PRs (lint + unit tests first, then migrations + drift check, integrat
 4. **New API module → token-string auth pattern** (§3.2). No guards.
 5. **Soft-deletable deletes → `TrashRepository.softDelete` in a `$transaction`.**
 6. **Update the relevant doc in the same change** when setup, commands, env vars or behaviour change.
-7. **Table action buttons → `RowActions`** / `variant="neutral"` + `size-8` icon template, `strokeWidth={2.5}`.
+7. **Table action buttons → `RowActions`** / `rounded-full` icon template, `strokeWidth={2.5}`.
 8. Reuse `components/ui/` primitives before writing new UI.
 9. **Payments: integer minor units; access only from an `Entitlement`**; every state change via `PaymentService.applyProviderState`; no adapter outside `payments/providers/`.
 10. **Invoices: a failed PDF never changes a payment**; tax via the shared engine; issued invoices never edited — refunds get credit notes.

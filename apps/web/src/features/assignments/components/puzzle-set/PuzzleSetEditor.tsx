@@ -13,7 +13,6 @@ import {
 import { ArrowDown, ArrowUp, Eye, ListPlus, Plus, Search, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { FilterChips, FilterField, FilterPopover, type ActiveFilter } from "@/components/ui/FilterPopover";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -44,9 +43,9 @@ export type SelectedSetPuzzle = {
 const PAGE = 25;
 
 const iconBtn =
-  "size-8 shrink-0";
+  "size-8 shrink-0 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white disabled:opacity-40";
 const dangerBtn =
-  "size-8 shrink-0 text-app-danger-ink hover:bg-app-danger-soft";
+  "size-8 shrink-0 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white";
 
 /**
  * The ordered puzzle list of a PUZZLE_SET assignment, plus a library picker.
@@ -127,13 +126,6 @@ export function PuzzleSetEditor({
     onChange(next);
   };
   const remove = (index: number) => onChange(value.filter((_, i) => i !== index));
-  const optionLabel = (options: readonly { label: string; value: string }[], v: string) =>
-    options.find((option) => option.value === v)?.label ?? v;
-  const pickerFilters = [
-    topicId && { key: "folder", label: optionLabel(topicOptions, topicId), onRemove: () => setTopicId("") },
-    difficulty && { key: "difficulty", label: optionLabel(PUZZLE_DIFFICULTY_OPTIONS, difficulty), onRemove: () => setDifficulty("") },
-    puzzleType && { key: "type", label: optionLabel(PUZZLE_TYPE_OPTIONS, puzzleType), onRemove: () => setPuzzleType("") },
-  ].filter((filter): filter is ActiveFilter => Boolean(filter));
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -173,7 +165,7 @@ export function PuzzleSetEditor({
                 <SimpleTooltip label="Move up">
                   <Button
                     type="button"
-                    variant="neutral"
+                    variant="ghost"
                     size="icon"
                     aria-label={`Move ${p.title} up`}
                     className={iconBtn}
@@ -186,7 +178,7 @@ export function PuzzleSetEditor({
                 <SimpleTooltip label="Move down">
                   <Button
                     type="button"
-                    variant="neutral"
+                    variant="ghost"
                     size="icon"
                     aria-label={`Move ${p.title} down`}
                     className={iconBtn}
@@ -199,7 +191,7 @@ export function PuzzleSetEditor({
                 <SimpleTooltip label="Remove from set">
                   <Button
                     type="button"
-                    variant="neutral"
+                    variant="ghost"
                     size="icon"
                     aria-label={`Remove ${p.title}`}
                     className={dangerBtn}
@@ -219,63 +211,39 @@ export function PuzzleSetEditor({
         <h3 id="puzzle-set-library" className="text-sm font-semibold text-app-text">
           Add from the puzzle library
         </h3>
-        <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-muted" strokeWidth={2.5} />
-            <Input
-              aria-label="Search puzzles"
-              className="pl-9"
-              placeholder="Search puzzles…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <FilterPopover
-            activeCount={pickerFilters.length}
-            emptyValue={{ difficulty: "" as PuzzleDifficulty | "", puzzleType: "" as PuzzleType | "", topicId: "" }}
-            onApply={(next) => {
-              setTopicId(next.topicId);
-              setDifficulty(next.difficulty);
-              setPuzzleType(next.puzzleType);
-            }}
-            value={{ difficulty, puzzleType, topicId }}
-          >
-            {(draft, update) => (
-              <>
-                <FilterField htmlFor="puzzle-set-folder" label="Folder">
-                  <Select
-                    id="puzzle-set-folder"
-                    placeholder="All folders"
-                    options={topicOptions}
-                    value={draft.topicId}
-                    onChange={(e) => update({ topicId: e.target.value })}
-                  />
-                </FilterField>
-                <div className="grid grid-cols-2">
-                  <FilterField htmlFor="puzzle-set-difficulty" label="Difficulty">
-                    <Select
-                      id="puzzle-set-difficulty"
-                      placeholder="Any difficulty"
-                      options={PUZZLE_DIFFICULTY_OPTIONS}
-                      value={draft.difficulty}
-                      onChange={(e) => update({ difficulty: e.target.value as PuzzleDifficulty | "" })}
-                    />
-                  </FilterField>
-                  <FilterField htmlFor="puzzle-set-type" label="Type">
-                    <Select
-                      id="puzzle-set-type"
-                      placeholder="Any type"
-                      options={PUZZLE_TYPE_OPTIONS}
-                      value={draft.puzzleType}
-                      onChange={(e) => update({ puzzleType: e.target.value as PuzzleType | "" })}
-                    />
-                  </FilterField>
-                </div>
-              </>
-            )}
-          </FilterPopover>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-muted" strokeWidth={2.5} />
+          <Input
+            aria-label="Search puzzles"
+            className="pl-9"
+            placeholder="Search puzzles…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
-        <FilterChips filters={pickerFilters} />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <Select
+            aria-label="Folder"
+            placeholder="All folders"
+            options={topicOptions}
+            value={topicId}
+            onChange={(e) => setTopicId(e.target.value)}
+          />
+          <Select
+            aria-label="Difficulty"
+            placeholder="Any difficulty"
+            options={PUZZLE_DIFFICULTY_OPTIONS}
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value as PuzzleDifficulty | "")}
+          />
+          <Select
+            aria-label="Puzzle type"
+            placeholder="Any type"
+            options={PUZZLE_TYPE_OPTIONS}
+            value={puzzleType}
+            onChange={(e) => setPuzzleType(e.target.value as PuzzleType | "")}
+          />
+        </div>
         {total !== null && !puzzles.isLoading ? (
           <p aria-live="polite" className="text-xs text-app-muted">
             Showing {rows.length} of {total} published puzzle{total === 1 ? "" : "s"}
@@ -318,7 +286,7 @@ export function PuzzleSetEditor({
                   <SimpleTooltip label="Preview">
                     <Button
                       type="button"
-                      variant="neutral"
+                      variant="ghost"
                       size="icon"
                       aria-label={`Preview ${p.title}`}
                       className={iconBtn}
@@ -353,10 +321,10 @@ export function PuzzleSetEditor({
               type="button"
               variant="outline"
               size="sm"
-              isLoading={puzzles.isFetching}
+              disabled={puzzles.isFetching}
               onClick={() => setPageSize((n) => Math.min(100, n + PAGE))}
             >
-              Show more
+              {puzzles.isFetching ? "Loading…" : "Show more"}
             </Button>
           ) : null}
           {addable.length > 1 && !full ? (

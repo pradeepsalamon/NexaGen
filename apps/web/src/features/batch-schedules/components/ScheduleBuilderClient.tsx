@@ -176,7 +176,7 @@ export function ScheduleBuilderClient() {
           <p className="text-xs font-extrabold text-primary-ink">Class Scheduler</p>
           <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">New schedule</h1>
           <p className="mt-1 text-sm text-app-muted">
-            Define a recurring weekly schedule and every class for the period is generated for you.
+            Define a recurring weekly schedule and NexaGen generates every class for the period.
           </p>
         </header>
 
@@ -235,9 +235,9 @@ export function ScheduleBuilderClient() {
                         type="button"
                         onClick={() => setEndMode(mode)}
                         className={cn(
-                          "rounded-[6px] px-2 py-0.5 text-xs font-bold transition",
+                          "rounded-[6px] px-2 py-0.5 text-[11px] font-bold transition",
                           endMode === mode
-                            ? "bg-primary text-on-primary"
+                            ? "bg-primary text-white"
                             : "text-app-muted hover:text-app-text"
                         )}
                       >
@@ -345,16 +345,7 @@ export function ScheduleBuilderClient() {
             </div>
           </div>
 
-          <div className="flex flex-wrap justify-end gap-3 border-t border-app-border pt-4">
-            {hasBlockingConflicts && (
-              <label className="flex items-center gap-2 text-xs font-bold text-app-danger">
-                <Checkbox
-                  checked={confirmConflicts}
-                  onCheckedChange={(v) => setConfirmConflicts(Boolean(v))}
-                />
-                Create despite conflicts
-              </label>
-            )}
+          <div className="flex flex-wrap gap-3 border-t border-app-border pt-4">
             <Button
               variant="outline"
               onClick={runPreview}
@@ -372,6 +363,15 @@ export function ScheduleBuilderClient() {
               <CalendarPlus className="size-4" aria-hidden="true" />
               Generate {preview ? `${preview.futureCount} classes` : "class plan"}
             </Button>
+            {hasBlockingConflicts && (
+              <label className="flex items-center gap-2 text-xs font-bold text-app-danger">
+                <Checkbox
+                  checked={confirmConflicts}
+                  onCheckedChange={(v) => setConfirmConflicts(Boolean(v))}
+                />
+                Create despite conflicts
+              </label>
+            )}
           </div>
         </Card>
 
