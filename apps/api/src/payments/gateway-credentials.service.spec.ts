@@ -38,3 +38,62 @@ describe("GatewayCredentialsService.envFor", () => {
     expect(env.RAZORPAY_KEY_ID).toBeUndefined();
   });
 });
+
+describe("GatewayCredentialsService.reloadAll", () => {
+  function reloadingService() {
+    const state: { rows: Array<{ provider: string; publicKey: string; secretsEncrypted: string; tenantId: string }>; fail: boolean } = {
+      fail: false,
+      rows: []
+    };
+    const prisma = {
+      tenantPaymentCredential: {
+        findMany: async () => {
+          if (state.fail) throw new Error("database unavailable");
+          return state.rows;
+        }
+      }
+    } as unknown as PrismaService;
+    const service = new GatewayCredentialsService(prisma);
+    const row = (publicKey: string, keySecret: string) => ({
+      provider: "RAZORPAY",
+      publicKey,
+      secretsEncrypted: service.encrypt({ keySecret, webhookSecret: "hook" }),
+      tenantId: ROOK
+    });
+    const keyId = () => runInTenant(ROOK, "spec", async () => service.envFor(base).RAZORPAY_KEY_ID);
+    return { keyId, row, service, state };
+  }
+
+  it("picks up keys another process rotated or switched off", async () => {
+    const { keyId, row, service, state } = reloadingService();
+    state.rows = [row("rzp_old", "old_secret")];
+    await service.onModuleInit();
+    expect(await keyId()).toBe("rzp_old");
+
+    state.rows = [row("rzp_new", "new_secret")];
+    await service.reloadAll();
+    expect(await keyId()).toBe("rzp_new");
+
+    state.rows = [];
+    await service.reloadAll();
+    expect(await keyId()).toBeUndefined();
+  });
+
+  it("keeps the keys it had when a reload fails", async () => {
+    const { keyId, row, service, state } = reloadingService();
+    state.rows = [row("rzp_live", "live_secret")];
+    await service.onModuleInit();
+    state.fail = true;
+    await service.reloadAll();
+    expect(await keyId()).toBe("rzp_live");
+  });
+
+  it("warns about an undecryptable row once, not on every reload", async () => {
+    const { service, state } = reloadingService();
+    state.rows = [{ provider: "RAZORPAY", publicKey: "rzp_bad", secretsEncrypted: "not-encrypted", tenantId: ROOK }];
+    const warn = jest.spyOn((service as unknown as { logger: { warn: (m: string) => void } }).logger, "warn").mockImplementation(() => undefined);
+    await service.reloadAll();
+    await service.reloadAll();
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+});

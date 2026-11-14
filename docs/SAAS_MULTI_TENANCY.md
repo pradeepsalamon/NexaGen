@@ -1163,7 +1163,7 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
 - **5d (built 2026-11-05, migration `…_saas_academy_whatsapp`):** `whatsapp_settings` (one row per
   academy, token AES-256-GCM encrypted with `CREDENTIALS_ENCRYPTION_KEY`, else a key derived from
   `MFA_ENCRYPTION_KEY`), `GET/PUT /admin/branding/whatsapp` (the academy's super admin),
-  `WhatsAppCredentialsService` (decrypted per academy in memory, loaded at boot and on save).
+  `WhatsAppCredentialsService` (decrypted per academy in memory, loaded at boot, on save, and on every process every 60 s).
   `WhatsAppService.isConfigured()` and every send pick the request's academy: Nexa and work
   outside an academy use the env number; any other academy only its own, else WhatsApp is off.
 - **5e (partial, 2026-11-05):** `useBrandName()` replaces "Nexa Chess" in the auth pages,
@@ -1211,7 +1211,9 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
   the server env with the gateway keys swapped for the current academy's (from
   the TenantContext), or blanked when it has none. Nexa keeps the server env and
   stores nothing. Secrets AES-256-GCM (`CREDENTIALS_ENCRYPTION_KEY`, else
-  `MFA_ENCRYPTION_KEY`). Webhooks for another academy arrive on
+  `MFA_ENCRYPTION_KEY`), kept decrypted in memory and reloaded on every API
+  process every 60 s (`reloadAll`), so a change saved on one process reaches
+  the others within a minute. Webhooks for another academy arrive on
   `/payments/webhooks/<provider>/<webhookKey>`; the key names the academy, its
   secret verifies the event, and it is processed in that academy's context.
   The old URLs (no key) stay Nexa's. Admin page: Payments → Gateways (super admins). The routes are `/admin/payment-gateways…`, not under `/admin/payments/`, whose `:id` route would claim them.
