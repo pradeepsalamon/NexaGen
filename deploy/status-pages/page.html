@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Be right back</title>
+<!--
+  Served by nginx (not the app) when the web app can't answer: 502/504 while a
+  container restarts or has crashed, 503 during maintenance. Everything is inline
+  because nothing else on this host may be reachable. No brand: academies use
+  their own addresses. Colours mirror apps/web/src/styles/globals.css.
+  docs/SERVICE_STATUS.md
+-->
+<style>
+  :root {
+    --bg: rgb(255 255 255); --surface: rgb(255 255 255); --soft: rgb(245 245 245);
+    --border: rgb(229 229 229); --line: rgb(138 138 138);
+    --text: rgb(23 23 23); --muted: rgb(82 82 82); --subtle: rgb(112 112 112);
+    --primary: rgb(47 95 208); --primary-hover: rgb(38 79 176); --on-primary: rgb(255 255 255);
+    --primary-soft: rgb(238 243 253); --primary-ink: #1E3F94;
+    --warning-soft: rgb(254 243 199); --warning-ink: #92400E;
+    --danger-soft: rgb(254 226 226); --danger-ink: #B91C1C;
+    --focus: rgb(47 95 208);
+    --control-h: 36px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: rgb(10 10 10); --surface: rgb(23 23 23); --soft: rgb(31 31 31);
+      --border: rgb(38 38 38); --line: rgb(115 115 115);
+      --text: rgb(245 245 245); --muted: rgb(163 163 163); --subtle: rgb(140 140 140);
+      --primary-soft: rgb(23 42 85); --primary-ink: #A9C1F5;
+      --warning-soft: rgb(51 36 10); --warning-ink: #FBBF24;
+      --danger-soft: rgb(58 20 20); --danger-ink: #F87171;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: rgb(10 10 10); --surface: rgb(23 23 23); --soft: rgb(31 31 31);
+    --border: rgb(38 38 38); --line: rgb(115 115 115);
+    --text: rgb(245 245 245); --muted: rgb(163 163 163); --subtle: rgb(140 140 140);
+    --primary-soft: rgb(23 42 85); --primary-ink: #A9C1F5;
+    --warning-soft: rgb(51 36 10); --warning-ink: #FBBF24;
+    --danger-soft: rgb(58 20 20); --danger-ink: #F87171;
+    color-scheme: dark;
+  }
+  @media (pointer: coarse) { :root { --control-h: 44px; } }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; min-height: 100dvh; padding: 32px 16px;
+  }
+  main { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .icon {
+    width: 56px; height: 56px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+    background: var(--primary-soft); color: var(--primary-ink);
+  }
+  .icon[data-tone="warning"] { background: var(--warning-soft); color: var(--warning-ink); }
+  .icon[data-tone="danger"] { background: var(--danger-soft); color: var(--danger-ink); }
+  .icon svg { width: 28px; height: 28px; }
+  .spin svg { animation: spin 1.4s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin svg { animation: none; } }
+  h1 { margin: 0; font-size: 1.5rem; line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
+  p { margin: 0; color: var(--muted); }
+  .eta { color: var(--text); font-weight: 600; }
+  .check {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
+    margin-top: 8px; padding: 8px 8px 8px 16px; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); font-size: 0.875rem; color: var(--muted);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--primary); }
+  .checking .dot { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+  button {
+    min-height: var(--control-h); padding: 4px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text);
+    font: inherit; font-size: 0.875rem; font-weight: 500;
+  }
+  button:hover { background: var(--soft); }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button:disabled { cursor: default; opacity: 0.6; }
+  footer { font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--subtle); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="icon" id="icon" aria-hidden="true"></div>
+  <div>
+    <h1 id="title">We'll be right back</h1>
+  </div>
+  <p id="body">The app isn't responding at the moment. We're retrying automatically, so there's no need to refresh.</p>
+  <p class="eta" id="eta" hidden></p>
+  <div class="check" id="check" role="status" aria-live="polite">
+    <span class="dot" aria-hidden="true"></span>
+    <span id="checkText">Checking again shortly</span>
+    <button id="retry" type="button">Try now</button>
+  </div>
+  <p id="hint">If this lasts more than a few minutes, please let your coach or academy know.</p>
+  <footer id="meta"></footer>
+</main>
+<script>
+(function () {
+  "use strict";
+  var root = document.documentElement;
+
+  // Same saved choice as the app (apps/web/src/app/layout.tsx); this page shares its origin.
+  try {
+    var saved = JSON.parse(localStorage.getItem("nexa-chess-theme") || "{}");
+    var pref = saved.preference || saved.mode;
+    if (pref === "dark" || pref === "light") root.dataset.theme = pref;
+  } catch (e) { /* follow the system */ }
+
+  var ICONS = {
+    clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    cloudOff: '<path d="m2 2 20 20"/><path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"/><path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"/>',
+    refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'
+  };
+
+  // mode -> copy, icon, how often to look (ms) and the cap for backing off.
+  var MODES = {
+    deploying: {
+      title: "Updating to a new version",
+      body: "This usually takes less than a minute. The page will reload by itself when it's ready.",
+      icon: "refresh", tone: "primary", spin: true, every: 4000, max: 10000, hint: false
+    },
+    maintenance: {
+      title: "Scheduled maintenance",
+      body: "We're doing some planned work to keep things running smoothly. The page will reload by itself when we're back.",
+      icon: "wrench", tone: "warning", every: 20000, max: 60000, hint: false
+    },
+    slow: {
+      title: "This is taking longer than usual",
+      body: "The server didn't answer in time. We're trying again automatically, so there's no need to refresh.",
+      icon: "clock", tone: "warning", every: 6000, max: 30000, hint: true
+    },
+    down: {
+      title: "We'll be right back",
+      body: "The app isn't responding at the moment. We're retrying automatically, so there's no need to refresh.",
+      icon: "cloudOff", tone: "danger", every: 6000, max: 30000, hint: true
+    }
+  };
+  // A deploy marker older than this was left behind by a killed deploy: show the plain outage copy.
+  var DEPLOY_STALE_MS = 20 * 60 * 1000;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var status = 0;
+  try {
+    var nav = performance.getEntriesByType("navigation")[0];
+    status = (nav && nav.responseStatus) || 0;
+  } catch (e) { /* older browsers */ }
+
+  var mode = MODES.down, delay = mode.every, timer = null, countdown = null, nextAt = 0, busy = false;
+
+  function render(name, data) {
+    mode = MODES[name];
+    delay = mode.every;
+    $("title").textContent = mode.title;
+    $("body").textContent = (data && typeof data.message === "string" && data.message.trim()) || mode.body;
+    var icon = $("icon");
+    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">' + ICONS[mode.icon] + "</svg>";
+    icon.dataset.tone = mode.tone;
+    icon.className = "icon" + (mode.spin ? " spin" : "");
+    $("hint").hidden = !mode.hint;
+    var eta = $("eta");
+    var until = data && data.until ? new Date(data.until) : null;
+    if (until && !isNaN(until.getTime()) && until.getTime() > Date.now()) {
+      eta.textContent = "Expected back by " + until.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ".";
+      eta.hidden = false;
+    } else {
+      eta.hidden = true;
+    }
+    var code = status >= 500 ? status : name === "maintenance" ? 503 : name === "slow" ? 504 : 502;
+    $("meta").textContent = "Error " + code + " · " + new Date().toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+    document.title = mode.title;
+  }
+
+  function getJson(url) {
+    return fetch(url, { cache: "no-store", credentials: "omit" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
+  }
+
+  function detectMode() {
+    return Promise.all([getJson("/__status/maintenance.json"), getJson("/__status/deploying.json")]).then(function (res) {
+      var maintenance = res[0], deploying = res[1];
+      if (maintenance) return render("maintenance", maintenance);
+      var since = deploying && deploying.since ? new Date(deploying.since).getTime() : NaN;
+      if (deploying && !isNaN(since) && Date.now() - since < DEPLOY_STALE_MS) return render("deploying", deploying);
+      render(status === 504 ? "slow" : "down");
+    });
+  }
+
+  // The app answers again (anything below 500, or a redirect) -> back to the address they asked for.
+  function probe() {
+    return fetch(location.href, { method: "HEAD", cache: "no-store", redirect: "manual", credentials: "same-origin" })
+      .then(function (r) { return r.type === "opaqueredirect" || (r.status > 0 && r.status < 500); })
+      .catch(function () { return false; });
+  }
+
+  function schedule() {
+    clearTimeout(timer);
+    clearInterval(countdown);
+    nextAt = Date.now() + delay;
+    timer = setTimeout(check, delay);
+    tick();
+    countdown = setInterval(tick, 1000);
+  }
+
+  function tick() {
+    var s = Math.max(0, Math.ceil((nextAt - Date.now()) / 1000));
+    $("checkText").textContent = s > 0 ? "Checking again in " + s + "s" : "Checking…";
+  }
+
+  function check() {
+    if (busy) return;
+    busy = true;
+    clearTimeout(timer);
+    clearInterval(countdown);
+    $("check").className = "check checking";
+    $("checkText").textContent = "Checking…";
+    $("retry").disabled = true;
+    probe().then(function (up) {
+      if (up) {
+        $("checkText").textContent = "Back online. Reloading…";
+        location.replace(location.href);
+        return;
+      }
+      return detectMode().then(function () {
+        busy = false;
+        $("check").className = "check";
+        $("retry").disabled = false;
+        delay = Math.min(Math.round(delay * 1.5), mode.max);
+        schedule();
+      });
+    });
+  }
+
+  $("retry").addEventListener("click", function () { delay = mode.every; check(); });
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && !busy) { delay = mode.every; check(); }
+  });
+
+  // Opened directly (https://<host>/__status/page.html?mode=deploying): show a state, never poll,
+  // because the app is up and the probe would reload this page in a loop.
+  if (location.pathname.indexOf("/__status/") === 0) {
+    var wanted = new URLSearchParams(location.search).get("mode");
+    var name = MODES.hasOwnProperty(wanted) ? wanted : "down";
+    render(name, name === "maintenance" ? { until: new Date(Date.now() + 45 * 60000).toISOString() } : null);
+    $("checkText").textContent = "Preview: not checking";
+    $("retry").disabled = true;
+    return;
+  }
+
+  detectMode().then(schedule);
+})();
+</script>
+</body>
+</html>

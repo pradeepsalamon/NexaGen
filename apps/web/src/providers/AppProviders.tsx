@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { usePathname } from "next/navigation";
+import { ConnectionStatus } from "@/components/layout/ConnectionStatus";
 import { EmailVerificationBanner } from "@/components/layout/EmailVerificationBanner";
 import { Header } from "@/components/layout/Header";
 import { NavigationProgress } from "@/components/layout/NavigationProgress";
@@ -69,6 +70,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
               <TypographySync />
               <AcquisitionCapture />
               <NavigationProgress />
+              <ConnectionStatus />
               {!isChromeless && <Header />}
               <div className={!isChromeless ? "pt-16" : ""}>
                 {!isChromeless && <EmailVerificationBanner />}

@@ -30,9 +30,81 @@ function show_usage() {
     echo "  status                     Show status of all environments"
     echo "  logs [api|web]             View logs (for dev)"
     echo "  attach                     Attach to the dev tmux session"
+    echo "  maintenance <on|off|status> <prod|stage> [minutes] [message]"
+    echo "                             Show the maintenance page (docs/SERVICE_STATUS.md)"
+    echo "  status-pages <prod|stage>  Install/refresh the nginx status page files"
     echo ""
     exit 1
 }
+
+# Service status pages (docs/SERVICE_STATUS.md). nginx reads
+# $STATUS_ROOT/<prod|stage>/; handled before the prod component guard below,
+# since `maintenance` takes its environment as the 3rd argument.
+STATUS_ROOT="${NEXA_STATUS_DIR:-/var/www/nexa-status}"
+
+function status_env_dir() {
+    case "$1" in
+        prod | stage) echo "$STATUS_ROOT/$1" ;;
+        *) echo "Environment must be prod or stage." >&2; exit 1 ;;
+    esac
+}
+
+function install_status_pages() {
+    local dir
+    dir=$(status_env_dir "$1")
+    if [ ! -d "$dir" ]; then
+        echo "Creating $dir (needs sudo once)..."
+        sudo install -d -o "$(id -un)" -g "$(id -gn)" -m 755 "$dir"
+    fi
+    local file
+    for file in page.html api-unavailable.json; do
+        cp "$ROOT_DIR/deploy/status-pages/$file" "$dir/.$file.tmp"
+        mv -f "$dir/.$file.tmp" "$dir/$file"
+    done
+    echo "Status pages installed in $dir."
+}
+
+function maintenance_command() {
+    local action=$1 env=$2 minutes=$3 message dir
+    shift 3 2>/dev/null || shift $#
+    message="$*"
+    dir=$(status_env_dir "$env")
+    [ -d "$dir" ] || { echo "$dir is missing: run 'nexa status-pages $env' first."; exit 1; }
+    case "$action" in
+        on)
+            local until=""
+            if [ -n "$minutes" ]; then
+                [[ "$minutes" =~ ^[0-9]+$ ]] || { echo "Minutes must be a whole number."; exit 1; }
+                until=$(date -u -d "+$minutes minutes" +%Y-%m-%dT%H:%M:%SZ)
+            fi
+            jq -n --arg since "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg until "$until" --arg message "$message" \
+                '{since: $since} + (if $until != "" then {until: $until} else {} end) + (if $message != "" then {message: $message} else {} end)' \
+                > "$dir/.maintenance.json.tmp"
+            mv -f "$dir/.maintenance.json.tmp" "$dir/maintenance.json"
+            echo "Maintenance ON for $env: every page now shows the maintenance screen (API: 503 JSON)."
+            echo "Turn it off with: nexa maintenance off $env"
+            ;;
+        off)
+            rm -f "$dir/maintenance.json"
+            echo "Maintenance OFF for $env. Open tabs reload by themselves within a minute."
+            ;;
+        status)
+            if [ -f "$dir/maintenance.json" ]; then echo "Maintenance ON for $env:"; cat "$dir/maintenance.json"; else echo "Maintenance off for $env."; fi
+            if [ -f "$dir/deploying.json" ]; then echo "Deploy marker present:"; cat "$dir/deploying.json"; fi
+            ;;
+        *) show_usage ;;
+    esac
+}
+
+if [[ "$COMMAND" == "maintenance" ]]; then
+    shift
+    maintenance_command "$@"
+    exit 0
+fi
+if [[ "$COMMAND" == "status-pages" ]]; then
+    install_status_pages "$ENV"
+    exit 0
+fi
 
 # Only what this script started: killing the tmux session ends its panes'
 # processes. Anything else on the ports is reported, never killed.

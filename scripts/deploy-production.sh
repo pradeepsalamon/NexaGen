@@ -242,6 +242,7 @@ restore_generation() {
   done
 
   echo "Recreating: ${restorable[*]} (+ egress)..."
+  status_mark_deploying
   if ! docker compose up -d --no-build "${restorable[@]}" egress; then
     echo "✗ docker compose up failed while restoring."
     return 1
@@ -250,6 +251,35 @@ restore_generation() {
   check_services "${restorable[@]}" || return 1
   [ "${#restorable[@]}" -eq "${#services[@]}" ]
 }
+
+# ---------------------------------------------------------
+# Status page (docs/SERVICE_STATUS.md). While nginx can't reach the app it
+# serves deploy/status-pages/page.html; `deploying.json` makes that page say
+# "updating" instead of "down". Skipped quietly where the directory is missing.
+# ---------------------------------------------------------
+STATUS_DIR="${NEXA_STATUS_DIR:-/var/www/nexa-status}/${NEXA_STATUS_ENV:-prod}"
+
+status_mark_deploying() {
+  [ -d "$STATUS_DIR" ] && [ -w "$STATUS_DIR" ] || return 0
+  printf '{"since":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS_DIR/.deploying.json.tmp" \
+    && mv -f "$STATUS_DIR/.deploying.json.tmp" "$STATUS_DIR/deploying.json" || true
+}
+
+status_clear_deploying() {
+  rm -f "$STATUS_DIR/deploying.json" 2> /dev/null || true
+}
+
+# Copies the checked-out commit's page so the swap already shows the new wording.
+status_sync_pages() {
+  [ -d "$STATUS_DIR" ] && [ -w "$STATUS_DIR" ] || return 0
+  local file
+  for file in page.html api-unavailable.json; do
+    [ -f "deploy/status-pages/$file" ] || continue
+    cp "deploy/status-pages/$file" "$STATUS_DIR/.$file.tmp" && mv -f "$STATUS_DIR/.$file.tmp" "$STATUS_DIR/$file" || true
+  done
+}
+
+trap 'status_clear_deploying; rm -f "$NEXA_DEPLOY_REEXEC"' EXIT
 
 print_failure_logs() {
   [ -n "$1" ] || return 0
@@ -452,6 +482,8 @@ fi
 # `up` itself fails when web's depends_on sees an unhealthy api ("dependency
 # failed to start"), so it is a rollback trigger, not just the health check.
 echo "Starting services: ${SERVICES[*]} (+ egress)..."
+status_sync_pages
+status_mark_deploying
 if ! docker compose up -d "${SERVICES[@]}" egress; then
   for SERVICE in "${SERVICES[@]}"; do
     is_service_healthy_now "$SERVICE" || { FAILED_SERVICE=$SERVICE; break; }
@@ -465,6 +497,7 @@ fi
 if ! check_services "${SERVICES[@]}"; then
   rollback_failed_deploy "${CONTAINER_PREFIX}$FAILED_SERVICE did not become healthy"
 fi
+status_clear_deploying
 
 # =========================================================
 # Promote: this deploy is the new last-good.

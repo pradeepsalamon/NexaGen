@@ -54,6 +54,7 @@ stay as written; the living doc for that area wins where they disagree.
 |---|---|
 | [DEPLOYMENT.md](DEPLOYMENT.md) | CI, push-to-main deploys, rollback, backups; first-time VPS setup (Oracle Cloud, nginx, TLS, TURN) |
 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | BullMQ jobs, rate limiting, Sentry |
+| [SERVICE_STATUS.md](SERVICE_STATUS.md) | What users see when the app is down, deploying, in maintenance, crashed, outdated or offline (nginx status page, `error.tsx`, offline pill) |
 | [PROD_DOCKER_COMMANDS.md](PROD_DOCKER_COMMANDS.md) | Production container cheat sheet |
 | [DATABASE_RESTORE.md](DATABASE_RESTORE.md) | Restoring a backup (CLI only) |
 | [NEXA_CLI.md](NEXA_CLI.md) | The `nexa` dev/stage/prod helper |
