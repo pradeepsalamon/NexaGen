@@ -1,0 +1,95 @@
+/* The hero's backdrop and the stage around the 3D board. Only transforms are
+   animated, so none of it repaints. */
+.hero3d-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.hero3d-aura {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  will-change: transform;
+}
+.hero3d-aura-gold {
+  top: -12rem;
+  right: -12rem;
+  width: 40rem;
+  height: 40rem;
+  opacity: 0.7;
+  background: radial-gradient(circle, rgb(var(--rgb-accent) / 0.34), transparent 68%);
+  animation: hero3d-drift-a 22s ease-in-out infinite alternate;
+}
+.hero3d-aura-blue {
+  bottom: -14rem;
+  left: -10rem;
+  width: 45rem;
+  height: 45rem;
+  opacity: 0.8;
+  background: radial-gradient(circle, rgb(var(--rgb-primary) / 0.16), transparent 70%);
+  animation: hero3d-drift-b 28s ease-in-out infinite alternate;
+}
+/* A whisper of chessboard behind the hero, fading out from the board's corner. */
+.hero3d-checker {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  background: repeating-conic-gradient(rgb(var(--rgb-text)) 0% 25%, transparent 0% 50%) 0 0 / 112px 112px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 72% 34%, black, transparent 72%);
+  mask-image: radial-gradient(ellipse 70% 60% at 72% 34%, black, transparent 72%);
+}
+.hero3d-glow {
+  position: absolute;
+  inset: 6%;
+  border-radius: 9999px;
+  filter: blur(40px);
+  background: radial-gradient(circle, rgb(var(--rgb-accent) / 0.4) 0%, rgb(var(--rgb-accent) / 0.12) 45%, transparent 70%);
+}
+.hero3d-orbit {
+  position: absolute;
+  inset: 2%;
+  width: 96%;
+  height: 96%;
+  color: rgb(var(--rgb-accent) / 0.45);
+  will-change: transform;
+  animation: hero3d-orbit 60s linear infinite;
+}
+/* A device too slow for the moving scene gets no moving ring or drifting light either. */
+.hero3d-stage[data-still="true"] .hero3d-orbit,
+section:has(.hero3d-stage[data-still="true"]) .hero3d-aura {
+  animation: none;
+}
+.hero3d-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 900ms ease;
+}
+.hero3d-canvas[data-ready="true"] {
+  opacity: 1;
+}
+
+@keyframes hero3d-drift-a {
+  to {
+    transform: translate3d(-6rem, 4rem, 0) scale(1.1);
+  }
+}
+@keyframes hero3d-drift-b {
+  to {
+    transform: translate3d(5rem, -3rem, 0) scale(1.08);
+  }
+}
+@keyframes hero3d-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero3d-aura,
+  .hero3d-orbit {
+    animation: none;
+  }
+}

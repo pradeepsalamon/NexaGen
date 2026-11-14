@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import {
   ArrowRight,
   Calendar,
@@ -11,10 +10,7 @@ import {
   ClipboardList,
   Trophy
 } from "lucide-react";
-
-// Update these if your filenames in `public/academy/` are different
-const HERO_BG_LIGHT = "/academy/hero_light.webp";
-const HERO_BG_DARK = "/academy/hero_dark.webp";
+import { HeroBackdrop, HeroStage } from "../hero3d/HeroStage";
 
 const heroStats = [
   { value: "5,000+", label: "Active Students", Icon: Users },
@@ -129,44 +125,8 @@ export function HeroSection() {
         flex flex-col justify-between
       "
     >
-      {/* ================= FULL-BLEED BACKGROUND ARTWORK ================= */}
-      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        {/* Light Mode Background Image */}
-        <Image
-          src={HERO_BG_LIGHT}
-          alt="NEXA Chess Golden Knight on Luxe Chessboard"
-          fill
-          priority
-          sizes="100vw"
-          className={`
-            object-cover
-            object-[74%_bottom] sm:object-[70%_bottom] lg:object-[center_bottom]
-            dark:hidden
-          `}
-        />
-
-        {/* Dark Mode Background Image */}
-        <Image
-          src={HERO_BG_DARK}
-          alt="NEXA Chess Faceted Gold Knight in Midnight Chess"
-          fill
-          // Lazy + display:none in light mode = never fetched there; only the
-          // light variant is preloaded.
-          fetchPriority="high"
-          sizes="100vw"
-          className={`
-            object-cover
-            object-[74%_bottom] sm:object-[70%_bottom] lg:object-[center_bottom]
-            hidden dark:block
-          `}
-        />
-
-        {/* Subtle bottom edge blend */}
-        <div
-          className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-app-surface/80 to-transparent"
-          aria-hidden="true"
-        />
-      </div>
+      {/* ================= BACKDROP: DRIFTING LIGHT + FAINT CHESSBOARD ================= */}
+      <HeroBackdrop />
 
       {/* ================= MAIN HERO FOREGROUND ================= */}
       <div className="relative z-10 w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col justify-between">
@@ -194,13 +154,13 @@ export function HeroSection() {
             </h1>
 
             {/* Subtitle */}
-            <p className="text-[13px] sm:text-[15px] lg:text-base text-app-muted max-w-[235px] xs:max-w-[265px] sm:max-w-[480px] mb-5 sm:mb-6 leading-[1.55] font-normal">
+            <p className="text-[13px] sm:text-[15px] lg:text-base text-app-muted max-w-[480px] mb-5 sm:mb-6 leading-[1.55] font-normal">
               Join thousands of students and develop your chess skills with expert
               coaching, structured programs, live classes, and a global community.
             </p>
 
             {/* Buttons */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 max-w-[215px] xs:max-w-[235px] sm:max-w-none">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 max-w-[280px] sm:max-w-none">
               {/* Book a Free Class */}
               <a
                 href="#demo"
@@ -242,9 +202,11 @@ export function HeroSection() {
             </div>
           </div>
 
-          {/* Right Column: "Play Beyond Limits" Callout Overlay */}
+          {/* Right Column: the 3D board, with the "Play Beyond Limits" callout over its corner */}
+          <div className="relative mt-6 lg:col-span-5 lg:mt-0">
+            <HeroStage className="mx-auto max-w-[24rem] lg:max-w-[min(30rem,58dvh)]" />
           <div
-            className="hidden lg:flex lg:col-span-5 relative h-full min-h-[280px] items-start justify-end pointer-events-none"
+            className="hidden lg:flex absolute right-0 top-0 items-start justify-end pointer-events-none"
             aria-hidden="true"
           >
             <div className="relative mt-2 mr-1 xl:mr-2 -rotate-[14deg] select-none text-right">
@@ -274,6 +236,7 @@ export function HeroSection() {
                 />
               </svg>
             </div>
+          </div>
           </div>
         </div>
 

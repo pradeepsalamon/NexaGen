@@ -68,6 +68,7 @@ export default [
     files: [
       "src/app/layout.tsx",
       "src/app/recorder/**",
+      "src/features/academy/hero3d/**",
       "src/features/chess-appearance/**",
       "src/features/chessboard/lib/drawBrushes.ts",
       "src/lib/document-reader/**",

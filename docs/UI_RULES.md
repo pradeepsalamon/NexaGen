@@ -80,6 +80,7 @@ and are mapped in `tailwind.config.ts`.
   | File | Why |
   |---|---|
   | `styles/globals.css` | Where the tokens are defined |
+  | `features/academy/hero3d/**` | Lit material colours of the 3D hero board (WebGL), not interface colours |
   | `features/chess-appearance/**` | Board and piece themes people choose, plus SVG piece parsing |
   | `features/chessboard/lib/drawBrushes.ts` | Board arrow palette, stored by name and synced to students |
   | `app/layout.tsx` | `themeColor` metadata is a literal; keep it equal to `--rgb-background` |

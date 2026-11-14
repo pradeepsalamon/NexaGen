@@ -398,6 +398,24 @@ is disallowed in `robots.ts`. `/academy` is its Design System v2 rebuild (`featu
 beside it for review: same content and form, `noindex` with a canonical of `/`, and no JSON-LD, so
 search engines only ever see `/`.
 
+- **Hero 3D board** (`features/academy/hero3d`, used by both hero sections): a
+  three.js scene in its own chunk, fetched only when the stage is near the
+  screen and the browser is idle, so it never delays the hero text. Everything
+  is procedural (turned Staunton pieces, a painted stone board, a baked studio
+  for reflections): no model, texture or HDR file is shipped. Rules:
+  - It draws only while on screen in a visible tab. `prefers-reduced-motion`
+    gets one still frame. Touch devices and machines under 4 cores get the
+    cheaper scene (no reflections, smaller shadow map, lower pixel ratio).
+  - `scene.ts` `watchSpeed` judges real frame time after the scene is ready: a
+    slow device steps down in quality, then freezes to a still picture and stops
+    the ring and drifting light too (`data-still`). Keep that guard.
+  - The theme comes from `data-theme` through a `MutationObserver`, never React
+    state; during the circular theme reveal it changes in one step.
+  - Reflections are mirrored copies of the pieces drawn under a slightly
+    see-through board, limited to the board by the stencil buffer. So nothing
+    solid may lie under the playing surface (the frame and skirt are rings).
+  - Scene colours are literals in `hero3d/palette.ts` (lint-exempt, UI_RULES §1).
+
 - **One source of facts**: `apps/web/src/features/academy/content.ts` — name and
   alternate names, contacts, programs (also rendered by `ProgramsSection`), class
   formats, the FAQ and `ACADEMY_SOCIAL_PROFILES`. The visible FAQ (`FaqSection`),

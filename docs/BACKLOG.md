@@ -162,6 +162,12 @@ its precondition, the student training surface, now exists).
   assets and images are only deleted with the owner's yes (keep it, delete it,
   or bring back a light panel that uses it).
 
+- **Unused assets: `apps/web/public/academy/hero_light.webp` and `hero_dark.webp`**
+  (2026-11-14). Both hero sections (`/` and `/academy`) now show the 3D board
+  (`features/academy/hero3d`) on a drifting-light and faint-chessboard backdrop,
+  so nothing references the hero photos. Kept on purpose, as above: the owner
+  decides (delete them, or use them as the picture shown where WebGL is missing).
+
 ### Closed by this pass (were listed as open, already fixed in code)
 
 - **LiveKit token TTL.** It was listed as 6h (AUTHORIZATION.md). It has been
