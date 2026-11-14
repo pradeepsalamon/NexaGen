@@ -182,6 +182,12 @@ its precondition, the student training surface, now exists).
   privacy-policy wording in `features/legal/content.ts`. Gaps to build: an nginx IP limit on `/webhooks/whatsapp` (the contact
   export/erase action and `message_deliveries` status updates were built in
   Phase C, 2026-11-14).
+  **Phase B and Phase C were built unattended on 2026-11-14** (branch
+  `feat/whatsapp-native-complete`, PR into `feat/whatsapp-multi-academy`): every
+  academy's own number, team hours, delivery status, real demo slots, contact
+  export/erase, template status, images/PDFs, the Frappe push, ownership events,
+  `/admin/support/insights` and the configurable main menu. The questions that
+  run left are under "Questions for the owner" below (2026-11-14 entry).
   **Next phases are planned in [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md)
   (2026-11-14, proposal; open decisions in its §0 come first; D3, D6, D12,
   D13 answered).** Its G1 finding is fixed: a bot reply staff overtook is no longer sent.
@@ -215,6 +221,15 @@ its precondition, the student training surface, now exists).
   note was dropped.
 
 ## Questions for the owner (unattended runs)
+
+- **2026-11-14 (unattended WhatsApp Phase B/C run, `feat/whatsapp-native-complete`): what I assumed or skipped.**
+  1. **D5 was still open; I built option (a)** (the plan's recommendation): fixed flows in code, and on Support → Settings each academy turns main-menu options on/off, reorders and renames them. "Talk to our team" can't be switched off. No flow builder. Change of mind = say so, nothing else depends on it.
+  2. **Routing per intent was not built.** With no helpdesk connected, every hand-off has one destination (the Nexa inbox), so a routing table would have nothing to choose. It comes with Phase E (Crisp), which waits on D1.
+  3. **Frappe push: only new leads the WhatsApp bot makes**, Nexa's academy only, one way. Should website-form leads go too? Should a booked real demo time set Frappe's status to "Demo Scheduled"? (Today every push uses `FRAPPE_CRM_LEAD_STATUS`, default "New Inquiry", and source "Direct WhatsApp", both names that exist on crm.nexachess.in.) **To switch it on:** create an API key/secret in Frappe for a user allowed to create CRM Lead and FCRM Note, then set `FRAPPE_CRM_URL=https://crm.nexachess.in`, `FRAPPE_CRM_API_KEY`, `FRAPPE_CRM_API_SECRET` on the API.
+  4. **Phase D (account linking, D8) not started**: it decides how a WhatsApp number proves it belongs to a parent's account (minors' data), so it needs your answer to D8 first (recommended: a one-time link code shown in the app).
+  5. **Phases E/F (Crisp) skipped**: D1 says wait. **Phase G (AI answers) skipped**: needs a decision (plan §12, D12 AI).
+  6. **Privacy text**: `features/legal/content.ts` doesn't yet mention that files customers send on WhatsApp are kept (private Cloudinary storage) or that WhatsApp leads are copied to Frappe CRM (self-hosted). Needs the DPDP review already pending before the bot is switched on.
+  7. **Insights history starts 2026-11-14**: hand-off and first-reply figures come from the new `support_conversation_events` table, so older conversations count in volume but not in hand-offs.
 
 - **Decided 2026-11-04 — the spec's seven open decisions: keep all as built.** (Merged into local `dev` the same day.) Kept for reference:
   1. Muted mic/camera: soft red (alternative: neutral grey with a slashed icon). `MeetingControlButton` variant `off`.

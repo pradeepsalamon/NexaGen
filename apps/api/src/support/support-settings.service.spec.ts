@@ -1,4 +1,5 @@
-import { supportHoursOpen } from "@nexa-chess/types";
+import { DEFAULT_SUPPORT_MENU, supportHoursOpen } from "@nexa-chess/types";
+import type { Prisma } from "@prisma/client";
 import { resolveSupportSettings, supportAnswersNumber } from "./support-settings.service";
 
 const SERVER = {
@@ -17,6 +18,7 @@ const ROW = {
   botEnabled: false,
   hours: { days: [{ close: "18:00", day: 1, open: "09:00" }], timezone: "Asia/Kolkata" },
   leadNudgeHours: 6,
+  menu: DEFAULT_SUPPORT_MENU as unknown as Prisma.JsonValue,
   outOfHoursMessage: "Back at 9.",
   staffReminderMinutes: 30,
   testNumbers: ["447700900123"]
@@ -30,6 +32,7 @@ describe("resolveSupportSettings", () => {
       botEnabled: true,
       hours: null,
       leadNudgeHours: 20,
+      menu: DEFAULT_SUPPORT_MENU,
       outOfHoursMessage: null,
       source: "SERVER",
       staffReminderMinutes: 15,
@@ -47,6 +50,12 @@ describe("resolveSupportSettings", () => {
     expect(settings.botEnabled).toBe(false);
     expect(settings.agentReplyTemplate).toBeNull();
     expect(settings.testNumbers).toEqual([]);
+  });
+
+  it("treats an unreadable stored menu as the built-in one", () => {
+    const broken = DEFAULT_SUPPORT_MENU.map((item) => (item.category === "OTHER" ? { ...item, enabled: false } : item));
+    expect(resolveSupportSettings({ ...ROW, menu: broken as unknown as Prisma.JsonValue }, "tenant_rook", SERVER).menu).toEqual(DEFAULT_SUPPORT_MENU);
+    expect(resolveSupportSettings({ ...ROW, menu: null }, "tenant_rook", SERVER).menu).toEqual(DEFAULT_SUPPORT_MENU);
   });
 
   it("treats unreadable stored hours as 24/7", () => {

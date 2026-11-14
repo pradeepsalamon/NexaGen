@@ -183,6 +183,15 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   first reply (median and 90th percentile, plus how many still wait), new leads,
   requests by topic, and a per-day chart in the viewer's time zone. Built from
   the events above, so hand-off figures start on 2026-11-14.
+- *Main menu* (Phase C, plan D5 (a)): Support → Settings → Main menu turns
+  each of the six options on or off, reorders them and renames them (WhatsApp
+  limits: title 24, description 72 characters). Stored as
+  `support_settings.menu` (`supportMenuSchema`; unreadable or empty = the
+  built-in menu). The flow gets the result as `ctx.menu`
+  (`supportMenuEntries`): numbers follow the visible order, a switched-off
+  option isn't guessed from words either, and each option keeps its row id, so
+  a renamed one still means the same thing. "Talk to our team" can't be
+  switched off. The flows themselves stay in code (no flow builder).
 - *Template status* (Phase C): the reply-template field on the settings page
   shows whether WhatsApp Manager approved it ([MESSAGING.md](MESSAGING.md) "WhatsApp templates").
 - *Delivery status for rules and system messages* (Phase C): a status webhook

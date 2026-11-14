@@ -12,6 +12,7 @@ import { PassThrough } from "node:stream";
 import { v2 as cloudinary } from "cloudinary";
 import {
   API_ROUTES,
+  DEFAULT_SUPPORT_MENU,
   DEFAULT_TENANT_ID,
   type LeadDetailResponse,
   type SupportContactExport,
@@ -757,6 +758,50 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       expect(await followUps.remindStaff(new Date(Date.now() + 16 * 60_000))).toBe(0);
     });
 
+    it("shows the academy's own main menu: hidden options, new order and titles", async () => {
+      const base = {
+        agentReplyTemplate: "",
+        agentReplyTemplateLanguage: "en",
+        botEnabled: true,
+        hours: null,
+        leadNudgeHours: 20,
+        outOfHoursMessage: "",
+        staffReminderMinutes: 15,
+        testNumbers: [ALLOWED_NUMBER]
+      };
+      const byCategory = Object.fromEntries(DEFAULT_SUPPORT_MENU.map((item) => [item.category, item]));
+      const menu = [
+        { ...byCategory.CLASS, title: "Class problem" },
+        { ...byCategory.COURSE },
+        { ...byCategory.REFUND, enabled: false },
+        { ...byCategory.PAYMENT, enabled: false },
+        { ...byCategory.TECH },
+        { ...byCategory.OTHER }
+      ];
+      // The way to a person can't be switched off.
+      const noPerson = menu.map((item) => (item.category === "OTHER" ? { ...item, enabled: false } : item));
+      expect((await t.call(admin, "PUT", API_ROUTES.adminSupport.settings, { ...base, menu: noPerson })).status).toBe(400);
+      const saved = await t.call(admin, "PUT", API_ROUTES.adminSupport.settings, { ...base, menu });
+      expect(saved.status).toBe(200);
+      expect((saved.body as { menu: unknown }).menu).toEqual(menu);
+
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "hi"));
+      expect(sent[0]).toMatchObject({ type: "list" });
+      expect(sent[0].body).toContain("(1–4)");
+      // "1" is now the first visible option.
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "1"));
+      expect(sent[0].body).toContain("student's name");
+      const conversation = await db(() => t.prisma.supportConversation.findFirstOrThrow({ where: { status: { not: "CLOSED" } } }));
+      expect(conversation.draft).toMatchObject({ category: "CLASS" });
+      // A hidden option isn't guessed from words either.
+      await say(textFrom(ALLOWED_NUMBER, "menu"));
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "I want a refund"));
+      expect(sent[0].body).toContain("didn't get that");
+    });
+
     it("outside the team's hours: the academy's away message after a hand-off, reminders wait", async () => {
       const followUps = t.app.get(SupportFollowUpService);
       // No open day at all: always outside hours, whatever time the suite runs.
@@ -766,6 +811,7 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
         botEnabled: true,
         hours: { days: [], timezone: "Asia/Kolkata" },
         leadNudgeHours: 20,
+        menu: DEFAULT_SUPPORT_MENU,
         outOfHoursMessage: "We're back on Monday at 9.",
         staffReminderMinutes: 15,
         testNumbers: [ALLOWED_NUMBER]

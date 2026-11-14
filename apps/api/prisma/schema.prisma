@@ -8597,6 +8597,8 @@ model SupportSettings {
   hours                      Json?
   /// Sent after a hand-off outside hours; null = DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE.
   outOfHoursMessage          String?
+  /// The main menu: SupportMenuItem[] (supportMenuSchema); null = DEFAULT_SUPPORT_MENU.
+  menu                       Json?
   updatedById                String?
   updatedBy                  User?    @relation("SupportSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt                  DateTime @default(now())

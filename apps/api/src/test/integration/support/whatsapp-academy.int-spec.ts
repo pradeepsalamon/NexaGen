@@ -10,6 +10,7 @@ import {
 import { createHmac } from "node:crypto";
 import {
   API_ROUTES,
+  DEFAULT_SUPPORT_MENU,
   DEFAULT_TENANT_ID,
   type SupportSettingsResponse,
   type UpdateSupportSettingsRequest,
@@ -40,6 +41,7 @@ const BOT_ON: UpdateSupportSettingsRequest = {
   botEnabled: true,
   hours: null,
   leadNudgeHours: 20,
+  menu: DEFAULT_SUPPORT_MENU,
   outOfHoursMessage: "",
   staffReminderMinutes: 15,
   testNumbers: []

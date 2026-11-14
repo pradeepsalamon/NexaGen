@@ -3,8 +3,11 @@ import { SUPPORT_OUT_OF_HOURS_MAX, supportHoursSchema, type SupportHours } from 
 import {
   SUPPORT_CATEGORIES,
   SUPPORT_CONVERSATION_STATUSES,
+  SUPPORT_MENU_DESCRIPTION_MAX,
+  SUPPORT_MENU_TITLE_MAX,
   type SupportCategory,
-  type SupportConversationStatus
+  type SupportConversationStatus,
+  type SupportMenuItem
 } from "./support-flows";
 
 // The staff side of WhatsApp support (docs/WHATSAPP_SUPPORT.md): tickets the
@@ -253,6 +256,24 @@ export const SUPPORT_SETTINGS_LIMITS = {
   templateNameMax: 512
 } as const;
 
+/** The academy's main menu: all six options, in order, each on or off (Talk to our team stays on). */
+export const supportMenuSchema = z
+  .array(
+    z.object({
+      category: z.enum(SUPPORT_CATEGORIES),
+      enabled: z.boolean(),
+      title: z.string().trim().min(1, "Give the option a title.").max(SUPPORT_MENU_TITLE_MAX),
+      description: z.string().trim().max(SUPPORT_MENU_DESCRIPTION_MAX)
+    })
+  )
+  .length(SUPPORT_CATEGORIES.length)
+  .refine((items) => new Set(items.map((item) => item.category)).size === items.length, "Each option once.")
+  .refine((items) => items.some((item) => item.category === "OTHER" && item.enabled), "Talk to our team must stay on: it's the way to a person.")
+  .refine(
+    (items) => new Set(items.map((item) => item.title.trim().toLowerCase())).size === items.length,
+    "Give each option a different title."
+  );
+
 export const updateSupportSettingsRequestSchema = z.object({
   botEnabled: z.boolean(),
   /** Numbers with country code; the API normalizes them (spaces, "+", a national number). */
@@ -272,7 +293,9 @@ export const updateSupportSettingsRequestSchema = z.object({
   /** null = the team answers any time (24/7). */
   hours: supportHoursSchema.nullable(),
   /** Sent after a hand-off outside hours; empty = DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE. */
-  outOfHoursMessage: z.string().trim().max(SUPPORT_OUT_OF_HOURS_MAX)
+  outOfHoursMessage: z.string().trim().max(SUPPORT_OUT_OF_HOURS_MAX),
+  /** The main menu (DEFAULT_SUPPORT_MENU until changed). */
+  menu: supportMenuSchema
 });
 export type UpdateSupportSettingsRequest = z.infer<typeof updateSupportSettingsRequestSchema>;
 
@@ -290,6 +313,8 @@ export interface SupportSettingsValues {
   hours: SupportHours | null;
   /** null = the default out-of-hours message. */
   outOfHoursMessage: string | null;
+  /** All six options in the academy's order, including switched-off ones. */
+  menu: SupportMenuItem[];
 }
 
 export interface SupportSettingsResponse extends SupportSettingsValues {

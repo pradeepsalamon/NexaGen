@@ -6,6 +6,7 @@ import {
   SUPPORT_FLOW_VERSION,
   SUPPORT_TICKET_REFERENCE_PLACEHOLDER,
   supportHoursOpen,
+  supportMenuEntries,
   supportReplyText,
   transitionSupport,
   type SupportBotAnswer,
@@ -164,6 +165,7 @@ export class SupportConversationService {
           answers,
           demoSlots,
           idle,
+          menu: supportMenuEntries(settings.menu),
           privacyUrl: `${origin ?? getFrontendUrl(this.env)}/privacy`,
           redacted: wasRedacted(event.text)
         }

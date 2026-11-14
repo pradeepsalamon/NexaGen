@@ -31,7 +31,8 @@ The G1 fix (§3) was approved and is done. Everything else is still open.
 (every academy's own number) and, from Phase C: hours + away message,
 delivery status on rule messages, real demo slots, contact export/erase,
 template status, images/PDFs (D13), the Frappe push (D6), conversation
-ownership events, analytics. As built:
+ownership events, analytics, the configurable main menu (D5 assumed (a);
+per-intent routing waits for a second destination, Phase E). As built:
 [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0. Phase C items still to come are
 marked in §12.
 

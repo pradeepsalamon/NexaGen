@@ -3,13 +3,18 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useMemo } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { z } from "zod";
 import {
   DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE,
+  SUPPORT_CATEGORY_LABELS,
+  SUPPORT_MENU_DESCRIPTION_MAX,
+  SUPPORT_MENU_TITLE_MAX,
   SUPPORT_OUT_OF_HOURS_MAX,
   SUPPORT_SETTINGS_LIMITS,
   SUPPORT_WEEKDAY_LABELS,
+  supportMenuSchema,
   updateSupportSettingsRequestSchema,
   type SupportSettingsResponse,
   type UpdateSupportSettingsRequest
@@ -27,6 +32,7 @@ import { SectionCard } from "@/components/ui/SectionCard";
 import { Switch } from "@/components/ui/Switch";
 import { Textarea } from "@/components/ui/Textarea";
 import { TimePicker } from "@/components/ui/TimePicker";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { getTimezoneOptions } from "@/features/auth/components/profile-form/profileForm.utils";
 import { WhatsAppTemplateStatus } from "@/features/messaging/components/WhatsAppTemplateStatus";
@@ -57,6 +63,7 @@ const formSchema = z.object({
       });
     }),
   hoursEnabled: z.boolean(),
+  menu: supportMenuSchema,
   outOfHoursMessage: z.string().trim().max(SUPPORT_OUT_OF_HOURS_MAX, `At most ${SUPPORT_OUT_OF_HOURS_MAX} characters`),
   timezone: z.string().trim().min(1, "Pick a time zone"),
   agentReplyTemplate: updateSupportSettingsRequestSchema.shape.agentReplyTemplate,
@@ -95,6 +102,7 @@ function toForm(data: SupportSettingsResponse, fallbackZone: string): FormValues
       return saved ? { close: saved.close, enabled: true, open: saved.open } : { close: "18:00", enabled: false, open: "09:00" };
     }),
     hoursEnabled: data.hours !== null,
+    menu: data.menu,
     outOfHoursMessage: data.outOfHoursMessage ?? "",
     timezone: data.hours?.timezone ?? fallbackZone,
     leadNudgeHours: String(data.leadNudgeHours),
@@ -115,6 +123,7 @@ function toRequest(values: FormValues): UpdateSupportSettingsRequest {
         }
       : null,
     leadNudgeHours: Number(values.leadNudgeHours),
+    menu: values.menu,
     outOfHoursMessage: values.outOfHoursMessage,
     staffReminderMinutes: Number(values.staffReminderMinutes),
     testNumbers: splitNumbers(values.testNumbers)
@@ -174,6 +183,9 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
   const zoneOptions = useMemo(() => getTimezoneOptions(timezone), [timezone]);
   const templateName = useWatch({ control, name: "agentReplyTemplate" });
   const templateLanguage = useWatch({ control, name: "agentReplyTemplateLanguage" });
+  const menu = useFieldArray({ control, keyName: "key", name: "menu" });
+  const menuValues = useWatch({ control, name: "menu" });
+  const menuError = errors.menu?.root?.message ?? errors.menu?.message;
 
   return (
     <form
@@ -206,6 +218,70 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
             <Textarea id="support-test-numbers" placeholder="+91 90000 00000" rows={3} {...register("testNumbers")} />
           </FormField>
         </div>
+      </SectionCard>
+
+      <SectionCard
+        description="The options in the bot's first message, in this order. Customers can also reply with an option's number. Talk to our team always stays: it's the way to a person."
+        title="Main menu"
+      >
+        <ol className="grid gap-3">
+          {menu.fields.map((item, index) => {
+            const enabled = menuValues?.[index]?.enabled ?? item.enabled;
+            const shown = (menuValues ?? []).slice(0, index + 1).filter((row) => row.enabled || row.category === "OTHER").length;
+            return (
+              <li className="grid gap-3 rounded-control border border-app-border p-3 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.4fr)_auto] sm:items-start" key={item.key}>
+                <div className="flex items-center gap-2 sm:pt-7">
+                  <span className="w-5 text-right text-sm tabular-nums text-app-muted">{enabled || item.category === "OTHER" ? shown : "–"}</span>
+                  <Controller
+                    control={control}
+                    name={`menu.${index}.enabled`}
+                    render={({ field }) => (
+                      <Switch
+                        aria-label={`Show ${SUPPORT_CATEGORY_LABELS[item.category]}`}
+                        checked={item.category === "OTHER" ? true : field.value}
+                        disabled={item.category === "OTHER"}
+                        id={`support-menu-${item.category}-enabled`}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                </div>
+                <FormField
+                  error={errors.menu?.[index]?.title?.message}
+                  hint={SUPPORT_CATEGORY_LABELS[item.category]}
+                  id={`support-menu-${item.category}-title`}
+                  label="Title"
+                  required
+                >
+                  <Input id={`support-menu-${item.category}-title`} maxLength={SUPPORT_MENU_TITLE_MAX} {...register(`menu.${index}.title`)} />
+                </FormField>
+                <FormField error={errors.menu?.[index]?.description?.message} id={`support-menu-${item.category}-description`} label="Description">
+                  <Input id={`support-menu-${item.category}-description`} maxLength={SUPPORT_MENU_DESCRIPTION_MAX} {...register(`menu.${index}.description`)} />
+                </FormField>
+                <div className="flex gap-1 sm:pt-6">
+                  <SimpleTooltip label="Move up">
+                    <Button aria-label={`Move ${SUPPORT_CATEGORY_LABELS[item.category]} up`} disabled={index === 0} onClick={() => menu.move(index, index - 1)} size="icon" type="button" variant="neutral">
+                      <ArrowUp className="size-4" strokeWidth={2.5} />
+                    </Button>
+                  </SimpleTooltip>
+                  <SimpleTooltip label="Move down">
+                    <Button
+                      aria-label={`Move ${SUPPORT_CATEGORY_LABELS[item.category]} down`}
+                      disabled={index === menu.fields.length - 1}
+                      onClick={() => menu.move(index, index + 1)}
+                      size="icon"
+                      type="button"
+                      variant="neutral"
+                    >
+                      <ArrowDown className="size-4" strokeWidth={2.5} />
+                    </Button>
+                  </SimpleTooltip>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+        {menuError ? <p className="mt-2 text-sm text-danger-ink">{menuError}</p> : null}
       </SectionCard>
 
       <SectionCard

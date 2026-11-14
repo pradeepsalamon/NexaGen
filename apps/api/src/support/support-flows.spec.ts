@@ -1,4 +1,7 @@
 import {
+  DEFAULT_SUPPORT_MENU,
+  supportMainMenu,
+  supportMenuEntries,
   isSupportQuestionWorthListing,
   matchSupportAnswer,
   normalizeSupportKeywords,
@@ -466,5 +469,35 @@ describe("redactSupportText", () => {
   it("removes a code written next to OTP, PIN or password", () => {
     expect(redactSupportText("my OTP is 482913")).toEqual({ redacted: true, text: "my OTP is [removed]" });
     expect(redactSupportText("password: hunter2").text).toBe("password: [removed]");
+  });
+});
+
+describe("supportMenuEntries (the academy's main menu)", () => {
+  it("keeps the built-in menu without settings", () => {
+    expect(supportMenuEntries(null).map((entry) => entry.row.id)).toEqual([
+      "menu.course",
+      "menu.refund",
+      "menu.class",
+      "menu.payment",
+      "menu.tech",
+      "menu.human"
+    ]);
+  });
+
+  it("follows the academy's order and titles, drops switched-off options, and never drops Talk to our team", () => {
+    const items = DEFAULT_SUPPORT_MENU.map((item) =>
+      item.category === "TECH"
+        ? { ...item, enabled: false }
+        : item.category === "OTHER"
+          ? { ...item, enabled: false, title: "A person, please" }
+          : item.category === "CLASS"
+            ? { ...item, description: "", title: "  Class problem  " }
+            : item
+    ).reverse();
+    const entries = supportMenuEntries(items);
+    expect(entries.map((entry) => entry.category)).toEqual(["OTHER", "PAYMENT", "CLASS", "REFUND", "COURSE"]);
+    expect(entries[0].row).toMatchObject({ id: "menu.human", title: "A person, please" });
+    expect(entries[2].row).toEqual({ id: "menu.class", title: "Class problem" });
+    expect(supportMainMenu(undefined, entries).body).toContain("(1–5)");
   });
 });

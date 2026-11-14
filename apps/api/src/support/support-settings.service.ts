@@ -2,10 +2,13 @@ import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/com
 import { JwtService } from "@nestjs/jwt";
 import { type ApiEnv, getApiEnv } from "@nexa-chess/config/api";
 import {
+  DEFAULT_SUPPORT_MENU,
   DEFAULT_TENANT_ID,
   isKnownTimeZone,
   supportHoursSchema,
+  supportMenuSchema,
   type SupportHours,
+  type SupportMenuItem,
   type SupportSettingsResponse,
   type SupportSettingsValues,
   type UpdateSupportSettingsRequest
@@ -51,6 +54,7 @@ export function resolveSupportSettings(
     | "botEnabled"
     | "hours"
     | "leadNudgeHours"
+    | "menu"
     | "outOfHoursMessage"
     | "staffReminderMinutes"
     | "testNumbers"
@@ -65,6 +69,7 @@ export function resolveSupportSettings(
       botEnabled: row.botEnabled,
       hours: storedHours(row.hours),
       leadNudgeHours: row.leadNudgeHours,
+      menu: storedMenu(row.menu),
       outOfHoursMessage: row.outOfHoursMessage,
       source: "ACADEMY",
       staffReminderMinutes: row.staffReminderMinutes,
@@ -78,6 +83,7 @@ export function resolveSupportSettings(
       botEnabled: env.SUPPORT_BOT_ENABLED,
       hours: null,
       leadNudgeHours: env.SUPPORT_LEAD_NUDGE_HOURS,
+      menu: DEFAULT_SUPPORT_MENU,
       outOfHoursMessage: null,
       source: "SERVER",
       staffReminderMinutes: env.SUPPORT_STAFF_REMINDER_MINUTES,
@@ -90,11 +96,18 @@ export function resolveSupportSettings(
     botEnabled: false,
     hours: null,
     leadNudgeHours: 20,
+    menu: DEFAULT_SUPPORT_MENU,
     outOfHoursMessage: null,
     source: "ACADEMY",
     staffReminderMinutes: 15,
     testNumbers: []
   };
+}
+
+/** The stored menu, or the built-in one when the column is empty or unreadable. */
+export function storedMenu(value: unknown): SupportMenuItem[] {
+  const parsed = supportMenuSchema.safeParse(value);
+  return parsed.success ? parsed.data : DEFAULT_SUPPORT_MENU;
 }
 
 /** The stored hours, or null (24/7) when the column is empty or unreadable. */
@@ -164,6 +177,7 @@ export class SupportSettingsService {
       botEnabled: body.botEnabled,
       hours: body.hours ? { days: [...body.hours.days].sort((a, b) => a.day - b.day), timezone: body.hours.timezone } : Prisma.DbNull,
       leadNudgeHours: body.leadNudgeHours,
+      menu: body.menu as unknown as Prisma.InputJsonValue,
       outOfHoursMessage: body.outOfHoursMessage || null,
       staffReminderMinutes: body.staffReminderMinutes,
       testNumbers,
