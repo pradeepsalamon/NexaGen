@@ -21,6 +21,7 @@ import {
   type SupportTicketListResponse
 } from "@nexa-chess/types";
 import { UserRole, type User } from "@prisma/client";
+import { FrappeCrmPushService } from "../../../lead/frappe-crm-push.service";
 import { setTenantScopeModeForTesting } from "../../../prisma/tenant-scope.extension";
 import { SupportAttachmentsService } from "../../../support/support-attachments.service";
 import { SupportFollowUpService } from "../../../support/support-follow-up.service";
@@ -593,6 +594,49 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       for (const answer of ["Ravi Menon", "12", "3", "Priya Menon", "Sunday", "yes"]) await say(textFrom(ALLOWED_NUMBER, answer));
       expect(await db(() => t.prisma.lead.count())).toBe(1);
       expect(await db(() => t.prisma.leadActivity.count({ where: { activityType: "WHATSAPP_DEMO_REQUEST", leadId: lead.id } }))).toBe(1);
+    });
+
+    it("copies a new WhatsApp lead to Frappe CRM once, when the push is on", async () => {
+      const push = t.app.get(FrappeCrmPushService);
+      const config = jest.spyOn(push, "config").mockReturnValue({
+        apiKey: "k",
+        apiSecret: "s",
+        countryCode: "91",
+        leadSource: "Direct WhatsApp",
+        leadStatus: "New Inquiry",
+        url: "https://crm.int.test"
+      });
+      const crmCalls: { body: Record<string, unknown>; url: string }[] = [];
+      const stub = global.fetch;
+      global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (!url.startsWith("https://crm.int.test/")) return stub(input, init);
+        crmCalls.push({ body: JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>, url });
+        return new Response(JSON.stringify({ data: { name: url.includes("CRM%20Lead") ? "CRM-LEAD-2026-00001" : "n1" } }), { status: 200 });
+      }) as typeof fetch;
+      try {
+        await say(textFrom(ALLOWED_NUMBER, "hi"));
+        await say(textFrom(ALLOWED_NUMBER, "1"));
+        await say(textFrom(ALLOWED_NUMBER, "book a demo"));
+        for (const answer of ["Ravi Menon", "12", "3", "Priya Menon", "Sunday", "yes"]) await say(textFrom(ALLOWED_NUMBER, answer));
+
+        const lead = await db(() => t.prisma.lead.findFirstOrThrow({ include: { activities: true, crmPush: true } }));
+        expect(lead.crmPush).toMatchObject({ externalId: "CRM-LEAD-2026-00001", status: "SENT" });
+        expect(lead.activities.map((activity) => activity.activityType)).toContain("CRM_PUSHED");
+        expect(crmCalls[0].body).toMatchObject({ first_name: "Priya Menon", mobile_no: `+${ALLOWED_NUMBER.replace(/\D/g, "")}`, source: "Direct WhatsApp" });
+        expect(crmCalls[1].body).toMatchObject({ reference_docname: "CRM-LEAD-2026-00001", reference_doctype: "CRM Lead" });
+
+        // The same parent again adds to the NexaGen lead; Frappe isn't sent a twin.
+        await say(textFrom(ALLOWED_NUMBER, "menu"));
+        await say(textFrom(ALLOWED_NUMBER, "1"));
+        await say(textFrom(ALLOWED_NUMBER, "book a demo"));
+        for (const answer of ["Asha Menon", "9", "1", "Priya Menon", "Monday", "yes"]) await say(textFrom(ALLOWED_NUMBER, answer));
+        expect(crmCalls).toHaveLength(2);
+        expect(await db(() => t.prisma.crmLeadPush.count())).toBe(1);
+      } finally {
+        global.fetch = stub;
+        config.mockRestore();
+      }
     });
 
     it("books a real demo time: a registration, the join link, and nothing left for staff", async () => {

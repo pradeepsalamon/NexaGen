@@ -153,6 +153,21 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   the stored file, then the row. Stored bytes count toward the academy's
   document storage in usage history. A contact's export shows the "[Image]" /
   "[PDF: …]" lines, not the files themselves.
+- *Frappe CRM* (Phase C, D6): a **new** lead the bot makes in Nexa's own
+  academy is also copied to Frappe CRM (`crm.nexachess.in`), one way.
+  `FrappeCrmPushService` writes a `crm_lead_pushes` row in the lead's
+  transaction, sends it after commit (`POST /api/resource/CRM Lead`: parent's
+  name, `+<country>` mobile, `FRAPPE_CRM_LEAD_SOURCE`/`_STATUS`; then an
+  `FCRM Note` with the child's name, age, level and the NexaGen lead id), and a
+  per-minute sweep (`JOB_LOCKS.crmLeadPush`) retries after 1 m, 5 m, 30 m, 2 h,
+  12 h. A retry first looks the number up in Frappe, so a lost answer doesn't
+  make a twin. Frappe refusing the document (400/404/409/417/422, e.g. a
+  source or status name that doesn't exist there) fails at once. Either way
+  the lead's timeline says "Sent to Frappe CRM" (with the Frappe name) or
+  "Not sent to Frappe CRM" (with the reason). A repeat booking from the same
+  number only adds to the NexaGen lead; nothing is sent again, and nothing
+  comes back from Frappe. Off unless `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY`
+  and `FRAPPE_CRM_API_SECRET` are set; other academies never push.
 - *Template status* (Phase C): the reply-template field on the settings page
   shows whether WhatsApp Manager approved it ([MESSAGING.md](MESSAGING.md) "WhatsApp templates").
 - *Delivery status for rules and system messages* (Phase C): a status webhook
@@ -224,8 +239,8 @@ version 2).** Owner's priority: answer leads at once and follow up quickly.
   has a lead from the last 90 days. A tap on it after the conversation expired
   still starts the booking.
 
-**Not built / known gaps.** No account linking or account-aware answers, no
-Frappe push (Phase 3); no AI (Phase 4). A contact's export and erasure are
+**Not built / known gaps.** No account linking or account-aware answers; no
+AI (Phase 4). The Frappe push covers WhatsApp leads only. A contact's export and erasure are
 staff actions on the ticket page, not self-service: a phone number is not proof
 of identity (§9), so staff confirm who is asking first. No nginx IP limit on the webhook yet.
 
@@ -455,7 +470,8 @@ resolved from the number's `phone_number_id`.
 | `SUPPORT_SESSION_TIMEOUT_MINUTES` | Idle expiry (§5) |
 | `SUPPORT_TEST_NUMBERS_ALLOWLIST` | Dev: the bot replies only to these numbers |
 | `SUPPORT_AGENT_REPLY_TEMPLATE` | Template used when an agent replies outside 24 h |
-| `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY`, `FRAPPE_CRM_API_SECRET` | Only if the Frappe lead push is approved |
+| `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY`, `FRAPPE_CRM_API_SECRET` | Frappe lead push (§0 "Frappe CRM"); off unless all three are set |
+| `FRAPPE_CRM_LEAD_SOURCE`, `FRAPPE_CRM_LEAD_STATUS` | Names in Frappe; defaults `Direct WhatsApp`, `New Inquiry` |
 
 Validated in `packages/config/src/api.ts`. With `SUPPORT_BOT_ENABLED=true` in
 production, a missing app secret refuses to boot (same pattern as

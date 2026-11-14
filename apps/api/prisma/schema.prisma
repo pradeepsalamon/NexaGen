@@ -1308,6 +1308,8 @@ model Lead {
   referral          Referral?
   /// WhatsApp support tickets for this lead (a demo booked through the bot).
   supportTickets    SupportTicket[]
+  /// Its copy in Frappe CRM, when one is sent (docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM").
+  crmPush           CrmLeadPush?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8890,4 +8892,33 @@ model SupportUnansweredQuestion {
   @@index([tenantId, dismissedAt, timesAsked])
   @@index([lastAskedAt])
   @@map("support_unanswered_questions")
+}
+
+enum CrmLeadPushStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// One lead sent one way to Frappe CRM (Nexa's academy only; plan D6,
+/// docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM"). Written in the lead's
+/// transaction, sent after commit, retried by a sweep. Holds no personal data.
+model CrmLeadPush {
+  id            String            @id @default(cuid())
+  tenantId      String            @default("tenant_nexa")
+  leadId        String            @unique
+  lead          Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  status        CrmLeadPushStatus @default(PENDING)
+  attempts      Int               @default(0)
+  nextAttemptAt DateTime          @default(now())
+  claimedAt     DateTime?
+  /// The Frappe document name (e.g. CRM-LEAD-2026-00042).
+  externalId    String?
+  error         String?
+  sentAt        DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@map("crm_lead_pushes")
 }

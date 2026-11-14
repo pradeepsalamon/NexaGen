@@ -27,6 +27,13 @@ D6: Nexa `Lead` is the record, **plus a one-way push to Frappe CRM** (Phase C,
 Nexa's own academy). D12: set hours per academy. D13: accept images and PDFs.
 The G1 fix (§3) was approved and is done. Everything else is still open.
 
+**Progress (2026-11-14, branch `feat/whatsapp-native-complete`):** Phase B
+(every academy's own number) and, from Phase C: hours + away message,
+delivery status on rule messages, real demo slots, contact export/erase,
+template status, images/PDFs (D13), the Frappe push (D6). As built:
+[WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0. Phase C items still to come are
+marked in §12.
+
 | # | Decision | Options | Recommendation | Blocks |
 |---|---|---|---|---|
 | D1 | **What to build now** | (a) Native first: External/Hybrid get only the extension points (ownership fields, provider interface); the Crisp adapter waits for an academy that needs it. (b) Build Native + Crisp together | **(a).** No academy has asked for a helpdesk yet ❓. Several Crisp behaviours need a test account before the adapter can be designed (§8.2) | Phase E |

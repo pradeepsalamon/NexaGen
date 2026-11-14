@@ -171,6 +171,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.supportAttachment;
   }
 
+  get crmLeadPush() {
+    return this.client.crmLeadPush;
+  }
+
   get directEmail() {
     return this.client.directEmail;
   }

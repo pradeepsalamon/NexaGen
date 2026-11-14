@@ -16,6 +16,7 @@ import {
 import { ClassStatus, MessageChannel, MessageDeliveryStatus, Prisma, type Lead, type SupportConversation, type SupportTicket, type WhatsAppContact, type WhatsAppWebhookEvent } from "@prisma/client";
 import { DEFAULT_TIME_ZONE } from "../common/time";
 import { DemoInviteService, demoInvitePath } from "../demo-class/demo-invite.service";
+import { FrappeCrmPushService } from "../lead/frappe-crm-push.service";
 import { LeadService } from "../lead/lead.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
@@ -76,6 +77,7 @@ export class SupportConversationService {
 
   constructor(
     private readonly attachments: SupportAttachmentsService,
+    private readonly crmPush: FrappeCrmPushService,
     private readonly demoInvites: DemoInviteService,
     private readonly demoSlots: SupportDemoSlotsService,
     private readonly leads: LeadService,
@@ -193,7 +195,10 @@ export class SupportConversationService {
           if (action.demo?.slotClassId && lead) {
             booking = { classId: action.demo.slotClassId, conversationId: conversation.id, leadId: lead.lead.id, ticketId: opened.ticket.id };
           }
-          if (lead?.created) newLead = lead.lead;
+          if (lead?.created) {
+            newLead = lead.lead;
+            await this.crmPush.enqueue(tx, lead.lead.id);
+          }
         } else if (action.kind === "UNANSWERED") {
           unansweredTexts.push(action.text);
         } else if (action.kind === "OPT_OUT") {
@@ -255,7 +260,10 @@ export class SupportConversationService {
     if (outcome.unansweredTexts.length > 0) await this.unanswered.record(outcome.unansweredTexts, now);
     // One alert per booking: a new lead is announced as a lead (NEW_LEAD_ADMIN,
     // like the website form); anything else as a support ticket.
-    if (outcome.newLead) await this.leads.announceNewLead(outcome.newLead);
+    if (outcome.newLead) {
+      await this.leads.announceNewLead(outcome.newLead);
+      await this.crmPush.pushLead(outcome.newLead.id);
+    }
     else if (outcome.announce && outcome.ticket) await this.tickets.announce(outcome.ticket, contact);
   }
 

@@ -17,6 +17,7 @@ export const JOB_LOCKS = {
   invoiceEmailSweep: "invoice.email-sweep",
   invoicePdfSweep: "invoice.pdf-sweep",
   liveClassStaleSweep: "live-class.stale-sweep",
+  crmLeadPush: "crm.lead-push",
   messagingClassReminders: "messaging.class-reminders",
   messagingDueSoonReminders: "messaging.due-soon-reminders",
   messagingRevisionReminders: "messaging.revision-reminders",

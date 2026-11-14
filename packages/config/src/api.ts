@@ -179,6 +179,15 @@ const apiEnvSchema = z.object({
     .optional()
     .or(z.literal("").transform(() => undefined)),
   WHATSAPP_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+  // One-way lead push to Frappe CRM for Nexa's own academy (docs/WHATSAPP_SUPPORT.md §0
+  // "Frappe CRM"). Off unless the URL and both API keys are set.
+  FRAPPE_CRM_URL: optionalUrlSchema,
+  FRAPPE_CRM_API_KEY: z.string().optional(),
+  FRAPPE_CRM_API_SECRET: z.string().optional(),
+  /** A `CRM Lead Source` name that exists in Frappe. */
+  FRAPPE_CRM_LEAD_SOURCE: z.string().default("Direct WhatsApp"),
+  /** A `CRM Lead Status` name that exists in Frappe. */
+  FRAPPE_CRM_LEAD_STATUS: z.string().default("New Inquiry"),
   // Nexa's WhatsApp Business Account id: reads template status (other academies save theirs under Branding).
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   // Incoming WhatsApp: the support bot (docs/WHATSAPP_SUPPORT.md). The webhook
