@@ -127,6 +127,38 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.whatsAppSettings;
   }
 
+  get whatsAppWebhookEvent() {
+    return this.client.whatsAppWebhookEvent;
+  }
+
+  get whatsAppContact() {
+    return this.client.whatsAppContact;
+  }
+
+  get supportConversation() {
+    return this.client.supportConversation;
+  }
+
+  get supportMessage() {
+    return this.client.supportMessage;
+  }
+
+  get supportTicket() {
+    return this.client.supportTicket;
+  }
+
+  get supportTicketEvent() {
+    return this.client.supportTicketEvent;
+  }
+
+  get supportSavedReply() {
+    return this.client.supportSavedReply;
+  }
+
+  get supportUnansweredQuestion() {
+    return this.client.supportUnansweredQuestion;
+  }
+
   get directEmail() {
     return this.client.directEmail;
   }

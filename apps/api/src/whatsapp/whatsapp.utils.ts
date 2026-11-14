@@ -3,6 +3,7 @@ import type {
   WhatsAppApiSuccess,
   WhatsAppDocumentMessage,
   WhatsAppFailure,
+  WhatsAppInteractiveMessage,
   WhatsAppSendResult,
   WhatsAppTemplateComponent,
   WhatsAppTextMessage,
@@ -78,6 +79,63 @@ export function buildTextPayload(message: WhatsAppTextMessage, to: string) {
       body: message.body,
       preview_url: message.previewUrl ?? false
     }
+  };
+}
+
+/** WhatsApp interactive limits (Cloud API). Longer values are cut, never rejected. */
+export const WHATSAPP_INTERACTIVE_LIMITS = {
+  body: 1024,
+  buttonTitle: 20,
+  buttons: 3,
+  listButton: 20,
+  rowDescription: 72,
+  rowTitle: 24,
+  rows: 10
+} as const;
+
+function cut(value: string, max: number): string {
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
+/** Reply buttons (up to 3) or a single-section list (up to 10 rows). 24h window only, like text. */
+export function buildInteractivePayload(message: WhatsAppInteractiveMessage, to: string) {
+  const limits = WHATSAPP_INTERACTIVE_LIMITS;
+  const body = { text: cut(message.body, limits.body) };
+  const interactive =
+    message.kind === "buttons"
+      ? {
+          action: {
+            buttons: message.buttons.slice(0, limits.buttons).map((button) => ({
+              reply: { id: button.id, title: cut(button.title, limits.buttonTitle) },
+              type: "reply" as const
+            }))
+          },
+          body,
+          type: "button" as const
+        }
+      : {
+          action: {
+            button: cut(message.button, limits.listButton),
+            sections: [
+              {
+                rows: message.rows.slice(0, limits.rows).map((row) => ({
+                  id: row.id,
+                  title: cut(row.title, limits.rowTitle),
+                  ...(row.description ? { description: cut(row.description, limits.rowDescription) } : {})
+                }))
+              }
+            ]
+          },
+          body,
+          type: "list" as const
+        };
+
+  return {
+    interactive,
+    messaging_product: "whatsapp" as const,
+    recipient_type: "individual" as const,
+    to,
+    type: "interactive" as const
   };
 }
 

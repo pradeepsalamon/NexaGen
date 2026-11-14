@@ -31,7 +31,10 @@ const PUBLIC_ROUTES = new Set([
   "tournament/tournament-public.controller.ts#live",
   "tournament/tournament-public.controller.ts#realtimeToken",
   "tournament/tournament-public.controller.ts#standings",
-  "tournament/tournament-public.controller.ts#verifyCertificate"
+  "tournament/tournament-public.controller.ts#verifyCertificate",
+  // Meta's WhatsApp subscription handshake: the verify token is the credential.
+  // The POST beside it reads its request (the signature) and needs no entry.
+  "support/whatsapp-webhook.controller.ts#verify"
 ]);
 
 const SRC = path.resolve(__dirname, "../..");

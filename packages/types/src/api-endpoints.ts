@@ -912,6 +912,23 @@ export const API_ROUTES = {
     adjustCredits: "/admin/referrals/credits/adjust",
     settings: "/admin/referrals/settings"
   },
+  /** Meta's WhatsApp Cloud API callbacks (GET = subscription handshake, POST = events). */
+  whatsappWebhook: "/webhooks/whatsapp",
+  adminSupport: {
+    tickets: "/admin/support/tickets",
+    counts: "/admin/support/tickets/counts",
+    agents: "/admin/support/agents",
+    ticket: (id: string = ":id") => `/admin/support/tickets/${id}`,
+    messages: (id: string = ":id") => `/admin/support/tickets/${id}/messages`,
+    reply: (id: string = ":id") => `/admin/support/tickets/${id}/reply`,
+    notes: (id: string = ":id") => `/admin/support/tickets/${id}/notes`,
+    takeOver: (id: string = ":id") => `/admin/support/tickets/${id}/take-over`,
+    returnToBot: (id: string = ":id") => `/admin/support/tickets/${id}/return-to-bot`,
+    savedReplies: "/admin/support/saved-replies",
+    savedReply: (id: string = ":id") => `/admin/support/saved-replies/${id}`,
+    unanswered: "/admin/support/unanswered",
+    dismissUnanswered: (id: string = ":id") => `/admin/support/unanswered/${id}/dismiss`
+  },
   leads: {
     create: "/leads",
     tracking: "/leads/tracking"

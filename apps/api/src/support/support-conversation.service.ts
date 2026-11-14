@@ -1,0 +1,277 @@
+import { Injectable } from "@nestjs/common";
+import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
+import {
+  SUPPORT_FLOW_STATES,
+  SUPPORT_FLOW_VERSION,
+  SUPPORT_TICKET_REFERENCE_PLACEHOLDER,
+  supportReplyText,
+  transitionSupport,
+  type SupportBotAnswer,
+  type SupportDraft,
+  type SupportFlowState,
+  type SupportInput
+} from "@nexa-chess/types";
+import { Prisma, type Lead, type SupportConversation, type SupportTicket, type WhatsAppContact, type WhatsAppWebhookEvent } from "@prisma/client";
+import { LeadService } from "../lead/lead.service";
+import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
+import { SupportOutboxService } from "./support-outbox.service";
+import { SupportTicketsService } from "./support-tickets.service";
+import { SupportUnansweredService } from "./support-unanswered.service";
+
+/** A bot conversation silent this long is closed; the next message starts a new one. */
+export const SUPPORT_CONVERSATION_EXPIRY_MS = 24 * 60 * 60 * 1000;
+/** WhatsApp's customer-service window: free-form replies only within it. */
+export const WHATSAPP_REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+const STATUS_RANK: Record<string, number> = { DELIVERED: 2, PENDING: 0, READ: 3, SENT: 1 };
+
+function isFlowState(value: string): value is SupportFlowState {
+  return (SUPPORT_FLOW_STATES as readonly string[]).includes(value);
+}
+
+function inputOf(event: WhatsAppWebhookEvent): SupportInput {
+  if (event.replyId) return { id: event.replyId, kind: "reply" };
+  if (event.text) return { kind: "text", text: event.text };
+  return { kind: "unsupported" };
+}
+
+/** The transcript line for an incoming message. */
+function inboundBody(event: WhatsAppWebhookEvent): string {
+  if (event.text) return event.text;
+  return `[${event.messageType ?? "message"}]`;
+}
+
+/**
+ * Runs the bot for one incoming message (docs/WHATSAPP_SUPPORT.md §4): one
+ * transaction holding the contact's lock, so two quick messages from the same
+ * person are handled one after the other; the pure `transitionSupport` decides
+ * the replies; outgoing rows are written PENDING and sent after commit.
+ */
+@Injectable()
+export class SupportConversationService {
+  private readonly env = getApiEnv();
+
+  constructor(
+    private readonly leads: LeadService,
+    private readonly outbox: SupportOutboxService,
+    private readonly prisma: PrismaService,
+    private readonly tickets: SupportTicketsService,
+    private readonly unanswered: SupportUnansweredService
+  ) {}
+
+  /** The academy's answers the bot may send, in menu order. */
+  botAnswers(): Promise<SupportBotAnswer[]> {
+    // Every bot answer can be matched by a keyword; the list shows only the first few.
+    return this.prisma.supportSavedReply.findMany({
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+      select: { body: true, description: true, id: true, keywords: true, title: true },
+      where: { showInBot: true }
+    });
+  }
+
+  /** Call inside the event's academy. Throws on a database error so the event is retried. */
+  async handleMessage(event: WhatsAppWebhookEvent): Promise<void> {
+    const now = new Date();
+    const tenantId = requireTenantId("whatsapp contact");
+    const academy = await this.prisma.tenant.findUnique({ select: { name: true }, where: { id: tenantId } });
+    const answers = await this.botAnswers();
+    const contact = await this.prisma.whatsAppContact.upsert({
+      create: { lastInboundAt: event.occurredAt, profileName: event.profileName, waId: event.waId },
+      update: {
+        lastInboundAt: event.occurredAt,
+        ...(event.profileName ? { profileName: event.profileName } : {})
+      },
+      where: { tenantId_waId: { tenantId, waId: event.waId } }
+    });
+
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`support-contact:${contact.id}`}))`;
+
+      // Meta can retry a message the event table already let through once (a
+      // lost lease): the transcript's unique wamid makes the second run a no-op.
+      const seen = await tx.supportMessage.findUnique({ select: { id: true }, where: { providerMessageId: event.providerMessageId } });
+      if (seen) return null;
+
+      const conversation = await this.openConversation(tx, contact.id, now);
+      const idle =
+        conversation.lastInboundAt !== null &&
+        now.getTime() - conversation.lastInboundAt.getTime() > this.env.SUPPORT_SESSION_TIMEOUT_MINUTES * 60_000;
+
+      await tx.supportMessage.create({
+        data: {
+          author: "CUSTOMER",
+          body: inboundBody(event),
+          conversationId: conversation.id,
+          direction: "INBOUND",
+          interactiveId: event.replyId,
+          providerMessageId: event.providerMessageId,
+          status: "RECEIVED"
+        }
+      });
+
+      const next = transitionSupport(
+        {
+          draft: (conversation.draft ?? {}) as SupportDraft,
+          state: isFlowState(conversation.state) ? conversation.state : "MAIN_MENU",
+          status: conversation.status
+        },
+        inputOf(event),
+        {
+          academyName: academy?.name ?? "academy",
+          answers,
+          idle,
+          privacyUrl: `${getFrontendUrl(this.env)}/privacy`,
+          redacted: wasRedacted(event.text)
+        }
+      );
+
+      let ticket: SupportTicket | null = null;
+      let announce = false;
+      let newLead: Lead | null = null;
+      const unansweredTexts: string[] = [];
+      for (const action of next.actions) {
+        if (action.kind === "TICKET") {
+          const lead = action.demo
+            ? await this.leads.upsertFromWhatsApp(tx, {
+                ...action.demo,
+                now,
+                phone: leadPhoneFromWaId(contact.waId, this.env.WHATSAPP_DEFAULT_COUNTRY_CODE)
+              })
+            : null;
+          const opened = await this.tickets.openFromBot(tx, {
+            action,
+            contactId: contact.id,
+            conversationId: conversation.id,
+            leadId: lead?.lead.id ?? null,
+            now,
+            sourceKey: event.providerMessageId
+          });
+          ticket = opened.ticket;
+          announce = opened.created;
+          if (lead?.created) newLead = lead.lead;
+        } else if (action.kind === "UNANSWERED") {
+          unansweredTexts.push(action.text);
+        } else if (action.kind === "OPT_OUT") {
+          await tx.whatsAppContact.update({ data: { optedOutAt: now }, where: { id: contact.id } });
+        } else if (action.kind === "OPT_IN") {
+          await tx.whatsAppContact.update({ data: { optedOutAt: null }, where: { id: contact.id } });
+        }
+      }
+
+      // A message while staff own the conversation keeps its ticket at the top of the inbox.
+      if (!ticket && (next.status === "WAITING_AGENT" || next.status === "AGENT")) {
+        await tx.supportTicket.updateMany({
+          data: { updatedAt: now },
+          where: { conversationId: conversation.id, status: { not: "RESOLVED" } }
+        });
+      }
+
+      await tx.supportConversation.update({
+        data: {
+          draft: next.draft as Prisma.InputJsonValue,
+          flowVersion: SUPPORT_FLOW_VERSION,
+          lastInboundAt: now,
+          state: next.state,
+          status: next.status
+        },
+        where: { id: conversation.id }
+      });
+
+      const reference = ticket?.reference ?? "";
+      for (const [index, reply] of next.replies.entries()) {
+        const filled = fillReference(reply, reference);
+        await tx.supportMessage.create({
+          data: {
+            author: "BOT",
+            body: supportReplyText(filled),
+            clientKey: `bot:${event.providerMessageId}:${index}`,
+            conversationId: conversation.id,
+            direction: "OUTBOUND",
+            payload: filled.kind === "text" ? Prisma.JsonNull : (filled as unknown as Prisma.InputJsonValue),
+            status: "PENDING"
+          }
+        });
+      }
+
+      return { announce, conversationId: conversation.id, newLead, ticket, unansweredTexts };
+    });
+
+    if (!outcome) return;
+    await this.outbox.sendPending(outcome.conversationId);
+    // Best effort, outside the bot's transaction: a lost count never costs a reply.
+    if (outcome.unansweredTexts.length > 0) await this.unanswered.record(outcome.unansweredTexts, now);
+    // One alert per booking: a new lead is announced as a lead (NEW_LEAD_ADMIN,
+    // like the website form); anything else as a support ticket.
+    if (outcome.newLead) await this.leads.announceNewLead(outcome.newLead);
+    else if (outcome.announce && outcome.ticket) await this.tickets.announce(outcome.ticket, contact);
+  }
+
+  /** A delivery update for one of our messages: only ever moves forward (FAILED always wins). */
+  async handleStatus(event: WhatsAppWebhookEvent): Promise<void> {
+    const status = (event.status ?? "").toUpperCase();
+    const message = await this.prisma.supportMessage.findUnique({ where: { providerMessageId: event.providerMessageId } });
+    if (!message || message.direction !== "OUTBOUND") return;
+
+    if (status === "FAILED") {
+      await this.prisma.supportMessage.update({
+        data: { error: (event.statusError ?? "WhatsApp could not deliver the message.").slice(0, 500), status: "FAILED" },
+        where: { id: message.id }
+      });
+      return;
+    }
+    const rank = STATUS_RANK[status];
+    if (rank === undefined || message.status === "FAILED" || rank <= (STATUS_RANK[message.status] ?? 0)) return;
+    await this.prisma.supportMessage.update({
+      data: { status: status as "DELIVERED" | "READ" | "SENT" },
+      where: { id: message.id }
+    });
+  }
+
+  /**
+   * The contact's open conversation, or a new one. A bot conversation silent
+   * for a day is closed first (its draft is dropped); one with staff never
+   * expires on its own.
+   */
+  private async openConversation(tx: PrismaTransactionClient, contactId: string, now: Date): Promise<SupportConversation> {
+    const open = await tx.supportConversation.findFirst({ where: { contactId, status: { not: "CLOSED" } } });
+    if (open) {
+      const expired =
+        open.status === "BOT" &&
+        open.lastInboundAt !== null &&
+        now.getTime() - open.lastInboundAt.getTime() > SUPPORT_CONVERSATION_EXPIRY_MS;
+      if (!expired) return open;
+      await tx.supportConversation.update({ data: { closedAt: now, status: "CLOSED" }, where: { id: open.id } });
+    }
+    return tx.supportConversation.create({ data: { contactId, flowVersion: SUPPORT_FLOW_VERSION, state: "START" } });
+  }
+}
+
+/**
+ * The phone a WhatsApp lead is stored with: the national number when it is in
+ * the academy's default country (as the website's demo form stores it), else
+ * the full international number.
+ */
+export function leadPhoneFromWaId(waId: string, defaultCountryCode: string | undefined): string {
+  const digits = waId.replace(/\D/g, "");
+  const code = (defaultCountryCode ?? "").replace(/\D/g, "");
+  return code && digits.startsWith(code) && digits.length - code.length === 10 ? digits.slice(code.length) : digits;
+}
+
+/** The parser replaced a card number or code in this text (redactSupportText's markers). */
+export function wasRedacted(text: string | null): boolean {
+  return Boolean(text && /\[(card number )?removed\]/.test(text));
+}
+
+function fillReference<T extends { body: string }>(reply: T, reference: string): T {
+  return reply.body.includes(SUPPORT_TICKET_REFERENCE_PLACEHOLDER)
+    ? { ...reply, body: reply.body.split(SUPPORT_TICKET_REFERENCE_PLACEHOLDER).join(reference) }
+    : reply;
+}
+
+/** When the contact's free-form reply window closes, or null when it already has. */
+export function replyWindowEndsAt(contact: Pick<WhatsAppContact, "lastInboundAt">, now: Date = new Date()): Date | null {
+  if (!contact.lastInboundAt) return null;
+  const ends = new Date(contact.lastInboundAt.getTime() + WHATSAPP_REPLY_WINDOW_MS);
+  return ends > now ? ends : null;
+}

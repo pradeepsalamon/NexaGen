@@ -7,6 +7,8 @@ interface UseServerTableOptions {
   initialSorting?: SortingState;
   /** Debounce for the search box before it hits the server, ms. */
   searchDebounceMs?: number;
+  /** The status filter's starting value; "ALL" (no filter) by default. */
+  initialStatus?: string;
 }
 
 /**
@@ -21,14 +23,15 @@ interface UseServerTableOptions {
 export function useServerTable({
   pageSize = 20,
   initialSorting = [],
-  searchDebounceMs = 350
+  searchDebounceMs = 350,
+  initialStatus = "ALL"
 }: UseServerTableOptions = {}) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize
   });
   const [sorting, setSortingState] = useState<SortingState>(initialSorting);
-  const [status, setStatusState] = useState("ALL");
+  const [status, setStatusState] = useState(initialStatus);
 
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");

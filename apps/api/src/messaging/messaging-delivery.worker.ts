@@ -7,6 +7,7 @@ import { MailService } from "../mail/mail.service";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { runInTenant } from "../tenancy/tenant-context";
+import { WhatsAppOptOutService } from "../whatsapp/whatsapp-opt-out.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { nextAttemptAt } from "./messaging.schedule";
 
@@ -36,7 +37,8 @@ export class MessagingDeliveryWorker {
     private readonly mail: MailService,
     private readonly notifications: NotificationService,
     private readonly prisma: PrismaService,
-    private readonly whatsapp: WhatsAppService
+    private readonly whatsapp: WhatsAppService,
+    private readonly whatsappOptOut: WhatsAppOptOutService
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -135,6 +137,21 @@ export class MessagingDeliveryWorker {
       const to = delivery.recipientPhone;
       if (!to) {
         await this.markFailed(delivery.id, attempts, "No phone number on the message.");
+        return false;
+      }
+
+      // Replied STOP on WhatsApp: checked at send time, so it also stops what is queued.
+      if (await this.whatsappOptOut.isOptedOut(to)) {
+        await this.prisma.messageDelivery.update({
+          where: { id: delivery.id },
+          data: {
+            status: "SKIPPED",
+            attempts,
+            claimedAt: null,
+            error: "The recipient opted out of WhatsApp messages (replied STOP).",
+            lastAttemptAt: new Date()
+          }
+        });
         return false;
       }
 

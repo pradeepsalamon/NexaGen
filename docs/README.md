@@ -71,5 +71,5 @@ stay as written; the living doc for that area wins where they disagree.
 | [PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) | Lichess catalogue + adaptive training audit |
 | [PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md](PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md) | Lichess catalogue implementation spec |
 | [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) | Multi-tenant white-label SaaS plan: assessment, owner decisions, roadmap |
-| [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) | WhatsApp support chatbot assessment and plan |
+| [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) | WhatsApp support bot and `/admin/support` inbox: as built (Phases 1–2) and the plan |
 | [PARENT_REPORTS.md](PARENT_REPORTS.md) | Parent reports — deferred, and why |

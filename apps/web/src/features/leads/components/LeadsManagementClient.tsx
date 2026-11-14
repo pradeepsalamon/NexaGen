@@ -46,6 +46,13 @@ export function LeadsManagementClient() {
   }, []);
   const requestDelete = useCallback((id: string) => setPendingDeleteId(id), []);
 
+  // `/admin/leads?lead=<id>` (from a WhatsApp ticket) opens that lead. Read once
+  // on mount from the URL, so the page needs no Suspense boundary.
+  useEffect(() => {
+    const linked = new URLSearchParams(window.location.search).get("lead");
+    if (linked) openDetails(linked);
+  }, [openDetails]);
+
   const columns = useLeadColumns({
     onViewDetails: openDetails,
     onDelete: requestDelete,

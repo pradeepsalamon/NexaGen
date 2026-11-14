@@ -174,6 +174,8 @@ export interface LeadDetail extends LeadListItem {
   assignedClass: LeadAssignableDemoClass | null;
   activities: LeadActivityDto[];
   notes: LeadNoteDto[];
+  /** The newest WhatsApp support ticket for this lead (a demo booked through the bot), to reply from. */
+  whatsappTicket: { id: string; reference: string } | null;
 }
 
 export interface LeadDetailResponse {

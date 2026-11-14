@@ -637,6 +637,13 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
     label: "What was found (tables, ids, academies)",
     sample: "batch_students.studentId → users: 3 rows (e.g. row id=bs_1 in tenant_rook points at cus_9 in tenant_nexa)"
   },
+  "support.reference": { label: "Support ticket reference", sample: "NXS-2026-000123" },
+  "support.category": { label: "What the request is about", sample: "Refund request" },
+  "support.contactName": { label: "WhatsApp name and number", sample: "Priya Menon (+91 98765 43210)" },
+  "support.studentName": { label: "Student's name, as typed", sample: "Asha Menon" },
+  "support.summary": { label: "What the customer wrote", sample: "Paid twice for the March batch on 2 March." },
+  "support.reason": { label: "Why staff are reminded", sample: "Nobody has replied to this WhatsApp request yet." },
+  "links.supportTicket": { label: "Support ticket link", sample: "https://nexa.test/admin/support/tickets/abc123" },
   "links.integrity": { label: "Platform console link (integrity tab)", sample: "https://nexa.test/admin/platform?tab=integrity" },
   "tournament.name": { label: "Tournament name", sample: "Winter Swiss" },
   "tournament.format": { label: "Tournament format", sample: "Swiss" },

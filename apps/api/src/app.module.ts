@@ -52,6 +52,7 @@ import { ProgressModule } from "./progress/progress.module";
 import { RevisionModule } from "./revision/revision.module";
 import { DemoClassModule } from "./demo-class/demo-class.module";
 import { LeadModule } from "./lead/lead.module";
+import { SupportModule } from "./support/support.module";
 import { ReferralModule } from "./referral/referral.module";
 import { TournamentModule } from "./tournament/tournament.module";
 import { HealthModule } from "./health/health.module";
@@ -133,6 +134,7 @@ import { TenancyModule } from "./tenancy/tenancy.module";
     TypographyModule,
     DemoClassModule,
     LeadModule,
+    SupportModule,
     ReferralModule,
     TournamentModule,
     FeedbackModule,

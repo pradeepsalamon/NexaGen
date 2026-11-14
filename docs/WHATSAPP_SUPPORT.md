@@ -1,7 +1,156 @@
-# WhatsApp automated support & chatbot — Phase 0 assessment and plan
+# WhatsApp automated support & chatbot
 
-Status: **proposal, awaiting owner sign-off** (written 2026-10-25). Nothing here
-is implemented. The decisions in §12 block Phase 1.
+Status: **Phases 1–2 built 2026-11-14**, plus saved answers, demo bookings as
+leads and quick follow-ups (the lead part of Phase 3), on `feat/whatsapp-support-bot` (§0),
+switched off (`SUPPORT_BOT_ENABLED=false`). Phases 3–4 not started. The plan
+below (written 2026-10-25) is kept as the design record; where the build
+differs, §0 wins.
+
+## 0. As built (Phases 1–2)
+
+**Owner decisions (2026-11-14):** NexaGen owns the webhook (not Frappe); the
+bot answers **Nexa's own number only** (other academies' numbers are dropped:
+their signatures can only be checked with Nexa's app secret); Phases 1 and 2
+together; **English only**. Defaults taken from §12 without a separate answer:
+admins and super admins work the inbox (no new role); 30-minute idle prompt;
+transcripts 12 months after the conversation closes, raw webhook items 30 days;
+`tenantId` on every new table. Still open: §12 items 2, 5–8, 12 and the legal
+review in §9.
+
+**Where it lives.**
+
+| Piece | Path |
+|---|---|
+| Conversation (pure) | `packages/types/src/support-flows.ts` — `transitionSupport(snapshot, input, ctx)`, `redactSupportText` |
+| Inbox contract | `packages/types/src/support.ts`, routes `API_ROUTES.whatsappWebhook`, `API_ROUTES.adminSupport.*` |
+| Webhook | `apps/api/src/support/whatsapp-webhook.{controller,service,parse}.ts` |
+| Bot run per message | `support-conversation.service.ts` (one transaction, `pg_advisory_xact_lock` per contact) |
+| Tickets | `support-tickets.service.ts` (references `NXS-<year>-<6 digits>` from `support_ticket_reference_seq`) |
+| Sending | `support-outbox.service.ts` (`WhatsAppService.sendInteractive` / text / template) |
+| Inbox API | `support-admin.{controller,service}.ts` |
+| Opt-out for other sends | `whatsapp/whatsapp-opt-out.service.ts` (used by `MessagingDeliveryWorker` and `SystemNotifier`) |
+| Web | `/admin/support` (list), `/admin/support/tickets/[id]` (thread, reply, notes, status, assignee); `features/support/` |
+| Tests | `src/support/*.spec.ts`, `src/test/integration/support/whatsapp-support.int-spec.ts` |
+
+**The flow.** First message → greeting with the `/privacy` link + a list menu
+(Courses & free trial, Refund, Class issue, Payment issue, App or login help,
+Talk to our team). Each category asks the student's name, then the details,
+then Send / Edit details / Cancel. **Send** opens a ticket (or shows the
+contact's open ticket for the same category from the last 7 days) and hands the
+conversation to staff (`WAITING_AGENT`: the bot goes quiet; only `MENU` brings
+it back). **AGENT / human / person** or menu option 6 hands off at once.
+`BACK`, `CANCEL`, `MENU`/`0`, `STOP`/`START` work everywhere; three replies the
+bot can't use add "reply AGENT". After 30 idle minutes mid-form it asks
+"Continue or start again?"; a bot conversation idle for 24 h closes and the
+next message starts fresh. Numbers, titles and a few keywords ("refund",
+"paid twice") pick menu options. Card numbers (Luhn) and codes after
+OTP/PIN/password are replaced before anything is stored, and the customer is
+warned. Image, voice, etc. get "I can only read text".
+
+**Staff.** A new ticket sends the `SUPPORT_TICKET_ADMIN` system message
+(email to `ADMIN_EMAILS`, in-app to admins by default; editable in
+Admin → Messaging → System messages). A reply from `/admin/support/tickets/[id]`
+takes the conversation over (`AGENT`), assigns the ticket if unassigned and
+moves `OPEN` → `IN_PROGRESS`. After the 24 h window a reply goes as
+`SUPPORT_AGENT_REPLY_TEMPLATE` ({{1}} reference, {{2}} reply flattened to one
+line), or is refused with 409 when none is set. Take over / Return to bot,
+notes, status and assignee are separate actions, each a `SupportTicketEvent`.
+Resolving the conversation's last open ticket closes the conversation. The web
+polls (list 30 s, thread 8 s).
+
+**Webhook rules.** `GET /webhooks/whatsapp` answers the handshake (403 on a
+wrong token or when unconfigured). `POST` needs `X-Hub-Signature-256` from
+`WHATSAPP_APP_SECRET` over the raw bytes (`express.text` in `app.setup.ts`,
+origin-check exempt, `@SkipThrottle`) — 401 otherwise, nothing stored. Items
+are inserted with `skipDuplicates` on `dedupeKey`, the 200 goes out, then each
+is claimed (`claimedAt` lease, 2 min) and processed; a per-minute sweep
+(`JOB_LOCKS.supportWebhookSweep`) retries leftovers and parks an item after 5
+failures (`ignoredAt` + `error`). With the bot off, or a number outside
+`SUPPORT_TEST_NUMBERS_ALLOWLIST`, a message is stored with `ignoredAt` and never
+replayed. Status updates move a sent message forward only (`FAILED` always
+wins). Outgoing rows are written `PENDING` in the deciding transaction, sent
+after commit oldest-first per conversation; retryable failures back off 1/5/15
+minutes, 4 attempts (`JOB_LOCKS.supportOutbox`).
+
+**Consent.** `STOP` sets `WhatsAppContact.optedOutAt`; messaging rules and
+system messages then skip that number (`SKIPPED`, checked at send time, so
+queued ones stop too). Support replies to the customer's own messages still go.
+
+**Course enquiries, demo bookings and follow-ups (built 2026-11-14, flow
+version 2).** Owner's priority: answer leads at once and follow up quickly.
+
+- *Saved answers* (`SupportSavedReply`, `/admin/support/saved-replies`,
+  `support-saved-replies.service.ts`): admins write each answer once (fees,
+  timings, levels…) with a ≤24-character title, optional subtitle, keywords and
+  "the bot may send it". The bot quotes them as written and never invents one;
+  staff insert any of them into a reply (speech-bubble button on the ticket).
+  Nothing is pre-loaded: until admins write answers, the course menu offers only
+  the demo and a person.
+- *Answering*: a typed message is matched against the bot answers'
+  keywords (`matchSupportAnswer`: whole word or phrase, plural "s"/"es"
+  allowed, longest keyword wins), even as the first message (greeting + answer).
+  At the main menu an exact pick (number, title, tap) wins over an answer, and
+  an answer over the old category keywords. "Courses & free demo" opens
+  `COURSE_MENU`: the first `SUPPORT_BOT_ANSWERS_MAX` (8) answers by position,
+  then "Book a free demo" and "Talk to our team". Every answer is followed by
+  [Book free demo] [More questions] [Talk to our team]. A course question it
+  can't match gets "reply AGENT" and the list; it never answers a guess.
+- *Spelling slips* (`suggestSupportAnswer`, only when no keyword matched
+  exactly): each keyword word may be off by one letter (4–7 letters) or two
+  (8+), swapped letters count as one, the first letter must match, and
+  everyday words ("feel", "free", "time"… `NOT_A_TYPO`) never count. The bot
+  then asks *Did you mean "Fees"?* [Yes] [No, something else]
+  (`draft.suggestion`); Yes (or typed "yes") sends the answer, No lists the
+  question for admins. At the main menu an exact category word wins over a guess.
+- *Unanswered questions* (`SupportUnansweredQuestion`,
+  `support-unanswered.service.ts`, tab on `/admin/support/saved-replies`): the
+  bot's `UNANSWERED` action records a course question no answer matched, a
+  main-menu message it didn't get, a first message containing "?", and a
+  declined guess; noise (under 6 characters, numbers) is skipped except for a
+  declined guess. Same wording (`normalizeSupportText`) counts on one row;
+  only the redacted text is kept, never who asked; recorded after commit,
+  best effort. Admins write an answer from it (the question is then dismissed)
+  or dismiss it; asked again, it comes back. Kept 90 days after last asked
+  (`RETENTION_RULES`).
+- *Book a free demo* (`DEMO_STUDENT → AGE → LEVEL → PARENT → TIME → CONFIRM`):
+  the `Lead` fields (level = the website's beginner/intermediate/advanced).
+  Send opens a COURSE ticket linked to a `Lead` (`SupportTicket.leadId`,
+  `LeadService.upsertFromWhatsApp`, source `WhatsApp`, phone stored like the
+  website form's for the default country). A lead from the same number in the
+  last 90 days that isn't lost or converted gets an activity instead of a twin.
+  Staff get one alert: `NEW_LEAD_ADMIN` for a new lead, else
+  `SUPPORT_TICKET_ADMIN`. The ticket page links the lead
+  (`/admin/leads?lead=<id>` opens it) and the lead dialog links the chat.
+- *Staff reminders* (`support-follow-up.service.ts`, `JOB_LOCKS.supportFollowUps`,
+  every minute): an `OPEN` ticket whose conversation is still `WAITING_AGENT`
+  gets `SUPPORT_REPLY_REMINDER_ADMIN` after `SUPPORT_STAFF_REMINDER_MINUTES`
+  (15; 0 = off), and once more when 2 hours of the customer's 24-hour window
+  are left (`remindersSent`, claimed before sending). A staff reply
+  (`IN_PROGRESS`) stops them. All categories, not only leads.
+- *Parent nudge*: a bot conversation left in `COURSE_MENU` or a `DEMO_*` state
+  for `SUPPORT_LEAD_NUDGE_HOURS` (20; 0 = off; must be < 24) gets one
+  buttons message ([Book free demo] [Ask a question] [No thanks]), sent inside
+  the free reply window so no template or charge is needed. Never after STOP,
+  never twice (`SupportConversation.nudgedAt`), never to a number the bot
+  doesn't answer (switch off / allowlist), and skipped when that number already
+  has a lead from the last 90 days. A tap on it after the conversation expired
+  still starts the booking.
+
+**Not built / known gaps.** No account linking or account-aware answers, no
+Frappe push (Phase 3); no AI (Phase 4); no out-of-hours reply (§12 item 8), so
+reminders also fire at night. No
+privacy-export section and no erase action for a WhatsApp contact: contacts are
+not accounts, and a phone number is not proof of identity (§9), so an erasure
+request is handled by hand for now (docs/BACKLOG.md). Message status updates
+don't reach `message_deliveries` rows. No nginx IP limit on the webhook yet.
+
+**Before switching it on** (owner): Meta app secret + verify token; webhook
+URL `https://api.nexachess.in/webhooks/whatsapp` subscribed to `messages`;
+**staging must stop sharing production's WhatsApp number and token** (still the
+same on 2026-11-14, compared by hash) — otherwise dev would answer real
+customers; optionally an approved reply template; then
+`SUPPORT_BOT_ENABLED=true` with `SUPPORT_TEST_NUMBERS_ALLOWLIST` set to staff
+numbers, then the allowlist emptied.
 
 Legend: ✅ verified in the repo / on the box · ❓ assumption or not verifiable
 from here.
@@ -306,6 +455,9 @@ compliance for minors.
   inbox and `/health`; add a [TROUBLESHOOTING.md](TROUBLESHOOTING.md) row.
 
 ## 12. Decisions needed before implementation
+
+Answered 2026-11-14: 1 (NexaGen), 3 (NexaGen inbox), 4 (admins only), 9 (30 min,
+12 months), 10 (English), 11 (yes). See §0.
 
 1. **Webhook owner:** NexaGen (recommended) or Frappe `frappe_whatsapp`?
 2. **Which number** becomes the bot number? Is it on the WhatsApp Business app

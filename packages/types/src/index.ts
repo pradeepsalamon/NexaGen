@@ -2669,6 +2669,8 @@ export * from "./legal";
 export * from "./markdown";
 export * from "./messaging";
 export * from "./system-messages";
+export * from "./support";
+export * from "./support-flows";
 export * from "./whatsapp-template";
 
 // ──────────────────────────────────────────────

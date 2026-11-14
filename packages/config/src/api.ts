@@ -179,6 +179,31 @@ const apiEnvSchema = z.object({
     .optional()
     .or(z.literal("").transform(() => undefined)),
   WHATSAPP_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+  // Incoming WhatsApp: the support bot (docs/WHATSAPP_SUPPORT.md). The webhook
+  // checks X-Hub-Signature-256 with the Meta app secret; the verify token
+  // answers Meta's subscription handshake.
+  WHATSAPP_APP_SECRET: z.string().optional(),
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
+  /** Off = incoming messages are recorded and ignored, the bot never replies. */
+  SUPPORT_BOT_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  /** Idle minutes before the bot asks "continue or start again?". */
+  SUPPORT_SESSION_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(30),
+  /** Comma-separated numbers. Set = the bot answers only these (dev, staff-only rollout). */
+  SUPPORT_TEST_NUMBERS_ALLOWLIST: z.string().optional(),
+  /** Approved template ({{1}} = ticket reference, {{2}} = reply) for agent replies outside the 24h window. */
+  SUPPORT_AGENT_REPLY_TEMPLATE: z.string().optional(),
+  SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE: z.string().default("en"),
+  /** Minutes a new ticket may wait for a first staff reply before admins are reminded; 0 = no reminders. */
+  SUPPORT_STAFF_REMINDER_MINUTES: z.coerce.number().int().min(0).max(1440).default(15),
+  /**
+   * Hours after a parent's last message before the bot's one follow-up to an
+   * enquiry that didn't book a demo; 0 = off. Below 24 so it is sent inside
+   * WhatsApp's free reply window (no template needed).
+   */
+  SUPPORT_LEAD_NUDGE_HOURS: z.coerce.number().min(0).max(23).default(20),
 
   // ── Payments ──
   // Every gateway is optional and independently configurable. A gateway with
@@ -236,6 +261,14 @@ const apiEnvSchema = z.object({
   // rather than talk to the runtime with a guessable or reused secret.
   if (env.AI_ENABLED) {
     for (const issue of aiConfigIssues(env)) ctx.addIssue({ code: "custom", ...issue });
+  }
+  // An enabled bot without the app secret could only accept unsigned (forged) messages.
+  if (env.SUPPORT_BOT_ENABLED && !env.WHATSAPP_APP_SECRET) {
+    ctx.addIssue({
+      code: "custom",
+      message: "WHATSAPP_APP_SECRET is required while SUPPORT_BOT_ENABLED=true.",
+      path: ["WHATSAPP_APP_SECRET"]
+    });
   }
   if (env.NODE_ENV !== "production") return;
   // A default, empty or short signing secret lets anyone mint access tokens.

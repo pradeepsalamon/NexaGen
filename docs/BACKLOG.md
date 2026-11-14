@@ -155,13 +155,34 @@ code on 2026-10-31.
 
 ### Waiting on an owner decision (designs exist, nothing to build yet)
 
-[SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) and
-[WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) (proposals),
+[SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) (proposal),
+[WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) Phases 3–4 (Phases 1–2 are built, see below),
 [PARENT_REPORTS.md](PARENT_REPORTS.md) (blocked on a verified guardian
 identity), the AI roadmap phases after 2 / 3a
 ([ai/architecture/ROADMAP.md](ai/architecture/ROADMAP.md)), and puzzle-catalogue
 Phase 6 training modules ([PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) §G.3;
 its precondition, the student training surface, now exists).
+
+- **WhatsApp support bot: Phases 1–2 built, switched off** (2026-11-14,
+  `feat/whatsapp-support-bot`; [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0).
+  Also built: saved answers (instant replies to course questions, "Did you
+  mean …?" for spelling slips, a list of questions it couldn't answer), "Book a
+  free demo" → `Lead`, staff reminders and one parent nudge. Before switching on,
+  admins should write the saved answers (fees, timings, levels…) at
+  `/admin/support/saved-replies`: nothing is pre-loaded.
+  To switch on, the owner needs to: (1) give staging its own Meta test number and token (it still
+  shares production's, so dev would answer real customers); (2) set
+  `WHATSAPP_APP_SECRET` + `WHATSAPP_WEBHOOK_VERIFY_TOKEN` and point the Meta
+  webhook at `/webhooks/whatsapp` (`messages` field); (3) optionally get a
+  reply template approved (`SUPPORT_AGENT_REPLY_TEMPLATE`, {{1}} reference, {{2}}
+  text); (4) roll out with `SUPPORT_TEST_NUMBERS_ALLOWLIST` = staff numbers.
+  Open questions: §12 items 2 (which number; is it on the Business app today),
+  5 (Leads/Frappe), 6 (account linking), 7 (refund policy text, SLAs), 8 (support
+  hours / out-of-hours reply), 12 (AI); a legal (DPDP) review of the new
+  privacy-policy wording in `features/legal/content.ts`. Gaps to build: an
+  admin "erase this WhatsApp contact" action for erasure requests (contacts
+  aren't accounts, so the privacy export can't include them); an nginx IP
+  limit on `/webhooks/whatsapp`; status updates for `message_deliveries`.
 
 - **Unused asset: `apps/web/public/auth/auth_light.webp`** (2026-11-03). Since the
   M4 auth redesign the auth panel is navy in both themes and shows only

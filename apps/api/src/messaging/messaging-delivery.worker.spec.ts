@@ -6,6 +6,7 @@ import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import type { WhatsAppOutboundMessage } from "../whatsapp/whatsapp.types";
+import { WhatsAppOptOutService } from "../whatsapp/whatsapp-opt-out.service";
 import { MessagingDeliveryWorker } from "./messaging-delivery.worker";
 import { computeScheduledFor, nextAttemptAt, zonedTimeToUtc } from "./messaging.schedule";
 
@@ -55,6 +56,7 @@ describe("MessagingDeliveryWorker", () => {
     trySendMessage: (message: WhatsAppOutboundMessage) => Promise<unknown>;
   };
   let notifications: { notify: jest.Mock };
+  let optOut: { isOptedOut: jest.Mock };
 
   const setup = async (due: MessageDelivery[]) => {
     prisma = {
@@ -89,6 +91,7 @@ describe("MessagingDeliveryWorker", () => {
       }
     };
     notifications = { notify: jest.fn().mockResolvedValue(undefined) };
+    optOut = { isOptedOut: jest.fn().mockResolvedValue(false) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -97,7 +100,8 @@ describe("MessagingDeliveryWorker", () => {
         { provide: MailService, useValue: mail },
         { provide: PrismaService, useValue: prisma },
         { provide: WhatsAppService, useValue: whatsapp },
-        { provide: NotificationService, useValue: notifications }
+        { provide: NotificationService, useValue: notifications },
+        { provide: WhatsAppOptOutService, useValue: optOut }
       ]
     }).compile();
 
@@ -124,6 +128,17 @@ describe("MessagingDeliveryWorker", () => {
       providerMessageId: "wamid.1",
       claimedAt: null
     });
+  });
+
+  it("skips a WhatsApp message to a number that replied STOP, even if queued before", async () => {
+    await setup([makeDelivery()]);
+    optOut.isOptedOut.mockResolvedValue(true);
+
+    await worker.sweep();
+
+    expect(optOut.isOptedOut).toHaveBeenCalledWith("919876543210");
+    expect(whatsapp.trySendText).not.toHaveBeenCalled();
+    expect(lastUpdate()).toMatchObject({ status: "SKIPPED", attempts: 1, claimedAt: null });
   });
 
   describe("email", () => {

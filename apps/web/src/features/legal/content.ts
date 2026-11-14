@@ -75,6 +75,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         detail:
           "On the academy website: a visitor cookie (kept for a year) and a session cookie, with your IP address, browser, device type, the page you arrived from and any campaign tags in the link. If you book a demo, the student's name and age, the parent's name, phone number and (if given) email address, and chess experience.",
         label: "Website visits and demo bookings"
+      },
+      {
+        detail:
+          "If you message the academy's WhatsApp support number: your WhatsApp number and profile name, the messages you and our team exchange, and what you tell the assistant (for example the student's name and the details of your request). Card numbers and one-time codes are removed from a message before it is stored. Only academy admins read these conversations.",
+        label: "WhatsApp support"
       }
     ],
     title: "What we collect"
@@ -91,7 +96,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       { detail: "Hosting, the database and backups run on servers we operate on Oracle Cloud.", label: "Oracle Cloud" },
       { detail: "Profile pictures, payment proofs and invoice PDFs are stored with Cloudinary.", label: "Cloudinary" },
       { detail: "Payments are processed by Razorpay, Cashfree or Stripe, depending on how you pay.", label: "Payment providers" },
-      { detail: "Class reminders and invoices may be sent over WhatsApp (Meta).", label: "WhatsApp" },
+      {
+        detail:
+          "Class reminders and invoices may be sent over WhatsApp (Meta), and support conversations on the academy's WhatsApp number go through it. Reply STOP to stop reminders and updates there.",
+        label: "WhatsApp"
+      },
       { detail: "Account and class emails, and emails academy staff write to you, are sent through our email provider.", label: "Email" },
       {
         detail:
@@ -122,6 +131,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       { detail: "Removed after 90 days.", label: "Help-centre searches" },
       { detail: "Removed after 30 days.", label: "Class transcripts" },
       { detail: "Our copy is removed after a year.", label: "Emails academy staff write to you" },
+      {
+        detail:
+          "A conversation and its requests are removed a year after the conversation ends, unless a request is still open. The raw delivery records from WhatsApp are removed after 30 days.",
+        label: "WhatsApp support conversations"
+      },
       {
         detail:
           "Kept for the period the academy sets for each kind of record. Anything older is removed every night. Until a period is set, they are kept.",
