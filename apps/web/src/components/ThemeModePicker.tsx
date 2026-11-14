@@ -5,6 +5,7 @@ import { useState } from "react";
 import { HEADER_ICON_BUTTON } from "@/components/layout/headerStyles";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import type { ThemePreference } from "@/constants/theme";
+import { revealOriginOf } from "@/lib/theme/themeReveal";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/providers/ThemeProvider";
 
@@ -34,9 +35,9 @@ export function ThemeModePicker() {
       <button
         aria-label={label}
         className={cn(HEADER_ICON_BUTTON, "motion-safe:transition-[color,background-color,transform] motion-safe:active:scale-90")}
-        onClick={() => {
+        onClick={(event) => {
           setClicked(true);
-          setPreference(next.value);
+          setPreference(next.value, revealOriginOf(event.currentTarget));
         }}
         type="button"
       >
@@ -74,7 +75,7 @@ export function ThemeModeSegmented() {
                 "flex size-7 cursor-pointer items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
                 selected ? "bg-primary text-on-primary shadow-card" : "text-app-muted hover:text-app-text"
               )}
-              onClick={() => setPreference(value)}
+              onClick={(event) => setPreference(value, revealOriginOf(event.currentTarget))}
               role="radio"
               type="button"
             >

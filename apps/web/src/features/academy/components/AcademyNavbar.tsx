@@ -15,6 +15,7 @@ import {
   LogOut,
   User
 } from "lucide-react";
+import { revealOriginOf, type ThemeRevealOrigin } from "@/lib/theme/themeReveal";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuthStore, getRoleDashboardHref } from "@/stores/authStore";
 import { logout } from "@/features/auth/api/authApi";
@@ -62,7 +63,7 @@ function ThemeSwitch({
   size = "md"
 }: {
   isDark: boolean;
-  onToggle: () => void;
+  onToggle: (origin?: ThemeRevealOrigin) => void;
   size?: "md" | "sm";
 }) {
   const sm = size === "sm";
@@ -73,7 +74,7 @@ function ThemeSwitch({
       role="switch"
       aria-checked={isDark}
       aria-label="Dark theme"
-      onClick={onToggle}
+      onClick={(event) => onToggle(revealOriginOf(event.currentTarget))}
       className={`
         relative inline-flex shrink-0 cursor-pointer items-center rounded-full border p-[3px]
         bg-app-soft border-app-border shadow-[inset_0_1px_3px_rgb(var(--rgb-brand-800)/0.08)]

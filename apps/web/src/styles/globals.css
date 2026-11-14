@@ -253,6 +253,39 @@ tr:has(> td [role="checkbox"][data-state="checked"]) > td:first-child {
   border-color: rgb(var(--rgb-primary) / 0.6);
 }
 
+/* Theme reveal (lib/theme/themeReveal.ts): the new theme grows as a circle from
+   the control that was used. The circle is a clip-path animated from JS on the
+   new picture; here the browser's own cross-fade is switched off for it, and the
+   ring canvas gets its own layer so the circle never clips it. */
+html[data-theme-reveal]::view-transition-old(root),
+html[data-theme-reveal]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html[data-theme-reveal]::view-transition-old(root) {
+  z-index: 1;
+}
+html[data-theme-reveal]::view-transition-new(root) {
+  z-index: 2;
+}
+.theme-reveal-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  view-transition-name: theme-reveal-fx;
+}
+::view-transition-group(theme-reveal-fx),
+::view-transition-new(theme-reveal-fx) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(theme-reveal-fx) {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *:not(.animate-spin),
   *::before,

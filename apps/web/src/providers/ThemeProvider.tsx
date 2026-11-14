@@ -8,9 +8,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react";
 import type { ThemeMode, ThemePreference } from "../constants/theme";
+import { runThemeReveal, type ThemeRevealOrigin } from "../lib/theme/themeReveal";
 
 type ThemeContextValue = {
   isHydrated: boolean;
@@ -18,8 +20,9 @@ type ThemeContextValue = {
   mode: ThemeMode;
   /** What was picked: light, dark, or follow the device. */
   preference: ThemePreference;
-  setPreference: (preference: ThemePreference) => void;
-  toggleMode: () => void;
+  /** With an `origin` (see `revealOriginOf`) the new theme grows out of that point. */
+  setPreference: (preference: ThemePreference, origin?: ThemeRevealOrigin) => void;
+  toggleMode: (origin?: ThemeRevealOrigin) => void;
 };
 
 const STORAGE_KEY = "nexa-chess-theme";
@@ -68,8 +71,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>("light");
   const [mode, setMode] = useState<ThemeMode>("light");
 
+  const targetModeRef = useRef<ThemeMode>("light");
+
   const adopt = useCallback((next: ThemePreference) => {
     const resolved = resolveMode(next);
+    targetModeRef.current = resolved;
     applyMode(resolved);
     setPreferenceState(next);
     setMode(resolved);
@@ -120,18 +126,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // The page repaints from the click itself; React's own update (toggle icon
   // state, toasts, charts) follows at low priority so it never delays that paint.
-  const setPreference = useCallback((next: ThemePreference) => {
+  // A click on a theme control passes its position and the new theme grows out
+  // of it (`runThemeReveal`); the palette is still swapped once, by `applyMode`.
+  // The reveal may apply a frame late, so it reads the latest pick from the ref.
+  const setPreference = useCallback((next: ThemePreference, origin?: ThemeRevealOrigin) => {
     const resolved = resolveMode(next);
-    applyMode(resolved);
+    targetModeRef.current = resolved;
+    const changes = document.documentElement.dataset.theme !== resolved;
+    runThemeReveal(changes ? origin : undefined, () => applyMode(targetModeRef.current));
     startTransition(() => {
       setPreferenceState(next);
       setMode(resolved);
     });
   }, []);
 
-  const toggleMode = useCallback(() => {
-    setPreference(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
-  }, [setPreference]);
+  const toggleMode = useCallback(
+    (origin?: ThemeRevealOrigin) => {
+      setPreference(targetModeRef.current === "dark" ? "light" : "dark", origin);
+    },
+    [setPreference]
+  );
 
   const value = useMemo(
     () => ({ isHydrated, mode, preference, setPreference, toggleMode }),

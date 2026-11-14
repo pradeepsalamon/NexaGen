@@ -2,6 +2,7 @@
 
 import { Moon, Sun } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { revealOriginOf } from "@/lib/theme/themeReveal";
 import { useTheme } from "@/providers/ThemeProvider";
 
 /**
@@ -24,7 +25,7 @@ export function ThemeToggle() {
         aria-pressed={isDark}
         className="relative inline-flex h-9 w-[72px] shrink-0 cursor-pointer items-center rounded-full border-2 border-app-border bg-app-soft shadow-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus motion-safe:transition-transform motion-safe:duration-150 motion-safe:active:scale-95"
         data-theme-keep-transition=""
-        onClick={toggleMode}
+        onClick={(event) => toggleMode(revealOriginOf(event.currentTarget))}
         type="button"
       >
         <span aria-hidden="true" className="absolute left-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center text-app-muted">
