@@ -14,7 +14,6 @@ import {
   MathUtils,
   Mesh,
   MeshBasicMaterial,
-  MeshPhysicalMaterial,
   MeshStandardMaterial,
   type Object3D,
   PCFShadowMap,
@@ -30,9 +29,10 @@ import {
   SRGBColorSpace,
   WebGLRenderer
 } from "three";
-import { buildGeometries, disposeGeometries } from "./geometry";
+import { buildBoard, disposeBoard } from "./geometry";
 import { KNIGHT_SQUARE, PIECES } from "./layout";
 import { DARK, lerp, LIGHT, STUDIO } from "./palette";
+import { loadPieceSet } from "./pieces";
 import { createBoardTexture, createGlowTexture } from "./textures";
 
 export type HeroSceneOptions = {
@@ -67,10 +67,10 @@ type Actor = {
 };
 
 const YAWS = [0.4, 2.1, 3.6, 5.2, 1.1, 4.4, 2.8, 0.9, 3.1, 5.6, 1.9, 4.9, 0.2, 3.9];
-const KNIGHT_SCALE = 1.34;
+const KNIGHT_SCALE = 1.75;
 /** Three-quarter profile to the camera, which looks along the board's diagonal. */
 const KNIGHT_YAW = 0.5;
-const PIECE_SCALE = 1.08;
+const PIECE_SCALE = 1.25;
 const INTRO_MS = 900;
 const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 const easeOutBack = (t: number) => 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;
@@ -160,25 +160,39 @@ export async function createHeroScene(options: HeroSceneOptions): Promise<HeroSc
 
   /* ───────────── materials ───────────── */
 
-  const geometries = buildGeometries(lowPower ? 32 : 48);
-  await breathe();
+  const maxAnisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  // The model downloads while the rest is built.
+  const pieceSetLoading = loadPieceSet(maxAnisotropy);
+  pieceSetLoading.catch(() => undefined);
+  const boardGeometries = buildBoard();
   const boardTexture = createBoardTexture(lowPower ? 1024 : 2048);
-  boardTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  boardTexture.anisotropy = maxAnisotropy;
   await breathe();
+  let pieceSet: Awaited<typeof pieceSetLoading>;
+  try {
+    pieceSet = await pieceSetLoading;
+  } catch (error) {
+    disposeBoard(boardGeometries);
+    boardTexture.dispose();
+    environment.dispose();
+    renderer.dispose();
+    throw error;
+  }
+  const geometries = pieceSet.geometries;
 
-  // Polished gold: full metal under a thin clear coat.
-  const gold = new MeshPhysicalMaterial({ clearcoat: 0.4, clearcoatRoughness: 0.16, metalness: 1, roughness: 0.2 });
-  // Ebony under piano lacquer.
-  const ebony = new MeshPhysicalMaterial({ clearcoat: 1, clearcoatRoughness: 0.08, metalness: 0.25, roughness: 0.32 });
-  const eye = new MeshStandardMaterial({ metalness: 0.1, roughness: 0.25 });
-  const frame = new MeshPhysicalMaterial({ clearcoat: 0.9, clearcoatRoughness: 0.14, metalness: 0.25, roughness: 0.32 });
+  // No clear coat anywhere: a second layer of reflection per pixel is what laptops' built-in graphics cannot afford.
+  const carved = { aoMap: pieceSet.arm, normalMap: pieceSet.normal, roughnessMap: pieceSet.arm };
+  // Polished gold.
+  const gold = new MeshStandardMaterial({ ...carved, metalness: 1, roughness: 0.62 });
+  // Ebony under lacquer.
+  const ebony = new MeshStandardMaterial({ ...carved, metalness: 0.35, roughness: 0.5 });
+  const frame = new MeshStandardMaterial({ metalness: 0.3, roughness: 0.26 });
+  const inlay = new MeshStandardMaterial({ metalness: 1, roughness: 0.22 });
   // Polished stone. Slightly see-through, so the mirrored pieces drawn under it read as reflections.
-  const surface = new MeshPhysicalMaterial({
-    clearcoat: 1,
-    clearcoatRoughness: 0.12,
+  const surface = new MeshStandardMaterial({
     map: boardTexture,
     opacity: lowPower ? 1 : 0.88,
-    roughness: 0.34,
+    roughness: 0.24,
     transparent: !lowPower
   });
   // What the see-through stone lies on. It also marks the surface in the stencil buffer.
@@ -190,8 +204,8 @@ export async function createHeroScene(options: HeroSceneOptions): Promise<HeroSc
     stencilWrite: true,
     stencilZPass: ReplaceStencilOp
   });
-  const mirrored = <T extends MeshPhysicalMaterial | MeshStandardMaterial>(material: T): T => {
-    const copy = material.clone() as T;
+  const mirrored = (material: MeshStandardMaterial) => {
+    const copy = material.clone();
     copy.stencilWrite = true;
     copy.stencilRef = 1;
     copy.stencilFunc = EqualStencilFunc;
@@ -199,29 +213,28 @@ export async function createHeroScene(options: HeroSceneOptions): Promise<HeroSc
   };
   const goldMirror = mirrored(gold);
   const ebonyMirror = mirrored(ebony);
-  const eyeMirror = mirrored(eye);
 
   /* ───────────── board ───────────── */
 
   const board = new Group();
   scene.add(board);
 
-  const add = (geometry: BufferGeometry, material: MeshPhysicalMaterial, x: number, y: number, z: number, shadow = true) => {
+  const add = (geometry: BufferGeometry, material: MeshStandardMaterial, x: number, y: number, z: number, shadow = true) => {
     const mesh = new Mesh(geometry, material);
     mesh.position.set(x, y, z);
     mesh.castShadow = shadow;
     mesh.receiveShadow = true;
     board.add(mesh);
   };
-  add(geometries.frame, frame, 0, -0.26, 0);
-  add(geometries.skirt, frame, 0, -0.6, 0);
-  add(geometries.inlay, gold, 0, 0.025, 0, false);
+  add(boardGeometries.frame, frame, 0, -0.26, 0);
+  add(boardGeometries.skirt, frame, 0, -0.6, 0);
+  add(boardGeometries.inlay, inlay, 0, 0.025, 0, false);
 
-  const backingMesh = new Mesh(geometries.surface, backing);
+  const backingMesh = new Mesh(boardGeometries.surface, backing);
   backingMesh.renderOrder = -3;
   board.add(backingMesh);
 
-  const surfaceMesh = new Mesh(geometries.surface, surface);
+  const surfaceMesh = new Mesh(boardGeometries.surface, surface);
   surfaceMesh.receiveShadow = true;
   board.add(surfaceMesh);
 
@@ -257,7 +270,7 @@ export async function createHeroScene(options: HeroSceneOptions): Promise<HeroSc
   };
 
   PIECES.forEach((piece, i) => {
-    const geometry = geometries.pieces[piece.type];
+    const geometry = geometries[piece.type];
     const isGold = piece.side === "gold";
     stage(
       new Mesh(geometry, isGold ? gold : ebony),
@@ -269,13 +282,8 @@ export async function createHeroScene(options: HeroSceneOptions): Promise<HeroSc
     );
   });
 
-  const buildKnight = (goldMaterial: MeshPhysicalMaterial, eyeMaterial: MeshStandardMaterial) => {
-    const group = new Group();
-    group.add(new Mesh(geometries.knightGold, goldMaterial), new Mesh(geometries.knightDetails, eyeMaterial));
-    return group;
-  };
-  const knight = buildKnight(gold, eye);
-  stage(knight, mirrors ? buildKnight(goldMirror, eyeMirror) : null, KNIGHT_SQUARE.f, KNIGHT_SQUARE.r, KNIGHT_SCALE, KNIGHT_YAW);
+  const knight = new Mesh(geometries.knight, gold);
+  stage(knight, mirrors ? new Mesh(geometries.knight, goldMirror) : null, KNIGHT_SQUARE.f, KNIGHT_SQUARE.r, KNIGHT_SCALE, KNIGHT_YAW);
   actors[actors.length - 1].delay = 1150;
 
   /* ───────────── light ───────────── */
@@ -338,17 +346,17 @@ export async function createHeroScene(options: HeroSceneOptions): Promise<HeroSc
     const m = mix;
     gold.color.lerpColors(LIGHT.gold, DARK.gold, m);
     ebony.color.lerpColors(LIGHT.ebony, DARK.ebony, m);
-    eye.color.lerpColors(LIGHT.eye, DARK.eye, m);
     goldMirror.color.copy(gold.color);
     ebonyMirror.color.copy(ebony.color);
-    eyeMirror.color.copy(eye.color);
     frame.color.lerpColors(LIGHT.frame, DARK.frame, m);
+    inlay.color.copy(gold.color);
     surface.color.lerpColors(LIGHT.boardTint, DARK.boardTint, m);
     backing.color.lerpColors(LIGHT.backing, DARK.backing, m);
     // Gold keeps its brilliance at night; lacquer and stone get moodier.
     gold.envMapIntensity = goldMirror.envMapIntensity = lerp(1.35, 1.1, m);
     ebony.envMapIntensity = ebonyMirror.envMapIntensity = lerp(0.95, 0.75, m);
     frame.envMapIntensity = lerp(0.8, 0.5, m);
+    inlay.envMapIntensity = gold.envMapIntensity;
     surface.envMapIntensity = lerp(0.45, 0.4, m);
 
     renderer.toneMappingExposure = lerp(1.05, 0.95, m);
@@ -472,8 +480,8 @@ export async function createHeroScene(options: HeroSceneOptions): Promise<HeroSc
     }
   }
 
-  // A device that cannot keep up gets a cheaper picture step by step (fewer pixels and
-  // a smaller shadow map, then no reflections), and one that still crawls (no GPU, a
+  // A device that cannot keep up gets a cheaper picture step by step (a smaller shadow
+  // map, then no reflections, then fewer pixels), and one that still crawls (no GPU, a
   // very old phone) a still one: a frozen board is better than a page that stutters.
   let quality = 0;
   let frozen = false;
@@ -497,9 +505,10 @@ export async function createHeroScene(options: HeroSceneOptions): Promise<HeroSc
     const hopeless = average > 120;
     if (!hopeless && slowWindows < 2) return;
     slowWindows = 0;
-    const next = hopeless ? 3 : quality + 1;
+    const next = hopeless ? 4 : quality + 1;
     if (next === 1) {
-      renderer.setPixelRatio(1);
+      // The least visible saving first: a smaller shadow map and a slightly softer picture.
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
       key.shadow.mapSize.set(1024, 1024);
       key.shadow.map?.dispose();
       key.shadow.map = null;
@@ -509,6 +518,9 @@ export async function createHeroScene(options: HeroSceneOptions): Promise<HeroSc
         mirrors.visible = false;
         surface.opacity = 1;
       }
+    } else if (next === 3) {
+      renderer.setPixelRatio(1);
+      fit();
     } else {
       // The cheapest moving picture is kept unless it is under 24 frames a second.
       if (average <= 42) return;
@@ -570,10 +582,9 @@ export async function createHeroScene(options: HeroSceneOptions): Promise<HeroSc
       resizeObserver.disconnect();
       window.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("webglcontextlost", onContextLost);
-      disposeGeometries(geometries);
-      [gold, ebony, eye, frame, surface, backing, goldMirror, ebonyMirror, eyeMirror, groundMaterial, dustMaterial].forEach((m) =>
-        m.dispose()
-      );
+      disposeBoard(boardGeometries);
+      pieceSet.dispose();
+      [gold, ebony, frame, inlay, surface, backing, goldMirror, ebonyMirror, groundMaterial, dustMaterial].forEach((m) => m.dispose());
       [boardTexture, groundTexture, dustTexture, environment].forEach((texture) => texture.dispose());
       groundGeometry.dispose();
       dustGeometry.dispose();

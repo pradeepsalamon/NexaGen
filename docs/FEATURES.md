@@ -400,9 +400,16 @@ search engines only ever see `/`.
 
 - **Hero 3D board** (`features/academy/hero3d`, used by both hero sections): a
   three.js scene in its own chunk, fetched only when the stage is near the
-  screen and the browser is idle, so it never delays the hero text. Everything
-  is procedural (turned Staunton pieces, a painted stone board, a baked studio
-  for reflections): no model, texture or HDR file is shipped. Rules:
+  screen and the browser is idle, so it never delays the hero text. The pieces
+  are a sculpted model: "Chess Set" by Riley Queen (Poly Haven, CC0), cut down
+  to one mesh per piece plus its normal and occlusion/roughness maps by
+  `node apps/web/scripts/build-hero-chess-set.mjs` into
+  `public/academy/hero3d/` (about 570 KB, committed; the script documents the
+  file format). The scene gives them its own gold and ebony materials. The
+  board, its stone texture and the studio the metal reflects are made in code.
+  Rules:
+  - Materials are `MeshStandardMaterial`, with no clear coat: built-in laptop
+    graphics cannot afford a second reflection layer per pixel.
   - It draws only while on screen in a visible tab. `prefers-reduced-motion`
     gets one still frame. Touch devices and machines under 4 cores get the
     cheaper scene (no reflections, smaller shadow map, lower pixel ratio).
@@ -410,8 +417,9 @@ search engines only ever see `/`.
     `renderer.compileAsync` before the first frame. Never draw before that, or
     every shader compiles in one blocking step and the page stops while it loads.
   - `scene.ts` `watchSpeed` judges real frame time after the scene is ready: a
-    device averaging over 26 ms a frame steps down (pixel ratio 1 and a smaller
-    shadow map, then no reflections); one still over 42 ms freezes to a still
+    device averaging over 26 ms a frame steps down (a smaller shadow map and
+    pixel ratio 1.25, then no reflections, then pixel ratio 1); one still over
+    42 ms freezes to a still
     picture and stops the ring and drifting light too (`data-still`). Keep that
     guard. The shadow map is redrawn every second frame.
   - The theme comes from `data-theme` through a `MutationObserver`, never React

@@ -1,4 +1,4 @@
-export type PieceType = "pawn" | "rook" | "bishop" | "queen" | "king";
+export type PieceType = "pawn" | "rook" | "bishop" | "knight" | "queen" | "king";
 export type Side = "gold" | "ebony";
 
 export type PieceSpec = {
