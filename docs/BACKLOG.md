@@ -142,9 +142,11 @@ code on 2026-10-31.
   `processed_webhook_events`:** 1,382 events in the 30 days to 2026-11-13
   (participant_joined/left 287 each, track published/unpublished 274 each,
   room_started/finished 107 each, participant_connection_aborted 46).
-- Run `npm run audit:reliability -w apps/api -- --days 90` against real data
-  ([RELIABILITY_DESIGN.md](RELIABILITY_DESIGN.md) §6.1). It has only been run
-  against local dev.
+- ~~Run `npm run audit:reliability -w apps/api -- --days 90` against real data.~~
+  **Done 2026-11-14 against production: healthy** (3 classes that really ran
+  over, no runaway student duration). The script was fixed to judge each
+  student, not the sum, and to use the stored `totalDuration`. Results:
+  [RELIABILITY_DESIGN.md](RELIABILITY_DESIGN.md) §6.1.
 - Staging-check the 10-minute LiveKit token TTL (below) across a class longer
   than 10 minutes: LiveKit should refresh the token for a connected client
   without dropping it.
