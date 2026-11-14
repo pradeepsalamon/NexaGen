@@ -853,19 +853,21 @@ export function ManageClient({ tournamentId }: { tournamentId: string }) {
   if (!t.viewer.canManage) return <Alert variant="error">Only the tournament&apos;s hosts and academy admins can manage it.</Alert>;
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader
-        breadcrumbs={[{ href: "/tournaments", label: "Tournaments" }, { href: `/tournaments/${t.id}`, label: t.name }, { label: "Manage" }]}
-        title={`Manage ${t.name}`}
-      />
       <Tabs onValueChange={setTab} value={tab}>
-        <TabsList>
-          <TabsTrigger value="run">Run</TabsTrigger>
-          <TabsTrigger value="players">Players</TabsTrigger>
-          <TabsTrigger value="hosts">Hosts</TabsTrigger>
-          {t.status !== "DRAFT" && t.status !== "PUBLISHED" ? <TabsTrigger value="games">Games</TabsTrigger> : null}
-          <TabsTrigger value="certificates">Certificates</TabsTrigger>
-          <TabsTrigger value="audit">Audit log</TabsTrigger>
-        </TabsList>
+        <PageHeader
+          breadcrumbs={[{ href: "/tournaments", label: "Tournaments" }, { href: `/tournaments/${t.id}`, label: t.name }, { label: "Manage" }]}
+          tabs={
+            <TabsList>
+              <TabsTrigger value="run">Run</TabsTrigger>
+              <TabsTrigger value="players">Players</TabsTrigger>
+              <TabsTrigger value="hosts">Hosts</TabsTrigger>
+              {t.status !== "DRAFT" && t.status !== "PUBLISHED" ? <TabsTrigger value="games">Games</TabsTrigger> : null}
+              <TabsTrigger value="certificates">Certificates</TabsTrigger>
+              <TabsTrigger value="audit">Audit log</TabsTrigger>
+            </TabsList>
+          }
+          title={`Manage ${t.name}`}
+        />
         <TabsContent className="pt-4" value="run">
           <RunPanel t={t} />
         </TabsContent>

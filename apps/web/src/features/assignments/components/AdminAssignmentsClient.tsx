@@ -49,22 +49,23 @@ export function AdminAssignmentsClient() {
   return (
     <div className="animate-fade-in pb-10">
       <div className="space-y-6">
-        <PageHeader
-          actions={
-            <Button onClick={openCreate}>
-              <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
-              New assignment
-            </Button>
-          }
-          description="Shared PGN assignments. Coaches assign these to their own batches."
-          title="Assignments"
-        />
-
         <Tabs defaultValue="library">
-          <TabsList>
-            <TabsTrigger value="library">Library ({library.length})</TabsTrigger>
-            <TabsTrigger value="due">Due dates</TabsTrigger>
-          </TabsList>
+          <PageHeader
+            actions={
+              <Button onClick={openCreate}>
+                <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                New assignment
+              </Button>
+            }
+            description="Shared PGN assignments. Coaches assign these to their own batches."
+            tabs={
+              <TabsList>
+                <TabsTrigger value="library">Library ({library.length})</TabsTrigger>
+                <TabsTrigger value="due">Due dates</TabsTrigger>
+              </TabsList>
+            }
+            title="Assignments"
+          />
 
           <TabsContent value="library">
             {isLoading ? (

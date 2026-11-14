@@ -51,28 +51,6 @@ export function TournamentsClient() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader
-        actions={
-          <>
-            <Button asChild variant="outline">
-              <Link href="/tournaments/history">
-                <History className="size-4" />
-                My history
-              </Link>
-            </Button>
-            {canCreate ? (
-              <Button asChild>
-                <Link href="/tournaments/new">
-                  <Plus className="size-4" />
-                  New tournament
-                </Link>
-              </Button>
-            ) : null}
-          </>
-        }
-        description="Swiss, arena, round robin and knockout events for the academy."
-        title="Tournaments"
-      />
       <Tabs
         onValueChange={(value) => {
           setTab(value as TournamentListTab);
@@ -80,13 +58,37 @@ export function TournamentsClient() {
         }}
         value={tab}
       >
-        <TabsList>
-          {tabs.map((t) => (
-            <TabsTrigger key={t} value={t}>
-              {TAB_LABELS[t]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <PageHeader
+          actions={
+            <>
+              <Button asChild variant="outline">
+                <Link href="/tournaments/history">
+                  <History className="size-4" />
+                  My history
+                </Link>
+              </Button>
+              {canCreate ? (
+                <Button asChild>
+                  <Link href="/tournaments/new">
+                    <Plus className="size-4" />
+                    New tournament
+                  </Link>
+                </Button>
+              ) : null}
+            </>
+          }
+          description="Swiss, arena, round robin and knockout events for the academy."
+          tabs={
+            <TabsList>
+              {tabs.map((t) => (
+                <TabsTrigger key={t} value={t}>
+                  {TAB_LABELS[t]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          }
+          title="Tournaments"
+        />
       </Tabs>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input

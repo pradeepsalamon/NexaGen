@@ -57,71 +57,72 @@ export function CoachScheduleClient() {
 
   return (
     <div className="animate-fade-in pb-10">
-      <PageHeader
-        actions={
-          <Button disabled={batches.length === 0} onClick={() => openRequest(null)}>
-            <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            Request extra class
-          </Button>
-        }
-        description="Your batches' classes, scheduled by the academy. Add notes to any of them, or ask for an extra class or a new time."
-        title="Schedule"
-      />
+      <Tabs onValueChange={(next) => setView(next as ScheduleView)} value={view}>
+        <PageHeader
+          actions={
+            <Button disabled={batches.length === 0} onClick={() => openRequest(null)}>
+              <CalendarPlus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              Request extra class
+            </Button>
+          }
+          description="Your batches' classes, scheduled by the academy. Add notes to any of them, or ask for an extra class or a new time."
+          tabs={
+            <TabsList aria-label="Schedule view">
+              <TabsTrigger value="week">
+                <CalendarRange aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                Week
+              </TabsTrigger>
+              <TabsTrigger value="month">
+                <CalendarDays aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                Month
+              </TabsTrigger>
+              <TabsTrigger value="list">
+                <List aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                Upcoming
+              </TabsTrigger>
+            </TabsList>
+          }
+          title="Schedule"
+        />
 
-      <div className="space-y-5">
-        <Tabs onValueChange={(next) => setView(next as ScheduleView)} value={view}>
-          <TabsList aria-label="Schedule view">
-            <TabsTrigger value="week">
-              <CalendarRange aria-hidden="true" className="size-4" strokeWidth={2.25} />
-              Week
-            </TabsTrigger>
-            <TabsTrigger value="month">
-              <CalendarDays aria-hidden="true" className="size-4" strokeWidth={2.25} />
-              Month
-            </TabsTrigger>
-            <TabsTrigger value="list">
-              <List aria-hidden="true" className="size-4" strokeWidth={2.25} />
-              Upcoming
-            </TabsTrigger>
-          </TabsList>
+        <TabsContent value="week">
+          <CoachScheduleCalendar view="week" {...actions} />
+        </TabsContent>
+        <TabsContent value="month">
+          <CoachScheduleCalendar view="month" {...actions} />
+        </TabsContent>
+        <TabsContent value="list">
+          <SectionCard title="Upcoming classes">
+            {upcoming.isLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-14 rounded-app" />
+                <Skeleton className="h-14 rounded-app" />
+                <Skeleton className="h-14 rounded-app" />
+              </div>
+            ) : upcoming.isError ? (
+              <WidgetError
+                message="Couldn't load your upcoming classes. Check your connection and try again."
+                onRetry={() => upcoming.refetch()}
+              />
+            ) : upcomingClasses.length === 0 ? (
+              <EmptyState
+                description="Classes appear here once the academy schedules them for your batches."
+                illustration="schedule"
+                title="No upcoming classes"
+                variant="inline"
+              />
+            ) : (
+              <ClassRowList>
+                {upcomingClasses.map((cls) => (
+                  <CoachClassRow cls={cls} key={cls.id} {...actions} />
+                ))}
+              </ClassRowList>
+            )}
+          </SectionCard>
+        </TabsContent>
+      </Tabs>
 
-          <TabsContent value="week">
-            <CoachScheduleCalendar view="week" {...actions} />
-          </TabsContent>
-          <TabsContent value="month">
-            <CoachScheduleCalendar view="month" {...actions} />
-          </TabsContent>
-          <TabsContent value="list">
-            <SectionCard title="Upcoming classes">
-              {upcoming.isLoading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-14 rounded-app" />
-                  <Skeleton className="h-14 rounded-app" />
-                  <Skeleton className="h-14 rounded-app" />
-                </div>
-              ) : upcoming.isError ? (
-                <WidgetError
-                  message="Couldn't load your upcoming classes. Check your connection and try again."
-                  onRetry={() => upcoming.refetch()}
-                />
-              ) : upcomingClasses.length === 0 ? (
-                <EmptyState
-                  description="Classes appear here once the academy schedules them for your batches."
-                  illustration="schedule"
-                  title="No upcoming classes"
-                  variant="inline"
-                />
-              ) : (
-                <ClassRowList>
-                  {upcomingClasses.map((cls) => (
-                    <CoachClassRow cls={cls} key={cls.id} {...actions} />
-                  ))}
-                </ClassRowList>
-              )}
-            </SectionCard>
-          </TabsContent>
-        </Tabs>
-
+      <div className="mt-5">
         <CoachScheduleRequests />
       </div>
 

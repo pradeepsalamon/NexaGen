@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -68,38 +68,44 @@ export function HelpCenterClient() {
     router.replace(`${pathname}${search.size ? `?${search}` : ""}`, { scroll: false });
   };
 
+  const header = (tabs?: ReactNode) => (
+    <PageHeader
+      actions={
+        isStaffRole(role) ? (
+          <Button asChild variant="outline">
+            <Link href="/admin/knowledge">
+              <Settings2 aria-hidden className="size-4" strokeWidth={2.5} />
+              Manage knowledge base
+            </Link>
+          </Button>
+        ) : undefined
+      }
+      description="How the platform works, how to find your way around, and answers to common questions."
+      tabs={tabs}
+      title="Help centre"
+    />
+  );
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        actions={
-          isStaffRole(role) ? (
-            <Button asChild variant="outline">
-              <Link href="/admin/knowledge">
-                <Settings2 aria-hidden className="size-4" strokeWidth={2.5} />
-                Manage knowledge base
-              </Link>
-            </Button>
-          ) : undefined
-        }
-        description="How the platform works, how to find your way around, and answers to common questions."
-        title="Help centre"
-      />
       {isCoach ? (
         <Tabs onValueChange={setTab} value={tab}>
-          <TabsList>
-            <TabsTrigger value="help">
-              <LifeBuoy aria-hidden className="size-4" strokeWidth={2.25} />
-              Help articles
-            </TabsTrigger>
-            <TabsTrigger value="suggest">
-              <Lightbulb aria-hidden className="size-4" strokeWidth={2.25} />
-              My suggestions
-            </TabsTrigger>
-            <TabsTrigger value="trends">
-              <TrendingUp aria-hidden className="size-4" strokeWidth={2.25} />
-              What students ask
-            </TabsTrigger>
-          </TabsList>
+          {header(
+            <TabsList>
+              <TabsTrigger value="help">
+                <LifeBuoy aria-hidden className="size-4" strokeWidth={2.25} />
+                Help articles
+              </TabsTrigger>
+              <TabsTrigger value="suggest">
+                <Lightbulb aria-hidden className="size-4" strokeWidth={2.25} />
+                My suggestions
+              </TabsTrigger>
+              <TabsTrigger value="trends">
+                <TrendingUp aria-hidden className="size-4" strokeWidth={2.25} />
+                What students ask
+              </TabsTrigger>
+            </TabsList>
+          )}
           <TabsContent value="help">
             <HelpBrowser />
           </TabsContent>
@@ -111,7 +117,10 @@ export function HelpCenterClient() {
           </TabsContent>
         </Tabs>
       ) : (
-        <HelpBrowser />
+        <>
+          {header()}
+          <HelpBrowser />
+        </>
       )}
     </div>
   );
@@ -270,16 +279,16 @@ export function ArticleCard({ article, hrefBase = "/help" }: { article: Knowledg
       className="group block rounded-app border border-app-border bg-app-surface p-4 font-normal shadow-card transition-colors hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
       href={`${hrefBase}/${article.slug}`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex h-full items-stretch gap-3">
         <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-ink">
           <Icon aria-hidden className="size-4" strokeWidth={2.5} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col">
           <p className="font-semibold text-app-text group-hover:text-primary-ink">{article.title}</p>
           {(article.snippet || article.summary) && (
             <p className="mt-1 line-clamp-2 text-sm text-app-muted">{article.snippet ?? article.summary}</p>
           )}
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
             <Badge variant="outline">{KIND_LABEL[article.kind]}</Badge>
             {article.categoryName && <Badge variant="secondary">{article.categoryName}</Badge>}
             {article.language !== "en" && <Badge variant="info">{article.language.toUpperCase()}</Badge>}

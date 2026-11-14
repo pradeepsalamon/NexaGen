@@ -16,26 +16,27 @@ export function AdminFeedbackClient() {
 
   return (
     <div className="grid gap-6 pb-10">
-      <PageHeader
-        description="Design the feedback students give about their coaches, and decide when and where they're asked."
-        title="Coach feedback"
-      />
-
       <Tabs onValueChange={(value) => setTab(value as Tab)} value={tab}>
-        <TabsList>
-          <TabsTrigger value="forms">
-            <ClipboardList aria-hidden="true" className="size-4" />
-            Forms
-          </TabsTrigger>
-          <TabsTrigger value="ratings">
-            <Star aria-hidden="true" className="size-4" />
-            Coach ratings
-          </TabsTrigger>
-          <TabsTrigger value="responses">
-            <MessageSquareText aria-hidden="true" className="size-4" />
-            Responses
-          </TabsTrigger>
-        </TabsList>
+        <PageHeader
+          description="Design the feedback students give about their coaches, and decide when and where they're asked."
+          tabs={
+            <TabsList>
+              <TabsTrigger value="forms">
+                <ClipboardList aria-hidden="true" className="size-4" />
+                Forms
+              </TabsTrigger>
+              <TabsTrigger value="ratings">
+                <Star aria-hidden="true" className="size-4" />
+                Coach ratings
+              </TabsTrigger>
+              <TabsTrigger value="responses">
+                <MessageSquareText aria-hidden="true" className="size-4" />
+                Responses
+              </TabsTrigger>
+            </TabsList>
+          }
+          title="Coach feedback"
+        />
 
         <TabsContent className="mt-6 outline-none" value="forms">
           <FeedbackFormsPanel />

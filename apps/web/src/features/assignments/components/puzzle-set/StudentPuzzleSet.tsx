@@ -45,6 +45,7 @@ export function StudentPuzzleSet({ assignment }: { assignment: StudentAssignment
           icon={Target}
           title="No puzzles in this set"
           description="Your coach hasn't added any puzzles yet, or they were removed. Check back later."
+          variant="inline"
         />
       </Card>
     );

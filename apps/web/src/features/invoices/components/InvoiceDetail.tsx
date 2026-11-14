@@ -95,7 +95,7 @@ export function InvoiceDetail({
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card className="space-y-2">
+        <Card className="space-y-2 p-4">
           <p className="text-xs font-semibold text-app-muted">
             Bill to
           </p>
@@ -140,7 +140,7 @@ export function InvoiceDetail({
           ) : null}
         </Card>
 
-        <Card className="space-y-3">
+        <Card className="space-y-3 p-4">
           <p className="text-xs font-semibold text-app-muted">
             Payment
           </p>
@@ -291,7 +291,7 @@ export function InvoiceDetail({
       </Card>
 
       {invoice.terms || invoice.footer ? (
-        <Card className="space-y-2">
+        <Card className="space-y-2 p-4">
           {invoice.terms ? (
             <>
               <p className="text-xs font-semibold text-app-muted">

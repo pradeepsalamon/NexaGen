@@ -56,28 +56,37 @@ export function PlatformConsoleClient() {
     if (requested && (TABS as readonly string[]).includes(requested)) setTab(requested as Tab);
   }, []);
 
+  const headerProps = {
+    description: "Academies, usage, plans, content packs and support visits across the whole platform.",
+    title: "Platform console"
+  };
+
   return (
     <div>
-      <PageHeader
-        description="Academies, usage, plans, content packs and support visits across the whole platform."
-        title="Platform console"
-      />
       {!isOperator ? (
-        <Alert title="Platform operators only" variant="warning">
-          Only NexaChess&apos;s own super admins can use the platform console.
-        </Alert>
+        <>
+          <PageHeader {...headerProps} />
+          <Alert title="Platform operators only" variant="warning">
+            Only NexaChess&apos;s own super admins can use the platform console.
+          </Alert>
+        </>
       ) : (
         <Tabs onValueChange={(value) => setTab(value as Tab)} value={tab}>
-          <TabsList className="max-w-full justify-self-start overflow-x-auto">
-            <TabsTrigger value="academies">Academies</TabsTrigger>
-            <TabsTrigger value="usage">Usage</TabsTrigger>
-            <TabsTrigger value="plans">Plans</TabsTrigger>
-            <TabsTrigger value="packs">Content packs</TabsTrigger>
-            <TabsTrigger value="billing">Billing</TabsTrigger>
-            <TabsTrigger value="support">Support visits</TabsTrigger>
-            <TabsTrigger value="audit">Audit log</TabsTrigger>
-            <TabsTrigger value="integrity">Integrity</TabsTrigger>
-          </TabsList>
+          <PageHeader
+            {...headerProps}
+            tabs={
+              <TabsList>
+                <TabsTrigger value="academies">Academies</TabsTrigger>
+                <TabsTrigger value="usage">Usage</TabsTrigger>
+                <TabsTrigger value="plans">Plans</TabsTrigger>
+                <TabsTrigger value="packs">Content packs</TabsTrigger>
+                <TabsTrigger value="billing">Billing</TabsTrigger>
+                <TabsTrigger value="support">Support visits</TabsTrigger>
+                <TabsTrigger value="audit">Audit log</TabsTrigger>
+                <TabsTrigger value="integrity">Integrity</TabsTrigger>
+              </TabsList>
+            }
+          />
           <TabsContent value="academies">
             <AcademiesTab />
           </TabsContent>

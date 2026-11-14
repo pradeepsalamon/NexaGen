@@ -31,6 +31,8 @@ const config: Config = {
         "tab-in-left": "tabInLeft 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards",
         "tab-in-right": "tabInRight 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards",
         "tab-panel-in": "tabPanelIn 220ms cubic-bezier(0.22, 1, 0.36, 1) backwards",
+        // The header theme button's icon turning into place after a click.
+        "theme-icon-in": "themeIconIn 360ms cubic-bezier(0.22, 1, 0.36, 1) backwards",
         "overlay-in": "fadeIn 220ms ease both",
         "overlay-out": "fadeOut 180ms ease both",
         // Centred dialogs. These animate the standalone `scale` / `translate` properties, never
@@ -169,6 +171,10 @@ const config: Config = {
         sans: ["var(--font-sans)"]
       },
       keyframes: {
+        themeIconIn: {
+          from: { opacity: "0", transform: "rotate(-90deg) scale(0.5)" },
+          to: { opacity: "1", transform: "rotate(0deg) scale(1)" }
+        },
         fadeIn: {
           from: { opacity: "0" },
           to: { opacity: "1" }

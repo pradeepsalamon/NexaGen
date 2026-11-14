@@ -36,23 +36,25 @@ export function AdminReferralsClient() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5 pb-10">
-      <PageHeader
-        description="Referral links for students, coaches and sales staff: the pipeline, what each stage pays (points for students, money for staff), the rewards store, and payouts."
-        title="Referrals"
-      />
       <Tabs onValueChange={setTab} value={tab}>
-        <TabsList className="justify-self-end">
-          <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-          <TabsTrigger value="referrers">Referrers</TabsTrigger>
-          <TabsTrigger value="rewards">Rewards</TabsTrigger>
-          <TabsTrigger value="redemptions">Redemptions</TabsTrigger>
-          <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
-          <TabsTrigger value="ledger">History</TabsTrigger>
-          <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
-          <TabsTrigger value="bonuses">Bonuses</TabsTrigger>
-          <TabsTrigger value="stages">Stages</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
+        <PageHeader
+          description="Referral links for students, coaches and sales staff: the pipeline, what each stage pays (points for students, money for staff), the rewards store, and payouts."
+          tabs={
+            <TabsList>
+              <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+              <TabsTrigger value="referrers">Referrers</TabsTrigger>
+              <TabsTrigger value="rewards">Rewards</TabsTrigger>
+              <TabsTrigger value="redemptions">Redemptions</TabsTrigger>
+              <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
+              <TabsTrigger value="ledger">History</TabsTrigger>
+              <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
+              <TabsTrigger value="bonuses">Bonuses</TabsTrigger>
+              <TabsTrigger value="stages">Stages</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
+          }
+          title="Referrals"
+        />
         <TabsContent value="pipeline">
           <PipelinePanel onClearReferrer={() => setReferrer(null)} referrer={referrer} />
         </TabsContent>

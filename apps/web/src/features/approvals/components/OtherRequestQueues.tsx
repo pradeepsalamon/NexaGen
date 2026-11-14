@@ -62,7 +62,7 @@ function QueueCard({ queue }: { queue: OtherRequestQueue }) {
         ))}
       </ul>
       {more > 0 ? <p className="text-sm text-app-muted">and {more} more</p> : null}
-      <div className="mt-auto">
+      <div className="mt-auto flex justify-end">
         <Button asChild size="sm" variant="outline">
           <Link href={QUEUE_PAGES[queue.kind]}>
             Review

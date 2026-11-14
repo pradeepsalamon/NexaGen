@@ -4,7 +4,7 @@ import { HelpCircle, LogIn, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { ThemeModePicker } from "@/components/ThemeModePicker";
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { HEADER_ICON_BUTTON } from "@/components/layout/headerStyles";
@@ -17,6 +17,13 @@ import { useSidebarStore } from "@/stores/sidebarStore";
 import { resolvePageTitle } from "@/lib/pageTitles";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/Spinner";
+
+/**
+ * The header's own menu (three bars) button is switched off, not deleted: the nav is opened by
+ * the gold tab on the drawer's edge and collapsed by the chevron in the docked sidebar. Set to
+ * `true` to bring the button back.
+ */
+const SHOW_HEADER_MENU_BUTTON: boolean = false;
 
 export function Header({
   centerSlot,
@@ -68,7 +75,7 @@ export function Header({
       >
         {/* Left: menu + logo */}
         <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-3">
-          {hasSidebar && navDocked ? (
+          {!SHOW_HEADER_MENU_BUTTON ? null : hasSidebar && navDocked ? (
             <SimpleTooltip label={navCollapsed ? "Expand menu" : "Collapse menu"} side="bottom">
               <button
                 aria-controls="nav-drawer"
@@ -147,7 +154,8 @@ export function Header({
             </span>
           )}
 
-          <ThemeToggle />
+          {/* Was the sun/moon switch, `<ThemeToggle />` (components/ThemeToggle.tsx, still used outside the app shell). */}
+          <ThemeModePicker />
 
           {isAuthPending ? (
             <div

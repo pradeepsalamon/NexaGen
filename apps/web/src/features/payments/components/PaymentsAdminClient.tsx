@@ -23,22 +23,23 @@ export function PaymentsAdminClient() {
   const initialTab = requested && TABS.includes(requested) ? requested : "overview";
   return (
     <div className="space-y-6">
-      <PageHeader
-        description="Revenue, transactions, refunds, subscriptions and gateway configuration."
-        title="Payments"
-      />
-
       <Tabs defaultValue={initialTab}>
-        <TabsList className="justify-self-end">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="manual">Manual payments</TabsTrigger>
-          <TabsTrigger value="refunds">Refunds</TabsTrigger>
-          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          <TabsTrigger value="plans">Plans</TabsTrigger>
-          <TabsTrigger value="discounts">Discounts</TabsTrigger>
-          <TabsTrigger value="gateways">Gateways</TabsTrigger>
-        </TabsList>
+        <PageHeader
+          description="Revenue, transactions, refunds, subscriptions and gateway configuration."
+          tabs={
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="transactions">Transactions</TabsTrigger>
+              <TabsTrigger value="manual">Manual payments</TabsTrigger>
+              <TabsTrigger value="refunds">Refunds</TabsTrigger>
+              <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+              <TabsTrigger value="plans">Plans</TabsTrigger>
+              <TabsTrigger value="discounts">Discounts</TabsTrigger>
+              <TabsTrigger value="gateways">Gateways</TabsTrigger>
+            </TabsList>
+          }
+          title="Payments"
+        />
 
         <TabsContent value="overview">
           <PaymentsOverviewPanel />

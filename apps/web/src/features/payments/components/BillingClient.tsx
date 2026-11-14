@@ -56,12 +56,8 @@ export function BillingClient() {
   const timeZone = useUserTimeZone();
   const { data, isLoading } = useMyBilling();
 
-  const header = (
-    <PageHeader
-      description="Your payments, invoices and active access."
-      title="Billing"
-    />
-  );
+  const headerProps = { description: "Your payments, invoices and active access.", title: "Billing" };
+  const header = <PageHeader {...headerProps} />;
 
   if (isLoading) {
     return (
@@ -86,21 +82,24 @@ export function BillingClient() {
 
   return (
     <div className="space-y-6">
-      {header}
-
       <Tabs defaultValue="payments">
-        <TabsList className="justify-self-end">
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
-          {data.creditNotes.length > 0 ? (
-            <TabsTrigger value="credit-notes">Credit notes</TabsTrigger>
-          ) : null}
-          <TabsTrigger value="access">Access</TabsTrigger>
-          {data.subscriptions.length > 0 ? (
-            <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          ) : null}
-          <TabsTrigger value="billing-details">Billing details</TabsTrigger>
-        </TabsList>
+        <PageHeader
+          {...headerProps}
+          tabs={
+              <TabsList>
+                <TabsTrigger value="payments">Payments</TabsTrigger>
+                <TabsTrigger value="invoices">Invoices</TabsTrigger>
+                {data.creditNotes.length > 0 ? (
+                  <TabsTrigger value="credit-notes">Credit notes</TabsTrigger>
+                ) : null}
+                <TabsTrigger value="access">Access</TabsTrigger>
+                {data.subscriptions.length > 0 ? (
+                  <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+                ) : null}
+                <TabsTrigger value="billing-details">Billing details</TabsTrigger>
+              </TabsList>
+          }
+        />
 
         <TabsContent value="payments">
           {data.payments.length === 0 ? (
@@ -393,9 +392,17 @@ function SubscriptionRow({
       ) : null}
 
       {active && !subscription.cancelAtPeriodEnd ? (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
           {confirming ? (
             <>
+              <Button
+                onClick={() => setConfirming(false)}
+                size="sm"
+                type="button"
+                variant="neutral"
+              >
+                Keep it
+              </Button>
               <Button
                 isLoading={cancel.isPending}
                 onClick={() =>
@@ -409,14 +416,6 @@ function SubscriptionRow({
                 variant="destructive"
               >
                 Yes, cancel at period end
-              </Button>
-              <Button
-                onClick={() => setConfirming(false)}
-                size="sm"
-                type="button"
-                variant="neutral"
-              >
-                Keep it
               </Button>
             </>
           ) : (

@@ -10,6 +10,7 @@ import { AssignmentReminderBanner } from "@/features/assignments/components/remi
 import { AssignmentReminderPopup } from "@/features/assignments/components/reminders/AssignmentReminderPopup";
 import { DashboardFeedback } from "@/features/feedback/components/DashboardFeedback";
 import { RevisionDashboardCard } from "@/features/revision/components/RevisionDashboardCard";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useStudentDashboard } from "../hooks/useStudentApi";
 import { Announcements } from "./Announcements";
@@ -79,6 +80,7 @@ export function StudentDashboardClient() {
   const courses = data?.courses ?? [];
   const announcements = data?.announcements ?? [];
   const pastClasses = data?.pastClasses ?? [];
+  const hasPastClasses = pastClasses.length > 0;
 
   return (
     <div className="animate-fade-in pb-10">
@@ -97,20 +99,34 @@ export function StudentDashboardClient() {
           metrics={data?.progressMetrics}
         />
 
-        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <div className="space-y-5">
+        {/* Three blocks so a phone reads: what's next, then today's revision
+            and announcements, then history. From `lg` the side rail spans both
+            rows, and the `1fr` row keeps the left column packed when the rail
+            is the taller one. */}
+        <div
+          className={cn(
+            "grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]",
+            hasPastClasses && "lg:grid-rows-[auto_1fr]"
+          )}
+        >
+          <div className="min-w-0 space-y-5">
             <UpcomingClasses classes={data?.nextClasses ?? []} />
             <PracticeSection practices={data?.practices ?? []} />
-            {pastClasses.length > 0 ? <PastClasses classes={pastClasses} /> : null}
           </div>
 
-          <div className="space-y-5">
+          <div className={cn("min-w-0 space-y-5", hasPastClasses && "lg:row-span-2")}>
             <RevisionDashboardCard />
             {courses.length > 0 ? <ContinueLearning courses={courses} /> : null}
             {announcements.length > 0 ? (
               <Announcements announcements={announcements} />
             ) : null}
           </div>
+
+          {hasPastClasses ? (
+            <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+              <PastClasses classes={pastClasses} />
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

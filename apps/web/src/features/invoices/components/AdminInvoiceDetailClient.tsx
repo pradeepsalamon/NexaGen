@@ -91,7 +91,7 @@ export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
         pdfUrl={adminInvoicePdfUrl(invoice.id)}
       />
 
-      <Card className="space-y-3">
+      <Card className="space-y-3 p-4">
         <div>
           <h2 className="text-sm font-bold text-app-text">Audit trail</h2>
           <p className="text-xs text-app-muted">

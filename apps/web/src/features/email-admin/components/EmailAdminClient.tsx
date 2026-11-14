@@ -76,27 +76,29 @@ export function EmailAdminClient() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] animate-fade-in">
-      <PageHeader
-        actions={
-          <Button onClick={() => setComposing(true)} type="button">
-            <MailPlus aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            Write an email
-          </Button>
-        }
-        description="Decide whether people must verify their email address, and write to anyone with an account."
-        title="Email"
-      />
       <Tabs defaultValue="verification">
-        <TabsList>
-          <TabsTrigger value="verification">
-            <ShieldCheck aria-hidden="true" className="size-4" />
-            Verification
-          </TabsTrigger>
-          <TabsTrigger value="sent">
-            <Send aria-hidden="true" className="size-4" />
-            Sent emails
-          </TabsTrigger>
-        </TabsList>
+        <PageHeader
+          actions={
+            <Button onClick={() => setComposing(true)} type="button">
+              <MailPlus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              Write an email
+            </Button>
+          }
+          description="Decide whether people must verify their email address, and write to anyone with an account."
+          tabs={
+            <TabsList>
+              <TabsTrigger value="verification">
+                <ShieldCheck aria-hidden="true" className="size-4" />
+                Verification
+              </TabsTrigger>
+              <TabsTrigger value="sent">
+                <Send aria-hidden="true" className="size-4" />
+                Sent emails
+              </TabsTrigger>
+            </TabsList>
+          }
+          title="Email"
+        />
         <TabsContent className="mt-6 outline-none" value="verification">
           <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
             <PolicyCard />

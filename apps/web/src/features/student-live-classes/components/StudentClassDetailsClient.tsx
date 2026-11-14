@@ -357,7 +357,7 @@ function ActionLayout({
           <p className="mt-1 text-sm text-app-muted">{text}</p>
         </div>
         {children ? (
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">{children}</div>
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-end">{children}</div>
         ) : null}
       </div>
     </div>

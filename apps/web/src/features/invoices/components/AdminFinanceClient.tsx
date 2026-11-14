@@ -10,17 +10,18 @@ import { InvoiceSettingsPanel } from "./InvoiceSettingsPanel";
 export function AdminFinanceClient() {
   return (
     <div>
-      <PageHeader
-        description="Every invoice issued by the academy, the credit notes raised against them, and the business details they carry."
-        title="Invoices"
-      />
-
       <Tabs defaultValue="invoices">
-        <TabsList className="justify-self-end">
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
-          <TabsTrigger value="credit-notes">Credit notes</TabsTrigger>
-          <TabsTrigger value="settings">Billing &amp; invoicing</TabsTrigger>
-        </TabsList>
+        <PageHeader
+          description="Every invoice issued by the academy, the credit notes raised against them, and the business details they carry."
+          tabs={
+            <TabsList>
+              <TabsTrigger value="invoices">Invoices</TabsTrigger>
+              <TabsTrigger value="credit-notes">Credit notes</TabsTrigger>
+              <TabsTrigger value="settings">Billing &amp; invoicing</TabsTrigger>
+            </TabsList>
+          }
+          title="Invoices"
+        />
 
         <TabsContent value="invoices">
           <AdminInvoicesPanel />

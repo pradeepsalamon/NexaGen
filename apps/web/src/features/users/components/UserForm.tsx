@@ -132,7 +132,7 @@ export function UserForm({ selectedUser, onSuccess }: UserFormProps) {
     <Card className="p-5">
       <Form form={form} onSubmit={onSubmit} className="grid gap-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0 flex-1 basis-48">
             <p className="text-xs font-extrabold text-primary-ink">
               {selectedUser ? "Edit user" : "Create user"}
             </p>
@@ -140,7 +140,7 @@ export function UserForm({ selectedUser, onSuccess }: UserFormProps) {
               {selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName || ''}` : "User details"}
             </h2>
           </div>
-          <div>
+          <div className="ml-auto shrink-0">
             <Button
               disabled={isSaving}
               isLoading={isSaving}

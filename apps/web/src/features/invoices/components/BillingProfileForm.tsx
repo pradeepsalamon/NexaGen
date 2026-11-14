@@ -8,9 +8,9 @@ import {
   type BillingAddress
 } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
+import { SectionCard } from "@/components/ui/SectionCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import {
@@ -50,16 +50,11 @@ export function BillingProfileForm() {
   const placeOfSupply = stateNameFromCode(stateCodeFromGstin(form.gstin));
 
   return (
-    <Card className="space-y-4">
-      <div>
-        <h3 className="text-sm font-bold text-app-text">Billing details</h3>
-        <p className="text-xs text-app-muted">
-          Who invoices are addressed to. Changes apply to your next invoice —
-          receipts already issued are never rewritten.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <SectionCard
+      description="Who invoices are addressed to. Changes apply to your next invoice — receipts already issued are never rewritten."
+      title="Billing details"
+    >
+      <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
         <Field
           label="Billing name"
           onChange={(value) => set("name", value)}
@@ -115,45 +110,45 @@ export function BillingProfileForm() {
           onChange={(value) => set("country", value.toUpperCase())}
           value={form.country}
         />
+        <div className="space-y-1.5">
+          <Label htmlFor="billing-gstin">GSTIN (optional)</Label>
+          <Input
+            id="billing-gstin"
+            maxLength={15}
+            onChange={(event) =>
+              set("gstin", event.target.value.toUpperCase() || null)
+            }
+            placeholder="29AABCU9603R1ZM"
+            value={form.gstin ?? ""}
+          />
+          {!gstinValid ? (
+            <p className="text-xs text-app-danger">
+              That is not a valid 15-character GSTIN.
+            </p>
+          ) : placeOfSupply ? (
+            <p className="text-xs text-app-muted">
+              Place of supply: {placeOfSupply} — this is what decides whether your
+              invoice shows CGST + SGST or IGST.
+            </p>
+          ) : (
+            <p className="text-xs text-app-muted">
+              Add your GSTIN to claim input credit on your invoices.
+            </p>
+          )}
+        </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="billing-gstin">GSTIN (optional)</Label>
-        <Input
-          id="billing-gstin"
-          maxLength={15}
-          onChange={(event) =>
-            set("gstin", event.target.value.toUpperCase() || null)
-          }
-          placeholder="29AABCU9603R1ZM"
-          value={form.gstin ?? ""}
-        />
-        {!gstinValid ? (
-          <p className="text-xs text-app-danger">
-            That is not a valid 15-character GSTIN.
-          </p>
-        ) : placeOfSupply ? (
-          <p className="text-xs text-app-muted">
-            Place of supply: {placeOfSupply} — this is what decides whether your
-            invoice shows CGST + SGST or IGST.
-          </p>
-        ) : (
-          <p className="text-xs text-app-muted">
-            Add your GSTIN to claim input credit on your invoices.
-          </p>
-        )}
-      </div>
-
-      <div className="flex justify-end">
+      <div className="mt-5 flex justify-end border-t border-app-border pt-4">
         <Button
           disabled={!form.name.trim() || !gstinValid || update.isPending}
+          isLoading={update.isPending}
           onClick={() => update.mutate(form)}
           variant="primary"
         >
           Save billing details
         </Button>
       </div>
-    </Card>
+    </SectionCard>
   );
 }
 

@@ -195,7 +195,7 @@ export function AssignmentPuzzleSolver({
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           {phase === "solving" && (
             <Button disabled={submitting} type="button" variant="outline" size="sm" onClick={() => void giveUp()}>
               Give up this try

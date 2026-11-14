@@ -56,6 +56,7 @@ export function StudentBatchesClient() {
             description="Your academy will add you to a batch. It will show up here."
             icon={Layers3}
             title="You're not in a batch yet"
+            variant="inline"
           />
         </Card>
       ) : (

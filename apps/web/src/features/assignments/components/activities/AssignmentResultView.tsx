@@ -75,7 +75,11 @@ export function AssignmentResultView({
           </p>
         )}
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="mr-2 size-4" strokeWidth={2.5} />
+            Back to assignments
+          </Button>
           {!result.passed && result.attemptsRemaining !== 0 && onRetry && (
             <Button onClick={onRetry}>
               <RotateCcw className="mr-2 size-4" strokeWidth={2.5} />
@@ -83,10 +87,6 @@ export function AssignmentResultView({
               {result.attemptsRemaining !== null && ` (${result.attemptsRemaining} left)`}
             </Button>
           )}
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="mr-2 size-4" strokeWidth={2.5} />
-            Back to assignments
-          </Button>
         </div>
       </Card>
 

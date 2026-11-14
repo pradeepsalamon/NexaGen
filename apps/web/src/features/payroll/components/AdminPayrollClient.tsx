@@ -10,17 +10,18 @@ import { PayrollRulesPanel } from "./PayrollRulesPanel";
 export function AdminPayrollClient() {
   return (
     <div>
-      <PageHeader
-        description="What the academy owes each coach, computed from actual teaching activity — separate from student billing."
-        title="Coach payroll"
-      />
-
       <Tabs defaultValue="periods">
-        <TabsList className="justify-self-end">
-          <TabsTrigger value="periods">Periods</TabsTrigger>
-          <TabsTrigger value="compensation">Compensation</TabsTrigger>
-          <TabsTrigger value="rules">Rules</TabsTrigger>
-        </TabsList>
+        <PageHeader
+          description="What the academy owes each coach, computed from actual teaching activity — separate from student billing."
+          tabs={
+            <TabsList>
+              <TabsTrigger value="periods">Periods</TabsTrigger>
+              <TabsTrigger value="compensation">Compensation</TabsTrigger>
+              <TabsTrigger value="rules">Rules</TabsTrigger>
+            </TabsList>
+          }
+          title="Coach payroll"
+        />
 
         <TabsContent value="periods">
           <AdminPayrollPeriodsPanel />

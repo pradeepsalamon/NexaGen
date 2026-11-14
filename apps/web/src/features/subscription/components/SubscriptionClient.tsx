@@ -104,7 +104,7 @@ function CurrentPlan({ data }: { data: AdminSubscriptionResponse }) {
 
 function Usage({ data }: { data: AdminSubscriptionResponse }) {
   return (
-    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
       {PLAN_LIMIT_KEYS.map((key) => {
         const limit = data.limits[key];
         const used = data.usage[key];

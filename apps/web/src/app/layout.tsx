@@ -57,7 +57,10 @@ const themeInitScript = `
   } catch {}
   try {
     const parsed = JSON.parse(window.localStorage.getItem("nexa-chess-theme") || "{}");
-    root.dataset.theme = parsed.mode === "dark" ? "dark" : "light";
+    const dark = parsed.preference === "system"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+      : (parsed.preference || parsed.mode) === "dark";
+    root.dataset.theme = dark ? "dark" : "light";
   } catch {
     root.dataset.theme = "light";
   }

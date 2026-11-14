@@ -10,11 +10,15 @@ import {
   useMemo,
   useState
 } from "react";
-import type { ThemeMode } from "../constants/theme";
+import type { ThemeMode, ThemePreference } from "../constants/theme";
 
 type ThemeContextValue = {
   isHydrated: boolean;
+  /** The theme on screen. */
   mode: ThemeMode;
+  /** What was picked: light, dark, or follow the device. */
+  preference: ThemePreference;
+  setPreference: (preference: ThemePreference) => void;
   toggleMode: () => void;
 };
 
@@ -22,15 +26,25 @@ const STORAGE_KEY = "nexa-chess-theme";
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 // Colours come only from globals.css; older saves may still carry a `colors` key, which is ignored.
-function getStoredMode(): ThemeMode {
+// Saves from before the "system" option have only `mode`. The root layout's init script reads the same shape.
+function getStoredPreference(): ThemePreference {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}") as {
       mode?: ThemeMode;
+      preference?: ThemePreference;
     };
-    return parsed.mode === "dark" ? "dark" : "light";
+    if (parsed.preference === "system") return "system";
+    return (parsed.preference ?? parsed.mode) === "dark" ? "dark" : "light";
   } catch {
     return "light";
   }
+}
+
+const SYSTEM_DARK_QUERY = "(prefers-color-scheme: dark)";
+
+function resolveMode(preference: ThemePreference): ThemeMode {
+  if (preference !== "system") return preference;
+  return window.matchMedia(SYSTEM_DARK_QUERY).matches ? "dark" : "light";
 }
 
 // Swaps the palette in one paint: otherwise every `transition-colors` element
@@ -51,14 +65,20 @@ function applyMode(mode: ThemeMode) {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
+  const [preference, setPreferenceState] = useState<ThemePreference>("light");
   const [mode, setMode] = useState<ThemeMode>("light");
 
-  useEffect(() => {
-    const storedMode = getStoredMode();
-    setMode(storedMode);
-    applyMode(storedMode);
-    setIsHydrated(true);
+  const adopt = useCallback((next: ThemePreference) => {
+    const resolved = resolveMode(next);
+    applyMode(resolved);
+    setPreferenceState(next);
+    setMode(resolved);
   }, []);
+
+  useEffect(() => {
+    adopt(getStoredPreference());
+    setIsHydrated(true);
+  }, [adopt]);
 
   useEffect(() => {
     function syncStoredMode(event: StorageEvent) {
@@ -66,9 +86,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const storedMode = getStoredMode();
-      setMode(storedMode);
-      applyMode(storedMode);
+      adopt(getStoredPreference());
     }
 
     window.addEventListener("storage", syncStoredMode);
@@ -76,7 +94,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => {
       window.removeEventListener("storage", syncStoredMode);
     };
-  }, []);
+  }, [adopt]);
+
+  // Following the device: change with it (e.g. its own day/night schedule).
+  useEffect(() => {
+    if (preference !== "system") return;
+    const query = window.matchMedia(SYSTEM_DARK_QUERY);
+    const onChange = () => adopt("system");
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, [adopt, preference]);
 
   useEffect(() => {
     if (!isHydrated) {
@@ -85,21 +112,31 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     applyMode(mode);
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode }));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode, preference }));
     } catch {
       /* storage unavailable */
     }
-  }, [isHydrated, mode]);
+  }, [isHydrated, mode, preference]);
 
   // The page repaints from the click itself; React's own update (toggle icon
   // state, toasts, charts) follows at low priority so it never delays that paint.
-  const toggleMode = useCallback(() => {
-    const next: ThemeMode = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    applyMode(next);
-    startTransition(() => setMode(next));
+  const setPreference = useCallback((next: ThemePreference) => {
+    const resolved = resolveMode(next);
+    applyMode(resolved);
+    startTransition(() => {
+      setPreferenceState(next);
+      setMode(resolved);
+    });
   }, []);
 
-  const value = useMemo(() => ({ isHydrated, mode, toggleMode }), [isHydrated, mode, toggleMode]);
+  const toggleMode = useCallback(() => {
+    setPreference(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+  }, [setPreference]);
+
+  const value = useMemo(
+    () => ({ isHydrated, mode, preference, setPreference, toggleMode }),
+    [isHydrated, mode, preference, setPreference, toggleMode]
+  );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

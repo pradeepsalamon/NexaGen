@@ -42,26 +42,27 @@ export function ApprovalsClient() {
 
   return (
     <div className="grid gap-6 pb-10">
-      <PageHeader
-        description="Review self-registered students and coach applications. Nobody can sign in until approved."
-        title="Approvals"
-      />
-
       <Tabs onValueChange={setTab} value={tab}>
-        <TabsList>
-          <TabsTrigger value="students">
-            <UserRoundCheck aria-hidden="true" className="size-4" />
-            Students
-            <CountBadge count={students.data?.students.length} />
-          </TabsTrigger>
-          {canReviewCoaches ? (
-            <TabsTrigger value="coaches">
-              <GraduationCap aria-hidden="true" className="size-4" />
-              Coaches
-              <CountBadge count={coaches.data?.coaches.length} />
-            </TabsTrigger>
-          ) : null}
-        </TabsList>
+        <PageHeader
+          description="Review self-registered students and coach applications. Nobody can sign in until approved."
+          tabs={
+            <TabsList>
+              <TabsTrigger value="students">
+                <UserRoundCheck aria-hidden="true" className="size-4" />
+                Students
+                <CountBadge count={students.data?.students.length} />
+              </TabsTrigger>
+              {canReviewCoaches ? (
+                <TabsTrigger value="coaches">
+                  <GraduationCap aria-hidden="true" className="size-4" />
+                  Coaches
+                  <CountBadge count={coaches.data?.coaches.length} />
+                </TabsTrigger>
+              ) : null}
+            </TabsList>
+          }
+          title="Approvals"
+        />
 
         <TabsContent className="mt-2" value="students">
           <PendingStudentsPanel

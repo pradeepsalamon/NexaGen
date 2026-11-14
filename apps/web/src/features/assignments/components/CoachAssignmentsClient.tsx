@@ -85,23 +85,24 @@ export function CoachAssignmentsClient() {
 
   return (
     <div className="animate-fade-in pb-10">
-      <PageHeader
-        actions={
-          <Button onClick={openCreate}>
-            <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            New assignment
-          </Button>
-        }
-        description="Build PGN assignments and send them to your batches with a due date."
-        title="Assignments"
-      />
-
       <Tabs defaultValue="library">
-        <TabsList aria-label="Assignments view">
-          <TabsTrigger value="library">Library ({library.length})</TabsTrigger>
-          <TabsTrigger value="assigned">Assigned ({deployments.length})</TabsTrigger>
-          <TabsTrigger value="due">Due dates</TabsTrigger>
-        </TabsList>
+        <PageHeader
+          actions={
+            <Button onClick={openCreate}>
+              <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              New assignment
+            </Button>
+          }
+          description="Build PGN assignments and send them to your batches with a due date."
+          tabs={
+            <TabsList aria-label="Assignments view">
+              <TabsTrigger value="library">Library ({library.length})</TabsTrigger>
+              <TabsTrigger value="assigned">Assigned ({deployments.length})</TabsTrigger>
+              <TabsTrigger value="due">Due dates</TabsTrigger>
+            </TabsList>
+          }
+          title="Assignments"
+        />
 
         <TabsContent value="due">
           <AssignmentOverviewPanel />

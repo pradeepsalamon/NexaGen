@@ -1,6 +1,5 @@
 "use client";
 
-import { PageHeader } from "@/components/layout/PageHeader";
 import { useProgressFor } from "../hooks/useProgress";
 import { StudentProgressWorkspace } from "./StudentProgressWorkspace";
 
@@ -24,12 +23,15 @@ export function StaffStudentProgressClient({
 
   return (
     <div className="animate-fade-in pb-10">
-      <PageHeader
-        breadcrumbs={[{ href: backHref, label: backLabel }, { label: name ?? "Student" }]}
-        description="Rating, results over time, areas to work on, and every recorded puzzle, class question and assignment."
-        title={name ? `${name}'s progress` : "Student progress"}
+      <StudentProgressWorkspace
+        header={{
+          breadcrumbs: [{ href: backHref, label: backLabel }, { label: name ?? "Student" }],
+          description:
+            "Rating, results over time, areas to work on, and every recorded puzzle, class question and assignment.",
+          title: name ? `${name}'s progress` : "Student progress"
+        }}
+        studentId={studentId}
       />
-      <StudentProgressWorkspace studentId={studentId} />
     </div>
   );
 }

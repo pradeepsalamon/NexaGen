@@ -219,7 +219,7 @@ export function StudentRevisionClient() {
         <SessionSummary done={done} onAgain={s.sessionSize > 0 ? begin : undefined} summary={s} />
       ) : s.sessionSize > 0 ? (
         <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
-          <div>
+          <div className="min-w-0 flex-1 basis-64">
             <p className="text-lg font-extrabold text-app-text">
               {s.sessionSize} {s.sessionSize === 1 ? "item" : "items"} ready · about {Math.max(1, s.estimatedMinutes)} min
             </p>
@@ -229,7 +229,7 @@ export function StudentRevisionClient() {
                 : "Due and overdue reviews come first, then a few new ones."}
             </p>
           </div>
-          <Button onClick={begin} type="button">
+          <Button className="ml-auto shrink-0" onClick={begin} type="button">
             <Brain aria-hidden="true" className="size-4" strokeWidth={2.5} />
             Start revision
           </Button>

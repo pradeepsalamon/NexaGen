@@ -118,6 +118,21 @@ const TabsList = React.forwardRef<
     return () => observer.disconnect();
   }, [canCollapse]);
 
+  // A collapsed strip in a content-sized parent (a page header) never sees that parent grow, so
+  // a wider window is the cue to try the full strip again.
+  React.useEffect(() => {
+    if (!canCollapse || !collapsed) return;
+    let width = window.innerWidth;
+    const onResize = () => {
+      if (window.innerWidth === width) return;
+      width = window.innerWidth;
+      setCollapsed(false);
+      setMeasure((n) => n + 1);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [canCollapse, collapsed]);
+
   // Page tabs sit on the right like every page control (UI_RULES §4); a caller's `w-full` or
   // `justify-self-start` still wins.
   const base =

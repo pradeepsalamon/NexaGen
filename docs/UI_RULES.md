@@ -160,7 +160,13 @@ disagree.
   give a page strip `w-full` — that left empty track on the right; only tabs
   that must fill a dialog or panel set `w-full`/`justify-self-start`);
   `justify-end` on filter/search rows; a lone CTA beside a wrapping text gets
-  `ml-auto`. **`DataTableToolbar`** below `sm` is a 2-column grid: search full
+  `ml-auto` (and its text `min-w-0 flex-1 basis-64`, never a `max-w-*` that
+  forces the wrap). **Page tabs share the title's row**: render the header
+  inside the page's `<Tabs>` and pass the strip as `PageHeader` `tabs` — it
+  sits beside the title when it fits and drops to its own right-aligned row
+  when it doesn't (not `actions`, whose 60% cap would collapse a long strip
+  into its menu). Tabs that belong to a section lower on the page stay there.
+  **`DataTableToolbar`** below `sm` is a 2-column grid: search full
   width on top, filters stretching to fill the next row, actions (View) at its
   end; from `sm` one right-aligned row at the callers' widths.
   **`DataTablePagination`** controls are on the right; below `sm` Previous/Next
