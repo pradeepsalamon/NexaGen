@@ -61,7 +61,28 @@ export interface SupportDemoRequest {
   level: SupportDemoLevel;
   parentName: string;
   preferredTime: string;
+  /** A demo class the parent picked from the offered slots; the API books it after the ticket. */
+  slotClassId?: string;
 }
+
+/**
+ * An upcoming demo class the bot may offer (the academy's demo schedules,
+ * read by the API just before the question). The API books it only after the
+ * parent confirms, and says the time is booked only once it is.
+ */
+export interface SupportDemoSlot {
+  /** The demo class (`CoachClass`) id. */
+  id: string;
+  /** WhatsApp list-row limit: 24 characters, e.g. "Tue 18 Nov, 5:00 pm". */
+  title: string;
+  /** WhatsApp list-row limit: 72 characters (the class topic). */
+  description?: string;
+}
+
+/** List rows for slots: WhatsApp allows 10, one is "Another time". */
+export const SUPPORT_DEMO_SLOTS_MAX = 9;
+export const SUPPORT_DEMO_SLOT_PREFIX = "demo.slot.";
+const DEMO_SLOT_OTHER = "demo.slot.other";
 
 /** An admin-written answer the bot may send (a SupportSavedReply with `showInBot`). */
 export interface SupportBotAnswer {
@@ -92,6 +113,10 @@ export interface SupportDraft {
   level?: SupportDemoLevel;
   parentName?: string;
   preferredTime?: string;
+  /** The offered demo slot the parent tapped (its class id and label). */
+  slotId?: string;
+  /** The parent chose "Another time": ask for a time in their own words. */
+  askedOwnTime?: boolean;
   /** "Did you mean …?" is waiting for Yes/No: the answer offered and the question as typed. */
   suggestion?: { answerId: string; question: string };
   /** Consecutive replies the bot couldn't understand. */
@@ -164,6 +189,8 @@ export interface SupportTransitionContext {
   redacted: boolean;
   /** The academy's saved answers shown in the bot, in menu order (at most SUPPORT_BOT_ANSWERS_MAX). */
   answers: SupportBotAnswer[];
+  /** Upcoming demo classes to offer at DEMO_TIME (at most SUPPORT_DEMO_SLOTS_MAX); none = ask for a time. */
+  demoSlots?: SupportDemoSlot[];
 }
 
 export interface SupportTransitionResult extends SupportConversationSnapshot {
@@ -338,7 +365,7 @@ function demoConfirmMessage(draft: SupportDraft): SupportReply {
       `Student: ${draft.studentName ?? "-"}, age ${draft.studentAge ?? "-"}`,
       `Level: ${draft.level ? SUPPORT_DEMO_LEVEL_LABELS[draft.level] : "-"}`,
       `Parent: ${draft.parentName ?? "-"}`,
-      `Preferred time: ${draft.preferredTime ?? "-"}`,
+      draft.slotId ? `Class: ${draft.preferredTime ?? "-"}` : `Preferred time: ${draft.preferredTime ?? "-"}`,
       "Book it?"
     ].join("\n"),
     buttons: DEMO_CONFIRM_BUTTONS,
@@ -366,11 +393,28 @@ function questionFor(state: SupportFlowState, draft: SupportDraft, ctx: SupportT
       return { body: `What is ${student}'s chess level?`, buttons: DEMO_LEVEL_BUTTONS, kind: "buttons" };
     case "DEMO_PARENT":
       return { body: "Thanks! And your name (parent or guardian)?", kind: "text" };
-    case "DEMO_TIME":
+    case "DEMO_TIME": {
+      const slots = (ctx.demoSlots ?? []).slice(0, SUPPORT_DEMO_SLOTS_MAX);
+      if (slots.length > 0 && !draft.askedOwnTime) {
+        return {
+          body: "Pick a time for the free demo class, or choose Another time.",
+          button: "See times",
+          kind: "list",
+          rows: [
+            ...slots.map((slot) => ({
+              id: `${SUPPORT_DEMO_SLOT_PREFIX}${slot.id}`,
+              title: slot.title.slice(0, 24),
+              ...(slot.description ? { description: slot.description.slice(0, 72) } : {})
+            })),
+            { description: "Tell us what suits you", id: DEMO_SLOT_OTHER, title: "Another time" }
+          ]
+        };
+      }
       return {
         body: "When would suit you for the free demo class? For example: weekdays after 5 pm, or Saturday morning.",
         kind: "text"
       };
+    }
     case "DEMO_CONFIRM":
       return demoConfirmMessage(draft);
     case "RESUME_PROMPT": {
@@ -767,7 +811,7 @@ export function supportDemoSummary(demo: SupportDemoRequest): string {
     `Student: ${demo.studentName}, age ${demo.studentAge}`,
     `Level: ${SUPPORT_DEMO_LEVEL_LABELS[demo.level]}`,
     `Parent: ${demo.parentName}`,
-    `Preferred time: ${demo.preferredTime}`
+    demo.slotClassId ? `Chosen class: ${demo.preferredTime}` : `Preferred time: ${demo.preferredTime}`
   ].join("\n");
 }
 
@@ -777,6 +821,7 @@ function demoFromDraft(draft: SupportDraft): SupportDemoRequest | null {
     level: draft.level,
     parentName: draft.parentName,
     preferredTime: draft.preferredTime,
+    ...(draft.slotId ? { slotClassId: draft.slotId } : {}),
     studentAge: draft.studentAge,
     studentName: draft.studentName
   };
@@ -1076,6 +1121,19 @@ export function transitionSupport(
     }
 
     case "DEMO_TIME": {
+      if (input.kind === "reply" && input.id === DEMO_SLOT_OTHER) {
+        const nextDraft: SupportDraft = { ...draft, askedOwnTime: true, invalidCount: 0 };
+        return withWarning(result({ draft: nextDraft, state: "DEMO_TIME", status: "BOT" }, [questionFor("DEMO_TIME", nextDraft, ctx)]));
+      }
+      if (input.kind === "reply" && input.id.startsWith(SUPPORT_DEMO_SLOT_PREFIX)) {
+        const slot = (ctx.demoSlots ?? []).find((candidate) => `${SUPPORT_DEMO_SLOT_PREFIX}${candidate.id}` === input.id);
+        if (!slot) {
+          // An old list: that class has started or is gone. Offer the current times.
+          return withWarning(invalid(current, "That time is no longer available.", questionFor("DEMO_TIME", draft, ctx)));
+        }
+        const nextDraft: SupportDraft = { ...draft, invalidCount: 0, preferredTime: slot.title, slotId: slot.id };
+        return withWarning(result({ draft: nextDraft, state: "DEMO_CONFIRM", status: "BOT" }, [demoConfirmMessage(nextDraft)]));
+      }
       const time = input.kind === "text" ? input.text.trim().replace(/\s+/g, " ") : "";
       const { max, min } = SUPPORT_INPUT_LIMITS.preferredTime;
       if (time.length < min || time.length > max) {
@@ -1083,7 +1141,8 @@ export function transitionSupport(
           invalid(current, `Please tell us a day and time that suits you (under ${max} characters).`, questionFor("DEMO_TIME", draft, ctx))
         );
       }
-      const nextDraft: SupportDraft = { ...draft, invalidCount: 0, preferredTime: time };
+      // Typed words are a preferred time even while the list is showing.
+      const nextDraft: SupportDraft = { ...draft, invalidCount: 0, preferredTime: time, slotId: undefined };
       return withWarning(result({ draft: nextDraft, state: "DEMO_CONFIRM", status: "BOT" }, [demoConfirmMessage(nextDraft)]));
     }
 
@@ -1096,7 +1155,9 @@ export function transitionSupport(
             { draft: {}, state: "DONE", status: "WAITING_AGENT" },
             [
               {
-                body: `Thank you, ${demo.parentName}! Your free demo request ${SUPPORT_TICKET_REFERENCE_PLACEHOLDER} is with our team. We'll message you here soon to fix the time. Reply MENU if you need anything else.`,
+                body: demo.slotClassId
+                  ? `Thank you, ${demo.parentName}! Your free demo request ${SUPPORT_TICKET_REFERENCE_PLACEHOLDER} is in. One moment while we book your place.`
+                  : `Thank you, ${demo.parentName}! Your free demo request ${SUPPORT_TICKET_REFERENCE_PLACEHOLDER} is with our team. We'll message you here soon to fix the time. Reply MENU if you need anything else.`,
                 kind: "text"
               }
             ],

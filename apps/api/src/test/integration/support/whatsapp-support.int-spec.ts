@@ -478,6 +478,70 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       expect(await db(() => t.prisma.leadActivity.count({ where: { activityType: "WHATSAPP_DEMO_REQUEST", leadId: lead.id } }))).toBe(1);
     });
 
+    it("books a real demo time: a registration, the join link, and nothing left for staff", async () => {
+      const coach = await db(() => createUser(t.prisma, UserRole.COACH));
+      const schedule = await db(() =>
+        t.prisma.demoSchedule.create({ data: { coachId: coach.id, slots: [], slug: "int-trial", topic: "Chess basics" } })
+      );
+      const startsAt = new Date(Date.now() + 2 * 24 * 60 * 60_000);
+      const occurrence = (offsetMs: number) =>
+        db(() =>
+          t.prisma.coachClass.create({
+            data: {
+              coachId: coach.id,
+              demoScheduleId: schedule.id,
+              endsAt: new Date(startsAt.getTime() + offsetMs + 60 * 60_000),
+              isDemo: true,
+              startsAt: new Date(startsAt.getTime() + offsetMs),
+              status: "SCHEDULED",
+              topic: "Chess basics"
+            }
+          })
+        );
+      const first = await occurrence(0);
+      const second = await occurrence(24 * 60 * 60_000);
+
+      async function upToTime(from: string) {
+        await say(textFrom(from, "hi"));
+        await say(textFrom(from, "1"));
+        await say(tapFrom(from, "course.demo"));
+        for (const answer of ["Asha Menon", "9"]) await say(textFrom(from, answer));
+        await say(tapFrom(from, "demo.level.beginner"));
+        sent = [];
+        await say(textFrom(from, "Priya Menon"));
+        expect(sent.at(-1)).toMatchObject({ type: "list" });
+      }
+
+      await upToTime(ALLOWED_NUMBER);
+      await say(tapFrom(ALLOWED_NUMBER, `demo.slot.${first.id}`));
+      await say(tapFrom(ALLOWED_NUMBER, "confirm.send"));
+
+      const lead = await db(() => t.prisma.lead.findFirstOrThrow({ where: { phone: ALLOWED_NUMBER } }));
+      expect(lead).toMatchObject({ assignedClassId: first.id, status: "DEMO_SCHEDULED" });
+      const registration = await db(() => t.prisma.demoClassRegistration.findFirstOrThrow({ where: { classId: first.id } }));
+      expect(registration).toMatchObject({ leadId: lead.id, source: "LEAD" });
+      expect(sent.at(-1)?.body).toContain("You're booked: free demo class on");
+      expect(sent.at(-1)?.body).toContain(`/demo/${first.id}?invite=${registration.inviteToken}`);
+      const ticket = await db(() => t.prisma.supportTicket.findFirstOrThrow({ where: { leadId: lead.id } }));
+      expect(ticket.status).toBe("RESOLVED");
+      const conversation = await db(() => t.prisma.supportConversation.findFirstOrThrow({ where: { id: ticket.conversationId } }));
+      expect(conversation.status).toBe("BOT");
+
+      // The class is cancelled between the pick and the confirm: never "booked", staff fix the time.
+      await upToTime(OTHER_ALLOWED_NUMBER);
+      await say(tapFrom(OTHER_ALLOWED_NUMBER, `demo.slot.${second.id}`));
+      await db(() => t.prisma.coachClass.update({ data: { status: "CANCELLED" }, where: { id: second.id } }));
+      sent = [];
+      await say(tapFrom(OTHER_ALLOWED_NUMBER, "confirm.send"));
+      expect(sent.map((message) => message.body).join("\n")).not.toContain("You're booked");
+      expect(sent.at(-1)?.body).toContain("Our team will message you here soon to fix a time.");
+      const otherTicket = await db(() =>
+        t.prisma.supportTicket.findFirstOrThrow({ where: { contact: { waId: OTHER_ALLOWED_NUMBER } } })
+      );
+      expect(otherTicket.status).toBe("OPEN");
+      expect(await db(() => t.prisma.demoClassRegistration.count({ where: { classId: second.id } }))).toBe(0);
+    });
+
     it("reminds admins about a request nobody answered, at most twice", async () => {
       const followUps = t.app.get(SupportFollowUpService);
       await say(textFrom(ALLOWED_NUMBER, "hi"));

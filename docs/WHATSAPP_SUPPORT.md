@@ -112,6 +112,21 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   academy's `outOfHoursMessage` (default: "Our team is away right now…", never
   a time it didn't write), once per hand-off. Staff reminders wait until
   opening time.
+- *Real demo times* (Phase C): at DEMO_TIME the bot lists up to 9 upcoming
+  occurrences of the academy's **active demo schedules** (`SupportDemoSlotsService.upcoming`:
+  `SCHEDULED`, starting 1 h to 14 days ahead; one-off demo classes an admin
+  made for a family are never offered), labelled in the schedule's zone
+  ("Wed 18 Nov, 5:00 pm"), plus "Another time" (then a typed time, as before).
+  Typed words always count as a preferred time; a tap from an old list gets
+  "no longer available" and the current list. After "Book demo" the request
+  and lead are saved as before, then `DemoInviteService.bookLead` (actor = the
+  bot, null) registers the lead into that class. **Only a booking that
+  succeeded is announced** ("You're booked … Join from this link: /demo/<class>?invite=<token>"
+  on the academy's own address, `SupportDemoSlotsService.academyOrigin`); the
+  request is then RESOLVED with an event and the bot has the conversation
+  again. If the class has started, changed or gone, the parent is told staff
+  will fix a time and the request stays OPEN for staff. The privacy link in the
+  greeting also uses the academy's own address now.
 - *Delivery status for rules and system messages* (Phase C): a status webhook
   for a `message_deliveries` row sets `deliveredAt` / `readAt` (read implies
   delivered), and a late `failed` marks it FAILED with Meta's reason. The

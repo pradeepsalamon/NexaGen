@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
   DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE,
@@ -13,14 +13,20 @@ import {
   type SupportFlowState,
   type SupportInput
 } from "@nexa-chess/types";
-import { MessageChannel, MessageDeliveryStatus, Prisma, type Lead, type SupportConversation, type SupportTicket, type WhatsAppContact, type WhatsAppWebhookEvent } from "@prisma/client";
+import { ClassStatus, MessageChannel, MessageDeliveryStatus, Prisma, type Lead, type SupportConversation, type SupportTicket, type WhatsAppContact, type WhatsAppWebhookEvent } from "@prisma/client";
+import { DEFAULT_TIME_ZONE } from "../common/time";
+import { DemoInviteService, demoInvitePath } from "../demo-class/demo-invite.service";
 import { LeadService } from "../lead/lead.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
+import { SupportDemoSlotsService, supportSlotTitle } from "./support-demo-slots.service";
 import { SupportOutboxService } from "./support-outbox.service";
 import { SupportSettingsService } from "./support-settings.service";
 import { SupportTicketsService } from "./support-tickets.service";
 import { SupportUnansweredService } from "./support-unanswered.service";
+
+/** A slot the parent confirmed, booked after the bot's transaction commits. */
+type DemoSlotBooking = { classId: string; conversationId: string; leadId: string; ticketId: string };
 
 /** A bot conversation silent this long is closed; the next message starts a new one. */
 export const SUPPORT_CONVERSATION_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -55,7 +61,11 @@ function inboundBody(event: WhatsAppWebhookEvent): string {
 export class SupportConversationService {
   private readonly env = getApiEnv();
 
+  private readonly logger = new Logger(SupportConversationService.name);
+
   constructor(
+    private readonly demoInvites: DemoInviteService,
+    private readonly demoSlots: SupportDemoSlotsService,
     private readonly leads: LeadService,
     private readonly outbox: SupportOutboxService,
     private readonly prisma: PrismaService,
@@ -81,6 +91,7 @@ export class SupportConversationService {
     const academy = await this.prisma.tenant.findUnique({ select: { name: true }, where: { id: tenantId } });
     const answers = await this.botAnswers();
     const settings = await this.settings.current();
+    const origin = await this.demoSlots.academyOrigin();
     const contact = await this.prisma.whatsAppContact.upsert({
       create: { lastInboundAt: event.occurredAt, profileName: event.profileName, waId: event.waId },
       update: {
@@ -115,6 +126,9 @@ export class SupportConversationService {
         }
       });
 
+      // Real demo times, read only while a booking is under way.
+      const state = isFlowState(conversation.state) ? conversation.state : "MAIN_MENU";
+      const demoSlots = state.startsWith("DEMO_") || state === "RESUME_PROMPT" ? await this.demoSlots.upcoming(now) : [];
       const next = transitionSupport(
         {
           draft: (conversation.draft ?? {}) as SupportDraft,
@@ -125,13 +139,15 @@ export class SupportConversationService {
         {
           academyName: academy?.name ?? "academy",
           answers,
+          demoSlots,
           idle,
-          privacyUrl: `${getFrontendUrl(this.env)}/privacy`,
+          privacyUrl: `${origin ?? getFrontendUrl(this.env)}/privacy`,
           redacted: wasRedacted(event.text)
         }
       );
 
       let ticket: SupportTicket | null = null;
+      let booking: DemoSlotBooking | null = null;
       let announce = false;
       let newLead: Lead | null = null;
       const unansweredTexts: string[] = [];
@@ -154,6 +170,9 @@ export class SupportConversationService {
           });
           ticket = opened.ticket;
           announce = opened.created;
+          if (action.demo?.slotClassId && lead) {
+            booking = { classId: action.demo.slotClassId, conversationId: conversation.id, leadId: lead.lead.id, ticketId: opened.ticket.id };
+          }
           if (lead?.created) newLead = lead.lead;
         } else if (action.kind === "UNANSWERED") {
           unansweredTexts.push(action.text);
@@ -205,17 +224,80 @@ export class SupportConversationService {
         });
       }
 
-      return { announce, conversationId: conversation.id, newLead, ticket, unansweredTexts };
+      return { announce, booking, conversationId: conversation.id, newLead, ticket, unansweredTexts };
     });
 
     if (!outcome) return;
     await this.outbox.sendPending(outcome.conversationId);
+    if (outcome.booking) await this.bookDemoSlot(outcome.booking, contact.id, origin);
     // Best effort, outside the bot's transaction: a lost count never costs a reply.
     if (outcome.unansweredTexts.length > 0) await this.unanswered.record(outcome.unansweredTexts, now);
     // One alert per booking: a new lead is announced as a lead (NEW_LEAD_ADMIN,
     // like the website form); anything else as a support ticket.
     if (outcome.newLead) await this.leads.announceNewLead(outcome.newLead);
     else if (outcome.announce && outcome.ticket) await this.tickets.announce(outcome.ticket, contact);
+  }
+
+  /**
+   * Books the demo class the parent picked, after their request is saved
+   * (docs/WHATSAPP_SUPPORT_MODES_PLAN.md Phase C). Only a booking that
+   * succeeded is announced as booked, with the class time and join link; the
+   * request then needs no staff and is resolved. Otherwise the parent hears
+   * that staff will fix a time, and the request stays with them.
+   */
+  private async bookDemoSlot(booking: DemoSlotBooking, contactId: string, origin: string | null): Promise<void> {
+    let booked: { body: string; when: string } | null = null;
+    try {
+      const demoClass = await this.demoInvites.getInvitableClass(booking.classId);
+      if (demoClass.status !== ClassStatus.SCHEDULED || demoClass.startsAt.getTime() <= Date.now()) {
+        throw new Error("the class has started or changed");
+      }
+      const lead = await this.prisma.lead.findUniqueOrThrow({ where: { id: booking.leadId } });
+      const { inviteToken } = await this.demoInvites.bookLead(demoClass, lead, null);
+      const schedule = demoClass.demoScheduleId
+        ? await this.prisma.demoSchedule.findUnique({ select: { timezone: true }, where: { id: demoClass.demoScheduleId } })
+        : null;
+      const when = supportSlotTitle(demoClass.startsAt, schedule?.timezone ?? DEFAULT_TIME_ZONE);
+      const topic = demoClass.topic ? ` (${demoClass.topic})` : "";
+      const link = origin ? `${origin}${demoInvitePath(demoClass.id, inviteToken)}` : null;
+      booked = {
+        body: [
+          `You're booked: free demo class on ${when}${topic}.`,
+          link ? `Join from this link at class time: ${link}` : "We'll send you the joining link before the class.",
+          "Reply MENU if you need anything else."
+        ].join("\n"),
+        when
+      };
+    } catch (error) {
+      this.logger.warn(`Demo booking for ticket ${booking.ticketId} failed: ${(error as Error).message}`);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`support-contact:${contactId}`}))`;
+      await tx.supportMessage.create({
+        data: {
+          author: "BOT",
+          body:
+            booked?.body ??
+            "Sorry, we couldn't book that time; it may have just changed. Our team will message you here soon to fix a time.",
+          clientKey: `demo-booking:${booking.ticketId}`,
+          conversationId: booking.conversationId,
+          direction: "OUTBOUND",
+          status: "PENDING"
+        }
+      });
+      if (!booked) return;
+      // Nothing left for staff: the bot has the conversation again.
+      await tx.supportConversation.updateMany({
+        data: { draft: {}, state: "DONE", status: "BOT" },
+        where: { id: booking.conversationId, status: "WAITING_AGENT" }
+      });
+      await tx.supportTicket.update({ data: { resolvedAt: new Date(), status: "RESOLVED" }, where: { id: booking.ticketId } });
+      await tx.supportTicketEvent.create({
+        data: { body: `The WhatsApp bot booked this demo class: ${booked.when}.`, kind: "STATUS_CHANGED", ticketId: booking.ticketId }
+      });
+    });
+    await this.outbox.sendPending(booking.conversationId);
   }
 
   /**

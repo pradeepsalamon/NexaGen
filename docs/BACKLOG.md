@@ -186,6 +186,11 @@ its precondition, the student training surface, now exists).
   **Next phases are planned in [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md)
   (2026-11-14, proposal; open decisions in its §0 come first; D3, D6, D12,
   D13 answered).** Its G1 finding is fixed: a bot reply staff overtook is no longer sent.
+  Found while building Phase C (2026-11-14): messaging rules and system
+  messages build their links with `getFrontendUrl` (Nexa's address) for every
+  academy, so another academy's WhatsApp/email links open Nexa's site. The
+  support bot now uses the academy's primary domain
+  (`SupportDemoSlotsService.academyOrigin`); the shared senders don't yet.
 
 - **Unused asset: `apps/web/public/auth/auth_light.webp`** (2026-11-03). Since the
   M4 auth redesign the auth panel is navy in both themes and shows only

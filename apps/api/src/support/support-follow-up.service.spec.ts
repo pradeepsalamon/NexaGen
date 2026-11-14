@@ -1,3 +1,4 @@
+import { supportSlotTitle } from "./support-demo-slots.service";
 import { leadPhoneFromWaId } from "./support-conversation.service";
 import { supportNudgeDue, supportReminderDue } from "./support-follow-up.service";
 import { toItems } from "./support-saved-replies.service";
@@ -75,5 +76,14 @@ describe("saved answers toItems", () => {
     const items = toItems(rows);
     expect(items[0].inBotMenu).toBe(false);
     expect(items.filter((item) => item.inBotMenu).map((item) => item.id)).toEqual(["a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"]);
+  });
+});
+
+describe("supportSlotTitle", () => {
+  it("fits a WhatsApp list row and uses the schedule's own zone", () => {
+    const title = supportSlotTitle(new Date("2026-11-18T11:30:00Z"), "Asia/Kolkata");
+    expect(title).toBe("Wed 18 Nov, 5:00 pm");
+    expect(title.length).toBeLessThanOrEqual(24);
+    expect(supportSlotTitle(new Date("2026-11-18T11:30:00Z"), "Mars/Olympus")).toBe("Wed 18 Nov, 5:00 pm"); // falls back to India
   });
 });

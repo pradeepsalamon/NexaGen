@@ -295,6 +295,55 @@ describe("free demo booking", () => {
     expect(prompt.replies[0].body).toContain("booking a free demo class");
   });
 
+  describe("with the academy's real demo times", () => {
+    const slots: SupportTransitionContext = {
+      ...ctx,
+      demoSlots: [
+        { description: "Chess basics", id: "class_tue", title: "Tue 18 Nov, 5:00 pm" },
+        { id: "class_sat", title: "Sat 22 Nov, 10:00 am" }
+      ]
+    };
+    const filled = { category: "COURSE" as const, level: "beginner" as const, parentName: "Priya", studentAge: 9, studentName: "Asha" };
+
+    it("offers the times as a list with Another time, and a tap books that class", () => {
+      const ask = transitionSupport(at("DEMO_PARENT", { ...filled, parentName: undefined }), text("Priya"), slots);
+      expect(ask.state).toBe("DEMO_TIME");
+      expect(ask.replies[0]).toMatchObject({ kind: "list" });
+      const rows = ask.replies[0].kind === "list" ? ask.replies[0].rows : [];
+      expect(rows.map((row) => row.id)).toEqual(["demo.slot.class_tue", "demo.slot.class_sat", "demo.slot.other"]);
+
+      const confirm = transitionSupport(at("DEMO_TIME", filled), tap("demo.slot.class_tue"), slots);
+      expect(confirm).toMatchObject({ draft: { preferredTime: "Tue 18 Nov, 5:00 pm", slotId: "class_tue" }, state: "DEMO_CONFIRM" });
+      expect(confirm.replies[0].body).toContain("Class: Tue 18 Nov, 5:00 pm");
+
+      const sent = transitionSupport(at("DEMO_CONFIRM", confirm.draft), tap("confirm.send"), slots);
+      expect(sent.actions[0]).toMatchObject({ demo: { preferredTime: "Tue 18 Nov, 5:00 pm", slotClassId: "class_tue" }, kind: "TICKET" });
+      // Booked is said only by the API, after the booking succeeds.
+      expect(sent.replies[0].body).not.toMatch(/booked/i);
+    });
+
+    it("asks in words after Another time, and takes typed words as a preferred time", () => {
+      const other = transitionSupport(at("DEMO_TIME", filled), tap("demo.slot.other"), slots);
+      expect(other).toMatchObject({ draft: { askedOwnTime: true }, state: "DEMO_TIME" });
+      expect(other.replies[0].kind).toBe("text");
+      const typed = transitionSupport(at("DEMO_TIME", filled), text("Sunday evening"), slots);
+      expect(typed).toMatchObject({ draft: { preferredTime: "Sunday evening" }, state: "DEMO_CONFIRM" });
+      expect(typed.draft.slotId).toBeUndefined();
+    });
+
+    it("refuses a time from an old list and shows the current ones", () => {
+      const stale = transitionSupport(at("DEMO_TIME", filled), tap("demo.slot.class_gone"), slots);
+      expect(stale.state).toBe("DEMO_TIME");
+      expect(stale.replies.map((reply) => reply.body).join(" ")).toContain("no longer available");
+      expect(stale.replies.at(-1)?.kind).toBe("list");
+    });
+
+    it("asks in words when the academy has no upcoming demo times", () => {
+      const ask = transitionSupport(at("DEMO_PARENT", { ...filled, parentName: undefined }), text("Priya"), { ...ctx, demoSlots: [] });
+      expect(ask.replies[0].kind).toBe("text");
+    });
+  });
+
   it("never books with a half-filled draft", () => {
     const next = transitionSupport(at("DEMO_CONFIRM", { category: "COURSE", studentName: "Asha" }), tap("confirm.send"), ctx);
     expect(next.actions).toEqual([]);
