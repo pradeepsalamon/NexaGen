@@ -107,9 +107,12 @@ code on 2026-10-31.
   disappears behind the root spinner. **2026-11-14:** navigation started in
   code starts it too: `useRouter` comes from `@/lib/navigation` (45 files;
   ESLint rejects the `next/navigation` one), whose `push`/`replace` fire
-  `nexa:navigation-start` when the path changes. **Still open:** it has only
-  been checked on the dev server with delayed responses, not `next start` on
-  "Slow 4G". It only makes the wait visible; a slow server needs its own look.
+  `nexa:navigation-start` when the path changes. **Checked 2026-11-15 on a
+  production build** (`next start`, Chrome "Slow 4G", `/` → `/login`): with the
+  page prefetched the bar shows at the click and the page lands in ~30 ms; with
+  the prefetch held back 6 s the bar shows at the click (+0 ms) and stays until
+  the page lands (+3.4 s), then finishes. It only makes the wait visible; a slow
+  server needs its own look.
 
 - **Smart Revision:** non-puzzle item kinds (lessons / `REPLAY` assignments,
   course modules, live-class chapters). Blocked by design: no graded attempt to
