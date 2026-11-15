@@ -155,16 +155,15 @@ export function CompensationProfileDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="currency">Currency</Label>
+            <div className="grid grid-cols-2 items-start gap-3">
+              <FormField id="currency" label="Currency">
                 <Input
                   id="currency"
                   maxLength={3}
                   onChange={(event) => setCurrency(event.target.value.toUpperCase())}
                   value={currency}
                 />
-              </div>
+              </FormField>
               <FormField
                 error={tdsPercentValid ? undefined : "Enter a rate from 0 to 100."}
                 hint="Blank = the academy's rate. 0 = no TDS for this coach."
