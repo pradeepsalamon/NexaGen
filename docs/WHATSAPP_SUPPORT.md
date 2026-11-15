@@ -174,14 +174,15 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   per-minute sweep (`JOB_LOCKS.crmLeadPush`) retries after 1 m, 5 m, 30 m, 2 h,
   12 h.
   - *What is sent*: `POST /api/resource/CRM Lead` with the parent's name,
-    `+<country>` mobile, the child's name (`student_name`, a custom field on
+    `+<country>` mobile, email (when the form had one), the child's name (`student_name`, a custom field on
     crm.nexachess.in; ignored where it doesn't exist), `FRAPPE_CRM_LEAD_STATUS`
     and the source: `FRAPPE_CRM_LEAD_SOURCE` for a WhatsApp lead,
     `FRAPPE_CRM_WEBSITE_LEAD_SOURCE` ("Website Form") for a form lead. Then an
     `FCRM Note` with the child's name, age and level, the parent's email, where
     a form lead came from (UTM source / referrer, campaign) and the NexaGen
-    lead id. The email goes on the note only, never the lead's `email` field
-    (Frappe looks that field up with outside services).
+    lead id. If Frappe refuses the lead and it had an email (Frappe checks
+    addresses its own way), it is sent once more without that field; the note
+    still has the address.
   - *Same number, no twin*: before creating, the push asks Frappe for the
     newest lead of the last 90 days (`CRM_SAME_NUMBER_DAYS`) whose `mobile_no`
     ends in the same ten digits: an ad-form lead, the other channel, a lead the

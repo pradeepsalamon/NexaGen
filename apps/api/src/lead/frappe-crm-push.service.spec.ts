@@ -52,10 +52,10 @@ describe("Frappe CRM documents", () => {
     expect(frappeLeadDocument({ ...LEAD, parentName: "  " }, CONFIG).first_name).toBe("WhatsApp lead");
   });
 
-  it("gives a website-form lead the website source, and keeps its email and attribution to the note", () => {
+  it("gives a website-form lead the website source and its email, and puts the attribution on the note", () => {
     const document = frappeLeadDocument(WEBSITE_LEAD, CONFIG);
-    expect(document).toMatchObject({ mobile_no: "+919876543210", source: "Website Form", status: "New Inquiry" });
-    expect(document).not.toHaveProperty("email");
+    expect(document).toMatchObject({ email: "asha@example.test", mobile_no: "+919876543210", source: "Website Form", status: "New Inquiry" });
+    expect(frappeLeadDocument(LEAD, CONFIG)).not.toHaveProperty("email");
     expect(frappeLeadDocument({ ...WEBSITE_LEAD, parentName: "" }, CONFIG).first_name).toBe("Website lead");
 
     const note = frappeLeadNote(WEBSITE_LEAD);
@@ -190,6 +190,23 @@ describe("FrappeCrmPushService.send", () => {
     expect(updates[0]).toMatchObject({ error: "Frappe answered 503: down" });
     expect(updates[0].status).toBeUndefined();
     expect(activities).toEqual([]);
+  });
+
+  it("creates the lead without its email when Frappe refuses the address", async () => {
+    const { prisma, updates } = fakePrisma({ attempts: 0, createdAt: LEAD.createdAt, id: "p1", lead: WEBSITE_LEAD, leadId: "lead_2" });
+    const leadPosts: Record<string, unknown>[] = [];
+    global.fetch = jest.fn(async (url: string, init: RequestInit) => {
+      if (init.method === "GET") return reply(200, { data: [] });
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      if (!url.endsWith("/api/resource/CRM%20Lead")) return reply(200, { data: { name: "note1" } });
+      leadPosts.push(body);
+      return body.email ? reply(417, { exception: "InvalidEmailAddressError" }) : reply(200, { data: { name: "CRM-LEAD-2026-00044" } });
+    }) as unknown as typeof fetch;
+
+    await service(prisma).send("p1");
+
+    expect(leadPosts.map((body) => "email" in body)).toEqual([true, false]);
+    expect(updates[0]).toMatchObject({ externalId: "CRM-LEAD-2026-00044", status: "SENT" });
   });
 
   it("doesn't look a too-short number up, it just creates the lead", async () => {

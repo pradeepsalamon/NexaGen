@@ -59,12 +59,12 @@ export function phoneTail(phone: string): string {
 
 /**
  * The `CRM Lead` document (fields checked against Frappe CRM v16 on crm.nexachess.in, 2026-11-15).
- * `student_name` is a custom field there; a Frappe site without it ignores the key. The parent's
- * email is left to the note: Frappe looks an `email` up with outside services.
+ * `student_name` is a custom field there; a Frappe site without it ignores the key.
  */
 export function frappeLeadDocument(lead: PushLead, config: FrappeCrmConfig) {
   const whatsapp = fromWhatsApp(lead);
   return {
+    ...(lead.email ? { email: lead.email } : {}),
     first_name: lead.parentName.trim().slice(0, 140) || (whatsapp ? "WhatsApp lead" : "Website lead"),
     mobile_no: frappePhone(lead.phone, config.countryCode),
     source: whatsapp ? config.leadSource : config.websiteLeadSource,
@@ -269,7 +269,15 @@ export class FrappeCrmPushService {
   }
 
   private async create(config: FrappeCrmConfig, lead: PushLead): Promise<string> {
-    const created = (await this.request(config, "POST", "/api/resource/CRM%20Lead", frappeLeadDocument(lead, config))) as { data?: { name?: unknown } };
+    const { email, ...withoutEmail } = frappeLeadDocument(lead, config);
+    let created: { data?: { name?: unknown } };
+    try {
+      created = (await this.request(config, "POST", "/api/resource/CRM%20Lead", email ? { ...withoutEmail, email } : withoutEmail)) as typeof created;
+    } catch (error) {
+      // Frappe checks an email address its own way. The lead matters more than that field, and the note keeps the address.
+      if (!email || !(error instanceof FrappeCrmRejectedError)) throw error;
+      created = (await this.request(config, "POST", "/api/resource/CRM%20Lead", withoutEmail)) as typeof created;
+    }
     const name = created?.data?.name;
     if (typeof name !== "string" || !name) throw new Error("Frappe didn't return the new lead's name.");
     return name;
