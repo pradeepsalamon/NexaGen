@@ -802,6 +802,7 @@ function buttonChoice(input: SupportInput, state: SupportFlowState): ButtonChoic
     return buttons.some((button) => button.id === input.id) ? ids[input.id] ?? null : null;
   }
   if (input.kind !== "text") return null;
+  // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- /^\d+$/ runs in linear time
   const text = normalizeSupportText(input.text);
   const index = /^\d+$/.test(text) ? Number(text) - 1 : -1;
   const button =
@@ -965,6 +966,7 @@ export function transitionSupport(
   ctx: SupportTransitionContext
 ): SupportTransitionResult {
   const command = globalCommand(input);
+  // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- the regexes below (\p{L}, \s+) run in linear time
   const draft = current.draft ?? {};
   const warning: SupportReply[] = ctx.redacted
     ? [{ body: `For your safety I removed a card number or code from your message. ${NEVER_SEND}`, kind: "text" }]
