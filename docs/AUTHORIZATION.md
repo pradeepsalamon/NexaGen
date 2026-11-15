@@ -157,9 +157,11 @@ can't silently switch off.
   needs adding there.
 - **CSP reports**: both policies send violations (`report-to csp-endpoint` +
   `Reporting-Endpoints`, and `report-uri` for Firefox) to
-  `/api/security/csp-report` on the site's own host, which the `/api` rewrite
-  (or nginx) passes to the API's public `POST /security/csp-report`
-  (`csp-report/`). It always answers 204, stores nothing, and logs one
+  `/api/security/csp-report` on the site's own host, which nginx's
+  `location /api/` rule passes to the API's public `POST /security/csp-report`
+  (`csp-report/`). Production needs that rule on every web host
+  (docs/DEPLOYMENT.md Step 4): the web build's `/api` rewrite can't reach the
+  API from inside the web container, so without it every report is a 500. It always answers 204, stores nothing, and logs one
   `csp-violation` warn line per distinct violation on its 1st, 10th, 100th, …
   occurrence, with origin + path only (no query string, sample or user agent).
   It's on the CSRF exempt list and needs no academy. To find what enforcing the

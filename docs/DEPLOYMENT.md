@@ -102,6 +102,17 @@ Browsers strictly require a secure `https://` connection to access a user's came
    server {
        server_name yourdomain.com;
 
+       # Required: every page posts its CSP violation reports to
+       # /api/security/csp-report on its own host (docs/AUTHORIZATION.md "CSP
+       # reports"). The trailing slash strips the /api prefix. Copy the proxy_*
+       # lines of the API block below into it. Without this rule the request falls
+       # to the web app's /api rewrite, which can't reach the API from inside the
+       # web container, and every report is a 500.
+       location /api/ {
+           proxy_pass http://127.0.0.1:3001/;
+           # ... same proxy_set_header lines as the API domain's `location /`
+       }
+
        location / {
            proxy_pass http://127.0.0.1:3000;
            proxy_http_version 1.1;
@@ -231,8 +242,9 @@ subdomain (staging, the CRM, academies' `<slug>.nexachess.in`) receives them.
 Academies already use host-only cookies. To move Nexa too (docs/AUTHORIZATION.md
 "Host-only vs domain-wide"):
 
-1. nginx: in the `nexachess.in` (and `www.`) server block, add the same rule the
-   academies use, **above** `location /`:
+1. nginx (**already in place on production since 2026-11-15**, added for CSP
+   reports, Step 4): in the `nexachess.in` (and `www.`) server block, the same
+   rule the academies use, **above** `location /`:
    `location /api/ { proxy_pass http://127.0.0.1:3001/; include /etc/nginx/nexa-proxy.conf; }`
    (one proxy hop, so `TRUST_PROXY_HOPS=1` still sees the visitor's IP; never
    rely on the web build's `/api` rewrite in production). `nginx -t && reload`.
