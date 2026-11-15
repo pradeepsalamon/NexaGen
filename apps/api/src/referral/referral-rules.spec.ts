@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import {
+  paidWithdrawalsFromCsv,
+  parseCsvRows,
   referralPointsExpired,
   canAutoAdvanceReferral,
   canHoldReferralLink,
@@ -190,5 +192,37 @@ describe("referral points expiry", () => {
     ];
     expect(referralPointsExpired(afterExpiry, cutoff)).toBe(0);
     expect(referralPointsExpired([{ amountMinor: -40, createdAt: day(1) }], cutoff)).toBe(0);
+  });
+});
+
+describe("paidWithdrawalsFromCsv (the export read back with references)", () => {
+  const header = "Requested at (UTC),Name,Email,Role,Amount,Currency,Payout details,Status,Payout reference,Withdrawal ID";
+
+  it("takes REQUESTED rows with a reference, and only those", () => {
+    const text = [
+      header,
+      '2026-11-01T00:00:00.000Z,Asha,a@x.in,COACH,500.00,INR,"a@upi\nline two",REQUESTED,UTR-1,w1',
+      "2026-11-01T00:00:00.000Z,Ravi,r@x.in,COACH,200.00,INR,r@upi,REQUESTED,,w2",
+      "2026-11-01T00:00:00.000Z,Mei,m@x.in,SALES,100.00,INR,m@upi,PAID,OLD,w3"
+    ].join("\r\n");
+    expect(paidWithdrawalsFromCsv(text)).toEqual({ items: [{ id: "w1", payoutReference: "UTR-1" }], problems: [] });
+  });
+
+  it("reads what a spreadsheet saves: BOM, semicolons, quotes and the formula guard", () => {
+    const text = `\uFEFF${header.replace(/,/g, ";")}\n2026;Asha;a@x.in;COACH;500,00;INR;'=a@upi;REQUESTED;"'=UTR ""9""";w1\n`;
+    expect(paidWithdrawalsFromCsv(text).items).toEqual([{ id: "w1", payoutReference: '=UTR "9"' }]);
+  });
+
+  it("explains a wrong file and repeated rows", () => {
+    expect(paidWithdrawalsFromCsv("a,b\n1,2").problems[0]).toContain("Withdrawal ID");
+    const twice = [header, "t,A,a,C,1,INR,u,REQUESTED,R1,w1", "t,A,a,C,1,INR,u,REQUESTED,R2,w1"].join("\n");
+    expect(paidWithdrawalsFromCsv(twice)).toEqual({
+      items: [{ id: "w1", payoutReference: "R1" }],
+      problems: ["Line 3: this withdrawal is listed twice."]
+    });
+  });
+
+  it("parseCsvRows keeps empty cells and drops blank lines", () => {
+    expect(parseCsvRows('a,,c\r\n\r\n"x,y",2,\n')).toEqual([["a", "", "c"], ["x,y", "2", ""]]);
   });
 });

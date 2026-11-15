@@ -24,6 +24,7 @@ import { EmailVerificationService } from "../email-admin/email-verification.serv
 import { MailService } from "../mail/mail.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { SystemNotifier } from "../mail/system-notifier.service";
+import { LegalPagesService } from "../branding/legal-pages.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 type MockPrismaService = {
@@ -171,6 +172,7 @@ describe("AuthService", () => {
         { provide: EmailVerificationService, useValue: emailVerification },
         { provide: MessagingDispatchService, useValue: messaging },
         { provide: SystemNotifier, useValue: { send: notifierSend } },
+        { provide: LegalPagesService, useValue: { termsVersion: async () => LEGAL_TERMS_VERSION } },
         NOOP_REFERRAL_TRACKER
       ]
     }).compile();

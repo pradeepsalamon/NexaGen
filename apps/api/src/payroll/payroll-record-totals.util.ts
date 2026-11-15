@@ -1,14 +1,25 @@
+import { computeTds, payrollTdsSnapshotSchema, type PayrollTdsSnapshot } from "@nexa-chess/types";
 import type { PrismaService, PrismaTransactionClient } from "../prisma/prisma.service";
 
 /**
- * `netPayableMinor` always derives from three columns already on the row:
- * gross earnings (from the engine), rule-based deductions (also from the
- * engine), and manual adjustments (§9, tracked separately by
- * payroll-adjustment.service.ts). These two helpers are the only writers of
- * `netPayableMinor` — recalculating base numbers must never clobber
- * adjustments a coach already reviewed, and adding an adjustment must never
- * touch the base numbers.
+ * `netPayableMinor` always derives from columns already on the row: gross
+ * earnings (from the engine), rule-based deductions (also from the engine),
+ * manual adjustments (§9, tracked separately by
+ * payroll-adjustment.service.ts) and TDS. These two helpers are the only
+ * writers of `netPayableMinor` and `tdsMinor` — recalculating base numbers
+ * must never clobber adjustments a coach already reviewed, and adding an
+ * adjustment must never touch the base numbers.
+ *
+ * TDS is worked out here, not in the engine, because an adjustment changes
+ * what the record pays: it is `computeTds` of the pay before TDS, using the
+ * terms frozen on the record when it was calculated (`tdsSnapshot`).
  */
+
+/** The record's frozen TDS terms; null (no TDS) when absent or unreadable. */
+export function readTdsSnapshot(value: unknown): PayrollTdsSnapshot | null {
+  const parsed = payrollTdsSnapshotSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
 
 /**
  * Each recompute runs in a transaction holding the record's row lock, so two
@@ -22,18 +33,24 @@ async function lockRecord(tx: PrismaTransactionClient, payrollRecordId: string):
 async function writeNetPayable(tx: PrismaTransactionClient, payrollRecordId: string): Promise<void> {
   const record = await tx.coachPayrollRecord.findUniqueOrThrow({
     where: { id: payrollRecordId },
-    select: { grossEarningsMinor: true, totalDeductionsMinor: true, totalAdjustmentsMinor: true }
+    select: {
+      grossEarningsMinor: true,
+      tdsSnapshot: true,
+      totalAdjustmentsMinor: true,
+      totalDeductionsMinor: true
+    }
   });
+  const beforeTdsMinor =
+    record.grossEarningsMinor - record.totalDeductionsMinor + record.totalAdjustmentsMinor;
+  const snapshot = readTdsSnapshot(record.tdsSnapshot);
+  const tdsMinor = snapshot ? computeTds(snapshot, beforeTdsMinor) : 0;
   await tx.coachPayrollRecord.update({
     where: { id: payrollRecordId },
-    data: {
-      netPayableMinor:
-        record.grossEarningsMinor - record.totalDeductionsMinor + record.totalAdjustmentsMinor
-    }
+    data: { netPayableMinor: beforeTdsMinor - tdsMinor, tdsMinor }
   });
 }
 
-/** Re-derives netPayableMinor from the record's current gross/deductions/adjustments columns. */
+/** Re-derives tdsMinor and netPayableMinor from the record's current gross/deductions/adjustments columns. */
 export async function recomputeNetPayable(prisma: PrismaService, payrollRecordId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     await lockRecord(tx, payrollRecordId);

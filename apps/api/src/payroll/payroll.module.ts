@@ -15,6 +15,7 @@ import { PayrollLifecycleService } from "./payroll-lifecycle.service";
 import { PayrollPeriodService } from "./payroll-period.service";
 import { PayrollRecordService } from "./payroll-record.service";
 import { PayrollRuleService } from "./payroll-rule.service";
+import { PayrollSettingsService } from "./payroll-settings.service";
 import { PayslipGenerationService } from "./payslip-generation.service";
 import { PayslipPdfService } from "./payslip-pdf.service";
 import { PAYSLIP_QUEUE } from "./payslip-queue";
@@ -46,6 +47,7 @@ import { TeachingDataAggregationService } from "./teaching-data-aggregation.serv
     PayrollPeriodService,
     PayrollRecordService,
     PayrollRuleService,
+    PayrollSettingsService,
     PayslipGenerationService,
     PayslipPdfService,
     PayslipProcessor,

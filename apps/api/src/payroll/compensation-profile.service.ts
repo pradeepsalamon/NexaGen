@@ -61,6 +61,7 @@ export class CompensationProfileService {
       panNumber: null,
       gstin: null,
       taxTreatment: null,
+      tdsRateBps: null,
       notes: null,
       rates: rates.map((r) => this.toRateItem(r)),
       createdAt: "",
@@ -98,6 +99,7 @@ export class CompensationProfileService {
             paymentDetails: dto.paymentDetails as Prisma.InputJsonValue | undefined,
             panNumber: dto.panNumber,
             gstin: dto.gstin,
+            tdsRateBps: dto.tdsRateBps,
             notes: dto.notes
           }
         })
@@ -111,6 +113,7 @@ export class CompensationProfileService {
             paymentDetails: dto.paymentDetails as Prisma.InputJsonValue | undefined,
             panNumber: dto.panNumber,
             gstin: dto.gstin,
+            tdsRateBps: dto.tdsRateBps,
             notes: dto.notes,
             createdById: actorId
           }
@@ -260,6 +263,7 @@ export class CompensationProfileService {
       paymentDetails: (profile.paymentDetails as Record<string, unknown> | null) ?? null,
       panNumber: profile.panNumber,
       gstin: profile.gstin,
+      tdsRateBps: profile.tdsRateBps,
       taxTreatment: profile.taxTreatment,
       notes: profile.notes,
       rates: rates.map((r) => this.toRateItem(r)),

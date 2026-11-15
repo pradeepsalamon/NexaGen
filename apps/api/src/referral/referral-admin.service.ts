@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, HttpException, Injectable, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
   REFERRER_ROLES,
@@ -23,6 +23,8 @@ import {
   type MoveReferralStageRequest,
   type PaginatedQuery,
   type PayReferralWithdrawalRequest,
+  type PayReferralWithdrawalsBulkRequest,
+  type PayReferralWithdrawalsBulkResponse,
   type ReferralBonusRuleItem,
   type ReferralPage,
   type ReferralRedemptionItem,
@@ -641,6 +643,8 @@ export class ReferralAdminService {
   async cancelReward(accessToken: string | undefined, id: string, body: CancelReferralRewardRequest) {
     const admin = await this.getAdmin(accessToken);
     await this.credits.cancelReward(admin.id, id, body);
+    // Only a reward that had reached a balance announces itself (read back from the row).
+    this.messaging.dispatchInBackground({ event: "REFERRAL_TAKEN_BACK", id, kind: "REWARD" });
     return { ok: true };
   }
 
@@ -715,6 +719,33 @@ export class ReferralAdminService {
     await this.credits.payWithdrawal(admin.id, id, body);
     this.announceDecision("WITHDRAWAL", id);
     return { ok: true };
+  }
+
+  /**
+   * The export, filled in with references, marks those withdrawals paid: each one claimed on its
+   * own (`payWithdrawal`'s status-filtered update), so one already decided or another academy's
+   * id is skipped with the reason, never fatal. Each paid one is announced.
+   */
+  async payWithdrawalsBulk(
+    accessToken: string | undefined,
+    body: PayReferralWithdrawalsBulkRequest
+  ): Promise<PayReferralWithdrawalsBulkResponse> {
+    const admin = await this.getAdmin(accessToken);
+    const result: PayReferralWithdrawalsBulkResponse = { paid: [], skipped: [] };
+    for (const item of body.items) {
+      try {
+        await this.credits.payWithdrawal(admin.id, item.id, {
+          adminNote: "Paid in bulk (CSV import).",
+          payoutReference: item.payoutReference
+        });
+        result.paid.push(item.id);
+        this.announceDecision("WITHDRAWAL", item.id);
+      } catch (error) {
+        if (!(error instanceof HttpException) || error.getStatus() >= 500) throw error;
+        result.skipped.push({ id: item.id, reason: error.message });
+      }
+    }
+    return result;
   }
 
   async rejectWithdrawal(accessToken: string | undefined, id: string, body: RejectReferralWithdrawalRequest) {
@@ -803,6 +834,7 @@ export class ReferralAdminService {
   async revokeRedemption(accessToken: string | undefined, id: string, body: RejectReferralRedemptionRequest) {
     const admin = await this.getAdmin(accessToken);
     await this.vouchers.revoke(admin.id, id, body.adminNote);
+    this.messaging.dispatchInBackground({ event: "REFERRAL_TAKEN_BACK", id, kind: "REDEMPTION" });
     return { ok: true };
   }
 

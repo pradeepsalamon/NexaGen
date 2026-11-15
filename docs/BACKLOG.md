@@ -107,35 +107,42 @@ code on 2026-10-31.
   disappears behind the root spinner. **2026-11-14:** navigation started in
   code starts it too: `useRouter` comes from `@/lib/navigation` (45 files;
   ESLint rejects the `next/navigation` one), whose `push`/`replace` fire
-  `nexa:navigation-start` when the path changes. **Still open:** it has only
-  been checked on the dev server with delayed responses, not `next start` on
-  "Slow 4G". It only makes the wait visible; a slow server needs its own look.
+  `nexa:navigation-start` when the path changes. **Checked 2026-11-15 on a
+  production build** (`next start`, Chrome "Slow 4G", `/` → `/login`): with the
+  page prefetched the bar shows at the click and the page lands in ~30 ms; with
+  the prefetch held back 6 s the bar shows at the click (+0 ms) and stays until
+  the page lands (+3.4 s), then finishes. It only makes the wait visible; a slow
+  server needs its own look.
 
 - **Smart Revision:** non-puzzle item kinds (lessons / `REPLAY` assignments,
   course modules, live-class chapters). Blocked by design: no graded attempt to
   cap a self-rating ([SMART_REVISION.md](SMART_REVISION.md)).
 - ~~**Email opt-out.**~~ **Built 2026-11-13:** every rule email has the
   recipient's unsubscribe link, and the profile page has the same switch
-  ([MESSAGING.md](MESSAGING.md) "Email channel"). **Still open:** it is one
-  switch for all rule emails (no per-category choice), there is no one-click
-  `List-Unsubscribe-Post` endpoint, staff-written email (`/admin/email`) has no
-  link, and admins can't see or filter who has opted out except through
-  `SKIPPED` rows in the Delivery log.
+  ([MESSAGING.md](MESSAGING.md) "Email channel"). **2026-11-15:** per-kind
+  switches (six kinds), RFC 8058 one-click unsubscribe, the link and opt-out on
+  staff-written email, and Admin → Email → Opted out. Nothing left open.
 - **Payroll:** percentage-of-revenue is a stubbed ₹0 line (no revenue linkage,
-  `payroll-calculation.engine.ts` `case "PERCENTAGE"`). No tax/TDS, no bank
-  payout integration, no multi-currency, no rate CSV import/export.
+  `payroll-calculation.engine.ts` `case "PERCENTAGE"`). No bank payout
+  integration, no multi-currency, no rate CSV import/export.
+  **Owner 2026-11-15:** leave percentage-of-revenue as it is for now.
+  **TDS built 2026-11-15** (owner: admin-set rate): an admin-set rate and yearly
+  threshold, a coach's own rate, and a TDS line on every payslip
+  ([FEATURES.md](FEATURES.md) "Coach payroll: TDS"). Still not built: a TDS
+  return (Form 26Q) export, TDS certificates, an automatic higher rate for a
+  coach without a PAN, salary TDS by slab.
 - **Chat push:** a websocket only if the 4 s poll proves too slow or costly.
   There is no evidence of that yet.
 - **Referrals** ([REFERRALS.md](REFERRALS.md), shipped 2026-11-02, rebuilt
   2026-11-07 as points + vouchers for students, money for staff).
   **Built 2026-11-13:** notifications (stage move, reward credited, voucher
   request / withdrawal decided), a CSV export of withdrawals to pay in bulk,
-  and optional points expiry. **Still open:** nothing announces points about to
-  expire (the board shows it), a cancelled reward or a revoked voucher; the
-  export doesn't mark anything paid. Sign-up links the new member's account
-  automatically, but onboarding is still an admin move. Accounts an admin
-  creates (Users page) are only linked by hand. Free days given by a voucher
-  can't be taken back from the referral board (adjust the access in Payments).
+  and optional points expiry. **2026-11-15:** a 7-day points-expiry notice, a
+  "taken back" notice (credited reward cancelled, voucher code revoked), Import
+  paid CSV (the export filled in with references marks them paid), and
+  admin-created accounts link by email like sign-up. **Still open:** onboarding
+  is still an admin move, and free days given by a voucher can't be taken back
+  from the referral board (adjust the access in Payments).
 
 ### Needs someone with `vps_dev` / production access
 
@@ -179,7 +186,9 @@ its precondition, the student training surface, now exists).
   Open questions: §12 items 2 (which number; is it on the Business app today),
   5 (Leads/Frappe), 6 (account linking), 7 (refund policy text, SLAs), 8 (support
   hours / out-of-hours reply), 12 (AI); a legal (DPDP) review of the new
-  privacy-policy wording in `features/legal/content.ts`. Gaps to build: an nginx IP limit on `/webhooks/whatsapp` (the contact
+  privacy-policy wording in `features/legal/content.ts`. ~~Gaps to build: an nginx IP limit on `/webhooks/whatsapp`~~
+  **Built 2026-11-15** as two nginx snippets ([WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md)
+  "Edge rate limit"); installing them on the box is the owner's step (the contact
   export/erase action and `message_deliveries` status updates were built in
   Phase C, 2026-11-14).
   **Phase B and Phase C were built unattended on 2026-11-14** (branch
@@ -192,11 +201,10 @@ its precondition, the student training surface, now exists).
   **Next phases are planned in [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md)
   (2026-11-14, proposal; open decisions in its §0 come first; D3, D6, D12,
   D13 answered).** Its G1 finding is fixed: a bot reply staff overtook is no longer sent.
-  Found while building Phase C (2026-11-14): messaging rules and system
+  ~~Found while building Phase C (2026-11-14): messaging rules and system
   messages build their links with `getFrontendUrl` (Nexa's address) for every
-  academy, so another academy's WhatsApp/email links open Nexa's site. The
-  support bot now uses the academy's primary domain
-  (`SupportDemoSlotsService.academyOrigin`); the shared senders don't yet.
+  academy.~~ **Fixed 2026-11-15:** `AcademyLinksService` puts every link on the
+  academy's own address ([SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) § "Links in messages").
 
 - **Unused asset: `apps/web/public/auth/auth_light.webp`** (2026-11-03). Since the
   M4 auth redesign the auth panel is navy in both themes and shows only
@@ -274,7 +282,7 @@ its precondition, the student training surface, now exists).
   8. **Academy home page** is a simple block (name, tagline, sign in, join, contact). The full block-based landing page builder is later.
   9. **The Nexa marketing page's analytics script and JSON-LD still load (hidden) on an academy's home page.** Fix with the remaining brand-string sweep (5e).
   10. **WhatsApp per academy:** another academy sends only from its own connected number (super admin sets it on `/admin/branding`); without one WhatsApp is off for it, never Nexa's number. Tokens use a new optional `CREDENTIALS_ENCRYPTION_KEY` (falls back to `MFA_ENCRYPTION_KEY`), so the integration suite doesn't have to switch on required MFA. Message templates must be approved on the academy's own Meta account; nothing checks that yet.
-  11. **Brand strings left (5e follow-up):** done 2026-11-05 on `feat/saas-followups` except the two below. `{{academy.name}}` in every message rule and system email, payslip PDFs (author + footer), PGN `Site` / default `Event`, the live-class PiP metadata, Wall of Moments and Video Generator now use the academy's name (`BrandingService.nameFor`, the same name its pages show; Nexa's stays "Nexa Chess"). Product-name copy became neutral ("Our website", "Our own analysis", "Class games", "Purchase"). NexaChess-as-vendor copy (contact the NexaChess team, support visits, content packs, Powered by) stays on purpose. **Still open:** `features/legal/content.ts` (per-academy legal pages wait for §N-12 legal text), and the root layout / `/` metadata and JSON-LD, which stay Nexa's in the server HTML on an academy's `/` (theming is client-side by the Phase 5 builder's call 2; changing it makes those pages dynamic).
+  11. **Brand strings left (5e follow-up):** done 2026-11-05 on `feat/saas-followups` except the two below. `{{academy.name}}` in every message rule and system email, payslip PDFs (author + footer), PGN `Site` / default `Event`, the live-class PiP metadata, Wall of Moments and Video Generator now use the academy's name (`BrandingService.nameFor`, the same name its pages show; Nexa's stays "Nexa Chess"). Product-name copy became neutral ("Our website", "Our own analysis", "Class games", "Purchase"). NexaChess-as-vendor copy (contact the NexaChess team, support visits, content packs, Powered by) stays on purpose. **Still open:** `features/legal/content.ts` (**done 2026-11-15**, owner: each academy writes its own text; Admin → Branding → Legal pages, built-in text until it does, [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) §F "Legal pages"), and the root layout / `/` metadata and JSON-LD, which stay Nexa's in the server HTML on an academy's `/` (theming is client-side by the Phase 5 builder's call 2; changing it makes those pages dynamic).
 - **2026-11-05 (overnight run), `feat/saas-phase2-foundation`: builder's calls for SaaS Phase 6 (money)**; change any of them:
   1. **Plan prices exclude GST.** The checkout adds GST from the shared engine (`computeTax`): seller = the console's seller details (until saved, NexaChess academy's own invoice details), buyer = the academy's own invoice details (its GSTIN decides intra/inter-state). A blank seller GSTIN charges no GST. Default rate 18%.
   2. **The owner's Razorpay account has its own env keys** (`PLATFORM_RAZORPAY_*`), separate from NexaChess academy's student keys (`RAZORPAY_*`), even if both are the same Razorpay account. Built against mocks and test mode only; no live keys exist.
@@ -285,7 +293,7 @@ its precondition, the student training surface, now exists).
   7. **Platform invoices are a printable page** (browser print → PDF), frozen at issue, own series `<prefix>/yy-yy/00001` per financial year; no stored PDF and no invoice email yet.
   8. **Academy gateway keys: super admins only**; Razorpay and Stripe need the webhook secret before they can be switched on (Cashfree verifies with its secret key). NexaChess's academy keeps the server's env keys and can't store any. The old webhook URLs (no key) stay NexaChess's.
   9. **`WHATSAPP_CREDENTIALS_KEY` (Phase 5) is renamed `CREDENTIALS_ENCRYPTION_KEY`** and now also encrypts gateway keys (nothing was deployed with the old name).
-  10. **Usage counters** (`TenantUsage`) are a nightly snapshot (02:00 UTC) of the plan-limit counts, shown on the console's academy page. Limits are still enforced from live counts. *(2026-11-13: extended with storage, live-class minutes, messages and engine analyses, kept per day in `TenantUsageDay`, with a console Usage tab; analytics only. docs/SAAS_PLANS.md § "Usage history". Open: `StorageSnapshot`'s per-academy rows still hold the whole recordings folder, not that academy's share (the new `recordingBytes` figure is per academy); no usage alerts, storage limit or overage billing yet, by the owner's decision.)*
+  10. **Usage counters** (`TenantUsage`) are a nightly snapshot (02:00 UTC) of the plan-limit counts, shown on the console's academy page. Limits are still enforced from live counts. *(2026-11-13: extended with storage, live-class minutes, messages and engine analyses, kept per day in `TenantUsageDay`, with a console Usage tab; analytics only. docs/SAAS_PLANS.md § "Usage history". ~~`StorageSnapshot`'s per-academy rows still hold the whole recordings folder~~ (fixed 2026-11-15: another academy's rows and storage gauge hold only its own recordings). Open: no usage alerts, storage limit or overage billing yet, by the owner's decision.)*
   11. **Not done in Phase 6:** card-on-file auto-debit (v1 excludes it, §G), Cashfree/Stripe for platform billing, per-academy invoice seller details for student invoices beyond what Phase 3 slice 5 already gives, and refunds of platform payments (record them manually; no credit note flow yet).
   12. **Found by the staging browser check and fixed (`fix(web)` after Phase 6):** the Phase 5 host rule only knew `NEXT_PUBLIC_SITE_URL`, which the staging build leaves at its localhost default, so `dev.nexachess.in` was treated as an academy's address (host-only cookie names, `/api`, and a title-rewrite loop that froze the page because Nexa's name contains "Nexa Chess"). Nexa's hosts are now the site host plus the web host paired with the API host (`api-dev.x` -> `dev.x`, `api.x` -> `x`), and the title rewrite never writes an unchanged title. Production (`NEXT_PUBLIC_SITE_URL=https://nexachess.in`) was never affected; nothing is deployed.
 

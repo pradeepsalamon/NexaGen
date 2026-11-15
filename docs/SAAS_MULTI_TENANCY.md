@@ -560,8 +560,31 @@ only**).
 - `nexachess.in` keeps Nexa's `/academy` marketing site. Other academies get a
   generic, block-based landing page (hero, programmes, contact, demo booking)
   built from the existing section components and their branding content.
-- `features/legal/content.ts` becomes per-academy (§N-12).
+- Legal pages are per-academy (built 2026-11-15, see "Legal pages" below).
 - A Playwright smoke test on a second academy's address finds no "Nexa" text.
+
+### Legal pages
+
+`/privacy` and `/terms` on an academy's own address show **the academy's own
+wording** once its admins have written it (Admin → Branding → Legal pages);
+until then they show the built-in text. Every plan has it: the academy is the
+one responsible for its families' data.
+
+- Stored in `TenantLegalPage` (`tenantId` + `kind`, `privacy` or `terms`), as
+  formatted text (`TextEditor` / `FormattedText`), never HTML. Saving an empty
+  page deletes the row and brings the built-in text back.
+- Public read by host: `GET /tenant/legal/:kind` (`body: null` = built-in).
+  Admin: `GET /admin/branding/legal`, `PUT /admin/branding/legal/:kind`
+  (`branding/legal-pages.service.ts`).
+- **Nexa's own pages stay in the web app** (`features/legal/content.ts`): its
+  hosts fetch nothing and the API refuses an edit for `tenant_nexa`.
+- Web: `features/legal/components/AcademyLegalText.tsx` wraps the
+  server-rendered built-in page. On an academy's address the built-in page is
+  hidden before first paint (`platform-brand-only`) and shown again only when
+  the academy has no wording of its own, so Nexa's text never flashes first.
+- A self-registration records which wording was accepted
+  (`LegalPagesService.termsVersion`): `LEGAL_TERMS_VERSION` for the built-in
+  text, `academy:<when its text last changed>` for the academy's own.
 
 ### Email
 
@@ -726,6 +749,20 @@ limit) is a later addition.
 - The owner gets a written VPS checklist in [DEPLOYMENT.md](DEPLOYMENT.md):
   wildcard DNS and a certificate for `*.nexachess.in` (DNS challenge),
   a per-domain server block with certbot, and the `/api` rule.
+
+### Links in messages
+
+Every link the API builds for a person (messaging-rule and system messages on
+every channel, the unsubscribe link, email verification, payment and
+subscription return URLs, tournament certificates) opens on the person's own
+academy: `AcademyLinksService` (`apps/api/src/tenancy/academy-links.service.ts`,
+added 2026-11-15). Nexa and platform work get `FRONTEND_URL`; another academy
+gets its primary `ACTIVE` domain, or `FRONTEND_URL` while it has none.
+`MessagingDispatchService.dispatch` and `SystemNotifier.send` rewrite every
+variable that is a whole link on Nexa's address, so a caller that still builds
+links with `getFrontendUrl` stays correct. A new link outside those two senders
+uses `links.url(path)`. The support bot keeps its own rule
+(`SupportDemoSlotsService.academyOrigin`: no domain means no link at all).
 
 ---
 
@@ -1343,8 +1380,9 @@ database for a single large customer stays possible later (§N-16).
 - **N-11 (part) Platform billing:** which provider (Razorpay, Cashfree or Stripe)
   on the owner's account, and how long financial records are kept after an
   academy is suspended or, later, deleted.
-- **N-12 Legal:** academy-facing terms, a data processing agreement (the academy
-  is the controller for its students' data), and per-academy legal pages.
+- **N-12 Legal:** academy-facing terms and a data processing agreement (the academy
+  is the controller for its students' data). Per-academy legal pages were built
+  2026-11-15 (§F "Legal pages"): each academy writes its own text.
 - **N-16 Dedicated database for a large customer later?** Separate deployments
   were rejected as the product's shape. Keeping this plan's design means a
   dedicated database for one enterprise customer stays possible later (same

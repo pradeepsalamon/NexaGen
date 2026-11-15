@@ -99,7 +99,8 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
       gross: (r) => r.grossEarningsMinor,
       hours: (r) => r.totalTeachingSeconds,
       net: (r) => r.netPayableMinor,
-      status: (r) => r.status
+      status: (r) => r.status,
+      tds: (r) => r.tdsMinor
     }
   });
   const payoutsByRecord = new Map((payoutsData?.payouts ?? []).map((p) => [p.payrollRecordId, p]));
@@ -247,10 +248,10 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
           ) : (
             <Card className="p-0">
               <div className="overflow-x-auto">
-                <Table className="w-full min-w-[760px] border-collapse">
+                <Table className="w-full min-w-[840px] border-collapse">
                   <TableHeader>
                     <TableRow className="border-b border-app-border">
-                      {([["Coach", "coach"], ["Classes", "classes"], ["Hours", "hours"], ["Gross", "gross"], ["Net", "net"], ["Status", "status"], ["", null]] as const).map(([heading, sortKey]) => (
+                      {([["Coach", "coach"], ["Classes", "classes"], ["Hours", "hours"], ["Gross", "gross"], ["TDS", "tds"], ["Net", "net"], ["Status", "status"], ["", null]] as const).map(([heading, sortKey]) => (
                         <TableHead
                           className="px-4 py-3 text-left text-xs font-semibold"
                           key={heading}
@@ -279,6 +280,9 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                           </TableCell>
                           <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-text">
                             {formatMoney(record.grossEarningsMinor, currency)}
+                          </TableCell>
+                          <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-muted">
+                            {record.tdsMinor > 0 ? formatMoney(record.tdsMinor, currency) : "—"}
                           </TableCell>
                           <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-app-text">
                             {formatMoney(record.netPayableMinor, currency)}
@@ -311,7 +315,7 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                         </TableRow>
                         {expanded === record.id ? (
                           <TableRow>
-                            <TableCell className="text-left p-0" colSpan={7} id={`payroll-record-${record.id}`}>
+                            <TableCell className="text-left p-0" colSpan={8} id={`payroll-record-${record.id}`}>
                               <PayrollRecordDetailPanel
                                 payout={payoutsByRecord.get(record.id)}
                                 record={record}

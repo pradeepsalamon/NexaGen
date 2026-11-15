@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { BadgeCheck, Download, X } from "lucide-react";
-import { API_ROUTES, REFERRER_ROLE_LABELS, type ReferralWithdrawalItem } from "@nexa-chess/types";
+import { BadgeCheck, Download, Upload, X } from "lucide-react";
+import {
+  API_ROUTES,
+  paidWithdrawalsFromCsv,
+  REFERRAL_WITHDRAWAL_BULK_PAY_MAX,
+  REFERRER_ROLE_LABELS,
+  type PayReferralWithdrawalsBulkRequest,
+  type PayReferralWithdrawalsBulkResponse,
+  type ReferralWithdrawalItem
+} from "@nexa-chess/types";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -37,6 +45,8 @@ export function WithdrawalsPanel() {
   const pageCount = data?.pagination.totalPages ?? 1;
   useEffect(() => clampToPageCount(pageCount), [pageCount, clampToPageCount]);
   const [action, setAction] = useState<Action>(null);
+  const [imported, setImported] = useState<ReturnType<typeof paidWithdrawalsFromCsv> | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   // The same search and status as the table, every page of it.
   const exportHref = `${apiBaseUrl()}${API_ROUTES.adminReferrals.withdrawalsExport}?${new URLSearchParams({
     ...(serverTable.params.search ? { search: serverTable.params.search } : {}),
@@ -122,16 +132,36 @@ export function WithdrawalsPanel() {
     <Card className="grid gap-4 p-4">
       <p className="text-sm text-app-muted">
         Pay the amount outside the app (UPI or bank transfer), then mark it paid with the transfer reference. Rejecting returns
-        the credits to the referrer. To pay several at once, filter to Requested and export the list.
+        the credits to the referrer. To pay several at once, filter to Requested and export the list, pay them, type each
+        transfer reference into the &quot;Payout reference&quot; column, then import the file.
       </p>
+      <input
+        accept=".csv,text/csv"
+        aria-label="Paid withdrawals CSV"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file) return;
+          void file.text().then((text) => setImported(paidWithdrawalsFromCsv(text)));
+        }}
+        ref={fileInput}
+        type="file"
+      />
       <DataTableToolbar
         actions={
-          <Button asChild variant="outline">
-            <a download href={exportHref}>
-              <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
-              Export CSV
-            </a>
-          </Button>
+          <>
+            <Button asChild variant="outline">
+              <a download href={exportHref}>
+                <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                Export CSV
+              </a>
+            </Button>
+            <Button onClick={() => fileInput.current?.click()} type="button" variant="outline">
+              <Upload aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              Import paid CSV
+            </Button>
+          </>
         }
         filters={
           <Select
@@ -155,7 +185,82 @@ export function WithdrawalsPanel() {
       <DataTable columnsLength={columns.length} isLoading={isLoading} noDataText="No withdrawal requests." stackOnMobile table={table} />
       <DataTablePagination table={table} totalRows={data?.pagination.total ?? 0} />
       {action ? <WithdrawalActionDialog action={action} onClose={() => setAction(null)} /> : null}
+      {imported ? <BulkPayDialog imported={imported} onClose={() => setImported(null)} /> : null}
     </Card>
+  );
+}
+
+/** Confirms the rows read from the filled-in export, then marks them paid in one call. */
+function BulkPayDialog({
+  imported,
+  onClose
+}: {
+  imported: ReturnType<typeof paidWithdrawalsFromCsv>;
+  onClose: () => void;
+}) {
+  const [result, setResult] = useState<PayReferralWithdrawalsBulkResponse | null>(null);
+  const pay = useReferralAdminMutation(
+    (body: PayReferralWithdrawalsBulkRequest) => referralAdminApi.payWithdrawalsBulk(body),
+    { failure: "Could not mark them paid", success: "Import finished" }
+  );
+  const count = imported.items.length;
+  const tooMany = imported.items.length > REFERRAL_WITHDRAWAL_BULK_PAY_MAX;
+
+  return (
+    <Dialog onOpenChange={(open) => (open ? undefined : onClose())} open>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Mark withdrawals paid from the file</DialogTitle>
+          <DialogDescription>
+            {result
+              ? `${result.paid.length} marked paid, ${result.skipped.length} skipped.`
+              : count === 0
+                ? "No requested withdrawal in this file has a payout reference."
+                : `${count} requested ${count === 1 ? "withdrawal has" : "withdrawals have"} a payout reference. Each is marked paid with its own reference, and the referrer is told.`}
+          </DialogDescription>
+        </DialogHeader>
+        {imported.problems.length > 0 && !result ? (
+          <Alert variant="warning">
+            <ul className="list-disc pl-4">
+              {imported.problems.map((problem) => (
+                <li key={problem}>{problem}</li>
+              ))}
+            </ul>
+          </Alert>
+        ) : null}
+        {result && result.skipped.length > 0 ? (
+          <Alert variant="warning">
+            <p className="font-semibold">Skipped (nothing changed for these):</p>
+            <ul className="list-disc pl-4">
+              {result.skipped.map((row) => (
+                <li className="break-all" key={row.id}>
+                  {row.id}: {row.reason}
+                </li>
+              ))}
+            </ul>
+          </Alert>
+        ) : null}
+        <DialogFooter>
+          <Button onClick={onClose} variant="neutral">
+            {result ? "Close" : "Cancel"}
+          </Button>
+          {!result ? (
+            <Button
+              disabled={count === 0 || tooMany}
+              isLoading={pay.isPending}
+              onClick={() =>
+                void pay
+                  .mutateAsync({ items: imported.items })
+                  .then(setResult)
+                  .catch(() => undefined)
+              }
+            >
+              Mark {count} paid
+            </Button>
+          ) : null}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

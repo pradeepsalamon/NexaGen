@@ -277,15 +277,18 @@ model User {
   // Set = this person turned off messaging-rule ("notification") emails; system emails
   // (password reset, verification, invoices) still send. docs/MESSAGING.md "Email channel".
   notificationEmailOptOutAt DateTime?
+  // Kinds of non-essential email this person turned off one by one (`EMAIL_CATEGORIES`);
+  // the master switch above stops them all. docs/MESSAGING.md "Email channel".
+  emailOptOutCategories     EmailCategory[] @default([])
   // The random value in the unsubscribe link of this person's emails; made on the first send.
-  emailUnsubscribeToken     String?   @unique
+  emailUnsubscribeToken     String?         @unique
   // Self-registration's Terms of Service + Privacy Policy checkbox: when it was ticked and which
   // version (`LEGAL_TERMS_VERSION`). Null for accounts an admin created or made before it existed.
   termsAcceptedAt           DateTime?
   termsVersion              String?
   lastLoginAt               DateTime?
   // Wrong passwords since the last sign-in; the Nth sets loginLockedUntil.
-  failedLoginAttempts       Int       @default(0)
+  failedLoginAttempts       Int             @default(0)
   loginLockedUntil          DateTime?
   // Throttled recency signal (updated at most once / 10 min by ActivityTrackingInterceptor).
   // Null = never seen since the feature shipped; analytics treats it as "unknown", not inactive.
@@ -790,6 +793,24 @@ model TenantBranding {
   @@map("tenant_brandings")
 }
 
+/// An academy's own wording for a legal page (`/privacy`, `/terms`) on its
+/// own address. No row = the built-in text. Stored as formatted text, never
+/// HTML. Nexa's own pages stay in the web app (features/legal/content.ts).
+model TenantLegalPage {
+  id          String   @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId    String   @default("tenant_nexa")
+  /// LegalPageKind from @nexa-chess/types: "privacy" | "terms".
+  kind        String
+  body        String
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, kind])
+  @@map("tenant_legal_pages")
+}
+
 /// An academy's own WhatsApp Business number (docs/SAAS_MULTI_TENANCY.md §F
 /// "WhatsApp"; Phase 5d). Nexa uses the server's env number and has no row.
 /// The token is AES-256-GCM encrypted (WHATSAPP_CREDENTIALS_KEY, else MFA_ENCRYPTION_KEY).
@@ -829,6 +850,16 @@ model EmailSettings {
   updatedAt          DateTime                @updatedAt
 
   @@map("email_settings")
+}
+
+/// What a non-essential email is about (`@nexa-chess/types` `EMAIL_CATEGORIES`).
+enum EmailCategory {
+  CLASSES
+  HOMEWORK
+  ANNOUNCEMENTS
+  ACCOUNT
+  REFERRALS
+  ACADEMY_TEAM
 }
 
 enum DirectEmailStatus {
@@ -2409,6 +2440,8 @@ enum NotificationType {
   REFERRAL_PROGRESS
   REFERRAL_REWARD
   REFERRAL_REQUEST_DECIDED
+  REFERRAL_POINTS_EXPIRING
+  REFERRAL_TAKEN_BACK
   /// A fixed system message sent in-app (SystemNotifier), not a messaging rule.
   SYSTEM_MESSAGE
 }
@@ -3322,6 +3355,8 @@ enum MessagingEvent {
   REFERRAL_PROGRESS
   REFERRAL_REWARD
   REFERRAL_REQUEST_DECIDED
+  REFERRAL_POINTS_EXPIRING
+  REFERRAL_TAKEN_BACK
 }
 
 enum MessagingScheduleMode {
@@ -4748,6 +4783,9 @@ model CoachCompensationProfile {
   panNumber    String?
   gstin        String?
   taxTreatment String?
+  /// This coach's own TDS rate in basis points (1000 = 10%). Null = the
+  /// academy's rate (PayrollSettings); 0 = no TDS for this coach.
+  tdsRateBps   Int?
 
   notes String?
 
@@ -4838,6 +4876,32 @@ model PayrollRule {
   @@map("payroll_rules")
 }
 
+/// An academy's payroll settings (one row per academy; Nexa's keeps id
+/// "default"). TDS is tax deducted at source from a coach's pay: off until an
+/// admin turns it on and sets the rate and the yearly threshold
+/// (docs/FEATURES.md "Coach payroll: TDS").
+model PayrollSettings {
+  id       String @id @default("default")
+  /// Owning academy (Tenant.id).
+  tenantId String @unique @default("tenant_nexa")
+
+  tdsEnabled             Boolean @default(false)
+  /// Basis points (1000 = 10%), no floats.
+  tdsRateBps             Int     @default(0)
+  /// Minor units. TDS starts once a coach's pay in the financial year goes
+  /// above this; 0 = from the first payment.
+  tdsThresholdMinor      Int     @default(0)
+  /// 1–12; the month the financial year starts (4 = April, India's).
+  financialYearStartMonth Int    @default(4)
+
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payroll_settings")
+}
+
 /// A payroll run for a date range, covering every in-scope coach. Statuses
 /// only ever move forward (DRAFT → CALCULATING → REVIEW → APPROVED →
 /// FINALIZED → PAID), or sideways into CANCELLED. Once FINALIZED, nothing
@@ -4920,7 +4984,15 @@ model CoachPayrollRecord {
   grossEarningsMinor    Int @default(0)
   totalDeductionsMinor  Int @default(0)
   totalAdjustmentsMinor Int @default(0)
+  /// TDS deducted from this record. netPayable = gross - deductions +
+  /// adjustments - tds; payroll-record-totals.util.ts is the only writer.
+  tdsMinor              Int @default(0)
   netPayableMinor       Int @default(0)
+
+  /// The TDS terms frozen at calculation time (PayrollTdsSnapshot: rate,
+  /// threshold, the coach's earlier pay and TDS in the financial year). Null
+  /// = no TDS applies to this record.
+  tdsSnapshot Json?
 
   calculatedAt DateTime?
   reviewedAt   DateTime?
@@ -8715,19 +8787,19 @@ model WhatsAppWebhookEvent {
 /// A WhatsApp number that messaged the academy. Not an account: WhatsApp proves
 /// control of the number, not who the student is (docs/WHATSAPP_SUPPORT.md §9).
 model WhatsAppContact {
-  id            String    @id @default(cuid())
-  tenantId      String    @default("tenant_nexa")
-  waId          String
-  profileName   String?
+  id               String    @id @default(cuid())
+  tenantId         String    @default("tenant_nexa")
+  waId             String
+  profileName      String?
   /// Starts the 24-hour customer-service window.
-  lastInboundAt DateTime?
+  lastInboundAt    DateTime?
   /// "STOP": no proactive WhatsApp (rules, system messages). Support replies still go.
-  optedOutAt    DateTime?
+  optedOutAt       DateTime?
   /// Wrong LINK codes since `linkFailuresFrom` (a rate limit: docs/WHATSAPP_SUPPORT.md §0 "Existing students").
   linkFailures     Int       @default(0)
   linkFailuresFrom DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   conversations SupportConversation[]
   tickets       SupportTicket[]
@@ -8957,18 +9029,18 @@ enum SupportOwnerChangeReason {
 /// written in the same transaction as the change. Feeds the support analytics
 /// (hand-off rate, first staff reply). No personal data.
 model SupportConversationEvent {
-  id             String                     @id @default(cuid())
-  tenantId       String                     @default("tenant_nexa")
+  id             String                    @id @default(cuid())
+  tenantId       String                    @default("tenant_nexa")
   conversationId String
-  conversation   SupportConversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   SupportConversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   fromStatus     SupportConversationStatus
   toStatus       SupportConversationStatus
   reason         SupportOwnerChangeReason
   /// Staff member who caused it; null for the bot or the customer.
   actorId        String?
-  actor          User?                      @relation("SupportConversationEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actor          User?                     @relation("SupportConversationEventActor", fields: [actorId], references: [id], onDelete: SetNull)
   ticketId       String?
-  createdAt      DateTime                   @default(now())
+  createdAt      DateTime                  @default(now())
 
   @@index([conversationId, createdAt])
   @@index([createdAt, toStatus])

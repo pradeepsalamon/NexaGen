@@ -36,10 +36,11 @@ import type {
   SupportVisitInfo,
   UpdateProfileRequest
 } from "@nexa-chess/types";
-import { isParentContactChange, LEGAL_TERMS_VERSION } from "@nexa-chess/types";
+import { isParentContactChange } from "@nexa-chess/types";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { SystemNotifier } from "../mail/system-notifier.service";
+import { LegalPagesService } from "../branding/legal-pages.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { isProfileImageUrl } from "../upload/upload.service";
@@ -149,7 +150,8 @@ export class AuthService {
     private readonly emailVerification: EmailVerificationService,
     private readonly referralTracker: ReferralTrackerService,
     private readonly messaging: MessagingDispatchService,
-    private readonly notifier: SystemNotifier
+    private readonly notifier: SystemNotifier,
+    private readonly legalPages: LegalPagesService
   ) {}
 
   getCookieMaxAges() {
@@ -208,9 +210,10 @@ export class AuthService {
         timezone: "Asia/Kolkata",
         isEmailVerified: !verifyEmail,
         emailVerifiedAt: verifyEmail ? null : new Date(),
-        // The DTO refused the request unless the checkbox was ticked; record our version, not the client's.
+        // The DTO refused the request unless the checkbox was ticked; record our version, not the client's
+        // (the academy's own wording has its own version).
         termsAcceptedAt: new Date(),
-        termsVersion: LEGAL_TERMS_VERSION,
+        termsVersion: await this.legalPages.termsVersion(),
         ...acquisition,
         studentProfile: {
           create: {
@@ -275,9 +278,10 @@ export class AuthService {
         timezone: "Asia/Kolkata",
         isEmailVerified: !verifyEmail,
         emailVerifiedAt: verifyEmail ? null : new Date(),
-        // The DTO refused the request unless the checkbox was ticked; record our version, not the client's.
+        // The DTO refused the request unless the checkbox was ticked; record our version, not the client's
+        // (the academy's own wording has its own version).
         termsAcceptedAt: new Date(),
-        termsVersion: LEGAL_TERMS_VERSION,
+        termsVersion: await this.legalPages.termsVersion(),
         ...acquisition,
         coachProfile: {
           create: {

@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
   ServiceUnavailableException
@@ -11,6 +12,7 @@ import { hashOpaqueToken } from "../auth/auth.utils";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmailAdminService } from "./email-admin.service";
+import type { EmailPreferencesService } from "./email-preferences.service";
 import { EmailVerificationService } from "./email-verification.service";
 
 const person = (id: string, role: UserRole, overrides: Record<string, unknown> = {}) => ({
@@ -36,6 +38,7 @@ describe("email admin", () => {
   let mail: { isConfigured: jest.Mock; sendDirectEmail: jest.Mock; sendEmailVerificationLink: jest.Mock };
   let jwt: { verifyAsync: jest.Mock };
   let verification: EmailVerificationService;
+  let preferences: { targetFor: jest.Mock };
   let service: EmailAdminService;
 
   // The caller is read first, by authenticateUser; the target second.
@@ -96,11 +99,20 @@ describe("email admin", () => {
     const mailService = mail as unknown as MailService;
     verification = new EmailVerificationService(mailService, prismaService);
     jwt = { verifyAsync: jest.fn() };
+    preferences = {
+      targetFor: jest.fn().mockResolvedValue({
+        email: "student@example.com",
+        oneClickUrl: "https://app.test/api/one",
+        optedOut: false,
+        unsubscribeUrl: "https://app.test/unsubscribe?token=t"
+      })
+    };
     service = new EmailAdminService(
       jwt as unknown as JwtService,
       mailService,
       prismaService,
-      verification
+      verification,
+      preferences as unknown as EmailPreferencesService
     );
   });
 
@@ -256,7 +268,12 @@ describe("email admin", () => {
       const result = await service.sendDirectEmail("token", "student", payload);
 
       expect(order).toEqual(["logged", "sent"]);
-      expect(mail.sendDirectEmail).toHaveBeenCalledWith({ ...payload, to: "student@example.com" });
+      expect(preferences.targetFor).toHaveBeenCalledWith("student", "ACADEMY_TEAM");
+      expect(mail.sendDirectEmail).toHaveBeenCalledWith({
+        ...payload,
+        to: "student@example.com",
+        unsubscribe: { oneClickUrl: "https://app.test/api/one", pageUrl: "https://app.test/unsubscribe?token=t" }
+      });
       expect(prisma.directEmail.create.mock.calls[0][0].data).toMatchObject({
         recipientId: "student",
         senderId: "boss",
@@ -274,6 +291,20 @@ describe("email admin", () => {
         data: { error: "Error: smtp down", status: "FAILED" },
         where: { id: "mail-1" }
       });
+    });
+
+    it("refuses someone who turned off emails from the academy team, logging nothing", async () => {
+      asCaller(superAdmin, person("student", UserRole.STUDENT));
+      preferences.targetFor.mockResolvedValue({
+        email: "student@example.com",
+        oneClickUrl: "o",
+        optedOut: true,
+        unsubscribeUrl: "p"
+      });
+
+      await expect(service.sendDirectEmail("token", "student", payload)).rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.directEmail.create).not.toHaveBeenCalled();
+      expect(mail.sendDirectEmail).not.toHaveBeenCalled();
     });
 
     it("logs nothing when there is no mail server", async () => {

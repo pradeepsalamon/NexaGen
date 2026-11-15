@@ -83,6 +83,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.tenantBranding;
   }
 
+  get tenantLegalPage() {
+    return this.client.tenantLegalPage;
+  }
+
   get tenantPaymentCredential() {
     return this.client.tenantPaymentCredential;
   }
@@ -625,6 +629,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get payrollRule() {
     return this.client.payrollRule;
+  }
+
+  get payrollSettings() {
+    return this.client.payrollSettings;
   }
 
   get payrollPeriod() {

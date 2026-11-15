@@ -66,6 +66,7 @@ describe("MessagingDeliveryWorker", () => {
     emailPreferences = {
       targetFor: jest.fn().mockResolvedValue({
         email: "asha@example.com",
+        oneClickUrl: "https://app.test/api/email-preferences/one-click?token=t",
         optedOut: false,
         unsubscribeUrl: "https://app.test/unsubscribe?token=t"
       })
@@ -153,8 +154,13 @@ describe("MessagingDeliveryWorker", () => {
         to: "asha@example.com",
         subject: "New class",
         body: "Class at 6pm",
-        unsubscribeUrl: "https://app.test/unsubscribe?token=t"
+        unsubscribe: {
+          oneClickUrl: "https://app.test/api/email-preferences/one-click?token=t",
+          pageUrl: "https://app.test/unsubscribe?token=t"
+        }
       });
+      // The rule's own category decides, so "stop class emails" stops this one.
+      expect(emailPreferences.targetFor).toHaveBeenCalledWith(expect.any(String), "CLASSES");
       expect(whatsapp.trySendText).not.toHaveBeenCalled();
       expect(lastUpdate()).toMatchObject({ status: "SENT", providerMessageId: "<smtp.1>" });
     });

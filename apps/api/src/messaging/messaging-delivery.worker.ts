@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { DEFAULT_TENANT_ID, markdownToWhatsApp, MESSAGE_MAX_ATTEMPTS } from "@nexa-chess/types";
+import { DEFAULT_TENANT_ID, markdownToWhatsApp, MESSAGE_MAX_ATTEMPTS, MESSAGING_EVENT_EMAIL_CATEGORY } from "@nexa-chess/types";
 import type { MessageDelivery } from "@prisma/client";
 import { EmailPreferencesService } from "../email-admin/email-preferences.service";
 import { MailService } from "../mail/mail.service";
@@ -215,7 +215,7 @@ export class MessagingDeliveryWorker {
     }
 
     const recipient = delivery.recipientId
-      ? await this.emailPreferences.targetFor(delivery.recipientId)
+      ? await this.emailPreferences.targetFor(delivery.recipientId, MESSAGING_EVENT_EMAIL_CATEGORY[delivery.event])
       : null;
     if (!recipient) {
       await this.markFailed(delivery.id, attempts, "The recipient's account no longer exists.");
@@ -229,7 +229,7 @@ export class MessagingDeliveryWorker {
           status: "SKIPPED",
           attempts,
           claimedAt: null,
-          error: "The recipient turned off notification emails.",
+          error: "The recipient turned off these emails.",
           lastAttemptAt: new Date()
         }
       });
@@ -241,7 +241,7 @@ export class MessagingDeliveryWorker {
         to: recipient.email,
         subject: delivery.title ?? delivery.body.slice(0, 120),
         body: delivery.body,
-        unsubscribeUrl: recipient.unsubscribeUrl
+        unsubscribe: { oneClickUrl: recipient.oneClickUrl, pageUrl: recipient.unsubscribeUrl }
       });
       await this.markSent(delivery.id, attempts, messageId);
       return true;

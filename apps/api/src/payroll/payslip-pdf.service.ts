@@ -4,6 +4,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { BrandingService } from "../branding/branding.service";
 import { ACADEMY_NAME } from "../messaging/messaging.format";
 import {
+  formatBpsPercent,
   formatMoney,
   PAYOUT_STATUS_LABELS,
   PAYSLIP_DOCUMENT_KIND_LABELS,
@@ -325,10 +326,19 @@ export class PayslipPdfService {
     if (payslip.totalAdjustmentsMinor < 0) {
       rows.push(["Adjustments", money(-payslip.totalAdjustmentsMinor)]);
     }
+    if (payslip.tdsMinor > 0) {
+      rows.push([
+        payslip.tdsRateBps === null
+          ? "TDS (tax deducted at source)"
+          : `TDS (tax deducted at source, ${formatBpsPercent(payslip.tdsRateBps)})`,
+        money(payslip.tdsMinor)
+      ]);
+    }
     if (rows.length === 0) return [];
 
     const total = deductionLines.reduce((sum, l) => sum + l.amountMinor, 0) +
-      Math.max(0, -payslip.totalAdjustmentsMinor);
+      Math.max(0, -payslip.totalAdjustmentsMinor) +
+      payslip.tdsMinor;
 
     return [
       {

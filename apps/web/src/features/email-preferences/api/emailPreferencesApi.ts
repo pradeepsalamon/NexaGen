@@ -1,14 +1,14 @@
 import { API_ROUTES } from "@nexa-chess/types";
-import type { EmailPreferencesDto, EmailUnsubscribeRequest } from "@nexa-chess/types";
+import type { EmailPreferencesDto, EmailUnsubscribeRequest, UpdateEmailPreferencesRequest } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
 
 export function getEmailPreferences() {
   return apiFetch<EmailPreferencesDto>(API_ROUTES.emailPreferences.mine);
 }
 
-export function updateEmailPreferences(notificationEmails: boolean) {
+export function updateEmailPreferences(body: UpdateEmailPreferencesRequest) {
   return apiFetch<EmailPreferencesDto>(API_ROUTES.emailPreferences.mine, {
-    body: { notificationEmails },
+    body,
     method: "PUT"
   });
 }

@@ -5,11 +5,13 @@ import {
   type AdminReferralDetail,
   type MyReferralSummary,
   type MyReferralVoucherCatalogue,
+  type PayReferralWithdrawalsBulkResponse,
   type ReferralItem,
   type ReferralPage,
   type ReferralRedemptionItem,
   type ReferralVisitResponse,
-  type ReferralVoucherItem
+  type ReferralVoucherItem,
+  paidWithdrawalsFromCsv
 } from "@nexa-chess/types";
 import { UserRole, UserStatus, type User } from "@prisma/client";
 import { TEST_ORIGIN } from "../test/integration/app-env";
@@ -17,6 +19,7 @@ import { createTestApp, type TestApp } from "../test/integration/app";
 import { createUser, resetDatabase } from "../test/integration/db";
 import { runInTenant } from "../tenancy/tenant-context";
 import { ReferralCreditsService } from "./referral-credits.service";
+import { ReferralPointsExpiryScheduler } from "./referral-points-expiry.scheduler";
 
 /**
  * The referral programme end to end (docs/REFERRALS.md): a link visit, the
@@ -471,5 +474,102 @@ describe("referral programme (real app, real Postgres)", () => {
     // The earlier test's rejection was announced too, with the admin's note.
     expect(await bodies()).toMatch(/a withdrawal of \S+ was paid/);
     expect(await bodies()).toMatch(/was declined\..*Wrong UPI/);
+  });
+
+  const waitFor = async (check: () => Promise<boolean>) => {
+    for (let i = 0; i < 50 && !(await check()); i += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+  };
+
+  it("marks withdrawals paid from the export filled in with references, skipping decided ones", async () => {
+    const coach = await active(UserRole.COACH);
+    await t.call(admin, "PUT", API_ROUTES.adminReferrals.settings, { minWithdrawalMinor: 100 });
+    await t.call(admin, "POST", API_ROUTES.adminReferrals.adjustCredits, { amountMinor: 30000, note: "Bonus", userId: coach.id, wallet: "CASH" });
+    for (const amountMinor of [10000, 10000]) {
+      expect((await t.call(coach, "POST", API_ROUTES.referrals.myWithdrawals, { amountMinor, payoutDetails: "c@upi" })).status).toBe(201);
+    }
+    const mine = await t.prisma.referralWithdrawal.findMany({ orderBy: { createdAt: "asc" }, where: { userId: coach.id } });
+    // The second is rejected before the import, so the file is stale for it.
+    await t.call(admin, "POST", API_ROUTES.adminReferrals.rejectWithdrawal(mine[1]!.id), { adminNote: "Duplicate" });
+
+    const exported = await t.call(admin, "GET", `${API_ROUTES.adminReferrals.withdrawalsExport}?search=${encodeURIComponent(coach.email)}`);
+    // What an admin does in a spreadsheet: type each transfer reference into the column.
+    const lines = String(exported.body).split("\r\n");
+    const filled = [lines[0], ...lines.slice(1).map((line) => line.replace(/,REQUESTED,,/, ",REQUESTED,UTR-1,").replace(/,REJECTED,,/, ",REQUESTED,UTR-2,"))].join("\r\n");
+    const { items, problems } = paidWithdrawalsFromCsv(filled);
+    expect(problems).toEqual([]);
+    expect(items.map((item) => item.id).sort()).toEqual([mine[0]!.id, mine[1]!.id].sort());
+
+    expect((await t.call(coach, "POST", API_ROUTES.adminReferrals.payWithdrawalsBulk, { items })).status).toBe(403);
+    const res = await t.call(admin, "POST", API_ROUTES.adminReferrals.payWithdrawalsBulk, { items });
+    expect(res.status).toBe(200);
+    const body = res.body as PayReferralWithdrawalsBulkResponse;
+    expect(body.paid).toEqual([mine[0]!.id]);
+    expect(body.skipped).toEqual([{ id: mine[1]!.id, reason: expect.stringContaining("rejected") }]);
+    const after = await t.prisma.referralWithdrawal.findUniqueOrThrow({ where: { id: mine[0]!.id } });
+    expect(after).toMatchObject({ payoutReference: "UTR-1", status: "PAID" });
+    expect((await t.prisma.referralWithdrawal.findUniqueOrThrow({ where: { id: mine[1]!.id } })).status).toBe("REJECTED");
+  });
+
+  it("tells the person when a credited reward is taken back", async () => {
+    // Any reward an earlier test credited (the public lead form is rate-limited by now).
+    const reward = await t.prisma.referralReward.findFirstOrThrow({
+      orderBy: { createdAt: "desc" },
+      where: { status: "CREDITED", unit: "POINTS" }
+    });
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.cancelReward(reward.id), { reason: "Duplicate lead" })).status).toBe(200);
+    const takenBack = () =>
+      t.prisma.messageDelivery.findMany({ where: { event: "REFERRAL_TAKEN_BACK", recipientId: reward.referrerId } });
+    await waitFor(async () => (await takenBack()).length > 0);
+    const [notice] = await takenBack();
+    expect(notice!.body).toContain(`${reward.amountMinor} point`);
+    expect(notice!.body).toContain("came off your balance");
+    expect(notice!.body).toContain("Duplicate lead");
+  });
+
+  it("warns a student once a week about points that expire within 7 days", async () => {
+    const holder = await active(UserRole.STUDENT);
+    await t.call(admin, "POST", API_ROUTES.adminReferrals.adjustCredits, { amountMinor: 120, note: "Gift", userId: holder.id, wallet: "POINTS" });
+    expect((await settings({ pointsExpiryDays: 90 })).status).toBe(200);
+    const scheduler = t.app.get(ReferralPointsExpiryScheduler);
+    const announce = async (ageDays: number) => {
+      await t.prisma.referralCreditEntry.updateMany({
+        data: { createdAt: new Date(Date.now() - ageDays * 24 * 60 * 60 * 1000) },
+        where: { userId: holder.id }
+      });
+      return runInTenant(DEFAULT_TENANT_ID, "test:expiring", async () =>
+        scheduler.announceExpiring(await t.prisma.referralSettings.findFirstOrThrow())
+      );
+    };
+    const notices = () => t.prisma.messageDelivery.findMany({ where: { event: "REFERRAL_POINTS_EXPIRING", recipientId: holder.id } });
+
+    // 70 days old: on the board's 30-day warning, not yet the 7-day notice.
+    await announce(70);
+    expect(await notices()).toHaveLength(0);
+    // 85 days old: expires within 7 days. A second run the same week sends nothing more.
+    await announce(85);
+    await announce(85);
+    const sent = await notices();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.body).toContain("120 points");
+    expect((await settings({ pointsExpiryDays: null })).status).toBe(200);
+  });
+
+  it("links an account an admin creates to the referral whose lead used that email", async () => {
+    // A referral from an earlier test whose lead never got an account.
+    const referral = await t.prisma.referral.findFirstOrThrow({
+      where: { leadId: { not: null }, referredUserId: null }
+    });
+    const email = `asha.${Date.now()}@example.com`;
+    await t.prisma.lead.update({ data: { email }, where: { id: referral.leadId! } });
+    const res = await t.call(admin, "POST", API_ROUTES.users.create, {
+      email,
+      firstName: "Asha",
+      lastName: "Rao",
+      password: "Test@12345",
+      role: "STUDENT"
+    });
+    expect(res.status).toBe(201);
+    const created = await t.prisma.user.findFirstOrThrow({ where: { email } });
+    expect((await t.prisma.referral.findUniqueOrThrow({ where: { id: referral.id } })).referredUserId).toBe(created.id);
   });
 });

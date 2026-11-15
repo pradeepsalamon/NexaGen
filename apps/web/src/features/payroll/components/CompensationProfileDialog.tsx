@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/Dialog";
+import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
@@ -73,6 +74,8 @@ export function CompensationProfileDialog({
     useState<CoachCompensationModel>("HOURLY");
   const [currency, setCurrency] = useState("INR");
   const [notes, setNotes] = useState("");
+  // Blank = the academy's TDS rate; 0 = no TDS for this coach.
+  const [tdsPercent, setTdsPercent] = useState("");
 
   // Filled on the first load only: adding a rate refetches the profile, and
   // that must not wipe profile edits not yet saved.
@@ -84,7 +87,12 @@ export function CompensationProfileDialog({
     setDefaultCompensationModel(profile.defaultCompensationModel);
     setCurrency(profile.currency);
     setNotes(profile.notes ?? "");
+    setTdsPercent(profile.tdsRateBps === null ? "" : String(profile.tdsRateBps / 100));
   }, [profile]);
+
+  const tdsPercentValue = Number(tdsPercent);
+  const tdsPercentValid =
+    tdsPercent.trim() === "" || (Number.isFinite(tdsPercentValue) && tdsPercentValue >= 0 && tdsPercentValue <= 100);
 
   const [calculationType, setCalculationType] = useState<CompensationCalculationType>("HOURLY_RATE");
   const [rateMajor, setRateMajor] = useState("");
@@ -157,6 +165,19 @@ export function CompensationProfileDialog({
                   value={currency}
                 />
               </div>
+              <FormField
+                error={tdsPercentValid ? undefined : "Enter a rate from 0 to 100."}
+                hint="Blank = the academy's rate. 0 = no TDS for this coach."
+                id="profile-tds-rate"
+                label="TDS rate (%)"
+              >
+                <Input
+                  id="profile-tds-rate"
+                  inputMode="decimal"
+                  onChange={(event) => setTdsPercent(event.target.value)}
+                  value={tdsPercent}
+                />
+              </FormField>
             </div>
 
             <div>
@@ -170,6 +191,7 @@ export function CompensationProfileDialog({
             </div>
 
             <Button
+              disabled={!tdsPercentValid}
               isLoading={updateProfile.isPending}
               onClick={() =>
                 updateProfile.mutate({
@@ -178,6 +200,7 @@ export function CompensationProfileDialog({
                     engagementType,
                     defaultCompensationModel,
                     currency,
+                    tdsRateBps: tdsPercent.trim() === "" ? null : Math.round(tdsPercentValue * 100),
                     notes: notes.trim() || undefined
                   }
                 })
