@@ -6,6 +6,7 @@ import type {
   SupportSavedReplyRequest,
   SupportTicketListQuery,
   SupportUnansweredListQuery,
+  UpdateSupportSettingsRequest,
   UpdateSupportTicketRequest
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
@@ -21,11 +22,13 @@ import {
   getSupportAgents,
   getSupportCounts,
   getSupportMessages,
+  getSupportSettings,
   getSupportTicket,
   getSupportTickets,
   replyToSupportTicket,
   returnSupportTicketToBot,
   takeOverSupportTicket,
+  updateSupportSettings,
   updateSupportTicket
 } from "../api/supportAdminApi";
 
@@ -171,6 +174,25 @@ export function useDismissSupportUnanswered() {
     onSuccess: async (_data, { quiet }) => {
       if (!quiet) toast.success({ title: "Question dismissed" });
       await queryClient.invalidateQueries({ queryKey: queryKeys.support.unansweredAll });
+    }
+  });
+}
+
+// ── Bot settings ──
+
+export function useSupportSettingsQuery() {
+  return useQuery({ queryFn: getSupportSettings, queryKey: queryKeys.support.settings });
+}
+
+export function useUpdateSupportSettings() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (body: UpdateSupportSettingsRequest) => updateSupportSettings(body),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Settings not saved" }),
+    onSuccess: (data) => {
+      toast.success({ title: "WhatsApp bot settings saved" });
+      queryClient.setQueryData(queryKeys.support.settings, data);
     }
   });
 }

@@ -914,6 +914,8 @@ export const API_ROUTES = {
   },
   /** Meta's WhatsApp Cloud API callbacks (GET = subscription handshake, POST = events). */
   whatsappWebhook: "/webhooks/whatsapp",
+  /** Another academy's own number (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §6): the key names the academy, its app secret signs. */
+  whatsappWebhookAcademy: (webhookKey: string = ":webhookKey") => `/webhooks/whatsapp/${webhookKey}`,
   adminSupport: {
     tickets: "/admin/support/tickets",
     counts: "/admin/support/tickets/counts",
@@ -927,7 +929,8 @@ export const API_ROUTES = {
     savedReplies: "/admin/support/saved-replies",
     savedReply: (id: string = ":id") => `/admin/support/saved-replies/${id}`,
     unanswered: "/admin/support/unanswered",
-    dismissUnanswered: (id: string = ":id") => `/admin/support/unanswered/${id}/dismiss`
+    dismissUnanswered: (id: string = ":id") => `/admin/support/unanswered/${id}/dismiss`,
+    settings: "/admin/support/settings"
   },
   leads: {
     create: "/leads",

@@ -231,3 +231,58 @@ export const supportUnansweredListQuerySchema = z.object({
   search: z.string().trim().max(100).optional()
 });
 export type SupportUnansweredListQuery = z.input<typeof supportUnansweredListQuerySchema>;
+
+// ── Per-academy bot settings (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §9) ──
+
+export const SUPPORT_SETTINGS_LIMITS = {
+  testNumbersMax: 20,
+  staffReminderMinutesMax: 1440,
+  /** The nudge must go inside the free 24-hour reply window. */
+  leadNudgeHoursMax: 23,
+  templateNameMax: 512
+} as const;
+
+export const updateSupportSettingsRequestSchema = z.object({
+  botEnabled: z.boolean(),
+  /** Numbers with country code; the API normalizes them (spaces, "+", a national number). */
+  testNumbers: z.array(z.string().trim().min(1).max(30)).max(SUPPORT_SETTINGS_LIMITS.testNumbersMax),
+  staffReminderMinutes: z.number().int().min(0).max(SUPPORT_SETTINGS_LIMITS.staffReminderMinutesMax),
+  leadNudgeHours: z.number().int().min(0).max(SUPPORT_SETTINGS_LIMITS.leadNudgeHoursMax),
+  /** Name as in WhatsApp Manager; empty = none (staff can't reply after the 24-hour window). */
+  agentReplyTemplate: z
+    .string()
+    .trim()
+    .max(SUPPORT_SETTINGS_LIMITS.templateNameMax)
+    .regex(/^[a-z0-9_]*$/, "Lower-case letters, digits and _ only, as in WhatsApp Manager."),
+  agentReplyTemplateLanguage: z
+    .string()
+    .trim()
+    .regex(/^[a-z]{2,3}(_[A-Z]{2})?$/, "A language code such as en or en_US.")
+});
+export type UpdateSupportSettingsRequest = z.infer<typeof updateSupportSettingsRequestSchema>;
+
+/** The settings the bot uses now. */
+export interface SupportSettingsValues {
+  botEnabled: boolean;
+  /** Normalized (digits with country code). Empty = everyone. */
+  testNumbers: string[];
+  staffReminderMinutes: number;
+  leadNudgeHours: number;
+  /** null = none. */
+  agentReplyTemplate: string | null;
+  agentReplyTemplateLanguage: string;
+}
+
+export interface SupportSettingsResponse extends SupportSettingsValues {
+  /** ACADEMY = saved on this page; SERVER = Nexa's academy, still on the server's defaults until the first save. */
+  source: "ACADEMY" | "SERVER";
+  /** Whether WhatsApp can reach the bot for this academy. */
+  connection: {
+    /** Nexa's academy (the server's number). */
+    usesPlatformNumber: boolean;
+    /** Incoming messages are set up (an academy: token + app secret + switched on; Nexa: the server's secret). */
+    receiving: boolean;
+    lastWebhookAt: string | null;
+  };
+  updatedAt: string | null;
+}

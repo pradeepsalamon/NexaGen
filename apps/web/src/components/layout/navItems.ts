@@ -153,7 +153,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/referrals", label: "Referrals", icon: Gift, group: "People", feature: "referralProgram" },
   { href: "/admin/email", label: "Email", icon: Mail, group: "People" },
   { href: "/admin/messaging", label: "Messaging rules", icon: MessageSquare, group: "People", feature: "messagingAutomation" },
-  { href: "/admin/support", label: "WhatsApp support", icon: Headset, group: "People" },
+  { href: "/admin/support", label: "WhatsApp support", icon: Headset, group: "People", feature: "whatsappSupport" },
   { href: "/messages", label: "Chats", icon: MessagesSquare, group: "People", feature: "directChat" },
   { href: "/admin/feedback", label: "Coach feedback", icon: MessageSquareHeart, group: "People", feature: "coachFeedback" },
   { href: "/admin/privacy", label: "Privacy requests", icon: ShieldCheck, group: "People" },

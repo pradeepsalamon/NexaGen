@@ -12,11 +12,12 @@ import { Prisma, type SupportTicket, type WhatsAppContact } from "@prisma/client
 import { SystemNotifier } from "../mail/system-notifier.service";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { asPlatform, runInTenant } from "../tenancy/tenant-context";
+import { forEachTenant } from "../tenancy/for-each-tenant";
+import { runInTenant } from "../tenancy/tenant-context";
 import { leadPhoneFromWaId, WHATSAPP_REPLY_WINDOW_MS } from "./support-conversation.service";
 import { SupportOutboxService } from "./support-outbox.service";
+import { type EffectiveSupportSettings, SupportSettingsService, supportAnswersNumber } from "./support-settings.service";
 import { supportContactLabel } from "./support-tickets.service";
-import { WhatsAppWebhookService } from "./whatsapp-webhook.service";
 
 const HOUR_MS = 60 * 60 * 1000;
 /** The second reminder goes when this little of the 24-hour reply window is left. */
@@ -89,7 +90,7 @@ export class SupportFollowUpService {
     private readonly notifier: SystemNotifier,
     private readonly outbox: SupportOutboxService,
     private readonly prisma: PrismaService,
-    private readonly webhook: WhatsAppWebhookService
+    private readonly settings: SupportSettingsService
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -101,23 +102,31 @@ export class SupportFollowUpService {
     });
   }
 
-  /** Reminds admins about tickets nobody has replied to. Each reminder is claimed before it is sent. */
+  /**
+   * Reminds admins about tickets nobody has replied to, academy by academy
+   * (each has its own reminder minutes). Each reminder is claimed before it is sent.
+   */
   async remindStaff(now: Date): Promise<number> {
-    const minutes = this.env.SUPPORT_STAFF_REMINDER_MINUTES;
+    let sent = 0;
+    await forEachTenant(this.prisma, "job:support.staff-reminders", async () => {
+      sent += await this.remindStaffInAcademy(now, (await this.settings.current()).staffReminderMinutes);
+    });
+    return sent;
+  }
+
+  private async remindStaffInAcademy(now: Date, minutes: number): Promise<number> {
     if (minutes <= 0) return 0;
-    const candidates = await asPlatform("support:staff-reminders", () =>
-      this.prisma.supportTicket.findMany({
-        include: { contact: true },
-        orderBy: { createdAt: "asc" },
-        take: BATCH,
-        where: {
-          conversation: { status: "WAITING_AGENT" },
-          createdAt: { lte: new Date(now.getTime() - minutes * 60_000) },
-          remindersSent: { lt: 2 },
-          status: "OPEN"
-        }
-      })
-    );
+    const candidates = await this.prisma.supportTicket.findMany({
+      include: { contact: true },
+      orderBy: { createdAt: "asc" },
+      take: BATCH,
+      where: {
+        conversation: { status: "WAITING_AGENT" },
+        createdAt: { lte: new Date(now.getTime() - minutes * 60_000) },
+        remindersSent: { lt: 2 },
+        status: "OPEN"
+      }
+    });
 
     let sent = 0;
     for (const ticket of candidates) {
@@ -136,31 +145,37 @@ export class SupportFollowUpService {
     return sent;
   }
 
-  /** Sends the one follow-up to parents who asked about classes and went quiet. */
+  /** Sends the one follow-up to parents who asked about classes and went quiet, academy by academy. */
   async nudgeParents(now: Date): Promise<number> {
-    const hours = this.env.SUPPORT_LEAD_NUDGE_HOURS;
-    if (hours <= 0 || !this.env.SUPPORT_BOT_ENABLED) return 0;
-    const candidates = await asPlatform("support:lead-nudges", () =>
-      this.prisma.supportConversation.findMany({
-        include: { contact: true },
-        orderBy: { lastInboundAt: "asc" },
-        take: BATCH,
-        where: {
-          contact: { optedOutAt: null },
-          lastInboundAt: {
-            gt: new Date(now.getTime() - WHATSAPP_REPLY_WINDOW_MS + NUDGE_WINDOW_MARGIN_MS),
-            lte: new Date(now.getTime() - hours * HOUR_MS)
-          },
-          nudgedAt: null,
-          state: { in: [...SUPPORT_NUDGE_STATES] },
-          status: "BOT"
-        }
-      })
-    );
+    let sent = 0;
+    await forEachTenant(this.prisma, "job:support.lead-nudges", async () => {
+      sent += await this.nudgeParentsInAcademy(now, await this.settings.forBot());
+    });
+    return sent;
+  }
+
+  private async nudgeParentsInAcademy(now: Date, settings: EffectiveSupportSettings): Promise<number> {
+    const hours = settings.leadNudgeHours;
+    if (hours <= 0 || !settings.botEnabled) return 0;
+    const candidates = await this.prisma.supportConversation.findMany({
+      include: { contact: true },
+      orderBy: { lastInboundAt: "asc" },
+      take: BATCH,
+      where: {
+        contact: { optedOutAt: null },
+        lastInboundAt: {
+          gt: new Date(now.getTime() - WHATSAPP_REPLY_WINDOW_MS + NUDGE_WINDOW_MARGIN_MS),
+          lte: new Date(now.getTime() - hours * HOUR_MS)
+        },
+        nudgedAt: null,
+        state: { in: [...SUPPORT_NUDGE_STATES] },
+        status: "BOT"
+      }
+    });
 
     let sent = 0;
     for (const candidate of candidates) {
-      if (!this.webhook.answersNumber(candidate.contact.waId)) continue;
+      if (!supportAnswersNumber(settings, candidate.contact.waId)) continue;
       await runInTenant(candidate.tenantId ?? DEFAULT_TENANT_ID, "job:support.lead-nudge", async () => {
         const nudged = await this.prisma.$transaction(async (tx) => {
           // The bot takes the same lock for each incoming message, so a reply

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, MessageSquareText } from "lucide-react";
+import { ExternalLink, MessageSquareText, Settings } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { SupportCategory, SupportTicketListItem, SupportTicketListQuery, SupportTicketStatus } from "@nexa-chess/types";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -156,12 +156,20 @@ export function SupportTicketsClient() {
       <Tabs onValueChange={(value) => setStatus(value)} value={status}>
         <PageHeader
           actions={
-            <Button asChild variant="outline">
-              <Link href="/admin/support/saved-replies">
-                <MessageSquareText className="mr-1.5 size-4" strokeWidth={2.25} />
-                Saved answers
-              </Link>
-            </Button>
+            <>
+              <Button asChild variant="neutral">
+                <Link href="/admin/support/settings">
+                  <Settings className="mr-1.5 size-4" strokeWidth={2.25} />
+                  Settings
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/admin/support/saved-replies">
+                  <MessageSquareText className="mr-1.5 size-4" strokeWidth={2.25} />
+                  Saved answers
+                </Link>
+              </Button>
+            </>
           }
           description="Requests from the WhatsApp support bot: demo bookings, finished forms and customers who asked for a person."
           tabs={

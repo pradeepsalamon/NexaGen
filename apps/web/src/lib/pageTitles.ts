@@ -38,6 +38,7 @@ export const PAGE_TITLES = {
   "/admin/support": "WhatsApp support",
   "/admin/support/tickets/[id]": "Support ticket",
   "/admin/support/saved-replies": "Saved answers",
+  "/admin/support/settings": "WhatsApp bot settings",
   "/admin/tournaments": "Tournaments",
   "/admin/tournaments/students/[userId]": "Student tournaments",
   "/admin/classes": "Batch classes",

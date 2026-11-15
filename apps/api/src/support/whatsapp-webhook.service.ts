@@ -6,8 +6,9 @@ import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { asPlatform, runInTenant } from "../tenancy/tenant-context";
-import { normalizeWhatsAppNumber } from "../whatsapp/whatsapp.utils";
+import { WhatsAppCredentialsService } from "../whatsapp/whatsapp-credentials.service";
 import { SupportConversationService } from "./support-conversation.service";
+import { type EffectiveSupportSettings, SupportSettingsService, supportAnswersNumber } from "./support-settings.service";
 import { parseWhatsAppWebhook, verifyWhatsAppSignature, type ParsedWhatsAppEvent } from "./whatsapp-webhook.parse";
 
 function safeEqual(a: string, b: string): boolean {
@@ -24,37 +25,42 @@ const SWEEP_GRACE_MS = 30_000;
 export const WEBHOOK_EVENT_MAX_ATTEMPTS = 5;
 const SWEEP_BATCH = 100;
 
+/** Where an incoming webhook goes: the academy, the number it must be for, and the secret that signs it. */
+type WebhookTarget = { appSecret: string | undefined; phoneNumberId: string | undefined; tenantId: string };
+
 /**
  * Meta → NexaGen (docs/WHATSAPP_SUPPORT.md §4). Every item is stored before
  * the 200, deduped on `dedupeKey`, and acted on after the response under a
  * `claimedAt` lease; a minute sweep picks up anything a crash left behind.
  *
- * v1 answers only Nexa's own number (the server's WHATSAPP_PHONE_NUMBER_ID).
- * Items for any other number are dropped: their signature can only be checked
- * with Nexa's app secret, and other academies have no bot yet.
+ * Nexa's own number arrives on `/webhooks/whatsapp`, signed with the server's
+ * WHATSAPP_APP_SECRET. Another academy's arrives on its own
+ * `/webhooks/whatsapp/<webhookKey>`, signed with its own app secret
+ * (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §6). Either way only items for that
+ * academy's number are kept: a signed payload for another number is dropped.
  */
 @Injectable()
 export class WhatsAppWebhookService {
   private readonly logger = new Logger(WhatsAppWebhookService.name);
   private readonly env = getApiEnv();
-  private readonly allowlist: ReadonlySet<string> | null;
 
   constructor(
     private readonly conversations: SupportConversationService,
+    private readonly credentials: WhatsAppCredentialsService,
     private readonly jobLocks: JobLockService,
-    private readonly prisma: PrismaService
-  ) {
-    const numbers = (this.env.SUPPORT_TEST_NUMBERS_ALLOWLIST ?? "")
-      .split(",")
-      .map((raw) => normalizeWhatsAppNumber(raw, this.env.WHATSAPP_DEFAULT_COUNTRY_CODE))
-      .filter((value): value is string => Boolean(value));
-    this.allowlist = numbers.length > 0 ? new Set(numbers) : null;
-  }
+    private readonly prisma: PrismaService,
+    private readonly settings: SupportSettingsService
+  ) {}
 
   /** Meta's subscription handshake: echo the challenge when the token matches. */
-  verifySubscription(mode: string | undefined, token: string | undefined, challenge: string | undefined): string {
-    // Meta expects a 403 for a failed handshake; unconfigured looks the same from outside.
-    const expected = this.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
+  async verifySubscription(
+    mode: string | undefined,
+    token: string | undefined,
+    challenge: string | undefined,
+    webhookKey?: string
+  ): Promise<string> {
+    // Meta expects a 403 for a failed handshake; unconfigured or unknown looks the same from outside.
+    const expected = webhookKey === undefined ? this.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN : await this.credentials.verifyTokenFor(webhookKey);
     if (!expected || mode !== "subscribe" || !token || !safeEqual(token, expected) || !challenge) {
       throw new ForbiddenException("Verification failed.");
     }
@@ -62,10 +68,11 @@ export class WhatsAppWebhookService {
   }
 
   /** Verifies, stores and schedules. Returns quickly: Meta retries anything slower than a few seconds. */
-  async receive(rawBody: string, signature: string | string[] | undefined): Promise<{ received: number }> {
-    // Without the app secret nothing can be verified, so everything is refused.
-    const secret = this.env.WHATSAPP_APP_SECRET;
-    if (!secret || !verifyWhatsAppSignature(rawBody, signature, secret)) {
+  async receive(rawBody: string, signature: string | string[] | undefined, webhookKey?: string): Promise<{ received: number }> {
+    const target = this.targetFor(webhookKey);
+    // Without the app secret nothing can be verified, so everything is refused;
+    // an unknown academy key answers exactly like a bad signature.
+    if (!target?.appSecret || !verifyWhatsAppSignature(rawBody, signature, target.appSecret)) {
       throw new UnauthorizedException("Invalid signature.");
     }
 
@@ -76,15 +83,18 @@ export class WhatsAppWebhookService {
       throw new BadRequestException("Malformed JSON.");
     }
 
-    const ours = this.env.WHATSAPP_PHONE_NUMBER_ID;
-    const events = parseWhatsAppWebhook(body).filter((event) => event.phoneNumberId === ours);
+    const events = parseWhatsAppWebhook(body).filter((event) => event.phoneNumberId === target.phoneNumberId);
     if (events.length === 0) return { received: 0 };
 
-    const ids = await runInTenant(DEFAULT_TENANT_ID, "webhook:whatsapp", async () => {
+    const ids = await runInTenant(target.tenantId, "webhook:whatsapp", async () => {
+      const settings = await this.settings.forBot();
       await this.prisma.whatsAppWebhookEvent.createMany({
-        data: events.map((event) => this.toRow(event)),
+        data: events.map((event) => this.toRow(event, settings)),
         skipDuplicates: true
       });
+      if (target.tenantId !== DEFAULT_TENANT_ID) {
+        await this.prisma.whatsAppSettings.updateMany({ data: { lastWebhookAt: new Date() }, where: { tenantId: target.tenantId } });
+      }
       const rows = await this.prisma.whatsAppWebhookEvent.findMany({
         select: { id: true },
         where: { dedupeKey: { in: events.map((event) => event.dedupeKey) }, ignoredAt: null, processedAt: null }
@@ -94,22 +104,24 @@ export class WhatsAppWebhookService {
 
     // After the response; the lease makes a duplicate run harmless.
     setImmediate(() => {
-      void runInTenant(DEFAULT_TENANT_ID, "webhook:whatsapp.process", () => this.processMany(ids));
+      void runInTenant(target.tenantId, "webhook:whatsapp.process", () => this.processMany(ids));
     });
     return { received: events.length };
   }
 
-  /** Whether the bot may act on (or write first to) this number right now: switched on, and on the allowlist when one is set. */
-  answersNumber(waId: string): boolean {
-    if (!this.env.SUPPORT_BOT_ENABLED) return false;
-    return this.allowlist === null || this.allowlist.has(waId);
+  private targetFor(webhookKey: string | undefined): WebhookTarget | null {
+    if (webhookKey === undefined) {
+      return { appSecret: this.env.WHATSAPP_APP_SECRET, phoneNumberId: this.env.WHATSAPP_PHONE_NUMBER_ID, tenantId: DEFAULT_TENANT_ID };
+    }
+    return this.credentials.inboundFor(webhookKey);
   }
 
-  private toRow(event: ParsedWhatsAppEvent) {
+  private toRow(event: ParsedWhatsAppEvent, settings: EffectiveSupportSettings) {
     const base = {
       dedupeKey: event.dedupeKey,
       kind: event.kind,
       occurredAt: event.occurredAt,
+      phoneNumberId: event.phoneNumberId,
       providerMessageId: event.wamid,
       waId: event.waId
     };
@@ -118,9 +130,9 @@ export class WhatsAppWebhookService {
     }
     return {
       ...base,
-      // Rollback is "flag off": messages that arrive meanwhile are recorded but never
+      // Rollback is "switch off": messages that arrive meanwhile are recorded but never
       // replayed when the bot comes back on.
-      ignoredAt: this.answersNumber(event.waId) ? null : new Date(),
+      ignoredAt: supportAnswersNumber(settings, event.waId) ? null : new Date(),
       messageType: event.messageType,
       profileName: event.profileName,
       replyId: event.replyId,

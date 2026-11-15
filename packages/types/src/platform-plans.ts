@@ -41,6 +41,7 @@ export const PLAN_FEATURE_KEYS = [
   "smartRevision",
   "studentPayments",
   "tournaments",
+  "whatsappSupport",
   "whiteLabel"
 ] as const;
 
@@ -177,6 +178,12 @@ export const PLAN_FEATURES: Record<PlanFeatureKey, PlanFeatureDefinition> = {
     key: "tournaments",
     label: "Tournaments"
   },
+  whatsappSupport: {
+    category: "Growth",
+    description: "WhatsApp support bot: instant answers, demo bookings, tickets and a staff inbox on your own number.",
+    key: "whatsappSupport",
+    label: "WhatsApp support"
+  },
   whiteLabel: {
     category: "Growth",
     description: "No NexaChess name anywhere the academy's users see: no \"Powered by\" line, links or wording.",
@@ -290,7 +297,8 @@ const BUSINESS_FEATURES: PlanFeatureKey[] = [
   "coachPayroll",
   "customDomain",
   "gameAnalysis",
-  "messagingAutomation"
+  "messagingAutomation",
+  "whatsappSupport"
 ];
 
 export const DEFAULT_PLATFORM_PLANS: PlatformPlanSeed[] = [

@@ -75,6 +75,7 @@ export const queryKeys = {
     detail: (id: string) => ["support", "detail", id] as const,
     messages: (id: string) => ["support", "messages", id] as const,
     savedReplies: ["support", "saved-replies"] as const,
+    settings: ["support", "settings"] as const,
     unanswered: (params: Record<string, unknown>) => ["support", "unanswered", params] as const,
     unansweredAll: ["support", "unanswered"] as const,
   },

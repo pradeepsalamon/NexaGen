@@ -77,6 +77,34 @@ staff overtook it (conversation `AGENT`, or a staff reply / take-over after it
 was written). It is marked not delivered ("Not sent: staff took over…"), even
 while waiting for a retry, so it never holds back the staff reply.
 
+**Per academy (Phase B of [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md),
+built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
+
+- *Settings*: one `SupportSettings` row per academy, at Admin → WhatsApp support →
+  Settings (`/admin/support/settings`, admins). It holds bot on/off, test
+  numbers, staff reminder minutes, parent nudge hours and the after-24-hours
+  reply template. `resolveSupportSettings` is the one rule: a saved row wins.
+  Without a row, Nexa's academy uses the `SUPPORT_*` env values (production is
+  unchanged until an admin saves the page) and any other academy has the bot
+  off. `SUPPORT_SESSION_TIMEOUT_MINUTES` stays server-wide.
+- *Another academy's number*: its super admin saves phone number ID, token,
+  **app secret** and optionally the WABA ID under Branding → WhatsApp. The
+  first save makes a random `webhookKey` and verify token, which are kept on
+  later saves. The page shows the callback URL `/webhooks/whatsapp/<webhookKey>`
+  (on the academy's own address, `/api/...`) and the verify token to paste into
+  Meta. A POST there is checked with that academy's app secret
+  (`WhatsAppCredentialsService.inboundFor`, in memory, reloaded every 60 s).
+  Only items for that academy's phone number ID are kept, and they are processed
+  in `runInTenant(academy)`, so replies go from its own number. An unknown key
+  answers like a bad signature (401). One academy per number: unique
+  `phoneNumberId`, and Nexa's env number can't be claimed (409).
+  `lastWebhookAt` shows as "Last message from WhatsApp".
+- *Plan feature `whatsappSupport`* (Business, Enterprise): the inbox routes
+  require it for writes; without it `SupportSettingsService.forBot` keeps the
+  bot off whatever was saved.
+- *Follow-ups* run academy by academy (`forEachTenant`) with each academy's
+  minutes and hours.
+
 **Consent.** `STOP` sets `WhatsAppContact.optedOutAt`; messaging rules and
 system messages then skip that number (`SKIPPED`, checked at send time, so
 queued ones stop too). Support replies to the customer's own messages still go.
@@ -154,8 +182,11 @@ URL `https://api.nexachess.in/webhooks/whatsapp` subscribed to `messages`;
 **staging must stop sharing production's WhatsApp number and token** (still the
 same on 2026-11-14, compared by hash) — otherwise dev would answer real
 customers; optionally an approved reply template; then
-`SUPPORT_BOT_ENABLED=true` with `SUPPORT_TEST_NUMBERS_ALLOWLIST` set to staff
-numbers, then the allowlist emptied.
+on the settings page, the bot switched on with staff numbers as test numbers,
+then the list emptied (or, before anyone saves that page, the same through
+`SUPPORT_BOT_ENABLED` + `SUPPORT_TEST_NUMBERS_ALLOWLIST`). Another academy:
+Branding → WhatsApp (token, app secret, switch on), paste the callback URL and
+verify token into its Meta app, then its own settings page.
 
 Legend: ✅ verified in the repo / on the box · ❓ assumption or not verifiable
 from here.

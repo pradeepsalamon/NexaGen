@@ -1,6 +1,5 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-chess/config/api";
 import {
   cursorPageQuerySchema,
   supportTicketListQuerySchema,
@@ -25,6 +24,7 @@ import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.se
 import { replyWindowEndsAt } from "./support-conversation.service";
 import type { SupportOutboundPayload } from "./support-outbox.service";
 import { SupportOutboxService } from "./support-outbox.service";
+import { SupportSettingsService } from "./support-settings.service";
 
 type StaffUser = Pick<User, "id" | "role">;
 
@@ -55,12 +55,11 @@ export function toTemplateParam(text: string, max = 900): string {
  */
 @Injectable()
 export class SupportAdminService {
-  private readonly env = getApiEnv();
-
   constructor(
     private readonly jwtService: JwtService,
     private readonly outbox: SupportOutboxService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly settings: SupportSettingsService
   ) {}
 
   async list(accessToken: string | undefined, rawQuery: unknown): Promise<SupportTicketListResponse> {
@@ -147,10 +146,11 @@ export class SupportAdminService {
     if (!contact) throw new NotFoundException("Contact not found.");
 
     const windowOpen = replyWindowEndsAt(contact) !== null;
-    const template = this.env.SUPPORT_AGENT_REPLY_TEMPLATE;
+    const settings = windowOpen ? null : await this.settings.current();
+    const template = settings?.agentReplyTemplate ?? null;
     if (!windowOpen && !template) {
       throw new ConflictException(
-        "The customer last wrote more than 24 hours ago, so WhatsApp only allows an approved template, and none is set (SUPPORT_AGENT_REPLY_TEMPLATE)."
+        "The customer last wrote more than 24 hours ago, so WhatsApp only allows an approved template, and none is set (Support → Settings)."
       );
     }
     const payload: SupportOutboundPayload | null = windowOpen
@@ -158,7 +158,7 @@ export class SupportAdminService {
       : {
           bodyParams: [ticket.reference, toTemplateParam(body.body)],
           kind: "template",
-          language: this.env.SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE,
+          language: settings!.agentReplyTemplateLanguage,
           name: template!
         };
 

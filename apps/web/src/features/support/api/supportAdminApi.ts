@@ -7,12 +7,14 @@ import type {
   SupportReplyRequest,
   SupportSavedReplyItem,
   SupportSavedReplyRequest,
+  SupportSettingsResponse,
   SupportTicketCounts,
   SupportTicketDetail,
   SupportTicketListQuery,
   SupportTicketListResponse,
   SupportUnansweredListQuery,
   SupportUnansweredQuestionListResponse,
+  UpdateSupportSettingsRequest,
   UpdateSupportTicketRequest
 } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
@@ -92,4 +94,12 @@ export function getSupportUnanswered(params: SupportUnansweredListQuery): Promis
 
 export function dismissSupportUnanswered(id: string): Promise<{ id: string }> {
   return apiFetch<{ id: string }>(API_ROUTES.adminSupport.dismissUnanswered(id), { method: "POST" });
+}
+
+export function getSupportSettings(): Promise<SupportSettingsResponse> {
+  return apiFetch<SupportSettingsResponse>(API_ROUTES.adminSupport.settings);
+}
+
+export function updateSupportSettings(body: UpdateSupportSettingsRequest): Promise<SupportSettingsResponse> {
+  return apiFetch<SupportSettingsResponse>(API_ROUTES.adminSupport.settings, { body, method: "PUT" });
 }
