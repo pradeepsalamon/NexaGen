@@ -6,6 +6,7 @@ import {
   partialWithoutDefaults,
   solutionMoveSchema
 } from "./core-schemas";
+import { acceptedTermsSchema } from "./legal";
 import { batchTypeSchema, type BatchType, type BatchTypeSource } from "./batch-type";
 import {
   MAX_ASSIGNMENT_PUZZLES,
@@ -40,6 +41,11 @@ import {
 export {
   attemptMoveSchema,
   chessColorSchema,
+  CURSOR_PAGE_DEFAULT_LIMIT,
+  CURSOR_PAGE_MAX_LIMIT,
+  cursorPageQuerySchema,
+  type CursorPageParams,
+  type CursorPageQuery,
   paginationMetaSchema,
   partialWithoutDefaults,
   solutionMoveSchema
@@ -77,6 +83,7 @@ export * from "./chat";
 export * from "./knowledge";
 export * from "./assistant-tools";
 export * from "./assignment-reminders";
+export * from "./referrals";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -99,7 +106,7 @@ export interface PaginationMeta {
 }
 
 
-export type UserRole = "SUPER_ADMIN" | "ADMIN" | "COACH" | "STUDENT";
+export type UserRole = "SUPER_ADMIN" | "ADMIN" | "COACH" | "STUDENT" | "SALES";
 
 export type UserStatus = "ACTIVE" | "PENDING" | "ARCHIVED" | "DELETED";
 
@@ -190,7 +197,7 @@ export const batchStatusSchema = z.enum(["UPCOMING", "ACTIVE", "COMPLETED", "ARC
 
 export const userStatusSchema = z.enum(["ACTIVE", "PENDING", "ARCHIVED", "DELETED"]);
 
-export const userRoleSchema = z.enum(["SUPER_ADMIN", "ADMIN", "COACH", "STUDENT"]);
+export const userRoleSchema = z.enum(["SUPER_ADMIN", "ADMIN", "COACH", "STUDENT", "SALES"]);
 export const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters.")
@@ -200,6 +207,7 @@ export const passwordSchema = z
 
 export const registerRequestSchema = z
   .object({
+    acceptedTerms: acceptedTermsSchema,
     confirmPassword: z.string().min(8, "Confirm your password."),
     contactNumber: z.string().min(1, "Contact number is required.").max(30),
     email: z.string().email("Enter a valid email address.").max(255),
@@ -374,6 +382,8 @@ export type AuthUser = {
   firstName: string;
   id: string;
   isEmailVerified: boolean;
+  /** Nexa's own SUPER_ADMIN: may open the platform console (docs/SAAS_PLANS.md). The API still checks every call. */
+  isPlatformOperator?: boolean;
   lastName?: string | null;
   phoneNumber?: string | null;
   role: UserRole;
@@ -418,7 +428,8 @@ export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
 export type UpdateUserRequest = z.infer<typeof updateUserRequestSchema>;
 
 export type BatchUserSummary = {
-  email: string;
+  /** Null when a student views anyone but themselves: students are minors. */
+  email: string | null;
   firstName: string;
   id: string;
   lastName?: string | null;
@@ -459,6 +470,8 @@ export type BatchResponse = {
 
 export type AuthResponse = {
   user: AuthUser;
+  /** Set while this browser is a platform support visit (§I): drives the banner. */
+  support?: import("./platform-plans").SupportVisitInfo | null;
 };
 
 /**
@@ -567,7 +580,17 @@ export type TrashEntity =
   | "PuzzleTopic"
   | "LibraryActivity"
   | "Course"
-  | "CourseModule";
+  | "CourseModule"
+  | "Assignment"
+  | "Announcement"
+  | "Lead"
+  | "FeedbackForm"
+  | "KnowledgeArticle"
+  | "KnowledgeCategory"
+  | "ChessGame"
+  | "LiveClassPreset"
+  | "DemoSchedule"
+  | "Tournament";
 
 export type TrashDeletedBy = {
   email: string;
@@ -624,6 +647,7 @@ export type EmptyTrashResponse = TrashActionResponse & {
 
 export const registerCoachRequestSchema = z
   .object({
+    acceptedTerms: acceptedTermsSchema,
     confirmPassword: z.string().min(8, "Confirm your password."),
     contactNumber: z.string().min(1, "Contact number is required.").max(30),
     email: z.string().email("Enter a valid email address.").max(255),
@@ -932,6 +956,11 @@ export type UpdateLiveClassPresetRequest = z.infer<typeof updateLiveClassPresetR
 
 export type CoachClassListResponse = {
   classes: CoachClass[];
+};
+
+/** `GET /coach/classes/history`: server-paginated (`page`, `pageSize`, `sort`=startsAt|batchName, `order`). */
+export type CoachClassHistoryResponse = CoachClassListResponse & {
+  pagination: PaginationMeta;
 };
 
 export type CoachClassResponse = {
@@ -2370,8 +2399,9 @@ export type StockfishStreamEvent =
 
 // The in-app bell is one channel of the admin-configured messaging rules, so
 // its type catalogue IS the event catalogue — see ./messaging.
-export const notificationTypeSchema = messagingEventSchema;
-export type NotificationType = MessagingEvent;
+/** A rule's event, or a fixed system message shown in-app (system-messages.ts). */
+export const notificationTypeSchema = z.enum([...messagingEventSchema.options, "SYSTEM_MESSAGE"]);
+export type NotificationType = MessagingEvent | "SYSTEM_MESSAGE";
 
 export type NotificationItem = {
   id: string;
@@ -2387,6 +2417,8 @@ export type NotificationItem = {
 export type NotificationListResponse = {
   notifications: NotificationItem[];
   unreadCount: number;
+  /** Pass back as `cursor` for the next (older) page; null on the last page. */
+  nextCursor: string | null;
 };
 
 export const markNotificationsReadRequestSchema = z.object({
@@ -2619,6 +2651,7 @@ export * from "./live-class-match";
 export * from "./live-class-move-poll";
 export * from "./live-class-tools";
 export * from "./live-class-chapter";
+export * from "./live-class-transcript";
 export * from "./live-class-activity-queue";
 export * from "./puzzle-rush";
 export * from "./puzzle-activity";
@@ -2628,6 +2661,7 @@ export * from "./puzzle-activity";
 // ──────────────────────────────────────────────
 export * from "./course";
 export * from "./assignment-puzzle-set";
+export * from "./legal";
 
 // ──────────────────────────────────────────────
 // Admin messaging rules + announcements (kept in its own module)
@@ -2635,11 +2669,15 @@ export * from "./assignment-puzzle-set";
 export * from "./markdown";
 export * from "./messaging";
 export * from "./system-messages";
+export * from "./whatsapp-template";
 
 // ──────────────────────────────────────────────
 // Payments: provider-agnostic checkout, refunds, subscriptions, invoices
 // ──────────────────────────────────────────────
 export * from "./payments";
+export * from "./tenant-branding";
+export * from "./platform-billing";
+export * from "./tenant-integrity";
 
 // Invoicing: tax engine, invoice + credit-note documents, billing settings
 export * from "./invoices";
@@ -2796,3 +2834,8 @@ export * from "./retention";
 // Admin email: verification policy + direct email (docs/EMAIL_ADMIN.md).
 // ──────────────────────────────────────────────
 export * from "./email-admin";
+
+// ──────────────────────────────────────────────
+// Tournaments (docs/TOURNAMENTS.md).
+// ──────────────────────────────────────────────
+export * from "./tournaments";

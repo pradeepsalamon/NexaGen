@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ComponentProps } from "react";
-import { Loader2, Square } from "lucide-react";
+import { Square } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { useEndLiveClass } from "../hooks/useLiveClassApi";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** Ends a live class from outside the room (class page, connection-lost screen). */
 export function EndClassButton({
@@ -56,7 +57,7 @@ export function EndClassButton({
               Cancel
             </Button>
             <Button variant="destructive" disabled={endClass.isPending} onClick={confirm}>
-              {endClass.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {endClass.isPending && <Spinner className="mr-2 size-4" />}
               End class
             </Button>
           </DialogFooter>

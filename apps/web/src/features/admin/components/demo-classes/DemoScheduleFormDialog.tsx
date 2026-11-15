@@ -250,7 +250,7 @@ function ScheduleForm({ schedule, onDone }: { schedule: DemoScheduleDto | null; 
       />
 
       <div className="flex justify-end gap-3 border-t border-app-border pt-4">
-        <Button type="button" variant="outline" onClick={onDone} disabled={save.isPending}>
+        <Button type="button" variant="neutral" onClick={onDone} disabled={save.isPending}>
           Cancel
         </Button>
         <Button type="submit" isLoading={save.isPending}>

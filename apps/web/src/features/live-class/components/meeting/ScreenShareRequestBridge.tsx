@@ -70,6 +70,17 @@ export function ScreenShareRequestBridge({ classId }: { classId: string }) {
           }
         } else if (entry.studentId === user?.id) {
           upsertScreenShareRequest(entry);
+          // Approved covers both an answered request and a coach allowing it
+          // unasked; either way the share itself is the student's own click.
+          if (type === "RESOLVED" && entry.status === "APPROVED") {
+            toast("You can share your screen now", {
+              id: toastId(entry.studentId),
+              description: "Use Share screen in your controls when you're ready.",
+              duration: 8000,
+            });
+          } else if (type === "RESOLVED") {
+            toast.dismiss(toastId(entry.studentId));
+          }
         }
       } catch {
         // Malformed packet — ignore.

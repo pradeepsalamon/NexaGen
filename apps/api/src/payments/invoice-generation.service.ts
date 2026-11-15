@@ -9,6 +9,7 @@ import { MessagingDispatchService } from "../messaging/messaging-dispatch.servic
 import { MessagingRuleService } from "../messaging/messaging-rule.service";
 import { JOB_LOCKS, JobLockService, type JobLockName } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { currentTenantId } from "../tenancy/tenant-context";
 import { isQueueEnabled } from "../queue/queue.config";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { CreditNoteService } from "./credit-note.service";
@@ -101,7 +102,7 @@ export class InvoiceGenerationService {
 
     await this.queue.add(
       INVOICE_JOBS.generateInvoicePdf,
-      { invoiceId, force: options?.force, sendEmail: options?.sendEmail },
+      { force: options?.force, invoiceId, sendEmail: options?.sendEmail, tenantId: currentTenantId() ?? undefined },
       { jobId: invoicePdfJobId(invoiceId, options?.force) }
     );
   }
@@ -117,7 +118,7 @@ export class InvoiceGenerationService {
 
     await this.queue.add(
       INVOICE_JOBS.generateCreditNotePdf,
-      { creditNoteId, force: options?.force },
+      { creditNoteId, force: options?.force, tenantId: currentTenantId() ?? undefined },
       { jobId: creditNotePdfJobId(creditNoteId, options?.force) }
     );
   }
@@ -507,7 +508,7 @@ export class InvoiceGenerationService {
 
   private async withLock(name: JobLockName, run: () => Promise<void>): Promise<void> {
     try {
-      await this.jobLocks.runExclusive(name, run);
+      await this.jobLocks.runForEachTenant(name, run);
     } catch (error) {
       this.logger.error("Invoice generation cron failed", error as Error);
     }

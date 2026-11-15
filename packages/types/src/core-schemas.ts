@@ -14,6 +14,22 @@ export const paginationMetaSchema = z.object({
   totalPages: z.number()
 });
 
+/**
+ * Keyset ("cursor") page params for an infinitely-scrolled, newest-first feed.
+ * `cursor` is the opaque `nextCursor` of the previous page; omit it for the
+ * first page. Unlike `page`/`pageSize`, a cursor never skips or repeats a row
+ * when new rows arrive between requests. See docs/PAGINATION.md.
+ */
+export const CURSOR_PAGE_DEFAULT_LIMIT = 30;
+export const CURSOR_PAGE_MAX_LIMIT = 100;
+export const cursorPageQuerySchema = z.object({
+  cursor: z.string().min(1).max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(CURSOR_PAGE_MAX_LIMIT).default(CURSOR_PAGE_DEFAULT_LIMIT)
+});
+export type CursorPageQuery = z.input<typeof cursorPageQuerySchema>;
+/** {@link CursorPageQuery} after parsing (`limit` defaulted). */
+export type CursorPageParams = z.output<typeof cursorPageQuerySchema>;
+
 export const chessColorSchema = z.enum(["white", "black"]);
 
 /** Strips `.default()` / `.prefault()` / `.optional()` wrappers, keeping `.nullable()`. */

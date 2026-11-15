@@ -5,10 +5,12 @@ import { AreaChartCard, DonutChartCard } from "@/components/charts/Charts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
 import { Button } from "@/components/ui/Button";
 import { SectionCard } from "@/components/ui/SectionCard";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/utils";
 import { formatDayMonth } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { useUserAnalyticsQuery } from "../../hooks/useAnalyticsApi";
+import { formatNumber } from "../../lib/format";
 
 const GRANULARITIES: AnalyticsGranularity[] = ["day", "week", "month"];
 
@@ -45,7 +47,7 @@ export function UserGrowthSection({
               className={cn(
                 "rounded-control px-2 py-1 text-xs font-semibold capitalize",
                 granularity === g
-                  ? "bg-secondary text-black"
+                  ? "bg-primary text-on-primary"
                   : "text-app-muted hover:bg-app-soft"
               )}
               key={g}
@@ -131,14 +133,19 @@ export function UserGrowthSection({
                 >
                   <span className="text-app-muted">{s.label}</span>
                   <span className="font-semibold text-app-text">
-                    {s.count.toLocaleString()}{" "}
+                    {formatNumber(s.count)}{" "}
                     <span className="text-app-muted">({s.percent}%)</span>
                   </span>
                 </li>
               ))}
-              {isLoading ? (
-                <li className="text-sm text-app-muted">Loading…</li>
-              ) : null}
+              {isLoading
+                ? [0, 1, 2].map((i) => (
+                    <li aria-hidden="true" className="flex items-center justify-between gap-4" key={i}>
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-16" />
+                    </li>
+                  ))
+                : null}
             </ul>
           </div>
         </div>
@@ -151,7 +158,7 @@ export function UserGrowthSection({
             key={g}
             onClick={() => onGranularityChange(g)}
             size="sm"
-            variant={granularity === g ? "secondary" : "outline"}
+            variant={granularity === g ? "primary" : "neutral"}
           >
             {g}
           </Button>

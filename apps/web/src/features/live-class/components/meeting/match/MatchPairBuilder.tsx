@@ -55,7 +55,7 @@ export function MatchPairBuilder({
           <Select aria-label="Black player" value={blackId} onChange={(e) => setBlackId(e.target.value)} options={options(whiteId)} />
         </label>
         <SimpleTooltip label="Add pair">
-          <Button size="icon" className="rounded-full" aria-label="Add pair" onClick={add} disabled={!whiteId || !blackId}>
+          <Button size="icon" aria-label="Add pair" onClick={add} disabled={!whiteId || !blackId}>
             <Plus className="size-4" strokeWidth={2.5} />
           </Button>
         </SimpleTooltip>

@@ -33,7 +33,7 @@ export function BackButton({
       className={cn("w-fit gap-1.5 px-4", className)}
       onClick={goBack}
       size="sm"
-      variant="secondary"
+      variant="neutral"
       {...props}
     >
       <ChevronLeft aria-hidden="true" className="size-4" />

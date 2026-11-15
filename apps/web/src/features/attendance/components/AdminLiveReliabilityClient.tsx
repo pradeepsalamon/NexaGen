@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useLiveReliabilityOverview } from "../hooks/useLiveReliabilityOverview";
 import { useReliabilityMetrics } from "../hooks/useReliabilityMetrics";
 import { Badge } from "@/components/ui/Badge";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 // Admin cross-class reliability view (RELIABILITY_DESIGN.md §4.5): every
 // currently-LIVE class with a participant (coach or student) in
@@ -32,21 +33,19 @@ export function AdminLiveReliabilityClient() {
   const { data, isLoading, isError, isFetching } = useLiveReliabilityOverview();
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold text-app-text">Live reliability</h1>
-          <p className="text-sm text-app-muted">
-            Currently-live classes with a coach or student losing connection right now.
-          </p>
-        </div>
-        {isFetching && !isLoading && (
-          <span className="flex items-center gap-1.5 text-xs text-app-muted">
-            <RefreshCw className="size-3.5 animate-spin" />
-            Updating
-          </span>
-        )}
-      </div>
+    <div className="animate-fade-in space-y-4 pb-10">
+      <PageHeader
+        actions={
+          isFetching && !isLoading ? (
+            <span className="flex items-center gap-1.5 text-xs text-app-muted" role="status">
+              <RefreshCw aria-hidden="true" className="size-3.5 animate-spin" />
+              Updating
+            </span>
+          ) : null
+        }
+        description="Currently-live classes with a coach or student losing connection right now."
+        title="Live reliability"
+      />
 
       {isLoading ? (
         <Card className="space-y-3 p-5">

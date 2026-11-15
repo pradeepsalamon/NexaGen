@@ -26,9 +26,10 @@ import { SortButton } from "@/components/ui/DataTableSortButton";
 import { useCourses, useDeleteCourse, useSetCourseArchived, useSetCoursePublished } from "../hooks/useCoursesApi";
 import { COURSE_STATUS_OPTIONS, courseStatusBadgeVariant } from "../lib/courseMeta";
 import { enumLabel } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
+  "size-8";
 
 export function AdminCoursesClient() {
   const [searchInput, setSearchInput] = useState("");
@@ -75,21 +76,19 @@ export function AdminCoursesClient() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Courses</h1>
-          <p className="mt-1 text-sm text-app-muted">
-            Curate ordered playlists of existing assignments and puzzles for students.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/courses/new">
-            <Plus className="mr-2 size-4" />
-            New course
-          </Link>
-        </Button>
-      </div>
+    <div className="animate-fade-in space-y-6 pb-10">
+      <PageHeader
+        actions={
+          <Button asChild>
+            <Link href="/admin/courses/new">
+              <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              New course
+            </Link>
+          </Button>
+        }
+        description="Curate ordered playlists of existing assignments and puzzles for students."
+        title="Courses"
+      />
 
       <Card className="grid gap-4 p-4">
         <div className="flex flex-wrap justify-end gap-2">
@@ -114,7 +113,7 @@ export function AdminCoursesClient() {
             className="w-auto"
           />
           {hasFilters && (
-            <Button variant="outline" size="sm" onClick={clearFilters}>
+            <Button variant="neutral" size="sm" onClick={clearFilters}>
               Clear
             </Button>
           )}
@@ -128,7 +127,7 @@ export function AdminCoursesClient() {
           </div>
         ) : courses.length === 0 ? (
           <EmptyState variant="inline"
-            icon={Plus}
+            illustration={hasFilters ? "search-results" : "courses"}
             title={hasFilters ? "No courses match your filters" : "No courses yet"}
             description={
               hasFilters
@@ -168,7 +167,7 @@ export function AdminCoursesClient() {
                           <Button
                             asChild
                             aria-label="Edit course"
-                            variant="outline"
+                            variant="neutral"
                             size="icon"
                             className={iconBtn}
                           >
@@ -180,9 +179,9 @@ export function AdminCoursesClient() {
                         <SimpleTooltip label={c.status === "PUBLISHED" ? "Unpublish" : "Publish"}>
                           <Button
                             aria-label={c.status === "PUBLISHED" ? "Unpublish course" : "Publish course"}
-                            variant="ghost"
+                            variant="neutral"
                             size="icon"
-                            className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
+                            className="size-8 text-warning-ink hover:bg-warning-soft"
                             onClick={() => runPublish({ id: c.id, next: c.status !== "PUBLISHED" })}
                           >
                             {c.status === "PUBLISHED" ? (
@@ -195,9 +194,9 @@ export function AdminCoursesClient() {
                         <SimpleTooltip label={c.status === "ARCHIVED" ? "Restore" : "Archive"}>
                           <Button
                             aria-label={c.status === "ARCHIVED" ? "Restore course" : "Archive course"}
-                            variant="ghost"
+                            variant="neutral"
                             size="icon"
-                            className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
+                            className="size-8 text-warning-ink hover:bg-warning-soft"
                             onClick={() => runArchive({ id: c.id, next: c.status !== "ARCHIVED" })}
                           >
                             {c.status === "ARCHIVED" ? (
@@ -210,9 +209,9 @@ export function AdminCoursesClient() {
                         <SimpleTooltip label="Delete">
                           <Button
                             aria-label="Delete course"
-                            variant="ghost"
+                            variant="neutral"
                             size="icon"
-                            className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                            className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                             onClick={() => runDelete(c.id)}
                           >
                             <Trash2 className="size-4" strokeWidth={2.5} />

@@ -28,7 +28,8 @@ export class PrivacyService {
   ) {}
 
   async exportMyData(accessToken: string | undefined): Promise<PersonalDataExport> {
-    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    // SALES accounts hold personal data too (payout details), so they may export.
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
     const id = user.id;
     const p = this.prisma;
 
@@ -43,9 +44,12 @@ export class PrivacyService {
         id: true,
         lastLoginAt: true,
         lastName: true,
+        notificationEmailOptOutAt: true,
         phoneNumber: true,
         role: true,
         status: true,
+        termsAcceptedAt: true,
+        termsVersion: true,
         timezone: true,
         updatedAt: true,
         username: true
@@ -75,6 +79,7 @@ export class PrivacyService {
       mcqAttempts,
       playoutGames,
       chatMessages,
+      classTranscriptLines,
       notifications,
       orders,
       payments,
@@ -92,7 +97,22 @@ export class PrivacyService {
       helpFeedback,
       helpSuggestions,
       externalChessAccounts,
-      directEmails
+      directEmails,
+      referralCode,
+      referralsMade,
+      referralRewards,
+      referralCredits,
+      referralWithdrawals,
+      referralPointsSent,
+      referralPointsReceived,
+      referralPointsConversions,
+      referralRedemptions,
+      referredBy,
+      tournamentEntries,
+      tournamentHostRoles,
+      tournamentAuditActions,
+      tournamentCommentary,
+      tournamentCertificates
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -151,6 +171,11 @@ export class PrivacyService {
         select: { createdAt: true, id: true, liveSessionId: true, message: true, recipientId: true },
         where: { senderId: id }
       }),
+      // A coach's own class speech as text (kept 30 days).
+      p.liveClassTranscriptSegment.findMany({
+        select: { createdAt: true, id: true, lang: true, liveSessionId: true, spokenAt: true, text: true },
+        where: { speakerId: id }
+      }),
       p.notification.findMany({ where: { userId: id } }),
       p.order.findMany({ omit: { idempotencyKey: true }, where: { userId: id } }),
       p.payment.findMany({ omit: { metadata: true }, where: { userId: id } }),
@@ -191,7 +216,45 @@ export class PrivacyService {
       }),
       // The one-time verification code is a secret, and is cleared once used anyway.
       p.externalChessAccount.findMany({ omit: { verificationCode: true }, where: { userId: id } }),
-      p.directEmail.findMany({ omit: { error: true, senderId: true }, where: { recipientId: id } })
+      p.directEmail.findMany({ omit: { error: true, senderId: true }, where: { recipientId: id } }),
+      // Referral program. A referral's prospect name and visitor id are about
+      // someone else, so only the referral's own progress is exported.
+      p.referralCode.findMany({ where: { userId: id } }),
+      p.referral.findMany({
+        select: { convertedAt: true, createdAt: true, id: true, stage: { select: { name: true } }, stageChangedAt: true },
+        where: { referrerId: id }
+      }),
+      p.referralReward.findMany({ omit: { dedupeKey: true, reviewedById: true }, where: { referrerId: id } }),
+      p.referralCreditEntry.findMany({ omit: { createdById: true }, where: { userId: id } }),
+      p.referralWithdrawal.findMany({ omit: { reviewedById: true }, where: { userId: id } }),
+      // Transfers: the other person's account is theirs, so only the amount and note.
+      p.referralPointsTransfer.findMany({ select: { createdAt: true, id: true, note: true, points: true }, where: { fromUserId: id } }),
+      p.referralPointsTransfer.findMany({ select: { createdAt: true, id: true, note: true, points: true }, where: { toUserId: id } }),
+      p.referralPointsConversion.findMany({ where: { userId: id } }),
+      // Vouchers bought with points (the issued code's id, not its text).
+      p.referralRedemption.findMany({ omit: { reviewedById: true }, where: { userId: id } }),
+      // The referral that brought this account in — not who referred them.
+      p.referral.findMany({ select: { createdAt: true, id: true }, where: { referredUserId: id } }),
+      // Tournaments (docs/TOURNAMENTS.md), trashed tournaments included. Who
+      // registered or decided an entry is someone else's account, so only the fact.
+      p.withDeleted.tournamentPlayer.findMany({
+        omit: { decidedById: true, registeredById: true },
+        where: { userId: id }
+      }),
+      p.withDeleted.tournamentHost.findMany({ omit: { grantedById: true }, where: { userId: id } }),
+      // Actions this account took. Before/after values can hold other people's
+      // data (a correction, a registration), so only what was done and when.
+      p.tournamentAuditLog.findMany({
+        select: { action: true, createdAt: true, id: true, reason: true, targetType: true, tournamentId: true },
+        where: { actorId: id }
+      }),
+      // Commentary this account wrote (who hid it is someone else's account).
+      p.tournamentCommentary.findMany({
+        select: { body: true, createdAt: true, hiddenAt: true, id: true, pinnedAt: true, tournamentId: true, type: true },
+        where: { authorId: id }
+      }),
+      // The account's own certificates (the snapshot is about them; who revoked one is not).
+      p.tournamentCertificate.findMany({ omit: { revokedById: true }, where: { userId: id } })
     ]);
 
     return {
@@ -205,6 +268,7 @@ export class PrivacyService {
         batchesAsStudent: records(batchesAsStudent),
         billingProfile: records(billingProfile),
         chatMessages: records(chatMessages),
+        classTranscriptLines: records(classTranscriptLines),
         chessAppearance: records(chessAppearance),
         classAttendance: records(classAttendance),
         classChangeRequests: records(classChangeRequests),
@@ -233,7 +297,22 @@ export class PrivacyService {
         progress: records(progress),
         puzzleAttempts: records(puzzleAttempts),
         puzzleRatingChanges: records(puzzleRatingChanges),
+        referralCode: records(referralCode),
+        referralCredits: records(referralCredits),
+        referralRewards: records(referralRewards),
+        referralWithdrawals: records(referralWithdrawals),
+        referralPointsSent: records(referralPointsSent),
+        referralPointsReceived: records(referralPointsReceived),
+        referralPointsConversions: records(referralPointsConversions),
+        referralRedemptions: records(referralRedemptions),
+        referredBy: records(referredBy),
+        referralsMade: records(referralsMade),
         sessions: records(sessions),
+        tournamentAuditActions: records(tournamentAuditActions),
+        tournamentCertificates: records(tournamentCertificates),
+        tournamentCommentary: records(tournamentCommentary),
+        tournamentEntries: records(tournamentEntries),
+        tournamentHostRoles: records(tournamentHostRoles),
         studentProfile: records(studentProfile),
         subscriptions: records(subscriptions),
         typography: records(typography),

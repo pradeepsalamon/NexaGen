@@ -31,7 +31,7 @@ export function CoachRatingsPanel({ onViewResponses }: { onViewResponses: (coach
   if (coaches.length === 0) {
     return (
       <Card className="p-6">
-        <EmptyState description="There are no active coaches to rate yet." icon={Star} title="No coaches" />
+        <EmptyState description="There are no active coaches to rate yet." icon={Star} title="No coaches" variant="inline" />
       </Card>
     );
   }
@@ -39,7 +39,7 @@ export function CoachRatingsPanel({ onViewResponses }: { onViewResponses: (coach
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       {coaches.map((coach) => (
-        <Card className="grid gap-4 p-4 sm:p-5" key={coach.coachId}>
+        <Card className="flex flex-col gap-4 p-4 sm:p-5" key={coach.coachId}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className="truncate text-base font-extrabold text-app-text">{coach.coachName}</h3>
@@ -59,7 +59,7 @@ export function CoachRatingsPanel({ onViewResponses }: { onViewResponses: (coach
             <>
               <RatingBreakdown distribution={coach.distribution} />
               <Button
-                className="w-fit px-0 text-primary-ink"
+                className="mt-auto w-fit px-0 text-primary-ink"
                 onClick={() => onViewResponses(coach.coachId)}
                 type="button"
                 variant="ghost"

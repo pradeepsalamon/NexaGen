@@ -1,14 +1,18 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import * as streamifier from 'streamifier';
+import { PrismaService } from '../prisma/prisma.service';
+import { tenantStorageRoot } from '../tenancy/tenant-paths';
+import { requireTenantId } from '../tenancy/tenant-sql';
 
 export function safePgnBaseName(filename: string): string {
   const base = filename.replace(/\.pgn$/i, '').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 64);
   return base || 'game';
 }
 
-const PROFILE_IMAGE_FOLDER = 'nexa_chess/profiles';
-const ACTIVITY_IMAGE_FOLDER = 'nexa_chess/activities';
+// Per academy (`tenantStorageRoot`): Nexa's stay under nexa_chess/.
+const profileImageFolder = () => `${tenantStorageRoot()}/profiles`;
+const activityImageFolder = () => `${tenantStorageRoot()}/activities`;
 
 // Only images uploaded through /upload/image, so an avatar can't be an external tracking pixel.
 export function isProfileImageUrl(url: string, cloudName = process.env.CLOUDINARY_CLOUD_NAME): boolean {
@@ -20,7 +24,7 @@ export function isProfileImageUrl(url: string, cloudName = process.env.CLOUDINAR
       return false;
     }
     const rest = pathname.slice(prefix.length).replace(/^v\d+\//, '');
-    return rest.startsWith(`${PROFILE_IMAGE_FOLDER}/`) && !rest.includes('..');
+    return rest.startsWith(`${profileImageFolder()}/`) && !rest.includes('..');
   } catch {
     return false;
   }
@@ -37,21 +41,56 @@ export function isActivityImageUrl(url: string, cloudName = process.env.CLOUDINA
       return false;
     }
     const rest = pathname.slice(prefix.length).replace(/^v\d+\//, '');
-    return rest.startsWith(`${ACTIVITY_IMAGE_FOLDER}/`) && !rest.includes('..');
+    return rest.startsWith(`${activityImageFolder()}/`) && !rest.includes('..');
   } catch {
     return false;
   }
 }
 
+export const UPLOADS_NOT_CONFIGURED = "File uploads aren't set up on this server.";
+
+/** Cloudinary credentials present. Without them an upload is a 503, not the SDK's error as a 400. */
+function assertUploadsConfigured(): void {
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    throw new ServiceUnavailableException(UPLOADS_NOT_CONFIGURED);
+  }
+}
+
 @Injectable()
 export class UploadService {
+  private readonly logger = new Logger(UploadService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Notes the stored file's size for the academy's storage usage
+   * (`UploadedFile`; Cloudinary has no per-folder usage on our plan). Never
+   * fails the upload: a missed row only makes the usage figure a little low.
+   */
+  private async recorded(upload: Promise<UploadApiResponse>): Promise<UploadApiResponse> {
+    const result = await upload;
+    try {
+      const tenantId = requireTenantId('uploadedFile');
+      const data = { bytes: result.bytes };
+      await this.prisma.uploadedFile.upsert({
+        create: { ...data, publicId: result.public_id, tenantId },
+        update: data,
+        where: { tenantId_publicId: { publicId: result.public_id, tenantId } },
+      });
+    } catch (error) {
+      this.logger.warn(`Could not record the size of an upload: ${(error as Error).message}`);
+    }
+    return result;
+  }
+
   /** Question and answer images. Random public ids: a URL says nothing about the answer. */
   uploadActivityImage(file: Express.Multer.File): Promise<UploadApiResponse> {
-    return new Promise((resolve, reject) => {
+    assertUploadsConfigured();
+    return this.recorded(new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
-          folder: ACTIVITY_IMAGE_FOLDER,
+          folder: activityImageFolder(),
           use_filename: false,
         },
         (error, result) => {
@@ -61,14 +100,57 @@ export class UploadService {
       );
 
       streamifier.createReadStream(file.buffer).pipe(uploadStream);
-    });
+    }));
+  }
+
+  /** An academy's logo, favicon or login image (docs/SAAS_MULTI_TENANCY.md §F): public by nature. */
+  uploadBrandAsset(file: Express.Multer.File, kind: string): Promise<UploadApiResponse> {
+    assertUploadsConfigured();
+    return this.recorded(new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+          folder: `${tenantStorageRoot()}/branding`,
+          public_id: `${kind}_${Date.now()}`,
+          use_filename: false,
+        },
+        (error, result) => {
+          if (error) return reject(new BadRequestException(error.message));
+          resolve(result as UploadApiResponse);
+        },
+      );
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    }));
+  }
+
+  /** A tournament's banner or logo: public by nature (shown on the discovery page). */
+  uploadTournamentImage(file: Express.Multer.File, name: string): Promise<UploadApiResponse> {
+    assertUploadsConfigured();
+    return this.recorded(new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+          folder: `${tenantStorageRoot()}/tournaments`,
+          public_id: `${name}_${Date.now()}`,
+          use_filename: false,
+        },
+        (error, result) => {
+          if (error) return reject(new BadRequestException(error.message));
+          resolve(result as UploadApiResponse);
+        },
+      );
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    }));
   }
 
   uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
-    return new Promise((resolve, reject) => {
+    assertUploadsConfigured();
+    return this.recorded(new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: PROFILE_IMAGE_FOLDER,
+          folder: profileImageFolder(),
           allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
         },
         (error, result) => {
@@ -78,7 +160,7 @@ export class UploadService {
       );
 
       streamifier.createReadStream(file.buffer).pipe(uploadStream);
-    });
+    }));
   }
 
   /** Whether `url` names an image `uploadImage` stored (the profiles folder). */
@@ -93,9 +175,19 @@ export class UploadService {
       const publicId = this.publicIdOf(url);
       if (publicId) {
         await cloudinary.uploader.destroy(publicId);
+        await this.forget(publicId);
       }
     } catch (error) {
       console.error('Failed to delete image from Cloudinary', error);
+    }
+  }
+
+  /** The deleted file no longer counts towards the academy's storage. */
+  private async forget(publicId: string): Promise<void> {
+    try {
+      await this.prisma.uploadedFile.deleteMany({ where: { publicId } });
+    } catch (error) {
+      this.logger.warn(`Could not remove the size record of a deleted upload: ${(error as Error).message}`);
     }
   }
 
@@ -104,10 +196,11 @@ export class UploadService {
   }
 
   uploadPgn(content: string, filename: string = 'game.pgn'): Promise<UploadApiResponse> {
-    return new Promise((resolve, reject) => {
+    assertUploadsConfigured();
+    return this.recorded(new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: 'nexa_chess/pgns',
+          folder: `${tenantStorageRoot()}/pgns`,
           resource_type: 'raw',
           public_id: `${Date.now()}_${safePgnBaseName(filename)}.pgn`,
         },
@@ -119,6 +212,6 @@ export class UploadService {
 
       const buffer = Buffer.from(content, 'utf-8');
       streamifier.createReadStream(buffer).pipe(uploadStream);
-    });
+    }));
   }
 }

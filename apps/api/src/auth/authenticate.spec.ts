@@ -68,7 +68,7 @@ describe("authenticateUser", () => {
       await expect(run("token")).resolves.toMatchObject({ id: "user_1" });
       expect(authSession.findUnique).toHaveBeenCalledWith({
         where: { id: "s1" },
-        select: { revokedAt: true, userId: true }
+        select: { revokedAt: true, tenantId: true, userId: true }
       });
     });
 

@@ -13,7 +13,7 @@ import type {
   UpdatePuzzleRequest
 } from "@nexa-chess/types";
 import { isSystemPuzzleFolder, resolvePuzzleScoring } from "@nexa-chess/types";
-import { CheckCircle2, Eye, Loader2, X, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, X, XCircle } from "lucide-react";
 import { FormPageShell } from "@/components/layout/FormPageShell";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -44,6 +44,7 @@ import {
 import { PuzzleSolver } from "./solver/PuzzleSolver";
 import { sideToMove } from "./solver/puzzleSolverEngine";
 import { Switch } from "@/components/ui/Switch";
+import { Spinner } from "@/components/ui/Spinner";
 
 interface Props {
   mode: "create" | "edit";
@@ -234,11 +235,11 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
             <Eye className="size-4" strokeWidth={2.5} />
             {showPreview ? "Hide preview" : "Preview"}
           </Button>
-          <Button type="button" variant="secondary" size="sm" onClick={() => save(false)} disabled={saving}>
+          <Button type="button" variant="neutral" size="sm" onClick={() => save(false)} disabled={saving}>
             Save draft
           </Button>
           <Button type="button" size="sm" onClick={() => save(true)} disabled={saving}>
-            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+            {saving ? <Spinner className="size-4" /> : null}
             Publish
           </Button>
         </>
@@ -390,7 +391,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={runValidate} disabled={validating}>
             {validating ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              <Spinner className="mr-1.5 size-4" />
             ) : (
               <CheckCircle2 className="mr-1.5 size-4" strokeWidth={2.5} />
             )}
@@ -399,7 +400,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
           {validation && (
             <span
               className={`inline-flex items-center gap-1 text-sm ${
-                validation.valid ? "text-accent-ink" : "text-app-danger-ink"
+                validation.valid ? "text-success-ink" : "text-app-danger-ink"
               }`}
             >
               {validation.valid ? (
@@ -441,10 +442,10 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
                   />
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="neutral"
                     size="icon"
                     aria-label={`Remove hint ${i + 1}`}
-                    className="size-9 shrink-0 rounded-full border-app-border p-0"
+                    className="size-9 shrink-0"
                     onClick={() => setHints((h) => h.filter((_, xi) => xi !== i))}
                   >
                     <X className="size-4" strokeWidth={2.5} />

@@ -2,19 +2,25 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  Optional,
   ServiceUnavailableException
 } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
+import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
+import { currentTenantId } from "../tenancy/tenant-context";
+import { WhatsAppCredentialsService } from "./whatsapp-credentials.service";
 import {
   buildMediaUrl,
   buildMessagesUrl,
-  isWhatsAppConfigured
+  isWhatsAppConfigured,
+  type WhatsAppEnv
 } from "./whatsapp.config";
 import type {
   WhatsAppApiSuccess,
   WhatsAppDocumentMessage,
   WhatsAppFailure,
   WhatsAppMediaUploadResult,
+  WhatsAppOutboundMessage,
   WhatsAppSendOutcome,
   WhatsAppSendResult,
   WhatsAppTemplateMessage,
@@ -55,7 +61,23 @@ export class WhatsAppService {
 
   /** False when credentials are unset — check before offering WhatsApp in a UI. */
   isConfigured(): boolean {
-    return isWhatsAppConfigured(this.env);
+    return this.activeEnv() !== null;
+  }
+
+  constructor(@Optional() private readonly credentials?: WhatsAppCredentialsService) {}
+
+  /**
+   * The credentials for the request's academy (docs/SAAS_MULTI_TENANCY.md §F
+   * "WhatsApp"): Nexa (and work outside any academy) uses the server's env
+   * number; another academy only its own connected number, else none.
+   */
+  private activeEnv(): WhatsAppEnv | null {
+    const tenantId = currentTenantId();
+    if (tenantId && tenantId !== DEFAULT_TENANT_ID) {
+      const own = this.credentials?.forTenant(tenantId);
+      return own ? { ...this.env, WHATSAPP_ACCESS_TOKEN: own.accessToken, WHATSAPP_PHONE_NUMBER_ID: own.phoneNumberId } : null;
+    }
+    return isWhatsAppConfigured(this.env) ? this.env : null;
   }
 
   /** Free-form text. Only deliverable inside the 24h customer-service window. */
@@ -92,6 +114,25 @@ export class WhatsAppService {
   /** Best-effort text send for paths that must not fail because WhatsApp did. */
   async trySendText(message: WhatsAppTextMessage): Promise<WhatsAppSendOutcome> {
     return this.attempt(() => this.sendText(message));
+  }
+
+  /**
+   * Best-effort send of one message in whichever form it takes (see WhatsAppOutboundMessage):
+   * the messaging outbox, system messages and the admins' test sends all go through here.
+   */
+  async trySendMessage(message: WhatsAppOutboundMessage): Promise<WhatsAppSendOutcome> {
+    const { document, template, text, to } = message;
+    if (template) {
+      return this.trySendTemplate({
+        bodyParams: template.bodyParams,
+        headerDocument: document ?? undefined,
+        language: template.language,
+        name: template.name,
+        to
+      });
+    }
+    if (document) return this.trySendDocument({ ...document, caption: text, to });
+    return this.trySendText({ body: text, to });
   }
 
   /** Best-effort template send. See {@link trySendText}. */
@@ -157,10 +198,11 @@ export class WhatsAppService {
 
     let response: Response;
     try {
-      response = await fetch(buildMediaUrl(this.env), {
+      const env = this.activeEnv()!;
+      response = await fetch(buildMediaUrl(env), {
         method: "POST",
         // No Content-Type header: fetch sets the multipart boundary itself.
-        headers: { Authorization: `Bearer ${this.env.WHATSAPP_ACCESS_TOKEN}` },
+        headers: { Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}` },
         body: form,
         signal: AbortSignal.timeout(this.env.WHATSAPP_TIMEOUT_MS)
       });
@@ -260,10 +302,11 @@ export class WhatsAppService {
 
     let response: Response;
     try {
-      response = await fetch(buildMessagesUrl(this.env), {
+      const env = this.activeEnv()!;
+      response = await fetch(buildMessagesUrl(env), {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.env.WHATSAPP_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify(payload),

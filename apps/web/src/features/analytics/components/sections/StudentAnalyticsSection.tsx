@@ -9,6 +9,7 @@ import { useStudentAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 import { asKpi, formatHours, formatPercent, relativeTime } from "../../lib/format";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { TableSkeletonRows } from "@/components/ui/TableSkeletonRows";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 
@@ -106,7 +107,7 @@ function StudentTable({
               <TableCell className="text-left py-2 font-medium text-app-text">{s.name}</TableCell>
               <TableCell
                 className={`py-2 text-right font-semibold ${
-                  danger ? "text-app-danger" : "text-app-text"
+                  danger ? "text-app-danger-ink" : "text-app-text"
                 }`}
               >
                 {formatPercent(s.attendancePercent)}
@@ -118,7 +119,7 @@ function StudentTable({
             </TableRow>
           ))}
           {isLoading ? (
-            <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={4}>Loading…</TableCell></TableRow>
+            <TableSkeletonRows columns={4} />
           ) : null}
           {!isLoading && rows.length === 0 ? (
             <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={4}>Nothing to show.</TableCell></TableRow>

@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { memo, type CSSProperties } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, Puzzle as PuzzleIcon, Trophy } from "lucide-react";
 import type { LivePuzzleAssignment } from "@nexa-chess/types";
@@ -19,12 +19,15 @@ import { useMemberClassId } from "../../../providers/LiveRoomContext";
  * status (solve / continue / solved + points / tries left); the coach sees the
  * class's progress and opens the Puzzle panel.
  */
-export function PuzzleGridTile({
+export const PuzzleGridTile = memo(function PuzzleGridTile({
   puzzle,
   style,
+  layoutKey,
 }: {
   puzzle: LivePuzzleAssignment;
   style?: CSSProperties;
+  /** Changes when the tile's place in the grid does (see VideoTile `layoutKey`). */
+  layoutKey?: string;
 }) {
   const classId = useMemberClassId();
   const user = useAuthStore((state) => state.user);
@@ -78,6 +81,7 @@ export function PuzzleGridTile({
     <motion.div
       key="puzzle-tile"
       layout
+      layoutDependency={layoutKey}
       initial={{ opacity: 0, scale: 0.94 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.94 }}
@@ -98,7 +102,7 @@ export function PuzzleGridTile({
 
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 py-0.5">
           <div className="min-w-0 space-y-1">
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-ink">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary-ink">
               <PuzzleIcon className="size-3" strokeWidth={2.5} />
               Class puzzle
             </span>
@@ -113,15 +117,15 @@ export function PuzzleGridTile({
 
           <div className="min-w-0 space-y-1">
             {isCoach ? (
-              <p className="text-[11px] leading-snug text-app-muted">
+              <p className="text-xs leading-snug text-app-muted">
                 <span className="font-semibold text-app-text">{solvedCount}</span> solved ·{" "}
                 {finishedCount - solvedCount > 0 ? `${finishedCount - solvedCount} missed · ` : ""}
                 {solvingCount} solving · {notStartedCount} not started
               </p>
             ) : self?.solved || (self && self.attemptsUsed > 0) ? (
-              <p className="flex items-center gap-1 text-[11px] text-app-muted">
+              <p className="flex items-center gap-1 text-xs text-app-muted">
                 {self.solved ? (
-                  <CheckCircle2 className="size-3 text-accent-ink" strokeWidth={2.5} />
+                  <CheckCircle2 className="size-3 text-success-ink" strokeWidth={2.5} />
                 ) : null}
                 {self.points !== null ? `${self.points} pts` : ""}
                 {self.rank !== null ? (
@@ -139,7 +143,7 @@ export function PuzzleGridTile({
                 "inline-flex min-h-8 w-full items-center justify-center rounded-control px-3 text-xs font-bold transition",
                 actionDisabled
                   ? "bg-app-soft text-app-muted"
-                  : "bg-primary text-white group-hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]",
+                  : "bg-primary text-on-primary group-hover:bg-primary-hover",
               )}
             >
               {action}
@@ -149,4 +153,4 @@ export function PuzzleGridTile({
       </button>
     </motion.div>
   );
-}
+});

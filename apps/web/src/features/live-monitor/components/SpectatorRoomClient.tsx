@@ -57,13 +57,13 @@ function VideoTile({ tile, large = false }: { tile: SpectatorTile; large?: boole
   return (
     <div
       className={`relative aspect-video w-full overflow-hidden rounded-control bg-app-soft ${
-        tile.participant.isSpeaking ? "ring-2 ring-accent" : ""
+        tile.participant.isSpeaking ? "ring-2 ring-success" : ""
       }`}
     >
       {track ? (
         <video
           autoPlay
-          className={`size-full ${tile.isScreenShare ? "object-contain bg-black" : "object-cover"}`}
+          className={`size-full ${tile.isScreenShare ? "object-contain bg-scrim" : "object-cover"}`}
           muted
           playsInline
           ref={videoRef}
@@ -74,7 +74,7 @@ function VideoTile({ tile, large = false }: { tile: SpectatorTile; large?: boole
         </div>
       )}
       <div className="absolute inset-x-2 bottom-2 flex items-center gap-1.5">
-        <span className="flex min-w-0 items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">
+        <span className="flex min-w-0 items-center gap-1 rounded-full bg-scrim/60 px-2 py-0.5 text-xs text-on-scrim">
           {tile.isScreenShare ? <MonitorUp aria-hidden className="size-3 shrink-0" /> : null}
           {!tile.micOn ? <MicOff aria-hidden className="size-3 shrink-0" /> : null}
           <span className="truncate">
@@ -83,7 +83,7 @@ function VideoTile({ tile, large = false }: { tile: SpectatorTile; large?: boole
           </span>
         </span>
         {tile.handRaised ? (
-          <span className="flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">
+          <span className="flex items-center gap-1 rounded-full bg-scrim/60 px-2 py-0.5 text-xs text-on-scrim">
             <Hand aria-hidden className="size-3" />
             <span className="sr-only">Hand raised</span>
           </span>
@@ -256,7 +256,7 @@ export function SpectatorRoomClient({ classId }: { classId: string }) {
               aria-pressed={room.audioMuted}
               onClick={room.toggleAudioMuted}
               size="icon"
-              variant="outline"
+              variant="neutral"
             >
               {room.audioMuted ? (
                 <VolumeX aria-hidden className="size-4" strokeWidth={2.5} />
@@ -313,8 +313,8 @@ export function SpectatorRoomClient({ classId }: { classId: string }) {
             <div className="relative aspect-square w-full max-w-[calc(100dvh-12rem)]">
               <ReadOnlySyncedBoard className="size-full [&_.cg-wrap]:size-full" state={room.board} />
               {room.connection === "connecting" ? (
-                <div className="absolute inset-0 flex items-center justify-center rounded-control bg-black/40">
-                  <span className="rounded-full bg-black/60 px-3 py-1 text-sm text-white">Connecting…</span>
+                <div className="absolute inset-0 flex items-center justify-center rounded-control bg-scrim/40">
+                  <span className="rounded-full bg-scrim/60 px-3 py-1 text-sm text-on-scrim">Connecting…</span>
                 </div>
               ) : null}
             </div>

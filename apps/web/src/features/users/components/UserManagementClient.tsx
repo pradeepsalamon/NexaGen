@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RowSelectionState } from "@tanstack/react-table";
 import {
@@ -16,8 +15,9 @@ import {
   UsersRound
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { AuthUser, UserRole, UserStatus } from "@nexa-chess/types";
+import type { AuthUser, UserStatus } from "@nexa-chess/types";
 
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -55,6 +55,7 @@ import { archiveUser, restoreUser, deleteUser } from "../api/userApi";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { restoreTrashItem } from "@/features/trash/api/trashApi";
 import { queryKeys } from "@/lib/queryKeys";
+import { enumLabel } from "@/lib/utils";
 
 type UserManagementTab = "all" | "create" | "settings";
 
@@ -75,7 +76,6 @@ const statusOptions = [
 ];
 
 export function UserManagementClient() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<UserManagementTab>("all");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
@@ -175,6 +175,7 @@ export function UserManagementClient() {
       {
         accessorKey: "firstName",
         enableColumnFilter: true,
+        meta: { label: "Name" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Name"
@@ -183,7 +184,7 @@ export function UserManagementClient() {
         ),
         cell: ({ row }) => (
           <div className="min-w-52">
-            <p className="font-extrabold text-app-text">
+            <p className="font-semibold text-app-text">
               {row.original.firstName} {row.original.lastName}
             </p>
           </div>
@@ -192,6 +193,7 @@ export function UserManagementClient() {
       {
         accessorKey: "email",
         enableColumnFilter: true,
+        meta: { label: "Email" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Email"
@@ -208,6 +210,7 @@ export function UserManagementClient() {
       {
         accessorKey: "role",
         enableColumnFilter: true,
+        meta: { label: "Role" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Role"
@@ -215,14 +218,13 @@ export function UserManagementClient() {
           />
         ),
         cell: ({ row }) => (
-          <Badge variant="outline" className="capitalize">
-            {formatRole(row.original.role)}
-          </Badge>
+          <Badge variant="outline">{enumLabel(row.original.role)}</Badge>
         )
       },
       {
         accessorKey: "status",
         enableColumnFilter: true,
+        meta: { label: "Status" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
@@ -250,9 +252,9 @@ export function UserManagementClient() {
                   ? [
                       {
                         ariaLabel: `View ${name}'s progress and activity history`,
+                        href: `/admin/students/${row.original.id}`,
                         icon: TrendingUp,
-                        label: "Progress & activity",
-                        onSelect: () => router.push(`/admin/students/${row.original.id}`)
+                        label: "Progress & activity"
                       }
                     ]
                   : []),
@@ -298,8 +300,7 @@ export function UserManagementClient() {
       handleArchive,
       handleDelete,
       handleRestore,
-      isRestoring,
-      router
+      isRestoring
     ]
   );
 
@@ -340,8 +341,8 @@ export function UserManagementClient() {
   };
 
   return (
-    <div>
-      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-5">
+    <div className="animate-fade-in pb-10">
+      <div className="grid grid-cols-[minmax(0,1fr)]">
         <Tabs
           onValueChange={(value) => {
             if (value === "create") {
@@ -353,19 +354,12 @@ export function UserManagementClient() {
           }}
           value={activeTab}
         >
-          <header className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-extrabold text-primary-ink">
-                User management
-              </p>
-              <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
-                Users
-              </h1>
-            </div>
-            <TabsList className="w-full justify-start overflow-x-auto sm:w-fit">
+          <PageHeader
+            actions={
+            <TabsList aria-label="Users view">
               <TabsTrigger value="all">
                 <UsersRound aria-hidden="true" className="size-4" />
-                All Users
+                All users
               </TabsTrigger>
               <TabsTrigger value="create">
                 {editingUserId ? (
@@ -380,14 +374,18 @@ export function UserManagementClient() {
                 Settings
               </TabsTrigger>
             </TabsList>
-          </header>
+            }
+            description="Every account on the platform: students, coaches, sales and admins."
+            title="Users"
+          />
 
-          <TabsContent value="all" className="mt-6 outline-none">
+          <TabsContent value="all" className="outline-none">
             <Card className="grid gap-4 p-4">
               <DataTableToolbar
                 actions={<ColumnVisibilityMenu table={table} />}
                 filters={
                   <Select
+                    aria-label="Filter by status"
                     className="w-40"
                     onChange={(event) => serverTable.setStatus(event.target.value)}
                     options={[{ label: "All status", value: "ALL" }, ...statusOptions]}
@@ -405,11 +403,12 @@ export function UserManagementClient() {
                 noDataText={
                   <div className="flex flex-col items-center justify-center space-y-4 py-4">
                     <p>No users found.</p>
-                    <Button onClick={handleNewUser} size="sm">
-                      <Plus className="mr-2 size-4" /> Create User
+                    <Button onClick={handleNewUser} size="sm" variant="outline">
+                      <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} /> Create user
                     </Button>
                   </div>
                 }
+                stackOnMobile
                 table={table}
               />
 
@@ -420,8 +419,8 @@ export function UserManagementClient() {
 
               <BulkActionsBar
                 actions={[
-                  { icon: Mail, label: "Email", onSelect: () => setEmailing(selectedRows.map(toEmailRecipient)) },
-                  { disabled: bulk.isPending, icon: Archive, label: "Archive", onSelect: () => setBulkConfirm("archive") },
+                  { icon: Mail, label: "Email", onSelect: () => setEmailing(selectedRows.map(toEmailRecipient)), tone: "info" },
+                  { disabled: bulk.isPending, icon: Archive, label: "Archive", onSelect: () => setBulkConfirm("archive"), tone: "warning" },
                   { disabled: bulk.isPending, icon: Trash2, label: "Delete", onSelect: () => setBulkConfirm("delete"), tone: "danger" }
                 ]}
                 count={selectedRows.length}
@@ -452,7 +451,7 @@ export function UserManagementClient() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="create" className="mt-6 outline-none">
+          <TabsContent value="create" className="outline-none">
             {/* When switching to 'create' tab via "Edit", React doesn't remount if key is same, 
                 so we use key to force reset of useForm default values */}
             <UserForm
@@ -462,7 +461,7 @@ export function UserManagementClient() {
             />
           </TabsContent>
 
-          <TabsContent value="settings" className="mt-6 outline-none">
+          <TabsContent value="settings" className="outline-none">
             <UserSettings
               columnVisibility={columnVisibility}
               pageSize={serverTable.pagination.pageSize}
@@ -493,8 +492,8 @@ function ColumnVisibilityMenu<TData>({ table }: { table: import("@tanstack/react
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline">
-          <SlidersHorizontal aria-hidden="true" className="size-4" />
+        <Button type="button" variant="neutral">
+          <SlidersHorizontal aria-hidden="true" className="size-4" strokeWidth={2.5} />
           View
         </Button>
       </DropdownMenuTrigger>
@@ -517,10 +516,6 @@ function ColumnVisibilityMenu<TData>({ table }: { table: import("@tanstack/react
 
 function formatStatus(status: UserStatus) {
   return status.charAt(0) + status.slice(1).toLowerCase();
-}
-
-function formatRole(role: UserRole) {
-  return role.toLowerCase().replace("_", " ");
 }
 
 function getStatusBadgeVariant(status: UserStatus) {

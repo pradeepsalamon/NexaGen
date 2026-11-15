@@ -1,12 +1,16 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
   APPROVAL_ACTIONS,
   formatMoney,
+  maskProspectName,
+  parseTournamentEligibility,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
   renderFormattedTemplate,
   renderMessageTemplate,
+  resolveWhatsAppTemplate,
+  TOURNAMENT_FORMAT_LABELS,
   type MessageVariables,
   type MessagingAudience,
   type MessagingDispatchSummary,
@@ -15,6 +19,7 @@ import {
 import { Prisma, UserRole, UserStatus, type MessagingRule } from "@prisma/client";
 import { zonedYmd } from "../common/time";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
+import { BrandingService } from "../branding/branding.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MessagingRuleService } from "./messaging-rule.service";
@@ -22,6 +27,12 @@ import { ACADEMY_NAME, formatInZone } from "./messaging.format";
 import { computeScheduledFor } from "./messaging.schedule";
 
 const HOUR_MS = 60 * 60 * 1000;
+
+/** Where each role's referral board lives (`routeAccess.ts`). */
+function referralBoardPath(role: UserRole): string {
+  if (role === UserRole.SALES) return "/sales";
+  return role === UserRole.COACH ? "/coach/referrals" : "/student/referrals";
+}
 
 /** One resolved addressee plus the values its templates bind. */
 interface Recipient {
@@ -79,7 +90,9 @@ export type DispatchRequest =
   /** Students with a revision item due; each hears at most once per send day. */
   | { event: "REVISION_DUE"; studentIds: string[] }
   | { event: "ANNOUNCEMENT"; announcementId: string }
-  | { event: "ACCOUNT_WELCOME" | "ACCOUNT_APPROVED"; userId: string }
+  | { event: "ACCOUNT_WELCOME" | "ACCOUNT_APPROVED" | "ACCOUNT_DECLINED"; userId: string }
+  /** The admins who can review a self-registration (coaches: super admins only), told it is waiting. */
+  | { event: "REGISTRATION_PENDING_ADMIN"; userId: string }
   /**
    * Payment outcomes. The caller passes the payment id only — every figure in
    * the message is read back from the row, so a message can never claim an
@@ -115,7 +128,21 @@ export type DispatchRequest =
    * REQUESTED → every admin who may decide it (never the requester); DECIDED →
    * the requester. Everything shown is read back from the request row.
    */
-  | { event: "APPROVAL_REQUESTED" | "APPROVAL_DECIDED"; approvalRequestId: string };
+  | { event: "APPROVAL_REQUESTED" | "APPROVAL_DECIDED"; approvalRequestId: string }
+  /**
+   * Tournaments (docs/TOURNAMENTS.md "Messages"): REGISTRATION_OPEN → the
+   * academy's students who could enter a public tournament; STARTED → its
+   * entered players. Everything shown is read back from the tournament row.
+   */
+  | { event: "TOURNAMENT_REGISTRATION_OPEN" | "TOURNAMENT_STARTED"; tournamentId: string }
+  /**
+   * The referral programme (docs/REFERRALS.md § "Notifications"), always after
+   * the change committed. Everything shown is read back from the row, so a
+   * reward that is not credited or a request that is not decided sends nothing.
+   */
+  | { event: "REFERRAL_PROGRESS"; referralId: string }
+  | { event: "REFERRAL_REWARD"; rewardId: string }
+  | { event: "REFERRAL_REQUEST_DECIDED"; kind: "REDEMPTION" | "WITHDRAWAL"; id: string };
 
 const EMPTY_SUMMARY: MessagingDispatchSummary = {
   ruleEnabled: false,
@@ -148,7 +175,8 @@ export class MessagingDispatchService {
     private readonly emailVerification: EmailVerificationService,
     private readonly prisma: PrismaService,
     private readonly rules: MessagingRuleService,
-    private readonly whatsapp: WhatsAppService
+    private readonly whatsapp: WhatsAppService,
+    @Optional() private readonly branding?: BrandingService
   ) {}
 
   /** Fire-and-forget entry point for feature services. Never throws. */
@@ -167,6 +195,14 @@ export class MessagingDispatchService {
     }
 
     const recipients = await this.resolveRecipients(request, rule);
+    // Recipients are built synchronously with Nexa's name; another academy's
+    // students get its own (a caller's explicit value still wins).
+    const academyName = this.branding ? await this.branding.nameFor() : ACADEMY_NAME;
+    if (academyName !== ACADEMY_NAME) {
+      for (const recipient of recipients) {
+        if (recipient.variables["academy.name"] === ACADEMY_NAME) recipient.variables["academy.name"] = academyName;
+      }
+    }
     // With verification off nobody is asked to confirm, so an unverified address proves nothing.
     const verifiedOnly = rule.emailEnabled && (await this.emailVerification.policy()) !== "OFF";
     const summary: MessagingDispatchSummary = {
@@ -255,6 +291,15 @@ export class MessagingDispatchService {
       return "no-phone";
     }
 
+    // Values rendered now, for this recipient (whatsapp-template.ts, shared with system messages).
+    const template = resolveWhatsAppTemplate(
+      {
+        language: rule.whatsappTemplateLanguage,
+        name: rule.whatsappTemplateName,
+        params: rule.whatsappTemplateParams
+      },
+      recipient.variables
+    );
     const queued = await this.queue({
       rule,
       recipient,
@@ -263,13 +308,12 @@ export class MessagingDispatchService {
       phone: to,
       scheduledFor,
       document: recipient.document,
-      ...(rule.whatsappTemplateName
+      ...(template
         ? {
-            templateName: rule.whatsappTemplateName,
-            templateLanguage: rule.whatsappTemplateLanguage,
-            templateParams: rule.whatsappTemplateParams.map((param) =>
-              renderMessageTemplate(param, recipient.variables)
-            )
+            // The saved language (null = Meta's default), exactly as before this was shared.
+            templateLanguage: rule.whatsappTemplateLanguage?.trim() || null,
+            templateName: template.name,
+            templateParams: template.bodyParams
           }
         : {})
     });
@@ -356,7 +400,10 @@ export class MessagingDispatchService {
         return this.announcementRecipients(request.announcementId);
       case "ACCOUNT_WELCOME":
       case "ACCOUNT_APPROVED":
+      case "ACCOUNT_DECLINED":
         return this.accountRecipients(request.event, request.userId, rule.audience);
+      case "REGISTRATION_PENDING_ADMIN":
+        return this.registrationReviewerRecipients(request.userId);
       case "PAYMENT_RECEIVED":
       case "PAYMENT_FAILED":
       case "REFUND_PROCESSED":
@@ -374,7 +421,64 @@ export class MessagingDispatchService {
       case "APPROVAL_REQUESTED":
       case "APPROVAL_DECIDED":
         return this.approvalRecipients(request.event, request.approvalRequestId);
+      case "TOURNAMENT_REGISTRATION_OPEN":
+      case "TOURNAMENT_STARTED":
+        return this.tournamentRecipients(request.event, request.tournamentId);
+      case "REFERRAL_PROGRESS":
+        return this.referralProgressRecipients(request.referralId);
+      case "REFERRAL_REWARD":
+        return this.referralRewardRecipients(request.rewardId);
+      case "REFERRAL_REQUEST_DECIDED":
+        return this.referralDecisionRecipients(request.kind, request.id);
     }
+  }
+
+  private async tournamentRecipients(
+    event: "TOURNAMENT_REGISTRATION_OPEN" | "TOURNAMENT_STARTED",
+    tournamentId: string
+  ): Promise<Recipient[]> {
+    const t = await this.prisma.tournament.findUnique({ where: { id: tournamentId } });
+    if (!t) return [];
+
+    let users;
+    if (event === "TOURNAMENT_STARTED") {
+      users = await this.prisma.user.findMany({
+        where: {
+          status: UserStatus.ACTIVE,
+          tournamentEntries: { some: { status: "APPROVED", tournamentId } }
+        }
+      });
+    } else {
+      // Only a tournament every student can already see; invitations have their own message.
+      if (t.visibility !== "PUBLIC" || t.status !== "PUBLISHED") return [];
+      const batchIds = parseTournamentEligibility(t.eligibilityJson).batchIds ?? [];
+      users = await this.prisma.user.findMany({
+        where: {
+          role: UserRole.STUDENT,
+          status: UserStatus.ACTIVE,
+          ...(batchIds.length
+            ? { studentBatches: { some: { batchId: { in: batchIds }, isDeleted: false } } }
+            : {})
+        }
+      });
+    }
+
+    const variables = (timezone: string): MessageVariables => ({
+      "tournament.format": TOURNAMENT_FORMAT_LABELS[t.format],
+      "tournament.name": t.name,
+      "tournament.startDate": formatInZone(t.startsAt, timezone, "date"),
+      "tournament.startDateTime": formatInZone(t.startsAt, timezone, "dateTime"),
+      "tournament.startTime": formatInZone(t.startsAt, timezone, "time"),
+      "tournament.timeControl": `${t.clockInitialMs / 60_000}+${t.clockIncrementMs / 1000}`
+    });
+    return users.map((u) =>
+      this.toRecipient(u, {
+        variables: variables(u.timezone),
+        linkPath: `/tournaments/${t.id}`,
+        linkVariable: "links.tournament",
+        dedupeKey: `${event}:${t.id}:${u.id}`
+      })
+    );
   }
 
   private async classRecipients(
@@ -702,6 +806,34 @@ export class MessagingDispatchService {
   }
 
   /**
+   * Who can approve this applicant: admins and super admins for a student, super admins only
+   * for a coach (`admin.controller.ts`). The name and role are read back from the account.
+   */
+  private async registrationReviewerRecipients(userId: string): Promise<Recipient[]> {
+    const applicant = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!applicant || applicant.isDeleted || applicant.status !== UserStatus.PENDING) return [];
+    if (applicant.role !== UserRole.STUDENT && applicant.role !== UserRole.COACH) return [];
+
+    const reviewerRoles =
+      applicant.role === UserRole.COACH ? [UserRole.SUPER_ADMIN] : [UserRole.ADMIN, UserRole.SUPER_ADMIN];
+    const reviewers = await this.prisma.user.findMany({
+      where: { isDeleted: false, isPlatformSupport: false, role: { in: reviewerRoles }, status: UserStatus.ACTIVE }
+    });
+    const variables = {
+      "applicant.name": this.fullName(applicant.firstName, applicant.lastName),
+      "applicant.role": applicant.role === UserRole.COACH ? "coach" : "student"
+    };
+    return reviewers.map((reviewer) =>
+      this.toRecipient(reviewer, {
+        variables,
+        linkPath: "/admin/approvals",
+        linkVariable: "links.approvals",
+        dedupeKey: `REGISTRATION_PENDING_ADMIN:${applicant.id}:${reviewer.id}`
+      })
+    );
+  }
+
+  /**
    * The payer, with every figure read back from the payment row. `payment.
    * amount` is formatted from the stored minor units — the caller never gets to
    * assert what was charged.
@@ -815,6 +947,97 @@ export class MessagingDispatchService {
     return [recipient];
   }
 
+  /** The referrer, when their referral changed stage. The prospect's name is masked as on their board. */
+  private async referralProgressRecipients(referralId: string): Promise<Recipient[]> {
+    const referral = await this.prisma.referral.findUnique({
+      include: { referrer: true, stage: { select: { id: true, name: true } } },
+      where: { id: referralId }
+    });
+    if (!referral || referral.referrer.isDeleted) return [];
+    const { referrer } = referral;
+    // SALES follows up its own prospects, so it sees the full name (docs/REFERRALS.md).
+    const prospect =
+      (referrer.role === UserRole.SALES ? referral.prospectName?.trim() : maskProspectName(referral.prospectName)) ||
+      "a new visitor";
+    return [
+      this.toRecipient(referrer, {
+        variables: { "referral.prospect": prospect, "referral.stage": referral.stage.name },
+        linkPath: referralBoardPath(referrer.role),
+        linkVariable: "links.referrals",
+        dedupeKey: `REFERRAL_PROGRESS:${referral.id}:${referral.stage.id}:${referral.stageChangedAt.getTime()}`
+      })
+    ];
+  }
+
+  /** Whoever a credited reward belongs to: the referrer, or the new member (welcome points). */
+  private async referralRewardRecipients(rewardId: string): Promise<Recipient[]> {
+    const reward = await this.prisma.referralReward.findUnique({
+      include: { referrer: true },
+      where: { id: rewardId }
+    });
+    // A legacy discount reward is a code, not a balance; it never announces itself here.
+    if (!reward || reward.status !== "CREDITED" || reward.unit === "DISCOUNT_PERCENT" || reward.referrer.isDeleted) {
+      return [];
+    }
+    const earned =
+      reward.unit === "POINTS"
+        ? `${reward.amountMinor} ${reward.amountMinor === 1 ? "point" : "points"}`
+        : formatMoney(reward.amountMinor, reward.currency);
+    return [
+      this.toRecipient(reward.referrer, {
+        variables: { "referral.reward": earned, "referral.rewardReason": reward.description ?? "Referral reward" },
+        linkPath: referralBoardPath(reward.referrer.role),
+        linkVariable: "links.referrals",
+        dedupeKey: `REFERRAL_REWARD:${reward.id}`
+      })
+    ];
+  }
+
+  /** The student whose voucher request, or the coach/SALES whose withdrawal, an admin decided. */
+  private async referralDecisionRecipients(kind: "REDEMPTION" | "WITHDRAWAL", id: string): Promise<Recipient[]> {
+    const decided =
+      kind === "REDEMPTION"
+        ? await this.prisma.referralRedemption
+            .findUnique({ include: { user: true }, where: { id } })
+            .then((row) =>
+              row && (row.status === "FULFILLED" || row.status === "REJECTED")
+                ? {
+                    decision: row.status === "FULFILLED" ? "approved" : "declined",
+                    note: row.adminNote,
+                    request: `the voucher ${row.voucherName}`,
+                    status: row.status,
+                    user: row.user
+                  }
+                : null
+            )
+        : await this.prisma.referralWithdrawal
+            .findUnique({ include: { user: true }, where: { id } })
+            .then((row) =>
+              row && (row.status === "PAID" || row.status === "REJECTED")
+                ? {
+                    decision: row.status === "PAID" ? "paid" : "declined",
+                    note: row.adminNote,
+                    request: `a withdrawal of ${formatMoney(row.amountMinor, row.currency)}`,
+                    status: row.status,
+                    user: row.user
+                  }
+                : null
+            );
+    if (!decided || decided.user.isDeleted) return [];
+    return [
+      this.toRecipient(decided.user, {
+        variables: {
+          "referral.decision": decided.decision,
+          "referral.note": decided.note?.trim() ?? "",
+          "referral.request": decided.request
+        },
+        linkPath: referralBoardPath(decided.user.role),
+        linkVariable: "links.referrals",
+        dedupeKey: `REFERRAL_REQUEST_DECIDED:${kind}:${id}:${decided.status}`
+      })
+    ];
+  }
+
   private async approvalRecipients(
     event: "APPROVAL_REQUESTED" | "APPROVAL_DECIDED",
     approvalRequestId: string
@@ -921,7 +1144,10 @@ export class MessagingDispatchService {
         | "links.invoice"
         | "links.earnings"
         | "links.revision"
-        | "links.approval";
+        | "links.approval"
+        | "links.approvals"
+        | "links.tournament"
+        | "links.referrals";
       dedupeKey: string | null;
     }
   ): Recipient {

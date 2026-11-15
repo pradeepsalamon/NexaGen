@@ -102,7 +102,10 @@ test.describe("Analysis board", () => {
     await page.getByRole("button", { name: /^Load Game$/ }).click();
 
     await expect.poll(() => page.evaluate(() => window.__nexaBoard!.moveCount())).toBe(6);
-    await expect(page.getByText("Nf3", { exact: false })).toBeVisible();
+    // The move list is on the Moves tab; the Engine tab only shows "Nf3" when its
+    // suggested line happens to contain it.
+    await page.getByRole("tab", { name: /^Moves$/ }).click();
+    await expect(page.getByText("Nf3", { exact: false }).first()).toBeVisible();
 
     // ── Setup Position (in place of the board, not a dialog) ─────
     await page.getByRole("button", { name: /^Setup Position$/ }).click();

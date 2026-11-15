@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileUp, Loader2 } from "lucide-react";
+import { FileUp } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import {
@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { useImportGame } from "../hooks/useGameLibrary";
+import { Spinner } from "@/components/ui/Spinner";
 
 const MAX_FILE_BYTES = 200_000;
 
@@ -128,11 +129,11 @@ export function ImportGameDialog({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" disabled={importGame.isPending} onClick={() => handleOpenChange(false)}>
+          <Button variant="neutral" disabled={importGame.isPending} onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={!pgn.trim() || importGame.isPending}>
-            {importGame.isPending && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
+            {importGame.isPending && <Spinner className="mr-2 size-4" aria-hidden />}
             Import
           </Button>
         </DialogFooter>

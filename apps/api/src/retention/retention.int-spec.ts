@@ -1,5 +1,5 @@
 import { JwtService } from "@nestjs/jwt";
-import { API_ROUTES } from "@nexa-chess/types";
+import { API_ROUTES, DEFAULT_TENANT_ID } from "@nexa-chess/types";
 import { UserRole, UserStatus, type User } from "@prisma/client";
 import { JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -135,7 +135,7 @@ describe("RetentionService (real Postgres)", () => {
       });
       expect(deleted).toMatchObject({ analytics_events: 1, chat_messages: 1, message_deliveries: 2, notifications: 1 });
       expect(deleted.live_chat_messages).toBeUndefined();
-      const chatPolicy = await prisma.retentionPolicy.findUniqueOrThrow({ where: { category: "CHAT_MESSAGES" } });
+      const chatPolicy = await prisma.retentionPolicy.findUniqueOrThrow({ where: { tenantId_category: { category: "CHAT_MESSAGES", tenantId: DEFAULT_TENANT_ID } } });
       expect(chatPolicy).toMatchObject({ changedAt: null, lastDeletedCount: 1 });
       expect(chatPolicy.lastSweptAt?.toISOString()).toBe(now.toISOString());
     });

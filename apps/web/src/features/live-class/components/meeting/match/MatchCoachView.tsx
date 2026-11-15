@@ -72,7 +72,7 @@ function NameLine({ game, color, compact }: { game: LiveMatchGame; color: MatchC
           className={cn(
             "shrink-0 rounded-full border border-app-border",
             compact ? "size-2.5" : "size-3",
-            color === "white" ? "bg-white" : "bg-neutral-900"
+            color === "white" ? "bg-side-white" : "bg-side-black"
           )}
           aria-hidden="true"
         />
@@ -282,7 +282,7 @@ export function MatchCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
             stageSwitch
           ) : (
             <SimpleTooltip label="Back to class (Esc)">
-              <Button size="icon" variant="ghost" className="rounded-full" aria-label="Back to class" onClick={() => setCoachOpen(false)}>
+              <Button size="icon" variant="neutral" aria-label="Back to class" onClick={() => setCoachOpen(false)}>
                 <X className="size-5" strokeWidth={2.5} />
               </Button>
             </SimpleTooltip>
@@ -331,7 +331,7 @@ export function MatchCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
                       <PuzzleBoardTile fen={game.fen} orientation="white" />
                     </button>
                     <NameLine game={game} color="white" compact />
-                    <span className={cn("truncate text-[0.7rem]", game.status === "FINISHED" ? "text-primary-ink" : "text-app-muted")}>
+                    <span className={cn("truncate text-xs", game.status === "FINISHED" ? "text-primary-ink" : "text-app-muted")}>
                       {tileStatus(game)}
                     </span>
                   </div>
@@ -377,7 +377,7 @@ export function MatchCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
               )}
               {round.challenges.length > 0 ? (
                 <div className="space-y-1 pt-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">Open challenges</p>
+                  <p className="text-xs font-semibold text-app-muted">Open challenges</p>
                   {round.challenges.map((c) => (
                     <p key={c.id} className="truncate text-xs text-app-muted">
                       {c.from.name} → {c.to.name}

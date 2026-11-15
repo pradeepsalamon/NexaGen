@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { queryKeys } from "../../../lib/queryKeys";
 import type { CoachClassResponse } from "@nexa-chess/types";
+import type { ListParams } from "@/lib/pagination";
 import {
   getCalendarClasses,
   getClassById,
@@ -55,10 +56,12 @@ export function useUpcomingClasses(limit?: number) {
   });
 }
 
-export function useClassHistory() {
+/** Server-paginated (`useServerTable` params); keeps the last page visible while the next loads. */
+export function useClassHistory(params: ListParams = {}) {
   return useQuery({
-    queryKey: queryKeys.coach.classHistory,
-    queryFn: getClassHistory
+    queryKey: [...queryKeys.coach.classHistory, params],
+    queryFn: () => getClassHistory(params),
+    placeholderData: keepPreviousData
   });
 }
 

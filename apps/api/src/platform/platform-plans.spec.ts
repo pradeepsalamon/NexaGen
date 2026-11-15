@@ -117,10 +117,27 @@ describe("the catalogue is enforced", () => {
       path.resolve(__dirname, "../../prisma/migrations/20261020120000_saas_subscription_plans/migration.sql"),
       "utf8"
     );
+    // A feature added later is appended to existing plans by its own migration
+    // (`array_append("features", 'x') WHERE "id" IN (...)`); seeds are never edited.
+    const migrationsDir = path.resolve(__dirname, "../../prisma/migrations");
+    const appended = new Map<string, string[]>();
+    for (const folder of fs.readdirSync(migrationsDir).filter((name) => name > "20261020120000_saas_subscription_plans")) {
+      const file = path.join(migrationsDir, folder, "migration.sql");
+      if (!fs.existsSync(file)) continue;
+      const later = fs.readFileSync(file, "utf8");
+      for (const match of later.matchAll(/array_append\("features", '(\w+)'\)\s*WHERE "id" IN \(([^)]*)\)/g)) {
+        for (const id of match[2].split(",").map((part) => part.trim().replace(/'/g, ""))) {
+          appended.set(id, [...(appended.get(id) ?? []), match[1]]);
+        }
+      }
+    }
     for (const plan of DEFAULT_PLATFORM_PLANS) {
       const row = new RegExp(`\\('${plan.id}', '${plan.code}'[\\s\\S]*?ARRAY\\[([^\\]]*)\\],\\s*'([^']*)'`).exec(sql);
       expect(row).not.toBeNull();
-      const features = row![1].split(",").map((f) => f.trim().replace(/'/g, ""));
+      const features = [
+        ...row![1].split(",").map((f) => f.trim().replace(/'/g, "")),
+        ...(appended.get(plan.id) ?? [])
+      ];
       expect({ code: plan.code, features: [...features].sort() }).toEqual({ code: plan.code, features: [...plan.features].sort() });
       expect(JSON.parse(row![2])).toEqual(plan.limits);
     }

@@ -7,7 +7,7 @@ import { formatDateTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
 const TONE: Record<AssignmentReminderItem["dueStatus"], string> = {
-  DUE_SOON: "border-secondary/40 bg-secondary/10 text-secondary-ink",
+  DUE_SOON: "border-info/40 bg-info/10 text-info-ink",
   DUE_TODAY: "border-warning/40 bg-warning/10 text-warning-ink",
   OVERDUE: "border-app-danger/30 bg-app-danger/10 text-app-danger-ink"
 };
@@ -35,7 +35,7 @@ export function ReminderItemRow({
             {item.status === "IN_PROGRESS" ? " · started" : ""}
           </span>
         </span>
-        <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold", TONE[item.dueStatus])}>
+        <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold", TONE[item.dueStatus])}>
           {ASSIGNMENT_DUE_STATUS_LABELS[item.dueStatus]}
         </span>
         <ArrowRight aria-hidden className="size-4 shrink-0 text-app-muted" />

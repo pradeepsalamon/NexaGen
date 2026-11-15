@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cursorPageQuerySchema } from "./core-schemas";
 import { escapeMarkdown } from "./markdown";
 
 // Admin-configurable outbound messaging. One rule per event decides whether a
@@ -20,6 +21,8 @@ export const messagingEventSchema = z.enum([
   "ANNOUNCEMENT",
   "ACCOUNT_WELCOME",
   "ACCOUNT_APPROVED",
+  "ACCOUNT_DECLINED",
+  "REGISTRATION_PENDING_ADMIN",
   "PAYMENT_RECEIVED",
   "PAYMENT_FAILED",
   "REFUND_PROCESSED",
@@ -28,7 +31,12 @@ export const messagingEventSchema = z.enum([
   "PAYROLL_FINALIZED",
   "PAYROLL_PAID",
   "APPROVAL_REQUESTED",
-  "APPROVAL_DECIDED"
+  "APPROVAL_DECIDED",
+  "TOURNAMENT_REGISTRATION_OPEN",
+  "TOURNAMENT_STARTED",
+  "REFERRAL_PROGRESS",
+  "REFERRAL_REWARD",
+  "REFERRAL_REQUEST_DECIDED"
 ]);
 export type MessagingEvent = z.infer<typeof messagingEventSchema>;
 
@@ -183,6 +191,33 @@ const APPROVAL_VARIABLES = [
   "links.approval"
 ] as const;
 
+/**
+ * The referral programme (docs/REFERRALS.md). The prospect's name is masked
+ * ("Priya S.") for students and coaches, as on their board; never a contact.
+ */
+const REFERRAL_VARIABLES = [
+  ...RECIPIENT_VARIABLES,
+  "referral.prospect",
+  "referral.stage",
+  "referral.reward",
+  "referral.rewardReason",
+  "referral.request",
+  "referral.decision",
+  "referral.note",
+  "links.referrals"
+] as const;
+
+const TOURNAMENT_VARIABLES = [
+  ...RECIPIENT_VARIABLES,
+  "tournament.name",
+  "tournament.format",
+  "tournament.timeControl",
+  "tournament.startDate",
+  "tournament.startTime",
+  "tournament.startDateTime",
+  "links.tournament"
+] as const;
+
 export const MESSAGING_EVENT_DEFINITIONS: Record<
   MessagingEvent,
   MessagingEventDefinition
@@ -297,8 +332,9 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
   },
   ACCOUNT_WELCOME: {
     event: "ACCOUNT_WELCOME",
-    label: "Welcome message",
-    description: "Sent to a new account right after it registers.",
+    label: "Registration received",
+    description:
+      "Sent to a student or coach right after they register on the sign-up page, while their account waits for an admin's approval.",
     variables: [...RECIPIENT_VARIABLES, "links.login"],
     audiences: ["STUDENTS", "COACHES", "STUDENTS_AND_COACHES"],
     supportsLeadTime: false
@@ -307,9 +343,27 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     event: "ACCOUNT_APPROVED",
     label: "Account approved",
     description:
-      "Sent when an admin activates a pending account (a coach approval, for example).",
+      "Sent when an admin approves a pending student or coach registration, or reactivates an account.",
     variables: [...RECIPIENT_VARIABLES, "links.login"],
     audiences: ["STUDENTS", "COACHES", "STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
+  },
+  ACCOUNT_DECLINED: {
+    event: "ACCOUNT_DECLINED",
+    label: "Registration declined",
+    description:
+      "Sent when an admin declines a pending student or coach registration. They can't sign in, so in-app is no use here: email or WhatsApp.",
+    variables: [...RECIPIENT_VARIABLES],
+    audiences: ["STUDENTS", "COACHES", "STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
+  },
+  REGISTRATION_PENDING_ADMIN: {
+    event: "REGISTRATION_PENDING_ADMIN",
+    label: "New registration to review",
+    description:
+      "Sent to every admin when a student or coach registers on the sign-up page and waits for approval.",
+    variables: [...RECIPIENT_VARIABLES, "applicant.name", "applicant.role", "links.approvals"],
+    audiences: ["ADMINS"],
     supportsLeadTime: false
   },
   PAYMENT_RECEIVED: {
@@ -391,6 +445,50 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     description: "Sent to the person who asked once an admin approves or rejects the request, or it expires undecided.",
     variables: APPROVAL_VARIABLES,
     audiences: ["COACHES"],
+    supportsLeadTime: false
+  },
+  TOURNAMENT_REGISTRATION_OPEN: {
+    event: "TOURNAMENT_REGISTRATION_OPEN",
+    label: "Tournament open for registration",
+    description:
+      "Sent to the academy's students when a public tournament's registration opens (at publication, or at the opening time set on it). A tournament limited to some batches goes to those batches only; private and invitation-only tournaments are not announced.",
+    variables: TOURNAMENT_VARIABLES,
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false
+  },
+  TOURNAMENT_STARTED: {
+    event: "TOURNAMENT_STARTED",
+    label: "Tournament started",
+    description: "Sent to every entered player the moment a tournament goes live, with the link to their board.",
+    variables: TOURNAMENT_VARIABLES,
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false
+  },
+  REFERRAL_PROGRESS: {
+    event: "REFERRAL_PROGRESS",
+    label: "Referral moved to a new stage",
+    description:
+      "Sent to the person whose referral link was used (student, coach or sales account) when that referral moves to another stage, automatically or by an admin. A first visit to the link sends nothing.",
+    variables: REFERRAL_VARIABLES,
+    audiences: ["STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
+  },
+  REFERRAL_REWARD: {
+    event: "REFERRAL_REWARD",
+    label: "Referral reward credited",
+    description:
+      "Sent when referral points or money are credited: to the referrer, or to the new member for their welcome points. A reward waiting for approval sends nothing until an admin approves it.",
+    variables: REFERRAL_VARIABLES,
+    audiences: ["STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
+  },
+  REFERRAL_REQUEST_DECIDED: {
+    event: "REFERRAL_REQUEST_DECIDED",
+    label: "Voucher request or withdrawal decided",
+    description:
+      "Sent when an admin approves or declines a student's voucher request, or pays or declines a coach's or sales account's withdrawal.",
+    variables: REFERRAL_VARIABLES,
+    audiences: ["STUDENTS_AND_COACHES"],
     supportsLeadTime: false
   }
 };
@@ -501,6 +599,9 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "approval.decision": { label: "Outcome (approved / rejected / expired)", sample: "approved" },
   "approval.note": { label: "The admin's note or rejection reason (may be empty)", sample: "Note: we'll schedule a make-up class." },
   "links.approval": { label: "Link to the request", sample: "https://nexa.test/admin/requests" },
+  "applicant.name": { label: "Applicant's full name", sample: "Ravi Kumar" },
+  "applicant.role": { label: "Student or coach", sample: "coach" },
+  "links.approvals": { label: "Link to pending registrations", sample: "https://nexa.test/admin/approvals" },
   // System messages (./system-messages)
   "links.reset": { label: "Password reset link", sample: "https://nexa.test/reset-password?token=sample" },
   "links.verify": { label: "Email verification link", sample: "https://nexa.test/verify-email?token=sample" },
@@ -522,13 +623,48 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "lead.parentName": { label: "Parent's name", sample: "Priya Menon" },
   "lead.experience": { label: "Experience level", sample: "Beginner" },
   "lead.phone": { label: "Phone number", sample: "+91 98765 43210" },
+  "lead.email": { label: "Email address", sample: "priya@example.com" },
   "lead.source": { label: "Where the lead came from", sample: "Website" },
   "lead.campaign": { label: "Campaign", sample: "-" },
   "requester.name": { label: "Requester's name", sample: "Asha Menon" },
   "requester.email": { label: "Requester's email address", sample: "asha@example.com" },
   "requester.role": { label: "Requester's role", sample: "STUDENT" },
   "request.reason": { label: "Reason they gave", sample: "Moving to another academy." },
-  "request.noteLine": { label: "The academy's note (empty if none)", sample: "Note from the academy: Your invoices are kept as the law requires." }
+  "request.noteLine": { label: "The academy's note (empty if none)", sample: "Note from the academy: Your invoices are kept as the law requires." },
+  "integrity.violationCount": { label: "Rows pointing at another academy", sample: "3" },
+  "integrity.linksChecked": { label: "Relationships checked", sample: "314" },
+  "integrity.summary": {
+    label: "What was found (tables, ids, academies)",
+    sample: "batch_students.studentId → users: 3 rows (e.g. row id=bs_1 in tenant_rook points at cus_9 in tenant_nexa)"
+  },
+  "links.integrity": { label: "Platform console link (integrity tab)", sample: "https://nexa.test/admin/platform?tab=integrity" },
+  "tournament.name": { label: "Tournament name", sample: "Winter Swiss" },
+  "tournament.format": { label: "Tournament format", sample: "Swiss" },
+  "tournament.timeControl": { label: "Time control (minutes + increment)", sample: "5+3" },
+  "tournament.startDate": { label: "Tournament start date", sample: "Sat, 14 Nov 2026" },
+  "tournament.startTime": { label: "Tournament start time", sample: "5:00 PM" },
+  "tournament.startDateTime": { label: "Tournament start date and time", sample: "Sat, 14 Nov 2026, 5:00 PM" },
+  "tournament.startsIn": { label: "When the tournament starts", sample: "in 15 minutes" },
+  "links.tournament": { label: "Link to the tournament", sample: "https://nexa.test/tournaments/sample" },
+  "links.game": { label: "Link to the game", sample: "https://nexa.test/tournaments/sample/games/sample" },
+  "referral.prospect": { label: "The referred person (short name)", sample: "Priya S." },
+  "referral.stage": { label: "The referral's new stage", sample: "Demo attended" },
+  "referral.reward": { label: "What was credited", sample: "50 points" },
+  "referral.rewardReason": { label: "Why it was credited", sample: "A referral reached Demo attended" },
+  "referral.request": { label: "What was asked for", sample: "the voucher 10% off next month" },
+  "referral.decision": { label: "The decision (approved, declined or paid)", sample: "approved" },
+  "referral.note": { label: "The admin's note, if any", sample: "Paid by bank transfer." },
+  "links.referrals": { label: "Link to the referral board", sample: "https://nexa.test/student/referrals" },
+  "registration.statusLine": {
+    label: "Whether the entry is confirmed or waiting for the host",
+    sample: "you're entered in Winter Swiss. Good luck!"
+  },
+  "game.opponent": { label: "Opponent's name", sample: "Rahul K." },
+  "game.color": { label: "The player's colour", sample: "White" },
+  "game.round": { label: "Round (or 'New game' in an arena)", sample: "Round 2" },
+  "round.number": { label: "Round number", sample: "2" },
+  "standing.line": { label: "The player's place and points", sample: "You are 3rd with 2 points." },
+  "certificate.line": { label: "About the player's certificate (empty if none)", sample: "Your certificate is ready to download." }
 };
 
 /** Example values for a set of placeholders, for previews and test sends — never real member data. */
@@ -606,6 +742,8 @@ export interface MessagingRuleDefaults {
    * regression for every academy on upgrade.
    */
   enabled: boolean;
+  /** Omitted = off. Email is opt-in per rule (docs/MESSAGING.md "Email channel"). */
+  emailEnabled?: boolean;
   whatsappEnabled: boolean;
   inAppEnabled: boolean;
   audience: MessagingAudience;
@@ -726,23 +864,48 @@ export const DEFAULT_MESSAGING_RULES: Record<
     title: "{{announcement.title}}",
     body: "{{announcement.title}}\n\n{{announcement.body}}"
   },
+  // Account rules ship ENABLED with email + in-app: a pending applicant can't sign in, so
+  // email is how they hear back. WhatsApp stays off until an admin turns it on (it needs an
+  // approved template outside the 24h window).
   ACCOUNT_WELCOME: {
-    enabled: false,
-    whatsappEnabled: true,
+    enabled: true,
+    emailEnabled: true,
+    whatsappEnabled: false,
     inAppEnabled: true,
     audience: "STUDENTS_AND_COACHES",
     leadTimeMinutes: null,
-    title: "Welcome to {{academy.name}}",
-    body: "Welcome to {{academy.name}}, {{recipient.firstName}}! Sign in any time at {{links.login}}."
+    title: "We've received your registration",
+    body: "Hi {{recipient.firstName}}, thank you for registering with {{academy.name}}. Our team reviews every new account, and we'll let you know as soon as yours is approved."
   },
   ACCOUNT_APPROVED: {
-    enabled: false,
-    whatsappEnabled: true,
+    enabled: true,
+    emailEnabled: true,
+    whatsappEnabled: false,
     inAppEnabled: true,
     audience: "STUDENTS_AND_COACHES",
     leadTimeMinutes: null,
     title: "Your account is ready",
     body: "Hi {{recipient.firstName}}, your {{academy.name}} account has been approved. Sign in at {{links.login}}."
+  },
+  ACCOUNT_DECLINED: {
+    enabled: true,
+    emailEnabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: false,
+    audience: "STUDENTS_AND_COACHES",
+    leadTimeMinutes: null,
+    title: "About your {{academy.name}} registration",
+    body: "Hi {{recipient.firstName}}, thank you for your interest in {{academy.name}}. We're unable to approve your registration at this time. If you think this is a mistake, please get in touch with us."
+  },
+  // In-app only, like APPROVAL_REQUESTED: an application nobody sees waits forever.
+  REGISTRATION_PENDING_ADMIN: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "ADMINS",
+    leadTimeMinutes: null,
+    title: "New {{applicant.role}} registration",
+    body: "{{applicant.name}} registered as a {{applicant.role}} and is waiting for approval. Review it at {{links.approvals}}."
   },
   // Payment rules ship ENABLED and in-app only. A receipt is transactional, not
   // marketing: the member must be told their money arrived. WhatsApp stays off
@@ -832,6 +995,55 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "Your request was {{approval.decision}}",
     body: "Hi {{recipient.firstName}}, your request ({{approval.action}}, {{approval.subject}}) was {{approval.decision}}. {{approval.note}}"
+  },
+  // Tournament rules ship ENABLED and in-app only, like the other operational
+  // notices: a student should hear that they can enter, and that play began.
+  TOURNAMENT_REGISTRATION_OPEN: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    title: "New tournament: {{tournament.name}}",
+    body: "Hi {{recipient.firstName}}, registration is open for {{tournament.name}} ({{tournament.format}}, {{tournament.timeControl}}). It starts {{tournament.startDateTime}}. Register here: {{links.tournament}}"
+  },
+  TOURNAMENT_STARTED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    title: "{{tournament.name}} has started",
+    body: "Hi {{recipient.firstName}}, {{tournament.name}} is live. Open the tournament to play your game: {{links.tournament}}"
+  },
+  // Referral rules ship ENABLED and in-app only: they tell someone about their
+  // own points or money, and the bell is where the board already lives.
+  REFERRAL_PROGRESS: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS_AND_COACHES",
+    leadTimeMinutes: null,
+    title: "Your referral moved to {{referral.stage}}",
+    body: "Hi {{recipient.firstName}}, your referral {{referral.prospect}} is now at {{referral.stage}}. See your referrals at {{links.referrals}}."
+  },
+  REFERRAL_REWARD: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS_AND_COACHES",
+    leadTimeMinutes: null,
+    title: "You earned {{referral.reward}}",
+    body: "Hi {{recipient.firstName}}, {{referral.reward}} was added to your referral balance. {{referral.rewardReason}}. See it at {{links.referrals}}."
+  },
+  REFERRAL_REQUEST_DECIDED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS_AND_COACHES",
+    leadTimeMinutes: null,
+    title: "Your request was {{referral.decision}}",
+    body: "Hi {{recipient.firstName}}, your request for {{referral.request}} was {{referral.decision}}. See it at {{links.referrals}}. {{referral.note}}"
   }
 };
 
@@ -947,12 +1159,15 @@ export interface MessageDeliveryItem {
 export interface MessageDeliveryListResponse {
   deliveries: MessageDeliveryItem[];
   counts: { pending: number; sent: number; failed: number; skipped: number };
+  /** Pass back as `cursor` for the next (older) page; null on the last page. */
+  nextCursor: string | null;
 }
 
 export const messageDeliveryQuerySchema = z.object({
   event: messagingEventSchema.optional(),
   status: messageDeliveryStatusSchema.optional(),
   channel: messageChannelSchema.optional(),
+  cursor: cursorPageQuerySchema.shape.cursor,
   limit: z.coerce.number().int().min(1).max(200).default(50)
 });
 export type MessageDeliveryQuery = z.infer<typeof messageDeliveryQuerySchema>;
@@ -999,6 +1214,8 @@ export interface AnnouncementItem {
 
 export interface AnnouncementListResponse {
   announcements: AnnouncementItem[];
+  /** Pass back as `cursor` for the next (older) page; null on the last page. */
+  nextCursor: string | null;
 }
 
 export interface CreateAnnouncementResponse {

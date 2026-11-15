@@ -18,9 +18,20 @@ function originsOf(url) {
 }
 
 /**
+ * Where browsers send CSP violation reports: the API's
+ * `API_ROUTES.security.cspReport` through this site's own `/api` (rewrites()
+ * below), so no CORS. Spelled out because this file runs before
+ * @nexa-chess/types is built; an API spec checks the two match.
+ */
+const CSP_REPORT_PATH = "/api/security/csp-report";
+/** Both report forms: `report-to` (Reporting API) and the older `report-uri` (Firefox). */
+const CSP_REPORTING = `report-uri ${CSP_REPORT_PATH}; report-to csp-endpoint`;
+
+/**
  * Report-only for now: Next's inline bootstrap needs 'unsafe-inline' until
  * nonces are wired through middleware, so this policy's job is to surface
- * every origin the app really uses (browser console) before it is enforced.
+ * every origin the app really uses (browser console, and the API's
+ * `csp-violation` log lines) before it is enforced.
  */
 function reportOnlyCsp(isDev) {
   const live = [
@@ -42,15 +53,17 @@ function reportOnlyCsp(isDev) {
     `form-action 'self' ${gateways.join(" ")}`,
     "base-uri 'self'",
     "object-src 'none'",
-    "frame-ancestors 'none'"
+    "frame-ancestors 'none'",
+    CSP_REPORTING
   ].join("; ");
 }
 
 /** Headers safe to enforce today; nothing in the app embeds it or uses plugins. */
 function securityHeaders(isDev) {
   return [
-    { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
+    { key: "Content-Security-Policy", value: `frame-ancestors 'none'; object-src 'none'; base-uri 'self'; ${CSP_REPORTING}` },
     { key: "Content-Security-Policy-Report-Only", value: reportOnlyCsp(isDev) },
+    { key: "Reporting-Endpoints", value: `csp-endpoint="${CSP_REPORT_PATH}"` },
     { key: "X-Frame-Options", value: "DENY" },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -111,18 +124,30 @@ const nextConfig = (phase) => ({
       // These pages carry a one-time token in the query string.
       {
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
-        source: "/(reset-password|verify-email)"
+        source: "/(reset-password|verify-email|support/enter)"
       },
       ...cacheRules
     ];
   },
   images: {
-    formats: ["image/avif", "image/webp"]
+    formats: ["image/avif", "image/webp"],
+    // Only the default; every <Image> uses it (the sources are already q85 WebP).
+    qualities: [75]
+  },
+  // An academy's own address calls the API on itself under /api (lib/apiBase.ts; docs/SAAS_MULTI_TENANCY.md §H
+  // "Routing"). nginx should proxy /api/ straight to the API; this rewrite is the fallback when it doesn't.
+  // Baked in at build time, like every NEXT_PUBLIC_ value.
+  async rewrites() {
+    const target = (process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(/\/+$/, "");
+    return [{ destination: `${target}/:path*`, source: "/api/:path*" }];
   },
   async redirects() {
-    return canonicalHostRedirects();
+    return [...canonicalHostRedirects()];
   },
-  output: "standalone",
+  // Docker serves the standalone server.js. Staging (scripts/nexa.sh) builds with
+  // NEXT_STANDALONE=false and runs "next start", which warns on a standalone build and,
+  // unlike the standalone server, keeps the request's own host behind nginx.
+  output: process.env.NEXT_STANDALONE === "false" ? undefined : "standalone",
   poweredByHeader: false,
   webpack(config, { dev }) {
     if (dev) {

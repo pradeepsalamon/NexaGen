@@ -58,7 +58,16 @@ export const createLeadRequestSchema = z.object({
     .refine(
       (value) => value.replace(/\D/g, "").length === 10,
       "Enter a valid 10-digit phone number"
-    )
+    ),
+  /** Optional; an empty field is sent as "" and stored as no email. */
+  email: z
+    .union([z.literal(""), z.string().trim().toLowerCase().email("Enter a valid email address").max(254)])
+    .optional(),
+  /**
+   * The referral code remembered from a `/r/<code>` visit. Fallback only: the
+   * API prefers its own attribution cookie, and an unknown code is ignored.
+   */
+  referralCode: z.string().trim().max(32).optional()
 });
 export type CreateLeadRequest = z.infer<typeof createLeadRequestSchema>;
 
@@ -102,6 +111,7 @@ export interface LeadListItem {
   studentAge: number;
   experienceLevel: string;
   phone: string;
+  email: string | null;
   status: LeadStatus;
   source: string | null;
   campaign: string | null;

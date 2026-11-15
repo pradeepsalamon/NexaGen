@@ -277,3 +277,19 @@ export async function playTestSound(sinkId?: string) {
     void ctx.close();
   }
 }
+
+/** Camera capture on a phone or tablet: 480p, 16:9. */
+export const MOBILE_CAMERA_RESOLUTION = { frameRate: 24, height: 480, width: 854 } as const;
+
+/**
+ * A phone or tablet, by what the browser says it is (not by window size: a
+ * narrow desktop window still has a desktop's CPU). iPadOS calls itself a Mac,
+ * so a touch "Macintosh" counts.
+ */
+export function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const uaData = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData;
+  if (uaData?.mobile) return true;
+  const ua = navigator.userAgent;
+  return /Android|iPhone|iPad|iPod|Mobi/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+}

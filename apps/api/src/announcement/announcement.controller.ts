@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Post, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, Req } from "@nestjs/common";
 import {
   API_ROUTES,
   createAnnouncementRequestSchema,
-  type CreateAnnouncementRequest
+  cursorPageQuerySchema,
+  type CreateAnnouncementRequest,
+  type CursorPageParams
 } from "@nexa-chess/types";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
@@ -14,8 +16,8 @@ export class AnnouncementController {
   constructor(private readonly announcementService: AnnouncementService) {}
 
   @Get(API_ROUTES.announcements.list)
-  list(@Req() request: Request) {
-    return this.announcementService.list(this.getAccessToken(request));
+  list(@Query(new ZodBodyPipe(cursorPageQuerySchema)) query: CursorPageParams, @Req() request: Request) {
+    return this.announcementService.list(this.getAccessToken(request), query);
   }
 
   @Post(API_ROUTES.announcements.create)

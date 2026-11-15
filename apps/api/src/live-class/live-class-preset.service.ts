@@ -14,6 +14,7 @@ import {
   type UpdateLiveClassPresetRequest,
 } from "@nexa-chess/types";
 import { PrismaService } from "../prisma/prisma.service";
+import { TrashRepository } from "../trash/trash.repository";
 import { authenticateUser } from "../auth/authenticate";
 
 type AuthUser = { id: string; role: UserRole };
@@ -31,6 +32,7 @@ export class LiveClassPresetService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly trash: TrashRepository,
   ) {}
 
   private getAuthenticatedUser(accessToken: string | undefined) {
@@ -171,7 +173,7 @@ export class LiveClassPresetService {
     if (!LiveClassPresetService.canManage(user, existing)) {
       throw new ForbiddenException("You cannot delete this preset.");
     }
-    await this.prisma.liveClassPreset.delete({ where: { id } });
+    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "LiveClassPreset", id, user.id));
     return { success: true };
   }
 

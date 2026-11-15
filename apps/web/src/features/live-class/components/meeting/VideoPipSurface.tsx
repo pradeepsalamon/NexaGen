@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { isTrackReference } from "@livekit/components-react";
+import { RemoteVideoTrack, type ElementInfo } from "livekit-client";
 import { useAuthStore } from "@/stores/authStore";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { usePip } from "../../providers/PipProvider";
 import { useSpotlightTrack } from "../../hooks/useSpotlightTrack";
+import { themeColor } from "../../lib/interactives/canvas";
 
 const PLACEHOLDER_W = 640;
 const PLACEHOLDER_H = 360;
@@ -13,7 +15,7 @@ const PLACEHOLDER_H = 360;
 /**
  * Draws the "no camera" card the PiP window shows when the spotlighted person
  * has their video off. The window has none of the app's CSS, so this is
- * painted by hand.
+ * painted by hand from the theme's variables.
  */
 function paintPlaceholder(canvas: HTMLCanvasElement, name: string, subtitle: string) {
   const ctx = canvas.getContext("2d");
@@ -21,16 +23,16 @@ function paintPlaceholder(canvas: HTMLCanvasElement, name: string, subtitle: str
   canvas.width = PLACEHOLDER_W;
   canvas.height = PLACEHOLDER_H;
 
-  ctx.fillStyle = "#0b1220";
+  ctx.fillStyle = themeColor("--rgb-brand-900");
   ctx.fillRect(0, 0, PLACEHOLDER_W, PLACEHOLDER_H);
 
   const initial = (name.trim()[0] || "?").toUpperCase();
   ctx.beginPath();
   ctx.arc(PLACEHOLDER_W / 2, PLACEHOLDER_H / 2 - 22, 46, 0, Math.PI * 2);
-  ctx.fillStyle = "#1e293b";
+  ctx.fillStyle = themeColor("--rgb-brand-700");
   ctx.fill();
 
-  ctx.fillStyle = "#e2e8f0";
+  ctx.fillStyle = themeColor("--rgb-on-brand");
   ctx.font = "600 42px system-ui, -apple-system, Segoe UI, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -39,7 +41,7 @@ function paintPlaceholder(canvas: HTMLCanvasElement, name: string, subtitle: str
   ctx.font = "600 22px system-ui, -apple-system, Segoe UI, sans-serif";
   ctx.fillText(name, PLACEHOLDER_W / 2, PLACEHOLDER_H / 2 + 54);
 
-  ctx.fillStyle = "#94a3b8";
+  ctx.fillStyle = themeColor("--rgb-on-brand-muted");
   ctx.font = "400 16px system-ui, -apple-system, Segoe UI, sans-serif";
   ctx.fillText(subtitle, PLACEHOLDER_W / 2, PLACEHOLDER_H / 2 + 84);
 }
@@ -55,7 +57,7 @@ function paintPlaceholder(canvas: HTMLCanvasElement, name: string, subtitle: str
  * laid out will not reliably start decoding, and PiP needs a live frame.
  */
 export function VideoPipSurface() {
-  const { mode, registerPipVideo } = usePip();
+  const { active, mode, registerPipVideo } = usePip();
   const { pinnedParticipantSid } = useLiveClassState("pinnedParticipantSid");
   const user = useAuthStore((state) => state.user);
   const spotlight = useSpotlightTrack(pinnedParticipantSid);
@@ -81,6 +83,45 @@ export function VideoPipSurface() {
     spotlight && isTrackReference(spotlight) && !spotlight.publication.isMuted
       ? spotlight.publication.track?.mediaStreamTrack
       : undefined;
+  const spotlightTrack = liveTrack && spotlight && isTrackReference(spotlight) ? spotlight.publication.track : undefined;
+  const remoteTrack = spotlightTrack instanceof RemoteVideoTrack ? spotlightTrack : undefined;
+
+  // The room uses adaptive streaming, which pauses a camera no LiveKit-attached
+  // element is showing — and this <video> is fed by hand, so LiveKit cannot see
+  // it. Registering it keeps the spotlight flowing: at the smallest layer while
+  // the mini player is closed (so it can open on a live frame), and at the
+  // window's size, hidden tab included, while it is open.
+  const pipInfoRef = useRef<ElementInfo | null>(null);
+  const activeRef = useRef(active);
+  activeRef.current = active;
+
+  useEffect(() => {
+    if (mode !== "video" || !remoteTrack) return;
+    const info: ElementInfo = {
+      element: {},
+      height: () => (activeRef.current ? PLACEHOLDER_H : 1),
+      observe: () => {},
+      pictureInPicture: activeRef.current,
+      stopObserving: () => {},
+      visibilityChangedAt: undefined,
+      visible: true,
+      width: () => (activeRef.current ? PLACEHOLDER_W : 1),
+    };
+    pipInfoRef.current = info;
+    remoteTrack.observeElementInfo(info);
+    return () => {
+      pipInfoRef.current = null;
+      remoteTrack.stopObservingElementInfo(info);
+    };
+  }, [mode, remoteTrack]);
+
+  useEffect(() => {
+    const info = pipInfoRef.current;
+    if (!info) return;
+    info.pictureInPicture = active;
+    info.handleVisibilityChanged?.();
+    info.handleResize?.();
+  }, [active]);
 
   useEffect(() => {
     const video = videoRef.current;

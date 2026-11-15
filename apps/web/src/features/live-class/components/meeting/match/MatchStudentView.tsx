@@ -25,7 +25,7 @@ function PlayerRow({ name, game, color, onFlag }: { name: string; game: LiveMatc
     <div className="flex w-full items-center justify-between gap-2">
       <span className={cn("flex min-w-0 items-center gap-2 text-sm", toMove ? "font-semibold text-app-text" : "text-app-muted")}>
         <span
-          className={cn("size-3 shrink-0 rounded-full border border-app-border", color === "white" ? "bg-white" : "bg-neutral-900")}
+          className={cn("size-3 shrink-0 rounded-full border border-app-border", color === "white" ? "bg-side-white" : "bg-side-black")}
           aria-hidden="true"
         />
         <span className="truncate">{name}</span>
@@ -274,7 +274,7 @@ export function MatchStudentView({ stageSwitch }: { stageSwitch?: ReactNode } = 
   return (
     <Dialog open={studentOpen} onOpenChange={setStudentOpen}>
       {/* No backdrop blur: blurring over live <video> flashes black on mobile GPUs. */}
-      <DialogContent className="max-h-[94dvh] max-w-lg overflow-y-auto" overlayClassName="bg-black/60 backdrop-blur-none">
+      <DialogContent className="max-h-[94dvh] max-w-lg overflow-y-auto" overlayClassName="bg-scrim/60 backdrop-blur-none">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

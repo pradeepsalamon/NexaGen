@@ -68,7 +68,7 @@ function WrongMovesList({
   return (
     <aside className="hidden w-44 shrink-0 flex-col gap-2 lg:flex" aria-label="Wrong moves">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">Attempts</p>
+        <p className="text-xs font-semibold text-app-muted">Attempts</p>
         <p className="text-xs text-app-muted">{summary}</p>
       </div>
       <ol className="custom-scrollbar flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">{moves.map(chip)}</ol>
@@ -191,8 +191,9 @@ export function InRoomPuzzleSolver({
         <div className="flex min-h-0 flex-1 gap-3">
           <WrongMovesList moves={wrongMoves} flash={wrong} penalty={scoring.wrongMovePenalty} variant="column" />
           <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
-            <div className="touch-none shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
+            <div className="touch-none rounded-app shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
               <PracticeBoard
+                className="max-w-none"
                 resetKey={`${moves.length}-${resetNonce}`}
                 fen={currentFen}
                 orientation={session.orientation}
@@ -217,7 +218,7 @@ export function InRoomPuzzleSolver({
         {result ? (
           <Card
             className={`flex items-start gap-2 p-2.5 text-sm ${
-              result.solved ? "border-accent/40 bg-accent/10 text-accent-ink" : "text-app-text"
+              result.solved ? "border-success/40 bg-success/10 text-success-ink" : "text-app-text"
             }`}
           >
             {result.solved ? (

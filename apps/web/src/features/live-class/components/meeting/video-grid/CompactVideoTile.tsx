@@ -6,7 +6,6 @@ import {
   isTrackReference,
   ParticipantTile,
   useIsMuted,
-  useIsSpeaking,
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
 import { Hand, Mic, MicOff, VideoOff } from "lucide-react";
@@ -15,6 +14,7 @@ import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider"
 import { ParticipantAvatar } from "../ParticipantAvatar";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
+import { SpeakingRing } from "./SpeakingRing";
 import { TileModerationControls } from "./TileModerationControls";
 
 /**
@@ -26,15 +26,17 @@ export const CompactVideoTile = memo(function CompactVideoTile({
   trackRef,
   variant = "strip",
   style,
+  layoutKey,
 }: {
   trackRef: TrackReferenceOrPlaceholder;
   variant?: "strip" | "grid";
   /** Grid placement, e.g. indenting the first tile of a partial last row. */
   style?: CSSProperties;
+  /** Changes when the tile's place in its strip does: the move animation runs only then (see VideoTile). */
+  layoutKey?: string;
 }) {
   const user = useAuthStore((state) => state.user);
   const participant = trackRef.participant;
-  const isSpeaking = useIsSpeaking(participant);
   const localName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "You";
   const name = participant.name || (participant.isLocal ? localName : participant.identity) || "Unknown";
   const isScreenShare = trackRef.source === Track.Source.ScreenShare;
@@ -47,6 +49,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
   return (
     <motion.div
       layout
+      layoutDependency={layoutKey}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
@@ -57,16 +60,10 @@ export const CompactVideoTile = memo(function CompactVideoTile({
         // The speaking ring is an inset overlay and the border never changes
         // width, so highlighting someone can't resize their tile.
         isGrid ? "aspect-video w-full min-w-0" : "w-28 h-20 sm:w-36 sm:h-24",
-        handRaised && !isScreenShare ? "border-warning" : isSpeaking ? "border-success" : "border-app-border/60",
+        handRaised && !isScreenShare ? "border-warning" : "border-app-border/60 has-[[data-speaking]]:border-success",
       )}
     >
-      <div
-        aria-hidden="true"
-        className={cn(
-          "pointer-events-none absolute inset-0 z-20 rounded-[inherit] ring-2 ring-inset ring-success transition-opacity duration-150",
-          isSpeaking ? "opacity-100" : "opacity-0",
-        )}
-      />
+      <SpeakingRing participant={participant} className="ring-2 duration-150" />
       {hasVideo ? (
         <ParticipantTile
           trackRef={trackRef}
@@ -85,7 +82,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
             className={
               isGrid
                 ? "size-[clamp(1.75rem,32cqmin,5rem)] text-[clamp(0.5625rem,11cqmin,1.5rem)]"
-                : "size-7 text-[9px]"
+                : "size-7 text-xs"
             }
           />
         </div>
@@ -93,7 +90,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
 
       {handRaised && !isScreenShare ? (
         <span
-          className="absolute left-1 top-1 z-10 flex size-5 items-center justify-center rounded-full bg-warning text-white shadow-card"
+          className="absolute left-1 top-1 z-10 flex size-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-card"
           aria-label="Hand raised"
         >
           <Hand className="size-3" strokeWidth={2.5} />
@@ -115,16 +112,16 @@ export const CompactVideoTile = memo(function CompactVideoTile({
       </div>
 
       {/* Name pill */}
-      <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1 rounded-control bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">
+      <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1 rounded-chip bg-scrim/80 px-1.5 py-0.5">
         {isMuted ? (
-          <MicOff className="size-2.5 text-red-400 shrink-0" aria-label="Microphone off" />
+          <MicOff className="size-2.5 text-on-scrim-danger shrink-0" aria-label="Microphone off" />
         ) : (
-          <Mic className="size-2.5 text-white/60 shrink-0" aria-label="Microphone on" />
+          <Mic className="size-2.5 text-on-scrim/60 shrink-0" aria-label="Microphone on" />
         )}
         {isGrid && cameraOff && !isScreenShare ? (
-          <VideoOff className="size-2.5 text-red-400 shrink-0" aria-label="Camera off" />
+          <VideoOff className="size-2.5 text-on-scrim-danger shrink-0" aria-label="Camera off" />
         ) : null}
-        <span className="truncate text-[10px] font-medium text-white/90">
+        <span className="truncate text-xs font-medium text-on-scrim/90">
           {participant.isLocal && !isScreenShare ? "You" : name}
         </span>
       </div>

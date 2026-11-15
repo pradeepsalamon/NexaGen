@@ -241,12 +241,17 @@ describe("student-view privacy", () => {
     ]);
   });
 
+  it("flags a quoted identifier", () => {
+    expect(findStudentIdentifiers("'S1' solved it, then “S2” and ‘S3’.")).toEqual(["S1", "S2", "S3"]);
+  });
+
   it("does not flag chess notation, colours or ordinary words", () => {
     const clean = [
       "Bxf7+ Kxf7 then Qf3+ and Rd8#, 1-0 after 17 moves.",
       "Black's queen on d8; White castles O-O-O on move 12.",
       "The Sicilian, a S-shaped pawn chain, 5 puzzles, lesson 2, 3 students.",
       "Moves 1 to 6, bus 2, vs 3, rooks 2, the 7th rank.",
+      "Sasha's 3 puzzles and the coach’s 2 hints.",
     ];
     for (const text of clean) expect(findStudentIdentifiers(text)).toEqual([]);
   });

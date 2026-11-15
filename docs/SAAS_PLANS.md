@@ -39,25 +39,29 @@ attendance, assignments, the puzzle library, announcements, notifications.
 | Key | What it gates (API) |
 |---|---|
 | `advancedAnalytics` | `AnalyticsController` except `overview` / `today` / `alerts` (the admin home dashboard) |
+| `brandIdentity` | `/admin/branding` writes (name, logo, colours, sender name); without it the public config shows only the academy's name |
 | `classRecording` | `POST liveClass.startRecording` only — existing recordings stay watchable |
 | `coachFeedback` | `FeedbackController` |
 | `coachPayroll` | `PayrollController`, `PayrollAdminController` |
 | `courses` | `CourseController` |
 | `customBranding` | chess-appearance and typography **admin** routes (users' own preferences stay) |
+| `customDomain` | `GET /admin/branding/domains`, and the console refuses to add an own domain (402) |
 | `demoClasses` | `DemoScheduleController`, the admin demo-class routes in `AdminController` |
 | `directChat` | `ChatController` |
 | `gameAnalysis` | `GameAnalysisController`, `GameSourcesController` |
 | `gameLibrary` | `GameLibraryController` |
 | `interactiveClassroom` | simul, matches, move polls, puzzle rush, activity queue, chapters, classroom tools — **writes only** (`allowReads`), because the room reads their state on mount |
 | `leadsCrm` | the `adminLeads.*` routes (the public lead form keeps capturing) |
+| `referralProgram` | the `referrals.*` and `adminReferrals.*` routes; with it off, links and typed codes attribute nothing |
 | `messagingAutomation` | `MessagingController` |
 | `smartRevision` | `RevisionController` |
+| `tournaments` | `TournamentAdminController` (academy tournament settings); every tournament controller added by later phases (docs/TOURNAMENTS.md). Enterprise only for now |
 | `studentPayments` | payments, invoices, admin payments/invoices, manual payments (never the provider webhooks) |
+| `whiteLabel` | `PUT /admin/branding/white-label`; with it, "Powered by NexaChess" is hidden unless the academy shows it |
 
 **Rule:** a key exists in `PLAN_FEATURE_KEYS` only if some route enforces it.
 `platform/platform-plans.spec.ts` fails a catalogued feature that no
-`@RequireFeature` uses. Something not enforced yet (custom domain, white label)
-is not listed.
+`@RequireFeature` uses. Something not enforced yet is not listed.
 
 ### Adding a feature
 
@@ -94,6 +98,72 @@ is not listed.
 - A **downgrade never deletes anything**: over-limit rows stay; only adding more
   is refused.
 
+## Usage history
+
+What each academy consumes, measured every night for the platform console.
+**Analytics only**: the four limits above are the only things enforced, and
+nothing here is billed. There is no separate metering system: the figures are
+read from rows the app already writes.
+
+- **Job:** `TenantUsageService.snapshotCron` (`platform-billing/`, 02:00 UTC,
+  `JobLockService.runForEachTenant`, so every query runs inside one academy and
+  is scoped by the Prisma extension; no raw SQL). It measures the UTC day that
+  just ended.
+- **Storage:** one row per academy per day in `tenant_usage_days`
+  (`TenantUsageDay`, unique on `tenantId` + `day`; `counts` is JSON). A rerun
+  replaces that day's row. `tenant_usage` (`TenantUsage`) still holds the latest
+  figures. Both are platform tables keyed by `tenantId`.
+- **Catalogue:** `TENANT_USAGE_METRICS` in `@nexa-chess/types`
+  (`platform-billing.ts`): label, unit and whether a figure is a total (`level`)
+  or per day (`daily`).
+
+| Key | Kind | Read from |
+|---|---|---|
+| `maxStudents`, `maxCoaches`, `maxBatches`, `maxConcurrentLiveClasses` | total | `EntitlementService.getUsage()` (the limit counts) |
+| `recordingBytes` | total | `LiveSession.recordingBytes` where a recording is kept |
+| `documentBytes` | total | `Invoice.pdfBytes`, `CreditNote.pdfBytes`, `Payslip.pdfBytes`, `ManualPaymentRecord.attachmentSizeBytes` |
+| `uploadBytes` | total | `UploadedFile.bytes` (see below) |
+| `storageBytes` | total | the three above added together |
+| `participantMinutes` | per day | `sessionDuration` of `AttendanceLog` and `CoachAttendanceLog` sessions that ended that day (a coach's board sessions are left out: they run inside the class session) |
+| `emailsSent` | per day | `MessageDelivery` EMAIL + `DirectEmail`, status SENT, by `sentAt` |
+| `whatsappSent` | per day | `MessageDelivery` WHATSAPP, status SENT, by `sentAt` |
+| `analysesCompleted` | per day | `GameAnalysis` COMPLETED or PARTIAL, by `completedAt` |
+
+- **Totals are as of the measurement** (about 02:00 UTC after the day ends),
+  labelled with the day that ended.
+- **Missing days:** each run also fills in days of the last 30
+  (`USAGE_BACKFILL_DAYS`) that have no row and that the academy existed on,
+  with the per-day figures only. A past day's totals can't be known, so those
+  keys are absent and the charts show a gap, never a zero.
+- **Upload sizes** (`UploadedFile`, `uploaded_files`): Cloudinary reports no
+  per-folder usage on our plan (checked 2026-11-13: Free plan, account-wide
+  usage only, search aggregations refused, 500 Admin API calls an hour, and
+  dev, staging and production share the `nexa_chess/` folder), so
+  `UploadService` records each file's `public_id` and size when it stores one
+  and deletes the row with the file. Recording never fails an upload. Files
+  stored before 2026-11-13 have no row (about 0.4 MB in the whole account), so
+  `uploadBytes` starts from that date. Payslip PDFs get their size from then on
+  too (`Payslip.pdfBytes`).
+- **Not counted:** fixed system emails (password reset, verification, invites;
+  they aren't logged), in-app notifications, demo-class guests and spectators
+  (no attendance row), derived Cloudinary images, bandwidth (files are served
+  by Cloudinary and video by LiveKit, not by the API), AI (mock only).
+- **API:** `GET /platform/usage` (latest per academy) and
+  `GET /platform/usage/history?tenantId=&days=` (daily rows, oldest first,
+  default 90 days, max 366). Platform operators only.
+- **Console:** `/admin/platform` → **Usage** (a chart of one figure by academy
+  and a table of every academy over the chosen period) and the **Usage
+  history** card on an academy's page (`features/platform/components/UsageTab.tsx`,
+  `AcademyUsageCard.tsx`, helpers in `features/platform/lib/usage.ts`).
+- **Tests:** `tenant-usage.int-spec.ts` (two academies with different figures:
+  each row holds only its own; one row per day; backfill; operators only),
+  `upload.service.spec.ts`.
+- **Adding a figure:** a key in `TENANT_USAGE_METRIC_KEYS` + its
+  `TENANT_USAGE_METRICS` entry, the query in `measureStorage` or
+  `measureActivity`, a row in the table above, and a case in the int-spec. To
+  turn one into a limit later, it becomes a `PLAN_LIMIT_KEYS` entry checked in
+  the creating transaction like the others, never read from this table.
+
 ## Subscription state → access mode
 
 `resolveTenantAccessMode` (shared) derives it from the stored dates on every
@@ -124,18 +194,24 @@ answer from "your plan can't").
 change takes up to 30s to reach the others. The web caches `/subscription` for
 5 minutes; the API is the enforcement either way.
 
-## Platform staff and changing a plan
+## Platform operators and changing a plan
 
-Platform powers come only from a `platform_staff` row — never a tenant role,
-not even `SUPER_ADMIN` (`admin-routes.int-spec.ts` asserts every `/platform`
-route is 403 for every tenant role). Grant it on the box:
+Platform powers belong to **Nexa's own `SUPER_ADMIN`s** (a `SUPER_ADMIN` whose
+`tenantId` is `tenant_nexa`) and nobody else: a super admin of any other academy
+is an ordinary academy admin (docs/SAAS_MULTI_TENANCY.md §E; `isPlatformOperator`
+in `platform/platform-operator.ts`). `admin-routes.int-spec.ts` asserts every
+`/platform` route is 403 for every other role, and `platform-tenants.int-spec.ts`
+that another academy's super admin is refused. `platform_staff` rows no longer
+grant anything (the table is kept, unused). MFA for these accounts is the login
+rule (`MFA_REQUIRED_ROLES`, `SUPER_ADMIN` by default). Every console write is in
+`platform_audit_logs`.
 
-```sql
-INSERT INTO platform_staff (id, "userId", role)
-SELECT 'staff_' || id, id, 'PLATFORM_ADMIN' FROM users WHERE email = '…';
-```
-
-The dev seed makes `superadmin@nexa.test` platform staff.
+The console API (Phase 4, docs/SAAS_MULTI_TENANCY.md § "Phase 4 plan"):
+academies (`/platform/tenants`), plans with versions (`/platform/plans`; an edit
+bumps the version and existing subscriptions keep theirs until
+`apply-to-existing`), subscriptions (`…/plan`, `…/transition`, `…/payments`,
+`…/deal`, all through `applySubscriptionTransition`), support visits
+(`…/support`) and content packs (`/platform/content-packs`).
 
 Change the academy's plan (until online billing exists):
 

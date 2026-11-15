@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Alert } from "@/components/ui/Alert";
 import { LEGAL_CONTACT_EMAIL, LEGAL_DRAFT, type LegalSection } from "../content";
 
 type LegalPageProps = {
@@ -13,21 +14,21 @@ export function LegalPage({ intro, other, sections, title }: LegalPageProps) {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
       {LEGAL_DRAFT ? (
-        <div className="mb-8 rounded-panel border border-warning/35 bg-warning/[0.08] p-4 text-sm text-warning-ink" role="note">
-          <strong>Draft.</strong> This page is being finalised and is not yet in effect. Sections marked
+        <Alert className="mb-8" title="Draft" variant="warning">
+          This page is being finalised and is not yet in effect. Sections marked
           &ldquo;to be completed&rdquo; are waiting for review.
-        </div>
+        </Alert>
       ) : null}
 
-      <h1 className="text-3xl font-extrabold leading-tight text-app-text sm:text-4xl">{title}</h1>
+      <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text sm:text-3xl">{title}</h1>
       <p className="mt-3 text-base leading-7 text-app-muted">{intro}</p>
 
       <nav aria-label="On this page" className="mt-8 rounded-panel border border-app-border bg-app-surface p-4">
-        <p className="text-xs font-bold text-app-muted">On this page</p>
+        <p className="text-xs font-semibold text-app-muted">On this page</p>
         <ol className="mt-2 grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
           {sections.map((section) => (
             <li key={section.id}>
-              <a className="text-primary-ink hover:underline" href={`#${section.id}`}>
+              <a className="font-medium text-primary-ink hover:underline" href={`#${section.id}`}>
                 {section.title}
               </a>
             </li>
@@ -68,14 +69,14 @@ export function LegalPage({ intro, other, sections, title }: LegalPageProps) {
       <footer className="mt-12 border-t border-app-border pt-6 text-sm text-app-muted">
         <p>
           Questions? Email{" "}
-          <a className="text-primary-ink hover:underline" href={`mailto:${LEGAL_CONTACT_EMAIL}`}>
+          <a className="font-medium text-primary-ink hover:underline" href={`mailto:${LEGAL_CONTACT_EMAIL}`}>
             {LEGAL_CONTACT_EMAIL}
           </a>
           .
         </p>
         <p className="mt-2">
           See also the{" "}
-          <Link className="text-primary-ink hover:underline" href={other.href}>
+          <Link className="font-medium text-primary-ink hover:underline" href={other.href}>
             {other.label}
           </Link>
           .

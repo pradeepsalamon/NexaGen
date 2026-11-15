@@ -37,8 +37,8 @@ import type {
 import { parseLeaderboardOverride, parseScoringOverride } from "@nexa-chess/types";
 import { Prisma, UserRole } from "@prisma/client";
 import { Chess } from "../common/chess/chess";
-import { isForeignKeyRestrictError } from "../prisma/prisma-errors";
 import { PrismaService } from "../prisma/prisma.service";
+import { TrashRepository } from "../trash/trash.repository";
 import { UploadService } from "../upload/upload.service";
 import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
 import { AssignmentPuzzleSetService } from "./assignment-puzzle-set.service";
@@ -128,7 +128,8 @@ export class AssignmentService {
     private readonly uploadService: UploadService,
     private readonly evaluation: AssignmentEvaluationService,
     private readonly messaging: MessagingDispatchService,
-    private readonly puzzleSets: AssignmentPuzzleSetService
+    private readonly puzzleSets: AssignmentPuzzleSetService,
+    private readonly trash: TrashRepository
   ) {}
 
   // ────────────────────────────────────────────────────────────
@@ -373,19 +374,14 @@ export class AssignmentService {
       throw new ForbiddenException("You cannot delete this assignment.");
     }
 
-    try {
-      await this.prisma.assignment.delete({ where: { id } });
-    } catch (error) {
-      // A CourseModule references this assignment (onDelete: Restrict) — even
-      // a soft-deleted module still holds the FK row, so the delete is blocked
-      // at the DB level rather than silently orphaning a course.
-      if (isForeignKeyRestrictError(error)) {
-        throw new BadRequestException(
-          "This assignment is used by a course module. Remove it from the course first."
-        );
-      }
-      throw error;
+    // A live course module still uses it: the course would lose a lesson. (Permanently deleting
+    // it from the trash is also refused while any module, even a trashed one, holds the FK.)
+    if (await this.prisma.courseModule.count({ where: { assignmentId: id } })) {
+      throw new BadRequestException("This assignment is used by a course module. Remove it from the course first.");
     }
+
+    // To the trash, with every deployment and student copy (hidden while it's there).
+    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "Assignment", id, user.id));
     return { success: true };
   }
 

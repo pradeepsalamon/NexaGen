@@ -109,6 +109,13 @@ export class AdminService {
       });
     });
 
+    // Only a real change is announced: approving an active coach or declining one twice says nothing.
+    if (data.status === 'ACTIVE' && user.status !== UserStatus.ACTIVE) {
+      this.messaging.dispatchInBackground({ event: 'ACCOUNT_APPROVED', userId: coachId });
+    } else if (data.status === 'ARCHIVED' && user.status === UserStatus.PENDING) {
+      this.messaging.dispatchInBackground({ event: 'ACCOUNT_DECLINED', userId: coachId });
+    }
+
     return { ok: true };
   }
 
@@ -152,9 +159,10 @@ export class AdminService {
       throw new NotFoundException('Pending student not found or already reviewed.');
     }
 
-    if (data.status === 'ACTIVE') {
-      this.messaging.dispatchInBackground({ event: 'ACCOUNT_APPROVED', userId: studentId });
-    }
+    this.messaging.dispatchInBackground({
+      event: data.status === 'ACTIVE' ? 'ACCOUNT_APPROVED' : 'ACCOUNT_DECLINED',
+      userId: studentId
+    });
 
     return { ok: true };
   }

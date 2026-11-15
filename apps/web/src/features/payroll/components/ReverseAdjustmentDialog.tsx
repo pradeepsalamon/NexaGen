@@ -48,7 +48,7 @@ export function ReverseAdjustmentDialog({ adjustmentId, recordId, description, o
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="outline">
+          <Button onClick={onClose} type="button" variant="neutral">
             Cancel
           </Button>
           <Button

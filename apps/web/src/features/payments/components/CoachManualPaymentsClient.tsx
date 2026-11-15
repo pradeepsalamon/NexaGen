@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ExternalLink, Plus } from "lucide-react";
 import { formatMoney, type ManualPaymentReviewStatus } from "@nexa-chess/types";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -44,20 +45,16 @@ export function CoachManualPaymentsClient() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-app-text">Payments</h1>
-          <p className="text-sm text-app-muted">
-            Record a cash, personal UPI/GPay or bank transfer payment for a
-            student in one of your batches. An admin approves it before the
-            student gets access.
-          </p>
-        </div>
-        <Button onClick={() => setRecording(true)} type="button" variant="primary">
-          <Plus className="size-4" strokeWidth={2.5} />
-          Record a payment
-        </Button>
-      </div>
+      <PageHeader
+        actions={
+          <Button onClick={() => setRecording(true)} type="button" variant="primary">
+            <Plus className="size-4" strokeWidth={2.5} />
+            Record a payment
+          </Button>
+        }
+        description="Record a cash, personal UPI/GPay or bank transfer payment for a student in one of your batches. An admin approves it before the student gets access."
+        title="Payments"
+      />
 
       {recording ? (
         <RecordManualPaymentDialog onClose={() => setRecording(false)} scope="coach" />
@@ -99,7 +96,7 @@ export function CoachManualPaymentsClient() {
                 <a
                   className="inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline"
                   href={manualPaymentAttachmentUrl(record.id)}
-                  rel="noopener noreferrer"
+                  rel="noopener"
                   target="_blank"
                 >
                   View proof <ExternalLink className="size-3" strokeWidth={2.5} />

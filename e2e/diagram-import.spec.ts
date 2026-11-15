@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import { API_URL, cookieHeader, login, type Cookie } from "./fixtures";
 
 /**
@@ -25,8 +25,7 @@ const expected = JSON.parse(readFileSync(join(FIXTURES, "expected.json"), "utf8"
   { diagrams?: { fen: string; orientation: string; sideToMove: string | null }[] }
 >;
 
-// Fake camera/microphone for the live-classroom test (harmless for the rest).
-test.use({ launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] } });
+// The live-classroom test's fake camera/mic comes from the chromium project (playwright.config.ts).
 
 const placementOf = (fen: string) => fen.split(" ")[0];
 
@@ -55,8 +54,11 @@ const squareName = (i: number) => `${"abcdefgh"[i % 8]}${8 - (i >> 3)}`;
 
 /** Centre of a square on the review board. */
 async function squareAt(page: Page, square: string, orientation: "white" | "black") {
-  // Board and both spare trays on screen, as a coach would have them.
-  await page.getByTestId("position-editor-board").evaluate((el) => el.scrollIntoView({ block: "center" }));
+  // Board and both spare trays on screen, as a coach would have them. Instant:
+  // `html` scrolls smoothly, and a box read mid-scroll misses the square.
+  await page
+    .getByTestId("position-editor-board")
+    .evaluate((el) => el.scrollIntoView({ behavior: "instant", block: "center" }));
   const box = (await page.getByTestId("position-editor-board").boundingBox()) as { x: number; y: number; width: number; height: number };
   const file = "abcdefgh".indexOf(square[0]);
   const rank = Number(square[1]);
@@ -109,10 +111,35 @@ test.describe("PDF diagram import", () => {
 
   let cookies: Cookie[] = [];
 
+  /**
+   * The suite saves one draft ("book-two-diagrams — p.1 #1") and the next test
+   * expects exactly that one. On a database that outlives the run (staging),
+   * an earlier run's draft would turn the save into a duplicate warning, so
+   * clear it before the suite and again after.
+   */
+  async function deleteSavedDraft(request: APIRequestContext) {
+    const [italian] = expected["book-two-diagrams.pdf"].diagrams ?? [];
+    const headers = { Cookie: cookieHeader(cookies) };
+    const res = await request.get(`${API_URL}/puzzles?placement=${encodeURIComponent(placementOf(italian.fen))}`, { headers });
+    if (!res.ok()) return;
+    const body = (await res.json()) as { puzzles: Array<{ id: string; title: string }> };
+    for (const puzzle of body.puzzles.filter((p) => p.title === "book-two-diagrams — p.1 #1")) {
+      await request.delete(`${API_URL}/puzzles/${puzzle.id}`, { headers });
+    }
+  }
+
   // One login for the serial suite: /auth/login is throttled 5/min.
   test.beforeAll(async ({ playwright }) => {
     const request = await playwright.request.newContext();
     cookies = await login(request, "coach");
+    await deleteSavedDraft(request);
+    await request.dispose();
+  });
+
+  test.afterAll(async ({ playwright }) => {
+    if (!cookies.length) return;
+    const request = await playwright.request.newContext();
+    await deleteSavedDraft(request);
     await request.dispose();
   });
 
@@ -192,7 +219,9 @@ test.describe("PDF diagram import", () => {
     const firstTopic = await topic.locator("option").nth(1).getAttribute("value");
     await topic.selectOption(firstTopic as string);
     await page.getByRole("button", { name: "Save draft" }).click();
-    await page.waitForURL(/\/coach\/puzzles\/[^/]+$/);
+    // The saved puzzle's page — not the form's own /coach/puzzles/new?from=pdf,
+    // which the looser /[^/]+$/ already matched before the save landed.
+    await page.waitForURL(/\/coach\/puzzles\/(?!new\b)[^/?]+$/);
 
     // Saved as a DRAFT with the confirmed FEN — never published by the import.
     const res = await page.request.get(`${API_URL}/puzzles?placement=${encodeURIComponent(placementOf(italian.fen))}`, {
@@ -267,7 +296,8 @@ test.describe("PDF diagram import", () => {
     expect(await fen(page)).toBe(`${placementOf(d.fen)} w - - 0 1`);
     await page.getByRole("button", { name: "Open on analysis board" }).click();
     await page.waitForURL(/\/games\/[^/]+$/);
-    await expect(page.getByText("scanned-page — p.1 #1")).toBeVisible();
+    // The title is also the breadcrumb's last crumb.
+    await expect(page.getByRole("heading", { level: 1, name: "scanned-page — p.1 #1" })).toBeVisible();
   });
 
   // generate-jpx-fixture.py: the scanned-page.pdf page, stored as JPEG2000.

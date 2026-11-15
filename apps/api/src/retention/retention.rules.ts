@@ -1,4 +1,5 @@
-import type { RetentionCategory } from "@nexa-chess/types";
+import { TRANSCRIPT_RETENTION_DAYS, type RetentionCategory } from "@nexa-chess/types";
+import { TENANT_TABLES } from "../tenancy/tenant-models";
 
 /** A table and the timestamp column its age is measured on. */
 export type RetentionTarget = {
@@ -34,7 +35,20 @@ export const RETENTION_RULES: readonly FixedRetentionRuleDef[] = [
   // Help-centre searches (free text typed by students, who are minors): only
   // the recent window feeds the unanswered inbox and topic trends.
   { column: "createdAt", days: 90, label: "Help-centre searches", table: "knowledge_search_logs" },
-  { column: "createdAt", days: 365, label: "Emails sent by staff", table: "direct_emails" }
+  // A coach's class speech as text (docs/LIVE_CLASS.md § "Class transcript").
+  // The window is part of what the coach consented to (TRANSCRIPT_RETENTION_DAYS).
+  {
+    column: "createdAt",
+    days: TRANSCRIPT_RETENTION_DAYS,
+    label: "Live class transcripts (coach speech)",
+    table: "live_class_transcript_segments"
+  },
+  { column: "createdAt", days: 365, label: "Emails sent by staff", table: "direct_emails" },
+  // One row per referral-link hit; the referral itself (and its stage history)
+  // stays, so only the raw visit counts age out.
+  { column: "createdAt", days: 365, label: "Referral link visits", table: "referral_visits" },
+  // Platform table: the nightly integrity check's results (ids only).
+  { column: "startedAt", days: 180, label: "Tenant integrity check results", table: "tenant_integrity_runs" }
 ];
 
 /**
@@ -75,25 +89,48 @@ export function nextRetentionSweep(now: Date): Date {
 
 const extra = (target: RetentionTarget) => (target.where ? ` AND ${target.where}` : "");
 
-/** `$1` = cutoff. Deletes at most one batch; repeat until it comes back short. */
+/**
+ * Academy-owned tables are pruned one academy at a time
+ * (docs/SAAS_MULTI_TENANCY.md § "Phase 3 plan", slice 4); platform tables
+ * (`processed_webhook_events`) have no `tenantId`.
+ */
+export function isTenantScopedTarget(target: RetentionTarget): boolean {
+  return TENANT_TABLES.has(target.table);
+}
+
+/** ` AND t."tenantId" = $<n>` for an academy table, else nothing. */
+function tenantAt(target: RetentionTarget, param: number): string {
+  return isTenantScopedTarget(target) ? ' AND t."tenantId" = $' + param : "";
+}
+
+/**
+ * `$1` = cutoff, `$2` = academy (academy tables only, see `retentionParams`).
+ * Deletes at most one batch; repeat until it comes back short.
+ */
 export function deleteBatchSql(target: RetentionTarget): string {
   return (
     `DELETE FROM "${target.table}" WHERE "id" IN (` +
-    `SELECT t."id" FROM "${target.table}" t WHERE t."${target.column}" < $1::timestamp${extra(target)} ` +
+    `SELECT t."id" FROM "${target.table}" t WHERE t."${target.column}" < $1::timestamp${extra(target)}${tenantAt(target, 2)} ` +
     `LIMIT ${RETENTION_BATCH_SIZE})`
   );
 }
 
-/** `$1` = cutoff. */
+/** `$1` = cutoff, `$2` = academy (academy tables only). */
 export function countEligibleSql(target: RetentionTarget): string {
   return (
     `SELECT count(*)::bigint AS "count" FROM "${target.table}" t ` +
-    `WHERE t."${target.column}" < $1::timestamp${extra(target)}`
+    `WHERE t."${target.column}" < $1::timestamp${extra(target)}${tenantAt(target, 2)}`
   );
 }
 
-/** The oldest row the sweep could ever reach (honours `where`). */
+/** The oldest row the sweep could ever reach (honours `where`). `$1` = academy (academy tables only). */
 export function oldestRecordSql(target: RetentionTarget): string {
-  const where = target.where ? ` WHERE ${target.where}` : "";
+  const conditions = [target.where, isTenantScopedTarget(target) ? 't."tenantId" = $1' : undefined].filter(Boolean);
+  const where = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
   return `SELECT min(t."${target.column}") AS "oldest" FROM "${target.table}" t${where}`;
+}
+
+/** The bound values after the cutoff: the academy, for academy tables. */
+export function retentionParams(target: RetentionTarget, tenantId: string): string[] {
+  return isTenantScopedTarget(target) ? [tenantId] : [];
 }

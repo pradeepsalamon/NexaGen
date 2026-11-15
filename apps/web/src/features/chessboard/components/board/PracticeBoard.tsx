@@ -10,6 +10,8 @@ import { Chess } from "@/lib/chess";
 import { cn } from "@/lib/utils";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 import { arrowBrushes, brushForGesture, isDrawGesture, stampGestureBrush } from "../../lib/drawBrushes";
+import { BoardFrame } from "./BoardFrame";
+import { PromotionPicker } from "../dialogs/PromotionPicker";
 
 export interface PracticeBoardMove {
   from: string;
@@ -41,6 +43,10 @@ export interface PracticeBoardProps {
    * Needs `playerColor` and `interactive`.
    */
   premove?: boolean;
+  /** Extra highlight shapes drawn on top (squares and arrows; e.g. a commentator's highlight). */
+  shapes?: { orig: string; dest?: string; brush: "green" | "red" | "blue" | "yellow" }[];
+  /** Called with the arrows/circles the user drew (right-click), e.g. to send them as a highlight. */
+  onShapesChange?: (shapes: { orig: string; dest?: string; brush: string }[]) => void;
   className?: string;
 }
 
@@ -70,12 +76,16 @@ export function PracticeBoard({
   onMove,
   resetKey,
   premove = false,
+  shapes: extraShapes,
+  onShapesChange,
   className
 }: PracticeBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
+  const onShapesChangeRef = useRef(onShapesChange);
+  onShapesChangeRef.current = onShapesChange;
   const {
     currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled, highlightSettings,
     hasCustomPieceColors
@@ -144,7 +154,12 @@ export function PracticeBoard({
       coordinates: showCoordinates,
       // Right-click (or Shift + click) arrows and circles, the same gesture and
       // colours as the live-class board. Local only; a move clears them.
-      drawable: { enabled: true, eraseOnClick: true, brushes: arrowBrushes() },
+      drawable: {
+        enabled: true,
+        eraseOnClick: true,
+        brushes: arrowBrushes(),
+        onChange: (drawn) => onShapesChangeRef.current?.(drawn.map((d) => ({ brush: d.brush ?? "green", dest: d.dest, orig: d.orig })))
+      },
       animation: { enabled: animationEnabled, duration: 150 },
       highlight: {
         lastMove: highlightSettings.highlightEnabled,
@@ -269,51 +284,38 @@ export function PracticeBoard({
         shapes.push({ orig: hintSquares.from as Key, dest: hintSquares.to as Key, brush: "green" });
       }
     }
+    for (const extra of extraShapes ?? []) {
+      shapes.push({ brush: extra.brush === "green" ? "primaryGreen" : extra.brush, dest: extra.dest as Key | undefined, orig: extra.orig as Key });
+    }
     apiRef.current?.setAutoShapes(shapes);
-  }, [hintSquares, fen]);
+  }, [hintSquares, fen, extraShapes]);
 
   return (
     <div className={cn("relative w-full max-w-[440px]", className)}>
-      <div
-        ref={containerRef}
-        className="aspect-square w-full rounded-app border border-app-border"
-        data-nexa-board-theme={currentBoardTheme}
-        data-nexa-piece-set={currentPieceSet}
-        data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
-        data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
-      />
+      <BoardFrame className="aspect-square w-full">
+        <div
+          ref={containerRef}
+          className="size-full"
+          data-nexa-board-theme={currentBoardTheme}
+          data-nexa-piece-set={currentPieceSet}
+          data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
+          data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
+        />
+      </BoardFrame>
       {promotion && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center rounded-app bg-black/60 backdrop-blur-sm">
-          <div className="rounded-panel border border-app-border bg-app-surface p-4 shadow-card">
-            <p className="mb-3 text-center text-sm font-semibold text-app-text">Promote to</p>
-            <div className="flex gap-2">
-              {(["q", "r", "b", "n"] as const).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className="size-12 rounded-control border border-app-border bg-app-background text-lg font-bold uppercase text-app-text transition-colors hover:bg-primary hover:text-white"
-                  onClick={() => {
-                    const { from, to } = promotion;
-                    setPromotion(null);
-                    commitMove(from, to, p);
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="mt-3 w-full text-center text-xs text-app-muted hover:text-app-text"
-              onClick={() => {
-                setPromotion(null);
-                if (game) apiRef.current?.set({ fen: game.fen() });
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <PromotionPicker
+          className="z-20 rounded-app"
+          color={turnColor}
+          onSelect={(piece) => {
+            const { from, to } = promotion;
+            setPromotion(null);
+            commitMove(from, to, piece);
+          }}
+          onCancel={() => {
+            setPromotion(null);
+            if (game) apiRef.current?.set({ fen: game.fen() });
+          }}
+        />
       )}
     </div>
   );

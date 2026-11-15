@@ -1,5 +1,5 @@
-import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
-import { getAdminNotificationEmails, getApiEnv } from "@nexa-chess/config/api";
+import { Injectable, Logger, Optional, ServiceUnavailableException } from "@nestjs/common";
+import { getApiEnv } from "@nexa-chess/config/api";
 import {
   markdownToPlainText,
   sampleVariables,
@@ -8,11 +8,13 @@ import {
   type SystemMessageKey
 } from "@nexa-chess/types";
 import nodemailer from "nodemailer";
-import { formatDemoTime } from "../messaging/messaging.format";
+import { BrandingService } from "../branding/branding.service";
+import { currentTenantId } from "../tenancy/tenant-context";
 import { EMAIL_LINK_STYLE, escapeHtml, messageToEmailHtml } from "./message-html";
 import { SystemMessageRenderer, type RenderedSystemMessage } from "./system-message-renderer.service";
 
-type Attachment = { filename: string; content: Buffer };
+export type MailAttachment = { filename: string; content: Buffer };
+type Attachment = MailAttachment;
 
 @Injectable()
 export class MailService {
@@ -25,29 +27,32 @@ export class MailService {
   private readonly secure = this.env.SMTP_SECURE;
   private readonly user = this.env.SMTP_USER;
 
-  constructor(private readonly renderer: SystemMessageRenderer) {}
+  constructor(
+    private readonly renderer: SystemMessageRenderer,
+    @Optional() private readonly branding?: BrandingService
+  ) {}
 
-  async sendPasswordResetLink(to: string, resetLink: string) {
-    await this.sendSystemEmail("PASSWORD_RESET", to, { "links.reset": resetLink });
+  /**
+   * One shared platform address, with another academy's name as the sender
+   * name and its contact as Reply-To (docs/SAAS_MULTI_TENANCY.md §F "Email").
+   * Nexa's mail is unchanged.
+   */
+  private async sender(): Promise<{ from: string | { address: string; name: string } | undefined; replyTo?: string }> {
+    const tenantId = currentTenantId();
+    if (!tenantId || !this.branding || !this.from) return { from: this.from };
+    try {
+      const sender = await this.branding.senderFor(tenantId);
+      if (!sender.name) return { from: this.from };
+      const address = /<([^>]+)>/.exec(this.from)?.[1] ?? this.from;
+      return { from: { address, name: sender.name }, ...(sender.replyTo ? { replyTo: sender.replyTo } : {}) };
+    } catch (error) {
+      this.logger.warn(`Sender lookup failed; using the platform sender: ${(error as Error).message}`);
+      return { from: this.from };
+    }
   }
 
   async sendEmailVerificationLink(to: string, verificationLink: string) {
     await this.sendSystemEmail("EMAIL_VERIFICATION", to, { "links.verify": verificationLink });
-  }
-
-  /** Sent to the OLD address, so a hijacked account's real owner finds out. */
-  async sendEmailChangedNotice(to: string, newEmail: string) {
-    await this.sendSystemEmail("EMAIL_CHANGED", to, { "email.new": newEmail });
-  }
-
-  /**
-   * Sent to the PREVIOUS parent/guardian email when a student changes the
-   * parent contact on their own profile (V7,
-   * docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md). Deliberately does not
-   * reveal the new contact details. Wording is editable at /admin/messaging.
-   */
-  async sendParentContactChangedNotice(to: string, studentName: string) {
-    await this.sendSystemEmail("PARENT_CONTACT_CHANGED", to, { "student.fullName": studentName });
   }
 
   /**
@@ -85,100 +90,9 @@ export class MailService {
     );
   }
 
-  /**
-   * Confirms a demo class registration for a visitor who has no account — the
-   * only record of the class they'll get if they picked email as their contact
-   * method instead of a phone number.
-   */
-  async sendDemoClassRegistrationConfirmation(input: {
-    to: string;
-    guestName: string;
-    classTopic: string;
-    startsAt: Date;
-    joinUrl: string;
-  }) {
-    await this.sendSystemEmail("DEMO_REGISTRATION_EMAIL", input.to, {
-      "demo.dateTime": formatDemoTime(input.startsAt),
-      "demo.topic": input.classTopic,
-      "guest.name": input.guestName,
-      "links.join": input.joinUrl
-    });
-  }
-
-  async sendDemoClassInvitation(input: {
-    to: string;
-    guestName: string;
-    classTopic: string;
-    startsAt: Date;
-    joinUrl: string;
-  }) {
-    await this.sendSystemEmail("DEMO_INVITATION_EMAIL", input.to, {
-      "demo.dateTime": formatDemoTime(input.startsAt),
-      "demo.topic": input.classTopic,
-      "guest.email": input.to,
-      "guest.name": input.guestName,
-      "links.join": input.joinUrl
-    });
-  }
-
-  /**
-   * Notifies staff of a new academy "book a demo" lead. Skips silently (no
-   * throw) when either SMTP or `ADMIN_EMAILS` is unset — callers treat this
-   * as fire-and-forget and must never fail lead creation on it.
-   */
-  async sendNewLeadNotification(input: {
-    studentName: string;
-    parentName: string;
-    studentAge: number;
-    experienceLevel: string;
-    phone: string;
-    source: string | null;
-    campaign: string | null;
-  }) {
-    const recipients = getAdminNotificationEmails(this.env);
-    if (recipients.length === 0) {
-      this.logger.warn("Skipped new-lead notification: ADMIN_EMAILS is unset.");
-      return;
-    }
-
-    await this.sendSystemEmail("NEW_LEAD_ADMIN", recipients.join(","), {
-      "lead.campaign": input.campaign ?? "-",
-      "lead.experience": input.experienceLevel,
-      "lead.parentName": input.parentName,
-      "lead.phone": input.phone,
-      "lead.source": input.source ?? "Unknown",
-      "lead.studentAge": String(input.studentAge),
-      "lead.studentName": input.studentName
-    });
-  }
-
-  async sendAccountDeletionRequested(input: { email: string; name: string; reason: string | null; role: string }) {
-    const recipients = getAdminNotificationEmails(this.env);
-    if (recipients.length === 0) {
-      this.logger.warn("Skipped account-deletion notification: ADMIN_EMAILS is unset.");
-      return;
-    }
-
-    await this.sendSystemEmail("ACCOUNT_DELETION_REQUESTED_ADMIN", recipients.join(","), {
-      "request.reason": input.reason || "-",
-      "requester.email": input.email,
-      "requester.name": input.name,
-      "requester.role": input.role
-    });
-  }
-
-  async sendAccountDeletionResolved(input: { completed: boolean; email: string; note: string | null }) {
-    await this.sendSystemEmail(
-      input.completed ? "ACCOUNT_DELETION_COMPLETED" : "ACCOUNT_DELETION_DECLINED",
-      input.email,
-      { "request.noteLine": input.note ? `Note from the academy: ${input.note}` : "" }
-    );
-  }
-
-  /** A message staff wrote themselves: formatted text, never trusted as HTML. */
   async sendDirectEmail(input: { to: string; subject: string; body: string }) {
     await this.createTransporter().sendMail({
-      from: this.from,
+      ...(await this.sender()),
       to: input.to,
       subject: input.subject,
       text: markdownToPlainText(input.body),
@@ -188,15 +102,30 @@ export class MailService {
     });
   }
 
-  /** One message from a messaging rule. Returns the provider's id for the log. */
-  async sendRuleEmail(input: { to: string; subject: string; body: string }): Promise<string | null> {
+  /**
+   * One message from a messaging rule. Returns the provider's id for the log. `unsubscribeUrl`
+   * is the recipient's own link: a footer line, and the header mail apps turn into a button.
+   */
+  async sendRuleEmail(input: {
+    to: string;
+    subject: string;
+    body: string;
+    unsubscribeUrl?: string;
+  }): Promise<string | null> {
     const subject = input.subject.replace(/\s+/g, " ").trim();
+    const text = markdownToPlainText(input.body);
+    const html = toHtml({ action: null, body: input.body, subject });
     const info = await this.createTransporter().sendMail({
-      from: this.from,
+      ...(await this.sender()),
       to: input.to,
       subject,
-      text: markdownToPlainText(input.body),
-      html: toHtml({ action: null, body: input.body, subject })
+      ...(input.unsubscribeUrl
+        ? {
+            headers: { "List-Unsubscribe": `<${input.unsubscribeUrl}>` },
+            html: `${html}${unsubscribeFooterHtml(input.unsubscribeUrl)}`,
+            text: `${text}\n\n--\nDon't want these emails? Unsubscribe: ${input.unsubscribeUrl}`
+          }
+        : { html, text })
     });
     return info.messageId ?? null;
   }
@@ -216,11 +145,15 @@ export class MailService {
     variables: MessageVariables,
     attachment: Attachment | null = null
   ) {
+    await this.sendRenderedSystemEmail(to, await this.renderer.render(key, variables), attachment);
+  }
+
+  /** A system message already rendered (SystemNotifier's email channel). Throws when SMTP fails. */
+  async sendRenderedSystemEmail(to: string, message: RenderedSystemMessage, attachment: Attachment | null = null) {
     const transporter = this.createTransporter();
-    const message = await this.renderer.render(key, variables);
 
     await transporter.sendMail({
-      from: this.from,
+      ...(await this.sender()),
       to,
       subject: message.subject,
       text: toText(message),
@@ -266,6 +199,14 @@ function toText({ action, body }: RenderedSystemMessage): string {
 }
 
 /** Admin wording and member-supplied values are both escaped: never trusted as HTML. */
+/** Small grey line under a notification email. The colours are email-safe literals, like the rest. */
+function unsubscribeFooterHtml(url: string): string {
+  return `
+        <p style="font-family:Arial,sans-serif;font-size:12px;line-height:1.5;color:#667085;margin-top:24px;border-top:1px solid #eaecf0;padding-top:12px">
+          Don't want these emails? <a href="${escapeHtml(url)}" style="color:#667085;text-decoration:underline">Unsubscribe</a>.
+        </p>`;
+}
+
 function toHtml({ action, body, subject }: RenderedSystemMessage): string {
   const button = action
     ? `

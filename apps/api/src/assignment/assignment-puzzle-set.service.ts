@@ -32,6 +32,7 @@ import {
   studentLeaderboardView,
   toStudentAssignmentRollup
 } from "./puzzle-set-results.util";
+import { requireTenantId, singletonRowId } from "../tenancy/tenant-sql";
 
 /** Same as `AssignmentService`'s Tx: the extended delegates seen inside `$transaction(cb)`. */
 type Tx = Pick<PrismaService, "assignmentPuzzle">;
@@ -47,7 +48,14 @@ type SetRules = {
   leaderboardJson: Prisma.JsonValue;
 };
 
-const SCORING_SETTINGS_ID = "default";
+/**
+ * This academy's row (one per academy, docs/SAAS_MULTI_TENANCY.md § "Phase 3
+ * plan", slice 5): found by `tenantId`, created with its own id.
+ */
+function scoringSettingsRow() {
+  const tenantId = requireTenantId("puzzleScoringSettings");
+  return { create: { id: singletonRowId(tenantId), tenantId }, where: { tenantId } };
+}
 
 const setPuzzleInclude = {
   puzzle: {
@@ -539,7 +547,7 @@ export class AssignmentPuzzleSetService {
   /** The admin layer is read at view time: tightening it applies to sets already out. */
   private async leaderboardOptions(assignment: SetRules): Promise<PuzzleLeaderboardOptions> {
     const row = await this.prisma.puzzleScoringSettings.findUnique({
-      where: { id: SCORING_SETTINGS_ID },
+      where: scoringSettingsRow().where,
       select: { leaderboardJson: true }
     });
     return resolvePuzzleLeaderboard(
@@ -550,7 +558,7 @@ export class AssignmentPuzzleSetService {
 
   private async adminScoringDefault(): Promise<PuzzleScoringOverride | null> {
     const row = await this.prisma.puzzleScoringSettings.findUnique({
-      where: { id: SCORING_SETTINGS_ID },
+      where: scoringSettingsRow().where,
       select: { scoringJson: true }
     });
     return parseScoringOverride(row?.scoringJson);

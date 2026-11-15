@@ -16,9 +16,10 @@ import { AssignmentFormDialog } from "./AssignmentFormDialog";
 import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
 import { ActivityBadge, DifficultyBadge } from "./assignmentBadges";
 import { AssignmentOverviewPanel } from "./reminders/AssignmentOverviewPanel";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
+  "size-8";
 
 export function AdminAssignmentsClient() {
   const { data, isLoading } = useAssignmentLibrary();
@@ -46,28 +47,25 @@ export function AdminAssignmentsClient() {
   };
 
   return (
-    <div>
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-              Assignments
-            </h1>
-            <p className="mt-1 text-app-muted">
-              Shared PGN assignments. Coaches assign these to their own batches.
-            </p>
-          </div>
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 size-4" />
-            New assignment
-          </Button>
-        </div>
-
+    <div className="animate-fade-in pb-10">
+      <div className="space-y-6">
         <Tabs defaultValue="library">
-          <TabsList>
-            <TabsTrigger value="library">Library ({library.length})</TabsTrigger>
-            <TabsTrigger value="due">Due dates</TabsTrigger>
-          </TabsList>
+          <PageHeader
+            actions={
+              <Button onClick={openCreate}>
+                <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                New assignment
+              </Button>
+            }
+            description="Shared PGN assignments. Coaches assign these to their own batches."
+            tabs={
+              <TabsList>
+                <TabsTrigger value="library">Library ({library.length})</TabsTrigger>
+                <TabsTrigger value="due">Due dates</TabsTrigger>
+              </TabsList>
+            }
+            title="Assignments"
+          />
 
           <TabsContent value="library">
             {isLoading ? (
@@ -81,7 +79,7 @@ export function AdminAssignmentsClient() {
             ) : library.length === 0 ? (
               <Card>
                 <EmptyState variant="inline"
-                  icon={Plus}
+                  illustration="assignments"
                   title="No shared assignments yet"
                   description="Create a PGN assignment for coaches to hand out."
                   action={{ label: "New assignment", onClick: openCreate }}
@@ -105,10 +103,10 @@ export function AdminAssignmentsClient() {
                         {item.deploymentCount} deployment{item.deploymentCount === 1 ? "" : "s"}
                       </span>
                     </div>
-                    <div className="mt-auto flex items-center gap-2 pt-1">
+                    <div className="mt-auto flex items-center justify-end gap-2 pt-1">
                       <Button
                         aria-label="Preview"
-                        variant="outline"
+                        variant="neutral"
                         size="icon"
                         className={iconBtn}
                         onClick={() => setPreviewing(item)}
@@ -119,7 +117,7 @@ export function AdminAssignmentsClient() {
                         <>
                           <Button
                             aria-label="Edit assignment"
-                            variant="outline"
+                            variant="neutral"
                             size="icon"
                             className={iconBtn}
                             onClick={() => {
@@ -131,9 +129,9 @@ export function AdminAssignmentsClient() {
                           </Button>
                           <Button
                             aria-label="Delete assignment"
-                            variant="ghost"
+                            variant="neutral"
                             size="icon"
-                            className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                            className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                             onClick={() => runDelete(item)}
                           >
                             <Trash2 className="size-4" strokeWidth={2.5} />

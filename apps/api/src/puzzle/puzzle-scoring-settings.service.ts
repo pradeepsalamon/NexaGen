@@ -18,8 +18,16 @@ import {
   authenticateUser,
   fullName
 } from "./puzzle-auth.helper";
+import { requireTenantId, singletonRowId } from "../tenancy/tenant-sql";
 
-const SINGLETON_ID = "default";
+/**
+ * This academy's row (one per academy, docs/SAAS_MULTI_TENANCY.md § "Phase 3
+ * plan", slice 5): found by `tenantId`, created with its own id.
+ */
+function singletonRow() {
+  const tenantId = requireTenantId("puzzleScoringSettings");
+  return { create: { id: singletonRowId(tenantId), tenantId }, where: { tenantId } };
+}
 
 /**
  * Platform default points + leaderboard rules for live-class puzzles — the
@@ -46,10 +54,9 @@ export class PuzzleScoringSettingsService {
   ): Promise<PuzzleScoringSettingsResponse> {
     const user = assertAdmin(await authenticateUser(this.jwtService, this.prisma, accessToken));
     const row = await this.prisma.puzzleScoringSettings.upsert({
-      where: { id: SINGLETON_ID },
+      where: singletonRow().where,
       create: {
-        id: SINGLETON_ID,
-        leaderboardJson: dto.leaderboard as unknown as Prisma.InputJsonValue,
+        ...singletonRow().create, leaderboardJson: dto.leaderboard as unknown as Prisma.InputJsonValue,
         scoringJson: dto.scoring as unknown as Prisma.InputJsonValue,
         updatedById: user.id
       },
@@ -68,7 +75,7 @@ export class PuzzleScoringSettingsService {
     scoring: PuzzleScoringOverride | null;
   }> {
     const row = await this.prisma.puzzleScoringSettings.findUnique({
-      where: { id: SINGLETON_ID }
+      where: singletonRow().where
     });
     return {
       leaderboard: parseLeaderboardOverride(row?.leaderboardJson),
@@ -78,8 +85,8 @@ export class PuzzleScoringSettingsService {
 
   private async load() {
     return this.prisma.puzzleScoringSettings.upsert({
-      where: { id: SINGLETON_ID },
-      create: { id: SINGLETON_ID },
+      where: singletonRow().where,
+      create: singletonRow().create,
       update: {}
     });
   }

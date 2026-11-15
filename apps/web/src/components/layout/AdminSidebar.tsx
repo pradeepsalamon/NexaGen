@@ -1,18 +1,21 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { NavDrawer, NavDrawerAccordion, NavDrawerLink } from "@/components/layout/Sidebar";
-import { getAdminNavGroups } from "@/components/layout/navItems";
+import { activeNavHref, getAdminNavGroups } from "@/components/layout/navItems";
 import { useChatNavBadge } from "@/features/chat/hooks/useChat";
 import { useLiveClassesMonitor } from "@/features/live-monitor/hooks/useLiveMonitor";
 import { useCurrentEntitlements } from "@/features/subscription/hooks/useSubscription";
 import { useAuthStore } from "@/stores/authStore";
 
 export function AdminSidebar() {
+  const brandName = useBrandName();
   const pathname = usePathname();
   const role = useAuthStore((state) => state.user?.role);
+  const isPlatformOperator = useAuthStore((state) => state.user?.isPlatformOperator === true);
   // Slow poll for the "Live Now" chip; the page itself shares this query and polls faster.
   const { data: live } = useLiveClassesMonitor({
     enabled: role === "ADMIN" || role === "SUPER_ADMIN",
@@ -23,7 +26,7 @@ export function AdminSidebar() {
   const planFeatures = useCurrentEntitlements().data?.features;
   const groups = useMemo(
     () =>
-      getAdminNavGroups(role, planFeatures).map((group) => ({
+      getAdminNavGroups(role, planFeatures, isPlatformOperator).map((group) => ({
         ...group,
         items: group.items.map((item) =>
           item.href === "/admin/live-classes" && liveCount > 0
@@ -33,19 +36,15 @@ export function AdminSidebar() {
               : item
         )
       })),
-    [role, liveCount, chatBadge, planFeatures]
+    [role, liveCount, chatBadge, planFeatures, isPlatformOperator]
   );
 
   // Only the most specific match is active, so a nested link and its parent
   // never both light up (e.g. /admin/classes and /admin/classes/requests).
-  const activeHref = useMemo(() => {
-    const matches = (href: string) =>
-      pathname === href || (href !== "/admin" && pathname.startsWith(`${href}/`));
-    return groups
-      .flatMap((group) => group.items.map((item) => item.href))
-      .filter(matches)
-      .sort((a, b) => b.length - a.length)[0];
-  }, [groups, pathname]);
+  const activeHref = useMemo(
+    () => activeNavHref(groups.flatMap((group) => group.items.map((item) => item.href)), pathname),
+    [groups, pathname]
+  );
 
   const isItemActive = (href: string) => href === activeHref;
 
@@ -70,7 +69,7 @@ export function AdminSidebar() {
   return (
     <NavDrawer
       subtitle={role === "SUPER_ADMIN" ? "Super Admin" : "Admin"}
-      title="Nexa Chess"
+      title={brandName}
     >
       {groups.map((group) =>
         group.group ? (

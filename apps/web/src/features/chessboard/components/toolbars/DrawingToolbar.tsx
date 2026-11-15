@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useBoardStore } from "../../context/BoardProvider";
+import { ARROW_BRUSH_COLORS } from "../../lib/drawBrushes";
 import { useShallow } from "zustand/react/shallow";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
@@ -18,10 +19,10 @@ export function DrawingToolbar() {
   if (user?.role !== "COACH" && !isStaffRole(user?.role)) return null;
 
   const colors = [
-    { id: 'green', hex: '#15781B', label: 'Green' },
-    { id: 'red', hex: '#882020', label: 'Red (hold Ctrl)' },
-    { id: 'blue', hex: '#003088', label: 'Blue (hold Alt)' },
-    { id: 'yellow', hex: '#e68f00', label: 'Yellow (hold Shift)' }
+    { id: 'green', hex: ARROW_BRUSH_COLORS.green, label: 'Green' },
+    { id: 'red', hex: ARROW_BRUSH_COLORS.red, label: 'Red (hold Ctrl)' },
+    { id: 'blue', hex: ARROW_BRUSH_COLORS.blue, label: 'Blue (hold Alt)' },
+    { id: 'yellow', hex: ARROW_BRUSH_COLORS.yellow, label: 'Yellow (hold Shift)' }
   ];
 
   const handleClear = () => {
@@ -32,24 +33,25 @@ export function DrawingToolbar() {
   };
 
   return (
-    <div className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-2 py-1 shadow-card">
+    <div className="flex items-center gap-2 rounded-control border border-app-border bg-app-surface px-2 py-1 shadow-card">
       <div className="flex items-center gap-1">
         {colors.map(color => (
           <SimpleTooltip key={color.id} label={color.label} side="top">
               <Button 
                 aria-label={`${color.label.split(" ")[0]} brush`}
                 aria-pressed={activeBrush === color.id}
-                variant="ghost" 
+                variant="neutral"
                 size="icon"
                 onClick={() => setActiveBrush(color.id)}
-                className={`w-8 h-8 rounded-full border-2 transition ${
-                  activeBrush === color.id 
-                    ? 'border-primary scale-110 shadow-card' 
-                    : 'border-transparent hover:scale-105'
+                className={`size-8 border-2 ${
+                  activeBrush === color.id
+                    ? "border-primary bg-primary/10"
+                    : "border-transparent bg-transparent"
                 }`}
               >
-                <div 
-                  className="w-4 h-4 rounded-full shadow-inner" 
+                <span
+                  aria-hidden="true"
+                  className="size-4 rounded-full ring-1 ring-app-border"
                   style={{ backgroundColor: color.hex }}
                 />
               </Button>
@@ -59,8 +61,8 @@ export function DrawingToolbar() {
         <div className="mx-1 h-5 w-px bg-app-border" />
         
         <SimpleTooltip label="Clear all annotations (or left-click the board)" side="top">
-            <Button aria-label="Clear annotations" variant="ghost" size="icon" className="w-8 h-8 rounded-full text-app-muted hover:bg-app-danger/10 hover:text-app-danger-ink" onClick={handleClear}>
-              <Trash2 aria-hidden="true" className="size-4" />
+            <Button aria-label="Clear annotations" variant="neutral" size="icon" className="size-8 border-transparent bg-transparent text-app-muted hover:text-app-danger-ink" onClick={handleClear}>
+              <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
             </Button>
         </SimpleTooltip>
       </div>

@@ -72,60 +72,62 @@ export function KnowledgeAdminClient() {
 
   return (
     <div>
-      <PageHeader
-        actions={
-          <>
-            <Button asChild variant="outline">
-              <Link href="/help">
-                <Eye aria-hidden className="mr-2 size-4" strokeWidth={2.5} />
-                Open help centre
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/admin/knowledge/new">
-                <Plus aria-hidden className="mr-2 size-4" strokeWidth={2.5} />
-                New article
-              </Link>
-            </Button>
-          </>
-        }
-        description="Everything the help centre (and, later, the AI assistant) can answer from. You decide who sees each article; every change is versioned."
-        title="Knowledge base"
-      />
       <Tabs onValueChange={setTab} value={tab}>
-        <TabsList>
-          <TabsTrigger value="articles">
-            <FileText aria-hidden className="size-4" />
-            Articles
-          </TabsTrigger>
-          <TabsTrigger value="suggestions">
-            <Inbox aria-hidden className="size-4" />
-            Coach suggestions
-            {pending > 0 && <span className="rounded-full bg-secondary px-1.5 text-xs font-extrabold text-black">{pending}</span>}
-          </TabsTrigger>
-          <TabsTrigger value="categories">
-            <FolderTree aria-hidden className="size-4" />
-            Categories
-          </TabsTrigger>
-          <TabsTrigger value="insights">
-            <BarChart3 aria-hidden className="size-4" />
-            Questions & feedback
-          </TabsTrigger>
-          <TabsTrigger value="preview">
-            <Eye aria-hidden className="size-4" />
-            Preview as role
-          </TabsTrigger>
-          <TabsTrigger value="import">
-            <Upload aria-hidden className="size-4" />
-            Import & export
-          </TabsTrigger>
-          {role === "SUPER_ADMIN" && (
-            <TabsTrigger value="tools">
-              <Bot aria-hidden className="size-4" />
-              Assistant tools
-            </TabsTrigger>
-          )}
-        </TabsList>
+        <PageHeader
+          actions={
+            <>
+              <Button asChild variant="outline">
+                <Link href="/help">
+                  <Eye aria-hidden className="mr-2 size-4" strokeWidth={2.5} />
+                  Open help centre
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/admin/knowledge/new">
+                  <Plus aria-hidden className="mr-2 size-4" strokeWidth={2.5} />
+                  New article
+                </Link>
+              </Button>
+            </>
+          }
+          description="Everything the help centre (and, later, the AI assistant) can answer from. You decide who sees each article; every change is versioned."
+          tabs={
+            <TabsList>
+              <TabsTrigger value="articles">
+                <FileText aria-hidden className="size-4" />
+                Articles
+              </TabsTrigger>
+              <TabsTrigger value="suggestions">
+                <Inbox aria-hidden className="size-4" />
+                Coach suggestions
+                {pending > 0 && <span className="rounded-full bg-warning-soft px-1.5 text-xs font-semibold text-warning-ink">{pending}</span>}
+              </TabsTrigger>
+              <TabsTrigger value="categories">
+                <FolderTree aria-hidden className="size-4" />
+                Categories
+              </TabsTrigger>
+              <TabsTrigger value="insights">
+                <BarChart3 aria-hidden className="size-4" />
+                Questions & feedback
+              </TabsTrigger>
+              <TabsTrigger value="preview">
+                <Eye aria-hidden className="size-4" />
+                Preview as role
+              </TabsTrigger>
+              <TabsTrigger value="import">
+                <Upload aria-hidden className="size-4" />
+                Import & export
+              </TabsTrigger>
+              {role === "SUPER_ADMIN" && (
+                <TabsTrigger value="tools">
+                  <Bot aria-hidden className="size-4" />
+                  Assistant tools
+                </TabsTrigger>
+              )}
+            </TabsList>
+          }
+          title="Knowledge base"
+        />
         <TabsContent value="articles">
           <ArticlesPanel />
         </TabsContent>
@@ -189,8 +191,8 @@ function ArticlesPanel() {
       aria-pressed={filter === value}
       className={
         filter === value
-          ? "min-h-9 rounded-full border border-primary bg-primary px-3 text-sm font-semibold text-white"
-          : "min-h-9 rounded-full border border-app-border bg-app-surface px-3 text-sm font-semibold text-app-text hover:border-primary/50"
+          ? "min-h-9 rounded-control border border-primary bg-primary px-3 text-sm font-medium text-on-primary"
+          : "min-h-9 rounded-control border border-app-line-strong bg-app-surface px-3 text-sm font-medium text-app-text hover:bg-app-soft"
       }
       onClick={() => setFilter(value)}
       type="button"
@@ -222,7 +224,7 @@ function ArticlesPanel() {
           value={audience}
         />
       </div>
-      <div aria-label="Quick filters" className="flex flex-wrap gap-2" role="group">
+      <div aria-label="Quick filters" className="flex flex-wrap justify-end gap-2" role="group">
         {filterChip("all", "All")}
         {filterChip("needsReview", "Review due", counts?.needsReview)}
         {filterChip("flagged", "Flagged", counts?.flagged)}
@@ -238,6 +240,7 @@ function ArticlesPanel() {
         <EmptyState
           action={{ label: "Write the first article", onClick: () => router.push("/admin/knowledge/new") }}
           description="Nothing ships pre-loaded: add platform how-tos, navigation help, FAQs, course notes and games here."
+          illustration={filter === "all" && !debounced && !status && !audience ? undefined : "search-results"}
           icon={FileText}
           title={filter === "all" && !debounced && !status && !audience ? "The knowledge base is empty" : "No articles match"}
         />

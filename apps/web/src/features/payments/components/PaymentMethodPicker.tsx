@@ -8,6 +8,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 import type { CheckoutMethodOption, PaymentMethodKind } from "@nexa-chess/types";
+import { choiceTileClass } from "@/components/ui/ChoiceTile";
 import { cn } from "@/lib/utils";
 
 const METHOD_ICONS: Partial<Record<PaymentMethodKind, LucideIcon>> = {
@@ -54,12 +55,7 @@ export function PaymentMethodPicker({
 
         return (
           <label
-            className={cn(
-              "flex cursor-pointer items-start gap-3 rounded-app border p-3 transition sm:p-4",
-              selected
-                ? "border-primary bg-[color-mix(in_srgb,var(--color-primary)_8%,transparent)]"
-                : "border-app-border bg-app-surface hover:bg-app-soft"
-            )}
+            className={choiceTileClass(selected, "flex cursor-pointer items-start gap-3 p-3 sm:p-4")}
             key={method.kind}
           >
             <input

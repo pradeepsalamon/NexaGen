@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "../lib/format";
 
 interface RankRow {
   key: string;
@@ -45,7 +46,7 @@ export function RankBarList({
                 label
               )}
               <span className="shrink-0 font-semibold text-app-text">
-                {row.display ?? row.value.toLocaleString()}
+                {row.display ?? formatNumber(row.value)}
               </span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-app-soft">

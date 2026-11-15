@@ -65,16 +65,16 @@ export function DiscountField({
 
   if (applied) {
     return (
-      <div className="flex items-center gap-2 rounded-app border border-accent bg-accent/10 px-3 py-2">
-        <Check aria-hidden className="size-4 shrink-0 text-accent-ink" strokeWidth={2.5} />
-        <span className="min-w-0 flex-1 text-sm text-accent-ink">
+      <div className="flex items-center gap-2 rounded-app border border-success bg-success/10 px-3 py-2">
+        <Check aria-hidden className="size-4 shrink-0 text-success-ink" strokeWidth={2.5} />
+        <span className="min-w-0 flex-1 text-sm text-success-ink">
           <span className="font-mono font-bold">{applied.code}</span> applied —{" "}
           {formatMoney(applied.amount, currency)} off
         </span>
         <SimpleTooltip label="Remove this code">
           <Button
             aria-label={`Remove discount code ${applied.code}`}
-            className="size-7 rounded-full border-app-border p-0 hover:bg-app-soft"
+            className="size-7 hover:bg-app-soft"
             disabled={disabled}
             onClick={() => {
               onApply(null);
@@ -82,7 +82,7 @@ export function DiscountField({
             }}
             size="icon"
             type="button"
-            variant="outline"
+            variant="neutral"
           >
             <X className="size-3.5" strokeWidth={2.5} />
           </Button>

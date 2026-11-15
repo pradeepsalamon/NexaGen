@@ -1,13 +1,12 @@
 import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from "axios";
-import { getWebEnv } from "@nexa-chess/config/web";
 import { toast } from "sonner";
 import { API_ROUTES } from "@nexa-chess/types";
 import { useAuthStore } from "../stores/authStore";
+import { apiBaseUrl } from "./apiBase";
 import { isPublicPath } from "./routeAccess";
 
-export const API_BASE_URL = getWebEnv({
-  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
-}).NEXT_PUBLIC_API_URL;
+/** Absolute on Nexa's hosts, same-origin `/api` on an academy's own address (`lib/apiBase.ts`). */
+export const API_BASE_URL = apiBaseUrl();
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -42,6 +41,8 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 // Mid-login MFA steps have no session to refresh; a 401 there means the challenge expired.
 function isPreSessionRequest(config: InternalAxiosRequestConfig) {
   if (config.url === API_ROUTES.auth.mfaVerify) return true;
+  // A support visit's one-time link: a 401 means a used or expired link, not an expired session.
+  if (config.url === API_ROUTES.auth.supportEnter) return true;
   const body = typeof config.data === "string" ? config.data : "";
   return body.includes('"challengeToken":"');
 }

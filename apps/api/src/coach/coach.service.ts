@@ -9,15 +9,18 @@ import { JwtService } from "@nestjs/jwt";
 import type {
   CoachDashboardResponse,
   CoachBatchesResponse,
+  CoachClassHistoryResponse,
   CoachClassListResponse,
   CoachClassResponse,
   CoachStudentsResponse,
   UpdateClassRequest,
   CoachClass,
-  CoachClassStudent
+  CoachClassStudent,
+  PaginatedQuery
 } from "@nexa-chess/types";
 import { resolveBatchType, resolveCancellationPath } from "@nexa-chess/types";
 import { ClassStatus, Prisma, UserRole } from "@prisma/client";
+import { paginationMeta, resolvePagination } from "../common/pagination";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
@@ -220,28 +223,42 @@ export class CoachService {
     return { classes: classes.map(c => this.toCoachClass(c)) };
   }
 
-  async getClassHistory(accessToken: string | undefined): Promise<CoachClassListResponse> {
+  /** Server-paginated (AUDIT H26); newest first unless the caller sorts. */
+  async getClassHistory(
+    accessToken: string | undefined,
+    query?: PaginatedQuery
+  ): Promise<CoachClassHistoryResponse> {
     const coachId = await this.getAuthenticatedCoachId(accessToken);
+    const { page, pageSize, skip, take } = resolvePagination(query);
 
     const now = new Date();
     // Same "past" rule as the student side (`isPastClass` in @nexa-chess/types):
     // held, cancelled once its date arrived, or never started before its window
     // ended (shown as "Not held"). A cancelled class still ahead is not history.
-    const classes = await this.prisma.coachClass.findMany({
-      where: {
-        coachId,
-        OR: [
-          { status: ClassStatus.COMPLETED },
-          { status: ClassStatus.CANCELLED, startsAt: { lte: now } },
-          { status: ClassStatus.SCHEDULED, endsAt: { lte: now } }
-        ]
-      },
-      include: COACH_CLASS_INCLUDE,
-      orderBy: { startsAt: "desc" },
-      take: 50
-    });
+    const where: Prisma.CoachClassWhereInput = {
+      coachId,
+      OR: [
+        { status: ClassStatus.COMPLETED },
+        { status: ClassStatus.CANCELLED, startsAt: { lte: now } },
+        { status: ClassStatus.SCHEDULED, endsAt: { lte: now } }
+      ]
+    };
+    const order: Prisma.SortOrder = query?.order === "asc" ? "asc" : "desc";
+    // `id` breaks ties so a page boundary never repeats or skips a class.
+    const orderBy: Prisma.CoachClassOrderByWithRelationInput[] =
+      query?.sort === "batchName"
+        ? [{ batch: { name: order } }, { startsAt: "desc" }, { id: "desc" }]
+        : [{ startsAt: query?.sort === "startsAt" ? order : "desc" }, { id: "desc" }];
 
-    return { classes: classes.map(c => this.toCoachClass(c)) };
+    const [classes, total] = await Promise.all([
+      this.prisma.coachClass.findMany({ where, include: COACH_CLASS_INCLUDE, orderBy, skip, take }),
+      this.prisma.coachClass.count({ where })
+    ]);
+
+    return {
+      classes: classes.map(c => this.toCoachClass(c)),
+      pagination: paginationMeta(total, page, pageSize)
+    };
   }
 
   /**
@@ -413,13 +430,14 @@ export class CoachService {
       }
     });
 
-    const studentsMap = new Map<string, any>();
+    const studentsMap = new Map<string, CoachStudentsResponse["students"][number]>();
     for (const batch of batches) {
       for (const bs of batch.students) {
         if (!bs.student || bs.student.isDeleted) continue;
         const student = bs.student;
-        if (!studentsMap.has(student.id)) {
-          studentsMap.set(student.id, {
+        let entry = studentsMap.get(student.id);
+        if (!entry) {
+          entry = {
             id: student.id,
             firstName: student.firstName,
             lastName: student.lastName,
@@ -427,9 +445,10 @@ export class CoachService {
             status: student.status,
             chessRating: student.studentProfile?.chessRating ?? null,
             batches: []
-          });
+          };
+          studentsMap.set(student.id, entry);
         }
-        studentsMap.get(student.id).batches.push({ id: batch.id, name: batch.name });
+        entry.batches.push({ id: batch.id, name: batch.name });
       }
     }
 
@@ -474,7 +493,7 @@ export class CoachService {
       objectives: c.objectives,
       homework: c.homework,
       notes: c.notes,
-      status: c.status as any,
+      status: c.status as CoachClass["status"],
       startsAt: c.startsAt.toISOString(),
       endsAt: c.endsAt.toISOString(),
       meetingRoomId: c.meetingRoomId,

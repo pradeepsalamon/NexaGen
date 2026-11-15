@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import type { Color, Key, MouchEvent, Role } from "chessground/types";
-import { possibleCastlingFlags, type PieceSetId } from "@nexa-chess/types";
+import { possibleCastlingFlags } from "@nexa-chess/types";
 import { Eraser, Hand, RotateCcw, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/Input";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { PieceIcon } from "./PieceIcon";
 
 export interface PositionEditorProps {
   /** Full FEN string. Controlled — the editor never holds its own copy. */
@@ -344,8 +345,6 @@ export function PositionEditor({
       <SpareRow
         color="black"
         tool={tool}
-        pieceSetId={currentPieceSet}
-        hasCustomPieceColors={hasCustomPieceColors}
         onSpawn={spawnPiece}
         onSelect={toggleTool}
       />
@@ -367,8 +366,6 @@ export function PositionEditor({
       <SpareRow
         color="white"
         tool={tool}
-        pieceSetId={currentPieceSet}
-        hasCustomPieceColors={hasCustomPieceColors}
         onSpawn={spawnPiece}
         onSelect={toggleTool}
       />
@@ -565,15 +562,11 @@ function ToolButton({
 function SpareRow({
   color,
   tool,
-  pieceSetId,
-  hasCustomPieceColors,
   onSpawn,
   onSelect,
 }: {
   color: Color;
   tool: EditorTool;
-  pieceSetId: PieceSetId;
-  hasCustomPieceColors: boolean;
   onSpawn: (e: React.PointerEvent, role: Role, color: Color) => void;
   onSelect: (tool: EditorTool) => void;
 }) {
@@ -630,28 +623,7 @@ function SpareRow({
               onSelect(id);
             }}
           >
-            {/* `.cg-wrap` ancestor + real <piece> element so the pieces.css
-                `[data-nexa-piece-set] piece.<role>.<color>` rules apply; inline
-                styles undo chessground's absolute 12.5% board sizing. */}
-            <span
-              className="cg-wrap block size-full"
-              data-nexa-piece-set={pieceSetId}
-              data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
-            >
-              {React.createElement("piece", {
-                className: `${role} ${color}`,
-                style: {
-                  position: "static",
-                  display: "block",
-                  width: "100%",
-                  height: "100%",
-                  backgroundSize: "contain",
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "center",
-                  pointerEvents: "none",
-                },
-              })}
-            </span>
+            <PieceIcon role={role} color={color} className="size-full" />
           </div>
         </SimpleTooltip>
         );

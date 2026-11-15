@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { SectionCard } from "@/components/ui/SectionCard";
 import { useMyApprovalRequests } from "../hooks/useApprovals";
 import { ApprovalRequestSummary } from "./ApprovalRequestSummary";
 
@@ -20,25 +20,24 @@ export function CoachScheduleRequests() {
   if (waiting.length === 0) return null;
 
   return (
-    <section aria-labelledby="schedule-requests-heading" className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 id="schedule-requests-heading" className="text-xl font-bold text-app-text">
-          Waiting for an admin
-        </h2>
-        <Button asChild size="sm" variant="ghost">
+    <SectionCard
+      actions={
+        <Button asChild className="-mr-3" size="sm" variant="ghost">
           <Link href="/coach/requests">
             All my requests
-            <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2.5} />
+            <ArrowRight aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
           </Link>
         </Button>
-      </div>
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      }
+      title="Waiting for an admin"
+    >
+      <ul className="divide-y divide-app-border">
         {waiting.slice(0, 6).map((r) => (
-          <Card key={r.id} className="p-4">
+          <li className="py-3 first:pt-0 last:pb-0" key={r.id}>
             <ApprovalRequestSummary request={r} showRequester={false} />
-          </Card>
+          </li>
         ))}
-      </div>
-    </section>
+      </ul>
+    </SectionCard>
   );
 }

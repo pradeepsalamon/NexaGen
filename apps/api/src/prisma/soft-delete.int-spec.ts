@@ -1,3 +1,4 @@
+import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
 import { Prisma, UserRole } from "@prisma/client";
 import { PrismaService } from "./prisma.service";
 import { createUser, resetDatabase } from "../test/integration/db";
@@ -29,8 +30,8 @@ describe("soft delete (real Postgres)", () => {
     await softDeleteUser(gone.id);
 
     // A filtered pre-check misses the conflict...
-    expect(await prisma.user.findUnique({ where: { email: "taken@int.test" } })).toBeNull();
-    expect(await prisma.withDeleted.user.findUnique({ where: { email: "taken@int.test" } })).not.toBeNull();
+    expect(await prisma.user.findUnique({ where: { tenantId_email: { email: "taken@int.test", tenantId: DEFAULT_TENANT_ID } } })).toBeNull();
+    expect(await prisma.withDeleted.user.findUnique({ where: { tenantId_email: { email: "taken@int.test", tenantId: DEFAULT_TENANT_ID } } })).not.toBeNull();
     // ...and the write then collides on the index that spans deleted rows.
     await expect(createUser(prisma, UserRole.COACH, { email: "taken@int.test" })).rejects.toMatchObject({
       code: "P2002",

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="king-body-blue" x1="30" y1="20" x2="90" y2="145" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="45%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#0B1F3B"/>
+    </linearGradient>
+    <linearGradient id="king-silver" x1="34" y1="50" x2="86" y2="148" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#DBEAFE"/>
+      <stop offset="100%" stop-color="#93C5FD"/>
+    </linearGradient>
+    <linearGradient id="king-gold" x1="40" y1="12" x2="80" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="50%" stop-color="#E8B85E"/>
+      <stop offset="100%" stop-color="#B48228"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="60" cy="148" rx="36" ry="5" fill="#0B1F3B" opacity="0.18"/>
+  <!-- Cross Finial -->
+  <path d="M56 14H64V20H70V27H64V34H56V27H50V20H56V14Z" fill="url(#king-gold)"/>
+  <!-- Crown Cup -->
+  <path d="M38 40L44 62H76L82 40C72 34 48 34 38 40Z" fill="url(#king-body-blue)"/>
+  <path d="M42 40C52 36 68 36 78 40" stroke="#DBEAFE" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+  <!-- Collar Rings -->
+  <rect x="41" y="62" width="38" height="4" rx="2" fill="url(#king-gold)"/>
+  <rect x="38" y="66" width="44" height="6" rx="3" fill="url(#king-silver)"/>
+  <rect x="43" y="72" width="34" height="3" rx="1.5" fill="#132D50"/>
+  <!-- Tapered Column -->
+  <path d="M45 75H75L82 122H38L45 75Z" fill="url(#king-body-blue)"/>
+  <path d="M48 75H53L48 122H42L48 75Z" fill="#FFFFFF" opacity="0.18"/>
+  <!-- Pedestal Base -->
+  <rect x="35" y="122" width="50" height="4" rx="2" fill="url(#king-gold)"/>
+  <path d="M32 132C32 127.5 36 126 40 126H80C84 126 88 127.5 88 132V137H32V132Z" fill="url(#king-silver)"/>
+  <rect x="28" y="137" width="64" height="9" rx="4" fill="#0B1F3B"/>
+</svg>

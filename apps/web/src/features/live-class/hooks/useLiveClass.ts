@@ -11,6 +11,7 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
   const [token, setToken] = useState<string | null>(null);
   const [roomName, setRoomName] = useState<string | null>(null);
   const [topic, setTopic] = useState<string | null>(null);
+  const [batchName, setBatchName] = useState<string | null>(null);
   const [settings, setSettings] = useState<LiveClassSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Structured error code from the API (AUDIT H14) — lets callers branch on a
@@ -45,6 +46,7 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
         const classDetails = await getLiveClass(roomId);
         if (mounted) {
           setClassStatus(classDetails.status);
+          setBatchName(classDetails.batchName || null);
           if (classDetails.topic) {
             setTopic(classDetails.topic);
           }
@@ -138,5 +140,5 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
     setRetryToken((n) => n + 1);
   }, []);
 
-  return { token, roomName, topic, settings, error, errorCode, isLoading, classStatus, startedAt, endsAt, retry };
+  return { token, roomName, topic, batchName, settings, error, errorCode, isLoading, classStatus, startedAt, endsAt, retry };
 }

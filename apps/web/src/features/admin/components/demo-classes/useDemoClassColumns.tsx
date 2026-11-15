@@ -54,6 +54,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "topic",
         enableColumnFilter: true,
+        meta: { label: "Topic" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Topic"
@@ -64,7 +65,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
           <div className="min-w-52">
             <p className="font-extrabold text-app-text">{row.original.topic}</p>
             {row.original.schedule && (
-              <Badge variant="info" className="mt-1 gap-1 text-[10px]">
+              <Badge variant="info" className="mt-1 gap-1">
                 <Repeat aria-hidden="true" className="size-3" /> /demo/{row.original.schedule.slug}
               </Badge>
             )}
@@ -79,9 +80,10 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "coachName",
         enableColumnFilter: true,
+        meta: { label: "Assigned Coach" },
         header: ({ column }) => (
           <DataTableSortButton
-            label="Assigned Coach"
+            label="Assigned coach"
             column={column}
           />
         ),
@@ -90,6 +92,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "startsAt",
         enableColumnFilter: true,
+        meta: { label: "Schedule" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Schedule"
@@ -120,6 +123,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
       {
         accessorKey: "status",
         enableColumnFilter: true,
+        meta: { label: "Status" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"

@@ -8,7 +8,6 @@ import {
   type SortingState
 } from "@tanstack/react-table";
 import {
-  FilterX,
   ListFilter,
   RotateCcw,
   ShieldAlert,
@@ -20,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { FilterChips, FilterField, FilterPopover, type ActiveFilter } from "@/components/ui/FilterPopover";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
@@ -33,7 +33,7 @@ import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { formatDateTime } from "@/lib/datetime";
+import { formatDateTime, formatFullDate } from "@/lib/datetime";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { queryKeys } from "@/lib/queryKeys";
 import {
@@ -57,7 +57,17 @@ const entityOptions = [
   { label: "Puzzle topics", value: "PuzzleTopic" },
   { label: "MCQs and Playouts", value: "LibraryActivity" },
   { label: "Courses", value: "Course" },
-  { label: "Course modules", value: "CourseModule" }
+  { label: "Course modules", value: "CourseModule" },
+  { label: "Homework (assignments)", value: "Assignment" },
+  { label: "Announcements", value: "Announcement" },
+  { label: "Leads", value: "Lead" },
+  { label: "Feedback forms", value: "FeedbackForm" },
+  { label: "Help articles", value: "KnowledgeArticle" },
+  { label: "Help categories", value: "KnowledgeCategory" },
+  { label: "Games", value: "ChessGame" },
+  { label: "Live-class presets", value: "LiveClassPreset" },
+  { label: "Demo schedules", value: "DemoSchedule" },
+  { label: "Tournaments", value: "Tournament" }
 ];
 
 export function TrashManagementClient() {
@@ -180,6 +190,16 @@ export function TrashManagementClient() {
     invalidates: [queryKeys.trash.all]
   });
 
+  const trashFilters = [
+    entity !== "ALL" && {
+      key: "entity",
+      label: entityOptions.find((option) => option.value === entity)?.label ?? entity,
+      onRemove: () => setEntity("ALL")
+    },
+    deletedFrom && { key: "from", label: `From ${formatFullDate(deletedFrom, timeZone)}`, onRemove: () => setDeletedFrom("") },
+    deletedTo && { key: "to", label: `To ${formatFullDate(deletedTo, timeZone)}`, onRemove: () => setDeletedTo("") },
+  ].filter((filter): filter is ActiveFilter => Boolean(filter));
+
   function resetFilters() {
     setSearch("");
     setEntity("ALL");
@@ -213,6 +233,7 @@ export function TrashManagementClient() {
       },
       {
         accessorKey: "entity",
+        meta: { label: "Entity" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Entity"
@@ -223,6 +244,7 @@ export function TrashManagementClient() {
       },
       {
         accessorKey: "title",
+        meta: { label: "Title" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Title"
@@ -242,9 +264,10 @@ export function TrashManagementClient() {
       },
       {
         accessorKey: "deletedAt",
+        meta: { label: "Deleted At" },
         header: ({ column }) => (
           <DataTableSortButton
-            label="Deleted At"
+            label="Deleted at"
             column={column}
           />
         ),
@@ -253,9 +276,10 @@ export function TrashManagementClient() {
       {
         id: "deletedBy",
         accessorKey: "deletedBy",
+        meta: { label: "Deleted By" },
         header: ({ column }) => (
           <DataTableSortButton
-            label="Deleted By"
+            label="Deleted by"
             column={column}
           />
         ),
@@ -275,17 +299,17 @@ export function TrashManagementClient() {
         header: "Actions",
         cell: ({ row }) => (
           <TooltipProvider>
-            <div className="flex justify-center gap-2">
+            <div className="flex justify-end gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     aria-label={`Restore ${row.original.title}`}
-                    className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                    className="size-8"
                     disabled={restoreMutation.isPending || deleteMutation.isPending}
                     onClick={() => runRestore([row.original])}
                     size="icon"
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                   >
                     <RotateCcw aria-hidden="true" className="size-4" strokeWidth={2.5} />
                   </Button>
@@ -296,12 +320,12 @@ export function TrashManagementClient() {
                 <TooltipTrigger asChild>
                   <Button
                     aria-label={`Delete ${row.original.title} permanently`}
-                    className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                    className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                     disabled={restoreMutation.isPending || deleteMutation.isPending}
                     onClick={() => runDelete([row.original])}
                     size="icon"
                     type="button"
-                    variant="ghost"
+                    variant="neutral"
                   >
                     <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
                   </Button>
@@ -363,7 +387,7 @@ export function TrashManagementClient() {
                 variant="primary"
               >
                 <RotateCcw aria-hidden="true" className="size-4" />
-                Restore Selected
+                Restore selected
               </Button>
 
               <Button
@@ -377,7 +401,7 @@ export function TrashManagementClient() {
                 variant="destructive"
               >
                 <Trash2 aria-hidden="true" className="size-4" />
-                Delete Selected
+                Delete selected
               </Button>
 
               <Button
@@ -387,7 +411,7 @@ export function TrashManagementClient() {
                 type="button"
                 variant="destructive"
               >
-                Empty Trash
+                Empty trash
               </Button>
             </>
           } 
@@ -397,8 +421,8 @@ export function TrashManagementClient() {
           isOpen={confirmModal.isOpen}
           onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
           onConfirm={confirmAction}
-          title={confirmModal.action === "empty" ? "Empty Trash?" : "Delete permanently?"}
-          confirmLabel={confirmModal.action === "empty" ? "Empty Trash" : "Delete Permanently"}
+          title={confirmModal.action === "empty" ? "Empty trash?" : "Delete permanently?"}
+          confirmLabel={confirmModal.action === "empty" ? "Empty trash" : "Delete permanently"}
           isConfirming={bulkDeleteMutation.isPending || emptyMutation.isPending}
         >
           {confirmModal.action === "empty" 
@@ -407,48 +431,16 @@ export function TrashManagementClient() {
         </ConfirmationModal>
 
         <Card className="grid gap-4 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <Select
-                className="w-40"
-                onChange={(event) => {
-                  setEntity(event.target.value as TrashEntity | "ALL");
-                  setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-                }}
-                options={entityOptions}
-                value={entity}
-              />
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="text-sm font-semibold text-app-muted">From</span>
-                <DatePicker
-                  onChange={(date) => setDeletedFrom(date ? date.toISOString() : "")}
-                  value={deletedFrom ? new Date(deletedFrom) : undefined}
-                  placeholder="Deleted from"
-                />
-              </div>
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="text-sm font-semibold text-app-muted">To</span>
-                <DatePicker
-                  onChange={(date) => setDeletedTo(date ? date.toISOString() : "")}
-                  value={deletedTo ? new Date(deletedTo) : undefined}
-                  placeholder="Deleted to"
-                />
-              </div>
-              {(search || entity !== "ALL" || deletedFrom || deletedTo) && (
-                <Button aria-label="Clear filters" className="shrink-0 text-app-muted hover:text-app-text" onClick={resetFilters} size="icon" type="button" variant="ghost">
-                  <FilterX aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                </Button>
-              )}
-            </div>
-
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
+          <div className="grid gap-2">
+            <div className="flex items-center justify-end gap-2">
+              <div className="relative min-w-0 flex-1 sm:max-w-sm">
                 <ListFilter
                   aria-hidden="true"
                   className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-muted"
                   strokeWidth={2.5}
                 />
                 <Input
+                  aria-label="Search trash"
                   className="pl-9"
                   onChange={(event) => {
                     setSearch(event.target.value);
@@ -458,7 +450,48 @@ export function TrashManagementClient() {
                   value={search}
                 />
               </div>
+              <FilterPopover
+                activeCount={trashFilters.length}
+                emptyValue={{ deletedFrom: "", deletedTo: "", entity: "ALL" as TrashEntity | "ALL" }}
+                onApply={(next) => {
+                  setEntity(next.entity);
+                  setDeletedFrom(next.deletedFrom);
+                  setDeletedTo(next.deletedTo);
+                  setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                }}
+                value={{ deletedFrom, deletedTo, entity }}
+              >
+                {(draft, update) => (
+                  <>
+                    <FilterField htmlFor="trash-filter-type" label="Item type">
+                      <Select
+                        id="trash-filter-type"
+                        onChange={(event) => update({ entity: event.target.value as TrashEntity | "ALL" })}
+                        options={entityOptions}
+                        value={draft.entity}
+                      />
+                    </FilterField>
+                    <div className="grid grid-cols-2">
+                      <FilterField label="Deleted from">
+                        <DatePicker
+                          onChange={(date) => update({ deletedFrom: date ? date.toISOString() : "" })}
+                          placeholder="Any"
+                          value={draft.deletedFrom ? new Date(draft.deletedFrom) : undefined}
+                        />
+                      </FilterField>
+                      <FilterField label="Deleted to">
+                        <DatePicker
+                          onChange={(date) => update({ deletedTo: date ? date.toISOString() : "" })}
+                          placeholder="Any"
+                          value={draft.deletedTo ? new Date(draft.deletedTo) : undefined}
+                        />
+                      </FilterField>
+                    </div>
+                  </>
+                )}
+              </FilterPopover>
             </div>
+            <FilterChips filters={trashFilters} onClearAll={trashFilters.length > 1 ? resetFilters : undefined} />
           </div>
 
           {items.length === 0 && !query.isLoading ? (
@@ -473,6 +506,7 @@ export function TrashManagementClient() {
               isLoading={query.isLoading}
               loadingText="Loading trash..."
               noDataText=""
+              stackOnMobile
               table={table}
             />
           )}

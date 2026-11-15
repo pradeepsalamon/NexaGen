@@ -30,13 +30,13 @@ export function SetupPositionControl() {
             type="button"
             aria-label="Board keyboard shortcuts"
             title="Board keyboard shortcuts"
-            className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full border border-app-border bg-app-surface text-app-muted shadow-card transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+            className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-control border border-app-border bg-app-surface text-app-muted shadow-card transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
           >
             <Keyboard className="size-3" strokeWidth={2.5} />
           </button>
         </PopoverTrigger>
         <PopoverContent side="top" className="w-56 p-2">
-          <p className="px-1.5 pb-1.5 text-xs font-semibold uppercase tracking-wide text-app-muted">Board shortcuts</p>
+          <p className="px-1.5 pb-1.5 text-xs font-semibold text-app-muted">Board shortcuts</p>
           <dl className="space-y-0.5">
             {COACH_BOARD_SHORTCUTS.map(({ id, key, label }) => (
               <div key={id} className="flex items-center justify-between gap-3 rounded-control px-1.5 py-1">

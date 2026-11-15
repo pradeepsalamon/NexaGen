@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
-import { Badge } from "@/components/ui/Badge";
+import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { Button } from "@/components/ui/Button";
 
 import { useDataTable } from "@/hooks/useDataTable";
@@ -34,6 +34,7 @@ import { useServerTable } from "@/hooks/useServerTable";
 import { useAdminBatchClassesQuery } from "../hooks/useAdminBatchClasses";
 import { BatchClassDetailsDialog } from "./BatchClassDetailsDialog";
 import { LiveClassMonitorDialog } from "@/features/attendance/components/LiveClassMonitor";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const statusOptions = [
   { label: "Scheduled", value: "SCHEDULED" },
@@ -73,9 +74,10 @@ export function BatchClassesClient() {
       {
         accessorKey: "topic",
         enableColumnFilter: true,
+        meta: { label: "Class Title" },
         header: ({ column }) => (
           <DataTableSortButton
-            label="Class Title"
+            label="Class title"
             column={column}
           />
         ),
@@ -95,6 +97,7 @@ export function BatchClassesClient() {
       {
         accessorKey: "batchName",
         enableColumnFilter: true,
+        meta: { label: "Batch" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Batch"
@@ -108,6 +111,7 @@ export function BatchClassesClient() {
       {
         accessorKey: "coachName",
         enableColumnFilter: true,
+        meta: { label: "Coach" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Coach"
@@ -121,6 +125,7 @@ export function BatchClassesClient() {
       {
         accessorKey: "startsAt",
         enableColumnFilter: true,
+        meta: { label: "Scheduled" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Scheduled"
@@ -143,30 +148,14 @@ export function BatchClassesClient() {
       {
         accessorKey: "status",
         enableColumnFilter: true,
+        meta: { label: "Status" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
             column={column}
           />
         ),
-        cell: ({ row }) => {
-          const status = row.getValue("status") as string;
-          return (
-            <Badge
-              variant={
-                status === "LIVE"
-                  ? "success"
-                  : status === "COMPLETED"
-                  ? "secondary"
-                  : status === "CANCELLED"
-                  ? "destructive"
-                  : "default"
-              }
-            >
-              {status}
-            </Badge>
-          );
-        }
+        cell: ({ row }) => <ClassStatusBadge endsAt={row.original.endsAt} status={row.getValue("status") as string} />
       },
       {
         id: "actions",
@@ -182,16 +171,16 @@ export function BatchClassesClient() {
                     <TooltipTrigger asChild>
                       <Button
                         aria-label="Monitor live class"
-                        className="size-8 rounded-full border border-accent bg-accent p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-white"
+                        className="size-8 text-success-ink hover:bg-success-soft"
                         onClick={() => setMonitorClassId(row.original.id)}
                         size="icon"
                         type="button"
-                        variant="ghost"
+                        variant="neutral"
                       >
                         <Radio aria-hidden="true" className="size-4" strokeWidth={2.5} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Monitor Live</TooltipContent>
+                    <TooltipContent>Monitor live</TooltipContent>
                   </Tooltip>
                 )}
                 {row.original.status === "COMPLETED" && (
@@ -199,36 +188,36 @@ export function BatchClassesClient() {
                     <TooltipTrigger asChild>
                       <Button
                         aria-label="View batch class details"
-                        className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                        className="size-8"
                         onClick={() => {
                           setDetailsClassId(row.original.id);
                           setIsDetailsOpen(true);
                         }}
                         size="icon"
                         type="button"
-                        variant="ghost"
+                        variant="neutral"
                       >
                         <Info aria-hidden="true" className="size-4" strokeWidth={2.5} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>View Details</TooltipContent>
+                    <TooltipContent>View details</TooltipContent>
                   </Tooltip>
                 )}
                 {row.original.hasRecording && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        aria-label="Download Recording"
-                        className="size-8 rounded-full border border-accent bg-accent p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-white"
+                        aria-label="Download recording"
+                        className="size-8 text-success-ink hover:bg-success-soft"
                         onClick={() => handleDownload(row.original.id)}
                         size="icon"
                         type="button"
-                        variant="ghost"
+                        variant="neutral"
                       >
                         <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Download Recording</TooltipContent>
+                    <TooltipContent>Download recording</TooltipContent>
                   </Tooltip>
                 )}
               </div>
@@ -252,27 +241,19 @@ export function BatchClassesClient() {
   });
 
   return (
-    <div>
-      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-5">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-extrabold text-primary-ink">
-              Classes Management
-            </p>
-            <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
-              Batch classes
-            </h1>
-          </div>
-        </header>
+    <div className="animate-fade-in pb-10">
+      <PageHeader description="Every class in every batch." title="Batch classes" />
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
 
         <Card className="grid gap-4 p-4">
           <DataTableToolbar
             actions={<ColumnVisibilityMenu table={table} />}
             filters={
               <Select
+                aria-label="Filter by status"
                 className="w-40"
                 onChange={(event) => serverTable.setStatus(event.target.value)}
-                options={[{ label: "All Statuses", value: "ALL" }, ...statusOptions]}
+                options={[{ label: "All status", value: "ALL" }, ...statusOptions]}
                 value={serverTable.status}
               />
             }
@@ -288,6 +269,7 @@ export function BatchClassesClient() {
               columnsLength={columns.length}
               isLoading={isLoading}
               noDataText="No batch classes found."
+              stackOnMobile
               table={table}
             />
           )}

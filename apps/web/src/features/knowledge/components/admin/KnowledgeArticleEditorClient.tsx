@@ -6,10 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Archive,
   ArchiveRestore,
-  ArrowLeft,
   EyeOff,
   History,
-  Loader2,
   RotateCcw,
   Save,
   Send,
@@ -76,6 +74,8 @@ import { ContentEditor, EMPTY_CONTENT, contentPayload, type ContentDraft } from 
 import { KIND_LABEL } from "../HelpCenterClient";
 import { KnowledgeMarkdown } from "../KnowledgeMarkdown";
 import { AUDIENCE_LABEL, StatusBadge } from "./KnowledgeAdminClient";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
+import { Spinner } from "@/components/ui/Spinner";
 
 type SettingsDraft = {
   kind: KnowledgeArticleKind;
@@ -309,8 +309,8 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
 
   const remove = async () => {
     if (!article) return;
-    // undo: intentionally excluded — permanent delete (super admin); archive is the reversible option.
-    const ok = await act("delete the article", () => api.deleteKnowledgeArticle(article.id), "Article deleted permanently.");
+    // undo: intentionally excluded — the article goes to the trash, which is where it is restored.
+    const ok = await act("delete the article", () => api.deleteKnowledgeArticle(article.id), "Article moved to the trash.");
     if (ok) router.replace("/admin/knowledge");
   };
 
@@ -325,11 +325,8 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1.5">
-          <Link className="inline-flex items-center gap-1.5 text-sm font-semibold text-app-muted hover:text-app-text" href="/admin/knowledge">
-            <ArrowLeft aria-hidden className="size-4" />
-            Knowledge base
-          </Link>
-          <h1 className="text-2xl font-extrabold leading-tight">{article ? content.title || article.title : "New article"}</h1>
+          <Breadcrumbs items={[{ href: "/admin/knowledge", label: "Knowledge base" }, { label: article ? content.title || article.title : "New article" }]} />
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">{article ? content.title || article.title : "New article"}</h1>
           {article && (
             <div className="flex flex-wrap items-center gap-1.5 text-xs">
               <StatusBadge article={article} />
@@ -348,14 +345,14 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
         <div className="flex flex-wrap gap-2">
           {!article ? (
             <Button disabled={busy !== null} onClick={() => void create()}>
-              {busy ? <Loader2 aria-hidden className="mr-2 size-4 animate-spin" /> : <Save aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
+              {busy ? <Spinner aria-hidden className="mr-2 size-4" /> : <Save aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
               Create draft
             </Button>
           ) : (
             <>
               {article.draft && (
                 <SimpleTooltip label="Discard the open draft">
-                  <Button aria-label="Discard draft" className="rounded-full" disabled={busy !== null || !article.published} onClick={() => void discardDraft()} size="icon" variant="outline">
+                  <Button aria-label="Discard draft" disabled={busy !== null || !article.published} onClick={() => void discardDraft()} size="icon" variant="neutral">
                     <Undo2 className="size-4" strokeWidth={2.5} />
                   </Button>
                 </SimpleTooltip>
@@ -365,34 +362,34 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
                 Save draft
               </Button>
               <Button disabled={busy !== null || (!article.draft && !contentDirty && !settingsDirty && article.status === "PUBLISHED")} onClick={() => void publish()}>
-                {busy === "publish" ? <Loader2 aria-hidden className="mr-2 size-4 animate-spin" /> : <Send aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
+                {busy === "publish" ? <Spinner aria-hidden className="mr-2 size-4" /> : <Send aria-hidden className="mr-2 size-4" strokeWidth={2.5} />}
                 {article.status === "DRAFT" && article.published && !article.draft && !contentDirty ? "Republish" : "Publish"}
               </Button>
               {article.status === "PUBLISHED" && (
                 <SimpleTooltip label="Unpublish (hide from readers)">
-                  <Button aria-label="Unpublish" className="rounded-full" disabled={busy !== null} onClick={() => void unpublish.run(article)} size="icon" variant="outline">
+                  <Button aria-label="Unpublish" disabled={busy !== null} onClick={() => void unpublish.run(article)} size="icon" variant="neutral">
                     <EyeOff className="size-4" strokeWidth={2.5} />
                   </Button>
                 </SimpleTooltip>
               )}
               {article.status === "ARCHIVED" ? (
                 <SimpleTooltip label="Restore">
-                  <Button aria-label="Restore" className="rounded-full" onClick={() => void restore.run(article)} size="icon" variant="outline">
+                  <Button aria-label="Restore" onClick={() => void restore.run(article)} size="icon" variant="neutral">
                     <ArchiveRestore className="size-4" strokeWidth={2.5} />
                   </Button>
                 </SimpleTooltip>
               ) : (
                 <SimpleTooltip label="Archive">
-                  <Button aria-label="Archive" className="rounded-full" onClick={() => void archive.run(article)} size="icon" variant="outline">
+                  <Button aria-label="Archive" onClick={() => void archive.run(article)} size="icon" variant="neutral">
                     <Archive className="size-4" strokeWidth={2.5} />
                   </Button>
                 </SimpleTooltip>
               )}
               {role === "SUPER_ADMIN" && (
-                <SimpleTooltip label="Delete permanently">
+                <SimpleTooltip label="Move to trash">
                   <Button
-                    aria-label="Delete permanently"
-                    className="rounded-full bg-app-danger text-white hover:bg-app-danger/85"
+                    aria-label="Move to trash"
+                    className="bg-app-danger text-on-danger hover:bg-app-danger/85"
                     onClick={() => setDeleteOpen(true)}
                     size="icon"
                     variant="ghost"
@@ -607,15 +604,15 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
       <AlertDialog onOpenChange={setDeleteOpen} open={deleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this article permanently?</AlertDialogTitle>
+            <AlertDialogTitle>Move this article to the trash?</AlertDialogTitle>
             <AlertDialogDescription>
-              Every version, its change log and its votes are removed and can&apos;t be recovered. Archive it instead to hide it but keep the history.
+              It disappears from the help centre now, and can be restored from the trash for 30 days, with every version, its change log and its votes. After that it&apos;s gone for good. Archive it instead to hide it indefinitely.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-app-danger hover:bg-app-danger/85" onClick={() => void remove()}>
-              Delete permanently
+              Move to trash
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -672,7 +669,7 @@ function VersionsSection({ article, onRollback }: { article: KnowledgeAdminArtic
                 )}
                 {v.status === "SUPERSEDED" && (
                   <SimpleTooltip label={`Make v${v.number} live again`}>
-                    <Button aria-label={`Roll back to v${v.number}`} className="rounded-full" onClick={() => setRollbackTo(v.id)} size="icon" variant="outline">
+                    <Button aria-label={`Roll back to v${v.number}`} onClick={() => setRollbackTo(v.id)} size="icon" variant="neutral">
                       <RotateCcw className="size-4" strokeWidth={2.5} />
                     </Button>
                   </SimpleTooltip>
