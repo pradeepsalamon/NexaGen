@@ -727,6 +727,20 @@ limit) is a later addition.
   wildcard DNS and a certificate for `*.nexachess.in` (DNS challenge),
   a per-domain server block with certbot, and the `/api` rule.
 
+### Links in messages
+
+Every link the API builds for a person (messaging-rule and system messages on
+every channel, the unsubscribe link, email verification, payment and
+subscription return URLs, tournament certificates) opens on the person's own
+academy: `AcademyLinksService` (`apps/api/src/tenancy/academy-links.service.ts`,
+added 2026-11-15). Nexa and platform work get `FRONTEND_URL`; another academy
+gets its primary `ACTIVE` domain, or `FRONTEND_URL` while it has none.
+`MessagingDispatchService.dispatch` and `SystemNotifier.send` rewrite every
+variable that is a whole link on Nexa's address, so a caller that still builds
+links with `getFrontendUrl` stays correct. A new link outside those two senders
+uses `links.url(path)`. The support bot keeps its own rule
+(`SupportDemoSlotsService.academyOrigin`: no domain means no link at all).
+
 ---
 
 ## I. Platform console

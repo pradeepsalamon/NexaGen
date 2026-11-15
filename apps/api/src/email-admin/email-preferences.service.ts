@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Optional } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
@@ -10,6 +10,7 @@ import {
 import { authenticateUser } from "../auth/authenticate";
 import { createOpaqueToken } from "../auth/auth.utils";
 import { PrismaService } from "../prisma/prisma.service";
+import { AcademyLinksService } from "../tenancy/academy-links.service";
 import { asPlatform } from "../tenancy/tenant-context";
 
 /** What the outbox worker needs to send (or skip) one notification email. */
@@ -30,7 +31,8 @@ export class EmailPreferencesService {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    @Optional() private readonly links?: AcademyLinksService
   ) {}
 
   async getMine(accessToken: string | undefined): Promise<EmailPreferencesDto> {
@@ -88,7 +90,7 @@ export class EmailPreferencesService {
       }
     }
 
-    const url = new URL(EMAIL_UNSUBSCRIBE_PATH, this.frontendUrl);
+    const url = new URL(EMAIL_UNSUBSCRIBE_PATH, this.links ? await this.links.origin() : this.frontendUrl);
     url.searchParams.set("token", token);
     return {
       email: user.email,

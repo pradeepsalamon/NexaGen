@@ -21,6 +21,7 @@ import { zonedYmd } from "../common/time";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
 import { BrandingService } from "../branding/branding.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { AcademyLinksService } from "../tenancy/academy-links.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MessagingRuleService } from "./messaging-rule.service";
 import { ACADEMY_NAME, formatInZone } from "./messaging.format";
@@ -176,7 +177,8 @@ export class MessagingDispatchService {
     private readonly prisma: PrismaService,
     private readonly rules: MessagingRuleService,
     private readonly whatsapp: WhatsAppService,
-    @Optional() private readonly branding?: BrandingService
+    @Optional() private readonly branding?: BrandingService,
+    @Optional() private readonly links?: AcademyLinksService
   ) {}
 
   /** Fire-and-forget entry point for feature services. Never throws. */
@@ -201,6 +203,13 @@ export class MessagingDispatchService {
     if (academyName !== ACADEMY_NAME) {
       for (const recipient of recipients) {
         if (recipient.variables["academy.name"] === ACADEMY_NAME) recipient.variables["academy.name"] = academyName;
+      }
+    }
+    // Links are built on Nexa's address; another academy's people get its own.
+    if (this.links) {
+      const origin = await this.links.origin();
+      for (const recipient of recipients) {
+        recipient.variables = this.links.rewrite(recipient.variables, origin);
       }
     }
     // With verification off nobody is asked to confirm, so an unverified address proves nothing.
