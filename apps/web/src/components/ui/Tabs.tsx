@@ -141,7 +141,9 @@ const TabsList = React.forwardRef<
   if (canCollapse && collapsed && context) {
     const active = triggers.find((t) => t.value === context.value) ?? triggers[0];
     return (
-      <TabsPrimitive.List className={cn(base, className, "w-full overflow-visible")} ref={setRefs} {...props}>
+      // The strip is one menu button here, with no tabs inside: a tablist must contain tabs (axe
+      // aria-required-children), so it is a plain group until the full strip is back.
+      <TabsPrimitive.List className={cn(base, className, "w-full overflow-visible")} aria-orientation={undefined} ref={setRefs} role="group" {...props}>
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Choose a tab"
@@ -196,7 +198,21 @@ TabsList.displayName = TabsPrimitive.List.displayName;
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
->(({ className, ...props }, ref) => (
+>(({ className, ...props }, forwardedRef) => {
+  const innerRef = React.useRef<HTMLButtonElement | null>(null);
+  const ref = (node: HTMLButtonElement | null) => {
+    innerRef.current = node;
+    if (typeof forwardedRef === "function") forwardedRef(node);
+    else if (forwardedRef) forwardedRef.current = node;
+  };
+  // Radix points `aria-controls` at its panel's id, but an inactive panel is not in the page (and a
+  // page may not use TabsContent at all): a dangling id is an axe "critical" (aria-valid-attr-value).
+  React.useEffect(() => {
+    const node = innerRef.current;
+    const target = node?.getAttribute("aria-controls");
+    if (node && target && !document.getElementById(target)) node.removeAttribute("aria-controls");
+  });
+  return (
   <TabsPrimitive.Trigger
     className={cn(
       "group relative inline-flex min-h-[var(--control-h-sm)] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-medium text-app-muted transition-colors duration-200 hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-button data-[state=active]:text-on-button data-[state=active]:hover:text-on-button group-data-[indicator]/tabs:data-[state=active]:bg-transparent",
@@ -205,7 +221,8 @@ const TabsTrigger = React.forwardRef<
     ref={ref}
     {...props}
   />
-));
+  );
+});
 TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
 
 const TabsContent = React.forwardRef<
