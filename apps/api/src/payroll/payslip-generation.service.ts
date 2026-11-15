@@ -16,6 +16,7 @@ import { currentTenantId } from "../tenancy/tenant-context";
 import { fullName } from "../payments/payments-auth.helper";
 import { payslipPdfJobId, PAYSLIP_JOBS, PAYSLIP_QUEUE } from "./payslip-queue";
 import { PayslipPdfService } from "./payslip-pdf.service";
+import { readTdsSnapshot } from "./payroll-record-totals.util";
 import { PayslipStorageService } from "./payslip-storage.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 
@@ -238,6 +239,8 @@ export class PayslipGenerationService {
       grossEarningsMinor: record.grossEarningsMinor,
       totalDeductionsMinor: record.totalDeductionsMinor,
       totalAdjustmentsMinor: record.totalAdjustmentsMinor,
+      tdsMinor: record.tdsMinor,
+      tdsRateBps: readTdsSnapshot(record.tdsSnapshot)?.rateBps ?? null,
       netPayableMinor: record.netPayableMinor,
       payoutStatus: record.payout?.status ?? null,
       paidAt: record.payout?.paidAt?.toISOString() ?? null

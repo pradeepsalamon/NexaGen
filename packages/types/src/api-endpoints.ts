@@ -765,6 +765,7 @@ export const API_ROUTES = {
     closeCompensationRate: (id: string = ":id") =>
       `/admin/payroll/compensation-rates/${id}/close`,
     rules: "/admin/payroll/rules",
+    settings: "/admin/payroll/settings",
     rule: (id: string = ":id") => `/admin/payroll/rules/${id}`,
     payslipPdf: (id: string = ":id") => `/admin/payroll/payslips/${id}/pdf`,
     retryPayslipPdf: (id: string = ":id") =>
@@ -1070,7 +1071,12 @@ export const API_ROUTES = {
     /** The academy's own WhatsApp Business credentials (super admin). */
     whatsapp: "/admin/branding/whatsapp",
     /** The academy's own addresses and how to point a domain at it. */
-    domains: "/admin/branding/domains"
+    domains: "/admin/branding/domains",
+    /** Public, by host: the academy's own wording for `/privacy` or `/terms` (null = the built-in text). */
+    legalPage: (kind: string = ":kind") => `/tenant/legal/${kind}`,
+    /** The academy's admins: read both pages; PUT one (empty text = back to the built-in text). */
+    adminLegalPages: "/admin/branding/legal",
+    adminLegalPage: (kind: string = ":kind") => `/admin/branding/legal/${kind}`
   },
   // Platform operators only: Nexa's SUPER_ADMINs (docs/SAAS_MULTI_TENANCY.md §E), never another academy's role.
   platform: {

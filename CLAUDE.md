@@ -142,6 +142,7 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 - **SEO/GEO**: academy facts live once in `features/academy/content.ts`; never put a claim in JSON-LD or `llms.txt` the page doesn't show.
 - **Demo classes** (`demo-class/`, `app/demo/[classId]`, super-admin only): guests are `DemoClassRegistration`s, added only via `DemoInviteService`. [CLASSES](docs/CLASSES.md)
 - **Knowledge base** (`knowledge/`, `/help`, `/admin/knowledge`): nothing pre-loaded; `canReadKnowledgeArticle` / `readerWhere` is the one visibility rule (hidden = 404); published versions immutable. [KNOWLEDGE_BASE](docs/KNOWLEDGE_BASE.md)
+- **Coach payroll TDS** (`payroll/`, admin-set rate + yearly threshold, off by default): the rule is `computeTds` (`@nexa-chess/types` `payroll.ts`) on the terms frozen in the record's `tdsSnapshot`; `payroll-record-totals.util.ts` is the only writer of `tdsMinor` / `netPayableMinor`. [FEATURES](docs/FEATURES.md)
 - **Privacy** (`privacy/`): secrets never leave an export; **a new model storing personal data gets an export section**; deletions via `UserService.deleteAs`; `features/legal/content.ts` must stay true to the code.
 
 ### 3.6l2 Referrals and the SALES role
@@ -160,7 +161,7 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 ### 3.6m3 Academy branding and addresses (Phase 5)
 
-`branding/` + `features/branding/`, contract `@nexa-chess/types` `tenant-branding.ts`. Public config by host (`GET /tenant/public-config`); colours only via `brandColorIssue`/`deriveBrandPalette`; images PNG/JPEG/WebP checked by magic bytes. **An academy's own address calls the API at `/api` (`lib/apiBase.ts`) and gets host-only `nexa_h_*` cookies; Nexa's hosts are unchanged** — never read the auth cookie by another name. Brand copy via `useBrandName()`, Nexa-only markup `platform-brand-only`. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 5 plan", VPS: [DEPLOYMENT.md](docs/DEPLOYMENT.md) Step 4c.
+`branding/` + `features/branding/`, contract `@nexa-chess/types` `tenant-branding.ts`. Public config by host (`GET /tenant/public-config`); colours only via `brandColorIssue`/`deriveBrandPalette`; images PNG/JPEG/WebP checked by magic bytes. **An academy's own address calls the API at `/api` (`lib/apiBase.ts`) and gets host-only `nexa_h_*` cookies; Nexa's hosts are unchanged** — never read the auth cookie by another name. Brand copy via `useBrandName()`, Nexa-only markup `platform-brand-only`. An academy writes its own `/privacy` and `/terms` (`TenantLegalPage`, `branding/legal-pages.service.ts`, web `AcademyLegalText`); Nexa's stay in `features/legal/content.ts`. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 5 plan", VPS: [DEPLOYMENT.md](docs/DEPLOYMENT.md) Step 4c.
 
 ### 3.6m4 Platform billing and academy gateways (Phase 6)
 

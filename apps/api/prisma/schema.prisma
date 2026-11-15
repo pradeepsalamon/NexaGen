@@ -793,6 +793,24 @@ model TenantBranding {
   @@map("tenant_brandings")
 }
 
+/// An academy's own wording for a legal page (`/privacy`, `/terms`) on its
+/// own address. No row = the built-in text. Stored as formatted text, never
+/// HTML. Nexa's own pages stay in the web app (features/legal/content.ts).
+model TenantLegalPage {
+  id          String   @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId    String   @default("tenant_nexa")
+  /// LegalPageKind from @nexa-chess/types: "privacy" | "terms".
+  kind        String
+  body        String
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, kind])
+  @@map("tenant_legal_pages")
+}
+
 /// An academy's own WhatsApp Business number (docs/SAAS_MULTI_TENANCY.md §F
 /// "WhatsApp"; Phase 5d). Nexa uses the server's env number and has no row.
 /// The token is AES-256-GCM encrypted (WHATSAPP_CREDENTIALS_KEY, else MFA_ENCRYPTION_KEY).
@@ -4765,6 +4783,9 @@ model CoachCompensationProfile {
   panNumber    String?
   gstin        String?
   taxTreatment String?
+  /// This coach's own TDS rate in basis points (1000 = 10%). Null = the
+  /// academy's rate (PayrollSettings); 0 = no TDS for this coach.
+  tdsRateBps   Int?
 
   notes String?
 
@@ -4855,6 +4876,32 @@ model PayrollRule {
   @@map("payroll_rules")
 }
 
+/// An academy's payroll settings (one row per academy; Nexa's keeps id
+/// "default"). TDS is tax deducted at source from a coach's pay: off until an
+/// admin turns it on and sets the rate and the yearly threshold
+/// (docs/FEATURES.md "Coach payroll: TDS").
+model PayrollSettings {
+  id       String @id @default("default")
+  /// Owning academy (Tenant.id).
+  tenantId String @unique @default("tenant_nexa")
+
+  tdsEnabled             Boolean @default(false)
+  /// Basis points (1000 = 10%), no floats.
+  tdsRateBps             Int     @default(0)
+  /// Minor units. TDS starts once a coach's pay in the financial year goes
+  /// above this; 0 = from the first payment.
+  tdsThresholdMinor      Int     @default(0)
+  /// 1–12; the month the financial year starts (4 = April, India's).
+  financialYearStartMonth Int    @default(4)
+
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payroll_settings")
+}
+
 /// A payroll run for a date range, covering every in-scope coach. Statuses
 /// only ever move forward (DRAFT → CALCULATING → REVIEW → APPROVED →
 /// FINALIZED → PAID), or sideways into CANCELLED. Once FINALIZED, nothing
@@ -4937,7 +4984,15 @@ model CoachPayrollRecord {
   grossEarningsMinor    Int @default(0)
   totalDeductionsMinor  Int @default(0)
   totalAdjustmentsMinor Int @default(0)
+  /// TDS deducted from this record. netPayable = gross - deductions +
+  /// adjustments - tds; payroll-record-totals.util.ts is the only writer.
+  tdsMinor              Int @default(0)
   netPayableMinor       Int @default(0)
+
+  /// The TDS terms frozen at calculation time (PayrollTdsSnapshot: rate,
+  /// threshold, the coach's earlier pay and TDS in the financial year). Null
+  /// = no TDS applies to this record.
+  tdsSnapshot Json?
 
   calculatedAt DateTime?
   reviewedAt   DateTime?

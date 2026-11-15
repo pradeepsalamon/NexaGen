@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { AdminPayrollPeriodsPanel } from "./AdminPayrollPeriodsPanel";
 import { CompensationProfilesPanel } from "./CompensationProfilesPanel";
 import { PayrollRulesPanel } from "./PayrollRulesPanel";
+import { PayrollTdsPanel } from "./PayrollTdsPanel";
 
 /** Admin → Finance → Coach Payroll. */
 export function AdminPayrollClient() {
@@ -18,6 +19,7 @@ export function AdminPayrollClient() {
               <TabsTrigger value="periods">Periods</TabsTrigger>
               <TabsTrigger value="compensation">Compensation</TabsTrigger>
               <TabsTrigger value="rules">Rules</TabsTrigger>
+              <TabsTrigger value="tds">TDS</TabsTrigger>
             </TabsList>
           }
           title="Coach payroll"
@@ -33,6 +35,10 @@ export function AdminPayrollClient() {
 
         <TabsContent value="rules">
           <PayrollRulesPanel />
+        </TabsContent>
+
+        <TabsContent value="tds">
+          <PayrollTdsPanel />
         </TabsContent>
       </Tabs>
     </div>

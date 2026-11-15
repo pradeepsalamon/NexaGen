@@ -29,7 +29,8 @@ export function CoachEarningsClient() {
       hours: (r) => r.totalTeachingSeconds,
       net: (r) => r.netPayableMinor,
       period: (r) => r.period.startDate,
-      status: (r) => r.status
+      status: (r) => r.status,
+      tds: (r) => r.tdsMinor
     }
   });
   const payslipByRecord = new Map((payslipsData?.payslips ?? []).map((p) => [p.payrollRecordId, p]));
@@ -52,10 +53,10 @@ export function CoachEarningsClient() {
 
       {records.length > 0 ? (
         <Card className="p-0">
-            <Table className="w-full min-w-[720px] border-collapse">
+            <Table className="w-full min-w-[800px] border-collapse">
               <TableHeader>
                 <TableRow className="border-b border-app-border">
-                  {([["Period", "period"], ["Classes", "classes"], ["Hours", "hours"], ["Gross", "gross"], ["Net", "net"], ["Status", "status"], ["Payslip", null]] as const).map(([heading, sortKey]) => (
+                  {([["Period", "period"], ["Classes", "classes"], ["Hours", "hours"], ["Gross", "gross"], ["TDS", "tds"], ["Net", "net"], ["Status", "status"], ["Payslip", null]] as const).map(([heading, sortKey]) => (
                     <TableHead
                       className="px-4 py-3 text-left"
                       key={heading}
@@ -83,6 +84,9 @@ export function CoachEarningsClient() {
                       </TableCell>
                       <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-text">
                         {formatMoney(record.grossEarningsMinor, "INR")}
+                      </TableCell>
+                      <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-muted">
+                        {record.tdsMinor > 0 ? formatMoney(record.tdsMinor, "INR") : "—"}
                       </TableCell>
                       <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-app-text">
                         {formatMoney(record.netPayableMinor, "INR")}

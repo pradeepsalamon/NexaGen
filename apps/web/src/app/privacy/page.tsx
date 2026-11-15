@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AcademyLegalText } from "@/features/legal/components/AcademyLegalText";
 import { LegalPage } from "@/features/legal/components/LegalPage";
 import { LEGAL_DRAFT, PRIVACY_SECTIONS } from "@/features/legal/content";
 import { pageTitle } from "@/lib/pageTitles";
@@ -12,11 +13,13 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalPage
-      intro="What we collect about students, parents and coaches, who we share it with, and the choices you have."
-      other={{ href: "/terms", label: "Terms of service" }}
-      sections={PRIVACY_SECTIONS}
-      title="Privacy policy"
-    />
+    <AcademyLegalText kind="privacy">
+      <LegalPage
+        intro="What we collect about students, parents and coaches, who we share it with, and the choices you have."
+        other={{ href: "/terms", label: "Terms of service" }}
+        sections={PRIVACY_SECTIONS}
+        title="Privacy policy"
+      />
+    </AcademyLegalText>
   );
 }

@@ -264,6 +264,9 @@ export const queryKeys = {
     admin: ["branding", "admin"] as const,
     domains: ["branding", "domains"] as const,
     whatsapp: ["branding", "whatsapp"] as const,
+    legalPages: ["branding", "legal-pages"] as const,
+    /** Public, by host: the academy's own wording for one legal page. */
+    legalPage: (kind: string) => ["tenant", "legal", kind] as const,
   },
   platform: {
     all: ["platform"] as const,
@@ -345,6 +348,7 @@ export const queryKeys = {
     adminCompensationRates: (coachId: string) =>
       ["payroll", "admin", "compensation-rates", coachId] as const,
     adminRules: ["payroll", "admin", "rules"] as const,
+    adminSettings: ["payroll", "admin", "settings"] as const,
     adminPayouts: (periodId: string) => ["payroll", "admin", "payouts", periodId] as const,
   },
   approvals: {

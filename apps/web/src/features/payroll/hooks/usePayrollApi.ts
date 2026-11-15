@@ -12,7 +12,8 @@ import type {
   MarkPayoutPaidRequest,
   ReversePayrollAdjustmentRequest,
   UpdateCompensationProfileRequest,
-  UpdatePayrollRuleRequest
+  UpdatePayrollRuleRequest,
+  UpdatePayrollSettingsRequest
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
@@ -41,6 +42,7 @@ import {
   getPayrollAdjustments,
   getPayrollRecordAudit,
   getPayrollRules,
+  getPayrollSettings,
   markPayoutPaid,
   markPayrollPeriodPaid,
   recalculatePayrollPeriod,
@@ -48,7 +50,8 @@ import {
   retryPayslipPdf,
   reversePayrollAdjustment,
   updateCompensationProfile,
-  updatePayrollRule
+  updatePayrollRule,
+  updatePayrollSettings
 } from "../api/payrollApi";
 
 // ── Coach ──
@@ -347,6 +350,25 @@ export function useUpdatePayrollRule() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminRules });
       toast.success({ title: "Rule updated" });
+    }
+  });
+}
+
+// ── Admin: settings (TDS) ──
+
+export function usePayrollSettings() {
+  return useQuery({ queryKey: queryKeys.payroll.adminSettings, queryFn: getPayrollSettings });
+}
+
+export function useUpdatePayrollSettings() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (body: UpdatePayrollSettingsRequest) => updatePayrollSettings(body),
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.payroll.adminSettings, data);
+      toast.success({ title: "TDS settings saved" });
     }
   });
 }

@@ -123,11 +123,14 @@ code on 2026-10-31.
   switches (six kinds), RFC 8058 one-click unsubscribe, the link and opt-out on
   staff-written email, and Admin → Email → Opted out. Nothing left open.
 - **Payroll:** percentage-of-revenue is a stubbed ₹0 line (no revenue linkage,
-  `payroll-calculation.engine.ts` `case "PERCENTAGE"`). No tax/TDS, no bank
-  payout integration, no multi-currency, no rate CSV import/export.
-  **Owner 2026-11-15:** leave percentage-of-revenue as it is for now. Open
-  question: TDS on payslips — not now, or an admin-set rate and threshold with
-  a deduction line on each payslip?
+  `payroll-calculation.engine.ts` `case "PERCENTAGE"`). No bank payout
+  integration, no multi-currency, no rate CSV import/export.
+  **Owner 2026-11-15:** leave percentage-of-revenue as it is for now.
+  **TDS built 2026-11-15** (owner: admin-set rate): an admin-set rate and yearly
+  threshold, a coach's own rate, and a TDS line on every payslip
+  ([FEATURES.md](FEATURES.md) "Coach payroll: TDS"). Still not built: a TDS
+  return (Form 26Q) export, TDS certificates, an automatic higher rate for a
+  coach without a PAN, salary TDS by slab.
 - **Chat push:** a websocket only if the 4 s poll proves too slow or costly.
   There is no evidence of that yet.
 - **Referrals** ([REFERRALS.md](REFERRALS.md), shipped 2026-11-02, rebuilt
@@ -279,7 +282,7 @@ its precondition, the student training surface, now exists).
   8. **Academy home page** is a simple block (name, tagline, sign in, join, contact). The full block-based landing page builder is later.
   9. **The Nexa marketing page's analytics script and JSON-LD still load (hidden) on an academy's home page.** Fix with the remaining brand-string sweep (5e).
   10. **WhatsApp per academy:** another academy sends only from its own connected number (super admin sets it on `/admin/branding`); without one WhatsApp is off for it, never Nexa's number. Tokens use a new optional `CREDENTIALS_ENCRYPTION_KEY` (falls back to `MFA_ENCRYPTION_KEY`), so the integration suite doesn't have to switch on required MFA. Message templates must be approved on the academy's own Meta account; nothing checks that yet.
-  11. **Brand strings left (5e follow-up):** done 2026-11-05 on `feat/saas-followups` except the two below. `{{academy.name}}` in every message rule and system email, payslip PDFs (author + footer), PGN `Site` / default `Event`, the live-class PiP metadata, Wall of Moments and Video Generator now use the academy's name (`BrandingService.nameFor`, the same name its pages show; Nexa's stays "Nexa Chess"). Product-name copy became neutral ("Our website", "Our own analysis", "Class games", "Purchase"). NexaChess-as-vendor copy (contact the NexaChess team, support visits, content packs, Powered by) stays on purpose. **Still open:** `features/legal/content.ts` (per-academy legal pages wait for §N-12 legal text; open question 2026-11-15: keep Nexa's pages for every academy, or let each academy enter its own text), and the root layout / `/` metadata and JSON-LD, which stay Nexa's in the server HTML on an academy's `/` (theming is client-side by the Phase 5 builder's call 2; changing it makes those pages dynamic).
+  11. **Brand strings left (5e follow-up):** done 2026-11-05 on `feat/saas-followups` except the two below. `{{academy.name}}` in every message rule and system email, payslip PDFs (author + footer), PGN `Site` / default `Event`, the live-class PiP metadata, Wall of Moments and Video Generator now use the academy's name (`BrandingService.nameFor`, the same name its pages show; Nexa's stays "Nexa Chess"). Product-name copy became neutral ("Our website", "Our own analysis", "Class games", "Purchase"). NexaChess-as-vendor copy (contact the NexaChess team, support visits, content packs, Powered by) stays on purpose. **Still open:** `features/legal/content.ts` (**done 2026-11-15**, owner: each academy writes its own text; Admin → Branding → Legal pages, built-in text until it does, [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) §F "Legal pages"), and the root layout / `/` metadata and JSON-LD, which stay Nexa's in the server HTML on an academy's `/` (theming is client-side by the Phase 5 builder's call 2; changing it makes those pages dynamic).
 - **2026-11-05 (overnight run), `feat/saas-phase2-foundation`: builder's calls for SaaS Phase 6 (money)**; change any of them:
   1. **Plan prices exclude GST.** The checkout adds GST from the shared engine (`computeTax`): seller = the console's seller details (until saved, NexaChess academy's own invoice details), buyer = the academy's own invoice details (its GSTIN decides intra/inter-state). A blank seller GSTIN charges no GST. Default rate 18%.
   2. **The owner's Razorpay account has its own env keys** (`PLATFORM_RAZORPAY_*`), separate from NexaChess academy's student keys (`RAZORPAY_*`), even if both are the same Razorpay account. Built against mocks and test mode only; no live keys exist.

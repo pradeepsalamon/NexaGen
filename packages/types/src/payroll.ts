@@ -157,6 +157,8 @@ export const updateCompensationProfileSchema = z.object({
   paymentDetails: z.record(z.string(), z.unknown()).optional(),
   panNumber: z.string().max(20).optional(),
   gstin: z.string().max(20).optional(),
+  /** This coach's own TDS rate; null = the academy's rate, 0 = no TDS. */
+  tdsRateBps: z.number().int().min(0).max(10000).nullable().optional(),
   notes: z.string().max(2000).optional()
 });
 export type UpdateCompensationProfileRequest = z.infer<
@@ -181,6 +183,8 @@ export type CompensationProfileItem = {
   panNumber: string | null;
   gstin: string | null;
   taxTreatment: string | null;
+  /** This coach's own TDS rate in basis points; null = the academy's rate. */
+  tdsRateBps: number | null;
   notes: string | null;
   rates: CompensationRateItem[];
   createdAt: string;
@@ -351,6 +355,94 @@ export function resolveApplicableRules<
     .sort((a, b) => b.priority - a.priority);
 }
 
+// ── TDS (tax deducted at source) ──
+//
+// Off until an admin turns it on. The academy sets one rate and a yearly
+// threshold; a coach may have their own rate (0 = none). The rule follows how
+// TDS on fees works in India: nothing is deducted until the coach's pay in
+// the financial year goes above the threshold, and from then on the rate
+// applies to everything paid that year, so the first payslip past the
+// threshold also carries the TDS on the earlier ones.
+
+export const updatePayrollSettingsSchema = z
+  .object({
+    tdsEnabled: z.boolean(),
+    tdsRateBps: z.number().int().min(0).max(10000),
+    tdsThresholdMinor: z.number().int().min(0).max(2_000_000_000),
+    financialYearStartMonth: z.number().int().min(1).max(12)
+  })
+  .partial()
+  .refine((body) => Object.keys(body).length > 0, { message: "Nothing to change." });
+export type UpdatePayrollSettingsRequest = z.infer<typeof updatePayrollSettingsSchema>;
+
+export type PayrollSettingsItem = {
+  tdsEnabled: boolean;
+  /** Basis points: 1000 = 10%. */
+  tdsRateBps: number;
+  /** Minor units; TDS starts once pay in the financial year goes above this. */
+  tdsThresholdMinor: number;
+  /** 1–12 (4 = April). */
+  financialYearStartMonth: number;
+  updatedAt: string | null;
+};
+
+export const DEFAULT_PAYROLL_SETTINGS: PayrollSettingsItem = {
+  financialYearStartMonth: 4,
+  tdsEnabled: false,
+  tdsRateBps: 0,
+  tdsThresholdMinor: 0,
+  updatedAt: null
+};
+
+/** The TDS terms frozen on a payroll record when it is calculated. */
+export const payrollTdsSnapshotSchema = z.object({
+  version: z.literal(1),
+  rateBps: z.number().int(),
+  thresholdMinor: z.number().int(),
+  /** First day of the financial year the period falls in (YYYY-MM-DD). */
+  yearStart: z.string(),
+  /** The coach's pay before TDS on earlier periods of that year. */
+  priorTaxableMinor: z.number().int(),
+  /** TDS already deducted on those periods. */
+  priorTdsMinor: z.number().int()
+});
+export type PayrollTdsSnapshot = z.infer<typeof payrollTdsSnapshotSchema>;
+
+/** First day (UTC) of the financial year `date` falls in. */
+export function financialYearStart(date: string | Date, startMonth: number): Date {
+  const at = new Date(date);
+  const month = Math.min(12, Math.max(1, Math.trunc(startMonth)));
+  const year = at.getUTCMonth() + 1 >= month ? at.getUTCFullYear() : at.getUTCFullYear() - 1;
+  return new Date(Date.UTC(year, month - 1, 1));
+}
+
+/**
+ * TDS to deduct from one payslip. `taxableMinor` is what the record pays
+ * before TDS (gross − rule deductions + adjustments). Pure, so the API and
+ * any preview agree.
+ *
+ * Nothing until the year's pay goes above the threshold; then the rate on the
+ * whole year's pay, less what was already deducted. Never more than this
+ * payslip's own pay (the rest carries to the next one) and never negative (an
+ * over-deduction is not refunded here).
+ */
+export function computeTds(
+  terms: Pick<PayrollTdsSnapshot, "rateBps" | "thresholdMinor" | "priorTaxableMinor" | "priorTdsMinor">,
+  taxableMinor: number
+): number {
+  const taxable = Math.max(0, taxableMinor);
+  if (terms.rateBps <= 0 || taxable === 0) return 0;
+  const yearTaxable = Math.max(0, terms.priorTaxableMinor) + taxable;
+  if (yearTaxable <= terms.thresholdMinor) return 0;
+  const due = Math.round((yearTaxable * terms.rateBps) / 10000) - Math.max(0, terms.priorTdsMinor);
+  return Math.min(taxable, Math.max(0, due));
+}
+
+/** "10%" / "7.5%" from basis points. */
+export function formatBpsPercent(bps: number): string {
+  return `${Number((bps / 100).toFixed(2))}%`;
+}
+
 // ── Payroll period lifecycle ──
 
 export const payrollPeriodTypeSchema = z.enum(["WEEKLY", "BIWEEKLY", "MONTHLY", "CUSTOM"]);
@@ -489,6 +581,10 @@ export type CoachPayrollRecordItem = TeachingSummary & {
   grossEarningsMinor: number;
   totalDeductionsMinor: number;
   totalAdjustmentsMinor: number;
+  /** TDS deducted; already taken out of `netPayableMinor`. */
+  tdsMinor: number;
+  /** The TDS terms used, or null when no TDS applies to this record. */
+  tds: PayrollTdsSnapshot | null;
   netPayableMinor: number;
   calculatedAt: string | null;
   reviewedAt: string | null;
@@ -637,6 +733,9 @@ export type PayslipDocument = {
   grossEarningsMinor: number;
   totalDeductionsMinor: number;
   totalAdjustmentsMinor: number;
+  tdsMinor: number;
+  /** The rate behind `tdsMinor`, for the payslip's deduction line; null = no TDS. */
+  tdsRateBps: number | null;
   netPayableMinor: number;
   payoutStatus: PayoutStatus | null;
   paidAt: string | null;

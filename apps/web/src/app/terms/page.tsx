@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AcademyLegalText } from "@/features/legal/components/AcademyLegalText";
 import { LegalPage } from "@/features/legal/components/LegalPage";
 import { LEGAL_DRAFT, TERMS_SECTIONS } from "@/features/legal/content";
 import { pageTitle } from "@/lib/pageTitles";
@@ -12,11 +13,13 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage
-      intro="The terms for taking classes with Nexa Chess Academy and using its platform."
-      other={{ href: "/privacy", label: "Privacy policy" }}
-      sections={TERMS_SECTIONS}
-      title="Terms of service"
-    />
+    <AcademyLegalText kind="terms">
+      <LegalPage
+        intro="The terms for taking classes with Nexa Chess Academy and using its platform."
+        other={{ href: "/privacy", label: "Privacy policy" }}
+        sections={TERMS_SECTIONS}
+        title="Terms of service"
+      />
+    </AcademyLegalText>
   );
 }
