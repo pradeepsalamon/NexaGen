@@ -366,6 +366,7 @@ export function useUpdatePayrollSettings() {
 
   return useMutation({
     mutationFn: (body: UpdatePayrollSettingsRequest) => updatePayrollSettings(body),
+    onError: (error: Error) => toast.error({ message: error.message, title: "TDS settings not saved" }),
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.payroll.adminSettings, data);
       toast.success({ title: "TDS settings saved" });

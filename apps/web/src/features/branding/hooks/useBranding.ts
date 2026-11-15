@@ -58,6 +58,7 @@ export function useUpdateWhatsAppSettings() {
   const toast = useToast();
   return useMutation({
     mutationFn: (body: UpdateWhatsAppSettingsRequest) => updateWhatsAppSettings(body),
+    onError: (error: Error) => toast.error({ message: error.message, title: "WhatsApp settings not saved" }),
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.branding.whatsapp, data);
       toast.success({ title: "WhatsApp settings saved" });
