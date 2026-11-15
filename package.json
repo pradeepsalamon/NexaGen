@@ -60,7 +60,7 @@
     "handlebars": "^4.7.10",
     "postcss": "^8.5.31",
     "postcss-selector-parser": "^7.1.7",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   }
 }
