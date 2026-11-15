@@ -164,7 +164,8 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedDocument> {
     disableAutoFetch: true,
     disableStream: true,
     enableXfa: false,
-    isEvalSupported: false,
+    // pdfjs-dist 5.7 dropped `isEvalSupported` from its option types; kept in case a version still reads it.
+    ...({ isEvalSupported: false } as Record<string, never | boolean>),
     // Raster images inside the PDF: refuse anything above ~50 megapixels.
     maxImageSize: 50_000_000,
     stopAtErrors: false,
