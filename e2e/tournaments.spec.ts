@@ -85,8 +85,12 @@ test.describe("Tournaments", () => {
     const admin = await adminContext.newPage();
     const name = `E2E Swiss ${Date.now().toString(36)}`;
     await admin.goto("/tournaments/new");
-    await admin.getByLabel("Name", { exact: true }).fill(name);
-    await admin.getByLabel("Rounds", { exact: true }).fill("1");
+    // The form hydrates after load; a value typed before that is wiped (WebKit is slower to), so retype until it sticks.
+    await expect(async () => {
+      await admin.getByLabel("Name", { exact: true }).fill(name);
+      await admin.getByLabel("Rounds", { exact: true }).fill("1");
+      await expect(admin.getByLabel("Name", { exact: true })).toHaveValue(name);
+    }).toPass({ timeout: 15_000 });
     await admin.getByRole("button", { name: "3 + 2 Blitz" }).click();
     await admin.getByRole("button", { name: "Create draft" }).click();
     await admin.waitForURL(/\/tournaments\/[^/]+\/edit$/);
