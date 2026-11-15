@@ -36,6 +36,11 @@ export class EmailAdminController {
     return this.emailAdmin.setPolicy(this.getAccessToken(request), body.policy);
   }
 
+  @Get(API_ROUTES.adminEmail.optedOut)
+  listOptedOut(@Req() request: Request, @Query() query: PaginatedQuery) {
+    return this.emailAdmin.listOptedOut(this.getAccessToken(request), query);
+  }
+
   @Get(API_ROUTES.adminEmail.unverified)
   listUnverified(@Req() request: Request, @Query() query: PaginatedQuery) {
     return this.emailAdmin.listUnverified(this.getAccessToken(request), query);

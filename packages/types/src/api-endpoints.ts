@@ -31,9 +31,12 @@ export const API_ROUTES = {
   emailPreferences: {
     mine: "/email-preferences",
     /** Public: the link at the bottom of a notification email. */
-    unsubscribe: "/email-preferences/unsubscribe"
+    unsubscribe: "/email-preferences/unsubscribe",
+    /** Public: RFC 8058 one-click POST from the mail app (`List-Unsubscribe-Post`). */
+    oneClick: "/email-preferences/one-click"
   },
   adminEmail: {
+    optedOut: "/admin/email/opted-out",
     overview: "/admin/email",
     policy: "/admin/email/verification-policy",
     sent: "/admin/email/sent",

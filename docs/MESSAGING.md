@@ -287,20 +287,35 @@ it through `MailService.sendRuleEmail`.
 - A 5xx from the mail server fails at once; anything else retries like WhatsApp.
   A sweep stops after 4 minutes, before its claims go stale, and later sweeps pick
   up what's left.
-- **Every rule email carries the recipient's own unsubscribe link** (a footer line and a
-  `List-Unsubscribe` header) to `/unsubscribe?token=…`. The page changes nothing until its
-  button is pressed, because mail scanners open links. The same switch is on the profile page
-  ("Email notifications"). Code: `email-admin/email-preferences.service.ts`,
-  `features/email-preferences/`.
-  - The opt-out (`User.notificationEmailOptOutAt`) covers **rule emails only**. System messages
-    (password reset, verification, invoices) and email staff write at `/admin/email` always
-    send; in-app and WhatsApp are not affected.
-  - It is checked by the worker **at send time** (`EmailPreferencesService.targetFor`), so it
-    also stops emails already queued. Those rows become `SKIPPED` with the reason in the
-    Delivery log. A dispatch summary still counts them as queued.
-  - The token (`User.emailUnsubscribeToken`) is random, made on the person's first rule email
-    and never expires. The public route looks it up inside `asPlatform`, because the link opens
-    on the platform's address whichever academy the account belongs to.
+- **Every rule email carries the recipient's own unsubscribe links** (2026-11-15 rework):
+  a footer link to `/unsubscribe?token=…&category=…`, and RFC 8058 one-click headers
+  (`List-Unsubscribe: <…/api/email-preferences/one-click?token=…&category=…>` +
+  `List-Unsubscribe-Post: List-Unsubscribe=One-Click`). The page changes nothing until a
+  button is pressed, because mail scanners open links; it offers "Stop these emails" (that
+  kind) or "Unsubscribe from all". The one-click POST (a mail app's button) only ever turns
+  emails off, for the email's kind. Both links are on the recipient's own academy's address
+  (`AcademyLinksService`); the one-click goes through the web's `/api` proxy. The profile page
+  ("Email notifications") has the master switch and one switch per kind. Code:
+  `email-admin/email-preferences.service.ts`, `features/email-preferences/`.
+  - **Kinds** (`EMAIL_CATEGORIES`, `@nexa-chess/types` `email-admin.ts`): Classes, Homework and
+    revision, Announcements and tournaments, Account/payments/requests, Referrals, and Messages
+    from the academy team (staff email at `/admin/email`, see EMAIL_ADMIN.md). Each rule's kind
+    is `MESSAGING_EVENT_EMAIL_CATEGORY[event]`, so a new event must pick one (the compiler
+    insists).
+  - Stored on the user: `notificationEmailOptOutAt` (master switch, the first opt-out date) and
+    `emailOptOutCategories` (kinds off one by one). Master off stops every kind. A kind link
+    turning one kind back on while everything is off turns the master switch on with the other
+    kinds off, so only what was asked for resumes.
+  - System messages (password reset, verification, invoices) always send; in-app and WhatsApp
+    are not affected.
+  - It is checked by the worker **at send time** (`EmailPreferencesService.targetFor(userId,
+    category)`), so it also stops emails already queued. Those rows become `SKIPPED` with the
+    reason in the Delivery log. A dispatch summary still counts them as queued.
+  - Admins see who opted out at `/admin/email` → Opted out (read-only).
+  - The token (`User.emailUnsubscribeToken`) is random, made on the person's first email and
+    never expires. The public routes look it up inside `asPlatform`, because a mail app's POST
+    carries no academy. The one-click route allows 120/min per address (mail providers send
+    everyone's clicks from a few addresses).
 - A rule's test email only goes to the admin's own account.
 
 ## System messages

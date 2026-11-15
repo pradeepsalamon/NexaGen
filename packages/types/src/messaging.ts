@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { cursorPageQuerySchema } from "./core-schemas";
+import type { EmailCategory } from "./email-admin";
 import { escapeMarkdown } from "./markdown";
 
 // Admin-configurable outbound messaging. One rule per event decides whether a
@@ -41,6 +42,39 @@ export const messagingEventSchema = z.enum([
 export type MessagingEvent = z.infer<typeof messagingEventSchema>;
 
 export const MESSAGING_EVENTS = messagingEventSchema.options;
+
+/** Which opt-out category a rule's email belongs to (docs/MESSAGING.md "Email channel"). */
+export const MESSAGING_EVENT_EMAIL_CATEGORY: Record<MessagingEvent, EmailCategory> = {
+  ACCOUNT_APPROVED: "ACCOUNT",
+  ACCOUNT_DECLINED: "ACCOUNT",
+  ACCOUNT_WELCOME: "ACCOUNT",
+  ANNOUNCEMENT: "ANNOUNCEMENTS",
+  APPROVAL_DECIDED: "ACCOUNT",
+  APPROVAL_REQUESTED: "ACCOUNT",
+  ASSIGNMENT_ASSIGNED: "HOMEWORK",
+  ASSIGNMENT_DUE_SOON: "HOMEWORK",
+  ASSIGNMENT_GRADED: "HOMEWORK",
+  ASSIGNMENT_OVERDUE_COACH: "HOMEWORK",
+  CLASS_CANCELLED: "CLASSES",
+  CLASS_REMINDER: "CLASSES",
+  CLASS_REMINDER_COACH: "CLASSES",
+  CLASS_SCHEDULED: "CLASSES",
+  CLASS_SUBSTITUTE_ASSIGNED: "CLASSES",
+  INVOICE_ISSUED: "ACCOUNT",
+  PAYMENT_FAILED: "ACCOUNT",
+  PAYMENT_RECEIVED: "ACCOUNT",
+  PAYROLL_FINALIZED: "ACCOUNT",
+  PAYROLL_PAID: "ACCOUNT",
+  REFERRAL_PROGRESS: "REFERRALS",
+  REFERRAL_REQUEST_DECIDED: "REFERRALS",
+  REFERRAL_REWARD: "REFERRALS",
+  REFUND_PROCESSED: "ACCOUNT",
+  REGISTRATION_PENDING_ADMIN: "ACCOUNT",
+  REVISION_DUE: "HOMEWORK",
+  SUBSCRIPTION_RENEWAL_FAILED: "ACCOUNT",
+  TOURNAMENT_REGISTRATION_OPEN: "ANNOUNCEMENTS",
+  TOURNAMENT_STARTED: "ANNOUNCEMENTS"
+};
 
 /** Which side of a class/batch a rule talks to. Filtered per event. */
 export const messagingAudienceSchema = z.enum([

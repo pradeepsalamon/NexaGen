@@ -116,11 +116,9 @@ code on 2026-10-31.
   cap a self-rating ([SMART_REVISION.md](SMART_REVISION.md)).
 - ~~**Email opt-out.**~~ **Built 2026-11-13:** every rule email has the
   recipient's unsubscribe link, and the profile page has the same switch
-  ([MESSAGING.md](MESSAGING.md) "Email channel"). **Still open:** it is one
-  switch for all rule emails (no per-category choice), there is no one-click
-  `List-Unsubscribe-Post` endpoint, staff-written email (`/admin/email`) has no
-  link, and admins can't see or filter who has opted out except through
-  `SKIPPED` rows in the Delivery log.
+  ([MESSAGING.md](MESSAGING.md) "Email channel"). **2026-11-15:** per-kind
+  switches (six kinds), RFC 8058 one-click unsubscribe, the link and opt-out on
+  staff-written email, and Admin → Email → Opted out. Nothing left open.
 - **Payroll:** percentage-of-revenue is a stubbed ₹0 line (no revenue linkage,
   `payroll-calculation.engine.ts` `case "PERCENTAGE"`). No tax/TDS, no bank
   payout integration, no multi-currency, no rate CSV import/export.

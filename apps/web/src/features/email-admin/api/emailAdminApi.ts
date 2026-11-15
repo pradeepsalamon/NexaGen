@@ -3,6 +3,7 @@ import type {
   DirectEmailDto,
   DirectEmailListResponse,
   EmailAdminOverviewResponse,
+  EmailOptOutListResponse,
   EmailVerificationPolicy,
   SendDirectEmailRequest,
   UnverifiedAccountListResponse
@@ -42,6 +43,10 @@ export function sendVerificationLink(userId: string) {
 
 export function sendDirectEmail(userId: string, payload: SendDirectEmailRequest) {
   return apiFetch<DirectEmailDto>(API_ROUTES.adminEmail.send(userId), { body: payload, method: "POST" });
+}
+
+export function listOptedOutAccounts(params: ListParams) {
+  return apiFetch<EmailOptOutListResponse>(API_ROUTES.adminEmail.optedOut + toQueryString(params));
 }
 
 export function listSentEmails(params: ListParams) {

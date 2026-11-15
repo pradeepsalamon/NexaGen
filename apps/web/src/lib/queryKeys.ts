@@ -14,6 +14,7 @@ export const queryKeys = {
   },
   emailAdmin: {
     all: ["email-admin"] as const,
+    optedOut: (filters: ListParams) => ["email-admin", "opted-out", filters] as const,
     overview: ["email-admin", "overview"] as const,
     sent: (filters: ListParams) => ["email-admin", "sent", filters] as const,
     unverified: (filters: ListParams) => ["email-admin", "unverified", filters] as const,

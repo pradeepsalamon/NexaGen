@@ -4,6 +4,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import {
   getEmailOverview,
+  listOptedOutAccounts,
   listSentEmails,
   listUnverifiedAccounts,
   sendVerificationLink,
@@ -21,6 +22,14 @@ export function useUnverifiedAccounts(params: ListParams) {
     placeholderData: keepPreviousData,
     queryFn: () => listUnverifiedAccounts(params),
     queryKey: queryKeys.emailAdmin.unverified(params)
+  });
+}
+
+export function useOptedOutAccounts(params: ListParams) {
+  return useQuery({
+    placeholderData: keepPreviousData,
+    queryFn: () => listOptedOutAccounts(params),
+    queryKey: queryKeys.emailAdmin.optedOut(params)
   });
 }
 

@@ -277,15 +277,18 @@ model User {
   // Set = this person turned off messaging-rule ("notification") emails; system emails
   // (password reset, verification, invoices) still send. docs/MESSAGING.md "Email channel".
   notificationEmailOptOutAt DateTime?
+  // Kinds of non-essential email this person turned off one by one (`EMAIL_CATEGORIES`);
+  // the master switch above stops them all. docs/MESSAGING.md "Email channel".
+  emailOptOutCategories     EmailCategory[] @default([])
   // The random value in the unsubscribe link of this person's emails; made on the first send.
-  emailUnsubscribeToken     String?   @unique
+  emailUnsubscribeToken     String?         @unique
   // Self-registration's Terms of Service + Privacy Policy checkbox: when it was ticked and which
   // version (`LEGAL_TERMS_VERSION`). Null for accounts an admin created or made before it existed.
   termsAcceptedAt           DateTime?
   termsVersion              String?
   lastLoginAt               DateTime?
   // Wrong passwords since the last sign-in; the Nth sets loginLockedUntil.
-  failedLoginAttempts       Int       @default(0)
+  failedLoginAttempts       Int             @default(0)
   loginLockedUntil          DateTime?
   // Throttled recency signal (updated at most once / 10 min by ActivityTrackingInterceptor).
   // Null = never seen since the feature shipped; analytics treats it as "unknown", not inactive.
@@ -829,6 +832,16 @@ model EmailSettings {
   updatedAt          DateTime                @updatedAt
 
   @@map("email_settings")
+}
+
+/// What a non-essential email is about (`@nexa-chess/types` `EMAIL_CATEGORIES`).
+enum EmailCategory {
+  CLASSES
+  HOMEWORK
+  ANNOUNCEMENTS
+  ACCOUNT
+  REFERRALS
+  ACADEMY_TEAM
 }
 
 enum DirectEmailStatus {
@@ -8715,19 +8728,19 @@ model WhatsAppWebhookEvent {
 /// A WhatsApp number that messaged the academy. Not an account: WhatsApp proves
 /// control of the number, not who the student is (docs/WHATSAPP_SUPPORT.md §9).
 model WhatsAppContact {
-  id            String    @id @default(cuid())
-  tenantId      String    @default("tenant_nexa")
-  waId          String
-  profileName   String?
+  id               String    @id @default(cuid())
+  tenantId         String    @default("tenant_nexa")
+  waId             String
+  profileName      String?
   /// Starts the 24-hour customer-service window.
-  lastInboundAt DateTime?
+  lastInboundAt    DateTime?
   /// "STOP": no proactive WhatsApp (rules, system messages). Support replies still go.
-  optedOutAt    DateTime?
+  optedOutAt       DateTime?
   /// Wrong LINK codes since `linkFailuresFrom` (a rate limit: docs/WHATSAPP_SUPPORT.md §0 "Existing students").
   linkFailures     Int       @default(0)
   linkFailuresFrom DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   conversations SupportConversation[]
   tickets       SupportTicket[]
@@ -8957,18 +8970,18 @@ enum SupportOwnerChangeReason {
 /// written in the same transaction as the change. Feeds the support analytics
 /// (hand-off rate, first staff reply). No personal data.
 model SupportConversationEvent {
-  id             String                     @id @default(cuid())
-  tenantId       String                     @default("tenant_nexa")
+  id             String                    @id @default(cuid())
+  tenantId       String                    @default("tenant_nexa")
   conversationId String
-  conversation   SupportConversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   SupportConversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   fromStatus     SupportConversationStatus
   toStatus       SupportConversationStatus
   reason         SupportOwnerChangeReason
   /// Staff member who caused it; null for the bot or the customer.
   actorId        String?
-  actor          User?                      @relation("SupportConversationEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actor          User?                     @relation("SupportConversationEventActor", fields: [actorId], references: [id], onDelete: SetNull)
   ticketId       String?
-  createdAt      DateTime                   @default(now())
+  createdAt      DateTime                  @default(now())
 
   @@index([conversationId, createdAt])
   @@index([createdAt, toStatus])

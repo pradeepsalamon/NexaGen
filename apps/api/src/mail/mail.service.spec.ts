@@ -297,16 +297,38 @@ describe("MailService", () => {
       expect(callArgs.headers).toBeUndefined();
     });
 
-    it("adds the recipient's unsubscribe link as a footer and a List-Unsubscribe header", async () => {
+    it("adds the unsubscribe page as a footer and the RFC 8058 one-click headers", async () => {
       mockSendMail.mockResolvedValue({ messageId: "<abc@smtp>" });
-      const unsubscribeUrl = "https://app.test/unsubscribe?token=abc&x=1";
+      const pageUrl = "https://app.test/unsubscribe?token=abc&x=1";
+      const oneClickUrl = "https://app.test/api/email-preferences/one-click?token=abc";
 
-      await service.sendRuleEmail({ body: "Hi", subject: "Hello", to: "user@example.com", unsubscribeUrl });
+      await service.sendRuleEmail({
+        body: "Hi",
+        subject: "Hello",
+        to: "user@example.com",
+        unsubscribe: { oneClickUrl, pageUrl }
+      });
 
       const callArgs = mockSendMail.mock.calls[0][0];
-      expect(callArgs.headers).toEqual({ "List-Unsubscribe": `<${unsubscribeUrl}>` });
-      expect(callArgs.text).toContain(`Unsubscribe: ${unsubscribeUrl}`);
+      expect(callArgs.headers).toEqual({
+        "List-Unsubscribe": `<${oneClickUrl}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+      });
+      expect(callArgs.text).toContain(`Unsubscribe: ${pageUrl}`);
       expect(callArgs.html).toContain('href="https://app.test/unsubscribe?token=abc&amp;x=1"');
+    });
+
+    it("gives staff-written email the same links", async () => {
+      mockSendMail.mockResolvedValue({ messageId: "<abc@smtp>" });
+      await service.sendDirectEmail({
+        body: "Hi",
+        subject: "Hello",
+        to: "user@example.com",
+        unsubscribe: { oneClickUrl: "https://app.test/api/one", pageUrl: "https://app.test/unsubscribe?token=t" }
+      });
+      const callArgs = mockSendMail.mock.calls[0][0];
+      expect(callArgs.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+      expect(callArgs.text).toContain("Unsubscribe: https://app.test/unsubscribe?token=t");
     });
   });
 

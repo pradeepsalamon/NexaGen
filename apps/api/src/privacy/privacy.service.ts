@@ -44,6 +44,7 @@ export class PrivacyService {
         id: true,
         lastLoginAt: true,
         lastName: true,
+        emailOptOutCategories: true,
         notificationEmailOptOutAt: true,
         phoneNumber: true,
         role: true,
