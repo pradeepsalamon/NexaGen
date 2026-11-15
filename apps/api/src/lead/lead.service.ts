@@ -37,6 +37,8 @@ import { SystemNotifier } from "../mail/system-notifier.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { FrappeCrmPushService } from "./frappe-crm-push.service";
+import { WHATSAPP_LEAD_REUSE_DAYS, WHATSAPP_LEAD_SOURCE } from "./lead-constants";
 import { parseUserAgent, parseVisitAttribution } from "./lead-tracking.util";
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum } from "../common/query-params";
@@ -44,11 +46,6 @@ import { queryEnum } from "../common/query-params";
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 
 const CONVERTING_STATUSES: LeadStatus[] = ["CONVERTED", "ACTIVE_STUDENT"];
-
-/** `Lead.source` of a demo booked through the WhatsApp assistant. */
-export const WHATSAPP_LEAD_SOURCE = "WhatsApp";
-/** A repeat booking from the same number within this window adds to the open lead. */
-export const WHATSAPP_LEAD_REUSE_DAYS = 90;
 
 type LeadRow = {
   id: string;
@@ -76,7 +73,8 @@ export class LeadService {
     private readonly demoInvites: DemoInviteService,
     private readonly referrals: ReferralTrackerService,
     private readonly notifier: SystemNotifier,
-    private readonly trash: TrashRepository
+    private readonly trash: TrashRepository,
+    private readonly crmPush: FrappeCrmPushService
   ) {}
 
   // ── Public ──
@@ -102,25 +100,30 @@ export class LeadService {
     const source = visitorSession?.utmSource || visitorSession?.referrer || "Organic";
     const campaign = visitorSession?.utmCampaign ?? null;
 
-    const lead = await this.prisma.lead.create({
-      data: {
-        studentName: body.studentName,
-        parentName: body.parentName,
-        studentAge: body.studentAge,
-        experienceLevel: body.experienceLevel,
-        phone,
-        email: body.email || null,
-        source,
-        campaign,
-        visitorSessionId: visitorSession?.id ?? null,
-        activities: {
-          create: {
-            activityType: "LEAD_REGISTERED",
-            title: "Lead registered",
-            description: "Submitted the demo booking form on the academy site."
+    // The Frappe CRM copy is queued with the lead, so a lead is never left uncopied.
+    const lead = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.lead.create({
+        data: {
+          studentName: body.studentName,
+          parentName: body.parentName,
+          studentAge: body.studentAge,
+          experienceLevel: body.experienceLevel,
+          phone,
+          email: body.email || null,
+          source,
+          campaign,
+          visitorSessionId: visitorSession?.id ?? null,
+          activities: {
+            create: {
+              activityType: "LEAD_REGISTERED",
+              title: "Lead registered",
+              description: "Submitted the demo booking form on the academy site."
+            }
           }
         }
-      }
+      });
+      await this.crmPush.enqueue(tx, created.id);
+      return created;
     });
 
     // Referral attribution (cookie from a `/r/<code>` visit, else the code the
@@ -137,6 +140,7 @@ export class LeadService {
     // Fire-and-forget (the notifier never throws): staff hear of the booking — ADMIN_EMAILS by
     // email, the academy's admins by WhatsApp / in-app — and the parent gets a confirmation.
     void this.announceNewLead(lead);
+    void this.crmPush.pushLead(lead.id);
     void this.notifier.send(
       "DEMO_BOOKING",
       { email: lead.email, phone: lead.phone },

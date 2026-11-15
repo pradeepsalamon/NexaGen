@@ -10,7 +10,7 @@ import {
 import { UserRole } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum, queryString } from "../common/query-params";
-import { WHATSAPP_LEAD_SOURCE } from "../lead/lead.service";
+import { WHATSAPP_LEAD_SOURCE } from "../lead/lead-constants";
 import { PrismaService } from "../prisma/prisma.service";
 
 const DAY_MS = 24 * 60 * 60_000;

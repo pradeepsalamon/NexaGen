@@ -6,6 +6,7 @@ import {
   frappeLeadDocument,
   frappeLeadNote,
   frappePhone,
+  phoneTail,
   type FrappeCrmConfig
 } from "./frappe-crm-push.service";
 
@@ -15,18 +16,23 @@ const CONFIG: FrappeCrmConfig = {
   countryCode: "91",
   leadSource: "Direct WhatsApp",
   leadStatus: "New Inquiry",
-  url: "https://crm.example.test"
+  url: "https://crm.example.test",
+  websiteLeadSource: "Website Form"
 };
 
 const LEAD = {
+  campaign: null as string | null,
   createdAt: new Date("2026-11-14T10:00:00.000Z"),
+  email: null as string | null,
   experienceLevel: "beginner",
   id: "lead_1",
   parentName: "Asha <b>K</b>",
   phone: "9876543210",
+  source: "WhatsApp" as string | null,
   studentAge: 8,
   studentName: "Ravi"
 };
+const WEBSITE_LEAD = { ...LEAD, campaign: "diwali", email: "asha@example.test", id: "lead_2", source: "instagram" };
 
 describe("Frappe CRM documents", () => {
   it("adds the country code to a 10-digit number only", () => {
@@ -40,9 +46,29 @@ describe("Frappe CRM documents", () => {
       first_name: "Asha <b>K</b>",
       mobile_no: "+919876543210",
       source: "Direct WhatsApp",
-      status: "New Inquiry"
+      status: "New Inquiry",
+      student_name: "Ravi"
     });
     expect(frappeLeadDocument({ ...LEAD, parentName: "  " }, CONFIG).first_name).toBe("WhatsApp lead");
+  });
+
+  it("gives a website-form lead the website source, and keeps its email and attribution to the note", () => {
+    const document = frappeLeadDocument(WEBSITE_LEAD, CONFIG);
+    expect(document).toMatchObject({ mobile_no: "+919876543210", source: "Website Form", status: "New Inquiry" });
+    expect(document).not.toHaveProperty("email");
+    expect(frappeLeadDocument({ ...WEBSITE_LEAD, parentName: "" }, CONFIG).first_name).toBe("Website lead");
+
+    const note = frappeLeadNote(WEBSITE_LEAD);
+    expect(note.title).toBe("From NexaGen (website form)");
+    expect(note.content).toContain("Email: asha@example.test");
+    expect(note.content).toContain("Booked a demo through the website form.");
+    expect(note.content).toContain("Came from: instagram (campaign diwali)");
+    expect(frappeLeadNote(LEAD).content).not.toContain("Came from");
+  });
+
+  it("compares numbers by their last ten digits", () => {
+    expect(phoneTail("+91 98765-43210")).toBe("9876543210");
+    expect(phoneTail("9876543210")).toBe("9876543210");
   });
 
   it("escapes the note's HTML", () => {
@@ -54,6 +80,23 @@ describe("Frappe CRM documents", () => {
 });
 
 type Row = { attempts: number; createdAt: Date; id: string; lead: typeof LEAD; leadId: string };
+
+type Call = { body: unknown; method: string; url: string };
+
+/** A Frappe that answers each call from `answer`, and remembers the calls. */
+function fakeFrappe(answer: (call: Call) => unknown) {
+  const calls: (Call & { headers: Record<string, string> })[] = [];
+  global.fetch = jest.fn(async (url: string, init: RequestInit) => {
+    const call = { body: init.body ? JSON.parse(String(init.body)) : null, method: String(init.method), url: decodeURIComponent(url) };
+    calls.push({ ...call, headers: init.headers as Record<string, string> });
+    return reply(200, { data: answer(call) });
+  }) as unknown as typeof fetch;
+  return calls;
+}
+
+const isLeadSearch = (call: Call) => call.method === "GET" && call.url.includes("/api/resource/CRM Lead?");
+const isNoteSearch = (call: Call) => call.method === "GET" && call.url.includes("/api/resource/FCRM Note?");
+const step = (call: Call) => `${call.method} ${call.url.split("?")[0].replace("https://crm.example.test/api/resource/", "")}`;
 
 function fakePrisma(row: Row) {
   const updates: Record<string, unknown>[] = [];
@@ -98,36 +141,65 @@ describe("FrappeCrmPushService.send", () => {
     global.fetch = realFetch;
   });
 
-  it("creates the lead and its note, then records the Frappe name", async () => {
+  it("creates the lead and its note when Frappe has nobody with that number", async () => {
     const { activities, prisma, updates } = fakePrisma({ attempts: 0, createdAt: LEAD.createdAt, id: "p1", lead: LEAD, leadId: "lead_1" });
-    const calls: { body: unknown; headers: Record<string, string>; url: string }[] = [];
-    global.fetch = jest.fn(async (url: string, init: RequestInit) => {
-      calls.push({ body: init.body ? JSON.parse(String(init.body)) : null, headers: init.headers as Record<string, string>, url });
-      return reply(200, { data: { name: url.includes("CRM%20Lead") ? "CRM-LEAD-2026-00042" : "note1" } });
-    }) as unknown as typeof fetch;
+    const calls = fakeFrappe((call) => (isLeadSearch(call) ? [] : { name: call.url.includes("CRM Lead") ? "CRM-LEAD-2026-00042" : "note1" }));
 
     await service(prisma).send("p1");
 
-    expect(calls.map((call) => call.url)).toEqual(["https://crm.example.test/api/resource/CRM%20Lead", "https://crm.example.test/api/resource/FCRM%20Note"]);
+    expect(calls.map(step)).toEqual(["GET CRM Lead", "POST CRM Lead", "POST FCRM Note"]);
+    expect(calls[0].url).toContain('["mobile_no","like","%9876543210"]');
     expect(calls[0].headers.Authorization).toBe("token key:secret");
-    expect(calls[1].body).toMatchObject({ reference_docname: "CRM-LEAD-2026-00042", reference_doctype: "CRM Lead" });
+    expect(calls[2].body).toMatchObject({ reference_docname: "CRM-LEAD-2026-00042", reference_doctype: "CRM Lead" });
     expect(updates[0]).toMatchObject({ externalId: "CRM-LEAD-2026-00042", status: "SENT" });
-    expect(activities[0]).toMatchObject({ activityType: "CRM_PUSHED", leadId: "lead_1" });
+    expect(activities[0]).toMatchObject({ activityType: "CRM_PUSHED", leadId: "lead_1", title: "Sent to Frappe CRM" });
   });
 
-  it("on a retry, reuses a lead an earlier attempt already made", async () => {
+  it("adds a note to the lead Frappe already has for that number, and makes no twin", async () => {
+    const { activities, prisma, updates } = fakePrisma({ attempts: 0, createdAt: LEAD.createdAt, id: "p1", lead: WEBSITE_LEAD, leadId: "lead_2" });
+    const calls = fakeFrappe((call) => (isLeadSearch(call) ? [{ name: "CRM-LEAD-2026-00007" }] : isNoteSearch(call) ? [] : { name: "note1" }));
+
+    await service(prisma).send("p1");
+
+    expect(calls.map(step)).toEqual(["GET CRM Lead", "GET FCRM Note", "POST FCRM Note"]);
+    expect(calls[1].url).toContain("%NexaGen lead: lead_2%");
+    expect(calls[2].body).toMatchObject({ reference_docname: "CRM-LEAD-2026-00007", title: "From NexaGen (website form)" });
+    expect(updates[0]).toMatchObject({ externalId: "CRM-LEAD-2026-00007", status: "SENT" });
+    expect(activities[0]).toMatchObject({ activityType: "CRM_PUSHED", title: "Added to a Frappe CRM lead" });
+  });
+
+  it("on a retry, reuses the lead and the note an earlier attempt already made", async () => {
     const { prisma, updates } = fakePrisma({ attempts: 1, createdAt: LEAD.createdAt, id: "p1", lead: LEAD, leadId: "lead_1" });
-    const methods: string[] = [];
+    const calls = fakeFrappe((call) => (isLeadSearch(call) ? [{ name: "CRM-LEAD-2026-00041" }] : [{ name: "note1" }]));
+
+    await service(prisma).send("p1");
+
+    expect(calls.map(step)).toEqual(["GET CRM Lead", "GET FCRM Note"]);
+    expect(updates[0]).toMatchObject({ externalId: "CRM-LEAD-2026-00041", status: "SENT" });
+  });
+
+  it("tries again when the note for an existing Frappe lead doesn't arrive", async () => {
+    const { activities, prisma, updates } = fakePrisma({ attempts: 0, createdAt: LEAD.createdAt, id: "p1", lead: LEAD, leadId: "lead_1" });
     global.fetch = jest.fn(async (url: string, init: RequestInit) => {
-      methods.push(`${init.method} ${url.split("?")[0]}`);
-      expect(decodeURIComponent(url)).toContain('["mobile_no","=","+919876543210"]');
-      return reply(200, { data: [{ name: "CRM-LEAD-2026-00041" }] });
+      if (init.method === "POST") return reply(503, { message: "down" });
+      return reply(200, { data: url.includes("/api/resource/CRM%20Lead") ? [{ name: "CRM-LEAD-2026-00007" }] : [] });
     }) as unknown as typeof fetch;
 
     await service(prisma).send("p1");
 
-    expect(methods).toEqual(["GET https://crm.example.test/api/resource/CRM%20Lead"]);
-    expect(updates[0]).toMatchObject({ externalId: "CRM-LEAD-2026-00041", status: "SENT" });
+    expect(updates[0]).toMatchObject({ error: "Frappe answered 503: down" });
+    expect(updates[0].status).toBeUndefined();
+    expect(activities).toEqual([]);
+  });
+
+  it("doesn't look a too-short number up, it just creates the lead", async () => {
+    const short = { ...LEAD, phone: "12345" };
+    const { prisma } = fakePrisma({ attempts: 0, createdAt: LEAD.createdAt, id: "p1", lead: short, leadId: "lead_1" });
+    const calls = fakeFrappe(() => ({ name: "CRM-LEAD-2026-00043" }));
+
+    await service(prisma).send("p1");
+
+    expect(calls.map(step)).toEqual(["POST CRM Lead", "POST FCRM Note"]);
   });
 
   it("waits and retries after a server error", async () => {

@@ -8,6 +8,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { createLeadRequestSchema } from "@nexa-chess/types";
 import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
+import { FrappeCrmPushService } from "./frappe-crm-push.service";
 import { LeadService } from "./lead.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { SystemNotifier } from "../mail/system-notifier.service";
@@ -25,6 +26,7 @@ describe("LeadService", () => {
   let notifierSend: jest.Mock;
   let adminAlertRecipients: jest.Mock;
   let normalizeRecipient: jest.Mock;
+  let crmPush: { enqueue: jest.Mock; pushLead: jest.Mock };
   let prisma: {
     visitorSession: { findUnique: jest.Mock; update: jest.Mock; create: jest.Mock; count: jest.Mock };
     lead: {
@@ -50,6 +52,7 @@ describe("LeadService", () => {
     notifierSend = jest.fn().mockResolvedValue(undefined);
     adminAlertRecipients = jest.fn().mockResolvedValue([{ email: "admins@nexa.test" }, { phone: "+91 90000 00000", userId: "admin-1" }]);
     normalizeRecipient = jest.fn((phone: string) => phone);
+    crmPush = { enqueue: jest.fn().mockResolvedValue(false), pushLead: jest.fn().mockResolvedValue(undefined) };
 
     prisma = {
       visitorSession: {
@@ -95,7 +98,8 @@ describe("LeadService", () => {
           lastName: "Min"
         })
       },
-      $transaction: jest.fn()
+      // A callback runs against the same fake; an array of operations is awaited.
+      $transaction: jest.fn((work: unknown) => (typeof work === "function" ? work(prisma) : Promise.all(work as Promise<unknown>[])))
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -103,6 +107,7 @@ describe("LeadService", () => {
         LeadService,
         DemoInviteService,
         NOOP_REFERRAL_TRACKER,
+        { provide: FrappeCrmPushService, useValue: crmPush },
         { provide: JwtService, useValue: jwtService },
         { provide: PrismaService, useValue: prisma },
         RECORDING_TRASH,
@@ -261,6 +266,25 @@ describe("LeadService", () => {
       adminAlertRecipients.mockRejectedValue(new Error("database is down"));
 
       await expect(service.createLead(requestBody, { sessionId: undefined })).resolves.toBeDefined();
+    });
+
+    it("queues the Frappe CRM copy with the lead, and sends it after", async () => {
+      prisma.lead.create.mockResolvedValue({
+        id: "lead-4",
+        ...requestBody,
+        phone: "9876543210",
+        source: "Organic",
+        campaign: null,
+        lastActivityAt: null,
+        convertedAt: null,
+        createdAt: new Date()
+      });
+
+      await service.createLead(requestBody, { sessionId: undefined });
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(crmPush.enqueue).toHaveBeenCalledWith(prisma, "lead-4");
+      expect(crmPush.pushLead).toHaveBeenCalledWith("lead-4");
     });
   });
 

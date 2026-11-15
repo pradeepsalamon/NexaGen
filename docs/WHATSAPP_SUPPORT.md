@@ -165,21 +165,49 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   the stored file, then the row. Stored bytes count toward the academy's
   document storage in usage history. A contact's export shows the "[Image]" /
   "[PDF: …]" lines, not the files themselves.
-- *Frappe CRM* (Phase C, D6): a **new** lead the bot makes in Nexa's own
-  academy is also copied to Frappe CRM (`crm.nexachess.in`), one way.
-  `FrappeCrmPushService` writes a `crm_lead_pushes` row in the lead's
-  transaction, sends it after commit (`POST /api/resource/CRM Lead`: parent's
-  name, `+<country>` mobile, `FRAPPE_CRM_LEAD_SOURCE`/`_STATUS`; then an
-  `FCRM Note` with the child's name, age, level and the NexaGen lead id), and a
+- *Frappe CRM* (Phase C, D6; website leads and the number match added
+  2026-11-15 on the owner's "Frappe is the sales desk"): a **new** lead in
+  Nexa's own academy, from the bot **or the website's demo form**
+  (`LeadService.createLead`), is also copied to Frappe CRM
+  (`crm.nexachess.in`), one way. `FrappeCrmPushService` writes a
+  `crm_lead_pushes` row in the lead's transaction and sends it after commit; a
   per-minute sweep (`JOB_LOCKS.crmLeadPush`) retries after 1 m, 5 m, 30 m, 2 h,
-  12 h. A retry first looks the number up in Frappe, so a lost answer doesn't
-  make a twin. Frappe refusing the document (400/404/409/417/422, e.g. a
-  source or status name that doesn't exist there) fails at once. Either way
-  the lead's timeline says "Sent to Frappe CRM" (with the Frappe name) or
-  "Not sent to Frappe CRM" (with the reason). A repeat booking from the same
-  number only adds to the NexaGen lead; nothing is sent again, and nothing
-  comes back from Frappe. Off unless `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY`
-  and `FRAPPE_CRM_API_SECRET` are set; other academies never push.
+  12 h.
+  - *What is sent*: `POST /api/resource/CRM Lead` with the parent's name,
+    `+<country>` mobile, the child's name (`student_name`, a custom field on
+    crm.nexachess.in; ignored where it doesn't exist), `FRAPPE_CRM_LEAD_STATUS`
+    and the source: `FRAPPE_CRM_LEAD_SOURCE` for a WhatsApp lead,
+    `FRAPPE_CRM_WEBSITE_LEAD_SOURCE` ("Website Form") for a form lead. Then an
+    `FCRM Note` with the child's name, age and level, the parent's email, where
+    a form lead came from (UTM source / referrer, campaign) and the NexaGen
+    lead id. The email goes on the note only, never the lead's `email` field
+    (Frappe looks that field up with outside services).
+  - *Same number, no twin*: before creating, the push asks Frappe for the
+    newest lead of the last 90 days (`CRM_SAME_NUMBER_DAYS`) whose `mobile_no`
+    ends in the same ten digits: an ad-form lead, the other channel, a lead the
+    sales team typed in, or an earlier attempt whose answer was lost. If there
+    is one, only the note is added to it (never twice: a retry looks for the
+    note's "NexaGen lead: <id>" line first) and the NexaGen timeline says
+    "Added to a Frappe CRM lead". Known limits: a number Frappe stores with
+    spaces or dashes inside isn't matched, and the match ignores the Frappe
+    lead's status (a note can land on a lead marked lost).
+  - *Failures*: Frappe refusing the document (400/404/409/417/422, e.g. a
+    source or status name that doesn't exist there) fails at once. Either way
+    the lead's timeline says "Sent to Frappe CRM" (with the Frappe name) or
+    "Not sent to Frappe CRM" (with the reason). A repeat WhatsApp booking from
+    the same number only adds to the NexaGen lead; nothing is sent again, and
+    nothing comes back from Frappe.
+  - Off unless `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY` and
+    `FRAPPE_CRM_API_SECRET` are set; other academies never push. The key
+    belongs to the Frappe user `nexagen-push@nexachess.in` (made 2026-11-15;
+    roles Sales User + **Sales Manager**: Frappe CRM shows a plain Sales User
+    only the leads they own or are assigned, so the number match would find
+    nothing). Set on staging, **not yet on production** (it gets them with the
+    dev → main release). Staging and production share the one CRM, so a
+    demo-form test on dev.nexachess.in makes a real Frappe lead.
+  - *Who sees a copied lead in Frappe*: it arrives with no lead owner, so
+    Sales Managers see it and a plain Sales User doesn't until someone assigns
+    it (or an Assignment Rule for CRM Lead does; none exists yet).
 - *Who has the conversation* (Phase C, plan §5.2): every status change
   (`BOT` / `WAITING_AGENT` / `AGENT` / `CLOSED`) writes a
   `support_conversation_events` row in the same transaction: from, to, reason
@@ -293,7 +321,7 @@ version 2).** Owner's priority: answer leads at once and follow up quickly.
   still starts the booking.
 
 **Not built / known gaps.** Account answers are only "next class"; no
-AI (Phase 4). The Frappe push covers WhatsApp leads only. A contact's export and erasure are
+AI (Phase 4). The Frappe push is one way (a status changed in Frappe never reaches NexaGen). A contact's export and erasure are
 staff actions on the ticket page, not self-service: a phone number is not proof
 of identity (§9), so staff confirm who is asking first. No nginx IP limit on the webhook yet.
 

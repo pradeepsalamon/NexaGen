@@ -186,6 +186,8 @@ const apiEnvSchema = z.object({
   FRAPPE_CRM_API_SECRET: z.string().optional(),
   /** A `CRM Lead Source` name that exists in Frappe. */
   FRAPPE_CRM_LEAD_SOURCE: z.string().default("Direct WhatsApp"),
+  /** The `CRM Lead Source` of a lead from the website's demo form. */
+  FRAPPE_CRM_WEBSITE_LEAD_SOURCE: z.string().default("Website Form"),
   /** A `CRM Lead Status` name that exists in Frappe. */
   FRAPPE_CRM_LEAD_STATUS: z.string().default("New Inquiry"),
   // Nexa's WhatsApp Business Account id: reads template status (other academies save theirs under Branding).

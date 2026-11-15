@@ -6,6 +6,7 @@ import type { Lead } from "@prisma/client";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { currentTenantId, runInTenant } from "../tenancy/tenant-context";
+import { WHATSAPP_LEAD_REUSE_DAYS, WHATSAPP_LEAD_SOURCE } from "./lead-constants";
 
 /** Waits before each retry; after the last one the push is FAILED. */
 export const CRM_PUSH_BACKOFF_MS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 12 * 60 * 60_000];
@@ -13,6 +14,10 @@ export const CRM_PUSH_MAX_ATTEMPTS = CRM_PUSH_BACKOFF_MS.length + 1;
 const CLAIM_LEASE_MS = 2 * 60_000;
 const SWEEP_BATCH = 20;
 const TIMEOUT_MS = 15_000;
+/** A Frappe lead with the same number made within this many days gets a note instead of a twin. */
+export const CRM_SAME_NUMBER_DAYS = WHATSAPP_LEAD_REUSE_DAYS;
+/** Fewer digits than this is not a number worth matching on. */
+const MIN_MATCH_DIGITS = 7;
 
 export type FrappeCrmConfig = {
   apiKey: string;
@@ -21,9 +26,17 @@ export type FrappeCrmConfig = {
   leadSource: string;
   leadStatus: string;
   url: string;
+  websiteLeadSource: string;
 };
 
-type PushLead = Pick<Lead, "createdAt" | "experienceLevel" | "id" | "parentName" | "phone" | "studentAge" | "studentName">;
+type PushLead = Pick<
+  Lead,
+  "campaign" | "createdAt" | "email" | "experienceLevel" | "id" | "parentName" | "phone" | "source" | "studentAge" | "studentName"
+>;
+
+function fromWhatsApp(lead: Pick<Lead, "source">): boolean {
+  return lead.source === WHATSAPP_LEAD_SOURCE;
+}
 
 /** A Frappe answer that retrying can't fix (bad data, missing source/status). */
 export class FrappeCrmRejectedError extends Error {}
@@ -39,39 +52,68 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 }
 
-/** The `CRM Lead` document (fields checked against Frappe CRM v16 on crm.nexachess.in, 2026-11-14). */
-export function frappeLeadDocument(lead: PushLead, config: FrappeCrmConfig) {
-  return {
-    first_name: lead.parentName.trim().slice(0, 140) || "WhatsApp lead",
-    mobile_no: frappePhone(lead.phone, config.countryCode),
-    source: config.leadSource,
-    status: config.leadStatus
-  };
-}
-
-/** The `FCRM Note` on that lead: who the child is (Frappe's Lead has no field for it). HTML, escaped. */
-export function frappeLeadNote(lead: PushLead): { content: string; title: string } {
-  const lines = [
-    `Student: ${lead.studentName} (age ${lead.studentAge}, ${lead.experienceLevel})`,
-    `Parent: ${lead.parentName}`,
-    "Booked a demo through the WhatsApp assistant.",
-    `NexaGen lead: ${lead.id}`
-  ];
-  return { content: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join(""), title: "From NexaGen (WhatsApp)" };
-}
-
-/** Frappe's filter datetime ("YYYY-MM-DD HH:mm:ss"); a day early so its site time zone can't hide the lead. */
-function frappeSince(date: Date): string {
-  return new Date(date.getTime() - 24 * 60 * 60_000).toISOString().slice(0, 19).replace("T", " ");
+/** The last ten digits of a number: how the same family is recognised whatever the country-code spelling. */
+export function phoneTail(phone: string): string {
+  return phone.replace(/\D/g, "").slice(-10);
 }
 
 /**
- * One-way copy of WhatsApp leads into Frappe CRM, the sales team's CRM, for
- * Nexa's own academy only (plan D6; docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM").
- * NexaGen's `Lead` stays the record: demo booking and the inbox need it.
- * A `CrmLeadPush` row is written in the lead's transaction, sent after commit,
- * and retried by a sweep; nothing comes back from Frappe. Off unless
- * FRAPPE_CRM_URL, FRAPPE_CRM_API_KEY and FRAPPE_CRM_API_SECRET are set.
+ * The `CRM Lead` document (fields checked against Frappe CRM v16 on crm.nexachess.in, 2026-11-15).
+ * `student_name` is a custom field there; a Frappe site without it ignores the key. The parent's
+ * email is left to the note: Frappe looks an `email` up with outside services.
+ */
+export function frappeLeadDocument(lead: PushLead, config: FrappeCrmConfig) {
+  const whatsapp = fromWhatsApp(lead);
+  return {
+    first_name: lead.parentName.trim().slice(0, 140) || (whatsapp ? "WhatsApp lead" : "Website lead"),
+    mobile_no: frappePhone(lead.phone, config.countryCode),
+    source: whatsapp ? config.leadSource : config.websiteLeadSource,
+    status: config.leadStatus,
+    student_name: lead.studentName.trim().slice(0, 140)
+  };
+}
+
+/** The line every note ends with; also how a retry knows its note is already there. */
+export function frappeNoteMarker(leadId: string): string {
+  return `NexaGen lead: ${leadId}`;
+}
+
+/** The `FCRM Note` on that lead: the child's age and level, and where the booking came from. HTML, escaped. */
+export function frappeLeadNote(lead: PushLead): { content: string; title: string } {
+  const whatsapp = fromWhatsApp(lead);
+  const cameFrom = !whatsapp && lead.source ? `Came from: ${lead.source.slice(0, 200)}${lead.campaign ? ` (campaign ${lead.campaign.slice(0, 100)})` : ""}` : null;
+  const lines = [
+    `Student: ${lead.studentName} (age ${lead.studentAge}, ${lead.experienceLevel})`,
+    `Parent: ${lead.parentName}`,
+    lead.email ? `Email: ${lead.email}` : null,
+    whatsapp ? "Booked a demo through the WhatsApp assistant." : "Booked a demo through the website form.",
+    cameFrom,
+    frappeNoteMarker(lead.id)
+  ].filter((line): line is string => line !== null);
+  return {
+    content: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join(""),
+    title: whatsapp ? "From NexaGen (WhatsApp)" : "From NexaGen (website form)"
+  };
+}
+
+/** Frappe's filter datetime ("YYYY-MM-DD HH:mm:ss"). */
+function frappeDateTime(date: Date): string {
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+function resourceQuery(fields: string[], filters: unknown[], extra = ""): string {
+  return `?fields=${encodeURIComponent(JSON.stringify(fields))}&filters=${encodeURIComponent(JSON.stringify(filters))}${extra}&limit_page_length=1`;
+}
+
+/**
+ * One-way copy of new leads (the WhatsApp assistant's and the website form's)
+ * into Frappe CRM, the sales team's CRM, for Nexa's own academy only (plan D6;
+ * docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM"). NexaGen's `Lead` stays the record:
+ * demo booking and the inbox need it. A `CrmLeadPush` row is written in the
+ * lead's transaction, sent after commit, and retried by a sweep; nothing comes
+ * back from Frappe. A number Frappe already has a recent lead for gets a note
+ * on that lead instead of a twin. Off unless FRAPPE_CRM_URL, FRAPPE_CRM_API_KEY
+ * and FRAPPE_CRM_API_SECRET are set.
  */
 @Injectable()
 export class FrappeCrmPushService {
@@ -100,7 +142,8 @@ export class FrappeCrmPushService {
       countryCode: env.WHATSAPP_DEFAULT_COUNTRY_CODE ?? "",
       leadSource: env.FRAPPE_CRM_LEAD_SOURCE,
       leadStatus: env.FRAPPE_CRM_LEAD_STATUS,
-      url
+      url,
+      websiteLeadSource: env.FRAPPE_CRM_WEBSITE_LEAD_SOURCE
     };
   }
 
@@ -156,12 +199,32 @@ export class FrappeCrmPushService {
     if (!row) return;
 
     try {
-      // An earlier attempt may have reached Frappe without us hearing back.
-      const name = (row.attempts > 1 ? await this.findExisting(config, row.lead, row.createdAt) : null) ?? (await this.create(config, row.lead));
+      // Frappe may already have this family: from an ad form, the other channel, a lead the sales
+      // team typed in, or an earlier attempt of this push whose answer was lost.
+      const existing = await this.findSameNumber(config, row.lead, now);
+      const name = existing ?? (await this.create(config, row.lead));
+      if (existing) {
+        // Here the note is the whole copy, so it must arrive (a retry never adds it twice).
+        if (!(await this.hasNote(config, existing, row.lead))) await this.addNote(config, existing, row.lead);
+      } else {
+        // The child's age and level ride on a note; a lead without it is still a lead.
+        try {
+          await this.addNote(config, name, row.lead);
+        } catch (error) {
+          this.logger.warn(`Frappe CRM note for ${name} not added: ${(error as Error).message}`);
+        }
+      }
       await this.prisma.$transaction([
         this.prisma.crmLeadPush.update({ data: { claimedAt: null, error: null, externalId: name, sentAt: new Date(), status: "SENT" }, where: { id } }),
         this.prisma.leadActivity.create({
-          data: { activityType: "CRM_PUSHED", description: `Frappe CRM lead ${name}.`, leadId: row.leadId, title: "Sent to Frappe CRM" }
+          data: existing
+            ? {
+                activityType: "CRM_PUSHED",
+                description: `Frappe CRM already had lead ${name} for this number; a note was added there.`,
+                leadId: row.leadId,
+                title: "Added to a Frappe CRM lead"
+              }
+            : { activityType: "CRM_PUSHED", description: `Frappe CRM lead ${name}.`, leadId: row.leadId, title: "Sent to Frappe CRM" }
         })
       ]);
     } catch (error) {
@@ -209,24 +272,36 @@ export class FrappeCrmPushService {
     const created = (await this.request(config, "POST", "/api/resource/CRM%20Lead", frappeLeadDocument(lead, config))) as { data?: { name?: unknown } };
     const name = created?.data?.name;
     if (typeof name !== "string" || !name) throw new Error("Frappe didn't return the new lead's name.");
-    // The child's details ride on a note; a lead without it is still a lead.
-    try {
-      await this.request(config, "POST", "/api/resource/FCRM%20Note", { ...frappeLeadNote(lead), reference_docname: name, reference_doctype: "CRM Lead" });
-    } catch (error) {
-      this.logger.warn(`Frappe CRM note for ${name} not added: ${(error as Error).message}`);
-    }
     return name;
   }
 
-  private async findExisting(config: FrappeCrmConfig, lead: PushLead, since: Date): Promise<string | null> {
-    const filters = JSON.stringify([
-      ["mobile_no", "=", frappePhone(lead.phone, config.countryCode)],
-      ["creation", ">=", frappeSince(since)]
-    ]);
+  private async addNote(config: FrappeCrmConfig, name: string, lead: PushLead): Promise<void> {
+    await this.request(config, "POST", "/api/resource/FCRM%20Note", { ...frappeLeadNote(lead), reference_docname: name, reference_doctype: "CRM Lead" });
+  }
+
+  private async hasNote(config: FrappeCrmConfig, name: string, lead: PushLead): Promise<boolean> {
+    const filters = [
+      ["reference_doctype", "=", "CRM Lead"],
+      ["reference_docname", "=", name],
+      ["content", "like", `%${frappeNoteMarker(lead.id)}%`]
+    ];
+    const found = (await this.request(config, "GET", `/api/resource/FCRM%20Note${resourceQuery(["name"], filters)}`)) as { data?: unknown[] };
+    return Array.isArray(found?.data) && found.data.length > 0;
+  }
+
+  /** The newest Frappe lead of the last CRM_SAME_NUMBER_DAYS days whose mobile number ends in the same ten digits. */
+  private async findSameNumber(config: FrappeCrmConfig, lead: PushLead, now: Date): Promise<string | null> {
+    const tail = phoneTail(lead.phone);
+    if (tail.length < MIN_MATCH_DIGITS) return null;
+    const since = new Date(now.getTime() - CRM_SAME_NUMBER_DAYS * 24 * 60 * 60_000);
+    const filters = [
+      ["mobile_no", "like", `%${tail}`],
+      ["creation", ">=", frappeDateTime(since)]
+    ];
     const found = (await this.request(
       config,
       "GET",
-      `/api/resource/CRM%20Lead?fields=${encodeURIComponent('["name"]')}&filters=${encodeURIComponent(filters)}&limit_page_length=1`
+      `/api/resource/CRM%20Lead${resourceQuery(["name"], filters, `&order_by=${encodeURIComponent("creation desc")}`)}`
     )) as { data?: { name?: unknown }[] };
     const name = found?.data?.[0]?.name;
     return typeof name === "string" && name ? name : null;

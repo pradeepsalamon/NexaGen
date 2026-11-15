@@ -632,13 +632,16 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
         countryCode: "91",
         leadSource: "Direct WhatsApp",
         leadStatus: "New Inquiry",
-        url: "https://crm.int.test"
+        url: "https://crm.int.test",
+        websiteLeadSource: "Website Form"
       });
       const crmCalls: { body: Record<string, unknown>; url: string }[] = [];
       const stub = global.fetch;
       global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         if (!url.startsWith("https://crm.int.test/")) return stub(input, init);
+        // The look-up for a lead with the same number: Frappe has none.
+        if (init?.method === "GET") return new Response(JSON.stringify({ data: [] }), { status: 200 });
         crmCalls.push({ body: JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>, url });
         return new Response(JSON.stringify({ data: { name: url.includes("CRM%20Lead") ? "CRM-LEAD-2026-00001" : "n1" } }), { status: 200 });
       }) as typeof fetch;

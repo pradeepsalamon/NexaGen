@@ -289,6 +289,7 @@ services:
       FRAPPE_CRM_API_KEY: ${FRAPPE_CRM_API_KEY:-}
       FRAPPE_CRM_API_SECRET: ${FRAPPE_CRM_API_SECRET:-}
       FRAPPE_CRM_LEAD_SOURCE: ${FRAPPE_CRM_LEAD_SOURCE:-Direct WhatsApp}
+      FRAPPE_CRM_WEBSITE_LEAD_SOURCE: ${FRAPPE_CRM_WEBSITE_LEAD_SOURCE:-Website Form}
       FRAPPE_CRM_LEAD_STATUS: ${FRAPPE_CRM_LEAD_STATUS:-New Inquiry}
 
       # Admin analytics thresholds/cache — see CLAUDE.md's analytics debug row.
