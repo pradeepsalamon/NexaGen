@@ -2,7 +2,8 @@
 
 import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";

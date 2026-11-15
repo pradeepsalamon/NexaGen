@@ -4,6 +4,10 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import {
+  supportDemoSummary,
+  type SupportDemoRequest
+} from "@nexa-chess/types";
 import type {
   AssignLeadDemoClassRequest,
   CreateLeadNoteRequest,
@@ -20,7 +24,8 @@ import {
   LeadStatus,
   Prisma,
   User,
-  UserRole
+  UserRole,
+  type Lead
 } from "@prisma/client";
 import {
   paginationMeta,
@@ -29,9 +34,11 @@ import {
 } from "../common/pagination";
 import { DemoInviteService } from "../demo-class/demo-invite.service";
 import { SystemNotifier } from "../mail/system-notifier.service";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { FrappeCrmPushService } from "./frappe-crm-push.service";
+import { WHATSAPP_LEAD_REUSE_DAYS, WHATSAPP_LEAD_SOURCE } from "./lead-constants";
 import { parseUserAgent, parseVisitAttribution } from "./lead-tracking.util";
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum } from "../common/query-params";
@@ -66,7 +73,8 @@ export class LeadService {
     private readonly demoInvites: DemoInviteService,
     private readonly referrals: ReferralTrackerService,
     private readonly notifier: SystemNotifier,
-    private readonly trash: TrashRepository
+    private readonly trash: TrashRepository,
+    private readonly crmPush: FrappeCrmPushService
   ) {}
 
   // ── Public ──
@@ -92,25 +100,30 @@ export class LeadService {
     const source = visitorSession?.utmSource || visitorSession?.referrer || "Organic";
     const campaign = visitorSession?.utmCampaign ?? null;
 
-    const lead = await this.prisma.lead.create({
-      data: {
-        studentName: body.studentName,
-        parentName: body.parentName,
-        studentAge: body.studentAge,
-        experienceLevel: body.experienceLevel,
-        phone,
-        email: body.email || null,
-        source,
-        campaign,
-        visitorSessionId: visitorSession?.id ?? null,
-        activities: {
-          create: {
-            activityType: "LEAD_REGISTERED",
-            title: "Lead registered",
-            description: "Submitted the demo booking form on the academy site."
+    // The Frappe CRM copy is queued with the lead, so a lead is never left uncopied.
+    const lead = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.lead.create({
+        data: {
+          studentName: body.studentName,
+          parentName: body.parentName,
+          studentAge: body.studentAge,
+          experienceLevel: body.experienceLevel,
+          phone,
+          email: body.email || null,
+          source,
+          campaign,
+          visitorSessionId: visitorSession?.id ?? null,
+          activities: {
+            create: {
+              activityType: "LEAD_REGISTERED",
+              title: "Lead registered",
+              description: "Submitted the demo booking form on the academy site."
+            }
           }
         }
-      }
+      });
+      await this.crmPush.enqueue(tx, created.id);
+      return created;
     });
 
     // Referral attribution (cookie from a `/r/<code>` visit, else the code the
@@ -126,8 +139,71 @@ export class LeadService {
 
     // Fire-and-forget (the notifier never throws): staff hear of the booking — ADMIN_EMAILS by
     // email, the academy's admins by WhatsApp / in-app — and the parent gets a confirmation.
-    void this.notifier.adminAlertRecipients().then((recipients) =>
-      this.notifier.send("NEW_LEAD_ADMIN", recipients, {
+    void this.announceNewLead(lead);
+    void this.crmPush.pushLead(lead.id);
+    void this.notifier.send(
+      "DEMO_BOOKING",
+      { email: lead.email, phone: lead.phone },
+      { "lead.parentName": lead.parentName, "lead.studentName": lead.studentName }
+    );
+
+    return { lead: this.toLeadListItem(lead) };
+  }
+
+  /**
+   * A free demo booked through the WhatsApp assistant (support bot). Runs
+   * inside the bot's transaction. A lead with the same number from the last
+   * WHATSAPP_LEAD_REUSE_DAYS days (not lost, not yet a student) gets an
+   * activity instead of a twin. Call `announceNewLead` after commit when
+   * `created`; the bot itself confirms to the parent, so no DEMO_BOOKING.
+   */
+  async upsertFromWhatsApp(
+    tx: PrismaTransactionClient,
+    input: SupportDemoRequest & { phone: string; now: Date }
+  ): Promise<{ lead: Lead; created: boolean }> {
+    const description = [
+      supportDemoSummary(input),
+      "Booked through the WhatsApp assistant."
+    ].join("\n");
+    const phoneTail = input.phone.slice(-10);
+    const since = new Date(input.now.getTime() - WHATSAPP_LEAD_REUSE_DAYS * 24 * 60 * 60 * 1000);
+    const existing = await tx.lead.findFirst({
+      orderBy: { createdAt: "desc" },
+      where: {
+        createdAt: { gte: since },
+        phone: { endsWith: phoneTail },
+        status: { notIn: [...CONVERTING_STATUSES, LeadStatus.LOST] }
+      }
+    });
+    if (existing) {
+      await tx.leadActivity.create({
+        data: { activityType: "WHATSAPP_DEMO_REQUEST", description, leadId: existing.id, title: "Asked for a demo again on WhatsApp" }
+      });
+      const lead = await tx.lead.update({ data: { lastActivityAt: input.now }, where: { id: existing.id } });
+      return { created: false, lead };
+    }
+    const lead = await tx.lead.create({
+      data: {
+        activities: {
+          create: { activityType: "LEAD_REGISTERED", description, title: "Lead registered" }
+        },
+        experienceLevel: input.level,
+        lastActivityAt: input.now,
+        parentName: input.parentName,
+        phone: input.phone,
+        source: WHATSAPP_LEAD_SOURCE,
+        studentAge: input.studentAge,
+        studentName: input.studentName
+      }
+    });
+    return { created: true, lead };
+  }
+
+  /** Tells staff about a new lead (NEW_LEAD_ADMIN). Never throws. */
+  async announceNewLead(lead: Pick<Lead, "campaign" | "email" | "experienceLevel" | "id" | "parentName" | "phone" | "source" | "studentAge" | "studentName">): Promise<void> {
+    try {
+      const recipients = await this.notifier.adminAlertRecipients();
+      await this.notifier.send("NEW_LEAD_ADMIN", recipients, {
         "lead.campaign": lead.campaign ?? "-",
         "lead.email": lead.email ?? "-",
         "lead.experience": lead.experienceLevel,
@@ -136,15 +212,10 @@ export class LeadService {
         "lead.source": lead.source ?? "Unknown",
         "lead.studentAge": String(lead.studentAge),
         "lead.studentName": lead.studentName
-      }, { dedupeKey: lead.id })
-    ).catch(() => undefined);
-    void this.notifier.send(
-      "DEMO_BOOKING",
-      { email: lead.email, phone: lead.phone },
-      { "lead.parentName": lead.parentName, "lead.studentName": lead.studentName }
-    );
-
-    return { lead: this.toLeadListItem(lead) };
+      }, { dedupeKey: lead.id });
+    } catch {
+      // The notifier logs its own failures; a lead is never lost over an alert.
+    }
   }
 
   /**
@@ -249,7 +320,8 @@ export class LeadService {
         visitorSession: true,
         assignedClass: { include: { coach: true } },
         activities: { orderBy: { createdAt: "desc" }, include: { createdBy: true } },
-        notes: { orderBy: { createdAt: "desc" }, include: { createdBy: true } }
+        notes: { orderBy: { createdAt: "desc" }, include: { createdBy: true } },
+        supportTickets: { orderBy: { createdAt: "desc" }, select: { id: true, reference: true }, take: 1 }
       }
     });
 
@@ -302,7 +374,8 @@ export class LeadService {
             ? `${note.createdBy.firstName} ${note.createdBy.lastName || ""}`.trim()
             : null,
           createdAt: note.createdAt.toISOString()
-        }))
+        })),
+        whatsappTicket: lead.supportTickets[0] ?? null
       }
     };
   }

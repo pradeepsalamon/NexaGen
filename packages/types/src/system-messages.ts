@@ -22,6 +22,8 @@ export const systemMessageKeySchema = z.enum([
   "DEMO_REGISTRATION",
   "DEMO_INVITATION",
   "NEW_LEAD_ADMIN",
+  "SUPPORT_TICKET_ADMIN",
+  "SUPPORT_REPLY_REMINDER_ADMIN",
   "ACCOUNT_DELETION_REQUESTED_ADMIN",
   "TENANT_INTEGRITY_ALERT",
   "TOURNAMENT_REGISTERED",
@@ -484,7 +486,7 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
     key: "NEW_LEAD_ADMIN",
     group: "ADMIN",
     label: "New demo booking",
-    description: "Sent when someone books a demo on the academy site.",
+    description: "Sent when someone books a demo on the academy site or through the WhatsApp assistant (source WhatsApp).",
     sentTo: "Email: the addresses in ADMIN_EMAILS. WhatsApp and in-app: the academy's admins and super admins",
     channels: ALL_CHANNELS,
     defaultChannels: ["EMAIL", "IN_APP"],
@@ -502,8 +504,62 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
     ],
     defaults: {
       subject: "New demo booking: {{lead.studentName}}",
-      body: "A new demo class inquiry came in from the academy site.\n\nStudent: {{lead.studentName}} (age {{lead.studentAge}})\nParent: {{lead.parentName}}\nExperience: {{lead.experience}}\nPhone: {{lead.phone}}\nEmail: {{lead.email}}\nSource: {{lead.source}}\nCampaign: {{lead.campaign}}",
+      body: "A new demo class inquiry came in.\n\nStudent: {{lead.studentName}} (age {{lead.studentAge}})\nParent: {{lead.parentName}}\nExperience: {{lead.experience}}\nPhone: {{lead.phone}}\nEmail: {{lead.email}}\nSource: {{lead.source}}\nCampaign: {{lead.campaign}}",
       actionLabel: null,
+      whatsappBody: null
+    }
+  },
+  SUPPORT_TICKET_ADMIN: {
+    key: "SUPPORT_TICKET_ADMIN",
+    group: "ADMIN",
+    label: "New WhatsApp support request",
+    description:
+      "Sent when the WhatsApp support bot creates a ticket: a customer finished a request or asked to talk to the team.",
+    sentTo: "Email: the addresses in ADMIN_EMAILS. WhatsApp and in-app: the academy's admins and super admins",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    variables: [
+      "academy.name",
+      "support.reference",
+      "support.category",
+      "support.contactName",
+      "support.studentName",
+      "support.summary",
+      "links.supportTicket"
+    ],
+    requiredVariables: ["support.reference"],
+    actionVariable: "links.supportTicket",
+    defaults: {
+      subject: "WhatsApp support {{support.reference}}: {{support.category}}",
+      body: "A new WhatsApp support request came in.\n\nReference: {{support.reference}}\nRequest: {{support.category}}\nFrom: {{support.contactName}}\nStudent: {{support.studentName}}\n\n{{support.summary}}",
+      actionLabel: "Open the ticket",
+      whatsappBody: null
+    }
+  },
+  SUPPORT_REPLY_REMINDER_ADMIN: {
+    key: "SUPPORT_REPLY_REMINDER_ADMIN",
+    group: "ADMIN",
+    label: "WhatsApp request still waiting",
+    description:
+      "Sent when nobody has replied to a WhatsApp support request (a demo booking, a question for the team…): once after SUPPORT_STAFF_REMINDER_MINUTES, and again about 2 hours before WhatsApp's 24-hour reply window closes.",
+    sentTo: "Email: the addresses in ADMIN_EMAILS. WhatsApp and in-app: the academy's admins and super admins",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    variables: [
+      "academy.name",
+      "support.reference",
+      "support.category",
+      "support.contactName",
+      "support.studentName",
+      "support.reason",
+      "links.supportTicket"
+    ],
+    requiredVariables: ["support.reference"],
+    actionVariable: "links.supportTicket",
+    defaults: {
+      subject: "Waiting for a reply: {{support.reference}} ({{support.category}})",
+      body: "{{support.reason}}\n\nReference: {{support.reference}}\nRequest: {{support.category}}\nFrom: {{support.contactName}}\nStudent: {{support.studentName}}",
+      actionLabel: "Reply now",
       whatsappBody: null
     }
   },

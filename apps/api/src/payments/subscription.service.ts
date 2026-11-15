@@ -2,7 +2,8 @@ import {
   ConflictException,
   Injectable,
   Logger,
-  NotFoundException
+  NotFoundException,
+  Optional
 } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
@@ -22,6 +23,7 @@ import {
 } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { AcademyLinksService } from "../tenancy/academy-links.service";
 import { assertOwnerOrAdmin, fullName } from "./payments-auth.helper";
 import { addMonths, normalizePhone } from "./payments.util";
 import type { WebhookResult } from "./providers/payment-provider.interface";
@@ -55,7 +57,8 @@ export class SubscriptionService {
   constructor(
     private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
-    private readonly registry: ProviderRegistry
+    private readonly registry: ProviderRegistry,
+    @Optional() private readonly links?: AcademyLinksService
   ) {}
 
   /**
@@ -137,7 +140,7 @@ export class SubscriptionService {
             this.env.WHATSAPP_DEFAULT_COUNTRY_CODE
           )
         },
-        returnUrl: `${getFrontendUrl(this.env)}/student/billing?subscription=${subscription.id}`,
+        returnUrl: `${this.links ? await this.links.origin() : getFrontendUrl(this.env)}/student/billing?subscription=${subscription.id}`,
         notes: { planId: plan.id, userId: user.id }
       });
 

@@ -145,20 +145,23 @@ export class TenantUsageService {
 
   /** Bytes the academy holds right now. Every query is scoped to the current academy by the Prisma extension. */
   private async measureStorage(): Promise<StorageCounts> {
-    const [recordings, invoices, creditNotes, payslips, attachments, uploads] = await Promise.all([
+    const [recordings, invoices, creditNotes, payslips, attachments, uploads, supportFiles] = await Promise.all([
       this.prisma.liveSession.aggregate({ _sum: { recordingBytes: true }, where: { recordingUrl: { not: null } } }),
       this.prisma.invoice.aggregate({ _sum: { pdfBytes: true } }),
       this.prisma.creditNote.aggregate({ _sum: { pdfBytes: true } }),
       this.prisma.payslip.aggregate({ _sum: { pdfBytes: true } }),
       this.prisma.manualPaymentRecord.aggregate({ _sum: { attachmentSizeBytes: true } }),
-      this.prisma.uploadedFile.aggregate({ _sum: { bytes: true } })
+      this.prisma.uploadedFile.aggregate({ _sum: { bytes: true } }),
+      // Images and PDFs customers sent on WhatsApp (docs/WHATSAPP_SUPPORT.md §0).
+      this.prisma.supportAttachment.aggregate({ _sum: { bytes: true }, where: { status: "STORED" } })
     ]);
     const recordingBytes = Number(recordings._sum.recordingBytes ?? 0);
     const documentBytes =
       (invoices._sum.pdfBytes ?? 0) +
       (creditNotes._sum.pdfBytes ?? 0) +
       (payslips._sum.pdfBytes ?? 0) +
-      (attachments._sum.attachmentSizeBytes ?? 0);
+      (attachments._sum.attachmentSizeBytes ?? 0) +
+      (supportFiles._sum.bytes ?? 0);
     const uploadBytes = uploads._sum.bytes ?? 0;
     return { documentBytes, recordingBytes, storageBytes: recordingBytes + documentBytes + uploadBytes, uploadBytes };
   }

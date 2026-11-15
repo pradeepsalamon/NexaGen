@@ -14,6 +14,7 @@ import {
   Database,
   Gem,
   Gift,
+  Headset,
   History,
   Inbox,
   Layers3,
@@ -23,6 +24,7 @@ import {
   LifeBuoy,
   LineChart,
   Mail,
+  MessageCircle,
   MessageSquare,
   MessageSquareHeart,
   MessagesSquare,
@@ -32,6 +34,7 @@ import {
   Puzzle,
   Radio,
   ReceiptText,
+  Scale,
   ScanSearch,
   Settings,
   ShieldCheck,
@@ -76,6 +79,8 @@ export type NavItem = {
   superAdminOnly?: boolean;
   /** Platform console pages: only Nexa's own super admins (`AuthUser.isPlatformOperator`). */
   platformOnly?: boolean;
+  /** Hidden from Nexa's own super admins: the page only has something to do in another academy. */
+  academyOnly?: boolean;
   /** The SaaS plan feature this page belongs to; hidden when the plan lacks it. */
   feature?: PlanFeatureKey;
 };
@@ -152,6 +157,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/referrals", label: "Referrals", icon: Gift, group: "People", feature: "referralProgram" },
   { href: "/admin/email", label: "Email", icon: Mail, group: "People" },
   { href: "/admin/messaging", label: "Messaging rules", icon: MessageSquare, group: "People", feature: "messagingAutomation" },
+  { href: "/admin/support", label: "WhatsApp support", icon: Headset, group: "People", feature: "whatsappSupport" },
   { href: "/messages", label: "Chats", icon: MessagesSquare, group: "People", feature: "directChat" },
   { href: "/admin/feedback", label: "Coach feedback", icon: MessageSquareHeart, group: "People", feature: "coachFeedback" },
   { href: "/admin/privacy", label: "Privacy requests", icon: ShieldCheck, group: "People" },
@@ -179,6 +185,10 @@ export const adminNavItems: NavItem[] = [
   // Platform settings
   { href: "/admin/live-class", label: "Live class settings", icon: SlidersHorizontal, group: "Settings" },
   { href: "/admin/branding", label: "Branding", icon: Paintbrush, group: "Settings", feature: "brandIdentity" },
+  // On every plan: an academy's own privacy policy and terms (Nexa's are part of the app).
+  { href: "/admin/legal-pages", label: "Legal pages", icon: Scale, group: "Settings", academyOnly: true },
+  // On every plan: an academy's own WhatsApp Business number (Nexa uses the server's).
+  { href: "/admin/whatsapp", label: "WhatsApp connection", icon: MessageCircle, group: "Settings", superAdminOnly: true, academyOnly: true },
   { href: "/admin/chess-appearance", label: "Chess appearance", icon: Palette, group: "Settings", feature: "customBranding" },
   { href: "/admin/typography", label: "Fonts & text", icon: Type, group: "Settings", feature: "customBranding" },
   { href: "/admin/game-sync", label: "Game sync", icon: RefreshCw, group: "Settings", feature: "gameAnalysis" },
@@ -208,7 +218,10 @@ export function getAdminNavItems(
   isPlatformOperator = false
 ): NavItem[] {
   const items = adminNavItems.filter(
-    (item) => (role === "SUPER_ADMIN" || !item.superAdminOnly) && (isPlatformOperator || !item.platformOnly)
+    (item) =>
+      (role === "SUPER_ADMIN" || !item.superAdminOnly) &&
+      (isPlatformOperator || !item.platformOnly) &&
+      !(isPlatformOperator && item.academyOnly)
   );
   return filterNavByPlan(items, features);
 }

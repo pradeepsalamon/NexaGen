@@ -87,6 +87,11 @@ describe("MailService", () => {
       WHATSAPP_API_VERSION: "v21.0",
       WHATSAPP_DEFAULT_COUNTRY_CODE: undefined,
       WHATSAPP_TIMEOUT_MS: 10000,
+      SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE: "en",
+      SUPPORT_BOT_ENABLED: false,
+      SUPPORT_LEAD_NUDGE_HOURS: 20,
+      SUPPORT_SESSION_TIMEOUT_MINUTES: 30,
+      SUPPORT_STAFF_REMINDER_MINUTES: 15,
       EXTERNAL_GAME_IMPORT_ENABLED: false,
       AI_ENABLED: false,
       AI_RUNTIME_SHARED_SECRET: undefined,
@@ -108,6 +113,9 @@ describe("MailService", () => {
       PAYMENTS_INVOICE_PREFIX: "NEXA",
       PAYMENTS_TAX_LABEL: "GST",
       CASHFREE_API_VERSION: "2023-08-01",
+      FRAPPE_CRM_LEAD_SOURCE: "Direct WhatsApp",
+      FRAPPE_CRM_LEAD_STATUS: "New Inquiry",
+      FRAPPE_CRM_WEBSITE_LEAD_SOURCE: "Website Form",
       STRIPE_API_VERSION: "2024-06-20",
       ...envMocks
     };
@@ -290,16 +298,38 @@ describe("MailService", () => {
       expect(callArgs.headers).toBeUndefined();
     });
 
-    it("adds the recipient's unsubscribe link as a footer and a List-Unsubscribe header", async () => {
+    it("adds the unsubscribe page as a footer and the RFC 8058 one-click headers", async () => {
       mockSendMail.mockResolvedValue({ messageId: "<abc@smtp>" });
-      const unsubscribeUrl = "https://app.test/unsubscribe?token=abc&x=1";
+      const pageUrl = "https://app.test/unsubscribe?token=abc&x=1";
+      const oneClickUrl = "https://app.test/api/email-preferences/one-click?token=abc";
 
-      await service.sendRuleEmail({ body: "Hi", subject: "Hello", to: "user@example.com", unsubscribeUrl });
+      await service.sendRuleEmail({
+        body: "Hi",
+        subject: "Hello",
+        to: "user@example.com",
+        unsubscribe: { oneClickUrl, pageUrl }
+      });
 
       const callArgs = mockSendMail.mock.calls[0][0];
-      expect(callArgs.headers).toEqual({ "List-Unsubscribe": `<${unsubscribeUrl}>` });
-      expect(callArgs.text).toContain(`Unsubscribe: ${unsubscribeUrl}`);
+      expect(callArgs.headers).toEqual({
+        "List-Unsubscribe": `<${oneClickUrl}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+      });
+      expect(callArgs.text).toContain(`Unsubscribe: ${pageUrl}`);
       expect(callArgs.html).toContain('href="https://app.test/unsubscribe?token=abc&amp;x=1"');
+    });
+
+    it("gives staff-written email the same links", async () => {
+      mockSendMail.mockResolvedValue({ messageId: "<abc@smtp>" });
+      await service.sendDirectEmail({
+        body: "Hi",
+        subject: "Hello",
+        to: "user@example.com",
+        unsubscribe: { oneClickUrl: "https://app.test/api/one", pageUrl: "https://app.test/unsubscribe?token=t" }
+      });
+      const callArgs = mockSendMail.mock.calls[0][0];
+      expect(callArgs.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+      expect(callArgs.text).toContain("Unsubscribe: https://app.test/unsubscribe?token=t");
     });
   });
 

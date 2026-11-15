@@ -3,7 +3,7 @@
 import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { useMutation } from "@tanstack/react-query";
 import {
   LayoutDashboard,

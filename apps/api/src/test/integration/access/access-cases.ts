@@ -202,6 +202,7 @@ export const CROSS_USER: Case[] = [
 ];
 
 export const OWN_CASES: Case[] = [
+  { name: "ADMIN makes a WhatsApp link code for a student", as: (w) => w.admin, method: "POST", path: () => API_ROUTES.adminSupport.linkCodes, body: (w: World) => ({ studentId: w.a.student.id }) },
   { name: "student reads own private tournament", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.get(w.a.tournament.id) },
   { name: "student lists own tournament's players", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.players(w.a.tournament.id) },
   { name: "coach lists host candidates for own tournament", as: (w) => w.a.coach, path: (w) => API_ROUTES.tournaments.hostCandidates(w.a.tournament.id) },
@@ -378,6 +379,9 @@ export const WRONG_ROLE: Case[] = [
   { name: "student imports a game", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.games.import, body: { pgn: "1. e4 *" } },
   { name: "student saves analysis on their own game", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.games.saveAnalysis(w.a.game.id), body: { pgn: "1. e4 e5 *", version: 1 } },
   { name: "student reads the coach assignment overview", as: (w) => w.a.student, path: () => API_ROUTES.assignments.overview },
+  { name: "student makes a WhatsApp link code for themselves (admin only)", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.adminSupport.linkCodes, body: (w: World) => ({ studentId: w.a.student.id }) },
+  { name: "coach makes a WhatsApp link code for their own student (admin only)", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.adminSupport.linkCodes, body: (w: World) => ({ studentId: w.a.student.id }) },
+  { name: "coach removes a student's WhatsApp link (admin only)", as: (w) => w.a.coach, method: "DELETE", path: (w) => API_ROUTES.adminSupport.contactLink("any-contact", w.a.student.id) },
   { name: "coach reads student assignment reminders", as: (w) => w.a.coach, path: () => API_ROUTES.assignments.reminders },
   { name: "coach opens a student's revision queue", as: (w) => w.a.coach, path: () => API_ROUTES.revision.sessionMine },
   { name: "student recommends revision to themselves", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.revision.recommend(w.a.student.id), body: (w: World) => ({ puzzleIds: [w.a.privatePuzzle.id] }) },

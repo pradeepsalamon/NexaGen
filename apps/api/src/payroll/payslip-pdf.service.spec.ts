@@ -42,6 +42,8 @@ describe("PayslipPdfService", () => {
       grossEarningsMinor: 2275000,
       totalDeductionsMinor: 0,
       totalAdjustmentsMinor: 0,
+      tdsMinor: 0,
+      tdsRateBps: null,
       netPayableMinor: 2275000,
       payoutStatus: null,
       paidAt: null,

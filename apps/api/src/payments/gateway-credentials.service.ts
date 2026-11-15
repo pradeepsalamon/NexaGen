@@ -1,10 +1,17 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
+import { Interval } from "@nestjs/schedule";
 import { getApiEnv, type ApiEnv } from "@nexa-chess/config/api";
 import { DEFAULT_TENANT_ID, type TenantGatewayProvider } from "@nexa-chess/types";
 import { randomBytes } from "node:crypto";
 import { decryptSecret, deriveMfaKey, encryptSecret } from "../auth/mfa/mfa-crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { asPlatform, currentTenantId } from "../tenancy/tenant-context";
+
+/** How often every process re-reads all academies' gateway keys. */
+export const CREDENTIALS_RELOAD_MS = 60_000;
+
+type GatewayRow = { provider: string; publicKey: string; secretsEncrypted: string; tenantId: string; updatedAt?: Date };
+type TenantGateways = Map<string, Partial<Record<TenantGatewayProvider, StoredGateway>>>;
 
 type GatewaySecrets = { keySecret: string; webhookSecret: string | null };
 type StoredGateway = GatewaySecrets & { publicKey: string };
@@ -36,6 +43,11 @@ type GatewayEnvKeys = Pick<
  * (from the request's or the job's TenantContext). Secrets are stored
  * AES-256-GCM encrypted and kept decrypted in memory, because the adapters'
  * `isConfigured()` is synchronous.
+ *
+ * Every API process reloads all academies' keys each `CREDENTIALS_RELOAD_MS`
+ * (not a job lock: each process holds its own copy), so a key saved, rotated
+ * or switched off on one process reaches the others within a minute. The
+ * process that saved it also refreshes at once (`refresh`).
  */
 @Injectable()
 export class GatewayCredentialsService implements OnModuleInit {
@@ -45,17 +57,31 @@ export class GatewayCredentialsService implements OnModuleInit {
     const secret = this.env.CREDENTIALS_ENCRYPTION_KEY ?? this.env.MFA_ENCRYPTION_KEY;
     return secret ? deriveMfaKey(`payments:${secret}`) : null;
   })();
-  private readonly byTenant = new Map<string, Partial<Record<TenantGatewayProvider, StoredGateway>>>();
+  private byTenant: TenantGateways = new Map();
   private readonly envCache = new Map<string, ApiEnv>();
+  /** Rows already warned about as undecryptable, so the reload doesn't repeat it every minute. */
+  private readonly warned = new Set<string>();
 
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
+    await this.reloadAll();
+  }
+
+  /**
+   * Re-reads every academy's enabled keys and swaps them in at once, so a
+   * lookup never sees a half-built map. A failed read keeps the keys it had.
+   */
+  @Interval(CREDENTIALS_RELOAD_MS)
+  async reloadAll() {
     try {
       const rows = await asPlatform("payments:credentials-load", () =>
         this.prisma.tenantPaymentCredential.findMany({ where: { enabled: true } })
       );
-      for (const row of rows) this.remember(row);
+      const next: TenantGateways = new Map();
+      for (const row of rows) this.remember(next, row);
+      this.byTenant = next;
+      this.envCache.clear();
     } catch (error) {
       // A missing table (migration not yet applied) must not stop the API.
       this.logger.warn(`Gateway credentials not loaded: ${(error as Error).message}`);
@@ -128,23 +154,28 @@ export class GatewayCredentialsService implements OnModuleInit {
 
   /** Re-reads one academy's rows after its settings change. */
   async refresh(tenantId: string) {
-    this.byTenant.delete(tenantId);
-    this.envCache.delete(tenantId);
     const rows = await asPlatform("payments:credentials-refresh", () =>
       this.prisma.tenantPaymentCredential.findMany({ where: { enabled: true, tenantId } })
     );
-    for (const row of rows) this.remember(row);
+    const next: TenantGateways = new Map(this.byTenant);
+    next.delete(tenantId);
+    for (const row of rows) this.remember(next, row);
+    this.byTenant = next;
+    this.envCache.delete(tenantId);
   }
 
-  private remember(row: { provider: string; publicKey: string; secretsEncrypted: string; tenantId: string }) {
+  private remember(target: TenantGateways, row: GatewayRow) {
     if (row.tenantId === DEFAULT_TENANT_ID) return;
     const secrets = this.decrypt(row.secretsEncrypted);
     if (!secrets) {
-      this.logger.warn(`Gateway keys for academy ${row.tenantId} (${row.provider}) could not be decrypted; that gateway stays off for it.`);
+      const warnKey = `${row.tenantId}:${row.provider}:${row.updatedAt?.getTime() ?? ""}`;
+      if (!this.warned.has(warnKey)) {
+        this.warned.add(warnKey);
+        this.logger.warn(`Gateway keys for academy ${row.tenantId} (${row.provider}) could not be decrypted; that gateway stays off for it.`);
+      }
       return;
     }
     const provider = row.provider as TenantGatewayProvider;
-    this.byTenant.set(row.tenantId, { ...(this.byTenant.get(row.tenantId) ?? {}), [provider]: { ...secrets, publicKey: row.publicKey } });
-    this.envCache.delete(row.tenantId);
+    target.set(row.tenantId, { ...(target.get(row.tenantId) ?? {}), [provider]: { ...secrets, publicKey: row.publicKey } });
   }
 }

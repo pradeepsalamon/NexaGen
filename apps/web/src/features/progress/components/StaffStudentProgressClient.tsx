@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useProgressFor } from "../hooks/useProgress";
 import { StudentProgressWorkspace } from "./StudentProgressWorkspace";
 
@@ -9,10 +10,13 @@ import { StudentProgressWorkspace } from "./StudentProgressWorkspace";
  * the API's own message in each panel.
  */
 export function StaffStudentProgressClient({
+  actions,
   backHref,
   backLabel,
   studentId
 }: {
+  /** Extra header buttons (the admin page adds the WhatsApp link code). */
+  actions?: ReactNode;
   backHref: string;
   backLabel: string;
   studentId: string;
@@ -25,6 +29,7 @@ export function StaffStudentProgressClient({
     <div className="animate-fade-in pb-10">
       <StudentProgressWorkspace
         header={{
+          actions,
           breadcrumbs: [{ href: backHref, label: backLabel }, { label: name ?? "Student" }],
           description:
             "Rating, results over time, areas to work on, and every recorded puzzle, class question and assignment.",

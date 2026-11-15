@@ -44,6 +44,7 @@ export class PrivacyService {
         id: true,
         lastLoginAt: true,
         lastName: true,
+        emailOptOutCategories: true,
         notificationEmailOptOutAt: true,
         phoneNumber: true,
         role: true,
@@ -112,7 +113,8 @@ export class PrivacyService {
       tournamentHostRoles,
       tournamentAuditActions,
       tournamentCommentary,
-      tournamentCertificates
+      tournamentCertificates,
+      whatsAppLinks
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -254,7 +256,12 @@ export class PrivacyService {
         where: { authorId: id }
       }),
       // The account's own certificates (the snapshot is about them; who revoked one is not).
-      p.tournamentCertificate.findMany({ omit: { revokedById: true }, where: { userId: id } })
+      p.tournamentCertificate.findMany({ omit: { revokedById: true }, where: { userId: id } }),
+      // WhatsApp numbers linked to this student for class questions (docs/WHATSAPP_SUPPORT.md §0 "Existing students").
+      p.supportContactLink.findMany({
+        select: { contact: { select: { waId: true } }, createdAt: true, id: true },
+        where: { studentId: id }
+      })
     ]);
 
     return {
@@ -316,7 +323,8 @@ export class PrivacyService {
         studentProfile: records(studentProfile),
         subscriptions: records(subscriptions),
         typography: records(typography),
-        usageEvents: records(usageEvents)
+        usageEvents: records(usageEvents),
+        whatsAppLinks: records(whatsAppLinks.map((link) => ({ id: link.id, linkedAt: link.createdAt, whatsAppNumber: link.contact.waId })))
       }
     };
   }

@@ -5,6 +5,7 @@ import type {
 } from "@nexa-chess/types";
 import { Prisma } from "@prisma/client";
 import { getApiEnv } from "@nexa-chess/config/api";
+import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
 import { RecordingStorageService } from "../../live-class/recording-storage.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { zonedMonthBounds } from "../../common/time";
@@ -19,6 +20,7 @@ import {
   buildMeta,
   type AnalyticsContext
 } from "../analytics-support";
+import { currentTenantId } from "../../tenancy/tenant-context";
 import { tenantFilter } from "../../tenancy/tenant-sql";
 
 @Injectable()
@@ -245,6 +247,19 @@ export class RecordingsAnalyticsSection {
     const recordingBytes = recordingSizeAgg._sum.recordingBytes
       ? Number(recordingSizeAgg._sum.recordingBytes)
       : null;
+
+    // The recordings disk is shared by every academy. Nexa, which runs the
+    // server, sees the whole disk; another academy sees its own recordings
+    // against the same limit, never the other academies' bytes.
+    const tenantId = currentTenantId();
+    if (usage && tenantId && tenantId !== DEFAULT_TENANT_ID) {
+      const own = recordingBytes ?? 0;
+      usage = {
+        limitBytes: usage.limitBytes,
+        usagePercent: usage.limitBytes > 0 ? (own / usage.limitBytes) * 100 : 0,
+        usedBytes: own
+      };
+    }
 
     if (!usage) {
       return {

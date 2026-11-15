@@ -52,10 +52,15 @@ const STATUS_OPTIONS = [
 function statusLabel(delivery: {
   status: MessageDeliveryStatus;
   attempts: number;
+  deliveredAt: string | null;
+  readAt: string | null;
 }): string {
   if (delivery.status === "PENDING") {
     return delivery.attempts > 0 ? `RETRYING (${delivery.attempts})` : "QUEUED";
   }
+  // WhatsApp reports what happened after the send (docs/WHATSAPP_SUPPORT.md §0).
+  if (delivery.status === "SENT" && delivery.readAt) return "READ";
+  if (delivery.status === "SENT" && delivery.deliveredAt) return "DELIVERED";
   return delivery.status;
 }
 

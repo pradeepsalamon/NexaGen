@@ -5,10 +5,11 @@ import { TrashModule } from "../trash/trash.module";
 import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 import { MessagingModule } from "../messaging/messaging.module";
+import { ReferralModule } from "../referral/referral.module";
 
 @Module({
   controllers: [UserController],
-  imports: [JwtModule.register({}), MessagingModule, PrismaModule, TrashModule],
+  imports: [JwtModule.register({}), MessagingModule, PrismaModule, ReferralModule, TrashModule],
   providers: [UserService],
   exports: [UserService]
 })

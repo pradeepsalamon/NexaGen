@@ -1,8 +1,9 @@
 import { createRequire } from "node:module";
 import * as path from "node:path";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import { renderCertificateText, type TournamentCertificateSnapshot } from "@nexa-chess/types";
+import { AcademyLinksService } from "../tenancy/academy-links.service";
 
 const requireFromHere = createRequire(__filename);
 
@@ -23,8 +24,12 @@ type PdfPrinterLike = {
 export class CertificatePdfService {
   private printer: PdfPrinterLike | null = null;
 
+  constructor(@Optional() private readonly links?: AcademyLinksService) {}
+
   async render(snapshot: TournamentCertificateSnapshot, ids: { serialNumber: string; verificationCode: string }): Promise<Buffer> {
-    const document = await this.getPrinter().createPdfKitDocument(this.definition(snapshot, ids));
+    // The verify link opens on the organizing academy's own address.
+    const origin = this.links ? await this.links.origin() : getFrontendUrl(getApiEnv());
+    const document = await this.getPrinter().createPdfKitDocument(this.definition(snapshot, ids, origin));
     return new Promise<Buffer>((resolve, reject) => {
       const chunks: Buffer[] = [];
       document.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -34,7 +39,11 @@ export class CertificatePdfService {
     });
   }
 
-  definition(snapshot: TournamentCertificateSnapshot, ids: { serialNumber: string; verificationCode: string }): Record<string, unknown> {
+  definition(
+    snapshot: TournamentCertificateSnapshot,
+    ids: { serialNumber: string; verificationCode: string },
+    origin: string = getFrontendUrl(getApiEnv())
+  ): Record<string, unknown> {
     const t = snapshot.template;
     const landscape = t.orientation === "LANDSCAPE";
     const [width, height] = landscape ? [841.89, 595.28] : [595.28, 841.89];
@@ -47,7 +56,7 @@ export class CertificatePdfService {
       points: snapshot.points,
       "tournament.name": snapshot.tournamentName
     };
-    const verifyUrl = `${getFrontendUrl(getApiEnv())}/certificates/${ids.verificationCode}`;
+    const verifyUrl = `${origin}/certificates/${ids.verificationCode}`;
     const border =
       t.borderStyle === "MINIMAL"
         ? [{ h: height - 48, lineColor: t.accentColor, lineWidth: 1, type: "rect", w: width - 48, x: 24, y: 24 }]

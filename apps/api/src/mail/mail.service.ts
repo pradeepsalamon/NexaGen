@@ -90,27 +90,30 @@ export class MailService {
     );
   }
 
-  async sendDirectEmail(input: { to: string; subject: string; body: string }) {
+  /** Email staff wrote at `/admin/email`; it carries the recipient's unsubscribe links like a rule email. */
+  async sendDirectEmail(input: { to: string; subject: string; body: string; unsubscribe?: UnsubscribeLinks }) {
+    const text = markdownToPlainText(input.body);
+    const html = `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">${messageToEmailHtml(input.body)}</div>
+      `;
     await this.createTransporter().sendMail({
       ...(await this.sender()),
       to: input.to,
       subject: input.subject,
-      text: markdownToPlainText(input.body),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">${messageToEmailHtml(input.body)}</div>
-      `
+      ...withUnsubscribe(html, text, input.unsubscribe)
     });
   }
 
   /**
-   * One message from a messaging rule. Returns the provider's id for the log. `unsubscribeUrl`
-   * is the recipient's own link: a footer line, and the header mail apps turn into a button.
+   * One message from a messaging rule. Returns the provider's id for the log. `unsubscribe` is
+   * the recipient's own links: a footer line to the page, and the RFC 8058 one-click headers mail
+   * apps turn into a button.
    */
   async sendRuleEmail(input: {
     to: string;
     subject: string;
     body: string;
-    unsubscribeUrl?: string;
+    unsubscribe?: UnsubscribeLinks;
   }): Promise<string | null> {
     const subject = input.subject.replace(/\s+/g, " ").trim();
     const text = markdownToPlainText(input.body);
@@ -119,13 +122,7 @@ export class MailService {
       ...(await this.sender()),
       to: input.to,
       subject,
-      ...(input.unsubscribeUrl
-        ? {
-            headers: { "List-Unsubscribe": `<${input.unsubscribeUrl}>` },
-            html: `${html}${unsubscribeFooterHtml(input.unsubscribeUrl)}`,
-            text: `${text}\n\n--\nDon't want these emails? Unsubscribe: ${input.unsubscribeUrl}`
-          }
-        : { html, text })
+      ...withUnsubscribe(html, text, input.unsubscribe)
     });
     return info.messageId ?? null;
   }
@@ -200,6 +197,22 @@ function toText({ action, body }: RenderedSystemMessage): string {
 
 /** Admin wording and member-supplied values are both escaped: never trusted as HTML. */
 /** Small grey line under a notification email. The colours are email-safe literals, like the rest. */
+/** The recipient's own unsubscribe links (`EmailPreferencesService.targetFor`). */
+export type UnsubscribeLinks = { oneClickUrl: string; pageUrl: string };
+
+/** Body plus the footer link and the `List-Unsubscribe` + `List-Unsubscribe-Post` headers (RFC 8058). */
+function withUnsubscribe(html: string, text: string, links: UnsubscribeLinks | undefined) {
+  if (!links) return { html, text };
+  return {
+    headers: {
+      "List-Unsubscribe": `<${links.oneClickUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    },
+    html: `${html}${unsubscribeFooterHtml(links.pageUrl)}`,
+    text: `${text}\n\n--\nDon't want these emails? Unsubscribe: ${links.pageUrl}`
+  };
+}
+
 function unsubscribeFooterHtml(url: string): string {
   return `
         <p style="font-family:Arial,sans-serif;font-size:12px;line-height:1.5;color:#667085;margin-top:24px;border-top:1px solid #eaecf0;padding-top:12px">

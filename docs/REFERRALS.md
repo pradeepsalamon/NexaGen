@@ -95,7 +95,9 @@ cancelling a credited reward writes a reversal (a balance can go negative).
 
 New-member points need an account. `ReferralTrackerService.linkSignup` runs on
 student and coach sign-up: the `nexa_referral` cookie from a link visit, else a
-referral whose lead used the same email. Admins can link/unlink by email in the
+referral whose lead used the same email. Since 2026-11-15 it also runs when an
+admin creates a student or coach on the Users page (`UserService.create`; email
+match only, as there is no cookie). Admins can link/unlink by email in the
 referral dialog (`PUT /admin/referrals/:id/referred-user`).
 `ReferralPipelineService.linkReferredUser` is the one link path: one referral
 per account (unique), never the referrer's own account, unlinking refused once
@@ -123,8 +125,15 @@ withdrawals refuse students outright.
 - **Paying in bulk**: Withdrawals tab → **Export CSV**
   (`GET /admin/referrals/withdrawals/export`) downloads every withdrawal in the
   current search and status filter, oldest first (up to 10,000): name, email,
-  role, amount, payout details, status, reference, id. Marking each one paid is
-  still a separate step.
+  role, amount, payout details, status, reference, id. After paying them, the
+  admin types each transfer reference into "Payout reference" and uses **Import
+  paid CSV** (2026-11-15): the browser reads the file
+  (`paidWithdrawalsFromCsv`, `@nexa-chess/types`: every `REQUESTED` row with a
+  reference; BOM, `;` and the export's formula guard are fine), shows the count
+  and any problem lines, then `POST /admin/referrals/withdrawals/pay-bulk`
+  (up to 500) marks each paid with its own reference. Each is claimed on its own,
+  so one already decided (or not this academy's) is skipped with the reason, and
+  each paid one is announced like a single payment.
 - **History**: `GET /referrals/me/credits` is the user's points/money history;
   the admin History tab (`GET /admin/referrals/ledger`, filter by wallet, type,
   user) lists every movement of every user; admins adjust either wallet.
@@ -161,14 +170,17 @@ admin can add email or WhatsApp and reword them ([MESSAGING.md](MESSAGING.md)):
 | `REFERRAL_PROGRESS` | the referrer | their referral changed stage (automatic or by an admin); a first link visit sends nothing |
 | `REFERRAL_REWARD` | whoever was credited (referrer, or the new member for welcome points) | points or money reached the ledger: at once when auto-approved, else when an admin approves |
 | `REFERRAL_REQUEST_DECIDED` | the student / the coach or SALES account | a voucher request was approved or declined; a withdrawal was paid or declined |
+| `REFERRAL_POINTS_EXPIRING` | the student | nightly, after the expiry run: unspent points expire within 7 days (`REFERRAL_POINTS_EXPIRY_NOTICE_DAYS`); at most once a week (the week number is in the dedupe key); only while expiry is on |
+| `REFERRAL_TAKEN_BACK` | whoever lost it | an admin cancelled a reward that was already credited (points or money came off), or took back an unused voucher code (points returned) |
 
 - Dispatched **after the transaction commits** (`ReferralPipelineService.announce`,
   `ReferralAdminService`), and everything shown is read back from the row, so a
   reward that is not `CREDITED` sends nothing.
 - The prospect's name is masked for students and coaches (`maskProspectName`),
   full for SALES, as on their boards. Never a contact detail.
-- Not announced: points expiring, a reward cancelled, an admin adjustment, a
-  voucher revoked.
+- Not announced: an admin adjustment, a reward cancelled before it was credited
+  (it never reached a balance), points actually expiring (the 7-day notice comes
+  first).
 
 ## Vouchers
 

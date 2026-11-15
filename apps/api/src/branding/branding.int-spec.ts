@@ -1,4 +1,12 @@
-import { API_ROUTES, type PlatformTenantResponse, type TenantBrandingResponse, type TenantPublicConfig } from "@nexa-chess/types";
+import {
+  API_ROUTES,
+  LEGAL_TERMS_VERSION,
+  type AdminLegalPagesResponse,
+  type PlatformTenantResponse,
+  type PublicLegalPage,
+  type TenantBrandingResponse,
+  type TenantPublicConfig
+} from "@nexa-chess/types";
 import { UserRole, UserStatus } from "@prisma/client";
 import { hashSecret } from "../auth/auth.utils";
 import { createTestApp, type TestApp } from "../test/integration/app";
@@ -7,6 +15,7 @@ import { createUser, resetDatabase } from "../test/integration/db";
 import { asPlatform, runInTenant } from "../tenancy/tenant-context";
 import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
 import { BrandingService } from "./branding.service";
+import { LegalPagesService } from "./legal-pages.service";
 import { EntitlementService } from "../platform/entitlement.service";
 
 // Phase 5 (docs/SAAS_MULTI_TENANCY.md §E cookies, §F branding, §H domains).
@@ -55,6 +64,48 @@ describe("academy branding, domains and host-only cookies (real app, real Postgr
     expect(await publicConfig(ACADEMY)).toMatchObject({ isPlatformHome: false, name: "Rook Academy", poweredBy: true, tenantId });
     expect(await publicConfig(TEST_ORIGIN)).toMatchObject({ isPlatformHome: true, poweredBy: false, tenantId: "tenant_nexa" });
     expect(await publicConfig("https://unknown.example.com")).toMatchObject({ name: "", tenantId: null });
+  });
+
+  it("an academy writes its own legal pages; Nexa's and an unknown host keep the built-in text", async () => {
+    const legal = async (origin: string, kind = "privacy") =>
+      (await (await fetch(`${base()}${API_ROUTES.branding.legalPage(kind)}`, { headers: { Origin: origin } })).json()) as PublicLegalPage;
+    expect(await legal(ACADEMY)).toEqual({ body: null, kind: "privacy", updatedAt: null });
+    expect(await runInTenant(tenantId, "spec", () => t.app.get(LegalPagesService).termsVersion())).toBe(LEGAL_TERMS_VERSION);
+
+    const saved = await asOwner("PUT", API_ROUTES.branding.adminLegalPage("privacy"), { body: "## Who we are\nRook Academy, Chennai." });
+    expect(saved.status).toBe(200);
+    expect(saved.body as AdminLegalPagesResponse).toMatchObject({
+      editable: true,
+      pages: [
+        { body: "## Who we are\nRook Academy, Chennai.", kind: "privacy" },
+        { body: null, kind: "terms" }
+      ]
+    });
+    expect((await legal(ACADEMY)).body).toContain("Rook Academy, Chennai.");
+    expect((await legal(ACADEMY, "terms")).body).toBeNull();
+    expect((await legal(TEST_ORIGIN)).body).toBeNull();
+    expect((await legal("https://unknown.example.com")).body).toBeNull();
+    // A sign-up on the academy records its wording's version, not the built-in one.
+    expect(await runInTenant(tenantId, "spec", () => t.app.get(LegalPagesService).termsVersion())).toMatch(/^academy:\d{4}-/);
+    expect(await runInTenant("tenant_nexa", "spec", () => t.app.get(LegalPagesService).termsVersion())).toBe(LEGAL_TERMS_VERSION);
+
+    // Unknown page, anonymous write and Nexa's own pages are refused.
+    expect((await fetch(`${base()}${API_ROUTES.branding.legalPage("refunds")}`, { headers: { Origin: ACADEMY } })).status).toBe(400);
+    expect(
+      (
+        await fetch(`${base()}${API_ROUTES.branding.adminLegalPage("privacy")}`, {
+          body: JSON.stringify({ body: "x" }),
+          headers: { "Content-Type": "application/json", Origin: ACADEMY },
+          method: "PUT"
+        })
+      ).status
+    ).toBe(401);
+    expect((await op("PUT", API_ROUTES.branding.adminLegalPage("privacy"), { body: "Nexa" })).status).toBe(400);
+    expect((await op("GET", API_ROUTES.branding.adminLegalPages)).body).toMatchObject({ editable: false });
+
+    // Empty text goes back to the built-in page.
+    await asOwner("PUT", API_ROUTES.branding.adminLegalPage("privacy"), { body: "  " });
+    expect(await legal(ACADEMY)).toEqual({ body: null, kind: "privacy", updatedAt: null });
   });
 
   it("copy the academy sends names it: messages, system emails, PDFs (nameFor)", async () => {

@@ -240,8 +240,16 @@ export function brandPaletteCss(palette: BrandPalette): string {
 export const updateWhatsAppSettingsRequestSchema = z.object({
   /** Blank keeps the stored token. Never sent back. */
   accessToken: z.string().trim().max(1000).optional(),
+  /** The Meta app's secret, for incoming messages (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §6). Blank keeps the stored one. Never sent back. */
+  appSecret: z.string().trim().max(200).optional(),
   enabled: z.boolean(),
-  phoneNumberId: z.string().trim().regex(/^\d{5,30}$/, "The phone number ID from Meta (digits only).")
+  phoneNumberId: z.string().trim().regex(/^\d{5,30}$/, "The phone number ID from Meta (digits only)."),
+  /** The WhatsApp Business Account id; blank clears it. */
+  wabaId: z
+    .string()
+    .trim()
+    .regex(/^(\d{5,30})?$/, "The WhatsApp Business Account ID from Meta (digits only).")
+    .optional()
 });
 export type UpdateWhatsAppSettingsRequest = z.infer<typeof updateWhatsAppSettingsRequestSchema>;
 
@@ -251,6 +259,16 @@ export type WhatsAppSettingsResponse = {
   configured: boolean;
   enabled: boolean;
   phoneNumberId: string | null;
+  wabaId: string | null;
   hasAccessToken: boolean;
+  hasAppSecret: boolean;
+  /** Incoming messages can be verified: switched on, token and app secret saved. */
+  receiving: boolean;
+  /** Path of the academy's webhook (paste the full URL into Meta's app dashboard); null until the first save. */
+  webhookPath: string | null;
+  /** The verify token to paste into Meta with the webhook URL; null until the first save. */
+  verifyToken: string | null;
+  /** When a signed webhook last arrived from Meta. */
+  lastWebhookAt: string | null;
   updatedAt: string | null;
 };

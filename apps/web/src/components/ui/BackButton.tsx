@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "../../lib/utils";
 import { Button } from "./Button";

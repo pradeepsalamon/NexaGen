@@ -29,5 +29,10 @@ Object.assign(process.env, {
   SMTP_FROM: "",
   SMTP_HOST: "",
   SMTP_PASS: "",
-  SMTP_USER: ""
+  SMTP_USER: "",
+  // Same reason: never a real WhatsApp number (the support spec stubs its own).
+  WHATSAPP_ACCESS_TOKEN: "",
+  WHATSAPP_APP_SECRET: "",
+  WHATSAPP_PHONE_NUMBER_ID: "",
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN: ""
 });

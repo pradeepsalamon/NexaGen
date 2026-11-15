@@ -1,9 +1,10 @@
 import { Award, BookOpen, type LucideIcon, Trophy, Users } from "lucide-react";
+import { ACADEMY_COACH_COUNT } from "../content";
 import { CountUp } from "./parts";
 
 const stats: { Icon: LucideIcon; label: string; value: string }[] = [
   { Icon: Users, label: "Active students", value: "5,000+" },
-  { Icon: Award, label: "Expert coaches", value: "100+" },
+  { Icon: Award, label: "Expert coaches", value: ACADEMY_COACH_COUNT },
   { Icon: BookOpen, label: "Classes completed", value: "15,000+" },
   { Icon: Trophy, label: "Tournaments played", value: "4,500+" }
 ];

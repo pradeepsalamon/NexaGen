@@ -1,6 +1,7 @@
 import type { SystemMessageChannel } from "@nexa-chess/types";
 import type { NotificationService } from "../notification/notification.service";
 import type { PrismaService } from "../prisma/prisma.service";
+import type { WhatsAppOptOutService } from "../whatsapp/whatsapp-opt-out.service";
 import type { WhatsAppService } from "../whatsapp/whatsapp.service";
 import type { MailService } from "./mail.service";
 import type { SystemMessageRenderer } from "./system-message-renderer.service";
@@ -10,6 +11,7 @@ describe("SystemNotifier", () => {
   let mail: { sendRenderedSystemEmail: jest.Mock };
   let notify: jest.Mock;
   let trySendMessage: jest.Mock;
+  let isOptedOut: jest.Mock;
   let renderAll: jest.Mock;
   let notifier: SystemNotifier;
 
@@ -26,13 +28,15 @@ describe("SystemNotifier", () => {
     mail = { sendRenderedSystemEmail: jest.fn().mockResolvedValue(undefined) };
     notify = jest.fn().mockResolvedValue(undefined);
     trySendMessage = jest.fn().mockResolvedValue({ ok: true });
+    isOptedOut = jest.fn().mockResolvedValue(false);
     renderAll = jest.fn().mockResolvedValue(rendered(["EMAIL", "WHATSAPP", "IN_APP"]));
     notifier = new SystemNotifier(
       mail as unknown as MailService,
       { notify } as unknown as NotificationService,
       {} as PrismaService,
       { renderAll } as unknown as SystemMessageRenderer,
-      { trySendMessage } as unknown as WhatsAppService
+      { trySendMessage } as unknown as WhatsAppService,
+      { isOptedOut } as unknown as WhatsAppOptOutService
     );
   });
 
@@ -45,6 +49,15 @@ describe("SystemNotifier", () => {
       expect.objectContaining({ body: "**Body**", linkPath: "/profile", title: "Subject", type: "SYSTEM_MESSAGE", userId: "u1" })
     );
     expect(result.outcomes).toEqual({ EMAIL: "SENT", IN_APP: "SENT", WHATSAPP: "SENT" });
+  });
+
+  it("sends no WhatsApp to a number that replied STOP, and the other channels still go", async () => {
+    isOptedOut.mockResolvedValue(true);
+    const result = await notifier.send("EMAIL_CHANGED", { email: "a@x.test", phone: "+919876543210", userId: "u1" }, {});
+
+    expect(isOptedOut).toHaveBeenCalledWith("+919876543210");
+    expect(trySendMessage).not.toHaveBeenCalled();
+    expect(result.outcomes).toEqual({ EMAIL: "SENT", IN_APP: "SENT", WHATSAPP: "SKIPPED" });
   });
 
   it("skips a channel that is switched off, or that the recipient has no contact for", async () => {

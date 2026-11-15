@@ -1,12 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { DEFAULT_TENANT_ID, markdownToWhatsApp, MESSAGE_MAX_ATTEMPTS } from "@nexa-chess/types";
+import { DEFAULT_TENANT_ID, markdownToWhatsApp, MESSAGE_MAX_ATTEMPTS, MESSAGING_EVENT_EMAIL_CATEGORY } from "@nexa-chess/types";
 import type { MessageDelivery } from "@prisma/client";
 import { EmailPreferencesService } from "../email-admin/email-preferences.service";
 import { MailService } from "../mail/mail.service";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { runInTenant } from "../tenancy/tenant-context";
+import { WhatsAppOptOutService } from "../whatsapp/whatsapp-opt-out.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { nextAttemptAt } from "./messaging.schedule";
 
@@ -36,7 +37,8 @@ export class MessagingDeliveryWorker {
     private readonly mail: MailService,
     private readonly notifications: NotificationService,
     private readonly prisma: PrismaService,
-    private readonly whatsapp: WhatsAppService
+    private readonly whatsapp: WhatsAppService,
+    private readonly whatsappOptOut: WhatsAppOptOutService
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -138,6 +140,21 @@ export class MessagingDeliveryWorker {
         return false;
       }
 
+      // Replied STOP on WhatsApp: checked at send time, so it also stops what is queued.
+      if (await this.whatsappOptOut.isOptedOut(to)) {
+        await this.prisma.messageDelivery.update({
+          where: { id: delivery.id },
+          data: {
+            status: "SKIPPED",
+            attempts,
+            claimedAt: null,
+            error: "The recipient opted out of WhatsApp messages (replied STOP).",
+            lastAttemptAt: new Date()
+          }
+        });
+        return false;
+      }
+
       // A row may carry an attachment (an invoice PDF), resolved at queue time
       // so this worker never reaches back into a feature module to build one.
       const document =
@@ -198,7 +215,7 @@ export class MessagingDeliveryWorker {
     }
 
     const recipient = delivery.recipientId
-      ? await this.emailPreferences.targetFor(delivery.recipientId)
+      ? await this.emailPreferences.targetFor(delivery.recipientId, MESSAGING_EVENT_EMAIL_CATEGORY[delivery.event])
       : null;
     if (!recipient) {
       await this.markFailed(delivery.id, attempts, "The recipient's account no longer exists.");
@@ -212,7 +229,7 @@ export class MessagingDeliveryWorker {
           status: "SKIPPED",
           attempts,
           claimedAt: null,
-          error: "The recipient turned off notification emails.",
+          error: "The recipient turned off these emails.",
           lastAttemptAt: new Date()
         }
       });
@@ -224,7 +241,7 @@ export class MessagingDeliveryWorker {
         to: recipient.email,
         subject: delivery.title ?? delivery.body.slice(0, 120),
         body: delivery.body,
-        unsubscribeUrl: recipient.unsubscribeUrl
+        unsubscribe: { oneClickUrl: recipient.oneClickUrl, pageUrl: recipient.unsubscribeUrl }
       });
       await this.markSent(delivery.id, attempts, messageId);
       return true;

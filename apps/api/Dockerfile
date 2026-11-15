@@ -41,7 +41,10 @@ RUN npm ci
 
 COPY --from=pruner /app/out/full/ .
 
-RUN npx turbo run build --filter=@nexa-chess/api
+# Node's default heap is ~2 GB on the 11 GB production box, and `nest build`
+# (tsc) needs ~3 GB since the SaaS release (2026-11-14 deploy aborted on OOM).
+# turbo.json passes NODE_OPTIONS through to the task.
+RUN NODE_OPTIONS=--max-old-space-size=4096 npx turbo run build --filter=@nexa-chess/api
 
 RUN npm prune --omit=dev
 

@@ -31,11 +31,13 @@ type LogoProps = {
 function AcademyLogo({ height, onDark }: { height: number; onDark: boolean }) {
   // Height comes from the frame's `--logo-h` / `--logo-h-sm` (see `Logo`).
   const heightClass = "h-[var(--logo-h-sm)] sm:h-[var(--logo-h)]";
-  const { config, name } = useTenantBrand();
+  const { config, isAcademyHost, name } = useTenantBrand();
   const light = config?.logoLightUrl ?? config?.logoDarkUrl ?? null;
   const dark = config?.logoDarkUrl ?? config?.logoLightUrl ?? null;
   if (!light && !dark) {
-    return name ? (
+    // Until the page knows its host, `name` is still "Nexa Chess" (the server's
+    // render): on an academy's address that must not show, even for a moment.
+    return isAcademyHost && name ? (
       <span className="academy-brand-only max-w-[40vw] truncate font-display text-lg font-extrabold leading-none sm:max-w-xs" style={{ lineHeight: `${height}px` }}>
         {name}
       </span>

@@ -66,6 +66,18 @@ export interface WhatsAppDocumentRef {
   filename?: string;
 }
 
+/** Reply buttons or a list: a free-form message, 24h window only. */
+export type WhatsAppInteractiveMessage =
+  | { to: string; kind: "buttons"; body: string; buttons: { id: string; title: string }[] }
+  | {
+      to: string;
+      kind: "list";
+      body: string;
+      /** Label of the button that opens the list. */
+      button: string;
+      rows: { id: string; title: string; description?: string }[];
+    };
+
 /** A free-form document message — 24h window only, like a text. */
 export interface WhatsAppDocumentMessage extends WhatsAppDocumentRef {
   to: string;

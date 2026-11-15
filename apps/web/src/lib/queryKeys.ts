@@ -14,6 +14,7 @@ export const queryKeys = {
   },
   emailAdmin: {
     all: ["email-admin"] as const,
+    optedOut: (filters: ListParams) => ["email-admin", "opted-out", filters] as const,
     overview: ["email-admin", "overview"] as const,
     sent: (filters: ListParams) => ["email-admin", "sent", filters] as const,
     unverified: (filters: ListParams) => ["email-admin", "unverified", filters] as const,
@@ -67,6 +68,19 @@ export const queryKeys = {
     coachRatings: ["feedback", "coach-ratings"] as const,
     mine: ["feedback", "mine"] as const,
   },
+  support: {
+    all: ["support"] as const,
+    list: (params: Record<string, unknown>) => ["support", "list", params] as const,
+    counts: ["support", "counts"] as const,
+    agents: ["support", "agents"] as const,
+    detail: (id: string) => ["support", "detail", id] as const,
+    messages: (id: string) => ["support", "messages", id] as const,
+    savedReplies: ["support", "saved-replies"] as const,
+    settings: ["support", "settings"] as const,
+    analytics: (days: string, tz: string) => ["support", "analytics", days, tz] as const,
+    unanswered: (params: Record<string, unknown>) => ["support", "unanswered", params] as const,
+    unansweredAll: ["support", "unanswered"] as const,
+  },
   leads: {
     all: ["leads"] as const,
     list: (params?: Record<string, any>) => ["leads", "list", params ?? null] as const,
@@ -99,6 +113,7 @@ export const queryKeys = {
   messaging: {
     all: ["messaging"] as const,
     rules: ["messaging", "rules"] as const,
+    whatsappTemplates: ["messaging", "whatsapp-templates"] as const,
     deliveries: (params?: Record<string, unknown>) =>
       ["messaging", "deliveries", params ?? null] as const,
     announcements: ["messaging", "announcements"] as const,
@@ -249,6 +264,9 @@ export const queryKeys = {
     admin: ["branding", "admin"] as const,
     domains: ["branding", "domains"] as const,
     whatsapp: ["branding", "whatsapp"] as const,
+    legalPages: ["branding", "legal-pages"] as const,
+    /** Public, by host: the academy's own wording for one legal page. */
+    legalPage: (kind: string) => ["tenant", "legal", kind] as const,
   },
   platform: {
     all: ["platform"] as const,
@@ -330,6 +348,7 @@ export const queryKeys = {
     adminCompensationRates: (coachId: string) =>
       ["payroll", "admin", "compensation-rates", coachId] as const,
     adminRules: ["payroll", "admin", "rules"] as const,
+    adminSettings: ["payroll", "admin", "settings"] as const,
     adminPayouts: (periodId: string) => ["payroll", "admin", "payouts", periodId] as const,
   },
   approvals: {

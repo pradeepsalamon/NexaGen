@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { useState } from "react";
 import { History, Plus, Search, Trophy } from "lucide-react";
 import { TOURNAMENT_FORMATS, TOURNAMENT_FORMAT_LABELS, type TournamentListTab } from "@nexa-chess/types";

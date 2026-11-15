@@ -8,7 +8,7 @@ import {
   useConnectionState,
 } from "@livekit/components-react";
 import { ConnectionState, DisconnectReason, type RoomOptions } from "livekit-client";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { toast } from "sonner";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";

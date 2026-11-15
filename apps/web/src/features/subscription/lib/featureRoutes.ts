@@ -35,6 +35,7 @@ const FEATURE_ROUTES: { prefix: string; feature: PlanFeatureKey }[] = [
   { feature: "studentPayments", prefix: "/student/billing" },
   { feature: "tournaments", prefix: "/admin/tournaments" },
   { feature: "tournaments", prefix: "/tournaments" },
+  { feature: "whatsappSupport", prefix: "/admin/support" },
 ];
 
 const matches = (path: string, prefix: string) => path === prefix || path.startsWith(`${prefix}/`);

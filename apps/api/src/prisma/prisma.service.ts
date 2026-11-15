@@ -83,6 +83,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.tenantBranding;
   }
 
+  get tenantLegalPage() {
+    return this.client.tenantLegalPage;
+  }
+
   get tenantPaymentCredential() {
     return this.client.tenantPaymentCredential;
   }
@@ -125,6 +129,66 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get whatsAppSettings() {
     return this.client.whatsAppSettings;
+  }
+
+  get whatsAppWebhookEvent() {
+    return this.client.whatsAppWebhookEvent;
+  }
+
+  get whatsAppContact() {
+    return this.client.whatsAppContact;
+  }
+
+  get supportConversation() {
+    return this.client.supportConversation;
+  }
+
+  get supportMessage() {
+    return this.client.supportMessage;
+  }
+
+  get supportTicket() {
+    return this.client.supportTicket;
+  }
+
+  get supportTicketEvent() {
+    return this.client.supportTicketEvent;
+  }
+
+  get supportSavedReply() {
+    return this.client.supportSavedReply;
+  }
+
+  get supportUnansweredQuestion() {
+    return this.client.supportUnansweredQuestion;
+  }
+
+  get supportSettings() {
+    return this.client.supportSettings;
+  }
+
+  get supportContactErasure() {
+    return this.client.supportContactErasure;
+  }
+
+  get supportAttachment() {
+    return this.client.supportAttachment;
+  }
+
+  get supportConversationEvent() {
+    return this.client.supportConversationEvent;
+  }
+
+  get supportContactLink() {
+    return this.client.supportContactLink;
+  }
+
+  get supportLinkCode() {
+    return this.client.supportLinkCode;
+  }
+
+  get crmLeadPush() {
+    return this.client.crmLeadPush;
   }
 
   get directEmail() {
@@ -565,6 +629,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get payrollRule() {
     return this.client.payrollRule;
+  }
+
+  get payrollSettings() {
+    return this.client.payrollSettings;
   }
 
   get payrollPeriod() {

@@ -31,9 +31,12 @@ export const API_ROUTES = {
   emailPreferences: {
     mine: "/email-preferences",
     /** Public: the link at the bottom of a notification email. */
-    unsubscribe: "/email-preferences/unsubscribe"
+    unsubscribe: "/email-preferences/unsubscribe",
+    /** Public: RFC 8058 one-click POST from the mail app (`List-Unsubscribe-Post`). */
+    oneClick: "/email-preferences/one-click"
   },
   adminEmail: {
+    optedOut: "/admin/email/opted-out",
     overview: "/admin/email",
     policy: "/admin/email/verification-policy",
     sent: "/admin/email/sent",
@@ -762,6 +765,7 @@ export const API_ROUTES = {
     closeCompensationRate: (id: string = ":id") =>
       `/admin/payroll/compensation-rates/${id}/close`,
     rules: "/admin/payroll/rules",
+    settings: "/admin/payroll/settings",
     rule: (id: string = ":id") => `/admin/payroll/rules/${id}`,
     payslipPdf: (id: string = ":id") => `/admin/payroll/payslips/${id}/pdf`,
     retryPayslipPdf: (id: string = ":id") =>
@@ -907,10 +911,44 @@ export const API_ROUTES = {
     withdrawals: "/admin/referrals/withdrawals",
     /** CSV of the withdrawals in the current filter, to pay in bulk outside the app. */
     withdrawalsExport: "/admin/referrals/withdrawals/export",
+    /** Several at once, from the export filled in with references. */
+    payWithdrawalsBulk: "/admin/referrals/withdrawals/pay-bulk",
     payWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/pay`,
     rejectWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/reject`,
     adjustCredits: "/admin/referrals/credits/adjust",
     settings: "/admin/referrals/settings"
+  },
+  /** The academy's message templates as WhatsApp Manager lists them (admins; read-only). */
+  whatsappTemplates: "/admin/whatsapp/templates",
+  /** Meta's WhatsApp Cloud API callbacks (GET = subscription handshake, POST = events). */
+  whatsappWebhook: "/webhooks/whatsapp",
+  /** Another academy's own number (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §6): the key names the academy, its app secret signs. */
+  whatsappWebhookAcademy: (webhookKey: string = ":webhookKey") => `/webhooks/whatsapp/${webhookKey}`,
+  adminSupport: {
+    tickets: "/admin/support/tickets",
+    counts: "/admin/support/tickets/counts",
+    agents: "/admin/support/agents",
+    ticket: (id: string = ":id") => `/admin/support/tickets/${id}`,
+    messages: (id: string = ":id") => `/admin/support/tickets/${id}/messages`,
+    reply: (id: string = ":id") => `/admin/support/tickets/${id}/reply`,
+    notes: (id: string = ":id") => `/admin/support/tickets/${id}/notes`,
+    takeOver: (id: string = ":id") => `/admin/support/tickets/${id}/take-over`,
+    returnToBot: (id: string = ":id") => `/admin/support/tickets/${id}/return-to-bot`,
+    savedReplies: "/admin/support/saved-replies",
+    savedReply: (id: string = ":id") => `/admin/support/saved-replies/${id}`,
+    unanswered: "/admin/support/unanswered",
+    dismissUnanswered: (id: string = ":id") => `/admin/support/unanswered/${id}/dismiss`,
+    settings: "/admin/support/settings",
+    analytics: "/admin/support/analytics",
+    /** POST: a one-time WhatsApp link code for a student (admins). */
+    linkCodes: "/admin/support/link-codes",
+    /** DELETE: unlink a WhatsApp contact from a student. */
+    contactLink: (contactId: string = ":id", studentId: string = ":studentId") => `/admin/support/contacts/${contactId}/links/${studentId}`,
+    /** DELETE: erase a WhatsApp contact (super admins). */
+    contact: (id: string = ":id") => `/admin/support/contacts/${id}`,
+    contactExport: (id: string = ":id") => `/admin/support/contacts/${id}/export`,
+    /** GET: an image or PDF a customer sent (streamed; admins). */
+    attachment: (id: string = ":id") => `/admin/support/attachments/${id}`
   },
   leads: {
     create: "/leads",
@@ -1033,7 +1071,12 @@ export const API_ROUTES = {
     /** The academy's own WhatsApp Business credentials (super admin). */
     whatsapp: "/admin/branding/whatsapp",
     /** The academy's own addresses and how to point a domain at it. */
-    domains: "/admin/branding/domains"
+    domains: "/admin/branding/domains",
+    /** Public, by host: the academy's own wording for `/privacy` or `/terms` (null = the built-in text). */
+    legalPage: (kind: string = ":kind") => `/tenant/legal/${kind}`,
+    /** The academy's admins: read both pages; PUT one (empty text = back to the built-in text). */
+    adminLegalPages: "/admin/branding/legal",
+    adminLegalPage: (kind: string = ":kind") => `/admin/branding/legal/${kind}`
   },
   // Platform operators only: Nexa's SUPER_ADMINs (docs/SAAS_MULTI_TENANCY.md §E), never another academy's role.
   platform: {

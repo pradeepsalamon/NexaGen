@@ -391,6 +391,69 @@ never a version from the client; both are in the data export. **Bump
 `LEGAL_TERMS_VERSION` whenever the wording in `content.ts` changes.** Accounts
 an admin creates, and accounts from before 2026-11-07, have both null.
 
+## Coach payroll: TDS
+
+Tax deducted at source from a coach's pay. Off until an admin turns it on at
+Admin → Finance → Coach payroll → **TDS**.
+
+**What the admin sets** (`PayrollSettings`, one row per academy;
+`GET/PUT /admin/payroll/settings`, admins only, plan feature `coachPayroll`):
+
+| Setting | Meaning |
+|---|---|
+| Deduct TDS | The switch. Off = no payslip has a TDS line |
+| Rate (%) | Stored as basis points (`tdsRateBps`, 1000 = 10%) |
+| Yearly threshold | Minor units. 0 = deduct from the first payment |
+| Financial year starts in | Month 1–12, April by default |
+
+A coach can have their own rate on the compensation profile
+(`CoachCompensationProfile.tdsRateBps`): blank = the academy's rate, 0 = no
+TDS for that coach.
+
+**The rule** is the pure `computeTds` in `@nexa-chess/types` `payroll.ts`:
+
+1. Nothing is deducted until the coach's pay in the financial year goes
+   **above** the threshold.
+2. From then on the rate applies to everything paid that year, less the TDS
+   already deducted. So the first payslip past the threshold also carries the
+   TDS on the earlier ones. (This is how TDS on professional fees works in
+   India.)
+3. A payslip never loses more than it pays; what is left carries to the next
+   one. An over-deduction is never refunded automatically.
+
+"Pay" is what the record pays before TDS: gross earnings − rule deductions +
+manual adjustments.
+
+**Where it is worked out.** When a period is calculated,
+`PayrollCalculationService` freezes the terms on each record as `tdsSnapshot`
+(rate, threshold, the financial year's first day, the coach's earlier pay and
+TDS that year). "Earlier" is every other period that starts inside the same
+financial year and before this one, cancelled periods aside.
+`payroll-record-totals.util.ts` is the only writer of `tdsMinor` and
+`netPayableMinor`; it applies `computeTds` to the frozen terms, so adding or
+reversing an adjustment re-works the TDS without re-reading the settings.
+
+**Rules you must not break**
+
+- Never write `tdsMinor` or `netPayableMinor` anywhere but
+  `payroll-record-totals.util.ts`.
+- A settings change applies to periods calculated or recalculated afterwards.
+  An approved or finalized record keeps its snapshot.
+- Recalculating an earlier period does not reach forward: recalculate the later
+  one too while it is still in review.
+
+**Where it shows:** a "TDS (rate)" line under Deductions on the payslip PDF, a
+TDS row in the record's totals, and a TDS column on the admin period table and
+the coach's earnings table. The `{{payroll.netPayable}}` message placeholder is
+the amount after TDS.
+
+**Not built:** a TDS return (Form 26Q) export, TDS certificates (Form 16A), the
+higher rate for a coach without a PAN (set that coach's own rate), and salary
+TDS by income-tax slab (set the employee's own rate, or 0).
+
+Tests: `payroll/payroll-tds.spec.ts` (the rule and the totals writer),
+`payroll/payroll-tds.int-spec.ts` (two financial years end to end).
+
 ## SEO & AI search (GEO)
 
 The public home page `/` is the academy marketing site; everything signed-in

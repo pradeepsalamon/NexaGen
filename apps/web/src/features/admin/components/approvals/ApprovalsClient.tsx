@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { GraduationCap, UserRoundCheck } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { getPendingCoaches, getPendingStudents } from "@/features/admin/api/adminApi";

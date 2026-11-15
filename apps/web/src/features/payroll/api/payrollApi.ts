@@ -20,10 +20,12 @@ import type {
   PayrollPeriodListResponse,
   PayrollRuleItem,
   PayrollRuleListResponse,
+  PayrollSettingsItem,
   PayslipItem,
   ReversePayrollAdjustmentRequest,
   UpdateCompensationProfileRequest,
-  UpdatePayrollRuleRequest
+  UpdatePayrollRuleRequest,
+  UpdatePayrollSettingsRequest
 } from "@nexa-chess/types";
 import { apiBaseUrl } from "@/lib/apiBase";
 import { apiFetch } from "@/lib/api";
@@ -193,6 +195,18 @@ export function updatePayrollRule(
   body: UpdatePayrollRuleRequest
 ): Promise<{ rule: PayrollRuleItem }> {
   return apiFetch(API_ROUTES.adminPayroll.rule(id), { method: "PUT", body });
+}
+
+// ── Admin: settings (TDS) ──
+
+export function getPayrollSettings(): Promise<{ settings: PayrollSettingsItem }> {
+  return apiFetch(API_ROUTES.adminPayroll.settings);
+}
+
+export function updatePayrollSettings(
+  body: UpdatePayrollSettingsRequest
+): Promise<{ settings: PayrollSettingsItem }> {
+  return apiFetch(API_ROUTES.adminPayroll.settings, { method: "PUT", body });
 }
 
 // ── Admin: payouts ──

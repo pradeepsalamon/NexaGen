@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   ServiceUnavailableException
 } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
@@ -41,6 +42,7 @@ import {
 } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { AcademyLinksService } from "../tenancy/academy-links.service";
 import { BillingProfileService } from "./billing-profile.service";
 import { CreditNoteService } from "./credit-note.service";
 import { DiscountService, toAppliedDiscount } from "./discount.service";
@@ -108,7 +110,8 @@ export class PaymentService {
     private readonly prisma: PrismaService,
     private readonly registry: ProviderRegistry,
     private readonly router: PaymentRouterService,
-    private readonly subscriptions: SubscriptionService
+    private readonly subscriptions: SubscriptionService,
+    @Optional() private readonly links?: AcademyLinksService
   ) {}
 
   // ────────────────────────────────────────────────
@@ -1057,7 +1060,7 @@ export class PaymentService {
             this.env.WHATSAPP_DEFAULT_COUNTRY_CODE
           )
         },
-        returnUrl: this.buildReturnUrl(payment.id, returnPath),
+        returnUrl: await this.buildReturnUrl(payment.id, returnPath),
         notes
       });
 
@@ -1228,7 +1231,7 @@ export class PaymentService {
                 this.env.WHATSAPP_DEFAULT_COUNTRY_CODE
               )
             },
-            returnUrl: this.buildReturnUrl(refreshed.id, dto.returnPath),
+            returnUrl: await this.buildReturnUrl(refreshed.id, dto.returnPath),
             notes: {
               orderId: order.id,
               orderNumber: order.orderNumber,
@@ -1323,8 +1326,9 @@ export class PaymentService {
     });
   }
 
-  private buildReturnUrl(paymentId: string, returnPath?: string): string {
-    const base = getFrontendUrl(this.env);
+  /** Back to the academy's own address after the gateway's page. */
+  private async buildReturnUrl(paymentId: string, returnPath?: string): Promise<string> {
+    const base = this.links ? await this.links.origin() : getFrontendUrl(this.env);
     const path = returnPath ?? "/student/billing";
     return `${base}${path}${path.includes("?") ? "&" : "?"}payment=${paymentId}`;
   }

@@ -57,6 +57,7 @@ attendance, assignments, the puzzle library, announcements, notifications.
 | `smartRevision` | `RevisionController` |
 | `tournaments` | `TournamentAdminController` (academy tournament settings); every tournament controller added by later phases (docs/TOURNAMENTS.md). Enterprise only for now |
 | `studentPayments` | payments, invoices, admin payments/invoices, manual payments (never the provider webhooks) |
+| `whatsappSupport` | `SupportAdminController` (the `/admin/support` inbox, saved answers, bot settings) — **writes only** (`allowReads`, old tickets stay readable); without it the bot doesn't answer (`SupportSettingsService.forBot`). Business + Enterprise |
 | `whiteLabel` | `PUT /admin/branding/white-label`; with it, "Powered by NexaChess" is hidden unless the academy shows it |
 
 **Rule:** a key exists in `PLAN_FEATURE_KEYS` only if some route enforces it.
@@ -144,6 +145,11 @@ read from rows the app already writes.
   stored before 2026-11-13 have no row (about 0.4 MB in the whole account), so
   `uploadBytes` starts from that date. Payslip PDFs get their size from then on
   too (`Payslip.pdfBytes`).
+- **Recordings storage page** (`/analytics/storage`, `storage_snapshots`,
+  2026-11-15): the recordings disk is shared by every academy. Nexa's daily
+  snapshot and gauge keep the whole folder (it runs the server); another
+  academy's snapshot and gauge hold only its own recordings
+  (`LiveSession.recordingBytes`) against the same disk limit.
 - **Not counted:** fixed system emails (password reset, verification, invites;
   they aren't logged), in-app notifications, demo-class guests and spectators
   (no attendance row), derived Cloudinary images, bandwidth (files are served

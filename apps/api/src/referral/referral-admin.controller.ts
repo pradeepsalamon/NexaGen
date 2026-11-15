@@ -9,6 +9,7 @@ import {
   linkReferredUserRequestSchema,
   moveReferralStageRequestSchema,
   payReferralWithdrawalRequestSchema,
+  payReferralWithdrawalsBulkRequestSchema,
   rejectReferralRedemptionRequestSchema,
   rejectReferralWithdrawalRequestSchema,
   sendReferrerAccessLinkRequestSchema,
@@ -27,6 +28,7 @@ import {
   type MoveReferralStageRequest,
   type PaginatedQuery,
   type PayReferralWithdrawalRequest,
+  type PayReferralWithdrawalsBulkRequest,
   type RejectReferralRedemptionRequest,
   type RejectReferralWithdrawalRequest,
   type SendReferrerAccessLinkRequest,
@@ -240,6 +242,15 @@ export class ReferralAdminController {
   @Header("Content-Disposition", 'attachment; filename="referral-withdrawals.csv"')
   exportWithdrawals(@Req() request: Request, @Query() query: ListQuery) {
     return this.admin.exportWithdrawalsCsv(this.getAccessToken(request), query);
+  }
+
+  @Post(API_ROUTES.adminReferrals.payWithdrawalsBulk)
+  @HttpCode(200)
+  payWithdrawalsBulk(
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(payReferralWithdrawalsBulkRequestSchema)) body: PayReferralWithdrawalsBulkRequest
+  ) {
+    return this.admin.payWithdrawalsBulk(this.getAccessToken(request), body);
   }
 
   @Post(API_ROUTES.adminReferrals.payWithdrawal())

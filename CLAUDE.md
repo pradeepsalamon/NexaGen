@@ -107,6 +107,7 @@ Per feature in `apps/web/src/features/<feature>/`: `api/<x>Api.ts` (thin `apiFet
 - **BullMQ** (`apps/api/src/queue/`) is optional: without `REDIS_URL` every queue is a no-op, so persist your own status row first and treat the enqueue as a nudge; `jobId` from your row, no `:`. **Cron single-runner: `JobLockService.runExclusive(JOB_LOCKS.x, run)`** — never session `pg_try_advisory_lock` via Prisma. Ever-growing log tables go in `RETENTION_RULES`; policy-window user content is a `RetentionCategory` (`/admin/data-retention`).
 - **Throttling**: global `UserThrottlerGuard` (100/min; auth 5/min, reset 3/min); storage must never throw.
 - **WhatsApp** (`whatsapp/`): features never call it directly — go through `MessagingDispatchService` (§3.6e).
+- **WhatsApp support bot** (`support/`, `/admin/support`; off by default; per-academy `SupportSettings`, Nexa falls back to `SUPPORT_*` env; another academy's number on `/webhooks/whatsapp/<webhookKey>` signed with its own app secret): the conversation is the pure `transitionSupport` (`@nexa-chess/types` `support-flows.ts`); webhook needs `X-Hub-Signature-256`, stores before the 200, then a lease claim; one transaction per message under the contact's xact lock; never reveals account data; quotes only admin-written saved answers (never invents one); a demo booking becomes a `Lead` via `LeadService.upsertFromWhatsApp`. `STOP` (`WhatsAppOptOutService`) blocks proactive WhatsApp. [docs/WHATSAPP_SUPPORT.md](docs/WHATSAPP_SUPPORT.md) §0
 - **Sentry**: optional, errors only. `instrument.ts` stays first in `main.ts` and never calls `getApiEnv()`. **Students are minors**: only `user.id` + `role`, no query strings, never loosen `dataCollection`.
 - Details: [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md), [docs/MESSAGING.md](docs/MESSAGING.md).
 
@@ -141,6 +142,7 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 - **SEO/GEO**: academy facts live once in `features/academy/content.ts`; never put a claim in JSON-LD or `llms.txt` the page doesn't show.
 - **Demo classes** (`demo-class/`, `app/demo/[classId]`, super-admin only): guests are `DemoClassRegistration`s, added only via `DemoInviteService`. [CLASSES](docs/CLASSES.md)
 - **Knowledge base** (`knowledge/`, `/help`, `/admin/knowledge`): nothing pre-loaded; `canReadKnowledgeArticle` / `readerWhere` is the one visibility rule (hidden = 404); published versions immutable. [KNOWLEDGE_BASE](docs/KNOWLEDGE_BASE.md)
+- **Coach payroll TDS** (`payroll/`, admin-set rate + yearly threshold, off by default): the rule is `computeTds` (`@nexa-chess/types` `payroll.ts`) on the terms frozen in the record's `tdsSnapshot`; `payroll-record-totals.util.ts` is the only writer of `tdsMinor` / `netPayableMinor`. [FEATURES](docs/FEATURES.md)
 - **Privacy** (`privacy/`): secrets never leave an export; **a new model storing personal data gets an export section**; deletions via `UserService.deleteAs`; `features/legal/content.ts` must stay true to the code.
 
 ### 3.6l2 Referrals and the SALES role
@@ -159,7 +161,7 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 ### 3.6m3 Academy branding and addresses (Phase 5)
 
-`branding/` + `features/branding/`, contract `@nexa-chess/types` `tenant-branding.ts`. Public config by host (`GET /tenant/public-config`); colours only via `brandColorIssue`/`deriveBrandPalette`; images PNG/JPEG/WebP checked by magic bytes. **An academy's own address calls the API at `/api` (`lib/apiBase.ts`) and gets host-only `nexa_h_*` cookies; Nexa's hosts are unchanged** — never read the auth cookie by another name. Brand copy via `useBrandName()`, Nexa-only markup `platform-brand-only`. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 5 plan", VPS: [DEPLOYMENT.md](docs/DEPLOYMENT.md) Step 4c.
+`branding/` + `features/branding/`, contract `@nexa-chess/types` `tenant-branding.ts`. Public config by host (`GET /tenant/public-config`); colours only via `brandColorIssue`/`deriveBrandPalette`; images PNG/JPEG/WebP checked by magic bytes. **An academy's own address calls the API at `/api` (`lib/apiBase.ts`) and gets host-only `nexa_h_*` cookies; Nexa's hosts are unchanged** — never read the auth cookie by another name. Brand copy via `useBrandName()`, Nexa-only markup `platform-brand-only`. An academy writes its own `/privacy` and `/terms` (`TenantLegalPage`, `branding/legal-pages.service.ts`, web `AcademyLegalText`); Nexa's stay in `features/legal/content.ts`. [docs/SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Phase 5 plan", VPS: [DEPLOYMENT.md](docs/DEPLOYMENT.md) Step 4c.
 
 ### 3.6m4 Platform billing and academy gateways (Phase 6)
 
@@ -208,6 +210,8 @@ NestJS `apps/api/src/ai/` is the only caller of stateless Python `services/ai-ru
 ## 6. Deployment & ops (context — don't run these yourself)
 
 CI runs on PRs (lint + unit tests first, then migrations + drift check, integration tests, build); the `main` ruleset requires it. Push to `main` deploys changed services, re-running CI first unless that exact code already passed on the merged PR (Dependabot PRs skip CI until a manual `gh workflow run ci.yml --ref <branch>`: [DEPLOYMENT](docs/DEPLOYMENT.md)), via `scripts/deploy-production.sh`, migrating **before** swapping the API; failures roll back to `:last-good` images. **Migrations are never reversed — keep them additive.** `NEXT_PUBLIC_*` vars are build-time. A new bulk source-data table is excluded from backup dumps in both `scripts/backup_db.sh` and admin backup. New workflow steps pin actions to a commit SHA. Full detail: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) § "CI, automated deploys and rollback".
+
+**Service status screens**: nginx serves `deploy/status-pages/page.html` while the web app can't answer (502/504, deploy swap, `nexa.sh maintenance on <env>`); in-app crashes go through `components/common/ErrorScreen.tsx` from every `error.tsx`. [docs/SERVICE_STATUS.md](docs/SERVICE_STATUS.md)
 
 ---
 

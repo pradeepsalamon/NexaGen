@@ -19,6 +19,7 @@ import type {
   WhatsAppApiSuccess,
   WhatsAppDocumentMessage,
   WhatsAppFailure,
+  WhatsAppInteractiveMessage,
   WhatsAppMediaUploadResult,
   WhatsAppOutboundMessage,
   WhatsAppSendOutcome,
@@ -29,6 +30,7 @@ import type {
 import {
   WHATSAPP_TEXT_BODY_LIMIT,
   buildDocumentPayload,
+  buildInteractivePayload,
   buildTemplatePayload,
   buildTextPayload,
   describeWhatsAppFailure,
@@ -38,6 +40,14 @@ import {
 } from "./whatsapp.utils";
 
 /** Thrown by the throwing send methods; carries the provider's own diagnosis. */
+/** A customer's file is larger than we keep. */
+export class WhatsAppMediaTooLargeError extends Error {
+  constructor(readonly bytes: number) {
+    super(`The file is too large (${Math.round(bytes / 1024 / 1024)} MB).`);
+    this.name = "WhatsAppMediaTooLargeError";
+  }
+}
+
 export class WhatsAppSendError extends Error {
   constructor(readonly failure: WhatsAppFailure) {
     super(failure.message);
@@ -109,6 +119,20 @@ export class WhatsAppService {
 
     const to = this.resolveRecipient(message.to);
     return this.send(buildTemplatePayload(message, to), to);
+  }
+
+  /** Reply buttons or a list (the support bot). Only deliverable inside the 24h window. */
+  async sendInteractive(message: WhatsAppInteractiveMessage): Promise<WhatsAppSendResult> {
+    if (!message.body?.trim()) {
+      throw new BadRequestException("WhatsApp message body is empty.");
+    }
+    const to = this.resolveRecipient(message.to);
+    return this.send(buildInteractivePayload(message, to), to);
+  }
+
+  /** Best-effort interactive send. See {@link trySendText}. */
+  async trySendInteractive(message: WhatsAppInteractiveMessage): Promise<WhatsAppSendOutcome> {
+    return this.attempt(() => this.sendInteractive(message));
   }
 
   /** Best-effort text send for paths that must not fail because WhatsApp did. */
@@ -331,6 +355,32 @@ export class WhatsAppService {
         retryable: false
       });
     }
+  }
+
+  /**
+   * Downloads a file a customer sent (docs/WHATSAPP_SUPPORT.md §0), with the
+   * current academy's token: Meta's media id gives a short-lived URL, read with
+   * the same token. Throws on any failure, and `WhatsAppMediaTooLargeError`
+   * above `maxBytes` (checked before and after the download).
+   */
+  async downloadMedia(mediaId: string, maxBytes: number): Promise<{ data: Buffer; mimeType: string | null }> {
+    const env = this.activeEnv();
+    if (!env) throw new ServiceUnavailableException("WhatsApp is not configured for this academy.");
+    const headers = { Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}` };
+    const signal = () => AbortSignal.timeout(this.env.WHATSAPP_TIMEOUT_MS);
+    const base = env.WHATSAPP_API_BASE_URL.replace(/\/+$/, "");
+    const meta = await fetch(`${base}/${env.WHATSAPP_API_VERSION}/${encodeURIComponent(mediaId)}`, { headers, signal: signal() });
+    const info = (await this.readJson(meta)) as { file_size?: unknown; mime_type?: unknown; url?: unknown } | null;
+    if (!meta.ok || typeof info?.url !== "string" || !info.url.startsWith("https://")) {
+      throw new Error(`WhatsApp didn't give the file (HTTP ${meta.status}).`);
+    }
+    const declared = Number(info.file_size);
+    if (Number.isFinite(declared) && declared > maxBytes) throw new WhatsAppMediaTooLargeError(declared);
+    const file = await fetch(info.url, { headers, signal: signal() });
+    if (!file.ok) throw new Error(`The file download failed (HTTP ${file.status}).`);
+    const data = Buffer.from(await file.arrayBuffer());
+    if (data.byteLength > maxBytes) throw new WhatsAppMediaTooLargeError(data.byteLength);
+    return { data, mimeType: typeof info.mime_type === "string" ? info.mime_type : null };
   }
 
   private async attempt(

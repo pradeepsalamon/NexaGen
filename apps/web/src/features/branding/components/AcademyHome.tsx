@@ -13,7 +13,7 @@ import { useTenantBrand } from "../context/TenantBrandProvider";
  * Rendered on every host and hidden before first paint where it doesn't apply.
  */
 export function AcademyHome() {
-  const { config, name } = useTenantBrand();
+  const { config, isAcademyHost, name } = useTenantBrand();
   const unknown = config !== null && config.tenantId === null;
 
   return (
@@ -41,7 +41,8 @@ export function AcademyHome() {
           </>
         ) : (
           <>
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">{name || " "}</h1>
+            {/* Before the page knows its host, `name` is still the server's "Nexa Chess". */}
+            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">{(isAcademyHost && name) || " "}</h1>
             {config?.tagline ? <p className="text-lg text-app-muted">{config.tagline}</p> : null}
             <div className="flex flex-wrap justify-center gap-3">
               <Button asChild size="lg">

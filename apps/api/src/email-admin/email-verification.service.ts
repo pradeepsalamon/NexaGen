@@ -1,10 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import type { EmailVerificationPolicy } from "@nexa-chess/types";
 import { UserRole, type User } from "@prisma/client";
 import { createOpaqueToken, hashOpaqueToken } from "../auth/auth.utils";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { AcademyLinksService } from "../tenancy/academy-links.service";
 import { requireTenantId, singletonRowId } from "../tenancy/tenant-sql";
 
 /**
@@ -27,7 +28,8 @@ export class EmailVerificationService {
 
   constructor(
     private readonly mail: MailService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    @Optional() private readonly links?: AcademyLinksService
   ) {}
 
   async policy(): Promise<EmailVerificationPolicy> {
@@ -68,7 +70,7 @@ export class EmailVerificationService {
       })
     ]);
 
-    const link = new URL("/verify-email", this.frontendUrl);
+    const link = new URL("/verify-email", this.links ? await this.links.origin() : this.frontendUrl);
     link.searchParams.set("token", token);
     await this.mail.sendEmailVerificationLink(user.email, link.toString());
   }

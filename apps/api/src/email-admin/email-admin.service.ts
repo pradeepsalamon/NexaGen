@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -12,6 +13,7 @@ import type {
   DirectEmailDto,
   DirectEmailListResponse,
   EmailAdminOverviewResponse,
+  EmailOptOutListResponse,
   EmailVerificationPolicy,
   PaginatedQuery,
   SendDirectEmailRequest,
@@ -23,6 +25,7 @@ import { paginationMeta, resolvePagination } from "../common/pagination";
 import { queryEnum } from "../common/query-params";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { EmailPreferencesService } from "./email-preferences.service";
 import { EmailVerificationService } from "./email-verification.service";
 
 const MAIL_REFUSED = "The mail server did not accept this email. Try again in a moment.";
@@ -38,7 +41,8 @@ export class EmailAdminService {
     private readonly jwtService: JwtService,
     private readonly mail: MailService,
     private readonly prisma: PrismaService,
-    private readonly verification: EmailVerificationService
+    private readonly verification: EmailVerificationService,
+    private readonly preferences: EmailPreferencesService
   ) {}
 
   async overview(accessToken: string | undefined): Promise<EmailAdminOverviewResponse> {
@@ -153,6 +157,15 @@ export class EmailAdminService {
     const recipient = await this.prisma.user.findUnique({ where: { id: userId, isDeleted: false } });
     if (!recipient) throw new NotFoundException("User not found.");
     this.assertMailConfigured();
+    // Staff email is non-essential too (docs/EMAIL_ADMIN.md): it honours the person's switch
+    // and carries their unsubscribe links. Refused before the row, so nothing is logged as sent.
+    const target = await this.preferences.targetFor(recipient.id, "ACADEMY_TEAM");
+    if (!target) throw new NotFoundException("User not found.");
+    if (target.optedOut) {
+      throw new ConflictException(
+        `${displayName(recipient)} has turned off emails from the academy team. Reach them another way.`
+      );
+    }
 
     const row = await this.prisma.directEmail.create({
       data: {
@@ -165,7 +178,12 @@ export class EmailAdminService {
     });
 
     try {
-      await this.mail.sendDirectEmail({ body: payload.body, subject: payload.subject, to: recipient.email });
+      await this.mail.sendDirectEmail({
+        body: payload.body,
+        subject: payload.subject,
+        to: recipient.email,
+        unsubscribe: { oneClickUrl: target.oneClickUrl, pageUrl: target.unsubscribeUrl }
+      });
     } catch (error) {
       await this.prisma.directEmail.update({
         data: { error: String(error).slice(0, 500), status: DirectEmailStatus.FAILED },
@@ -181,6 +199,59 @@ export class EmailAdminService {
       where: { id: row.id }
     });
     return toDto(sent);
+  }
+
+  /** People who turned off some or all non-essential email (master switch first, then by name). */
+  async listOptedOut(accessToken: string | undefined, query?: PaginatedQuery): Promise<EmailOptOutListResponse> {
+    await this.getStaff(accessToken);
+    const { page, pageSize, skip, search, take } = resolvePagination(query);
+    const where: Prisma.UserWhereInput = {
+      isDeleted: false,
+      OR: [{ notificationEmailOptOutAt: { not: null } }, { emailOptOutCategories: { isEmpty: false } }],
+      ...(search
+        ? {
+            AND: [
+              {
+                OR: [
+                  { firstName: { contains: search, mode: "insensitive" } },
+                  { lastName: { contains: search, mode: "insensitive" } },
+                  { email: { contains: search, mode: "insensitive" } }
+                ]
+              }
+            ]
+          }
+        : {})
+    };
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        orderBy: [{ notificationEmailOptOutAt: { nulls: "last", sort: "desc" } }, { firstName: "asc" }, { id: "asc" }],
+        select: {
+          email: true,
+          emailOptOutCategories: true,
+          firstName: true,
+          id: true,
+          lastName: true,
+          notificationEmailOptOutAt: true,
+          role: true
+        },
+        skip,
+        take,
+        where
+      }),
+      this.prisma.user.count({ where })
+    ]);
+    return {
+      accounts: users.map((user) => ({
+        disabledCategories: user.emailOptOutCategories,
+        email: user.email,
+        id: user.id,
+        name: displayName(user),
+        notificationEmails: user.notificationEmailOptOutAt === null,
+        optedOutAt: user.notificationEmailOptOutAt?.toISOString() ?? null,
+        role: user.role
+      })),
+      pagination: paginationMeta(total, page, pageSize)
+    };
   }
 
   async listSent(

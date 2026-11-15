@@ -73,20 +73,101 @@ export type EmailVerificationStatusResponse = {
   policy: EmailVerificationPolicy;
 };
 
-/** A person's own choice about messaging-rule ("notification") emails. System emails always send. */
+/**
+ * What a non-essential email is about, so a person can stop one kind and keep the rest
+ * (docs/MESSAGING.md "Email channel"). Every messaging-rule event has one
+ * (`MESSAGING_EVENT_EMAIL_CATEGORY`); `ACADEMY_TEAM` is email staff write at `/admin/email`.
+ * System emails (password reset, verification, invoices) have none and always send.
+ */
+export const emailCategorySchema = z.enum([
+  "CLASSES",
+  "HOMEWORK",
+  "ANNOUNCEMENTS",
+  "ACCOUNT",
+  "REFERRALS",
+  "ACADEMY_TEAM"
+]);
+export type EmailCategory = z.infer<typeof emailCategorySchema>;
+export const EMAIL_CATEGORIES = emailCategorySchema.options;
+
+export const EMAIL_CATEGORY_DEFINITIONS: Record<EmailCategory, { description: string; label: string }> = {
+  ACADEMY_TEAM: {
+    description: "Emails someone at the academy writes to you.",
+    label: "Messages from the academy team"
+  },
+  ACCOUNT: {
+    description: "Sign-up decisions, payments, refunds, payroll and requests you made or need to decide.",
+    label: "Account, payments and requests"
+  },
+  ANNOUNCEMENTS: {
+    description: "Announcements and tournaments.",
+    label: "Announcements and tournaments"
+  },
+  CLASSES: {
+    description: "New, moved and cancelled classes, and class reminders.",
+    label: "Classes"
+  },
+  HOMEWORK: {
+    description: "New homework, due dates, marks and revision reminders.",
+    label: "Homework and revision"
+  },
+  REFERRALS: {
+    description: "Your referrals' progress, rewards, points and vouchers.",
+    label: "Referrals"
+  }
+};
+
+/** A person's own choice about non-essential email. System emails always send. */
 export type EmailPreferencesDto = {
+  /** Kinds turned off on their own; empty when all are on. Ignored while `notificationEmails` is false. */
+  disabledCategories: EmailCategory[];
+  /** The master switch: false stops every category. */
   notificationEmails: boolean;
 };
 
-export const updateEmailPreferencesRequestSchema = z.object({ notificationEmails: z.boolean() });
+export const updateEmailPreferencesRequestSchema = z
+  .object({
+    disabledCategories: z.array(emailCategorySchema).max(EMAIL_CATEGORIES.length).optional(),
+    notificationEmails: z.boolean().optional()
+  })
+  .refine((body) => body.disabledCategories !== undefined || body.notificationEmails !== undefined, {
+    message: "Nothing to change."
+  });
 export type UpdateEmailPreferencesRequest = z.infer<typeof updateEmailPreferencesRequestSchema>;
 
-/** The link in a notification email: it changes the setting without signing in. */
+/** The link in an email: it changes the setting without signing in. */
 export const emailUnsubscribeRequestSchema = z.object({
+  /** With a category, only that kind changes; without one, the master switch. */
+  category: emailCategorySchema.optional(),
   /** False (the default) turns the emails off; true turns them back on from the same page. */
   notificationEmails: z.boolean().default(false),
   token: z.string().trim().min(20).max(200)
 });
 export type EmailUnsubscribeRequest = z.infer<typeof emailUnsubscribeRequestSchema>;
+
+/** RFC 8058 one-click unsubscribe: the mail app POSTs to the header's link (query string only). */
+export const emailOneClickQuerySchema = z.object({
+  category: emailCategorySchema.optional(),
+  token: z.string().trim().min(20).max(200)
+});
+export type EmailOneClickQuery = z.infer<typeof emailOneClickQuerySchema>;
+
+/** Admin → Email → Opted out: someone who turned off some or all non-essential email. */
+export type EmailOptOutAccountDto = {
+  disabledCategories: EmailCategory[];
+  email: string;
+  id: string;
+  name: string;
+  /** False = everything off (the master switch). */
+  notificationEmails: boolean;
+  /** When they turned the master switch off; null while it is on. */
+  optedOutAt: string | null;
+  role: string;
+};
+
+export type EmailOptOutListResponse = {
+  accounts: EmailOptOutAccountDto[];
+  pagination: PaginationMeta;
+};
 
 export const EMAIL_UNSUBSCRIBE_PATH = "/unsubscribe";

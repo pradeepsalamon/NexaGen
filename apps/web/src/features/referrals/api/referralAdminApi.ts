@@ -12,6 +12,8 @@ import {
   type CreateReferralStageRequest,
   type MoveReferralStageRequest,
   type PayReferralWithdrawalRequest,
+  type PayReferralWithdrawalsBulkRequest,
+  type PayReferralWithdrawalsBulkResponse,
   type ReferralPage,
   type ReferralRewardItem,
   type ReferralBonusRuleItem,
@@ -91,6 +93,8 @@ export const referralAdminApi = {
 
   withdrawals: (params: ReferralListParams) =>
     apiFetch<ReferralPage<ReferralWithdrawalItem>>(withQuery(routes.withdrawals, params)),
+  payWithdrawalsBulk: (body: PayReferralWithdrawalsBulkRequest) =>
+    apiFetch<PayReferralWithdrawalsBulkResponse>(routes.payWithdrawalsBulk, { body, method: "POST" }),
   payWithdrawal: (id: string, body: PayReferralWithdrawalRequest) =>
     apiFetch<Ok>(routes.payWithdrawal(id), { body, method: "POST" }),
   rejectWithdrawal: (id: string, body: RejectReferralWithdrawalRequest) =>

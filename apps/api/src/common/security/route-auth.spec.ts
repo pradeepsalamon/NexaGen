@@ -13,6 +13,7 @@ const PUBLIC_ROUTES = new Set([
   "auth/auth.controller.ts#resetPassword",
   "auth/auth.controller.ts#verifyEmail",
   // The link in a notification email: the random token is the credential.
+  "email-admin/email-preferences.controller.ts#oneClick",
   "email-admin/email-preferences.controller.ts#unsubscribe",
   // Public by host: the academy's look before sign-in, and the domain check echo (§F, §H).
   "branding/branding.controller.ts#publicConfig",
@@ -31,7 +32,12 @@ const PUBLIC_ROUTES = new Set([
   "tournament/tournament-public.controller.ts#live",
   "tournament/tournament-public.controller.ts#realtimeToken",
   "tournament/tournament-public.controller.ts#standings",
-  "tournament/tournament-public.controller.ts#verifyCertificate"
+  "tournament/tournament-public.controller.ts#verifyCertificate",
+  // Meta's WhatsApp subscription handshake: the verify token is the credential.
+  // The POST beside it reads its request (the signature) and needs no entry.
+  "support/whatsapp-webhook.controller.ts#verify",
+  // The same handshake on another academy's own webhook URL (its verify token).
+  "support/whatsapp-webhook.controller.ts#verifyAcademy"
 ]);
 
 const SRC = path.resolve(__dirname, "../..");

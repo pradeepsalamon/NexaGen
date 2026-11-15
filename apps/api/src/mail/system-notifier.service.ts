@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { getAdminNotificationEmails, getApiEnv } from "@nexa-chess/config/api";
 import {
   markdownToWhatsApp,
@@ -10,6 +10,8 @@ import {
 import { UserRole, UserStatus } from "@prisma/client";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { AcademyLinksService } from "../tenancy/academy-links.service";
+import { WhatsAppOptOutService } from "../whatsapp/whatsapp-opt-out.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService, type MailAttachment } from "./mail.service";
 import { SystemMessageRenderer } from "./system-message-renderer.service";
@@ -48,7 +50,9 @@ export class SystemNotifier {
     private readonly notifications: NotificationService,
     private readonly prisma: PrismaService,
     private readonly renderer: SystemMessageRenderer,
-    private readonly whatsapp: WhatsAppService
+    private readonly whatsapp: WhatsAppService,
+    private readonly whatsappOptOut: WhatsAppOptOutService,
+    @Optional() private readonly links?: AcademyLinksService
   ) {}
 
   async send(
@@ -69,7 +73,9 @@ export class SystemNotifier {
     if (list.length === 0) return result;
 
     const definition = SYSTEM_MESSAGE_DEFINITIONS[key];
-    const message = await this.renderer.renderAll(key, variables);
+    // Callers build links on Nexa's address; another academy's people get its own.
+    const localized = this.links ? await this.links.localize(variables) : variables;
+    const message = await this.renderer.renderAll(key, localized);
     const channels = options.channels
       ? options.channels.filter((channel) => definition.channels.includes(channel))
       : message.channels;
@@ -95,7 +101,8 @@ export class SystemNotifier {
         }
       }
 
-      if (channels.includes("WHATSAPP") && recipient.phone) {
+      // A number that replied STOP gets no proactive WhatsApp: the channel stays SKIPPED.
+      if (channels.includes("WHATSAPP") && recipient.phone && !(await this.whatsappOptOut.isOptedOut(recipient.phone))) {
         // The academy's approved template when it set one (delivers outside the 24h window),
         // else free text. One code path for every WhatsApp send: WhatsAppService.trySendMessage.
         const template = message.whatsappTemplate;

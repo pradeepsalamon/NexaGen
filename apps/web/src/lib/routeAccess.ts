@@ -29,6 +29,8 @@ const ROUTE_RULES: readonly RouteRule[] = [
   // Platform console: Nexa's super admins only (the API refuses any other academy's).
   { prefix: "/admin/platform", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/trash", roles: ["SUPER_ADMIN"] },
+  // An academy's own WhatsApp number: the API takes it from a super admin only.
+  { prefix: "/admin/whatsapp", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin", roles: STAFF_ROLES },
   { prefix: "/coach", roles: ["COACH"] },
   // Referral-only accounts: the referral board and their own profile, nothing else.

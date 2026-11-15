@@ -13,6 +13,7 @@ import {
   reversePayrollAdjustmentSchema,
   updateCompensationProfileSchema,
   updatePayrollRuleSchema,
+  updatePayrollSettingsSchema,
   type CancelPayrollPeriodRequest,
   type CloseCompensationRateRequest,
   type CreateCompensationRateRequest,
@@ -23,7 +24,8 @@ import {
   type MarkPayoutPaidRequest,
   type ReversePayrollAdjustmentRequest,
   type UpdateCompensationProfileRequest,
-  type UpdatePayrollRuleRequest
+  type UpdatePayrollRuleRequest,
+  type UpdatePayrollSettingsRequest
 } from "@nexa-chess/types";
 import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
@@ -41,6 +43,7 @@ import { PayrollLifecycleService } from "./payroll-lifecycle.service";
 import { PayrollPeriodService } from "./payroll-period.service";
 import { PayrollRecordService } from "./payroll-record.service";
 import { PayrollRuleService } from "./payroll-rule.service";
+import { PayrollSettingsService } from "./payroll-settings.service";
 import { PayslipGenerationService } from "./payslip-generation.service";
 import { RequireFeature } from "../platform/require-feature.decorator";
 
@@ -65,7 +68,8 @@ export class PayrollAdminController {
     private readonly prisma: PrismaService,
     private readonly records: PayrollRecordService,
     private readonly rules: PayrollRuleService,
-    private readonly payslips: PayslipGenerationService
+    private readonly payslips: PayslipGenerationService,
+    private readonly settings: PayrollSettingsService
   ) {}
 
   // ── Periods ──
@@ -272,6 +276,23 @@ export class PayrollAdminController {
   ) {
     const admin = await this.admin(request);
     return { rule: await this.rules.update(id, admin.id, dto) };
+  }
+
+  // ── Settings (TDS) ──
+
+  @Get(API_ROUTES.adminPayroll.settings)
+  async getSettings(@Req() request: Request) {
+    await this.admin(request);
+    return { settings: await this.settings.getItem() };
+  }
+
+  @Put(API_ROUTES.adminPayroll.settings)
+  async updateSettings(
+    @Body(new ZodBodyPipe(updatePayrollSettingsSchema)) dto: UpdatePayrollSettingsRequest,
+    @Req() request: Request
+  ) {
+    const admin = await this.admin(request);
+    return { settings: await this.settings.update(admin.id, dto) };
   }
 
   // ── Payslips ──

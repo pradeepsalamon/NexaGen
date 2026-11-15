@@ -273,26 +273,29 @@ model User {
 
   isEmailVerified Boolean @default(false)
 
-  emailVerifiedAt     DateTime?
+  emailVerifiedAt           DateTime?
   // Set = this person turned off messaging-rule ("notification") emails; system emails
   // (password reset, verification, invoices) still send. docs/MESSAGING.md "Email channel".
   notificationEmailOptOutAt DateTime?
+  // Kinds of non-essential email this person turned off one by one (`EMAIL_CATEGORIES`);
+  // the master switch above stops them all. docs/MESSAGING.md "Email channel".
+  emailOptOutCategories     EmailCategory[] @default([])
   // The random value in the unsubscribe link of this person's emails; made on the first send.
-  emailUnsubscribeToken     String?   @unique
+  emailUnsubscribeToken     String?         @unique
   // Self-registration's Terms of Service + Privacy Policy checkbox: when it was ticked and which
   // version (`LEGAL_TERMS_VERSION`). Null for accounts an admin created or made before it existed.
-  termsAcceptedAt     DateTime?
-  termsVersion        String?
-  lastLoginAt         DateTime?
+  termsAcceptedAt           DateTime?
+  termsVersion              String?
+  lastLoginAt               DateTime?
   // Wrong passwords since the last sign-in; the Nth sets loginLockedUntil.
-  failedLoginAttempts Int       @default(0)
-  loginLockedUntil    DateTime?
+  failedLoginAttempts       Int             @default(0)
+  loginLockedUntil          DateTime?
   // Throttled recency signal (updated at most once / 10 min by ActivityTrackingInterceptor).
   // Null = never seen since the feature shipped; analytics treats it as "unknown", not inactive.
-  lastActiveAt        DateTime?
+  lastActiveAt              DateTime?
   // In-app presence: bumped by the web app's /presence/heartbeat (~15s) while
   // any tab is open. "Online" = seen within the last minute.
-  lastSeenAt          DateTime?
+  lastSeenAt                DateTime?
 
   // ── Acquisition attribution (captured at registration; see analytics module) ──
   acquisitionSource AcquisitionSource @default(UNKNOWN)
@@ -312,6 +315,17 @@ model User {
   coachProfile                    CoachProfile?                    @relation("UserCoachProfile")
   approvedCoaches                 CoachProfile[]                   @relation("CoachApprovedBy")
   createdBatches                  Batch[]                          @relation("BatchCreatedBy")
+  assignedSupportTickets          SupportTicket[]                  @relation("SupportTicketAssignee")
+  supportTicketEvents             SupportTicketEvent[]             @relation("SupportTicketEventActor")
+  sentSupportMessages             SupportMessage[]                 @relation("SupportMessageSender")
+  updatedSupportSavedReplies      SupportSavedReply[]              @relation("SupportSavedReplyUpdatedBy")
+  dismissedSupportQuestions       SupportUnansweredQuestion[]      @relation("SupportUnansweredDismissedBy")
+  updatedSupportSettings          SupportSettings[]                @relation("SupportSettingsUpdatedBy")
+  supportContactErasures          SupportContactErasure[]          @relation("SupportContactErasedBy")
+  supportConversationEvents       SupportConversationEvent[]       @relation("SupportConversationEventActor")
+  supportContactLinks             SupportContactLink[]             @relation("SupportContactLinkStudent")
+  supportLinkCodes                SupportLinkCode[]                @relation("SupportLinkCodeStudent")
+  issuedSupportLinkCodes          SupportLinkCode[]                @relation("SupportLinkCodeIssuedBy")
   coachedBatches                  BatchCoach[]                     @relation("BatchCoaches")
   studentBatches                  BatchStudent[]                   @relation("BatchStudents")
   classes                         CoachClass[]                     @relation("ClassCoach")
@@ -779,18 +793,47 @@ model TenantBranding {
   @@map("tenant_brandings")
 }
 
+/// An academy's own wording for a legal page (`/privacy`, `/terms`) on its
+/// own address. No row = the built-in text. Stored as formatted text, never
+/// HTML. Nexa's own pages stay in the web app (features/legal/content.ts).
+model TenantLegalPage {
+  id          String   @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId    String   @default("tenant_nexa")
+  /// LegalPageKind from @nexa-chess/types: "privacy" | "terms".
+  kind        String
+  body        String
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, kind])
+  @@map("tenant_legal_pages")
+}
+
 /// An academy's own WhatsApp Business number (docs/SAAS_MULTI_TENANCY.md §F
 /// "WhatsApp"; Phase 5d). Nexa uses the server's env number and has no row.
 /// The token is AES-256-GCM encrypted (WHATSAPP_CREDENTIALS_KEY, else MFA_ENCRYPTION_KEY).
 model WhatsAppSettings {
-  id                   String   @id @default(cuid())
-  tenantId             String   @unique @default("tenant_nexa")
-  enabled              Boolean  @default(false)
-  phoneNumberId        String?
+  id                   String    @id @default(cuid())
+  tenantId             String    @unique @default("tenant_nexa")
+  enabled              Boolean   @default(false)
+  /// One academy per number: incoming messages are routed by it (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §6).
+  phoneNumberId        String?   @unique
   accessTokenEncrypted String?
+  /// The WhatsApp Business Account id (template status sync, Phase C). Not secret.
+  wabaId               String?
+  /// The academy's Meta app secret: verifies X-Hub-Signature-256 on its incoming webhooks.
+  appSecretEncrypted   String?
+  /// Generated by Nexa; the academy pastes it into Meta with the webhook URL.
+  verifyTokenEncrypted String?
+  /// Random last segment of the academy's webhook URL (/webhooks/whatsapp/<key>); names the academy before any secret is read.
+  webhookKey           String?   @unique
+  /// When a signed webhook last arrived for this number ("receiving" on the settings page).
+  lastWebhookAt        DateTime?
   updatedById          String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@map("whatsapp_settings")
 }
@@ -807,6 +850,16 @@ model EmailSettings {
   updatedAt          DateTime                @updatedAt
 
   @@map("email_settings")
+}
+
+/// What a non-essential email is about (`@nexa-chess/types` `EMAIL_CATEGORIES`).
+enum EmailCategory {
+  CLASSES
+  HOMEWORK
+  ANNOUNCEMENTS
+  ACCOUNT
+  REFERRALS
+  ACADEMY_TEAM
 }
 
 enum DirectEmailStatus {
@@ -1288,6 +1341,10 @@ model Lead {
   notes             LeadNote[]
   demoRegistrations DemoClassRegistration[]
   referral          Referral?
+  /// WhatsApp support tickets for this lead (a demo booked through the bot).
+  supportTickets    SupportTicket[]
+  /// Its copy in Frappe CRM, when one is sent (docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM").
+  crmPush           CrmLeadPush?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2383,6 +2440,8 @@ enum NotificationType {
   REFERRAL_PROGRESS
   REFERRAL_REWARD
   REFERRAL_REQUEST_DECIDED
+  REFERRAL_POINTS_EXPIRING
+  REFERRAL_TAKEN_BACK
   /// A fixed system message sent in-app (SystemNotifier), not a messaging rule.
   SYSTEM_MESSAGE
 }
@@ -3296,6 +3355,8 @@ enum MessagingEvent {
   REFERRAL_PROGRESS
   REFERRAL_REWARD
   REFERRAL_REQUEST_DECIDED
+  REFERRAL_POINTS_EXPIRING
+  REFERRAL_TAKEN_BACK
 }
 
 enum MessagingScheduleMode {
@@ -3424,6 +3485,9 @@ model MessageDelivery {
   /// Provider handle ("wamid.…") for a delivered WhatsApp message.
   providerMessageId String?
   error             String?
+  /// WhatsApp status webhooks (docs/WHATSAPP_SUPPORT.md §0): reached the phone / opened.
+  deliveredAt       DateTime?
+  readAt            DateTime?
 
   /// Idempotency key so a scheduler never double-sends. Null = always insert.
   dedupeKey String?
@@ -4719,6 +4783,9 @@ model CoachCompensationProfile {
   panNumber    String?
   gstin        String?
   taxTreatment String?
+  /// This coach's own TDS rate in basis points (1000 = 10%). Null = the
+  /// academy's rate (PayrollSettings); 0 = no TDS for this coach.
+  tdsRateBps   Int?
 
   notes String?
 
@@ -4809,6 +4876,32 @@ model PayrollRule {
   @@map("payroll_rules")
 }
 
+/// An academy's payroll settings (one row per academy; Nexa's keeps id
+/// "default"). TDS is tax deducted at source from a coach's pay: off until an
+/// admin turns it on and sets the rate and the yearly threshold
+/// (docs/FEATURES.md "Coach payroll: TDS").
+model PayrollSettings {
+  id       String @id @default("default")
+  /// Owning academy (Tenant.id).
+  tenantId String @unique @default("tenant_nexa")
+
+  tdsEnabled             Boolean @default(false)
+  /// Basis points (1000 = 10%), no floats.
+  tdsRateBps             Int     @default(0)
+  /// Minor units. TDS starts once a coach's pay in the financial year goes
+  /// above this; 0 = from the first payment.
+  tdsThresholdMinor      Int     @default(0)
+  /// 1–12; the month the financial year starts (4 = April, India's).
+  financialYearStartMonth Int    @default(4)
+
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payroll_settings")
+}
+
 /// A payroll run for a date range, covering every in-scope coach. Statuses
 /// only ever move forward (DRAFT → CALCULATING → REVIEW → APPROVED →
 /// FINALIZED → PAID), or sideways into CANCELLED. Once FINALIZED, nothing
@@ -4891,7 +4984,15 @@ model CoachPayrollRecord {
   grossEarningsMinor    Int @default(0)
   totalDeductionsMinor  Int @default(0)
   totalAdjustmentsMinor Int @default(0)
+  /// TDS deducted from this record. netPayable = gross - deductions +
+  /// adjustments - tds; payroll-record-totals.util.ts is the only writer.
+  tdsMinor              Int @default(0)
   netPayableMinor       Int @default(0)
+
+  /// The TDS terms frozen at calculation time (PayrollTdsSnapshot: rate,
+  /// threshold, the coach's earlier pay and TDS in the financial year). Null
+  /// = no TDS applies to this record.
+  tdsSnapshot Json?
 
   calculatedAt DateTime?
   reviewedAt   DateTime?
@@ -8493,4 +8594,496 @@ model TournamentCertificate {
   @@unique([tenantId, serialNumber])
   @@index([userId])
   @@map("tournament_certificates")
+}
+
+//
+// WHATSAPP SUPPORT BOT (docs/WHATSAPP_SUPPORT.md)
+//
+
+enum SupportConversationStatus {
+  BOT
+  WAITING_AGENT
+  AGENT
+  CLOSED
+}
+
+enum SupportMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum SupportMessageAuthor {
+  CUSTOMER
+  BOT
+  AGENT
+}
+
+enum SupportMessageStatus {
+  RECEIVED
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum SupportCategory {
+  COURSE
+  REFUND
+  CLASS
+  PAYMENT
+  TECH
+  OTHER
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum SupportTicketEventKind {
+  CREATED
+  ASSIGNED
+  STATUS_CHANGED
+  NOTE
+  HANDOFF
+  TAKEN_OVER
+  RETURNED_TO_BOT
+}
+
+/// The academy's WhatsApp support bot settings (docs/WHATSAPP_SUPPORT_MODES_PLAN.md
+/// §9). No row: Nexa's academy uses the server's SUPPORT_* env values, any
+/// other academy has the bot off.
+model SupportSettings {
+  id                         String   @id @default(cuid())
+  tenantId                   String   @unique @default("tenant_nexa")
+  botEnabled                 Boolean  @default(false)
+  /// While non-empty the bot answers only these numbers (digits with country code).
+  testNumbers                String[] @default([])
+  /// 0 = no staff reminders.
+  staffReminderMinutes       Int      @default(15)
+  /// 0 = no parent nudge; always under 24 (the free reply window).
+  leadNudgeHours             Int      @default(20)
+  /// Approved template for staff replies after the 24-hour window; null = such replies are refused.
+  agentReplyTemplate         String?
+  agentReplyTemplateLanguage String   @default("en")
+  /// SupportHours ({ timezone, days: [{ day, open, close }] }); null = the team answers any time.
+  hours                      Json?
+  /// Sent after a hand-off outside hours; null = DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE.
+  outOfHoursMessage          String?
+  /// The main menu: SupportMenuItem[] (supportMenuSchema); null = DEFAULT_SUPPORT_MENU.
+  menu                       Json?
+  /// A number linked to a student (staff-issued code) may ask for its next class.
+  accountAnswers             Boolean  @default(false)
+  updatedById                String?
+  updatedBy                  User?    @relation("SupportSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  @@map("support_settings")
+}
+
+enum SupportAttachmentStatus {
+  PENDING
+  STORED
+  FAILED
+}
+
+/// An image or PDF a customer sent (docs/WHATSAPP_SUPPORT.md §0, D13): fetched
+/// from Meta once and kept privately (Cloudinary `authenticated`) for staff
+/// only; the bot never reads it. When its message goes (retention, erasure)
+/// `messageId` becomes null and a sweep deletes the stored file, then the row.
+model SupportAttachment {
+  id         String                  @id @default(cuid())
+  tenantId   String                  @default("tenant_nexa")
+  messageId  String?                 @unique
+  message    SupportMessage?         @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  mediaId    String
+  mimeType   String?
+  filename   String?
+  status     SupportAttachmentStatus @default(PENDING)
+  attempts   Int                     @default(0)
+  claimedAt  DateTime?
+  error      String?
+  /// Cloudinary public id of the stored file (authenticated, raw).
+  storageKey String?
+  /// Stored size, for the academy's storage usage.
+  bytes      Int?
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+
+  @@index([status, createdAt])
+  @@index([messageId])
+  @@map("support_attachments")
+}
+
+/// A WhatsApp contact a super admin erased (privacy request). No personal
+/// data: who did it, when, and how much went (docs/WHATSAPP_SUPPORT.md §0).
+model SupportContactErasure {
+  id            String   @id @default(cuid())
+  tenantId      String   @default("tenant_nexa")
+  /// The erased contact's id (the row itself is gone, or bare when it opted out).
+  contactId     String
+  erasedById    String?
+  erasedBy      User?    @relation("SupportContactErasedBy", fields: [erasedById], references: [id], onDelete: SetNull)
+  conversations Int
+  messages      Int
+  tickets       Int
+  keptOptOut    Boolean
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("support_contact_erasures")
+}
+
+/// One incoming WhatsApp webhook item (a message, or a status update for one we
+/// sent). Written before the 200 so Meta's retries collide on `dedupeKey`
+/// (`msg:<wamid>` / `status:<wamid>:<status>`), then processed after the
+/// response under a `claimedAt` lease. Message text is redacted before insert;
+/// the raw payload is never stored. Kept 30 days (RETENTION_RULES).
+model WhatsAppWebhookEvent {
+  id                String    @id @default(cuid())
+  tenantId          String    @default("tenant_nexa")
+  dedupeKey         String    @unique
+  /// "message" | "status"
+  kind              String
+  /// The academy's number the item arrived on (Meta's phone_number_id).
+  phoneNumberId     String?
+  /// The customer's WhatsApp id (digits with country code).
+  waId              String
+  /// wamid of the message (ours, for a status).
+  providerMessageId String
+  /// text | interactive | button | image | audio | … (messages only)
+  messageType       String?
+  /// Redacted text, or the tapped option's title.
+  text              String?
+  /// Id of the tapped reply button / list row.
+  replyId           String?
+  /// An image or document: Meta's media id (downloaded once for staff, never read by the bot).
+  mediaId           String?
+  mediaMimeType     String?
+  mediaFilename     String?
+  /// The media's caption, redacted. Not bot input.
+  mediaCaption      String?
+  /// sent | delivered | read | failed (statuses only)
+  status            String?
+  statusError       String?
+  profileName       String?
+  occurredAt        DateTime
+  receivedAt        DateTime  @default(now())
+  claimedAt         DateTime?
+  processedAt       DateTime?
+  /// Recorded but deliberately not acted on (bot off, number not on the allowlist).
+  ignoredAt         DateTime?
+  attempts          Int       @default(0)
+  error             String?
+
+  @@index([processedAt, ignoredAt, receivedAt])
+  @@index([receivedAt])
+  @@map("whatsapp_webhook_events")
+}
+
+/// A WhatsApp number that messaged the academy. Not an account: WhatsApp proves
+/// control of the number, not who the student is (docs/WHATSAPP_SUPPORT.md §9).
+model WhatsAppContact {
+  id               String    @id @default(cuid())
+  tenantId         String    @default("tenant_nexa")
+  waId             String
+  profileName      String?
+  /// Starts the 24-hour customer-service window.
+  lastInboundAt    DateTime?
+  /// "STOP": no proactive WhatsApp (rules, system messages). Support replies still go.
+  optedOutAt       DateTime?
+  /// Wrong LINK codes since `linkFailuresFrom` (a rate limit: docs/WHATSAPP_SUPPORT.md §0 "Existing students").
+  linkFailures     Int       @default(0)
+  linkFailuresFrom DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  conversations SupportConversation[]
+  tickets       SupportTicket[]
+  studentLinks  SupportContactLink[]
+
+  @@unique([tenantId, waId])
+  @@map("whatsapp_contacts")
+}
+
+/// One support conversation with a contact. At most one is not CLOSED per
+/// contact (partial unique index in the migration).
+model SupportConversation {
+  id            String                    @id @default(cuid())
+  tenantId      String                    @default("tenant_nexa")
+  contactId     String
+  contact       WhatsAppContact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  /// A SupportFlowState (@nexa-chess/types support-flows.ts).
+  state         String                    @default("START")
+  flowVersion   Int                       @default(1)
+  /// SupportDraft: what the bot has collected so far.
+  draft         Json                      @default("{}")
+  status        SupportConversationStatus @default(BOT)
+  lastInboundAt DateTime?
+  /// When the bot sent its one follow-up to a parent who asked about classes but didn't book.
+  nudgedAt      DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  messages SupportMessage[]
+  tickets  SupportTicket[]
+  events   SupportConversationEvent[]
+
+  @@index([contactId, status])
+  @@index([status, lastInboundAt])
+  @@map("support_conversations")
+}
+
+/// The transcript: every message in and out. An outgoing row is written PENDING
+/// before the send and carries `clientKey` so a retry never sends twice.
+model SupportMessage {
+  id                String                  @id @default(cuid())
+  tenantId          String                  @default("tenant_nexa")
+  conversationId    String
+  conversation      SupportConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction         SupportMessageDirection
+  author            SupportMessageAuthor
+  /// Redacted plain text (an interactive message is flattened for the transcript).
+  body              String
+  /// The interactive payload to send (SupportReply), outgoing bot messages only.
+  payload           Json?
+  /// Id of the tapped option, incoming only.
+  interactiveId     String?
+  /// wamid; null until Meta accepts an outgoing message.
+  providerMessageId String?                 @unique
+  /// Local idempotency key of an outgoing message.
+  clientKey         String?                 @unique
+  status            SupportMessageStatus
+  attempts          Int                     @default(0)
+  nextAttemptAt     DateTime?
+  claimedAt         DateTime?
+  error             String?
+  sentById          String?
+  sentBy            User?                   @relation("SupportMessageSender", fields: [sentById], references: [id], onDelete: SetNull)
+  attachment        SupportAttachment?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+  @@map("support_messages")
+}
+
+/// A request for staff: created by the bot (form finished or hand-off). The
+/// reference (NXS-2026-000123) comes from the support_ticket_reference_seq sequence.
+model SupportTicket {
+  id             String              @id @default(cuid())
+  tenantId       String              @default("tenant_nexa")
+  reference      String              @unique
+  contactId      String
+  contact        WhatsAppContact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  category       SupportCategory
+  status         SupportTicketStatus @default(OPEN)
+  /// The customer asked for a person instead of finishing a form.
+  handoff        Boolean             @default(false)
+  studentName    String?
+  /// What the customer wrote (redacted).
+  details        String?
+  /// tenant + contact + category + 7-day window: a repeat within a week shows the same reference.
+  dedupeKey      String              @unique
+  assignedToId   String?
+  assignedTo     User?               @relation("SupportTicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  /// The lead a free-demo booking created or matched.
+  leadId         String?
+  lead           Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  /// Staff reminders sent while nobody had replied (support-follow-up.service.ts).
+  remindersSent  Int                 @default(0)
+  lastReminderAt DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  events SupportTicketEvent[]
+
+  @@index([status, updatedAt])
+  @@index([contactId, createdAt])
+  @@index([assignedToId, status])
+  @@index([leadId])
+  @@index([status, createdAt])
+  @@map("support_tickets")
+}
+
+/// Append-only ticket history: creation, assignment, status, notes, hand-offs.
+model SupportTicketEvent {
+  id        String                 @id @default(cuid())
+  tenantId  String                 @default("tenant_nexa")
+  ticketId  String
+  ticket    SupportTicket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  kind      SupportTicketEventKind
+  body      String?
+  actorId   String?
+  actor     User?                  @relation("SupportTicketEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt DateTime               @default(now())
+
+  @@index([ticketId, createdAt])
+  @@map("support_ticket_events")
+}
+
+/// An answer admins write once (fees, timings, levels…). The bot sends it when
+/// a customer taps it or types one of its keywords (`showInBot`), and staff
+/// insert it into their replies (docs/WHATSAPP_SUPPORT.md §0).
+model SupportSavedReply {
+  id          String   @id @default(cuid())
+  tenantId    String   @default("tenant_nexa")
+  /// The list-row title on WhatsApp (24 characters at most).
+  title       String
+  /// The list-row description (72 characters at most).
+  description String?
+  body        String
+  /// Lower-cased words or phrases that pick this answer from a typed question.
+  keywords    String[] @default([])
+  showInBot   Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  updatedById String?
+  updatedBy   User?    @relation("SupportSavedReplyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, sortOrder])
+  @@map("support_saved_replies")
+}
+
+/// A question the WhatsApp bot couldn't answer from the saved answers, so
+/// admins can see what to add (docs/WHATSAPP_SUPPORT.md §0). Repeats of the
+/// same wording count on one row. No contact is stored: only the (redacted) text.
+model SupportUnansweredQuestion {
+  id            String    @id @default(cuid())
+  tenantId      String    @default("tenant_nexa")
+  /// normalizeSupportText of the question (at most 200 characters): the grouping key.
+  normalized    String
+  /// The latest wording, redacted like every stored message.
+  text          String
+  timesAsked    Int       @default(1)
+  firstAskedAt  DateTime  @default(now())
+  lastAskedAt   DateTime  @default(now())
+  /// Hidden from the list until it is asked again.
+  dismissedAt   DateTime?
+  dismissedById String?
+  dismissedBy   User?     @relation("SupportUnansweredDismissedBy", fields: [dismissedById], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, normalized])
+  @@index([tenantId, dismissedAt, timesAsked])
+  @@index([lastAskedAt])
+  @@map("support_unanswered_questions")
+}
+
+enum CrmLeadPushStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// One lead sent one way to Frappe CRM (Nexa's academy only; plan D6,
+/// docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM"). Written in the lead's
+/// transaction, sent after commit, retried by a sweep. Holds no personal data.
+model CrmLeadPush {
+  id            String            @id @default(cuid())
+  tenantId      String            @default("tenant_nexa")
+  leadId        String            @unique
+  lead          Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  status        CrmLeadPushStatus @default(PENDING)
+  attempts      Int               @default(0)
+  nextAttemptAt DateTime          @default(now())
+  claimedAt     DateTime?
+  /// The Frappe document name (e.g. CRM-LEAD-2026-00042).
+  externalId    String?
+  error         String?
+  sentAt        DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@map("crm_lead_pushes")
+}
+
+/// Why a conversation changed hands (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §5.2).
+enum SupportOwnerChangeReason {
+  /// The bot handed it to staff (form sent, "agent", too many unreadable replies).
+  HANDOFF
+  /// The customer typed MENU (or similar) while waiting, so the bot has it again.
+  CUSTOMER_MENU
+  STAFF_REPLY
+  STAFF_TAKE_OVER
+  STAFF_RETURN
+  /// The bot booked a real demo class time; nothing left for staff.
+  DEMO_BOOKED
+  /// Its last open ticket was resolved.
+  TICKET_RESOLVED
+  /// A bot conversation silent for a day.
+  BOT_IDLE
+}
+
+/// Who owns a WhatsApp conversation, over time: one row per status change,
+/// written in the same transaction as the change. Feeds the support analytics
+/// (hand-off rate, first staff reply). No personal data.
+model SupportConversationEvent {
+  id             String                    @id @default(cuid())
+  tenantId       String                    @default("tenant_nexa")
+  conversationId String
+  conversation   SupportConversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  fromStatus     SupportConversationStatus
+  toStatus       SupportConversationStatus
+  reason         SupportOwnerChangeReason
+  /// Staff member who caused it; null for the bot or the customer.
+  actorId        String?
+  actor          User?                     @relation("SupportConversationEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  ticketId       String?
+  createdAt      DateTime                  @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([createdAt, toStatus])
+  @@index([actorId])
+  @@map("support_conversation_events")
+}
+
+/// A WhatsApp number linked to a student of the academy, by a code staff
+/// gave the family (plan Phase D, D8: a code, never a phone-number match).
+/// Only then may the bot tell that number the student's next class.
+model SupportContactLink {
+  id        String          @id @default(cuid())
+  tenantId  String          @default("tenant_nexa")
+  contactId String
+  contact   WhatsAppContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User            @relation("SupportContactLinkStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  /// The code that made it (kept for the audit trail; the code itself is spent).
+  codeId    String?
+  createdAt DateTime        @default(now())
+
+  @@unique([contactId, studentId])
+  @@index([studentId])
+  @@map("support_contact_links")
+}
+
+/// A one-time code staff create for one student and give the family, who send
+/// "LINK <code>" from WhatsApp. Only its SHA-256 is stored; 24 hours; one use.
+model SupportLinkCode {
+  id              String    @id @default(cuid())
+  tenantId        String    @default("tenant_nexa")
+  studentId       String
+  student         User      @relation("SupportLinkCodeStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  codeHash        String    @unique
+  expiresAt       DateTime
+  usedAt          DateTime?
+  usedByContactId String?
+  createdById     String?
+  createdBy       User?     @relation("SupportLinkCodeIssuedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+
+  @@index([studentId])
+  @@index([createdById])
+  @@index([expiresAt])
+  @@map("support_link_codes")
 }

@@ -367,6 +367,31 @@ export class ReferralCreditsService {
     return expiredUsers;
   }
 
+  /**
+   * Everyone whose unspent points expire within `days` (the nightly notice): one row per user
+   * with the points the runs before `now + days` will take. Read-only.
+   */
+  async pointsExpiringWithin(
+    settings: ReferralSettings,
+    days: number,
+    now = new Date()
+  ): Promise<{ expiresBy: Date; points: number; userId: string }[]> {
+    if (!settings.pointsExpiryDays) return [];
+    const lookAhead = Math.min(days, settings.pointsExpiryDays);
+    const cutoff = new Date(now.getTime() - (settings.pointsExpiryDays - lookAhead) * DAY_MS);
+    const expiresBy = new Date(now.getTime() + lookAhead * DAY_MS);
+    const candidates = await this.prisma.referralCreditEntry.groupBy({
+      by: ["userId"],
+      where: { amountMinor: { gt: 0 }, createdAt: { lt: cutoff }, wallet: "POINTS" }
+    });
+    const out: { expiresBy: Date; points: number; userId: string }[] = [];
+    for (const { userId } of candidates) {
+      const points = await this.pointsExpiredBy(userId, cutoff, this.prisma);
+      if (points > 0) out.push({ expiresBy, points, userId });
+    }
+    return out;
+  }
+
   /** Points the next runs will take within the warning window, for the student's board. */
   async pointsExpiringSoon(userId: string, settings: ReferralSettings, now = new Date()): Promise<number> {
     if (!settings.pointsExpiryDays) return 0;

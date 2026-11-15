@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Circle, Eye, Hand, LogOut, MessageSquare, MicOff, MonitorUp, RefreshCw, Volume2, VolumeX } from "lucide-react";

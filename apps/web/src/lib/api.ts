@@ -115,8 +115,9 @@ function reportNetworkFailure(silent: boolean) {
   if (silent) return;
   consecutiveNetworkFailures += 1;
   if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
-  if (!offline && consecutiveNetworkFailures < NETWORK_FAILURES_BEFORE_TOAST) return;
+  // Offline is shown by the ConnectionStatus pill; a toast on top would repeat it.
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  if (consecutiveNetworkFailures < NETWORK_FAILURES_BEFORE_TOAST) return;
   toast.error("Connection Error", {
     description: "Cannot connect to the server. Please check your connection.",
     id: NETWORK_TOAST_ID

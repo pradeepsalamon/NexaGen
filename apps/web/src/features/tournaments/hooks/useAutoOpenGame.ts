@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 
 const opened = new Set<string>();
 const storageKey = (gameId: string) => `nexa-tournament-game-opened:${gameId}`;

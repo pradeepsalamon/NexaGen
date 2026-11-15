@@ -732,3 +732,24 @@ this environment:
   evidence of anything about production** — someone with `vps_dev`/prod access
   needs to run the script there for the real answer, using the exact command
   in the script's own header comment.
+
+- **Run against production 2026-11-14 (`--days 90`, read-only, inside the
+  `nexa_api` container): healthy.** 103 ended classes, all after the Phase 1
+  rollout (production has no ended session before 2026-09-05 in the window,
+  so there is no before/after comparison to make). Two fixes to the script
+  came first, because its first run flagged 9 anomalies that weren't real:
+  - it summed **all** students' minutes, so any group class of 3–5 students
+    read 3–5×. It now judges each class by its longest-attending student;
+  - it summed raw log segments, which overlap: every token request opens a
+    JOIN segment, and one student who requested 34 tokens in five minutes
+    summed to 1,431 minutes. The app's stored `totalDuration` for that
+    student is 45 minutes (99.3 %, PRESENT), so the script now uses
+    `totalDuration` and falls back to the logs only when it's null.
+
+  Result: 3 anomalies, all classes that really ran over (the coach stayed
+  100, 103 and 238 minutes for 30–60-minute slots), 2 heartbeat fallbacks,
+  no runaway student duration. 40 classes have no student minutes. Since
+  2026-10-03 none of them has a student `joinedAt`, so no student tried to
+  join (mostly 1–20-minute rooms, some with no students enrolled). The 13
+  earlier ones have `joinedAt` without logs, because a token request used to
+  set `joinedAt` by itself.

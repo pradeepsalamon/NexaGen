@@ -560,8 +560,31 @@ only**).
 - `nexachess.in` keeps Nexa's `/academy` marketing site. Other academies get a
   generic, block-based landing page (hero, programmes, contact, demo booking)
   built from the existing section components and their branding content.
-- `features/legal/content.ts` becomes per-academy (§N-12).
+- Legal pages are per-academy (built 2026-11-15, see "Legal pages" below).
 - A Playwright smoke test on a second academy's address finds no "Nexa" text.
+
+### Legal pages
+
+`/privacy` and `/terms` on an academy's own address show **the academy's own
+wording** once its admins have written it (Admin → Settings → Legal pages, `/admin/legal-pages`, on every plan, so not part of the plan-gated Branding page);
+until then they show the built-in text. Every plan has it: the academy is the
+one responsible for its families' data.
+
+- Stored in `TenantLegalPage` (`tenantId` + `kind`, `privacy` or `terms`), as
+  formatted text (`TextEditor` / `FormattedText`), never HTML. Saving an empty
+  page deletes the row and brings the built-in text back.
+- Public read by host: `GET /tenant/legal/:kind` (`body: null` = built-in).
+  Admin: `GET /admin/branding/legal`, `PUT /admin/branding/legal/:kind`
+  (`branding/legal-pages.service.ts`).
+- **Nexa's own pages stay in the web app** (`features/legal/content.ts`): its
+  hosts fetch nothing and the API refuses an edit for `tenant_nexa`.
+- Web: `features/legal/components/AcademyLegalText.tsx` wraps the
+  server-rendered built-in page. On an academy's address the built-in page is
+  hidden before first paint (`platform-brand-only`) and shown again only when
+  the academy has no wording of its own, so Nexa's text never flashes first.
+- A self-registration records which wording was accepted
+  (`LegalPagesService.termsVersion`): `LEGAL_TERMS_VERSION` for the built-in
+  text, `academy:<when its text last changed>` for the academy's own.
 
 ### Email
 
@@ -575,7 +598,9 @@ with per-domain DKIM; it's later.
 An academy connects its **own** WhatsApp Business credentials, as it does its
 payment gateway. Without them, WhatsApp is off for that academy and email still
 works. Nexa keeps today's number. *(builder's call: the shared Nexa number would
-show Nexa's business name.)*
+show Nexa's business name.)* Incoming messages per academy (own webhook URL and
+app secret, or Nexa as Meta Tech Provider) and the support modes are proposed in
+[WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md).
 
 ---
 
@@ -724,6 +749,20 @@ limit) is a later addition.
 - The owner gets a written VPS checklist in [DEPLOYMENT.md](DEPLOYMENT.md):
   wildcard DNS and a certificate for `*.nexachess.in` (DNS challenge),
   a per-domain server block with certbot, and the `/api` rule.
+
+### Links in messages
+
+Every link the API builds for a person (messaging-rule and system messages on
+every channel, the unsubscribe link, email verification, payment and
+subscription return URLs, tournament certificates) opens on the person's own
+academy: `AcademyLinksService` (`apps/api/src/tenancy/academy-links.service.ts`,
+added 2026-11-15). Nexa and platform work get `FRONTEND_URL`; another academy
+gets its primary `ACTIVE` domain, or `FRONTEND_URL` while it has none.
+`MessagingDispatchService.dispatch` and `SystemNotifier.send` rewrite every
+variable that is a whole link on Nexa's address, so a caller that still builds
+links with `getFrontendUrl` stays correct. A new link outside those two senders
+uses `links.url(path)`. The support bot keeps its own rule
+(`SupportDemoSlotsService.academyOrigin`: no domain means no link at all).
 
 ---
 
@@ -1162,10 +1201,13 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
   Nexa's hosts, cookies and absolute API URL are unchanged.
 - **5d (built 2026-11-05, migration `…_saas_academy_whatsapp`):** `whatsapp_settings` (one row per
   academy, token AES-256-GCM encrypted with `CREDENTIALS_ENCRYPTION_KEY`, else a key derived from
-  `MFA_ENCRYPTION_KEY`), `GET/PUT /admin/branding/whatsapp` (the academy's super admin),
-  `WhatsAppCredentialsService` (decrypted per academy in memory, loaded at boot and on save).
+  `MFA_ENCRYPTION_KEY`), `GET/PUT /admin/branding/whatsapp` (the academy's super admin; web page `/admin/whatsapp`, on every plan),
+  `WhatsAppCredentialsService` (decrypted per academy in memory, loaded at boot, on save, and on every process every 60 s).
   `WhatsAppService.isConfigured()` and every send pick the request's academy: Nexa and work
   outside an academy use the env number; any other academy only its own, else WhatsApp is off.
+  Incoming (2026-11-14): the academy also saves its app secret and gets its own webhook URL
+  `/webhooks/whatsapp/<webhookKey>` + verify token; `phoneNumberId` is unique
+  ([WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0 "Per academy").
 - **5e (partial, 2026-11-05):** `useBrandName()` replaces "Nexa Chess" in the auth pages,
   sidebars, sign-out dialog, checkout (also the gateway's merchant name), referrals, payroll,
   class titles and acquisition analytics. Opt-in smoke test `e2e/white-label.spec.ts`
@@ -1211,7 +1253,9 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
   the server env with the gateway keys swapped for the current academy's (from
   the TenantContext), or blanked when it has none. Nexa keeps the server env and
   stores nothing. Secrets AES-256-GCM (`CREDENTIALS_ENCRYPTION_KEY`, else
-  `MFA_ENCRYPTION_KEY`). Webhooks for another academy arrive on
+  `MFA_ENCRYPTION_KEY`), kept decrypted in memory and reloaded on every API
+  process every 60 s (`reloadAll`), so a change saved on one process reaches
+  the others within a minute. Webhooks for another academy arrive on
   `/payments/webhooks/<provider>/<webhookKey>`; the key names the academy, its
   secret verifies the event, and it is processed in that academy's context.
   The old URLs (no key) stay Nexa's. Admin page: Payments → Gateways (super admins). The routes are `/admin/payment-gateways…`, not under `/admin/payments/`, whose `:id` route would claim them.
@@ -1336,8 +1380,9 @@ database for a single large customer stays possible later (§N-16).
 - **N-11 (part) Platform billing:** which provider (Razorpay, Cashfree or Stripe)
   on the owner's account, and how long financial records are kept after an
   academy is suspended or, later, deleted.
-- **N-12 Legal:** academy-facing terms, a data processing agreement (the academy
-  is the controller for its students' data), and per-academy legal pages.
+- **N-12 Legal:** academy-facing terms and a data processing agreement (the academy
+  is the controller for its students' data). Per-academy legal pages were built
+  2026-11-15 (§F "Legal pages"): each academy writes its own text.
 - **N-16 Dedicated database for a large customer later?** Separate deployments
   were rejected as the product's shape. Keeping this plan's design means a
   dedicated database for one enterprise customer stays possible later (same

@@ -9,6 +9,7 @@ export type PayrollAuditEntity =
   | "CoachCompensationProfile"
   | "CoachCompensationRate"
   | "PayrollRule"
+  | "PayrollSettings"
   | "CoachPayout"
   | "Payslip";
 

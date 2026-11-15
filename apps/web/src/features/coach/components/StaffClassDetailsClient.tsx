@@ -4,7 +4,7 @@ import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useEffect, type ReactNode } from "react";
 import { Calendar, CalendarX, Clock, Video } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import {
   CLASS_START_BLOCK_MESSAGES,
   getClassStartAvailability,

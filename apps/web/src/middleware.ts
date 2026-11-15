@@ -9,6 +9,19 @@ import {
   readRoleFromJwt
 } from "./lib/routeAccess";
 
+/**
+ * The visitor's host. A self-hosted Next server builds `request.nextUrl` from its
+ * own hostname and port, never the Host header, so `nextUrl.hostname` is always
+ * "localhost" (or the bind address) and an academy's address looked like Nexa's.
+ * nginx passes the visitor's host on as `Host`. Routing only: the API decides access.
+ */
+function requestHostname(request: NextRequest): string {
+  const raw = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(",")[0].trim().toLowerCase();
+  if (!raw) return request.nextUrl.hostname;
+  if (raw.startsWith("[")) return raw.slice(0, raw.indexOf("]") + 1);
+  return raw.replace(/:\d+$/, "");
+}
+
 // The single page-level auth gate: pages and layouts do not re-check cookies.
 // Rules live in lib/routeAccess.ts (shared with the client guard in SessionBootstrap).
 export function middleware(request: NextRequest) {
@@ -16,7 +29,7 @@ export function middleware(request: NextRequest) {
   // reach `<slug>.nexachess.in`, and the API refuses them there (lib/apiBase.ts, §E).
   // Nexa's own hosts with host-only sessions on (lib/apiBase.ts) still read the old
   // domain-wide cookies until the API swaps them at the next refresh.
-  const hostname = request.nextUrl.hostname;
+  const hostname = requestHostname(request);
   const readsLegacy = isPlatformHost(hostname);
   const names = usesHostOnlySession(hostname) ? HOST_ONLY_AUTH_COOKIES : AUTH_COOKIES;
   const cookie = (key: keyof typeof AUTH_COOKIES) =>
