@@ -78,6 +78,18 @@ staff overtook it (conversation `AGENT`, or a staff reply / take-over after it
 was written). It is marked not delivered ("Not sent: staff took over…"), even
 while waiting for a retry, so it never holds back the staff reply.
 
+**Edge rate limit** (2026-11-15). Because `@SkipThrottle` takes the webhook out
+of the API's own throttle, nginx limits it per address:
+`deploy/nginx/nexa-webhook-zones.conf` (http level, once, after the
+`$real_client_ip` map) and `deploy/nginx/nexa-webhook-whatsapp.conf` (inside each
+API server block, after `set $nexa_api_upstream nestjs_api_upstream;`, or
+`nestjs_api_dev_upstream` on `api-dev`). 20 requests/s per address with a burst
+of 100, 429 above it (Meta retries), 1 MB body cap. Covers `/webhooks/whatsapp`
+and every academy's `/webhooks/whatsapp/<webhookKey>`. Install like the status
+snippets ([SERVICE_STATUS.md](SERVICE_STATUS.md) "First install"): copy both to
+`/etc/nginx/snippets/`, edit the site file, `sudo nginx -t`, reload. Owner step:
+not yet on the box.
+
 **Per academy (Phase B of [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md),
 built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
 

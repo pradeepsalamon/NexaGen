@@ -179,7 +179,9 @@ its precondition, the student training surface, now exists).
   Open questions: §12 items 2 (which number; is it on the Business app today),
   5 (Leads/Frappe), 6 (account linking), 7 (refund policy text, SLAs), 8 (support
   hours / out-of-hours reply), 12 (AI); a legal (DPDP) review of the new
-  privacy-policy wording in `features/legal/content.ts`. Gaps to build: an nginx IP limit on `/webhooks/whatsapp` (the contact
+  privacy-policy wording in `features/legal/content.ts`. ~~Gaps to build: an nginx IP limit on `/webhooks/whatsapp`~~
+  **Built 2026-11-15** as two nginx snippets ([WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md)
+  "Edge rate limit"); installing them on the box is the owner's step (the contact
   export/erase action and `message_deliveries` status updates were built in
   Phase C, 2026-11-14).
   **Phase B and Phase C were built unattended on 2026-11-14** (branch
