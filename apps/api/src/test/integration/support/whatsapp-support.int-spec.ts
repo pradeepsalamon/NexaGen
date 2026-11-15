@@ -26,6 +26,7 @@ import {
 } from "@nexa-chess/types";
 import { UserRole, type User } from "@prisma/client";
 import { FrappeCrmPushService } from "../../../lead/frappe-crm-push.service";
+import { LeadService } from "../../../lead/lead.service";
 import { setTenantScopeModeForTesting } from "../../../prisma/tenant-scope.extension";
 import { SupportAttachmentsService } from "../../../support/support-attachments.service";
 import { SupportFollowUpService } from "../../../support/support-follow-up.service";
@@ -664,6 +665,63 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
         for (const answer of ["Asha Menon", "9", "1", "Priya Menon", "Monday", "yes"]) await say(textFrom(ALLOWED_NUMBER, answer));
         expect(crmCalls).toHaveLength(2);
         expect(await db(() => t.prisma.crmLeadPush.count())).toBe(1);
+      } finally {
+        global.fetch = stub;
+        config.mockRestore();
+      }
+    });
+
+    it("copies a website-form lead to Frappe CRM, and only adds a note when Frappe already has the number", async () => {
+      const push = t.app.get(FrappeCrmPushService);
+      const leads = t.app.get(LeadService);
+      const config = jest.spyOn(push, "config").mockReturnValue({
+        apiKey: "k",
+        apiSecret: "s",
+        countryCode: "91",
+        leadSource: "Direct WhatsApp",
+        leadStatus: "New Inquiry",
+        url: "https://crm.int.test",
+        websiteLeadSource: "Website Form"
+      });
+      // A one-lead Frappe: it remembers the numbers it was sent and finds them again.
+      const frappeNumbers: string[] = [];
+      const posts: { body: Record<string, unknown>; url: string }[] = [];
+      const stub = global.fetch;
+      global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (!url.startsWith("https://crm.int.test/")) return stub(input, init);
+        const answer = (data: unknown) => new Response(JSON.stringify({ data }), { status: 200 });
+        if (init?.method === "GET") {
+          if (url.includes("/api/resource/FCRM%20Note")) return answer([]);
+          return answer(frappeNumbers.some((number) => decodeURIComponent(url).includes(`%${number.slice(-10)}"`)) ? [{ name: "CRM-LEAD-2026-00009" }] : []);
+        }
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+        posts.push({ body, url });
+        if (typeof body.mobile_no === "string") frappeNumbers.push(body.mobile_no);
+        return answer({ name: url.includes("CRM%20Lead") ? "CRM-LEAD-2026-00009" : "n1" });
+      }) as typeof fetch;
+      const form = { experienceLevel: "beginner" as const, parentName: "Priya Menon", phone: "98765 43210", studentAge: 9, studentName: "Ravi Menon" };
+      const sent = async (leadId: string) => {
+        for (let i = 0; i < 50; i += 1) {
+          const row = await db(() => t.prisma.crmLeadPush.findUnique({ where: { leadId } }));
+          if (row?.status === "SENT") return row;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        throw new Error(`The Frappe copy of ${leadId} was never sent.`);
+      };
+      try {
+        const first = await db(() => leads.createLead(form, { sessionId: undefined }));
+        expect(await sent(first.lead.id)).toMatchObject({ externalId: "CRM-LEAD-2026-00009" });
+        expect(posts.map((post) => post.url.split("/api/resource/")[1])).toEqual(["CRM%20Lead", "FCRM%20Note"]);
+        expect(posts[0].body).toMatchObject({ first_name: "Priya Menon", mobile_no: "+919876543210", source: "Website Form", student_name: "Ravi Menon" });
+
+        // The same family fills the form again: Frappe keeps its one lead and gets a second note.
+        const second = await db(() => leads.createLead({ ...form, studentName: "Asha Menon" }, { sessionId: undefined }));
+        expect(await sent(second.lead.id)).toMatchObject({ externalId: "CRM-LEAD-2026-00009" });
+        expect(posts.map((post) => post.url.split("/api/resource/")[1])).toEqual(["CRM%20Lead", "FCRM%20Note", "FCRM%20Note"]);
+        expect(posts[2].body).toMatchObject({ reference_docname: "CRM-LEAD-2026-00009", title: "From NexaGen (website form)" });
+        const activity = await db(() => t.prisma.leadActivity.findFirstOrThrow({ where: { activityType: "CRM_PUSHED", leadId: second.lead.id } }));
+        expect(activity.title).toBe("Added to a Frappe CRM lead");
       } finally {
         global.fetch = stub;
         config.mockRestore();
