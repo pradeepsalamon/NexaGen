@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, RotateCw, Undo2 } from "lucide-react";
-import { formatMoney, type CoachPayoutItem, type CoachPayrollRecordItem } from "@nexa-chess/types";
+import { formatBpsPercent, formatMoney, type CoachPayoutItem, type CoachPayrollRecordItem } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
@@ -102,9 +102,15 @@ export function PayrollRecordDetailPanel({
                 {formatMoney(record.totalAdjustmentsMinor, currency)}
               </dd>
             </div>
+            {record.tds ? (
+              <div className="flex justify-between">
+                <dt className="text-app-muted">TDS ({formatBpsPercent(record.tds.rateBps)})</dt>
+                <dd className="tabular-nums text-app-text">-{formatMoney(record.tdsMinor, currency)}</dd>
+              </div>
+            ) : null}
             <div className="flex justify-between border-t border-app-border pt-1 text-base">
               <dt className="font-bold text-app-text">Net payable</dt>
-              <dd className="font-bold tabular-nums text-primary-ink">
+              <dd className="font-bold tabular-nums text-app-text">
                 {formatMoney(record.netPayableMinor, currency)}
               </dd>
             </div>
@@ -158,9 +164,9 @@ export function PayrollRecordDetailPanel({
                       setReversing({ id: adjustment.id, description: adjustment.description })
                     }
                     size="sm"
-                    variant="ghost"
+                    variant="neutral"
                   >
-                    <Undo2 className="mr-1 size-3.5" strokeWidth={2.5} />
+                    <Undo2 className="size-3.5" strokeWidth={2.5} />
                     Reverse
                   </Button>
                 ) : null}

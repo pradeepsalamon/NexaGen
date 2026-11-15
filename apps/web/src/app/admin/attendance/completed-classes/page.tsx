@@ -1,19 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import {
-  Loader2,
   CalendarX,
   ChevronLeft,
   ChevronRight,
   Eye,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
+import { FilterChips, FilterField, FilterPopover, type ActiveFilter } from "@/components/ui/FilterPopover";
 import { Select } from "@/components/ui/Select";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { apiFetch } from "@/lib/api";
-import { formatDate, formatDuration, formatTime } from "@/lib/datetime";
+import { formatDate, formatDuration, formatFullDate, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import {
   API_ROUTES,
@@ -25,7 +27,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Spinner } from "@/components/ui/Spinner";
 
+
+const CC_STATUS_OPTIONS = [
+  { label: "All", value: "all" },
+  { label: "Completed", value: "completed" },
+  { label: "Cancelled", value: "cancelled" },
+];
 export default function AdminCompletedClassesPage() {
   const router = useRouter();
   const tz = useUserTimeZone();
@@ -78,97 +88,98 @@ export default function AdminCompletedClassesPage() {
     }
   });
 
+  const ccFilters = [
+    statusFilter !== "all" && {
+      key: "status",
+      label: CC_STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? statusFilter,
+      onRemove: () => {
+        setStatusFilter("all");
+        setPage(1);
+      }
+    },
+    dateFrom && { key: "from", label: `From ${formatFullDate(dateFrom, "UTC")}`, onRemove: () => { setDateFrom(""); setPage(1); } },
+    dateTo && { key: "to", label: `To ${formatFullDate(dateTo, "UTC")}`, onRemove: () => { setDateTo(""); setPage(1); } },
+  ].filter((filter): filter is ActiveFilter => Boolean(filter));
+
   return (
-    <div className="space-y-6 max-w-7xl p-4 sm:p-6">
-      <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-          Completed classes
-        </h1>
-        <p className="text-app-muted mt-1">
-          View all completed and cancelled live classes
-        </p>
-      </div>
+    <div className="animate-fade-in space-y-6 pb-10">
+      <PageHeader
+        breadcrumbs={[{ href: "/admin/attendance", label: "Attendance" }, { label: "Completed classes" }]}
+        description="Every completed and cancelled live class."
+        title="Completed classes"
+      />
 
       {/* Filters */}
-      <Card className="border-app-border bg-app-surface shadow-card">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-end justify-end gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted">
-                From
-              </label>
-              <DateStringPicker
-                
-                value={dateFrom}
-                onChange={(value) => {
-                  setDateFrom(value);
+      <div className="grid gap-2">
+        <div className="flex justify-end">
+          <FilterPopover
+            activeCount={ccFilters.length}
+            emptyValue={{ dateFrom: "", dateTo: "", statusFilter: "all" }}
+            onApply={(next) => {
+              setDateFrom(next.dateFrom);
+              setDateTo(next.dateTo);
+              setStatusFilter(next.statusFilter);
+              setPage(1);
+            }}
+            value={{ dateFrom, dateTo, statusFilter }}
+          >
+            {(draft, update) => (
+              <>
+                <FilterField htmlFor="cc-status" label="Status">
+                  <Select
+                    id="cc-status"
+                    onChange={(e) => update({ statusFilter: e.target.value })}
+                    options={CC_STATUS_OPTIONS}
+                    value={draft.statusFilter}
+                  />
+                </FilterField>
+                <div className="grid grid-cols-2">
+                  <FilterField label="From">
+                    <DateStringPicker
+                      aria-label="From date"
+                      onChange={(value) => update({ dateFrom: value })}
+                      placeholder="Any date"
+                      value={draft.dateFrom}
+                    />
+                  </FilterField>
+                  <FilterField label="To">
+                    <DateStringPicker
+                      aria-label="To date"
+                      onChange={(value) => update({ dateTo: value })}
+                      placeholder="Any date"
+                      value={draft.dateTo}
+                    />
+                  </FilterField>
+                </div>
+              </>
+            )}
+          </FilterPopover>
+        </div>
+        <FilterChips
+          filters={ccFilters}
+          onClearAll={
+            ccFilters.length > 1
+              ? () => {
+                  setDateFrom("");
+                  setDateTo("");
+                  setStatusFilter("all");
                   setPage(1);
-                }}
-                className="w-44" placeholder="Any date"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted">
-                To
-              </label>
-              <DateStringPicker
-                
-                value={dateTo}
-                onChange={(value) => {
-                  setDateTo(value);
-                  setPage(1);
-                }}
-                className="w-44" placeholder="Any date"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted">
-                Status
-              </label>
-              <Select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPage(1);
-                }}
-                options={[
-                  { label: "All", value: "all" },
-                  { label: "Completed", value: "completed" },
-                  { label: "Cancelled", value: "cancelled" },
-                ]}
-                className="w-40"
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setDateFrom("");
-                setDateTo("");
-                setStatusFilter("all");
-                setPage(1);
-              }}
-            >
-              Clear Filters
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+                }
+              : undefined
+          }
+        />
+      </div>
 
       {isLoading ? (
         <div className="flex h-[40dvh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
+          <Spinner className="h-8 w-8 text-primary-ink" />
         </div>
       ) : !data || filteredClasses.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-[40dvh] text-center">
-          <div className="p-4 bg-app-soft rounded-full mb-4">
-            <CalendarX className="h-10 w-10 text-app-muted" />
-          </div>
-          <h2 className="text-xl font-semibold mb-2">No Classes Found</h2>
-          <p className="text-app-muted max-w-md">
-            No completed or cancelled classes match the current filters.
-          </p>
-        </div>
+        <EmptyState
+          description="No completed or cancelled classes match the current filters."
+          icon={CalendarX}
+          title="No classes found"
+        />
       ) : (
         <>
           <Card className="border-app-border bg-app-surface shadow-card overflow-hidden">
@@ -291,25 +302,31 @@ export default function AdminCompletedClassesPage() {
                 of {data.pagination.total} classes
               </p>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
+                <SimpleTooltip label="Previous page">
+                  <Button
+                    aria-label="Previous page"
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage(page - 1)}
+                  >
+                    <ChevronLeft aria-hidden className="h-4 w-4" />
+                  </Button>
+                </SimpleTooltip>
                 <span className="text-sm font-medium text-app-text">
                   {page} / {data.pagination.totalPages}
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= data.pagination.totalPages}
-                  onClick={() => setPage(page + 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                <SimpleTooltip label="Next page">
+                  <Button
+                    aria-label="Next page"
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= data.pagination.totalPages}
+                    onClick={() => setPage(page + 1)}
+                  >
+                    <ChevronRight aria-hidden className="h-4 w-4" />
+                  </Button>
+                </SimpleTooltip>
               </div>
             </div>
           )}

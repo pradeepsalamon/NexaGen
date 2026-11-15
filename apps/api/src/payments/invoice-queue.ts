@@ -16,6 +16,8 @@ export const INVOICE_JOBS = {
 
 export type GenerateInvoicePdfJob = {
   invoiceId: string;
+  /** Academy of the row, set by the producer; the worker trusts the row, not this (docs/SAAS_MULTI_TENANCY.md §E). */
+  tenantId?: string;
   /** Re-render even when a PDF already exists (an admin-forced retry). */
   force?: boolean;
   /** False suppresses the receipt email; the PDF is still built. */
@@ -24,6 +26,8 @@ export type GenerateInvoicePdfJob = {
 
 export type GenerateCreditNotePdfJob = {
   creditNoteId: string;
+  /** Academy of the row, set by the producer; the worker trusts the row, not this (docs/SAAS_MULTI_TENANCY.md §E). */
+  tenantId?: string;
   force?: boolean;
 };
 

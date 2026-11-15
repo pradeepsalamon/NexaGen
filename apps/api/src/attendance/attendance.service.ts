@@ -25,6 +25,7 @@ import {
 import { selectSessionToClose } from "./attendance-session.util";
 import { authenticateUser } from "../auth/authenticate";
 import { calculateTotalDuration, classRunSeconds, deriveAttendanceStamps, determineStatus } from "./attendance-calc.util";
+import { tenantFilter } from "../tenancy/tenant-sql";
 
 /** Write side of attendance: LiveKit join/leave events, heartbeats, finalize, and the policy. */
 @Injectable()
@@ -319,7 +320,7 @@ export class AttendanceService {
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handleStaleHeartbeats() {
     try {
-      await this.jobLocks.runExclusive(JOB_LOCKS.attendanceHeartbeatSweep, () =>
+      await this.jobLocks.runForEachTenant(JOB_LOCKS.attendanceHeartbeatSweep, () =>
         this.sweepStaleHeartbeats()
       );
     } catch (error) {
@@ -897,7 +898,7 @@ export class AttendanceService {
       SET "sessionEnd" = ${cutoff}::timestamp,
           "sessionDuration" = GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (${cutoff}::timestamp - l."sessionStart"))))::int
       FROM "class_attendance" ca
-      WHERE l."attendanceId" = ca."id"
+      WHERE ${tenantFilter("l")} AND l."attendanceId" = ca."id"
         AND ca."classId" = ${classId}
         AND l."sessionStart" IS NOT NULL
         AND l."sessionEnd" IS NULL
@@ -907,7 +908,7 @@ export class AttendanceService {
       SET "sessionEnd" = ${cutoff}::timestamp,
           "sessionDuration" = GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (${cutoff}::timestamp - l."sessionStart"))))::int
       FROM "coach_attendance" ca
-      WHERE l."attendanceId" = ca."id"
+      WHERE ${tenantFilter("l")} AND l."attendanceId" = ca."id"
         AND ca."classId" = ${classId}
         AND l."sessionStart" IS NOT NULL
         AND l."sessionEnd" IS NULL

@@ -117,7 +117,7 @@ export function DemoClassDetailsDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle>Demo Class Details</DialogTitle>
+          <DialogTitle>Demo class details</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -204,7 +204,7 @@ export function DemoClassDetailsDialog({
                           <span className="flex min-w-0 flex-col">
                             <span className="flex flex-wrap items-center gap-1.5">
                               <span className="truncate font-medium">{r.name}</span>
-                              <Badge variant="outline" className="text-[10px]">{SOURCE_LABELS[r.source]}</Badge>
+                              <Badge variant="outline">{SOURCE_LABELS[r.source]}</Badge>
                             </span>
                             <span className="flex items-center gap-1 truncate text-xs text-app-muted">
                               {r.contactMethod === "EMAIL" ? (
@@ -223,9 +223,9 @@ export function DemoClassDetailsDialog({
                               <Button
                                 type="button"
                                 size="icon"
-                                variant="ghost"
+                                variant="neutral"
                                 aria-label={`Copy ${r.name}'s personal link`}
-                                className="size-8 rounded-full border border-primary bg-primary p-0 text-white hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                                className="size-8"
                                 onClick={() => copy(demoAbsoluteUrl(r.invitePath as string), "Personal link copied")}
                               >
                                 <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
@@ -237,9 +237,9 @@ export function DemoClassDetailsDialog({
                               <Button
                                 type="button"
                                 size="icon"
-                                variant="ghost"
+                                variant="neutral"
                                 aria-label={`Remove ${r.name}`}
-                                className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                                className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
                                 onClick={() => runRemove(r)}
                               >
                                 <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
@@ -304,8 +304,8 @@ function DetailRow({ icon, label, children }: { icon: React.ReactNode; label: st
 }
 
 function GuestStatusBadge({ registration }: { registration: DemoClassRegistrationItem }) {
-  if (registration.joined) return <Badge variant="success" className="text-[10px]">Joined</Badge>;
-  if (registration.approval === "PENDING") return <Badge variant="warning" className="text-[10px]">Waiting for coach</Badge>;
-  if (registration.approval === "DENIED") return <Badge variant="destructive" className="text-[10px]">Not admitted</Badge>;
-  return <Badge variant="secondary" className="text-[10px]">Registered</Badge>;
+  if (registration.joined) return <Badge variant="success">Joined</Badge>;
+  if (registration.approval === "PENDING") return <Badge variant="warning">Waiting for coach</Badge>;
+  if (registration.approval === "DENIED") return <Badge variant="destructive">Not admitted</Badge>;
+  return <Badge variant="secondary">Registered</Badge>;
 }

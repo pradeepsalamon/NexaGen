@@ -2,6 +2,7 @@
 
 import { Download } from "lucide-react";
 import { formatMoney } from "@nexa-chess/types";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -28,20 +29,18 @@ export function CoachEarningsClient() {
       hours: (r) => r.totalTeachingSeconds,
       net: (r) => r.netPayableMinor,
       period: (r) => r.period.startDate,
-      status: (r) => r.status
+      status: (r) => r.status,
+      tds: (r) => r.tdsMinor
     }
   });
   const payslipByRecord = new Map((payslipsData?.payslips ?? []).map((p) => [p.payrollRecordId, p]));
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-app-text">Earnings</h1>
-        <p className="text-sm text-app-muted">
-          Your payroll history, computed from your teaching activity. Only an admin can
-          change a rate or add an adjustment.
-        </p>
-      </div>
+      <PageHeader
+        description="Your payroll history, computed from your teaching activity. Only an admin can change a rate or add an adjustment."
+        title="Earnings"
+      />
 
       {isLoading ? <Skeleton className="h-64 w-full" /> : null}
 
@@ -54,10 +53,10 @@ export function CoachEarningsClient() {
 
       {records.length > 0 ? (
         <Card className="p-0">
-            <Table className="w-full min-w-[720px] border-collapse">
+            <Table className="w-full min-w-[800px] border-collapse">
               <TableHeader>
                 <TableRow className="border-b border-app-border">
-                  {([["Period", "period"], ["Classes", "classes"], ["Hours", "hours"], ["Gross", "gross"], ["Net", "net"], ["Status", "status"], ["Payslip", null]] as const).map(([heading, sortKey]) => (
+                  {([["Period", "period"], ["Classes", "classes"], ["Hours", "hours"], ["Gross", "gross"], ["TDS", "tds"], ["Net", "net"], ["Status", "status"], ["Payslip", null]] as const).map(([heading, sortKey]) => (
                     <TableHead
                       className="px-4 py-3 text-left"
                       key={heading}
@@ -86,7 +85,10 @@ export function CoachEarningsClient() {
                       <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-text">
                         {formatMoney(record.grossEarningsMinor, "INR")}
                       </TableCell>
-                      <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-primary-ink">
+                      <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-muted">
+                        {record.tdsMinor > 0 ? formatMoney(record.tdsMinor, "INR") : "—"}
+                      </TableCell>
+                      <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-app-text">
                         {formatMoney(record.netPayableMinor, "INR")}
                       </TableCell>
                       <TableCell className="text-left px-4 py-3">
@@ -98,13 +100,13 @@ export function CoachEarningsClient() {
                             <Button
                               aria-label={`Download payslip ${payslip.documentNumber}`}
                               asChild
-                              className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                              className="size-8"
                               size="icon"
-                              variant="ghost"
+                              variant="neutral"
                             >
                               <a
                                 href={myPayslipPdfUrl(payslip.id)}
-                                rel="noopener noreferrer"
+                                rel="noopener"
                                 target="_blank"
                               >
                                 <Download className="size-4" strokeWidth={2.5} />

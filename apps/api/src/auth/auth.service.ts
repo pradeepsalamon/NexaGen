@@ -33,12 +33,15 @@ import type {
   RegisterCoachResponse,
   RegisterResponse,
   ResetPasswordRequest,
+  SupportVisitInfo,
   UpdateProfileRequest
 } from "@nexa-chess/types";
 import { isParentContactChange } from "@nexa-chess/types";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { EmailVerificationService } from "../email-admin/email-verification.service";
-import { MailService } from "../mail/mail.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
+import { LegalPagesService } from "../branding/legal-pages.service";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { isProfileImageUrl } from "../upload/upload.service";
 import type {
@@ -58,6 +61,11 @@ import {
 } from "./auth.utils";
 import { authenticateUser, verifyAccessToken as verifySharedAccessToken } from "./authenticate";
 import { MfaService } from "./mfa/mfa.service";
+import { isPlatformOperator } from "../platform/platform-operator";
+import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { bindAuthenticatedUser } from "../tenancy/bind-authenticated-user";
+import { asPlatform } from "../tenancy/tenant-context";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 type SessionContext = {
   ipAddress?: string;
@@ -136,11 +144,14 @@ export class AuthService {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly mailService: MailService,
     private readonly prisma: PrismaService,
     private readonly analyticsEvents: AnalyticsEventService,
     private readonly mfa: MfaService,
-    private readonly emailVerification: EmailVerificationService
+    private readonly emailVerification: EmailVerificationService,
+    private readonly referralTracker: ReferralTrackerService,
+    private readonly messaging: MessagingDispatchService,
+    private readonly notifier: SystemNotifier,
+    private readonly legalPages: LegalPagesService
   ) {}
 
   getCookieMaxAges() {
@@ -157,7 +168,8 @@ export class AuthService {
    */
   async register(
     payload: RegisterRequest,
-    _context: SessionContext
+    _context: SessionContext,
+    referralId?: string
   ): Promise<RegisterResponse> {
     if (payload.password !== payload.confirmPassword) {
       throw new BadRequestException("Passwords must match.");
@@ -167,7 +179,7 @@ export class AuthService {
     // users.email covers deleted rows too, so a filtered read would miss the
     // conflict and the insert would fail with P2002 -> unhandled 500.
     const existingUser = await this.prisma.withDeleted.user.findUnique({
-      where: { email: payload.email.toLowerCase() }
+      where: { tenantId_email: { email: payload.email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
 
     if (existingUser) {
@@ -198,6 +210,10 @@ export class AuthService {
         timezone: "Asia/Kolkata",
         isEmailVerified: !verifyEmail,
         emailVerifiedAt: verifyEmail ? null : new Date(),
+        // The DTO refused the request unless the checkbox was ticked; record our version, not the client's
+        // (the academy's own wording has its own version).
+        termsAcceptedAt: new Date(),
+        termsVersion: await this.legalPages.termsVersion(),
         ...acquisition,
         studentProfile: {
           create: {
@@ -210,6 +226,9 @@ export class AuthService {
     });
 
     if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
+    // Joined through a referral link (or booked a demo with this email)?
+    await this.referralTracker.linkSignup({ email: user.email, referralId, userId: user.id });
+    this.announceRegistration(user.id);
 
     return {
       email: user.email,
@@ -225,7 +244,8 @@ export class AuthService {
    */
   async registerCoach(
     payload: RegisterCoachRequest,
-    _context: SessionContext
+    _context: SessionContext,
+    referralId?: string
   ): Promise<RegisterCoachResponse> {
     if (payload.password !== payload.confirmPassword) {
       throw new BadRequestException("Passwords must match.");
@@ -233,7 +253,7 @@ export class AuthService {
 
     // See register(): must include soft-deleted rows, the unique index does.
     const existingUser = await this.prisma.withDeleted.user.findUnique({
-      where: { email: payload.email.toLowerCase() }
+      where: { tenantId_email: { email: payload.email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
 
     if (existingUser) {
@@ -258,6 +278,10 @@ export class AuthService {
         timezone: "Asia/Kolkata",
         isEmailVerified: !verifyEmail,
         emailVerifiedAt: verifyEmail ? null : new Date(),
+        // The DTO refused the request unless the checkbox was ticked; record our version, not the client's
+        // (the academy's own wording has its own version).
+        termsAcceptedAt: new Date(),
+        termsVersion: await this.legalPages.termsVersion(),
         ...acquisition,
         coachProfile: {
           create: {
@@ -272,11 +296,20 @@ export class AuthService {
     });
 
     if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
+    // Joined through a referral link (or booked a demo with this email)?
+    await this.referralTracker.linkSignup({ email: user.email, referralId, userId: user.id });
+    this.announceRegistration(user.id);
 
     return {
       email: user.email,
       status: "PENDING_APPROVAL"
     };
+  }
+
+  /** "Registration received" to the applicant and "to review" to the admins who can approve it. Never throws. */
+  private announceRegistration(userId: string) {
+    this.messaging.dispatchInBackground({ event: "ACCOUNT_WELCOME", userId });
+    this.messaging.dispatchInBackground({ event: "REGISTRATION_PENDING_ADMIN", userId });
   }
 
   async login(
@@ -286,7 +319,7 @@ export class AuthService {
     const startedAt = Date.now();
     const user = await this.prisma.user.findUnique({
       include: { coachProfile: true, studentProfile: true },
-      where: { email: payload.email.toLowerCase() }
+      where: { tenantId_email: { email: payload.email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
     // Locked even for the right password, or the guessing would simply go on.
     if (user?.loginLockedUntil && user.loginLockedUntil.getTime() > Date.now()) {
@@ -435,6 +468,8 @@ export class AuthService {
     if (!session || !(await refreshTokenMatches(refreshToken, session.refreshTokenHash))) {
       throw new UnauthorizedException("Session expired.");
     }
+    // Another academy's session never refreshes on this host (§E "Sessions and cookies").
+    bindAuthenticatedUser(session.user, session);
 
     // Same gate as login: a coach whose approval was withdrawn is signed out.
     if (
@@ -484,7 +519,8 @@ export class AuthService {
       context,
       refreshTokenMaxAge,
       refreshTokenTtl,
-      familyId
+      familyId,
+      session.supportSessionId
     );
 
     return {
@@ -531,10 +567,74 @@ export class AuthService {
 
     // The shared check, so a revoked session's token is refused here too.
     const user = await authenticateUser(this.jwtService, this.prisma, accessToken, {
+      allowSales: true,
       include: { coachProfile: true, studentProfile: true }
     });
 
-    return { user: this.toAuthUser(user) };
+    // authenticateUser has verified the token; only its support claim is read here.
+    const payload = this.jwtService.decode<Partial<AccessTokenPayload> | null>(accessToken);
+    return { support: payload?.support ? await this.supportVisit(payload.support) : null, user: this.toAuthUser(user) };
+  }
+
+  /** The banner for a support visit: who is in the academy, why, until when (§I). */
+  private async supportVisit(supportSessionId: string): Promise<SupportVisitInfo | null> {
+    const visit = await asPlatform("auth: support visit banner", () =>
+      this.prisma.platformSupportSession.findUnique({
+        include: { staffUser: { select: { firstName: true, lastName: true } } },
+        where: { id: supportSessionId }
+      })
+    );
+    if (!visit) return null;
+    return {
+      expiresAt: visit.expiresAt.toISOString(),
+      id: visit.id,
+      reason: visit.reason,
+      staffName: visit.staffUser ? [visit.staffUser.firstName, visit.staffUser.lastName].filter(Boolean).join(" ") : null
+    };
+  }
+
+  /**
+   * Opens a platform support visit on the academy's own host (§I "Support
+   * access"): the one-time link from the console signs this browser in as the
+   * academy's hidden "Platform support" user until the visit ends. The link
+   * works once, for 5 minutes, and only on its academy's host.
+   */
+  async enterSupportSession(token: string, context: SessionContext): Promise<AuthResult> {
+    const tenantId = requireTenantId("supportEnter");
+    const now = new Date();
+    const refused = new UnauthorizedException("This support link is invalid or has expired.");
+    const visit = await asPlatform("auth: support link", () =>
+      this.prisma.platformSupportSession.findUnique({ where: { entryTokenHash: hashOpaqueToken(token) } })
+    );
+    if (
+      !visit ||
+      visit.tenantId !== tenantId ||
+      visit.enteredAt ||
+      visit.endedAt ||
+      visit.entryExpiresAt <= now ||
+      visit.expiresAt <= now
+    ) {
+      throw refused;
+    }
+    // The user first, so a missing support user doesn't burn the one-time link.
+    const user = await this.prisma.user.findFirst({
+      include: { coachProfile: true, studentProfile: true },
+      where: { isDeleted: false, isPlatformSupport: true, status: UserStatus.ACTIVE, tenantId }
+    });
+    if (!user) throw refused;
+    const claimed = await asPlatform("auth: claim support link", () =>
+      this.prisma.platformSupportSession.updateMany({ data: { enteredAt: now }, where: { enteredAt: null, id: visit.id } })
+    );
+    if (claimed.count !== 1) throw refused;
+    const maxAge = Math.max(1_000, visit.expiresAt.getTime() - now.getTime());
+    const ttl = `${Math.max(1, Math.floor(maxAge / 1_000))}s` as JwtDuration;
+    const tokenPair = await this.createSession(user, context, maxAge, ttl, undefined, visit.id);
+    return {
+      ...tokenPair,
+      accessTokenMaxAge: Math.min(this.accessTokenMaxAge, maxAge),
+      refreshTokenMaxAge: maxAge,
+      user: this.toAuthUser(user)
+    };
   }
 
   async updateProfile(
@@ -547,6 +647,7 @@ export class AuthService {
 
     const tokenPayload = await this.verifyAccessToken(accessToken);
     const user = await authenticateUser(this.jwtService, this.prisma, accessToken, {
+      allowSales: true,
       include: { coachProfile: true, studentProfile: true }
     });
 
@@ -687,23 +788,23 @@ export class AuthService {
     });
 
     if (parentContactChanged && user.studentProfile) {
+      // To the previous parent contact (email and phone), and in-app to the student's own inbox.
       const previous = user.studentProfile;
-      if (previous.parentEmail) {
-        const studentName = `${user.firstName} ${user.lastName ?? ""}`.trim();
-        this.mailService
-          .sendParentContactChangedNotice(previous.parentEmail, studentName)
-          .catch((error: unknown) => {
-            this.logger.warn(`Could not send parent-contact notice for user ${user.id}: ${String(error)}`);
-          });
-      }
+      void this.notifier.send(
+        "PARENT_CONTACT_CHANGED",
+        { email: previous.parentEmail, phone: previous.parentPhone, userId: user.id },
+        { "student.fullName": `${user.firstName} ${user.lastName ?? ""}`.trim() }
+      );
     }
 
     if (emailChanged) {
       await this.revokeOtherSessions(user.id, tokenPayload.sessionId);
-      // Best effort: a missing SMTP config must not undo a saved change.
-      this.mailService.sendEmailChangedNotice(user.email, email).catch((error: unknown) => {
-        this.logger.warn(`Could not send email-change notice to user ${user.id}: ${String(error)}`);
-      });
+      // Best effort (never throws): to the OLD address, the account's phone and its inbox.
+      void this.notifier.send(
+        "EMAIL_CHANGED",
+        { email: user.email, phone: user.phoneNumber, userId: user.id },
+        { "email.new": email }
+      );
       if (reverifyEmail) void this.emailVerification.sendLinkBestEffort(updatedUser);
     }
 
@@ -749,7 +850,7 @@ export class AuthService {
   async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
     const startedAt = Date.now();
     const user = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
+      where: { tenantId_email: { email: email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
 
     if (!user) {
@@ -770,11 +871,12 @@ export class AuthService {
     const resetLink = new URL("/reset-password", this.frontendUrl);
     resetLink.searchParams.set("token", resetToken);
 
-    void this.mailService
-      .sendPasswordResetLink(user.email, resetLink.toString())
-      .catch((error) => {
-        this.logger.error("Failed to send password reset link", error);
-      });
+    // Never throws, and the response doesn't wait on it (same timing for unknown emails).
+    void this.notifier.send(
+      "PASSWORD_RESET",
+      { email: user.email, phone: user.phoneNumber, userId: user.id },
+      { "links.reset": resetLink.toString() }
+    );
 
     await this.waitForPasswordResetResponseDelay(startedAt);
 
@@ -812,7 +914,7 @@ export class AuthService {
   }
 
   async emailVerificationStatus(accessToken: string | undefined): Promise<EmailVerificationStatusResponse> {
-    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
     return {
       isEmailVerified: user.isEmailVerified,
       policy: await this.emailVerification.policy()
@@ -824,7 +926,7 @@ export class AuthService {
       throw new UnauthorizedException("Access token is missing.");
     }
 
-    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
     if (!user || user.isEmailVerified) {
       throw new BadRequestException("Invalid request or email is already verified.");
     }
@@ -888,7 +990,8 @@ export class AuthService {
     context: SessionContext,
     refreshTokenMaxAge: number,
     refreshTokenTtl: JwtDuration,
-    familyId?: string
+    familyId?: string,
+    supportSessionId?: string | null
   ): Promise<TokenPair> {
     const session = await this.prisma.authSession.create({
       data: {
@@ -896,6 +999,7 @@ export class AuthService {
         familyId,
         refreshTokenHash: "",
         ipAddress: context.ipAddress,
+        supportSessionId: supportSessionId ?? null,
         userAgent: context.userAgent,
         userId: user.id
       }
@@ -907,7 +1011,8 @@ export class AuthService {
         role: user.role,
         sessionId: session.id,
         sub: user.id,
-        type: "access"
+        type: "access",
+        ...(supportSessionId ? { support: supportSessionId } : {})
       } satisfies AccessTokenPayload,
       {
         expiresIn: this.accessTokenTtl,
@@ -975,6 +1080,7 @@ export class AuthService {
       firstName: user.firstName,
       id: user.id,
       isEmailVerified: user.isEmailVerified,
+      isPlatformOperator: isPlatformOperator(user),
       lastName: user.lastName,
       phoneNumber: user.phoneNumber,
       role: user.role,
@@ -1005,9 +1111,9 @@ export class AuthService {
     // Must include soft-deleted rows — the unique indexes on email/username
     // span them, so a filtered read would let the update fail with P2002.
     const [existingEmailUser, existingUsernameUser] = await Promise.all([
-      this.prisma.withDeleted.user.findUnique({ where: { email } }),
+      this.prisma.withDeleted.user.findUnique({ where: { tenantId_email: { email, tenantId: requireTenantId("user") } } }),
       username
-        ? this.prisma.withDeleted.user.findUnique({ where: { username } })
+        ? this.prisma.withDeleted.user.findUnique({ where: { tenantId_username: { username, tenantId: requireTenantId("user") } } })
         : null
     ]);
 

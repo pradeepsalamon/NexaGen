@@ -1,10 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { BadRequestException, ConflictException } from "@nestjs/common";
 import { ClassStatus } from "@prisma/client";
-import { MailService } from "../mail/mail.service";
-import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import { NOOP_REFERRAL_TRACKER } from "../referral/referral.testing";
 import { DemoInviteService, demoInvitePath } from "./demo-invite.service";
 
 describe("DemoInviteService", () => {
@@ -15,7 +15,7 @@ describe("DemoInviteService", () => {
     demoClassRegistration: { findUnique: jest.Mock; create: jest.Mock; update: jest.Mock; delete: jest.Mock };
     $transaction: jest.Mock;
   };
-  let sendDemoClassInvitation: jest.Mock;
+  let notifierSend: jest.Mock;
   let trySendText: jest.Mock;
 
   const DEMO_CLASS = {
@@ -40,15 +40,15 @@ describe("DemoInviteService", () => {
       $transaction: jest.fn()
     };
     prisma.$transaction.mockImplementation((fn: (tx: typeof prisma) => unknown) => fn(prisma));
-    sendDemoClassInvitation = jest.fn().mockResolvedValue(undefined);
+    notifierSend = jest.fn().mockResolvedValue(undefined);
     trySendText = jest.fn().mockResolvedValue({ ok: true });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DemoInviteService,
+        NOOP_REFERRAL_TRACKER,
         { provide: PrismaService, useValue: prisma },
-        { provide: MailService, useValue: { sendDemoClassInvitation } },
-        { provide: SystemMessageRenderer, useValue: { render: jest.fn().mockResolvedValue({ body: "Invited" }) } },
+        { provide: SystemNotifier, useValue: { send: notifierSend } },
         {
           provide: WhatsAppService,
           useValue: {
@@ -79,8 +79,10 @@ describe("DemoInviteService", () => {
     expect(data).toMatchObject({ source: "INVITE", contactValue: "ravi@example.com", invitedById: "admin-1" });
     expect(data.inviteToken).toEqual(expect.any(String));
     await Promise.resolve();
-    expect(sendDemoClassInvitation).toHaveBeenCalledWith(
-      expect.objectContaining({ joinUrl: expect.stringContaining(demoInvitePath("class-1", data.inviteToken)) })
+    expect(notifierSend).toHaveBeenCalledWith(
+      "DEMO_INVITATION",
+      expect.objectContaining({ email: "ravi@example.com" }),
+      expect.objectContaining({ "links.join": expect.stringContaining(demoInvitePath("class-1", data.inviteToken)) })
     );
   });
 
@@ -90,7 +92,7 @@ describe("DemoInviteService", () => {
       notify: false
     });
     await Promise.resolve();
-    expect(trySendText).not.toHaveBeenCalled();
+    expect(notifierSend).not.toHaveBeenCalled();
   });
 
   it("approves a guest waiting for admission instead of duplicating them", async () => {

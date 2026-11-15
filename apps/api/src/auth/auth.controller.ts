@@ -11,7 +11,13 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
-import { API_ROUTES, type LoginResponse } from "@nexa-chess/types";
+import {
+  API_ROUTES,
+  enterSupportSessionRequestSchema,
+  type EnterSupportSessionRequest,
+  type LoginResponse
+} from "@nexa-chess/types";
+import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { clearAuthCookies, getSessionContext, setAuthCookies } from "./auth-cookies";
 import { AuthService } from "./auth.service";
 import {
@@ -24,6 +30,13 @@ import {
   VerifyEmailDto
 } from "./dto";
 import { AUTH_COOKIE_NAMES } from "./types";
+import { REFERRAL_COOKIE_NAME } from "../referral/referral.util";
+
+/** The referral a link visit remembered (`nexa_referral`), for linking the new account. */
+function readReferralCookie(request: Request): string | undefined {
+  const value: unknown = request.cookies?.[REFERRAL_COOKIE_NAME];
+  return typeof value === "string" && value.length <= 64 ? value : undefined;
+}
 
 @Controller()
 export class AuthController {
@@ -33,7 +46,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async register(@Body() body: RegisterDto, @Req() request: Request) {
     // No auth cookies: a student account is pending until an admin approves it.
-    return this.authService.register(body, getSessionContext(request));
+    return this.authService.register(body, getSessionContext(request), readReferralCookie(request));
   }
 
   @Post(API_ROUTES.auth.registerCoach)
@@ -43,7 +56,7 @@ export class AuthController {
     @Req() request: Request
   ) {
     // No auth cookies here: the application is pending until an admin approves it.
-    return this.authService.registerCoach(body, getSessionContext(request));
+    return this.authService.registerCoach(body, getSessionContext(request), readReferralCookie(request));
   }
 
   @Post(API_ROUTES.auth.login)
@@ -100,6 +113,20 @@ export class AuthController {
     clearAuthCookies(response);
 
     return result;
+  }
+
+  /** A platform support visit's one-time link, on the academy's own host (§I). */
+  @Post(API_ROUTES.auth.supportEnter)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
+  async enterSupportSession(
+    @Body(new ZodBodyPipe(enterSupportSessionRequestSchema)) body: EnterSupportSessionRequest,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    const result = await this.authService.enterSupportSession(body.token, getSessionContext(request));
+    setAuthCookies(response, result);
+    return { user: result.user };
   }
 
   @Get(API_ROUTES.auth.me)

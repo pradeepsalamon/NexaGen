@@ -9,6 +9,10 @@ while [ -h "$SOURCE" ]; do
 done
 SCRIPTS_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 ROOT_DIR="$(cd -P "$SCRIPTS_DIR/.." && pwd)"
+# A cold API build (prisma generate + nest build type-checks everything) needs
+# ~3 GB, above Node's ~2 GB default heap on this box; it aborted with
+# "JavaScript heap out of memory". A caller's own NODE_OPTIONS wins.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=6144}"
 
 COMMAND=$1
 ENV=$2
@@ -26,9 +30,81 @@ function show_usage() {
     echo "  status                     Show status of all environments"
     echo "  logs [api|web]             View logs (for dev)"
     echo "  attach                     Attach to the dev tmux session"
+    echo "  maintenance <on|off|status> <prod|stage> [minutes] [message]"
+    echo "                             Show the maintenance page (docs/SERVICE_STATUS.md)"
+    echo "  status-pages <prod|stage>  Install/refresh the nginx status page files"
     echo ""
     exit 1
 }
+
+# Service status pages (docs/SERVICE_STATUS.md). nginx reads
+# $STATUS_ROOT/<prod|stage>/; handled before the prod component guard below,
+# since `maintenance` takes its environment as the 3rd argument.
+STATUS_ROOT="${NEXA_STATUS_DIR:-/var/www/nexa-status}"
+
+function status_env_dir() {
+    case "$1" in
+        prod | stage) echo "$STATUS_ROOT/$1" ;;
+        *) echo "Environment must be prod or stage." >&2; exit 1 ;;
+    esac
+}
+
+function install_status_pages() {
+    local dir
+    dir=$(status_env_dir "$1")
+    if [ ! -d "$dir" ]; then
+        echo "Creating $dir (needs sudo once)..."
+        sudo install -d -o "$(id -un)" -g "$(id -gn)" -m 755 "$dir"
+    fi
+    local file
+    for file in page.html api-unavailable.json; do
+        cp "$ROOT_DIR/deploy/status-pages/$file" "$dir/.$file.tmp"
+        mv -f "$dir/.$file.tmp" "$dir/$file"
+    done
+    echo "Status pages installed in $dir."
+}
+
+function maintenance_command() {
+    local action=$1 env=$2 minutes=$3 message dir
+    shift 3 2>/dev/null || shift $#
+    message="$*"
+    dir=$(status_env_dir "$env")
+    [ -d "$dir" ] || { echo "$dir is missing: run 'nexa status-pages $env' first."; exit 1; }
+    case "$action" in
+        on)
+            local until=""
+            if [ -n "$minutes" ]; then
+                [[ "$minutes" =~ ^[0-9]+$ ]] || { echo "Minutes must be a whole number."; exit 1; }
+                until=$(date -u -d "+$minutes minutes" +%Y-%m-%dT%H:%M:%SZ)
+            fi
+            jq -n --arg since "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg until "$until" --arg message "$message" \
+                '{since: $since} + (if $until != "" then {until: $until} else {} end) + (if $message != "" then {message: $message} else {} end)' \
+                > "$dir/.maintenance.json.tmp"
+            mv -f "$dir/.maintenance.json.tmp" "$dir/maintenance.json"
+            echo "Maintenance ON for $env: every page now shows the maintenance screen (API: 503 JSON)."
+            echo "Turn it off with: nexa maintenance off $env"
+            ;;
+        off)
+            rm -f "$dir/maintenance.json"
+            echo "Maintenance OFF for $env. Open tabs reload by themselves within a minute."
+            ;;
+        status)
+            if [ -f "$dir/maintenance.json" ]; then echo "Maintenance ON for $env:"; cat "$dir/maintenance.json"; else echo "Maintenance off for $env."; fi
+            if [ -f "$dir/deploying.json" ]; then echo "Deploy marker present:"; cat "$dir/deploying.json"; fi
+            ;;
+        *) show_usage ;;
+    esac
+}
+
+if [[ "$COMMAND" == "maintenance" ]]; then
+    shift
+    maintenance_command "$@"
+    exit 0
+fi
+if [[ "$COMMAND" == "status-pages" ]]; then
+    install_status_pages "$ENV"
+    exit 0
+fi
 
 # Only what this script started: killing the tmux session ends its panes'
 # processes. Anything else on the ports is reported, never killed.
@@ -55,8 +131,24 @@ function http_status() {
 
 DEV_API_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"
 DEV_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -p 3010 2>&1 | tee web-dev.log'"
-STAGE_API_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
-STAGE_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
+# Staging runs SaaS isolation enforced (docs/SAAS_MULTI_TENANCY.md Phase 3); STAGE_TENANT_SCOPE_MODE=audit overrides.
+# Set here, not in apps/api/.env: Prisma loads that file into unit tests too, which run without an academy.
+STAGE_API_CMD="bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production TENANT_SCOPE_MODE=${STAGE_TENANT_SCOPE_MODE:-enforce} node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
+# Stage builds the web without output: "standalone" (NEXT_STANDALONE=false, next.config.mjs), because
+# "next start" can't serve a standalone build, and the standalone server.js ignores the Host header
+# behind nginx (middleware saw 127.0.0.1/0.0.0.0, read the wrong cookies, logins bounced to /login).
+STAGE_WEB_CMD="bash -c 'cd \"$ROOT_DIR\" && NEXT_STANDALONE=false PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
+
+# Apply pending migrations to apps/api/.env's DATABASE_URL before any API launch.
+# A pull that brought a new migration otherwise left the API querying columns the
+# database lacks (P2022 "column ... does not exist" on every login). deploy only
+# applies committed migrations; it never resets or prompts.
+# It also regenerates the Prisma client: a package install wipes it, and a turbo cache hit on
+# the API build skips "prisma generate", so the API then crashed on start ("reading 'datamodel'").
+function migrate_db() {
+    echo "=== Generating the Prisma client and applying pending migrations ==="
+    (cd "$ROOT_DIR" && npm run db:generate && npm run db:migrate:deploy)
+}
 
 # (Re)launch one window, leaving the other one running.
 function launch_window() {
@@ -71,13 +163,15 @@ function launch_window() {
 
 function start_dev() {
     local target=$1
+    install_deps_if_needed
     case "$target" in
-        api) launch_window api "$DEV_API_CMD"; echo "Dev API launched on port 3011!"; return ;;
+        api) migrate_db; launch_window api "$DEV_API_CMD"; echo "Dev API launched on port 3011!"; return ;;
         web) launch_window web "$DEV_WEB_CMD"; echo "Dev web launched on port 3010!"; return ;;
     esac
 
     echo "Stopping any existing dev/staging processes..."
     stop_session
+    migrate_db
 
     launch_window api "$DEV_API_CMD"
     launch_window web "$DEV_WEB_CMD"
@@ -87,18 +181,59 @@ function start_dev() {
     echo "Web listening on: http://127.0.0.1:3010"
 }
 
+# Staging serves this checkout, so a restart without a pull rebuilt old code and new pushes
+# never showed. Fast-forward to the branch's upstream first (never merges or rebases), and
+# re-run the pulled script so a changed nexa.sh isn't half-read. NEXA_NO_PULL=1 skips it, e.g.
+# to test unpushed local work.
+function pull_latest() {
+    [ "${NEXA_NO_PULL:-}" = "1" ] && return
+    cd "$ROOT_DIR"
+    local branch upstream before
+    branch=$(git symbolic-ref --short -q HEAD) || { echo "Detached HEAD: not pulling."; return; }
+    upstream=$(git rev-parse --abbrev-ref -q "$branch@{upstream}" 2>/dev/null) || {
+        echo "Branch $branch has no upstream: not pulling, building the local code."; return; }
+    echo "=== Pulling $upstream into $branch (fast-forward only) ==="
+    before=$(git rev-parse HEAD)
+    if ! git pull --ff-only; then
+        echo ""
+        echo "Error: could not fast-forward $branch to $upstream (local commits, or uncommitted"
+        echo "changes to files the pull touches; see git status). Staging was NOT rebuilt."
+        echo "Fix the checkout, or rerun with NEXA_NO_PULL=1 to build the local code as it is."
+        exit 1
+    fi
+    if [ "$(git rev-parse HEAD)" != "$before" ]; then
+        git --no-pager log --oneline "$before..HEAD" | head -20
+        NEXA_NO_PULL=1 exec bash "$SCRIPTS_DIR/nexa.sh" "$COMMAND" "$ENV" $TARGET
+    fi
+}
+
+# A pull can bring new packages (package-lock.json changed): building without them failed with
+# "Cannot find module". npm stamps node_modules/.package-lock.json on every install, so a lockfile
+# newer than that stamp means an install is due. npm install (not ci) leaves node_modules in place
+# for a window that's still running.
+function install_deps_if_needed() {
+    cd "$ROOT_DIR"
+    if [ ! -f node_modules/.package-lock.json ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then
+        echo "=== package-lock.json changed: installing packages ==="
+        npm install --no-audit --no-fund
+    fi
+}
+
 function start_stage() {
     local target=$1
-    cd "$ROOT_DIR"
+    install_deps_if_needed
     if [ "$target" = "api" ] || [ "$target" = "web" ]; then
         # Stop the old window first so the rebuild doesn't swap files under it.
         tmux kill-window -t "nexa-dev:$target" 2>/dev/null || true
         if [ "$target" = "api" ]; then
+            # The shared packages first, so the API never builds against stale outputs.
+            npx turbo run build --filter=@nexa-chess/api^...
             npm run build:prod -w apps/api
+            migrate_db
             launch_window api "$STAGE_API_CMD"
             echo "Production-mode Dev API launched on port 3011!"
         else
-            npx turbo build --filter=@nexa-chess/web
+            NEXT_STANDALONE=false npx turbo build --filter=@nexa-chess/web
             launch_window web "$STAGE_WEB_CMD"
             echo "Production-mode Dev web launched on port 3010!"
         fi
@@ -110,7 +245,8 @@ function start_stage() {
 
     echo "=== Building Apps in Production Mode for DEV Testing ==="
     cd "$ROOT_DIR"
-    npm run build
+    NEXT_STANDALONE=false npm run build
+    migrate_db
 
     echo "=== Launching Production-Optimized DEV Servers on Ports 3010 / 3011 ==="
     launch_window api "$STAGE_API_CMD"
@@ -198,12 +334,26 @@ fi
 
 cd "$ROOT_DIR"
 
+# A mistyped component must not fall through to the whole-environment path.
+if [[ -n "$TARGET" && "$TARGET" != "api" && "$TARGET" != "web" ]]; then
+    echo "Unknown component: $TARGET (expected api or web)"
+    exit 1
+fi
+
+# Prod is the whole Docker stack: a component target would be ignored and the
+# command would take everything down, so refuse it up front.
+if [[ "$ENV" == "prod" && -n "$TARGET" ]]; then
+    echo "Component targets are dev/stage only. For prod use: docker compose up -d --build $TARGET"
+    exit 1
+fi
+
 case "$COMMAND" in
     start)
         if [[ "$ENV" == "prod" ]]; then
             echo "Starting prod environment (Docker)..."
             docker compose up -d --build
         elif [[ "$ENV" == "stage" ]]; then
+            pull_latest
             start_stage "$TARGET"
         elif [[ "$ENV" == "dev" ]]; then
             start_dev "$TARGET"
@@ -223,6 +373,9 @@ case "$COMMAND" in
             elif [ "$TARGET" = "api" ] && tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
                 tmux kill-window -t nexa-dev:api
                 echo "Stopped dev api window."
+            elif [ -n "$TARGET" ]; then
+                # Only that component was asked for; never stop the rest.
+                echo "Dev $TARGET is not running."
             else
                 stop_dev
             fi
@@ -238,6 +391,7 @@ case "$COMMAND" in
             docker compose up -d --build
         elif [[ "$ENV" == "stage" ]]; then
             echo "Restarting stage environment (Tmux)..."
+            pull_latest
             start_stage "$TARGET"
         elif [[ "$ENV" == "dev" ]]; then
             echo "Restarting dev environment (Tmux)..."

@@ -9,6 +9,9 @@
  * sides of the cutoff, with no new anomalies appearing after it, is the
  * expected (healthy) result.
  *
+ * Judges each class by its longest-attending student's stored totalDuration
+ * (summing all students, or raw log segments that overlap, over-reports).
+ *
  * Point this at whatever database DATABASE_URL resolves to — run it against
  * `vps_dev` (or a prod read replica) for a real historical comparison; run
  * against local dev only to sanity-check the script itself, since local dev
@@ -84,7 +87,13 @@ function hasHeartbeatFallback(logs) {
       const studentLogs = c.attendances.flatMap((a) => a.logs);
       const coachLogs = c.coachAttendance?.logs ?? [];
 
-      const studentSeconds = sumSessionDurations(studentLogs);
+      // Per student, not summed: a group class with 4 students who each stayed
+      // the full hour is 4 hours of attendance but nothing ran away. The class
+      // is judged by its longest-attending student (a runaway shows there).
+      // The stored totalDuration is what the app reports; raw log segments can
+      // overlap (every token request opens one), so they're only a fallback.
+      const perStudentSeconds = c.attendances.map((a) => a.totalDuration ?? sumSessionDurations(a.logs));
+      const studentSeconds = perStudentSeconds.length ? Math.max(...perStudentSeconds) : 0;
       const coachSeconds = sumSessionDurations(coachLogs);
       const fallbackTriggered = hasHeartbeatFallback(studentLogs) || hasHeartbeatFallback(coachLogs);
 
@@ -101,6 +110,7 @@ function hasHeartbeatFallback(logs) {
         startedAt: session.startedAt,
         prePhase1: new Date(session.startedAt) < HEARTBEAT_ROLLOUT_DATE,
         scheduledMinutes: Math.round(scheduledSeconds / 60),
+        studentCount: perStudentSeconds.length,
         studentMinutes: Math.round(studentSeconds / 60),
         coachMinutes: Math.round(coachSeconds / 60),
         durationRatio: ratio,
@@ -117,7 +127,7 @@ function hasHeartbeatFallback(logs) {
       const bucket = r.prePhase1 ? "pre-P1 " : "post-P1";
       console.log(
         `  [${bucket}] ${r.startedAt.toISOString().slice(0, 10)}  ${r.classId}  ` +
-          `scheduled=${r.scheduledMinutes}m student=${r.studentMinutes}m coach=${r.coachMinutes}m ` +
+          `scheduled=${r.scheduledMinutes}m students=${r.studentCount} longestStudent=${r.studentMinutes}m coach=${r.coachMinutes}m ` +
           `ratio=${r.durationRatio === null ? "n/a" : r.durationRatio.toFixed(2)}${fallback}${flag}`
       );
     }
@@ -139,7 +149,7 @@ function hasHeartbeatFallback(logs) {
     const pre = summarize(rows.filter((r) => r.prePhase1));
     const post = summarize(rows.filter((r) => !r.prePhase1));
 
-    console.log("\nSummary (attendance-duration / scheduled-duration ratio, ~1.0 is healthy):");
+    console.log("\nSummary (longest student's attendance / scheduled duration, ~1.0 is healthy):");
     console.log(
       `  pre-Phase-1  : n=${pre.count} avgRatio=${pre.avgRatio?.toFixed(2) ?? "n/a"} ` +
         `anomalies=${pre.anomalies} heartbeatFallbacks=${pre.heartbeatFallbacks}`

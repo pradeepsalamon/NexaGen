@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "../../lib/utils";
 import { Button } from "./Button";
@@ -33,7 +33,7 @@ export function BackButton({
       className={cn("w-fit gap-1.5 px-4", className)}
       onClick={goBack}
       size="sm"
-      variant="secondary"
+      variant="neutral"
       {...props}
     >
       <ChevronLeft aria-hidden="true" className="size-4" />

@@ -1,0 +1,575 @@
+import {
+  API_ROUTES,
+  DEFAULT_TENANT_ID,
+  LEGAL_TERMS_VERSION,
+  type AdminReferralDetail,
+  type MyReferralSummary,
+  type MyReferralVoucherCatalogue,
+  type PayReferralWithdrawalsBulkResponse,
+  type ReferralItem,
+  type ReferralPage,
+  type ReferralRedemptionItem,
+  type ReferralVisitResponse,
+  type ReferralVoucherItem,
+  paidWithdrawalsFromCsv
+} from "@nexa-chess/types";
+import { UserRole, UserStatus, type User } from "@prisma/client";
+import { TEST_ORIGIN } from "../test/integration/app-env";
+import { createTestApp, type TestApp } from "../test/integration/app";
+import { createUser, resetDatabase } from "../test/integration/db";
+import { runInTenant } from "../tenancy/tenant-context";
+import { ReferralCreditsService } from "./referral-credits.service";
+import { ReferralPointsExpiryScheduler } from "./referral-points-expiry.scheduler";
+
+/**
+ * The referral programme end to end (docs/REFERRALS.md): a link visit, the
+ * academy lead form, CRM and admin moves, stage values and bonuses, the
+ * points/money ledger, voucher redemptions and the SALES fence.
+ */
+describe("referral programme (real app, real Postgres)", () => {
+  let t: TestApp;
+  let admin: User;
+  let student: User;
+  let sales: User;
+
+  const active = async (role: UserRole) =>
+    t.prisma.user.update({ data: { status: UserStatus.ACTIVE }, where: { id: (await createUser(t.prisma, role)).id } });
+
+  /** An anonymous browser with its own cookie jar. */
+  const browser = () => {
+    let cookies: string[] = [];
+    return async (method: string, path: string, body?: unknown) => {
+      const res = await fetch(`${t.baseUrl.replace("[::1]", "127.0.0.1")}${path}`, {
+        body: body === undefined ? undefined : JSON.stringify(body),
+        headers: {
+          Origin: TEST_ORIGIN,
+          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+          ...(cookies.length ? { Cookie: cookies.join("; ") } : {})
+        },
+        method
+      });
+      for (const header of res.headers.getSetCookie()) {
+        const pair = header.split(";")[0]!;
+        cookies = [...cookies.filter((c) => !c.startsWith(`${pair.split("=")[0]}=`)), pair];
+      }
+      return { body: (await res.json().catch(() => null)) as unknown, status: res.status };
+    };
+  };
+
+  const summary = async (user: User) => (await t.call(user, "GET", API_ROUTES.referrals.me)).body as MyReferralSummary;
+  const lead = (name: string, phone: string, extra: Record<string, unknown> = {}) => ({
+    experienceLevel: "beginner",
+    parentName: `${name} Parent`,
+    phone,
+    studentAge: 9,
+    studentName: name,
+    ...extra
+  });
+
+  beforeAll(async () => {
+    t = await createTestApp();
+    await resetDatabase(t.prisma);
+    admin = await active(UserRole.SUPER_ADMIN);
+    student = await active(UserRole.STUDENT);
+    sales = await active(UserRole.SALES);
+  }, 60_000);
+
+  afterAll(async () => {
+    await t?.close();
+  });
+
+  const stageValues = (id: string, body: Record<string, number>) => t.call(admin, "PATCH", API_ROUTES.adminReferrals.stage(id), body);
+  const settings = (body: Record<string, unknown>) => t.call(admin, "PUT", API_ROUTES.adminReferrals.settings, body);
+
+  it("tracks a referral from link visit to onboarding and pays the stage values and bonuses", async () => {
+    // The reset wiped the stages; the first read re-seeds the defaults.
+    await t.call(admin, "GET", API_ROUTES.adminReferrals.stages);
+    expect((await stageValues("refstage_attended", { coachCashMinor: 7000, studentPoints: 100 })).status).toBe(200);
+    expect((await stageValues("refstage_converted", { studentPoints: 500 })).status).toBe(200);
+    expect((await stageValues("refstage_converted", { studentPoints: -1 })).status).toBe(400);
+    const bonus = (body: Record<string, unknown>) =>
+      t.call(admin, "POST", API_ROUTES.adminReferrals.bonusRules, { autoApprove: true, isActive: true, stageId: "refstage_booked", ...body });
+    expect((await bonus({ amount: 50, audience: "STUDENTS", everyCount: 1, name: "x" })).status).toBe(400);
+    expect((await bonus({ amount: 50, audience: "STUDENTS", everyCount: 2, name: "Every two" })).status).toBe(201);
+    expect((await bonus({ amount: 9000, audience: "STAFF", everyCount: 2, name: "Staff every two" })).status).toBe(201);
+
+    const code = (await summary(student)).code!;
+    expect(code).toMatch(/^[A-Z0-9]{4,16}$/);
+
+    // Visitor 1: two visits (one referral), then books a demo through the form.
+    const visitor = browser();
+    expect((await visitor("POST", API_ROUTES.referrals.visit, { code: code.toLowerCase() })).body).toEqual({ benefits: [], referrerFirstName: student.firstName, valid: true });
+    await visitor("POST", API_ROUTES.referrals.visit, { code });
+    expect((await visitor("POST", API_ROUTES.leads.create, lead("Priya Sharma", "9876543210"))).status).toBe(201);
+    // Visitor 2: never visited, typed the code.
+    expect((await browser()("POST", API_ROUTES.leads.create, lead("Arjun Kumar", "9123456780", { referralCode: code }))).status).toBe(201);
+    // The owner opening their own link, and an unknown code, count nothing.
+    await t.call(student, "POST", API_ROUTES.referrals.visit, { code });
+    expect((await browser()("POST", API_ROUTES.referrals.visit, { code: "NOPE1234" })).body).toEqual({ benefits: [], referrerFirstName: null, valid: false });
+
+    let mine = (await t.call(student, "GET", API_ROUTES.referrals.myReferrals)).body as ReferralPage<ReferralItem>;
+    expect(mine.items.map((r) => [r.prospectName, r.stageName, r.visits, r.contact]).sort()).toEqual([
+      ["Arjun K.", "Demo booked", 0, null],
+      ["Priya S.", "Demo booked", 2, null]
+    ]);
+    let me = await summary(student);
+    expect(me.totals).toEqual({ converted: 0, referrals: 2, visits: 2 });
+    // A student earns points only: the students' bonus, never the staff one.
+    expect([me.wallet, me.money, me.points.balance]).toEqual(["POINTS", null, 50]);
+    expect(me.bonuses.map((b) => b.name)).toEqual(["Every two"]);
+    expect(me.earnings.map((e) => [e.stageName, e.referrer])).toEqual([
+      ["Demo attended", 100],
+      ["Onboarded", 500]
+    ]);
+
+    // The CRM marks Priya attended: the referral follows, the stage's points are credited.
+    const priyaLead = await t.prisma.lead.findFirstOrThrow({ where: { studentName: "Priya Sharma" } });
+    await t.call(admin, "PATCH", API_ROUTES.adminLeads.updateStatus(priyaLead.id), { status: "DEMO_ATTENDED" });
+    const priya = await t.prisma.referral.findFirstOrThrow({ where: { leadId: priyaLead.id } });
+    expect((await t.prisma.referral.findUniqueOrThrow({ where: { id: priya.id } })).stageId).toBe("refstage_attended");
+
+    // With point approval switched on, onboarding waits for an admin, once.
+    await settings({ autoApprovePoints: false });
+    const moved = await t.call(admin, "PATCH", API_ROUTES.adminReferrals.moveStage(priya.id), { note: "Paid", stageId: "refstage_converted" });
+    expect((moved.body as AdminReferralDetail).rewards.map((r) => [r.sourceName, r.unit, r.status]).sort()).toEqual([
+      ["Stage: Demo attended", "POINTS", "CREDITED"],
+      ["Stage: Onboarded", "POINTS", "PENDING"]
+    ]);
+    // A later CRM "lost" never pulls an onboarded referral back.
+    await t.call(admin, "PATCH", API_ROUTES.adminLeads.updateStatus(priyaLead.id), { status: "LOST" });
+    expect((await t.prisma.referral.findUniqueOrThrow({ where: { id: priya.id } })).stageId).toBe("refstage_converted");
+    // Back and forth does not pay twice.
+    await t.call(admin, "PATCH", API_ROUTES.adminReferrals.moveStage(priya.id), { stageId: "refstage_booked" });
+    await t.call(admin, "PATCH", API_ROUTES.adminReferrals.moveStage(priya.id), { stageId: "refstage_converted" });
+    expect(await t.prisma.referralReward.count({ where: { referralId: priya.id } })).toBe(2);
+
+    const pending = await t.prisma.referralReward.findFirstOrThrow({ where: { status: "PENDING" } });
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.approveReward(pending.id))).status).toBe(200);
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.approveReward(pending.id))).status).toBe(409);
+    await settings({ autoApprovePoints: true });
+
+    me = await summary(student);
+    expect(me.totals.converted).toBe(1);
+    expect(me.points).toEqual({ balance: 650, earned: 650, expiringSoon: 0, expiryDays: null, pending: 0, redeemed: 0 });
+    mine = (await t.call(student, "GET", API_ROUTES.referrals.myReferrals)).body as ReferralPage<ReferralItem>;
+    expect(mine.items.find((r) => r.id === priya.id)?.convertedAt).not.toBeNull();
+    // Students never withdraw.
+    expect((await t.call(student, "POST", API_ROUTES.referrals.myWithdrawals, { amountMinor: 100, payoutDetails: "me@upi" })).status).toBe(403);
+  });
+
+  it("lets a student spend points on vouchers: discounts, free days, approval, limits", async () => {
+    const other = await active(UserRole.STUDENT);
+    const coach = await active(UserRole.COACH);
+    const plan = await t.prisma.plan.create({ data: { amount: 99900, code: "ref-plan", currency: "INR", name: "Monthly" } });
+    const voucher = async (body: Record<string, unknown>) => {
+      const res = await t.call(admin, "POST", API_ROUTES.adminReferrals.vouchers, { name: "Voucher", planIds: [plan.id], ...body });
+      return res;
+    };
+    const redeem = (user: User, id: string, body: Record<string, unknown> = {}) => t.call(user, "POST", API_ROUTES.referrals.redeemVoucher(id), body);
+    const points = async (user: User) => (await summary(user)).points.balance;
+
+    // Shape rules.
+    expect((await voucher({ pointsCost: 10, type: "PERCENT_DISCOUNT" })).status).toBe(400);
+    expect((await voucher({ amountOffMinor: 500, maxDiscountMinor: 100, pointsCost: 10, type: "FIXED_DISCOUNT" })).status).toBe(400);
+    expect((await voucher({ planIds: ["nope"], percentOff: 5, pointsCost: 10, type: "PERCENT_DISCOUNT" })).status).toBe(400);
+
+    // 20% off (at most ₹100) on fees of ₹500+, once per student.
+    const percent = (await voucher({ maxDiscountMinor: 10000, minOrderMinor: 50000, name: "20% off", percentOff: 20, perUserLimit: 1, pointsCost: 200, type: "PERCENT_DISCOUNT" })).body as ReferralVoucherItem;
+    const store = (await t.call(student, "GET", API_ROUTES.referrals.myVouchers)).body as MyReferralVoucherCatalogue;
+    expect(store).toMatchObject({ canRedeem: true, pointsBalance: 650 });
+    expect(store.vouchers.map((v) => [v.name, v.unavailableReason])).toEqual([["20% off", null]]);
+
+    const bought = await redeem(student, percent.id);
+    expect(bought.status).toBe(200);
+    const code = (bought.body as ReferralRedemptionItem).discountCode!;
+    expect(bought.body).toMatchObject({ discountStatus: "ACTIVE", pointsCost: 200, status: "FULFILLED" });
+    expect(await points(student)).toBe(450);
+    const preview = (user: User) => t.call(user, "POST", API_ROUTES.payments.previewDiscount, { code, planId: plan.id });
+    expect((await preview(student)).body).toMatchObject({ discountAmount: 10000, valid: true });
+    expect((await preview(other)).body).toMatchObject({ reason: "NOT_FOUND", valid: false });
+    expect(JSON.stringify((await t.call(admin, "GET", API_ROUTES.adminPayments.discounts)).body)).not.toContain(code);
+    expect((await redeem(student, percent.id)).status).toBe(409); // once per student
+
+    // 30 free days, one in stock, each request approved by an admin.
+    const month = (await voucher({ freeDays: 30, name: "A free month", pointsCost: 100, requiresApproval: true, stock: 1, type: "FREE_DAYS" })).body as ReferralVoucherItem;
+    let request = (await redeem(student, month.id)).body as ReferralRedemptionItem;
+    expect(request).toMatchObject({ status: "PENDING" });
+    expect(await points(student)).toBe(350); // held
+    expect((await t.call(other, "POST", API_ROUTES.referrals.cancelRedemption(request.id))).status).toBe(404);
+    expect((await t.call(student, "POST", API_ROUTES.referrals.cancelRedemption(request.id))).status).toBe(200);
+    expect(await points(student)).toBe(450);
+    request = (await redeem(student, month.id)).body as ReferralRedemptionItem;
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.rejectRedemption(request.id), { adminNote: "Not yet" })).status).toBe(200);
+    expect(await points(student)).toBe(450);
+    request = (await redeem(student, month.id)).body as ReferralRedemptionItem;
+    expect((await t.call(student, "POST", API_ROUTES.adminReferrals.approveRedemption(request.id))).status).toBe(403);
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.approveRedemption(request.id))).status).toBe(200);
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.approveRedemption(request.id))).status).toBe(409);
+    expect(await points(student)).toBe(350);
+    const access = await t.prisma.entitlement.findFirstOrThrow({ where: { planId: plan.id, userId: student.id } });
+    expect(access.orderId).toBeNull();
+    const days = (access.endsAt!.getTime() - access.startsAt.getTime()) / 86_400_000;
+    expect(Math.round(days)).toBe(30);
+    expect((await redeem(other, month.id)).status).toBe(409); // out of stock
+
+    // A free week on any plan the student holds extends that access.
+    const week = (await voucher({ freeDays: 7, name: "A free week", planIds: [], pointsCost: 50, type: "FREE_DAYS" })).body as ReferralVoucherItem;
+    const otherStore = (await t.call(other, "GET", API_ROUTES.referrals.myVouchers)).body as MyReferralVoucherCatalogue;
+    expect(otherStore.vouchers.find((v) => v.id === week.id)?.unavailableReason).toBe("Needs an active plan");
+    expect((await redeem(other, week.id)).status).toBe(400);
+    const extended = (await redeem(student, week.id)).body as ReferralRedemptionItem;
+    expect(new Date(extended.accessEndsAt!).getTime() - access.endsAt!.getTime()).toBe(7 * 86_400_000);
+    expect(extended.planName).toBe("Monthly");
+
+    // An unused code can be taken back (points returned); free days cannot.
+    const percentRedemption = await t.prisma.referralRedemption.findFirstOrThrow({ where: { voucherId: percent.id } });
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.revokeRedemption(extended.id), { adminNote: "x" })).status).toBe(409);
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.revokeRedemption(percentRedemption.id), { adminNote: "Wrong code" })).status).toBe(200);
+    expect((await preview(student)).body).toMatchObject({ valid: false });
+    expect(await points(student)).toBe(500);
+
+    // Only students redeem, and only while the store is open; the 30-day cap counts live redemptions.
+    expect(((await t.call(coach, "GET", API_ROUTES.referrals.myVouchers)).body as MyReferralVoucherCatalogue).canRedeem).toBe(false);
+    expect((await redeem(coach, week.id)).status).toBe(403);
+    await settings({ redemptionsEnabled: false });
+    expect((await redeem(student, week.id)).status).toBe(403);
+    await settings({ maxRedemptionsPer30Days: 2, redemptionsEnabled: true });
+    expect((await redeem(student, week.id)).status).toBe(409); // the month + the week
+    await settings({ maxRedemptionsPer30Days: 0 });
+
+    // Parallel redemptions never overspend: 300 points buy three 100-point vouchers, not five.
+    const fixed = (await voucher({ amountOffMinor: 5000, name: "₹50 off", pointsCost: 100, type: "FIXED_DISCOUNT" })).body as ReferralVoucherItem;
+    await t.call(admin, "POST", API_ROUTES.adminReferrals.adjustCredits, { amountMinor: -200, note: "Reset", userId: student.id, wallet: "POINTS" });
+    const parallel = await Promise.all(Array.from({ length: 5 }, () => redeem(student, fixed.id)));
+    expect(parallel.map((r) => r.status).sort()).toEqual([200, 200, 200, 400, 400]);
+    expect(await points(student)).toBe(0);
+
+    // Points history: every movement, for the student and the admin.
+    const history = (await t.call(student, "GET", API_ROUTES.referrals.myCredits)).body as { type: string }[];
+    expect(new Set(history.map((e) => e.type))).toEqual(new Set(["REWARD", "REDEMPTION", "REDEMPTION_REVERSAL", "ADJUSTMENT"]));
+    const ledger = (await t.call(admin, "GET", `${API_ROUTES.adminReferrals.ledger}?type=REDEMPTION_REVERSAL&userId=${student.id}`)).body as ReferralPage<unknown>;
+    expect(ledger.pagination.total).toBe(3); // cancelled, rejected, revoked
+    expect((await t.call(student, "GET", API_ROUTES.adminReferrals.ledger)).status).toBe(403);
+    const admins = (await t.call(admin, "GET", `${API_ROUTES.adminReferrals.redemptions}?status=FULFILLED&userId=${student.id}`)).body as ReferralPage<unknown>;
+    expect(admins.pagination.total).toBe(5); // the month, the week, three ₹50 codes
+
+    // A redeemed voucher is switched off, not deleted.
+    expect((await t.call(admin, "DELETE", API_ROUTES.adminReferrals.voucher(fixed.id))).body).toEqual({ deleted: false });
+  });
+
+  it("gives the new member welcome points and pays a coach money", async () => {
+    const coach = await active(UserRole.COACH);
+    expect((await stageValues("refstage_booked", { coachCashMinor: 2000, newMemberPoints: 200 })).status).toBe(200);
+
+    // The landing page shows what the new member gets.
+    const code = (await summary(coach)).code!;
+    const visitor = browser();
+    const visit = (await visitor("POST", API_ROUTES.referrals.visit, { code })).body as ReferralVisitResponse;
+    expect(visit.benefits).toEqual([{ points: 200, stageId: "refstage_booked", stageName: "Demo booked" }]);
+    await visitor("POST", API_ROUTES.leads.create, lead("Rohan Das", "9555512345"));
+    // Money waits for an admin by default.
+    let me = await summary(coach);
+    expect([me.wallet, me.money, me.points.balance]).toEqual(["CASH", { balanceMinor: 0, earnedMinor: 0, pendingMinor: 2000 }, 0]);
+
+    // Signing up from the same browser links the account (referral cookie) and pays the welcome points.
+    const signup = await visitor("POST", API_ROUTES.auth.register, {
+      acceptedTerms: true,
+      confirmPassword: "Test@12345",
+      contactNumber: "9555512345",
+      email: "rohan.new@example.com",
+      parentName: "Rohan Parent",
+      password: "Test@12345",
+      studentAge: "9",
+      studentName: "Rohan Das"
+    });
+    expect(signup.status).toBe(201);
+    const rohan = await t.prisma.user.update({ data: { status: UserStatus.ACTIVE }, where: { tenantId_email: { email: "rohan.new@example.com", tenantId: DEFAULT_TENANT_ID } } });
+    // The sign-up checkbox is stored with the server's version of the terms.
+    expect(rohan.termsVersion).toBe(LEGAL_TERMS_VERSION);
+    expect(rohan.termsAcceptedAt).toBeInstanceOf(Date);
+    const referral = await t.prisma.referral.findFirstOrThrow({ where: { referredUserId: rohan.id } });
+    expect(referral.referrerId).toBe(coach.id);
+    const rohanSummary = await summary(rohan);
+    expect([rohanSummary.points.balance, rohanSummary.money]).toEqual([200, null]);
+    // Linking to the referrer is refused.
+    expect((await t.call(admin, "PUT", API_ROUTES.adminReferrals.linkUser(referral.id), { email: coach.email })).status).toBe(400);
+
+    const pending = await t.prisma.referralReward.findFirstOrThrow({ where: { referrerId: coach.id, status: "PENDING" } });
+    expect(pending).toMatchObject({ amountMinor: 2000, unit: "CASH" });
+    await t.call(admin, "POST", API_ROUTES.adminReferrals.approveReward(pending.id));
+    me = await summary(coach);
+    expect(me.money).toEqual({ balanceMinor: 2000, earnedMinor: 2000, pendingMinor: 0 });
+
+    // Points never move between users or turn into money: those routes are gone.
+    expect((await t.call(rohan, "POST", "/referrals/me/points/transfer", { email: coach.email, points: 10 })).status).toBe(404);
+    expect((await t.call(rohan, "POST", "/referrals/me/points/convert", { points: 10 })).status).toBe(404);
+    await stageValues("refstage_booked", { coachCashMinor: 0, newMemberPoints: 0 });
+  });
+
+  it("serialises withdrawals so the same credits are never paid twice", async () => {
+    await t.call(admin, "PUT", API_ROUTES.adminReferrals.settings, { minWithdrawalMinor: 100 });
+    expect(
+      (await t.call(admin, "POST", API_ROUTES.adminReferrals.adjustCredits, { amountMinor: 20000, note: "Bonus", userId: sales.id, wallet: "CASH" })).status
+    ).toBe(200);
+
+    // One call first, so the parallel ones below share an existing session row.
+    await summary(sales);
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () => t.call(sales, "POST", API_ROUTES.referrals.myWithdrawals, { amountMinor: 20000, payoutDetails: "s@upi" }))
+    );
+    expect(results.map((r) => r.status).sort()).toEqual([201, 400, 400, 400, 400, 400]);
+    expect((await summary(sales)).money?.balanceMinor).toBe(0);
+
+    const withdrawal = await t.prisma.referralWithdrawal.findFirstOrThrow({ where: { userId: sales.id } });
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.rejectWithdrawal(withdrawal.id), { adminNote: "Wrong UPI" })).status).toBe(200);
+    expect((await summary(sales)).money?.balanceMinor).toBe(20000);
+    expect((await t.call(sales, "POST", API_ROUTES.referrals.cancelWithdrawal(withdrawal.id))).status).toBe(409);
+  });
+
+  it("fences SALES to the referral board", async () => {
+    expect((await t.call(sales, "GET", API_ROUTES.auth.me)).status).toBe(200);
+    expect((await t.call(sales, "GET", API_ROUTES.referrals.me)).status).toBe(200);
+    expect((await t.call(sales, "GET", API_ROUTES.subscription.current)).status).toBe(200);
+    for (const path of [API_ROUTES.student.dashboard, API_ROUTES.users.list, API_ROUTES.notifications.list, API_ROUTES.adminReferrals.overview]) {
+      expect({ path, status: (await t.call(sales, "GET", path)).status }).toEqual({ path, status: 403 });
+    }
+    // SALES sees its own prospects in full, contact included.
+    const code = (await summary(sales)).code!;
+    const visitor = browser();
+    await visitor("POST", API_ROUTES.referrals.visit, { code });
+    await visitor("POST", API_ROUTES.leads.create, lead("Kavya Rao", "9000011111"));
+    const mine = (await t.call(sales, "GET", API_ROUTES.referrals.myReferrals)).body as ReferralPage<ReferralItem>;
+    expect(mine.items[0]).toMatchObject({ contact: { phone: "9000011111" }, prospectName: "Kavya Rao" });
+  });
+
+  it("sends a sales account a one-use set-password link (sales only, admin only)", async () => {
+    const coach = await active(UserRole.COACH);
+    const path = (id: string) => API_ROUTES.adminReferrals.referrerAccessLink(id);
+    expect((await t.call(admin, "POST", path(coach.id), { channels: ["EMAIL"] })).status).toBe(404);
+    expect((await t.call(sales, "POST", path(sales.id), { channels: ["EMAIL"] })).status).toBe(403);
+    expect((await t.call(admin, "POST", path(sales.id), { channels: [] })).status).toBe(400);
+    expect((await t.call(admin, "POST", path(sales.id), { channels: ["WHATSAPP"] })).status).toBe(400); // no phone yet
+
+    const before = await t.prisma.passwordResetToken.count({ where: { userId: sales.id } });
+    const sent = await t.call(admin, "POST", path(sales.id), { channels: ["EMAIL", "WHATSAPP"], phoneNumber: "+91 98765 43210" });
+    expect(sent.status).toBe(200);
+    // No SMTP or WhatsApp in the test box: each channel reports, nothing throws.
+    expect(sent.body).toMatchObject({ email: expect.stringMatching(/SENT|FAILED/), whatsapp: expect.stringMatching(/SENT|FAILED/) });
+    expect(await t.prisma.passwordResetToken.count({ where: { userId: sales.id } })).toBe(before + 1);
+    const token = await t.prisma.passwordResetToken.findFirstOrThrow({ orderBy: { createdAt: "desc" }, where: { userId: sales.id } });
+    expect(token.expiresAt.getTime() - Date.now()).toBeGreaterThan(23 * 60 * 60 * 1000);
+    expect((await t.prisma.user.findUniqueOrThrow({ where: { id: sales.id } })).phoneNumber).toBe("+91 98765 43210");
+  });
+
+  it("lets admins delete a referral, but not one that earned rewards", async () => {
+    const priya = await t.prisma.referral.findFirstOrThrow({ where: { prospectName: "Priya Sharma" } });
+    expect((await t.call(admin, "DELETE", API_ROUTES.adminReferrals.delete(priya.id))).status).toBe(409);
+    // A visit-only referral (no rewards) can go.
+    const before = await t.prisma.referral.count();
+    await browser()("POST", API_ROUTES.referrals.visit, { code: (await summary(student)).code });
+    const spam = await t.prisma.referral.findFirstOrThrow({ orderBy: { createdAt: "desc" }, where: { leadId: null } });
+    expect(await t.prisma.referral.count()).toBe(before + 1);
+    expect((await t.call(student, "DELETE", API_ROUTES.adminReferrals.delete(spam.id))).status).toBe(403);
+    expect((await t.call(admin, "DELETE", API_ROUTES.adminReferrals.delete(spam.id))).status).toBe(200);
+    expect(await t.prisma.referral.findUnique({ where: { id: spam.id } })).toBeNull();
+  });
+
+  it("lets admins edit the pipeline; deleting a stage moves its referrals back", async () => {
+    const stage = (await t.call(admin, "POST", API_ROUTES.adminReferrals.stages, { name: "Contacted", tone: "accent" })).body as { id: string };
+    const kavya = await t.prisma.referral.findFirstOrThrow({ where: { prospectName: "Kavya Rao" } });
+    await t.call(admin, "PATCH", API_ROUTES.adminReferrals.moveStage(kavya.id), { stageId: stage.id });
+    const stages = (await t.call(admin, "GET", API_ROUTES.adminReferrals.stages)).body as { id: string }[];
+    const ids = stages.map((s) => s.id);
+    // Contacted (added last) goes back between the booking and attendance stages.
+    const reordered = [ids[0]!, ids[1]!, stage.id, ...ids.slice(2).filter((id) => id !== stage.id)];
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.reorderStages, { stageIds: reordered })).status).toBe(200);
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.reorderStages, { stageIds: reordered.slice(1) })).status).toBe(400);
+
+    expect((await t.call(admin, "DELETE", API_ROUTES.adminReferrals.stage("refstage_booked"))).status).toBe(400);
+    expect((await t.call(admin, "DELETE", API_ROUTES.adminReferrals.stage(stage.id))).status).toBe(200);
+    expect((await t.prisma.referral.findUniqueOrThrow({ where: { id: kavya.id } })).stageId).toBe("refstage_booked");
+  });
+
+  it("tells the referrer about a stage move and a credited reward, then expires old points", async () => {
+    await settings({ autoApprovePoints: true });
+    const referrer = await active(UserRole.STUDENT);
+    const code = (await summary(referrer)).code!;
+    expect((await browser()("POST", API_ROUTES.leads.create, lead("Meera Nair", "9000011111", { referralCode: code }))).status).toBe(201);
+    const referral = await t.prisma.referral.findFirstOrThrow({ where: { referrerId: referrer.id } });
+    expect((await t.call(admin, "PATCH", API_ROUTES.adminReferrals.moveStage(referral.id), { stageId: "refstage_attended" })).status).toBe(200);
+
+    // Dispatch runs after the response; the outbox rows are the proof.
+    const deliveries = async () =>
+      t.prisma.messageDelivery.findMany({ select: { body: true, channel: true, event: true }, where: { recipientId: referrer.id } });
+    for (let i = 0; i < 50 && (await deliveries()).filter((d) => d.event === "REFERRAL_REWARD").length === 0; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const sent = await deliveries();
+    expect(sent.every((d) => d.channel === "IN_APP")).toBe(true);
+    const moved = sent.filter((d) => d.event === "REFERRAL_PROGRESS").map((d) => d.body);
+    // The name is masked, as on the student's board.
+    expect(moved.some((body) => body.includes("Meera N.") && body.includes("Demo attended"))).toBe(true);
+    expect(moved.some((body) => body.includes("Meera Nair"))).toBe(false);
+    expect(sent.filter((d) => d.event === "REFERRAL_REWARD").map((d) => d.body).join(" ")).toContain("100 points");
+
+    // Expiry: off by default, refuses a window shorter than 30 days.
+    expect((await summary(referrer)).points).toMatchObject({ balance: 100, expiringSoon: 0, expiryDays: null });
+    expect((await settings({ pointsExpiryDays: 5 })).status).toBe(400);
+    expect((await settings({ pointsExpiryDays: 90 })).status).toBe(200);
+    const credits = t.app.get(ReferralCreditsService);
+    const expire = async () =>
+      runInTenant(DEFAULT_TENANT_ID, "test:expiry", async () =>
+        credits.expirePoints(await t.prisma.referralSettings.findFirstOrThrow())
+      );
+    // Fresh points are untouched.
+    await expire();
+    expect((await summary(referrer)).points).toMatchObject({ balance: 100, expiringSoon: 0, expiryDays: 90 });
+
+    // 70 days old: inside the 30-day warning, not yet expired.
+    const age = (days: number) =>
+      t.prisma.referralCreditEntry.updateMany({
+        data: { createdAt: new Date(Date.now() - days * 24 * 60 * 60 * 1000) },
+        where: { userId: referrer.id }
+      });
+    await age(70);
+    await expire();
+    expect((await summary(referrer)).points).toMatchObject({ balance: 100, expiringSoon: 100 });
+
+    // 100 days old: gone, once, however often the job runs.
+    await age(100);
+    await expire();
+    await expire();
+    expect((await summary(referrer)).points).toMatchObject({ balance: 0, expiringSoon: 0 });
+    const ledger = await t.prisma.referralCreditEntry.findMany({ where: { type: "EXPIRY", userId: referrer.id } });
+    expect(ledger.map((entry) => [entry.amountMinor, entry.wallet])).toEqual([[-100, "POINTS"]]);
+    expect((await settings({ pointsExpiryDays: null })).status).toBe(200);
+  });
+
+  it("exports withdrawals as CSV for admins only, and tells the coach when one is paid", async () => {
+    // The earlier test's rejected withdrawal returned the money; ask again.
+    expect(
+      (await t.call(sales, "POST", API_ROUTES.referrals.myWithdrawals, { amountMinor: 20000, payoutDetails: "=s@upi" })).status
+    ).toBe(201);
+    const withdrawal = await t.prisma.referralWithdrawal.findFirstOrThrow({ include: { user: true }, where: { status: "REQUESTED" } });
+    expect((await t.call(student, "GET", API_ROUTES.adminReferrals.withdrawalsExport)).status).toBe(403);
+
+    const res = await t.call(admin, "GET", `${API_ROUTES.adminReferrals.withdrawalsExport}?status=REQUESTED`);
+    expect(res.status).toBe(200);
+    const [header, ...rows] = String(res.body).split("\r\n");
+    expect(header).toBe("Requested at (UTC),Name,Email,Role,Amount,Currency,Payout details,Status,Payout reference,Withdrawal ID");
+    const row = rows.find((line) => line.endsWith(withdrawal.id))!;
+    expect(row).toContain(withdrawal.user.email);
+    // Typed text can't run as a spreadsheet formula.
+    expect(row).toContain(",'=s@upi,");
+    expect(row).toContain(`,${(withdrawal.amountMinor / 100).toFixed(2)},INR,`);
+    expect(rows.every((line) => line.includes(",REQUESTED,"))).toBe(true);
+
+    expect(
+      (await t.call(admin, "POST", API_ROUTES.adminReferrals.payWithdrawal(withdrawal.id), { payoutReference: "UTR123" })).status
+    ).toBe(200);
+    const decided = async () =>
+      t.prisma.messageDelivery.findMany({ where: { event: "REFERRAL_REQUEST_DECIDED", recipientId: withdrawal.userId } });
+    const bodies = async () => (await decided()).map((d) => d.body).join(" | ");
+    for (let i = 0; i < 50 && !(await bodies()).includes("was paid"); i += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+    // The earlier test's rejection was announced too, with the admin's note.
+    expect(await bodies()).toMatch(/a withdrawal of \S+ was paid/);
+    expect(await bodies()).toMatch(/was declined\..*Wrong UPI/);
+  });
+
+  const waitFor = async (check: () => Promise<boolean>) => {
+    for (let i = 0; i < 50 && !(await check()); i += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+  };
+
+  it("marks withdrawals paid from the export filled in with references, skipping decided ones", async () => {
+    const coach = await active(UserRole.COACH);
+    await t.call(admin, "PUT", API_ROUTES.adminReferrals.settings, { minWithdrawalMinor: 100 });
+    await t.call(admin, "POST", API_ROUTES.adminReferrals.adjustCredits, { amountMinor: 30000, note: "Bonus", userId: coach.id, wallet: "CASH" });
+    for (const amountMinor of [10000, 10000]) {
+      expect((await t.call(coach, "POST", API_ROUTES.referrals.myWithdrawals, { amountMinor, payoutDetails: "c@upi" })).status).toBe(201);
+    }
+    const mine = await t.prisma.referralWithdrawal.findMany({ orderBy: { createdAt: "asc" }, where: { userId: coach.id } });
+    // The second is rejected before the import, so the file is stale for it.
+    await t.call(admin, "POST", API_ROUTES.adminReferrals.rejectWithdrawal(mine[1]!.id), { adminNote: "Duplicate" });
+
+    const exported = await t.call(admin, "GET", `${API_ROUTES.adminReferrals.withdrawalsExport}?search=${encodeURIComponent(coach.email)}`);
+    // What an admin does in a spreadsheet: type each transfer reference into the column.
+    const lines = String(exported.body).split("\r\n");
+    const filled = [lines[0], ...lines.slice(1).map((line) => line.replace(/,REQUESTED,,/, ",REQUESTED,UTR-1,").replace(/,REJECTED,,/, ",REQUESTED,UTR-2,"))].join("\r\n");
+    const { items, problems } = paidWithdrawalsFromCsv(filled);
+    expect(problems).toEqual([]);
+    expect(items.map((item) => item.id).sort()).toEqual([mine[0]!.id, mine[1]!.id].sort());
+
+    expect((await t.call(coach, "POST", API_ROUTES.adminReferrals.payWithdrawalsBulk, { items })).status).toBe(403);
+    const res = await t.call(admin, "POST", API_ROUTES.adminReferrals.payWithdrawalsBulk, { items });
+    expect(res.status).toBe(200);
+    const body = res.body as PayReferralWithdrawalsBulkResponse;
+    expect(body.paid).toEqual([mine[0]!.id]);
+    expect(body.skipped).toEqual([{ id: mine[1]!.id, reason: expect.stringContaining("rejected") }]);
+    const after = await t.prisma.referralWithdrawal.findUniqueOrThrow({ where: { id: mine[0]!.id } });
+    expect(after).toMatchObject({ payoutReference: "UTR-1", status: "PAID" });
+    expect((await t.prisma.referralWithdrawal.findUniqueOrThrow({ where: { id: mine[1]!.id } })).status).toBe("REJECTED");
+  });
+
+  it("tells the person when a credited reward is taken back", async () => {
+    // Any reward an earlier test credited (the public lead form is rate-limited by now).
+    const reward = await t.prisma.referralReward.findFirstOrThrow({
+      orderBy: { createdAt: "desc" },
+      where: { status: "CREDITED", unit: "POINTS" }
+    });
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.cancelReward(reward.id), { reason: "Duplicate lead" })).status).toBe(200);
+    const takenBack = () =>
+      t.prisma.messageDelivery.findMany({ where: { event: "REFERRAL_TAKEN_BACK", recipientId: reward.referrerId } });
+    await waitFor(async () => (await takenBack()).length > 0);
+    const [notice] = await takenBack();
+    expect(notice!.body).toContain(`${reward.amountMinor} point`);
+    expect(notice!.body).toContain("came off your balance");
+    expect(notice!.body).toContain("Duplicate lead");
+  });
+
+  it("warns a student once a week about points that expire within 7 days", async () => {
+    const holder = await active(UserRole.STUDENT);
+    await t.call(admin, "POST", API_ROUTES.adminReferrals.adjustCredits, { amountMinor: 120, note: "Gift", userId: holder.id, wallet: "POINTS" });
+    expect((await settings({ pointsExpiryDays: 90 })).status).toBe(200);
+    const scheduler = t.app.get(ReferralPointsExpiryScheduler);
+    const announce = async (ageDays: number) => {
+      await t.prisma.referralCreditEntry.updateMany({
+        data: { createdAt: new Date(Date.now() - ageDays * 24 * 60 * 60 * 1000) },
+        where: { userId: holder.id }
+      });
+      return runInTenant(DEFAULT_TENANT_ID, "test:expiring", async () =>
+        scheduler.announceExpiring(await t.prisma.referralSettings.findFirstOrThrow())
+      );
+    };
+    const notices = () => t.prisma.messageDelivery.findMany({ where: { event: "REFERRAL_POINTS_EXPIRING", recipientId: holder.id } });
+
+    // 70 days old: on the board's 30-day warning, not yet the 7-day notice.
+    await announce(70);
+    expect(await notices()).toHaveLength(0);
+    // 85 days old: expires within 7 days. A second run the same week sends nothing more.
+    await announce(85);
+    await announce(85);
+    const sent = await notices();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.body).toContain("120 points");
+    expect((await settings({ pointsExpiryDays: null })).status).toBe(200);
+  });
+
+  it("links an account an admin creates to the referral whose lead used that email", async () => {
+    // A referral from an earlier test whose lead never got an account.
+    const referral = await t.prisma.referral.findFirstOrThrow({
+      where: { leadId: { not: null }, referredUserId: null }
+    });
+    const email = `asha.${Date.now()}@example.com`;
+    await t.prisma.lead.update({ data: { email }, where: { id: referral.leadId! } });
+    const res = await t.call(admin, "POST", API_ROUTES.users.create, {
+      email,
+      firstName: "Asha",
+      lastName: "Rao",
+      password: "Test@12345",
+      role: "STUDENT"
+    });
+    expect(res.status).toBe(201);
+    const created = await t.prisma.user.findFirstOrThrow({ where: { email } });
+    expect((await t.prisma.referral.findUniqueOrThrow({ where: { id: referral.id } })).referredUserId).toBe(created.id);
+  });
+});

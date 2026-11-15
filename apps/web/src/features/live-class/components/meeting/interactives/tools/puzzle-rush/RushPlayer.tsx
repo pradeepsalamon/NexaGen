@@ -45,7 +45,7 @@ const REPORT_EVERY_MS = 700;
 /**
  * A player's side of Puzzle Storm / Puzzle Racer: wait, count down, play, see
  * results. Students, and the coach playing along inside their tool panel
- * (`compact`: one column sized to the panel, not the viewport).
+ * (`compact`: one column, sized below the coach's round controls).
  */
 export function RushPlayer({
   classId,
@@ -333,7 +333,7 @@ function ActiveRun({
           className={cn(
             "mx-auto",
             compact
-              ? // The coach's tool panel: 100dvh − 4rem (phones) / − 10rem (sm+), less its header and controls.
+              ? // The coach's tool stage: the viewport less the top bar, stage header, round controls and toolbar.
                 "max-w-[min(100%,calc(100dvh-20rem))] sm:max-w-[min(100%,calc(100dvh-26rem))]"
               : "max-w-[min(100%,calc(100dvh-17rem))] md:max-w-[min(100%,calc(58dvh-11rem))] room:max-w-[min(100%,calc(100dvh-19rem))]",
           )}
@@ -362,7 +362,7 @@ function ActiveRun({
           <FeedbackPop feedback={run.feedback} />
         </div>
         <div className="flex items-center justify-between rounded-app bg-primary/10 px-3 py-2">
-          <span className="text-xs font-bold uppercase tracking-wide text-app-muted">
+          <span className="text-xs font-bold text-app-muted">
             {storm ? "Solved" : "Score"}
           </span>
           <span className="text-3xl font-extrabold tabular-nums text-primary-ink">{rushScore(run)}</span>

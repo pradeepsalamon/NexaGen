@@ -162,7 +162,7 @@ export function McqEditor({ config, onChange }: { config: McqConfig; onChange: (
                     variant="ghost"
                     aria-label={`Remove answer ${LETTERS[index]}`}
                     disabled={config.options.length <= MCQ_MIN_OPTIONS}
-                    className="size-8 shrink-0 rounded-full text-app-danger-ink hover:bg-app-danger/10"
+                    className="size-8 shrink-0 text-app-danger-ink hover:bg-app-danger/10"
                     onClick={() => set({ options: config.options.filter((o) => o.id !== option.id) })}
                   >
                     <Trash2 className="size-4" strokeWidth={2.5} />

@@ -40,9 +40,22 @@ type InteractivesContextValue = {
   present: (toolId: LiveClassInteractiveId | null) => void;
   /** Coach: send what a personal tool shows now (debounced; ignored unless that tool is presented). */
   publishView: (toolId: LiveClassInteractiveId, view: unknown) => void;
-  /** Student: whether the presented tool is open on their stage. */
-  studentOpen: boolean;
-  setStudentOpen: (open: boolean) => void;
+  /** Coach: the tool open on their own stage, in the board's place (null when none). */
+  openToolId: LiveClassInteractiveId | null;
+  /** Coach: open a tool on the stage (and show it to the class while sharing is on). */
+  openTool: (toolId: LiveClassInteractiveId) => void;
+  /** Coach: close the open tool and stop showing it to the class. */
+  closeTool: () => void;
+  /** Coach: whether the open tool is shown to the class ("Show to class"). */
+  sharing: boolean;
+  setSharing: (sharing: boolean) => void;
+  /**
+   * Whether the tool stage is showing in the board's place — the coach's open
+   * tool, or for a student the presented one. False keeps the tool open (and
+   * presented) behind its stage tab while the board or gallery shows.
+   */
+  stageOpen: boolean;
+  setStageOpen: (open: boolean) => void;
 };
 
 type ClassroomTimer = ReturnType<typeof useClassroomTimer>;
@@ -58,7 +71,9 @@ const TimerContext = createContext<ClassroomTimer | null>(null);
  * the `puzzle_rush` listener, and what the coach is presenting. Students never
  * open a tool themselves — when the coach presents one it opens on their main
  * stage, read-only (Storm / Racer are the exception: students play those, and a
- * running round stays on their stage until it ends).
+ * running round stays on their stage until it ends). The coach's open tool
+ * lives here too, so the toolbar launcher and the stage that renders it (in the
+ * board's place — never a floating panel) share it.
  */
 export function InteractivesProvider({ children }: { children: ReactNode }) {
   const classId = useMemberClassId();
@@ -133,28 +148,72 @@ export function InteractivesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => clearPendingView, []);
 
+  // The coach's open tool and whether it is shown to the class.
+  const [openToolId, setOpenToolId] = useState<LiveClassInteractiveId | null>(null);
+  const [sharing, setSharingState] = useState(true);
+  const [stageOpen, setStageOpen] = useState(false);
+
+  // After a refresh, reopen whatever the class is still being shown.
+  const restored = useRef(false);
+  useEffect(() => {
+    if (!isManager || restored.current || !presenting) return;
+    restored.current = true;
+    if (presenting.toolId) {
+      setOpenToolId((open) => open ?? presenting.toolId);
+      setStageOpen(true);
+    }
+  }, [isManager, presenting]);
+
+  const openTool = useCallback(
+    (toolId: LiveClassInteractiveId) => {
+      if (!isManager) return;
+      setOpenToolId(toolId);
+      setStageOpen(true);
+      if (sharing) present(toolId);
+    },
+    [isManager, present, sharing],
+  );
+
+  const closeTool = useCallback(() => {
+    setOpenToolId(null);
+    setStageOpen(false);
+    present(null);
+  }, [present]);
+
+  const setSharing = useCallback(
+    (next: boolean) => {
+      setSharingState(next);
+      present(next ? openToolId : null);
+    },
+    [openToolId, present],
+  );
+
   // A new presentation opens on every student's stage; ending it closes it.
-  const [studentOpen, setStudentOpen] = useState(false);
   // A new Storm / Racer round re-opens it too, even for a student who hid the tool.
   const presentedKey = presenting?.toolId
     ? `${presenting.toolId}@${presenting.startedAt ?? ""}@${rushTool ? rushStartedAt : ""}`
     : null;
   useEffect(() => {
     if (isManager) return;
-    setStudentOpen(!!presentedKey);
+    setStageOpen(!!presentedKey);
   }, [isManager, presentedKey]);
 
   const value = useMemo<InteractivesContextValue>(
     () => ({
       classId,
+      closeTool,
       isManager,
+      openTool,
+      openToolId,
       present,
       presenting,
       publishView,
-      setStudentOpen,
-      studentOpen,
+      setSharing,
+      setStageOpen,
+      sharing,
+      stageOpen,
     }),
-    [classId, isManager, present, presenting, publishView, studentOpen],
+    [classId, closeTool, isManager, openTool, openToolId, present, presenting, publishView, setSharing, sharing, stageOpen],
   );
 
   return (

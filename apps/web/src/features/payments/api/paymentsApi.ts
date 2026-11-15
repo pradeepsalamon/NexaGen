@@ -41,12 +41,9 @@ import type {
   UpdatePlanRequest,
   VerifyPaymentRequest
 } from "@nexa-chess/types";
-import { getWebEnv } from "@nexa-chess/config/web";
+import { apiBaseUrl } from "@/lib/apiBase";
 import { apiFetch } from "@/lib/api";
 
-const API_BASE_URL = getWebEnv({
-  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
-}).NEXT_PUBLIC_API_URL;
 
 // ── Student / checkout ──
 
@@ -347,7 +344,7 @@ export function getMyManualPayments(): Promise<ManualPaymentListResponse> {
 }
 
 export function manualPaymentAttachmentUrl(recordId: string): string {
-  return `${API_BASE_URL}${API_ROUTES.payments.manual.attachment(recordId)}`;
+  return `${apiBaseUrl()}${API_ROUTES.payments.manual.attachment(recordId)}`;
 }
 
 // ── Manual / offline payments (admin) ──

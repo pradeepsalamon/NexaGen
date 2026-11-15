@@ -1,12 +1,14 @@
 "use client";
 
-import { lazy, Suspense, memo } from "react";
+import { lazy, Suspense, memo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, MessageSquareText, Users, Settings, Puzzle, Loader2 } from "lucide-react";
+import { X, MessageSquareText, Users, Settings, Puzzle } from "lucide-react";
 import { useLiveClassState, type SidebarTab } from "../../providers/LiveClassProvider";
-import { useLiveClassChat } from "../../providers/ChatProvider";
+import { useChatUnreadCount } from "../../providers/ChatProvider";
 import { useReducedMotion } from "../../lib/meetingUi";
+import { useSlidingIndicator } from "@/hooks/useSlidingIndicator";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/Spinner";
 
 // Lazy-load sidebar panel contents for code splitting
 const MeetingChat = lazy(() =>
@@ -40,7 +42,7 @@ const sidebarPanels: SidebarPanelConfig[] = [
 function PanelLoading() {
   return (
     <div className="flex h-full items-center justify-center">
-      <Loader2 className="size-6 animate-spin text-primary-ink" />
+      <Spinner className="size-6 text-primary-ink" />
     </div>
   );
 }
@@ -65,26 +67,42 @@ const SidebarTabs = memo(function SidebarTabs({
   unreadChatCount: number;
   onTabChange: (tab: PanelTab) => void;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const indicator = useSlidingIndicator(listRef, '[role="tab"][aria-selected="true"]');
+
   return (
-    <div className="flex items-center gap-0.5" role="tablist">
+    <div className="relative flex items-center gap-0.5" ref={listRef} role="tablist">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute left-0 top-0 rounded-control bg-primary",
+          !indicator.ready && "hidden",
+          !indicator.instant &&
+            "motion-safe:transition-[transform,width,height] motion-safe:duration-300 motion-safe:ease-emphasized"
+        )}
+        style={indicator.style}
+      />
       {sidebarPanels.map((panel) => (
         <button
           key={panel.id}
           type="button"
           role="tab"
           aria-selected={active === panel.id}
+          aria-label={
+            panel.id === "chat" && unreadChatCount > 0 ? `${panel.label} (${unreadChatCount} unread)` : panel.label
+          }
           onClick={() => onTabChange(panel.id)}
           className={cn(
-            "flex min-h-11 items-center gap-1.5 rounded-control px-3 text-xs font-semibold transition-colors sm:min-h-9",
+            "relative flex min-h-11 items-center gap-1.5 rounded-control px-3 text-[0.8125rem] font-medium transition-colors sm:min-h-9",
             active === panel.id
-              ? "bg-primary/10 text-primary-ink"
+              ? cn("text-on-primary", !indicator.ready && "bg-primary")
               : "text-app-muted hover:bg-app-soft hover:text-app-text",
           )}
         >
           <span className="relative">
             {panel.icon}
             {panel.id === "chat" && unreadChatCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-app-danger px-1 text-[8px] font-bold text-white ring-2 ring-app-surface">
+              <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold leading-none tabular-nums text-on-primary ring-2 ring-app-surface">
                 {unreadChatCount > 99 ? "99+" : unreadChatCount}
               </span>
             )}
@@ -104,7 +122,7 @@ export function MeetingSidebar({ inlinePanels = false }: { inlinePanels?: boolea
     "activeSidebar",
     "setActiveSidebar",
   );
-  const { unreadCount } = useLiveClassChat();
+  const unreadCount = useChatUnreadCount();
   const reducedMotion = useReducedMotion();
 
   return (
@@ -131,14 +149,14 @@ export function MeetingSidebar({ inlinePanels = false }: { inlinePanels?: boolea
             <button
               type="button"
               onClick={() => setActiveSidebar(null)}
-              className="flex size-9 shrink-0 items-center justify-center rounded-control bg-app-soft text-app-muted transition-colors hover:bg-app-danger hover:text-white"
+              className="flex size-11 shrink-0 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-focus sm:size-9"
               aria-label="Close panel"
             >
-              <X className="size-5" />
+              <X aria-hidden="true" className="size-5" strokeWidth={2} />
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-hidden motion-safe:[&>*]:animate-tab-panel-in">
             <SidebarContent tab={activeSidebar} />
           </div>
         </motion.aside>

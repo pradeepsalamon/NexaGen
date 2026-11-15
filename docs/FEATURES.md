@@ -28,7 +28,8 @@ N days per coach / `ONE_TIME`) and **where** (`placements`: `CLASS_END` on
   coach rating is the mean of those. Coaches only see responses from
   `showToCoach` forms, with the student stripped (`toResponseDto(row, true)`).
 - A form with responses cannot be deleted (FK is `Restrict`) — it is
-  deactivated. None of these models are soft-deletable or Trash-registered.
+  deactivated. A form without responses is deleted to Trash (`FeedbackForm`);
+  responses and answers are not Trash entities.
 - Shared types, labels and `averageRating` live in `@nexa-chess/types`
   (`feedback.ts`).
 - What admins configure: up to 20 questions per form (star rating 1–5, written
@@ -65,7 +66,9 @@ variations/comments/NAGs round-trips via `moveTreeToPgn` /
   own / their class / their batch / played; student own games + LIVE_BOARD games
   of classes they attended (not ABSENT). Saving analysis is coach/admin, only
   once COMPLETED, same start FEN, optimistic `version` (409 on a stale one).
-  Only IMPORT games are deletable (importer or admin). Not soft-deletable.
+  Only IMPORT games are deletable (importer or admin); a delete moves the game
+  to Trash (`ChessGame`). Re-importing the same game (owner + content hash)
+  restores it from Trash instead of failing on the unique index.
 
 ## 3.6k1b Setup Position & set-up only positions
 
@@ -378,10 +381,116 @@ stores new personal data or adds a processor updates it**. Sections with
 `pending` are placeholders for reviewed legal wording; while `LEGAL_DRAFT` is
 true the pages show a draft banner and are `noindex`.
 
+**Terms acceptance at sign-up.** Both self-registration forms (student and
+coach, `features/auth/components/RegistrationConsent.tsx`) have a required
+"I agree to the Terms of Service and Privacy Policy" checkbox; the request
+carries `acceptedTerms: true` (`acceptedTermsSchema`, DTO `@Equals(true)` — a
+missing or false value is a 400). The API stores `users.termsAcceptedAt` and
+`users.termsVersion = LEGAL_TERMS_VERSION` (`@nexa-chess/types` `legal.ts`),
+never a version from the client; both are in the data export. **Bump
+`LEGAL_TERMS_VERSION` whenever the wording in `content.ts` changes.** Accounts
+an admin creates, and accounts from before 2026-11-07, have both null.
+
+## Coach payroll: TDS
+
+Tax deducted at source from a coach's pay. Off until an admin turns it on at
+Admin → Finance → Coach payroll → **TDS**.
+
+**What the admin sets** (`PayrollSettings`, one row per academy;
+`GET/PUT /admin/payroll/settings`, admins only, plan feature `coachPayroll`):
+
+| Setting | Meaning |
+|---|---|
+| Deduct TDS | The switch. Off = no payslip has a TDS line |
+| Rate (%) | Stored as basis points (`tdsRateBps`, 1000 = 10%) |
+| Yearly threshold | Minor units. 0 = deduct from the first payment |
+| Financial year starts in | Month 1–12, April by default |
+
+A coach can have their own rate on the compensation profile
+(`CoachCompensationProfile.tdsRateBps`): blank = the academy's rate, 0 = no
+TDS for that coach.
+
+**The rule** is the pure `computeTds` in `@nexa-chess/types` `payroll.ts`:
+
+1. Nothing is deducted until the coach's pay in the financial year goes
+   **above** the threshold.
+2. From then on the rate applies to everything paid that year, less the TDS
+   already deducted. So the first payslip past the threshold also carries the
+   TDS on the earlier ones. (This is how TDS on professional fees works in
+   India.)
+3. A payslip never loses more than it pays; what is left carries to the next
+   one. An over-deduction is never refunded automatically.
+
+"Pay" is what the record pays before TDS: gross earnings − rule deductions +
+manual adjustments.
+
+**Where it is worked out.** When a period is calculated,
+`PayrollCalculationService` freezes the terms on each record as `tdsSnapshot`
+(rate, threshold, the financial year's first day, the coach's earlier pay and
+TDS that year). "Earlier" is every other period that starts inside the same
+financial year and before this one, cancelled periods aside.
+`payroll-record-totals.util.ts` is the only writer of `tdsMinor` and
+`netPayableMinor`; it applies `computeTds` to the frozen terms, so adding or
+reversing an adjustment re-works the TDS without re-reading the settings.
+
+**Rules you must not break**
+
+- Never write `tdsMinor` or `netPayableMinor` anywhere but
+  `payroll-record-totals.util.ts`.
+- A settings change applies to periods calculated or recalculated afterwards.
+  An approved or finalized record keeps its snapshot.
+- Recalculating an earlier period does not reach forward: recalculate the later
+  one too while it is still in review.
+
+**Where it shows:** a "TDS (rate)" line under Deductions on the payslip PDF, a
+TDS row in the record's totals, and a TDS column on the admin period table and
+the coach's earnings table. The `{{payroll.netPayable}}` message placeholder is
+the amount after TDS.
+
+**Not built:** a TDS return (Form 26Q) export, TDS certificates (Form 16A), the
+higher rate for a coach without a PAN (set that coach's own rate), and salary
+TDS by income-tax slab (set the employee's own rate, or 0).
+
+Tests: `payroll/payroll-tds.spec.ts` (the rule and the totals writer),
+`payroll/payroll-tds.int-spec.ts` (two financial years end to end).
+
 ## SEO & AI search (GEO)
 
-The public pages are `/` and `/academy` (the marketing site); everything signed-in
-is disallowed in `robots.ts`.
+The public home page `/` is the academy marketing site; everything signed-in
+is disallowed in `robots.ts`. `/academy` is its Design System v2 rebuild (`features/academy/v2`), kept
+beside it for review: same content and form, `noindex` with a canonical of `/`, and no JSON-LD, so
+search engines only ever see `/`.
+
+- **Hero 3D board** (`features/academy/hero3d`, used by both hero sections): a
+  three.js scene in its own chunk, fetched only when the stage is near the
+  screen and the browser is idle, so it never delays the hero text. The pieces
+  are a sculpted model: "Chess Set" by Riley Queen (Poly Haven, CC0), cut down
+  to one mesh per piece plus its normal and occlusion/roughness maps by
+  `node apps/web/scripts/build-hero-chess-set.mjs` into
+  `public/academy/hero3d/` (about 570 KB, committed; the script documents the
+  file format). The scene gives them its own gold and ebony materials. The
+  board, its stone texture and the studio the metal reflects are made in code.
+  Rules:
+  - Materials are `MeshStandardMaterial`, with no clear coat: built-in laptop
+    graphics cannot afford a second reflection layer per pixel.
+  - It draws only while on screen in a visible tab. `prefers-reduced-motion`
+    gets one still frame. Touch devices and machines under 4 cores get the
+    cheaper scene (no reflections, smaller shadow map, lower pixel ratio).
+  - `createHeroScene` is async: it builds in short steps and waits for
+    `renderer.compileAsync` before the first frame. Never draw before that, or
+    every shader compiles in one blocking step and the page stops while it loads.
+  - `scene.ts` `watchSpeed` judges real frame time after the scene is ready: a
+    device averaging over 26 ms a frame steps down (a smaller shadow map and
+    pixel ratio 1.25, then no reflections, then pixel ratio 1); one still over
+    42 ms freezes to a still
+    picture and stops the ring and drifting light too (`data-still`). Keep that
+    guard. The shadow map is redrawn every second frame.
+  - The theme comes from `data-theme` through a `MutationObserver`, never React
+    state; during the circular theme reveal it changes in one step.
+  - Reflections are mirrored copies of the pieces drawn under a slightly
+    see-through board, limited to the board by the stencil buffer. So nothing
+    solid may lie under the playing surface (the frame and skirt are rings).
+  - Scene colours are literals in `hero3d/palette.ts` (lint-exempt, UI_RULES §1).
 
 - **One source of facts**: `apps/web/src/features/academy/content.ts` — name and
   alternate names, contacts, programs (also rendered by `ProgramsSection`), class
@@ -389,8 +498,8 @@ is disallowed in `robots.ts`.
   the JSON-LD and `/llms.txt` all read it. Only facts the site shows go here:
   structured data that doesn't match visible content breaks Google's spam policy,
   and AI answers quote it verbatim.
-- **JSON-LD** (`lib/structuredData.ts`): `homeJsonLd()` on `/`, `academyJsonLd()`
-  on `/academy` — `EducationalOrganization` (`#organization`, the same `@id`
+- **JSON-LD** (`lib/structuredData.ts`): `academyJsonLd()` on `/` —
+  `EducationalOrganization` (`#organization`, the same `@id`
   everywhere so there is one entity), `WebSite`, `WebPage`, one `Course` per
   program and an `FAQPage` matching the visible FAQ. `jsonLdScript()` escapes `<`.
   No review/rating markup: Google ignores self-serving reviews for organizations.
@@ -401,11 +510,11 @@ is disallowed in `robots.ts`.
   GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Applebot, Google-Extended …) as
   allowed, with the same private paths as `*`. Blocking any of them removes the
   site from that assistant's answers.
-- **Sitemap**: `/academy`, `/`, `/register`, `/login`; `/privacy` and `/terms` join
+- **Sitemap**: `/`, `/register`, `/login`; `/privacy` and `/terms` join
   once `LEGAL_DRAFT` is false (they're `noindex` while drafts).
 - **Titles**: keyword first, brand last, ≤ 60 chars; descriptions ≤ 155 chars.
-  `/academy` uses `title.absolute` — the root template would add "| Nexa Chess".
-- **Share images**: `app/opengraph-image.tsx` and `app/academy/opengraph-image.tsx`
+  `/` uses `title.absolute` — the root template would add "| Nexa Chess".
+- **Share images**: `app/opengraph-image.tsx`
   (1200×630, `lib/ogImage.tsx`, rendered at build from the logo).
 - **One host**: `next.config.mjs` 308-redirects `www.<site>` to the apex derived
   from `NEXT_PUBLIC_SITE_URL` (nginx passes `Host`).
@@ -414,6 +523,12 @@ is disallowed in `robots.ts`.
 
 
 ## Live captions: browser speech test (admin only)
+
+**In real classes since 2026-11-12:** the same recogniser now keeps a stored
+transcript of the coach's speech when the class setting is on and the coach
+has agreed. That feature (consent, storage, retention) is documented in
+[LIVE_CLASS.md](LIVE_CLASS.md) § "Class transcript"; this section is the
+test bench only.
 
 `/admin/caption-test` (staff, nav "Classes → Caption test"),
 `features/live-captions/`. A test bench for option A of live captions: the
@@ -424,8 +539,8 @@ text for review.
 
 - **Audio goes to Google.** Chrome's recognition is server-side. The page
   warns about this and won't start until the speaker's consent is ticked.
-  Putting captions into real classes needs the coach's consent in the staff
-  terms and a `features/legal/content.ts` update (new processor).
+  In real classes the coach's consent is recorded per coach and
+  `features/legal/content.ts` names Google as the processor.
 - **No on-device mode.** `processLocally` and `SpeechRecognition.available()`
   with it crash the renderer in Chromium 151, and on-device mode doesn't
   cover Tamil anyway, so neither is called.

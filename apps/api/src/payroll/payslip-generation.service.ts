@@ -12,10 +12,13 @@ import type { Queue } from "bullmq";
 import { JOB_LOCKS, JobLockService, type JobLockName } from "../prisma/job-lock.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { isQueueEnabled } from "../queue/queue.config";
+import { currentTenantId } from "../tenancy/tenant-context";
 import { fullName } from "../payments/payments-auth.helper";
 import { payslipPdfJobId, PAYSLIP_JOBS, PAYSLIP_QUEUE } from "./payslip-queue";
 import { PayslipPdfService } from "./payslip-pdf.service";
+import { readTdsSnapshot } from "./payroll-record-totals.util";
 import { PayslipStorageService } from "./payslip-storage.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 const MAX_PDF_ATTEMPTS = 5;
 
@@ -107,8 +110,9 @@ export class PayslipGenerationService {
   private async allocateDocumentNumber(tx: PrismaTransactionClient): Promise<string> {
     const year = new Date().getUTCFullYear();
     const sequence = await tx.payslipSequence.upsert({
-      where: { year },
-      create: { year, lastNumber: 1 },
+      // Each academy numbers its own documents (slice 5).
+      where: { tenantId_year: { tenantId: requireTenantId("payslipSequence"), year } },
+      create: { lastNumber: 1, tenantId: requireTenantId("payslipSequence"), year },
       update: { lastNumber: { increment: 1 } }
     });
     return formatPayslipNumber(year, sequence.lastNumber);
@@ -123,7 +127,7 @@ export class PayslipGenerationService {
 
     await this.queue.add(
       PAYSLIP_JOBS.generatePayslipPdf,
-      { payslipId, force: options?.force },
+      { force: options?.force, payslipId, tenantId: currentTenantId() ?? undefined },
       { jobId: payslipPdfJobId(payslipId, options?.force) }
     );
   }
@@ -160,6 +164,7 @@ export class PayslipGenerationService {
       await this.prisma.payslip.update({
         where: { id: payslipId },
         data: {
+          pdfBytes: stored.bytes,
           pdfStatus: PayslipPdfStatus.READY,
           storageKey: stored.storageKey,
           pdfError: null,
@@ -234,6 +239,8 @@ export class PayslipGenerationService {
       grossEarningsMinor: record.grossEarningsMinor,
       totalDeductionsMinor: record.totalDeductionsMinor,
       totalAdjustmentsMinor: record.totalAdjustmentsMinor,
+      tdsMinor: record.tdsMinor,
+      tdsRateBps: readTdsSnapshot(record.tdsSnapshot)?.rateBps ?? null,
       netPayableMinor: record.netPayableMinor,
       payoutStatus: record.payout?.status ?? null,
       paidAt: record.payout?.paidAt?.toISOString() ?? null
@@ -244,14 +251,14 @@ export class PayslipGenerationService {
     pdf: Buffer,
     documentNumber: string,
     issuedAt: Date
-  ): Promise<{ storageKey: string | null }> {
+  ): Promise<{ bytes: number | null; storageKey: string | null }> {
     if (!this.storage.isConfigured()) {
       this.storage.warnIfUnconfigured();
-      return { storageKey: null };
+      return { bytes: null, storageKey: null };
     }
     const key = this.storage.buildKey(documentNumber, issuedAt);
     const result = await this.storage.upload(key, pdf);
-    return { storageKey: result.storageKey };
+    return { bytes: result.bytes, storageKey: result.storageKey };
   }
 
   // ────────────────────────────────────────────────
@@ -315,7 +322,7 @@ export class PayslipGenerationService {
 
   private async withLock(name: JobLockName, run: () => Promise<void>): Promise<void> {
     try {
-      await this.jobLocks.runExclusive(name, run);
+      await this.jobLocks.runForEachTenant(name, run);
     } catch (error) {
       this.logger.error("Payslip generation cron failed", error as Error);
     }

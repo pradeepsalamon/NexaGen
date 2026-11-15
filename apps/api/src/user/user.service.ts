@@ -3,7 +3,8 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  NotFoundException
+  NotFoundException,
+  Optional
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type {
@@ -27,6 +28,8 @@ import { MessagingDispatchService } from "../messaging/messaging-dispatch.servic
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum } from "../common/query-params";
 import { EntitlementService } from "../platform/entitlement.service";
+import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 type UserWithProfiles = Prisma.UserGetPayload<{ include: typeof userInclude }>;
@@ -44,7 +47,8 @@ export class UserService {
     private readonly jwtService: JwtService,
     private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
-    private readonly trashRepository: TrashRepository
+    private readonly trashRepository: TrashRepository,
+    @Optional() private readonly referralTracker?: ReferralTrackerService
   ) { }
 
   async list(
@@ -56,7 +60,8 @@ export class UserService {
 
     const { page, pageSize, skip, take, search } = resolvePagination(query);
 
-    const where: Prisma.UserWhereInput = { isDeleted: false };
+    // The academy's hidden "Platform support" account is never listed (§I).
+    const where: Prisma.UserWhereInput = { isDeleted: false, isPlatformSupport: false };
     const status = queryEnum(query?.status, UserStatus, "status");
     if (status) {
       where.status = status;
@@ -92,7 +97,7 @@ export class UserService {
 
     const targetUser = await this.prisma.user.findUnique({
       include: userInclude,
-      where: { id, isDeleted: false }
+      where: { id, isDeleted: false, isPlatformSupport: false }
     });
 
     if (!targetUser) {
@@ -115,7 +120,7 @@ export class UserService {
     // indexed across deleted rows too, so a filtered read would miss the
     // conflict and the insert would fail with P2002 -> unhandled 500.
     const existingUser = await this.prisma.withDeleted.user.findUnique({
-      where: { email: data.email }
+      where: { tenantId_email: { email: data.email, tenantId: requireTenantId("user") } }
     });
 
     if (existingUser) {
@@ -166,6 +171,12 @@ export class UserService {
       });
     }).catch(rethrowUniqueAsConflict);
 
+    // Same as self sign-up (docs/REFERRALS.md "The new member's account"): a referral whose lead
+    // used this email gets the account, and its new-member points. Never throws.
+    if (newUser.role === UserRole.STUDENT || newUser.role === UserRole.COACH) {
+      await this.referralTracker?.linkSignup({ email: newUser.email, userId: newUser.id });
+    }
+
     return { user: this.toAuthUser(newUser) };
   }
 
@@ -178,7 +189,7 @@ export class UserService {
     this.assertCanManageUsers(authUser);
 
     const userToUpdate = await this.prisma.user.findUnique({
-      where: { id, isDeleted: false },
+      where: { id, isDeleted: false, isPlatformSupport: false },
       include: userInclude
     });
 
@@ -198,7 +209,7 @@ export class UserService {
     if (data.email && data.email !== userToUpdate.email) {
       // See create(): must include soft-deleted rows, the unique index does.
       const existingUser = await this.prisma.withDeleted.user.findUnique({
-        where: { email: data.email }
+        where: { tenantId_email: { email: data.email, tenantId: requireTenantId("user") } }
       });
       if (existingUser) {
         throw new BadRequestException("User with this email already exists.");
@@ -330,7 +341,7 @@ export class UserService {
 
     const userToArchive = await this.prisma.user.findUnique({
       include: userInclude,
-      where: { id, isDeleted: false }
+      where: { id, isDeleted: false, isPlatformSupport: false }
     });
 
     if (!userToArchive) {
@@ -344,7 +355,7 @@ export class UserService {
     this.assertCanModifyTarget(authUser, userToArchive);
 
     const updated = await this.prisma.user.update({
-      where: { id, isDeleted: false },
+      where: { id, isDeleted: false, isPlatformSupport: false },
       data: { status: UserStatus.ARCHIVED },
       include: userInclude
     });
@@ -358,7 +369,7 @@ export class UserService {
 
     const userToRestore = await this.prisma.user.findUnique({
       include: userInclude,
-      where: { id, isDeleted: false }
+      where: { id, isDeleted: false, isPlatformSupport: false }
     });
 
     if (!userToRestore) {
@@ -372,7 +383,7 @@ export class UserService {
         await this.entitlements.assertSeatAvailable(tx, userToRestore.role, id);
       }
       return tx.user.update({
-        where: { id, isDeleted: false },
+        where: { id, isDeleted: false, isPlatformSupport: false },
         data: { status: UserStatus.ACTIVE },
         include: userInclude
       });
@@ -395,7 +406,7 @@ export class UserService {
     this.assertCanManageUsers(authUser);
 
     const userToDelete = await this.prisma.user.findUnique({
-      where: { id, isDeleted: false }
+      where: { id, isDeleted: false, isPlatformSupport: false }
     });
 
     if (!userToDelete) {

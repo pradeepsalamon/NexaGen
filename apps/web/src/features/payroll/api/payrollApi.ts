@@ -20,17 +20,16 @@ import type {
   PayrollPeriodListResponse,
   PayrollRuleItem,
   PayrollRuleListResponse,
+  PayrollSettingsItem,
   PayslipItem,
   ReversePayrollAdjustmentRequest,
   UpdateCompensationProfileRequest,
-  UpdatePayrollRuleRequest
+  UpdatePayrollRuleRequest,
+  UpdatePayrollSettingsRequest
 } from "@nexa-chess/types";
-import { getWebEnv } from "@nexa-chess/config/web";
+import { apiBaseUrl } from "@/lib/apiBase";
 import { apiFetch } from "@/lib/api";
 
-const API_BASE_URL = getWebEnv({
-  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
-}).NEXT_PUBLIC_API_URL;
 
 // ── Coach (own data, read-only) ──
 
@@ -47,7 +46,7 @@ export function getMyPayslips(): Promise<{ payslips: PayslipItem[] }> {
 }
 
 export function myPayslipPdfUrl(id: string): string {
-  return `${API_BASE_URL}${API_ROUTES.payroll.payslipPdf(id)}`;
+  return `${apiBaseUrl()}${API_ROUTES.payroll.payslipPdf(id)}`;
 }
 
 // ── Admin: periods ──
@@ -198,6 +197,18 @@ export function updatePayrollRule(
   return apiFetch(API_ROUTES.adminPayroll.rule(id), { method: "PUT", body });
 }
 
+// ── Admin: settings (TDS) ──
+
+export function getPayrollSettings(): Promise<{ settings: PayrollSettingsItem }> {
+  return apiFetch(API_ROUTES.adminPayroll.settings);
+}
+
+export function updatePayrollSettings(
+  body: UpdatePayrollSettingsRequest
+): Promise<{ settings: PayrollSettingsItem }> {
+  return apiFetch(API_ROUTES.adminPayroll.settings, { method: "PUT", body });
+}
+
 // ── Admin: payouts ──
 
 export function getAdminPayouts(periodId: string): Promise<CoachPayoutListResponse> {
@@ -218,7 +229,7 @@ export function markPayoutPaid(
 // ── Admin: payslip PDFs ──
 
 export function adminPayslipPdfUrl(id: string): string {
-  return `${API_BASE_URL}${API_ROUTES.adminPayroll.payslipPdf(id)}`;
+  return `${apiBaseUrl()}${API_ROUTES.adminPayroll.payslipPdf(id)}`;
 }
 
 export function retryPayslipPdf(id: string): Promise<{ queued: boolean }> {

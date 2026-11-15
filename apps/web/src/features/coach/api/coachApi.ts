@@ -3,12 +3,14 @@ import type {
   CoachDashboardResponse,
   CoachBatchesResponse,
   CoachClassDetailsResponse,
+  CoachClassHistoryResponse,
   CoachClassListResponse,
   CoachClassResponse,
   CoachStudentsResponse,
   UpdateClassRequest
 } from "@nexa-chess/types";
 import { apiFetch } from "../../../lib/api";
+import { toQueryString, type ListParams } from "@/lib/pagination";
 
 export function getCoachClassDetails(id: string): Promise<CoachClassDetailsResponse> {
   return apiFetch<CoachClassDetailsResponse>(API_ROUTES.coach.classDetails(id));
@@ -36,8 +38,8 @@ export async function getCalendarClasses(from: string, to: string): Promise<Coac
   return apiFetch(API_ROUTES.coach.calendarClasses, { params: { from, to } });
 }
 
-export async function getClassHistory(): Promise<CoachClassListResponse> {
-  return apiFetch(API_ROUTES.coach.classHistory);
+export async function getClassHistory(params: ListParams = {}): Promise<CoachClassHistoryResponse> {
+  return apiFetch(`${API_ROUTES.coach.classHistory}${toQueryString(params)}`);
 }
 
 export async function getClassById(id: string): Promise<CoachClassResponse> {

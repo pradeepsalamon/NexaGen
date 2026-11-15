@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="nc-card-grad" x1="40" y1="30" x2="180" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F4F7FC" />
+    </linearGradient>
+    <linearGradient id="nc-header-grad" x1="40" y1="36" x2="176" y2="68" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0B1F3B" />
+      <stop offset="100%" stop-color="#1E40AF" />
+    </linearGradient>
+    <linearGradient id="nc-rook-grad" x1="130" y1="64" x2="196" y2="168" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="55%" stop-color="#1E40AF" />
+      <stop offset="100%" stop-color="#0B1F3B" />
+    </linearGradient>
+    <linearGradient id="nc-gold-grad" x1="138" y1="70" x2="190" y2="165" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F3D28E" />
+      <stop offset="100%" stop-color="#E8B85E" />
+    </linearGradient>
+    <filter id="nc-ambient-shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0B1F3B" flood-opacity="0.12" />
+    </filter>
+  </defs>
+  <ellipse cx="120" cy="176" rx="76" ry="8" fill="#0B1F3B" opacity="0.07" />
+  <g filter="url(#nc-ambient-shadow)">
+    <rect x="36" y="36" width="136" height="122" rx="14" fill="url(#nc-card-grad)" stroke="#DBEAFE" stroke-width="1.5" />
+    <path d="M36 50C36 42.268 42.268 36 50 36H158C165.732 36 172 42.268 172 50V66H36V50Z" fill="url(#nc-header-grad)" />
+  </g>
+  <rect x="64" y="28" width="6" height="16" rx="3" fill="#E8B85E" />
+  <rect x="138" y="28" width="6" height="16" rx="3" fill="#E8B85E" />
+  <circle cx="52" cy="51" r="3" fill="#DBEAFE" opacity="0.6" />
+  <circle cx="64" cy="51" r="3" fill="#DBEAFE" opacity="0.6" />
+  <g fill="#DBEAFE" opacity="0.65">
+    <rect x="52" y="80" width="20" height="14" rx="4" />
+    <rect x="80" y="80" width="20" height="14" rx="4" />
+    <rect x="108" y="80" width="20" height="14" rx="4" />
+    <rect x="136" y="80" width="20" height="14" rx="4" />
+    <rect x="52" y="102" width="20" height="14" rx="4" />
+    <rect x="80" y="102" width="20" height="14" rx="4" fill="#2563EB" opacity="0.18" />
+    <rect x="108" y="102" width="20" height="14" rx="4" />
+    <rect x="52" y="124" width="20" height="14" rx="4" />
+    <rect x="80" y="124" width="20" height="14" rx="4" />
+    <rect x="108" y="124" width="20" height="14" rx="4" />
+  </g>
+  <rect x="80" y="102" width="20" height="14" rx="4" stroke="#E8B85E" stroke-width="1.5" stroke-dasharray="3 2" />
+  <g filter="url(#nc-ambient-shadow)">
+    <path d="M134 162C134 157.582 137.582 154 142 154H190C194.418 154 198 157.582 198 162V166C198 168.209 196.209 170 194 170H138C135.791 170 134 168.209 134 166V162Z" fill="#0B1F3B" />
+    <rect x="137" y="151" width="58" height="4" rx="2" fill="url(#nc-gold-grad)" />
+    <path d="M141 145C141 142.239 143.239 140 146 140H186C188.761 140 191 142.239 191 145V151H141V145Z" fill="#132D50" />
+    <path d="M149 94H183L188 140H144L149 94Z" fill="url(#nc-rook-grad)" />
+    <path d="M151 94H156L152 140H146L151 94Z" fill="#FFFFFF" opacity="0.16" />
+    <rect x="145" y="89" width="42" height="5" rx="2.5" fill="url(#nc-gold-grad)" />
+    <path d="M143 72C143 70.8954 143.895 70 145 70H151C152.105 70 153 70.8954 153 72V77H160V72C160 70.8954 160.895 70 162 70H170C171.105 70 172 70.8954 172 72V77H179V72C179 70.8954 179.895 70 181 70H187C188.105 70 189 70.8954 189 72V84C189 86.7614 186.761 89 184 89H148C145.239 89 143 86.7614 143 84V72Z" fill="url(#nc-rook-grad)" />
+  </g>
+</svg>

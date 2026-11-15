@@ -13,6 +13,7 @@ import {
   type PaymentStatus,
   type SubscriptionItem
 } from "@nexa-chess/types";
+import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -24,6 +25,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime, formatFullDate } from "@/lib/datetime";
+import { enumLabel } from "@/lib/utils";
 import {
   creditNotePdfUrl,
   invoicePdfUrl
@@ -54,37 +56,50 @@ export function BillingClient() {
   const timeZone = useUserTimeZone();
   const { data, isLoading } = useMyBilling();
 
-  if (isLoading) return <Skeleton className="h-96 w-full" />;
+  const headerProps = { description: "Your payments, invoices and active access.", title: "Billing" };
+  const header = <PageHeader {...headerProps} />;
+
+  if (isLoading) {
+    return (
+      <div>
+        {header}
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
 
   if (!data) {
     return (
-      <EmptyState
-        description="We could not load your billing history."
-        title="Nothing to show"
-      />
+      <div>
+        {header}
+        <EmptyState
+          description="We could not load your billing history."
+          title="Nothing to show"
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        description="Your payments, invoices and active access."
-        title="Billing"
-      />
-
       <Tabs defaultValue="payments">
-        <TabsList className="justify-self-end">
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
-          {data.creditNotes.length > 0 ? (
-            <TabsTrigger value="credit-notes">Credit notes</TabsTrigger>
-          ) : null}
-          <TabsTrigger value="access">Access</TabsTrigger>
-          {data.subscriptions.length > 0 ? (
-            <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          ) : null}
-          <TabsTrigger value="billing-details">Billing details</TabsTrigger>
-        </TabsList>
+        <PageHeader
+          {...headerProps}
+          tabs={
+              <TabsList>
+                <TabsTrigger value="payments">Payments</TabsTrigger>
+                <TabsTrigger value="invoices">Invoices</TabsTrigger>
+                {data.creditNotes.length > 0 ? (
+                  <TabsTrigger value="credit-notes">Credit notes</TabsTrigger>
+                ) : null}
+                <TabsTrigger value="access">Access</TabsTrigger>
+                {data.subscriptions.length > 0 ? (
+                  <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+                ) : null}
+                <TabsTrigger value="billing-details">Billing details</TabsTrigger>
+              </TabsList>
+          }
+        />
 
         <TabsContent value="payments">
           {data.payments.length === 0 ? (
@@ -105,7 +120,7 @@ export function BillingClient() {
 
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-app-text">
-                      {payment.planName ?? "NexaChess purchase"}
+                      {payment.planName ?? "Purchase"}
                     </p>
                     <p className="text-xs text-app-muted">
                       {payment.orderNumber}
@@ -117,7 +132,7 @@ export function BillingClient() {
                     </p>
                   </div>
 
-                  <p className="text-sm font-bold text-app-text">
+                  <p className="text-sm font-bold tabular-nums text-app-text">
                     {formatMoney(payment.amount, payment.currency)}
                   </p>
 
@@ -126,13 +141,13 @@ export function BillingClient() {
                       <Button
                         aria-label={`Open invoice ${payment.invoiceNumber ?? ""}`}
                         asChild
-                        className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                        className="size-8"
                         size="icon"
-                        variant="ghost"
+                        variant="neutral"
                       >
                         <a
                           href={invoicePdfUrl(payment.invoiceId)}
-                          rel="noopener noreferrer"
+                          rel="noopener"
                           target="_blank"
                         >
                           <FileText className="size-4" strokeWidth={2.5} />
@@ -187,9 +202,9 @@ export function BillingClient() {
                     <Button
                       aria-label={`View invoice ${invoice.number}`}
                       asChild
-                      className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                      className="size-8"
                       size="icon"
-                      variant="ghost"
+                      variant="neutral"
                     >
                       <Link href={`/student/billing/invoices/${invoice.id}`}>
                         <Eye className="size-4" strokeWidth={2.5} />
@@ -201,13 +216,13 @@ export function BillingClient() {
                     <Button
                       aria-label={`Download invoice ${invoice.number}`}
                       asChild
-                      className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                      className="size-8"
                       size="icon"
-                      variant="ghost"
+                      variant="neutral"
                     >
                       <a
                         href={invoicePdfUrl(invoice.id)}
-                        rel="noopener noreferrer"
+                        rel="noopener"
                         target="_blank"
                       >
                         <Download className="size-4" strokeWidth={2.5} />
@@ -251,13 +266,13 @@ export function BillingClient() {
                     <Button
                       aria-label={`Download credit note ${creditNote.number}`}
                       asChild
-                      className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                      className="size-8"
                       size="icon"
-                      variant="ghost"
+                      variant="neutral"
                     >
                       <a
                         href={creditNotePdfUrl(creditNote.id)}
-                        rel="noopener noreferrer"
+                        rel="noopener"
                         target="_blank"
                       >
                         <Download className="size-4" strokeWidth={2.5} />
@@ -290,7 +305,7 @@ export function BillingClient() {
                         entitlement.status === "ACTIVE" ? "success" : "secondary"
                       }
                     >
-                      {entitlement.status}
+                      {enumLabel(entitlement.status)}
                     </Badge>
                     {entitlement.batchName ? (
                       <span className="text-sm text-app-muted">
@@ -370,16 +385,24 @@ function SubscriptionRow({
       ) : null}
 
       {subscription.failedRenewals > 0 ? (
-        <p className="mt-2 text-sm text-app-danger-ink">
+        <Alert className="mt-2" variant="warning">
           {subscription.failedRenewals} renewal attempt(s) have failed. Update
           your payment method to keep your access.
-        </p>
+        </Alert>
       ) : null}
 
       {active && !subscription.cancelAtPeriodEnd ? (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
           {confirming ? (
             <>
+              <Button
+                onClick={() => setConfirming(false)}
+                size="sm"
+                type="button"
+                variant="neutral"
+              >
+                Keep it
+              </Button>
               <Button
                 isLoading={cancel.isPending}
                 onClick={() =>
@@ -393,14 +416,6 @@ function SubscriptionRow({
                 variant="destructive"
               >
                 Yes, cancel at period end
-              </Button>
-              <Button
-                onClick={() => setConfirming(false)}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                Keep it
               </Button>
             </>
           ) : (

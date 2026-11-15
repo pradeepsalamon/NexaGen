@@ -13,8 +13,8 @@ export function PlanUpgradeNotice({ feature }: { feature: PlanFeatureKey }) {
   const definition = PLAN_FEATURES[feature];
 
   return (
-    <div className="flex min-h-[300px] flex-col items-center justify-center rounded-app border-2 border-dashed border-app-border bg-app-surface/50 p-8 text-center">
-      <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
+    <div className="flex min-h-[300px] flex-col items-center justify-center rounded-app border border-dashed border-app-line-strong bg-app-surface p-8 text-center">
+      <div className="flex size-12 items-center justify-center rounded-full bg-primary-soft">
         <Sparkles aria-hidden="true" className="size-6 text-primary-ink" strokeWidth={2.25} />
       </div>
       <h2 className="mt-4 text-lg font-bold text-app-text">{definition.label} isn&apos;t in your plan</h2>

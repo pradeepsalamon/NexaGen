@@ -68,6 +68,9 @@ export const liveClassSettingsSchema = z
       })
       .prefault({}),
     recording: recordingModeSchema.default("MANUAL"),
+    // The coach's speech kept as text (live-class-transcript.ts). Off unless an
+    // admin or the coach turns it on, and it still needs the coach's consent.
+    transcript: toggleModeSchema.default("DISABLED"),
     waitingRoom: waitingRoomModeSchema.default("DISABLED"),
   })
   .prefault({});
@@ -106,6 +109,7 @@ export const liveClassSettingsOverrideSchema = z.object({
     })
     .optional(),
   recording: recordingModeSchema.optional(),
+  transcript: toggleModeSchema.optional(),
   waitingRoom: waitingRoomModeSchema.optional(),
 });
 
@@ -132,6 +136,7 @@ export const LOCKABLE_LIVE_SETTINGS = [
   "student.board",
   "autoJoin.student",
   "recording",
+  "transcript",
   "waitingRoom",
 ] as const;
 
@@ -149,6 +154,7 @@ export const LOCKABLE_LIVE_SETTING_LABELS: Record<LockableLiveSetting, string> =
   "student.board": "Student board access",
   "autoJoin.student": "Student auto-join",
   recording: "Recording",
+  transcript: "Class transcript",
   waitingRoom: "Waiting room",
 };
 
@@ -188,7 +194,8 @@ export function liveClassLockSources(layers: {
 
 /**
  * Locked fields an admin may except for one class (`LIVE_SETTING_EXCEPTION`).
- * Recording stays out until consent records exist: an approval never overrides
+ * Recording stays out until consent records exist, and the transcript stays
+ * out because it rests on the coach's own consent: an approval never overrides
  * consent (docs/PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md §2.8).
  */
 export const LIVE_SETTING_EXCEPTION_FIELDS = [
@@ -342,6 +349,7 @@ function mergeOverride(
     student: { ...base.student },
     coach: { ...base.coach },
     recording: base.recording,
+    transcript: base.transcript,
     waitingRoom: base.waitingRoom,
   };
   for (const section of ["autoJoin", "student", "coach"] as Section[]) {
@@ -351,6 +359,7 @@ function mergeOverride(
     }
   }
   if (override.recording !== undefined) next.recording = override.recording;
+  if (override.transcript !== undefined) next.transcript = override.transcript;
   if (override.waitingRoom !== undefined) next.waitingRoom = override.waitingRoom;
   return next;
 }
@@ -568,6 +577,11 @@ export function getLiveClassSettingsWarnings(settings: LiveClassSettings): strin
   }
   if (settings.recording === "AUTO_START") {
     warnings.push("Recording starts automatically; participants are notified when it begins.");
+  }
+  if (settings.transcript === "ENABLED") {
+    warnings.push(
+      "The coach's speech is turned into text by their browser's speech service and kept for 30 days. It only starts once the coach agrees.",
+    );
   }
   if (settings.student.chat === "DISABLED") {
     warnings.push("Students will not be able to send chat messages.");

@@ -3,6 +3,7 @@ import { LogoutButton } from "../../features/auth/components/LogoutButton";
 import { ProfileForm } from "../../features/auth/components/ProfileForm";
 import { ProfileRoleHeading } from "../../features/auth/components/ProfileRoleHeading";
 import { TwoFactorSettings } from "../../features/auth/components/mfa/TwoFactorSettings";
+import { EmailPreferencesSection } from "@/features/email-preferences/components/EmailPreferencesSection";
 import { AccountDeletionSection } from "@/features/privacy/components/AccountDeletionSection";
 import { PersonalDataSection } from "@/features/privacy/components/PersonalDataSection";
 import { UserTypographySettings } from "@/features/typography/components/UserTypographySettings";
@@ -22,7 +23,9 @@ export default function ProfilePage() {
                 Your account details, sign-in security, text size and data.
               </p>
             </div>
-            <LogoutButton />
+            <div className="ml-auto">
+              <LogoutButton />
+            </div>
           </div>
           <ProfileForm />
         </section>
@@ -40,6 +43,7 @@ export default function ProfilePage() {
           </p>
           <UserTypographySettings />
         </section>
+        <EmailPreferencesSection />
         <PersonalDataSection />
         <AccountDeletionSection />
       </main>

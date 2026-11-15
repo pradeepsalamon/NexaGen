@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import {
   BookOpen,
   CircleHelp,
@@ -28,10 +29,10 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePlanFeature } from "@/features/subscription/hooks/useSubscription";
-import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useHelp } from "../hooks/useKnowledgeApi";
 import { CoachSuggestionsPanel, CoachTrendsPanel } from "./CoachHelpPanels";
+import { EmptyStateIcon } from "@/components/ui/EmptyState";
 
 export const KIND_ICON: Record<KnowledgeArticleKind, typeof FileText> = {
   ARTICLE: FileText,
@@ -68,38 +69,44 @@ export function HelpCenterClient() {
     router.replace(`${pathname}${search.size ? `?${search}` : ""}`, { scroll: false });
   };
 
+  const header = (tabs?: ReactNode) => (
+    <PageHeader
+      actions={
+        isStaffRole(role) ? (
+          <Button asChild variant="outline">
+            <Link href="/admin/knowledge">
+              <Settings2 aria-hidden className="size-4" strokeWidth={2.5} />
+              Manage knowledge base
+            </Link>
+          </Button>
+        ) : undefined
+      }
+      description="How the platform works, how to find your way around, and answers to common questions."
+      tabs={tabs}
+      title="Help centre"
+    />
+  );
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        actions={
-          isStaffRole(role) ? (
-            <Button asChild variant="outline">
-              <Link href="/admin/knowledge">
-                <Settings2 aria-hidden className="mr-2 size-4" strokeWidth={2.5} />
-                Manage knowledge base
-              </Link>
-            </Button>
-          ) : undefined
-        }
-        description="How the platform works, how to find your way around, and answers to common questions."
-        title="Help centre"
-      />
       {isCoach ? (
         <Tabs onValueChange={setTab} value={tab}>
-          <TabsList>
-            <TabsTrigger value="help">
-              <LifeBuoy aria-hidden className="size-4" />
-              Help articles
-            </TabsTrigger>
-            <TabsTrigger value="suggest">
-              <Lightbulb aria-hidden className="size-4" />
-              My suggestions
-            </TabsTrigger>
-            <TabsTrigger value="trends">
-              <TrendingUp aria-hidden className="size-4" />
-              What students ask
-            </TabsTrigger>
-          </TabsList>
+          {header(
+            <TabsList>
+              <TabsTrigger value="help">
+                <LifeBuoy aria-hidden className="size-4" strokeWidth={2.25} />
+                Help articles
+              </TabsTrigger>
+              <TabsTrigger value="suggest">
+                <Lightbulb aria-hidden className="size-4" strokeWidth={2.25} />
+                My suggestions
+              </TabsTrigger>
+              <TabsTrigger value="trends">
+                <TrendingUp aria-hidden className="size-4" strokeWidth={2.25} />
+                What students ask
+              </TabsTrigger>
+            </TabsList>
+          )}
           <TabsContent value="help">
             <HelpBrowser />
           </TabsContent>
@@ -111,7 +118,10 @@ export function HelpCenterClient() {
           </TabsContent>
         </Tabs>
       ) : (
-        <HelpBrowser />
+        <>
+          {header()}
+          <HelpBrowser />
+        </>
       )}
     </div>
   );
@@ -150,17 +160,15 @@ function HelpBrowser() {
 
   return (
     <div className="space-y-6">
-      <div className="relative">
-        <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-app-muted" />
-        <Input
-          aria-label="Search help"
-          className="pl-11"
-          maxLength={200}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search help — e.g. how do I join a class?"
-          value={q}
-        />
-      </div>
+      <Input
+        aria-label="Search help"
+        leadingIcon={<Search strokeWidth={2.25} />}
+        maxLength={200}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search help, e.g. how do I join a class?"
+        type="search"
+        value={q}
+      />
 
       {data && !searchQ && data.categories.length > 0 && (
         <div aria-label="Categories" className="flex flex-wrap gap-2" role="group">
@@ -178,7 +186,7 @@ function HelpBrowser() {
 
       {data && data.forThisPage.length > 0 && !searchQ && (
         <section aria-labelledby="help-this-page" className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-app-muted" id="help-this-page">
+          <h2 className="text-sm font-semibold text-app-muted" id="help-this-page">
             Help for the page you were on
           </h2>
           <div className="grid gap-3 md:grid-cols-2">
@@ -206,10 +214,10 @@ function HelpBrowser() {
             <AskCoachHint href={askCoachHref} show={role === "STUDENT" && planHasChat} />
           </section>
         ) : (
-          <Card className="space-y-4 p-6 text-center">
-            <MessageCircleQuestion aria-hidden className="mx-auto size-10 text-app-muted" />
+          <Card className="flex flex-col items-center gap-4 p-6 text-center">
+            <EmptyStateIcon icon={MessageCircleQuestion} />
             <div>
-              <p className="font-bold">No article answers that yet.</p>
+              <p className="text-base font-semibold text-app-text">No article answers that yet.</p>
               <p className="mt-1 text-sm text-app-muted">
                 Your question has been passed to the academy team so they can write one.
               </p>
@@ -231,7 +239,7 @@ function HelpBrowser() {
         <div className="space-y-6">
           {grouped.map((group) => (
             <section className="space-y-3" key={group.name}>
-              <h2 className="text-base font-bold">{group.name}</h2>
+              <h2 className="text-base font-semibold text-app-text">{group.name}</h2>
               <div className="grid gap-3 md:grid-cols-2">
                 {group.items.map((a) => (
                   <ArticleCard article={a} key={a.id} />
@@ -247,17 +255,9 @@ function HelpBrowser() {
 
 function CategoryChip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
-    <button
-      aria-pressed={active}
-      className={cn(
-        "min-h-9 rounded-full border px-4 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
-        active ? "border-primary bg-primary text-white" : "border-app-border bg-app-surface text-app-text hover:border-primary/50",
-      )}
-      onClick={onClick}
-      type="button"
-    >
+    <Button aria-pressed={active} onClick={onClick} size="sm" variant={active ? "primary" : "neutral"}>
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -277,19 +277,19 @@ export function ArticleCard({ article, hrefBase = "/help" }: { article: Knowledg
   const Icon = KIND_ICON[article.kind];
   return (
     <Link
-      className="group block rounded-panel border border-app-border bg-app-surface p-4 shadow-card transition hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+      className="group block rounded-app border border-app-border bg-app-surface p-4 font-normal shadow-card transition-colors hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
       href={`${hrefBase}/${article.slug}`}
     >
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary-ink">
+      <div className="flex h-full items-stretch gap-3">
+        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-ink">
           <Icon aria-hidden className="size-4" strokeWidth={2.5} />
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="font-bold text-app-text group-hover:text-primary-ink">{article.title}</p>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <p className="font-semibold text-app-text group-hover:text-primary-ink">{article.title}</p>
           {(article.snippet || article.summary) && (
             <p className="mt-1 line-clamp-2 text-sm text-app-muted">{article.snippet ?? article.summary}</p>
           )}
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
             <Badge variant="outline">{KIND_LABEL[article.kind]}</Badge>
             {article.categoryName && <Badge variant="secondary">{article.categoryName}</Badge>}
             {article.language !== "en" && <Badge variant="info">{article.language.toUpperCase()}</Badge>}

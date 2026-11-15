@@ -1,10 +1,12 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { financialYearStart, type PayrollTdsSnapshot } from "@nexa-chess/types";
 import { calculatePayroll } from "./payroll-calculation.engine";
-import { PayrollPeriodStatus, type Prisma } from "@prisma/client";
+import { PayrollPeriodStatus, Prisma, type PayrollSettings } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { CompensationRateResolutionService } from "./compensation-rate-resolution.service";
 import { TeachingDataAggregationService } from "./teaching-data-aggregation.service";
 import { recomputeNetPayable } from "./payroll-record-totals.util";
+import { PayrollSettingsService } from "./payroll-settings.service";
 
 /**
  * Orchestrates a period's calculation: for every in-scope coach, aggregate
@@ -25,7 +27,8 @@ export class PayrollCalculationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly teachingData: TeachingDataAggregationService,
-    private readonly rateResolution: CompensationRateResolutionService
+    private readonly rateResolution: CompensationRateResolutionService,
+    private readonly settings: PayrollSettingsService
   ) {}
 
   async calculatePeriod(periodId: string): Promise<void> {
@@ -61,9 +64,10 @@ export class PayrollCalculationService {
 
     try {
       const coachIds = await this.getInScopeCoachIds(period.startDate, period.endDate);
+      const settings = await this.settings.find();
 
       for (const coachId of coachIds) {
-        await this.calculateForCoach(periodId, coachId, period.startDate, period.endDate);
+        await this.calculateForCoach(periodId, coachId, period.startDate, period.endDate, settings);
       }
 
       await this.prisma.payrollPeriod.update({
@@ -102,7 +106,8 @@ export class PayrollCalculationService {
     periodId: string,
     coachId: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    settings: PayrollSettings | null
   ): Promise<void> {
     const profile = await this.prisma.coachCompensationProfile.findUnique({ where: { coachId } });
     const compensationModel = profile?.defaultCompensationModel ?? "HOURLY";
@@ -146,6 +151,8 @@ export class PayrollCalculationService {
     } as unknown as Prisma.InputJsonValue;
     const rateSnapshot = resolvedRates as unknown as Prisma.InputJsonValue;
     const earningsBreakdown = result.earningsBreakdown as unknown as Prisma.InputJsonValue;
+    const tds = await this.resolveTdsSnapshot(periodId, coachId, startDate, settings, profile?.tdsRateBps ?? null);
+    const tdsSnapshot = tds ? (tds as unknown as Prisma.InputJsonValue) : Prisma.DbNull;
 
     // netPayableMinor is deliberately NOT set here — recomputeNetPayable
     // below is the only writer, so an existing manual adjustment (added
@@ -160,6 +167,7 @@ export class PayrollCalculationService {
         earningsBreakdown,
         rateSnapshot,
         ruleSnapshot,
+        tdsSnapshot,
         grossEarningsMinor: result.grossEarningsMinor,
         totalDeductionsMinor: result.totalDeductionsMinor,
         totalAdjustmentsMinor: 0,
@@ -172,6 +180,7 @@ export class PayrollCalculationService {
         earningsBreakdown,
         rateSnapshot,
         ruleSnapshot,
+        tdsSnapshot,
         grossEarningsMinor: result.grossEarningsMinor,
         totalDeductionsMinor: result.totalDeductionsMinor,
         calculatedAt: new Date()
@@ -180,5 +189,52 @@ export class PayrollCalculationService {
     await recomputeNetPayable(this.prisma, record.id);
 
     this.logger.log(`Calculated payroll: period=${periodId} coach=${coachId} record=${record.id}`);
+  }
+
+  /**
+   * The TDS terms to freeze on this coach's record, or null when none applies
+   * (TDS off, or a zero rate). The coach's own rate wins over the academy's.
+   *
+   * "Earlier this year" is every other period that starts inside the same
+   * financial year and before this one, cancelled periods aside — whatever
+   * its status, since it is pay the academy expects to make. Recalculating an
+   * earlier period afterwards does not reach forward into this record:
+   * recalculate this one too if that happens while it is still in review.
+   */
+  private async resolveTdsSnapshot(
+    periodId: string,
+    coachId: string,
+    startDate: Date,
+    settings: PayrollSettings | null,
+    coachRateBps: number | null
+  ): Promise<PayrollTdsSnapshot | null> {
+    if (!settings?.tdsEnabled) return null;
+    const rateBps = coachRateBps ?? settings.tdsRateBps;
+    if (rateBps <= 0) return null;
+
+    const yearStart = financialYearStart(startDate, settings.financialYearStartMonth);
+    const earlier = await this.prisma.coachPayrollRecord.findMany({
+      where: {
+        coachId,
+        periodId: { not: periodId },
+        period: {
+          startDate: { gte: yearStart, lt: startDate },
+          status: { not: PayrollPeriodStatus.CANCELLED }
+        }
+      },
+      select: { netPayableMinor: true, tdsMinor: true }
+    });
+
+    return {
+      version: 1,
+      rateBps,
+      thresholdMinor: settings.tdsThresholdMinor,
+      yearStart: yearStart.toISOString().slice(0, 10),
+      priorTaxableMinor: earlier.reduce(
+        (sum, record) => sum + Math.max(0, record.netPayableMinor + record.tdsMinor),
+        0
+      ),
+      priorTdsMinor: earlier.reduce((sum, record) => sum + record.tdsMinor, 0)
+    };
   }
 }

@@ -22,6 +22,10 @@ file is the policy.
   `authenticateUser` (identity + `ACTIVE` + a live session, see below) and then
   checks the resource. The web's `routeAccess.ts` / `middleware.ts` and hidden
   buttons are routing and usability only.
+- **SALES is fenced.** `authenticateUser` refuses a `SALES` account (403)
+  unless the service passes `{ allowSales: true }` — only the referral board,
+  auth/MFA, `GET /subscription`, own display preferences and the privacy
+  export do (docs/REFERRALS.md).
 - **Ids from the client are claims.** A body/URL id is loaded and checked
   against the caller (`getXVisibilityWhere`, `resolveClassManager`,
   `resolveParticipant`, `assertOwnerOrAdmin`, `canManage`…); role and ownership
@@ -124,6 +128,18 @@ can't silently switch off.
 - `getCookieBaseOptions` (`@nexa-chess/config/api`) sets every cookie: `secure`
   when `FRONTEND_URL` is https, `sameSite` from `COOKIE_SAME_SITE` (default
   `lax` — web and API are same-site subdomains).
+- **Host-only vs domain-wide** (`auth/auth-cookies.ts`, `usesHostOnlyCookies`):
+  Nexa's own hosts use the pair above on `COOKIE_DOMAIN` (`.nexachess.in`), so
+  every subdomain receives it. Another academy's address always gets host-only
+  `nexa_h_access_token` / `nexa_h_refresh_token` and never reads Nexa's pair
+  (`aliasHostOnlyCookies` drops it). With `PLATFORM_HOST_ONLY_COOKIES=true`
+  (API) **and** `NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API=true` (web build) Nexa
+  goes host-only too: the browser calls `/api` on the page's own host, sign-in
+  and refresh set the `nexa_h_*` pair and clear the old domain-wide one, and
+  until then the old cookie is still accepted (API alias and web
+  `middleware.ts`), so nobody is signed out by the switch. Both off by default;
+  rollout steps in [DEPLOYMENT.md](DEPLOYMENT.md) § "Nexa on host-only
+  cookies". Tests: `auth/auth-cookies.spec.ts`.
 - **CSRF**: `app.setup.ts` `configureApp` (shared by `main.ts` and the
   integration test app) registers only the JSON body parser (no urlencoded),
   then defaults a missing body to `{}` (body-parser 2 leaves it undefined;
@@ -136,9 +152,20 @@ can't silently switch off.
   (`common/security/security-headers.ts`); the invoice HTML routes add
   `INVOICE_HTML_CSP`. The web's headers live in `next.config.mjs`
   `securityHeaders()`: an enforced CSP of `frame-ancestors`/`object-src`/`base-uri`
-  only, plus a **report-only** full CSP whose console violations are how to
-  find origins before enforcing it — a new third-party script, iframe or fetch
-  host needs adding there.
+  only, plus a **report-only** full CSP whose violations are how to find
+  origins before enforcing it — a new third-party script, iframe or fetch host
+  needs adding there.
+- **CSP reports**: both policies send violations (`report-to csp-endpoint` +
+  `Reporting-Endpoints`, and `report-uri` for Firefox) to
+  `/api/security/csp-report` on the site's own host, which the `/api` rewrite
+  (or nginx) passes to the API's public `POST /security/csp-report`
+  (`csp-report/`). It always answers 204, stores nothing, and logs one
+  `csp-violation` warn line per distinct violation on its 1st, 10th, 100th, …
+  occurrence, with origin + path only (no query string, sample or user agent).
+  It's on the CSRF exempt list and needs no academy. To find what enforcing the
+  full CSP would break: `docker logs nexa_api 2>&1 | grep csp-violation`; once
+  only known, fixed or accepted entries are left, the report-only policy can be
+  enforced.
 
 ## Sessions and revocation
 
@@ -167,7 +194,7 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 |---|---|---|---|---|
 | Own profile, avatar | R U | R U | R U | Avatar delete: own profile upload only, and only if no other account uses that URL. |
 | Other users | — | R (students of own batches; any active student via pull-roster search) | R C U D (ADMIN can't touch ADMIN/SUPER_ADMIN; only SUPER_ADMIN creates or promotes admins; nobody changes their own role; last SUPER_ADMIN can't be deleted) | |
-| Batches | R (enrolled) | R (own batch) | R C U D | |
+| Batches | R (enrolled) | R (own batch) | R C U D | A student sees members' names but only their own email (`toBatchUser`; students are minors, 2026-11-03). |
 | Classes (`CoachClass`) | R (enrolled batch) | R, U notes/topic (own class), cancel own | R C U D | Coach scheduling changes are approval requests (`CLASS_EXTRA`, `CLASS_RESCHEDULE`, `CLASS_CANCEL*`, `CLASS_SUBSTITUTE_COACH`; admin approves in `/admin/requests`). |
 | Live class: join / token | enrolled, or pulled, or admitted from waiting room; not if removed | own class | any (visible), or hidden spectator seat | Demo guests via `DemoClassRegistration`. |
 | Live class: demo guest puzzle (`GET /live-class/:id/puzzle/guest`) | — (users use `GET …/puzzle`) | — | — | Demo guests only, by the `guestToken` from their join (header `x-nexa-demo-guest`): this class, registration not DENIED, class a LIVE demo. Returns the solution — a guest practises unscored. |
@@ -195,7 +222,9 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Payroll, payslips | — | own | all | |
 | Approval requests (extra class, reschedule, cancellation, guest student, enrolment, attendance correction, locked-setting exception, substitute) | — | C own (catalogue roles); R own; withdraw own pending | R all; approve/reject (never their own) | One engine (`apps/api/src/approval/`). Approval revalidates under row locks (coach still ACTIVE in a live batch, class still theirs and unchanged). The inbox's other-queue feed (`GET /admin/approvals/queues`) lists offline payments (needs `studentPayments`), account deletions, and coach applications (SUPER_ADMIN only); each is still decided on its own page. |
 | Messaging rules, analytics, leads, demo classes, backups, trash, data retention | — | — | admin (trash, demo classes, backups, data retention: SUPER_ADMIN) | A retention window deletes for good, so only a super admin sets one. |
+| Tournaments | register, play, watch (PUBLIC; PRIVATE / INVITATION_ONLY only as a player or invitee) | create with the academy setting; run, edit, publish only as the tournament's HOST / CO_HOST (PUBLIC publish: approval unless allowed); broadcast as any host role | all; academy tournament settings | One pure policy, `apps/api/src/tournament/tournament-policy.ts` (spec-checked against its list filter). Host rows count only on staff accounts. Anonymous viewers only for PUBLIC tournaments when the academy turns it on. [TOURNAMENTS](TOURNAMENTS.md) §3.2 |
 | Presets (live class) | — | PERSONAL own; use ORG/system | ORG + any | |
+| WhatsApp support tickets (`/admin/support`) | — | — | R U (status, assignee, notes), reply, take over / return to bot | Admin = `ADMIN`/`SUPER_ADMIN` of the academy; another academy's ticket is a 404 (`whatsapp-support.int-spec.ts`). The customer side is the public webhook, authenticated by Meta's `X-Hub-Signature-256`; a WhatsApp number is never treated as a student's identity. [WHATSAPP_SUPPORT](WHATSAPP_SUPPORT.md) §0 |
 
 ## Audit 2026-10-16
 

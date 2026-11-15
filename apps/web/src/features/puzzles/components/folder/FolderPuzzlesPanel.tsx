@@ -37,7 +37,7 @@ import { PuzzleQuickPreviewDialog } from "../PuzzleQuickPreviewDialog";
 import { BulkEditPuzzlesDialog } from "./BulkEditPuzzlesDialog";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
+  "size-8";
 
 /**
  * One folder opened from the Topics tab: the puzzles filed directly in it (its
@@ -96,14 +96,14 @@ export function FolderPuzzlesPanel({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <SimpleTooltip label="Back to all folders">
-            <Button aria-label="Back to all folders" variant="outline" size="icon" className={iconBtn} onClick={onBack}>
+            <Button aria-label="Back to all folders" variant="neutral" size="icon" className={iconBtn} onClick={onBack}>
               <ArrowLeft className="size-4" strokeWidth={2.5} />
             </Button>
           </SimpleTooltip>
           {folder.icon ? (
             <span className="shrink-0">{folder.icon}</span>
           ) : (
-            <Folder className="size-4 shrink-0 fill-secondary/30 text-secondary-ink" strokeWidth={2} />
+            <Folder className="size-4 shrink-0 fill-accent/30 text-accent-ink" strokeWidth={2} />
           )}
           <div className="min-w-0">
             <p className="truncate font-bold text-app-text">{path}</p>
@@ -161,7 +161,7 @@ export function FolderPuzzlesPanel({
         <WidgetError message="Could not load this folder's puzzles." onRetry={() => void refetch()} />
       ) : puzzles.length === 0 ? (
         <EmptyState
-          icon={Folder}
+          illustration="puzzles"
           title="No puzzles in this folder"
           description={
             subfolderCount
@@ -237,7 +237,7 @@ export function FolderPuzzlesPanel({
                         <SimpleTooltip label="Preview">
                           <Button
                             aria-label={`Preview ${p.title}`}
-                            variant="outline"
+                            variant="neutral"
                             size="icon"
                             className={iconBtn}
                             onClick={() => setPreview({ index, list: puzzles })}
@@ -247,7 +247,7 @@ export function FolderPuzzlesPanel({
                         </SimpleTooltip>
                         {p.canManage ? (
                           <SimpleTooltip label="Edit">
-                            <Button asChild aria-label={`Edit ${p.title}`} variant="outline" size="icon" className={iconBtn}>
+                            <Button asChild aria-label={`Edit ${p.title}`} variant="neutral" size="icon" className={iconBtn}>
                               <Link href={`${basePath}/${p.id}/edit`}>
                                 <Pencil className="size-4" strokeWidth={2.5} />
                               </Link>

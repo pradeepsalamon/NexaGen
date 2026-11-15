@@ -1,9 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
+import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
 import { RecordingStorageService } from "../live-class/recording-storage.service";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { DEFAULT_TIME_ZONE, zonedDayBounds } from "../common/time";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 /**
  * Daily rollup of recording-storage usage into `storage_snapshots` — one row per
@@ -23,7 +25,7 @@ export class AnalyticsScheduler {
   @Cron(CronExpression.EVERY_DAY_AT_1AM)
   async captureStorageSnapshot(): Promise<void> {
     try {
-      await this.jobLocks.runExclusive(JOB_LOCKS.analyticsStorageSnapshot, () =>
+      await this.jobLocks.runForEachTenant(JOB_LOCKS.analyticsStorageSnapshot, () =>
         this.snapshot()
       );
     } catch (error) {
@@ -33,10 +35,12 @@ export class AnalyticsScheduler {
 
   /** Exposed for tests + a manual backfill trigger. */
   async snapshot(now: Date = new Date()): Promise<void> {
+    const tenantId = requireTenantId("storageSnapshot");
     const usage = await this.storage.getStorageUsage();
     const recordingCount = await this.prisma.liveSession.count({
       where: { recordingUrl: { not: null } }
     });
+    const recordingBytes = BigInt(Math.round(await this.academyRecordingBytes(tenantId, usage.usedBytes)));
 
     // Truncate to the business-timezone calendar day (matches the analytics
     // queries) so `capturedDate` is stable regardless of when the cron fires.
@@ -50,19 +54,35 @@ export class AnalyticsScheduler {
     );
 
     await this.prisma.storageSnapshot.upsert({
-      where: { capturedDate },
+      where: { tenantId_capturedDate: { capturedDate, tenantId } },
       create: {
         capturedDate,
-        recordingBytes: BigInt(Math.round(usage.usedBytes)),
+        recordingBytes,
         recordingCount,
         limitBytes: BigInt(Math.round(usage.limitBytes))
       },
       update: {
         capturedAt: now,
-        recordingBytes: BigInt(Math.round(usage.usedBytes)),
+        recordingBytes,
         recordingCount,
         limitBytes: BigInt(Math.round(usage.limitBytes))
       }
     });
+  }
+
+  /**
+   * The academy's share of the recordings folder. The folder is shared by every
+   * academy (one flat directory, academy-distinct by file name), so only Nexa,
+   * which runs the server, keeps the whole folder's size (orphans and other
+   * files included, as before); another academy gets the sum of its own
+   * recordings' sizes.
+   */
+  private async academyRecordingBytes(tenantId: string, folderBytes: number): Promise<number> {
+    if (tenantId === DEFAULT_TENANT_ID) return folderBytes;
+    const own = await this.prisma.liveSession.aggregate({
+      _sum: { recordingBytes: true },
+      where: { recordingBytes: { not: null }, recordingUrl: { not: null } }
+    });
+    return Number(own._sum.recordingBytes ?? 0);
   }
 }

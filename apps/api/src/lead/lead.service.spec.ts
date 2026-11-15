@@ -6,13 +6,16 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { createLeadRequestSchema } from "@nexa-chess/types";
 import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
+import { FrappeCrmPushService } from "./frappe-crm-push.service";
 import { LeadService } from "./lead.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { MailService } from "../mail/mail.service";
-import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import { NOOP_REFERRAL_TRACKER } from "../referral/referral.testing";
 import { DemoInviteService } from "../demo-class/demo-invite.service";
+import { RECORDING_TRASH } from "../trash/trash.testing";
 
 const ACCESS_TOKEN = "access-token";
 const ADMIN_ID = "admin-1";
@@ -20,8 +23,10 @@ const ADMIN_ID = "admin-1";
 describe("LeadService", () => {
   let service: LeadService;
   let jwtService: { verifyAsync: jest.Mock };
-  let sendNewLeadNotification: jest.Mock;
+  let notifierSend: jest.Mock;
+  let adminAlertRecipients: jest.Mock;
   let normalizeRecipient: jest.Mock;
+  let crmPush: { enqueue: jest.Mock; pushLead: jest.Mock };
   let prisma: {
     visitorSession: { findUnique: jest.Mock; update: jest.Mock; create: jest.Mock; count: jest.Mock };
     lead: {
@@ -44,8 +49,10 @@ describe("LeadService", () => {
 
   beforeEach(async () => {
     jwtService = { verifyAsync: jest.fn().mockResolvedValue({ sub: ADMIN_ID, type: "access" }) };
-    sendNewLeadNotification = jest.fn().mockResolvedValue(undefined);
+    notifierSend = jest.fn().mockResolvedValue(undefined);
+    adminAlertRecipients = jest.fn().mockResolvedValue([{ email: "admins@nexa.test" }, { phone: "+91 90000 00000", userId: "admin-1" }]);
     normalizeRecipient = jest.fn((phone: string) => phone);
+    crmPush = { enqueue: jest.fn().mockResolvedValue(false), pushLead: jest.fn().mockResolvedValue(undefined) };
 
     prisma = {
       visitorSession: {
@@ -91,17 +98,20 @@ describe("LeadService", () => {
           lastName: "Min"
         })
       },
-      $transaction: jest.fn()
+      // A callback runs against the same fake; an array of operations is awaited.
+      $transaction: jest.fn((work: unknown) => (typeof work === "function" ? work(prisma) : Promise.all(work as Promise<unknown>[])))
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LeadService,
         DemoInviteService,
+        NOOP_REFERRAL_TRACKER,
+        { provide: FrappeCrmPushService, useValue: crmPush },
         { provide: JwtService, useValue: jwtService },
         { provide: PrismaService, useValue: prisma },
-        { provide: MailService, useValue: { sendNewLeadNotification } },
-        { provide: SystemMessageRenderer, useValue: {} },
+        RECORDING_TRASH,
+        { provide: SystemNotifier, useValue: { adminAlertRecipients, send: notifierSend } },
         { provide: WhatsAppService, useValue: { normalizeRecipient } }
       ]
     }).compile();
@@ -141,7 +151,13 @@ describe("LeadService", () => {
         })
       );
       expect(result.lead.source).toBe("Organic");
-      expect(sendNewLeadNotification).toHaveBeenCalled();
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(notifierSend).toHaveBeenCalledWith(
+        "NEW_LEAD_ADMIN",
+        [{ email: "admins@nexa.test" }, { phone: "+91 90000 00000", userId: "admin-1" }],
+        expect.objectContaining({ "lead.studentName": "Kid Name" }),
+        expect.anything()
+      );
     });
 
     it("derives source/campaign from the linked visitor session's UTM data", async () => {
@@ -172,6 +188,70 @@ describe("LeadService", () => {
       );
     });
 
+    it("stores the optional email and passes it to the admin notification", async () => {
+      prisma.lead.create.mockImplementation(({ data }) => ({
+        id: "lead-4",
+        ...data,
+        lastActivityAt: null,
+        convertedAt: null,
+        createdAt: new Date()
+      }));
+
+      const result = await service.createLead(
+        { ...requestBody, email: "parent@example.com" },
+        { sessionId: undefined }
+      );
+
+      expect(prisma.lead.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ email: "parent@example.com" }) })
+      );
+      expect(result.lead.email).toBe("parent@example.com");
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(notifierSend).toHaveBeenCalledWith(
+        "NEW_LEAD_ADMIN",
+        expect.anything(),
+        expect.objectContaining({ "lead.email": "parent@example.com" }),
+        expect.anything()
+      );
+    });
+
+    it("confirms the booking to the parent at every contact they gave", async () => {
+      prisma.lead.create.mockImplementation(({ data }) => ({ id: "lead-6", ...data, createdAt: new Date() }));
+
+      await service.createLead({ ...requestBody, email: "parent@example.com" }, { sessionId: undefined });
+
+      expect(notifierSend).toHaveBeenCalledWith(
+        "DEMO_BOOKING",
+        { email: "parent@example.com", phone: "9876543210" },
+        { "lead.parentName": "Parent Name", "lead.studentName": "Kid Name" }
+      );
+    });
+
+    it("stores no email when the field is left blank", async () => {
+      prisma.lead.create.mockImplementation(({ data }) => ({
+        id: "lead-5",
+        ...data,
+        lastActivityAt: null,
+        convertedAt: null,
+        createdAt: new Date()
+      }));
+
+      await service.createLead({ ...requestBody, email: "" }, { sessionId: undefined });
+
+      expect(prisma.lead.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ email: null }) })
+      );
+    });
+
+    it("lower-cases the email and rejects one that is not an address", () => {
+      const base = { ...requestBody, phone: "9876543210" };
+      expect(createLeadRequestSchema.parse({ ...base, email: " Parent@Example.COM " }).email).toBe(
+        "parent@example.com"
+      );
+      expect(createLeadRequestSchema.safeParse({ ...base, email: "not-an-email" }).success).toBe(false);
+      expect(createLeadRequestSchema.parse(base).email).toBeUndefined();
+    });
+
     it("never fails the public request when the notification email rejects", async () => {
       prisma.lead.create.mockResolvedValue({
         id: "lead-3",
@@ -183,9 +263,28 @@ describe("LeadService", () => {
         convertedAt: null,
         createdAt: new Date()
       });
-      sendNewLeadNotification.mockRejectedValue(new Error("SMTP is not configured."));
+      adminAlertRecipients.mockRejectedValue(new Error("database is down"));
 
       await expect(service.createLead(requestBody, { sessionId: undefined })).resolves.toBeDefined();
+    });
+
+    it("queues the Frappe CRM copy with the lead, and sends it after", async () => {
+      prisma.lead.create.mockResolvedValue({
+        id: "lead-4",
+        ...requestBody,
+        phone: "9876543210",
+        source: "Organic",
+        campaign: null,
+        lastActivityAt: null,
+        convertedAt: null,
+        createdAt: new Date()
+      });
+
+      await service.createLead(requestBody, { sessionId: undefined });
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(crmPush.enqueue).toHaveBeenCalledWith(prisma, "lead-4");
+      expect(crmPush.pushLead).toHaveBeenCalledWith("lead-4");
     });
   });
 

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import {
   lineThroughPath,
   moveTreeFromMoves,
@@ -13,12 +13,16 @@ import {
 import { ChessGameSource, ChessGameStatus, Prisma } from "@prisma/client";
 import { Chess } from "../common/chess/chess";
 import { createMoveTreeChess } from "../common/chess/move-tree-chess";
+import { BrandingService } from "../branding/branding.service";
+import { ACADEMY_NAME } from "../messaging/messaging.format";
 import { PrismaService } from "../prisma/prisma.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 type StoredMove = { san: string; uci: string };
 
 type ClassContext = {
-  id: string;
+  /** Null for a game played outside a class (a tournament game). */
+  id: string | null;
   title: string | null;
   topic: string | null;
   batchId: string | null;
@@ -52,7 +56,10 @@ const pgnDate = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, ".");
 export class GameRecorderService {
   private readonly logger = new Logger(GameRecorderService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly branding?: BrandingService
+  ) {}
 
   /** Never throws; logs instead. */
   recordMatchGameInBackground(gameId: string) {
@@ -125,6 +132,47 @@ export class GameRecorderService {
       title: `${whiteName} vs ${blackName}`,
       whiteName,
       whitePlayerId: game.whiteId,
+    });
+  }
+
+  recordTournamentGameInBackground(gameId: string) {
+    void this.recordTournamentGame(gameId).catch((err) => this.warn(`tournament game ${gameId}`, err));
+  }
+
+  /** A finished tournament game (docs/TOURNAMENTS.md). Byes and games nobody moved in are not games. */
+  async recordTournamentGame(gameId: string): Promise<void> {
+    const game = await this.prisma.tournamentGame.findUnique({
+      include: {
+        blackPlayer: { select: { user: { select: { firstName: true, id: true, lastName: true } } } },
+        tournament: { select: { format: true, name: true } },
+        whitePlayer: { select: { user: { select: { firstName: true, id: true, lastName: true } } } },
+      },
+      where: { id: gameId },
+    });
+    if (!game || !game.blackPlayer || game.ply === 0 || game.status !== "FINISHED") return;
+    const result: ChessGameResult =
+      game.result === "WHITE_WON" ? "1-0" : game.result === "BLACK_WON" ? "0-1" : game.result === "DRAW" ? "1/2-1/2" : "*";
+    const whiteName = nameOf(game.whitePlayer.user, "White");
+    const blackName = nameOf(game.blackPlayer.user, "Black");
+    const round = game.roundNumber > 0 ? `, round ${game.roundNumber}` : "";
+    await this.upsert({
+      blackName,
+      blackPlayerId: game.blackPlayer.user.id,
+      classCtx: { batch: null, batchId: null, id: null, title: null, topic: null },
+      endedAt: game.finishedAt,
+      event: `${game.tournament.name}${round}`,
+      moves: this.movesOf(game.movesJson),
+      result,
+      revision: BigInt(game.ply * 2 + 1),
+      source: ChessGameSource.TOURNAMENT,
+      sourceKey: `tournament:${game.id}`,
+      startFen: game.startFen,
+      startedAt: game.startedAt,
+      status: ChessGameStatus.COMPLETED,
+      termination: humanize(game.endReason),
+      title: `${whiteName} vs ${blackName}`,
+      whiteName,
+      whitePlayerId: game.whitePlayer.user.id,
     });
   }
 
@@ -270,6 +318,8 @@ export class GameRecorderService {
   }
 
   private async upsert(input: {
+    /** The PGN Event header when it isn't the class (a tournament's name and round). */
+    event?: string;
     source: ChessGameSource;
     sourceKey: string;
     revision: bigint;
@@ -289,12 +339,13 @@ export class GameRecorderService {
     endedAt: Date | null;
   }): Promise<void> {
     const tree = input.tree ?? this.treeFromMoves(input.startFen, input.moves ?? []);
+    const site = this.branding ? await this.branding.nameFor() : ACADEMY_NAME;
     const headers: PgnHeaders = {
       Black: input.blackName,
       Date: pgnDate(input.startedAt),
-      Event: input.classCtx.title || input.classCtx.topic || "Nexa Chess class",
+      Event: input.event ?? (input.classCtx.title || input.classCtx.topic || `${site} class`),
       Result: input.result,
-      Site: "Nexa Chess",
+      Site: site,
       White: input.whiteName,
       ...(input.termination ? { Termination: input.termination } : {}),
     };
@@ -319,7 +370,7 @@ export class GameRecorderService {
 
     const existing = await this.prisma.chessGame.findUnique({
       select: { sourceRevision: true },
-      where: { sourceKey: input.sourceKey },
+      where: { tenantId_sourceKey: { sourceKey: input.sourceKey, tenantId: requireTenantId('chessGame') } },
     });
     if (!existing) {
       try {

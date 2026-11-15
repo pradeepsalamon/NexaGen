@@ -63,9 +63,21 @@ live_rooms() { node scripts/ai/benchmark/livekit-rooms.mjs --env-file "$ENV_FILE
 echo "Pre-flight"
 $CONFIRMED || refuse "pass --confirm-off-hours (no live class may run during the benchmark)"
 
-npm run build -w @nexa-chess/types >/dev/null 2>&1 || refuse "npm run build -w @nexa-chess/types failed"
-node scripts/ai/benchmark/bench.mjs --self-test >/dev/null || refuse "scorer self-test failed"
-node --test scripts/ai/benchmark/bench.stub.test.mjs >/dev/null 2>&1 || refuse "scorer stub test failed"
+# Quiet on success; on a failure print the check's own output before refusing.
+preflight() {
+  local label=$1 log
+  shift
+  log=$(mktemp)
+  if ! "$@" >"$log" 2>&1; then
+    tail -n 40 "$log" >&2
+    rm -f "$log"
+    refuse "$label failed"
+  fi
+  rm -f "$log"
+}
+preflight "npm run build -w @nexa-chess/types" npm run build -w @nexa-chess/types
+preflight "scorer self-test" node scripts/ai/benchmark/bench.mjs --self-test
+preflight "scorer stub test" node --test scripts/ai/benchmark/bench.stub.test.mjs
 echo "  ok  scorer self-test + stub test"
 
 free_gb=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)

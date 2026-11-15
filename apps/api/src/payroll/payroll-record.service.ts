@@ -7,6 +7,7 @@ import type {
 import type { CoachPayrollRecord, PayrollPeriod, User } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { fullName } from "../payments/payments-auth.helper";
+import { readTdsSnapshot } from "./payroll-record-totals.util";
 
 type RecordWithRelations = CoachPayrollRecord & {
   coach: Pick<User, "firstName" | "lastName" | "email">;
@@ -82,6 +83,8 @@ export class PayrollRecordService {
       grossEarningsMinor: record.grossEarningsMinor,
       totalDeductionsMinor: record.totalDeductionsMinor,
       totalAdjustmentsMinor: record.totalAdjustmentsMinor,
+      tdsMinor: record.tdsMinor,
+      tds: readTdsSnapshot(record.tdsSnapshot),
       netPayableMinor: record.netPayableMinor,
       calculatedAt: record.calculatedAt?.toISOString() ?? null,
       reviewedAt: record.reviewedAt?.toISOString() ?? null,

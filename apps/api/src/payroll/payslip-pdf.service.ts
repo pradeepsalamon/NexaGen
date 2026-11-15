@@ -1,7 +1,10 @@
 import { createRequire } from "node:module";
 import * as path from "node:path";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
+import { BrandingService } from "../branding/branding.service";
+import { ACADEMY_NAME } from "../messaging/messaging.format";
 import {
+  formatBpsPercent,
   formatMoney,
   PAYOUT_STATUS_LABELS,
   PAYSLIP_DOCUMENT_KIND_LABELS,
@@ -42,8 +45,12 @@ type PdfPrinterLike = {
 export class PayslipPdfService {
   private printer: PdfPrinterLike | null = null;
 
+  constructor(@Optional() private readonly branding?: BrandingService) {}
+
   async renderPayslip(payslip: PayslipDocument): Promise<Buffer> {
-    return this.render(this.payslipDefinition(payslip));
+    // The academy that issues it (its own name on another academy's payslips).
+    const issuer = this.branding ? await this.branding.nameFor() : ACADEMY_NAME;
+    return this.render(this.payslipDefinition(payslip, issuer));
   }
 
   private getPrinter(): PdfPrinterLike {
@@ -90,7 +97,7 @@ export class PayslipPdfService {
     });
   }
 
-  private payslipDefinition(payslip: PayslipDocument): Record<string, unknown> {
+  private payslipDefinition(payslip: PayslipDocument, issuer: string): Record<string, unknown> {
     const money = (minor: number) => formatMoney(minor, payslip.currency);
     const title = PAYSLIP_DOCUMENT_KIND_LABELS[payslip.documentKind].toUpperCase();
 
@@ -99,12 +106,12 @@ export class PayslipPdfService {
       pageMargins: [PAGE_MARGIN_X, 44, PAGE_MARGIN_X, 56],
       info: {
         title: payslip.documentNumber,
-        author: "NexaChess",
+        author: issuer,
         subject: `${title} ${payslip.documentNumber}`
       },
       defaultStyle: { font: "Roboto", fontSize: 9.5, color: INK, lineHeight: 1.25 },
       styles: PDF_STYLES,
-      footer: this.footer(),
+      footer: this.footer(issuer),
       content: [
         this.documentHeader(payslip, title),
         this.metaBlock(payslip),
@@ -319,10 +326,19 @@ export class PayslipPdfService {
     if (payslip.totalAdjustmentsMinor < 0) {
       rows.push(["Adjustments", money(-payslip.totalAdjustmentsMinor)]);
     }
+    if (payslip.tdsMinor > 0) {
+      rows.push([
+        payslip.tdsRateBps === null
+          ? "TDS (tax deducted at source)"
+          : `TDS (tax deducted at source, ${formatBpsPercent(payslip.tdsRateBps)})`,
+        money(payslip.tdsMinor)
+      ]);
+    }
     if (rows.length === 0) return [];
 
     const total = deductionLines.reduce((sum, l) => sum + l.amountMinor, 0) +
-      Math.max(0, -payslip.totalAdjustmentsMinor);
+      Math.max(0, -payslip.totalAdjustmentsMinor) +
+      payslip.tdsMinor;
 
     return [
       {
@@ -404,14 +420,14 @@ export class PayslipPdfService {
     };
   }
 
-  private footer() {
+  private footer(issuer: string) {
     return (currentPage: number, pageCount: number) => ({
       margin: [PAGE_MARGIN_X, 10, PAGE_MARGIN_X, 0],
       stack: [
         { canvas: [rule(0, 0, 511)] },
         {
           columns: [
-            { width: "*", text: "NexaChess", style: "footer" },
+            { width: "*", text: issuer, style: "footer" },
             {
               width: "auto",
               text: `Page ${currentPage} of ${pageCount}`,

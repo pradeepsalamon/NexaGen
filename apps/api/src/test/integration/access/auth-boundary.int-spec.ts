@@ -14,7 +14,16 @@ import { registeredRoutes } from "../routes";
 const ANONYMOUS_OK = new Set([
   "GET /health",
   "GET /health/ready",
-  "POST /auth/logout"
+  // The academy's look before sign-in, by host (§F).
+  "GET /tenant/public-config",
+  // The academy's own privacy policy / terms, by host: read before sign-up.
+  "GET /tenant/legal/:kind",
+  "POST /auth/logout",
+  // CSP violation reports: always 204, nothing stored (csp-report/).
+  "POST /security/csp-report",
+  // Certificate verification by its random code: { valid: false } for an unknown
+  // one; a known one shows only the public name format (docs/TOURNAMENTS.md §3.6).
+  "GET /public/certificates/:code"
 ]);
 
 

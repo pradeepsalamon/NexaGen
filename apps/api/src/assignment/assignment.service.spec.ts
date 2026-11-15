@@ -8,6 +8,7 @@ import { AssignmentPuzzleSetService } from "./assignment-puzzle-set.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { UploadService } from "../upload/upload.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
+import { RECORDING_TRASH } from "../trash/trash.testing";
 
 const TOKEN = "access-token";
 const COACH_ID = "coach-1";
@@ -133,6 +134,7 @@ describe("AssignmentService", () => {
           useValue: { dispatchInBackground: jest.fn() }
         },
         { provide: PrismaService, useValue: prisma },
+        RECORDING_TRASH,
         { provide: JwtService, useValue: jwt },
         { provide: UploadService, useValue: upload },
         {

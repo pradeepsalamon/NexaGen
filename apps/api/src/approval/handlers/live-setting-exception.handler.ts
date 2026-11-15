@@ -19,6 +19,7 @@ import {
 import { ClassStatus, UserRole, UserStatus, type ApprovalRequest } from "@prisma/client";
 import type { PrismaTransactionClient } from "../../prisma/prisma.service";
 import type { ApprovalActor, ApprovalHandler, PreparedApproval } from "../approval-handler";
+import { tenantFilter } from "../../tenancy/tenant-sql";
 
 const HOUR = 3_600_000;
 const URGENT_WITHIN_HOURS = 6;
@@ -141,7 +142,7 @@ export class LiveSettingExceptionHandler implements ApprovalHandler<LiveSettingE
   async revalidate(tx: PrismaTransactionClient, request: ApprovalRequest): Promise<void> {
     if (!request.classId) throw new ConflictException("This request has no class. Reject it.");
     // Same order as every settings writer: policy → batch → class.
-    await tx.$queryRaw`SELECT "id" FROM "live_class_policies" WHERE "isActive" = true FOR SHARE`;
+    await tx.$queryRaw`SELECT "id" FROM "live_class_policies" WHERE ${tenantFilter()} AND "isActive" = true FOR SHARE`;
     if (request.batchId) {
       await tx.$queryRaw`SELECT "id" FROM "batches" WHERE "id" = ${request.batchId} FOR SHARE`;
     }

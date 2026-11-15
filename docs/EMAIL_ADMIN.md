@@ -61,3 +61,15 @@ rows selected there (up to `DIRECT_EMAIL_MAX_RECIPIENTS`, 50).
   shows it as "Not confirmed". SMTP error text stays with staff.
 - Rows are kept 365 days (`RETENTION_RULES`), are removed with a purged recipient,
   and appear in the recipient's data export (`directEmails`, without the sender).
+- **Opt-out (2026-11-15):** staff email is the `ACADEMY_TEAM` kind of
+  non-essential email ([MESSAGING.md](MESSAGING.md) "Email channel"). Someone who
+  turned it off (or everything off) is refused with a 409 naming them, before the
+  row is written, so nothing is logged as sent; reach them another way. Every
+  copy carries their unsubscribe links (footer + one-click headers).
+
+## Opted out
+
+`/admin/email` → **Opted out** (`GET /admin/email/opted-out`, paged, search by
+name or email) lists everyone who turned off all non-essential email (newest
+first, with the date) or some kinds of it. Read-only: only the person changes
+it, on their profile or from an email's link.

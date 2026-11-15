@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Percent, Target, TrendingUp, UserPlus } from "lucide-react";
 import type { LeadListItem } from "@nexa-chess/types";
 
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { DataTable } from "@/components/ui/DataTable";
 import { DataTablePagination } from "@/components/ui/DataTablePagination";
@@ -45,6 +46,13 @@ export function LeadsManagementClient() {
   }, []);
   const requestDelete = useCallback((id: string) => setPendingDeleteId(id), []);
 
+  // `/admin/leads?lead=<id>` (from a WhatsApp ticket) opens that lead. Read once
+  // on mount from the URL, so the page needs no Suspense boundary.
+  useEffect(() => {
+    const linked = new URLSearchParams(window.location.search).get("lead");
+    if (linked) openDetails(linked);
+  }, [openDetails]);
+
   const columns = useLeadColumns({
     onViewDetails: openDetails,
     onDelete: requestDelete,
@@ -63,18 +71,12 @@ export function LeadsManagementClient() {
   });
 
   return (
-    <div>
-      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-5">
-        <header>
-          <p className="text-xs font-extrabold text-primary-ink">Academy leads</p>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">Leads</h1>
-          <p className="mt-1 text-sm text-app-muted">
-            Demo booking inquiries from the academy marketing site.
-          </p>
-        </header>
+    <div className="animate-fade-in pb-10">
+      <PageHeader description="Demo booking inquiries from the academy marketing site." title="Leads" />
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
 
         {metrics ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <StatTile
               context="All time"
               icon={UserPlus}
@@ -93,14 +95,14 @@ export function LeadsManagementClient() {
               context="All time"
               icon={TrendingUp}
               label="Visitor sessions"
-              tone="secondary"
+              tone="primary"
               value={String(metrics.visitors.total)}
             />
             <StatTile
               context={`${metrics.conversion.count} converted`}
               icon={Percent}
               label="Conversion rate"
-              tone="warm"
+              tone="accent"
               value={`${metrics.conversion.rate}%`}
             />
           </div>
@@ -110,6 +112,7 @@ export function LeadsManagementClient() {
           <DataTableToolbar
             filters={
               <Select
+                aria-label="Filter by status"
                 className="w-48"
                 onChange={(event) => serverTable.setStatus(event.target.value)}
                 options={[{ label: "All statuses", value: "ALL" }, ...LEAD_STATUS_OPTIONS]}
@@ -117,7 +120,7 @@ export function LeadsManagementClient() {
               />
             }
             onSearchChange={serverTable.setSearch}
-            searchPlaceholder="Search by student, parent, or phone..."
+            searchPlaceholder="Search by student, parent, phone or email..."
             searchValue={serverTable.search}
           />
 
@@ -125,6 +128,7 @@ export function LeadsManagementClient() {
             columnsLength={columns.length}
             isLoading={isLoading}
             noDataText="No leads yet."
+            stackOnMobile
             table={table}
           />
 
@@ -142,7 +146,7 @@ export function LeadsManagementClient() {
       />
 
       <ConfirmationModal
-        confirmLabel="Delete permanently"
+        confirmLabel="Move to trash"
         isConfirming={deleteMutation.isPending}
         isOpen={!!pendingDeleteId}
         onCancel={() => setPendingDeleteId(null)}
@@ -154,7 +158,7 @@ export function LeadsManagementClient() {
         }}
         title="Delete this lead?"
       >
-        This permanently removes the lead and its activity/notes. This action cannot be undone.
+        The lead, with its activity and notes, moves to the trash. A super admin can restore it from there for 30 days.
       </ConfirmationModal>
     </div>
   );

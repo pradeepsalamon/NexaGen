@@ -1,10 +1,17 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { LayoutDashboard, User as UserIcon, LogOut, ChevronDown, Palette } from "lucide-react";
+import {
+  LayoutDashboard,
+  User as UserIcon,
+  LogOut,
+  ChevronDown,
+  Palette
+} from "lucide-react";
 import type { AuthUser } from "@nexa-chess/types";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { logout } from "@/features/auth/api/authApi";
@@ -19,8 +26,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from "@/components/ui/DropdownMenu";
+import { Avatar } from "@/components/ui/Avatar";
 
 type UserWithAvatar = AuthUser & {
   avatarUrl?: string | null;
@@ -28,7 +36,6 @@ type UserWithAvatar = AuthUser & {
 
 type UserNavMenuProps = {
   user: UserWithAvatar;
-  /** Live class only: menu links open in a new tab instead of unmounting the room. */
   openLinksInNewTab?: boolean;
 };
 
@@ -42,35 +49,22 @@ function getRoleLabel(role?: string) {
       return "Coach / Teacher";
     case "STUDENT":
       return "Student";
+    case "SALES":
+      return "Sales";
     default:
       return "Member";
   }
 }
 
-function getRoleVariant(role?: string) {
-  switch (role) {
-    case "SUPER_ADMIN":
-    case "ADMIN":
-      return "destructive" as const;
-    case "COACH":
-      return "warning" as const;
-    case "STUDENT":
-      return "success" as const;
-    default:
-      return "default" as const;
-  }
-}
 
-function getInitials(user?: Pick<UserWithAvatar, "firstName" | "lastName">) {
-  const firstInitial = user?.firstName?.trim().charAt(0) ?? "";
-  const lastInitial = user?.lastName?.trim().charAt(0) ?? "";
-  const initials = `${firstInitial}${lastInitial}`.toUpperCase();
-  return initials || "NC";
-}
-
-export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProps) {
+export function UserNavMenu({
+  user,
+  openLinksInNewTab = false
+}: UserNavMenuProps) {
+  const brandName = useBrandName();
   const router = useRouter();
   const toast = useToast();
+
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const clearSession = useAuthStore((state) => state.clearSession);
 
@@ -79,13 +73,13 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
     onError: (error) => {
       toast.error({
         message: getErrorMessage(error),
-        title: "Logout request failed",
+        title: "Logout request failed"
       });
     },
     onSuccess: () => {
       toast.success({
         message: "You have been signed out.",
-        title: "Logout successful",
+        title: "Logout successful"
       });
     },
     onSettled: () => {
@@ -93,11 +87,10 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
       clearSession();
       router.replace("/login");
       router.refresh();
-    },
+    }
   });
 
   const dashboardHref = getRoleDashboardHref(user.role);
-  const initials = getInitials(user);
   const newTabProps = openLinksInNewTab
     ? { target: "_blank" as const, rel: "noopener noreferrer" }
     : {};
@@ -109,27 +102,20 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
           <button
             type="button"
             aria-label="User navigation menu"
-            className="group inline-flex items-center gap-2 rounded-full border border-app-border bg-app-surface p-1 pr-2.5 text-sm font-bold text-app-text shadow-card transition hover:border-primary/50 hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+            className="group inline-flex min-h-[var(--control-h)] min-w-[var(--control-h)] cursor-pointer items-center justify-center gap-2 rounded-control px-1 text-sm sm:px-1.5 font-medium text-app-text transition-colors hover:bg-app-soft"
           >
-            <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] text-xs font-extrabold text-primary-ink">
-              {user.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  alt=""
-                  className="size-full object-cover"
-                  referrerPolicy="no-referrer"
-                  src={user.avatarUrl}
-                />
-              ) : (
-                <span>{initials}</span>
-              )}
-            </div>
-            <span className="hidden max-w-[120px] truncate text-xs font-bold sm:inline-block">
+            <Avatar name={[user.firstName, user.lastName].filter(Boolean).join(" ")} imageUrl={user.avatarUrl} className="size-7 text-xs" />
+            <span className="hidden max-w-[110px] truncate sm:inline-block">
               {user.firstName}
             </span>
-            <ChevronDown className="size-3.5 text-app-muted transition group-data-[state=open]:rotate-180" />
+            {/* Phones show only the photo/initials; the arrow joins the name from `sm`. */}
+            <ChevronDown
+              aria-hidden="true"
+              className="hidden size-3.5 text-app-muted transition group-data-[state=open]:rotate-180 sm:block"
+            />
           </button>
         </DropdownMenuTrigger>
+
         <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-lift">
           <DropdownMenuLabel className="font-normal p-2">
             <div className="flex flex-col space-y-1">
@@ -137,7 +123,9 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
                 <p className="text-sm font-extrabold leading-none text-app-text truncate">
                   {user.firstName} {user.lastName || ""}
                 </p>
-                <Badge variant={getRoleVariant(user.role)} className="shrink-0 text-[10px] px-1.5 py-0.5">
+                <Badge
+                  variant="secondary" className="shrink-0"
+                >
                   {getRoleLabel(user.role)}
                 </Badge>
               </div>
@@ -151,38 +139,40 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
             <DropdownMenuItem asChild>
               <Link
                 href={dashboardHref}
-                className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold"
+                className="flex cursor-pointer items-center gap-2.5 py-2 font-medium text-app-text"
                 {...newTabProps}
               >
-                <LayoutDashboard className="size-4 text-primary-ink" />
+                <LayoutDashboard className="size-4 text-app-muted" />
                 <span>Dashboard</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link
                 href="/profile"
-                className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold"
+                className="flex cursor-pointer items-center gap-2.5 py-2 font-medium text-app-text"
                 {...newTabProps}
               >
                 <UserIcon className="size-4 text-app-muted" />
-                <span>Profile & settings</span>
+                <span>Profile &amp; settings</span>
               </Link>
             </DropdownMenuItem>
+            {user.role === "SALES" ? null : (
             <DropdownMenuItem asChild>
               <Link
                 href="/chess-board"
-                className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold"
+                className="flex cursor-pointer items-center gap-2.5 py-2 font-medium text-app-text"
                 {...newTabProps}
               >
                 <Palette className="size-4 text-app-muted" />
                 <span>Chess board</span>
               </Link>
             </DropdownMenuItem>
+            )}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => setIsConfirmOpen(true)}
-            className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold text-app-danger-ink focus:bg-app-danger/10"
+            className="flex cursor-pointer items-center gap-2.5 py-2 font-medium text-app-danger-ink focus:bg-app-danger/10"
           >
             <LogOut className="size-4" />
             <span>Log out</span>
@@ -200,7 +190,7 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
         onConfirm={() => logoutMutation.mutate()}
         title="Logout?"
       >
-        Are you sure you want to sign out of Nexa Chess?
+        Are you sure you want to sign out of {brandName}?
       </ConfirmationModal>
     </>
   );

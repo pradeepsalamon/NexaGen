@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { PreJoin, type LocalUserChoices } from "@livekit/components-react";
-import { AlertTriangle, CalendarClock, GraduationCap, Info } from "lucide-react";
+import { CalendarClock, GraduationCap } from "lucide-react";
 import { resolveJoinState, type LiveClassSettings } from "@nexa-chess/types";
+import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { RoomEnded } from "../states/ErrorStates";
@@ -143,46 +145,44 @@ export function PreJoinCard({ status, topic, startedAt, endsAt, settings, onJoin
 
   return (
     <div className="flex w-full items-center justify-center py-6">
-      <Card className="w-full max-w-3xl border-app-border bg-app-surface shadow-soft">
+      <Card className="w-full max-w-3xl">
         <CardContent className="grid grid-cols-1 gap-6 p-5 sm:p-8 md:grid-cols-[1fr_1.1fr] md:gap-8">
           {/* Class info */}
           <div className="flex flex-col justify-center">
-            <p className="text-xs font-bold text-primary-ink">
+            <p className="text-sm font-medium text-app-muted">
               You&apos;re about to join
             </p>
-            <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-1 text-app-text">
-              {topic || "Live Class"}
-            </h1>
+            {/* The top bar holds the page's h1 (the class topic). */}
+            <h2 className="mt-1 text-2xl font-extrabold leading-tight tracking-tight text-app-text">
+              {topic || "Live class"}
+            </h2>
 
             <dl className="mt-5 space-y-3 text-sm">
               {schedule && (
                 <div className="flex items-center gap-2.5 text-app-muted">
-                  <CalendarClock className="size-4 shrink-0 text-app-muted" />
+                  <CalendarClock aria-hidden="true" className="size-4 shrink-0 text-app-muted" strokeWidth={2.25} />
                   <span className="text-app-text">{schedule}</span>
                 </div>
               )}
               <div className="flex items-center gap-2.5 text-app-muted">
-                <GraduationCap className="size-4 shrink-0 text-app-muted" />
+                <GraduationCap aria-hidden="true" className="size-4 shrink-0 text-app-muted" strokeWidth={2.25} />
                 <span className="text-app-text">
                   Joining as <span className="font-semibold">{displayName}</span>
                 </span>
-                <span className="rounded-full bg-app-soft px-2 py-0.5 text-[11px] font-semibold text-app-muted">
-                  {roleLabel}
-                </span>
+                <Badge variant="secondary">{roleLabel}</Badge>
               </div>
             </dl>
 
             {summary.length > 0 ? (
-              <div className="mt-5 flex gap-2.5 rounded-control border border-app-border bg-app-soft/40 p-3 text-xs text-app-muted">
-                <Info className="mt-0.5 size-4 shrink-0" strokeWidth={2.5} />
+              <Alert className="mt-5" variant="info">
                 <ul className="space-y-1">
                   {summary.map((line) => (
                     <li key={line}>{line}</li>
                   ))}
                 </ul>
-              </div>
+              </Alert>
             ) : (
-              <p className="mt-5 text-xs text-app-muted">
+              <p className="mt-5 text-sm text-app-muted">
                 Check your camera and microphone below, then join.
               </p>
             )}
@@ -217,30 +217,24 @@ export function PreJoinCard({ status, topic, startedAt, endsAt, settings, onJoin
               }}
             />
             {mediaError && (
-              <div
-                role="alert"
-                className="mt-3 flex gap-2.5 rounded-control border border-app-danger/40 bg-app-danger/10 p-3 text-xs text-app-text"
-              >
-                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-app-danger" strokeWidth={2.5} />
-                <div className="min-w-0 flex-1 space-y-2">
-                  <p className="font-semibold">{mediaError.title}</p>
-                  <p className="leading-snug text-app-muted">{mediaError.description}</p>
-                  <p className="leading-snug text-app-muted">
+              <Alert className="mt-3" role="alert" title={mediaError.title} variant="warning">
+                <div className="space-y-2">
+                  <p className="leading-snug">{mediaError.description}</p>
+                  <p className="leading-snug">
                     You can still join and fix this from Settings inside the class.
                   </p>
                   {isMediaCaptureAvailable() && (
                     <Button
-                      size="sm"
-                      variant="outline"
-                      className="min-h-8 text-xs"
                       isLoading={checking}
                       onClick={() => void handleCheckAgain()}
+                      size="sm"
+                      variant="neutral"
                     >
                       Scan devices again
                     </Button>
                   )}
                 </div>
-              </div>
+              </Alert>
             )}
           </div>
         </CardContent>

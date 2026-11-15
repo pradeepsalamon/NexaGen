@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { formatEvaluation, moveNumberAt, type Evaluation } from "@nexa-chess/types";
 import { Switch } from "@/components/ui/Switch";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useBoardStore } from "../../context/BoardProvider";
 import { useEngineAnalysis, whiteEvaluation } from "../../hooks/useEngineAnalysis";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * Compact, Lichess-style Stockfish read-out for the board on screen: an on/off
@@ -44,7 +45,8 @@ export function EngineEvalSummary({ className }: { className?: string }) {
 
   return (
     <section className={cn("border-b border-app-border/60", className)} aria-label="Engine analysis">
-      <div className="flex items-center gap-2.5 px-3 py-2">
+      {/* Engine summary (live-class spec component 14): one 52px row. */}
+      <div className="flex min-h-[3.25rem] items-center gap-2.5 px-3 py-2">
         <SimpleTooltip label={paused ? "Resume analysis" : "Pause analysis"}>
           <Switch
             checked={running}
@@ -56,7 +58,7 @@ export function EngineEvalSummary({ className }: { className?: string }) {
         </SimpleTooltip>
         <span
           className={cn(
-            "min-w-[3.25rem] font-mono text-xl font-bold tabular-nums leading-none text-app-text transition-opacity",
+            "min-w-[3.25rem] font-mono text-xl font-semibold tabular-nums leading-7 text-app-text transition-opacity",
             stale && "opacity-60",
           )}
           aria-label={evaluationLabel(evaluation)}
@@ -65,17 +67,17 @@ export function EngineEvalSummary({ className }: { className?: string }) {
         </span>
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-xs font-semibold text-app-text">{analysis?.engine ?? "Stockfish"}</p>
-          <p className="truncate text-[11px] text-app-muted" aria-live="polite">
+          <p className="truncate text-xs text-app-muted" aria-live="polite">
             {status}
           </p>
         </div>
-        {running && isAnalyzing ? <Loader2 className="size-3.5 shrink-0 animate-spin text-primary-ink" aria-label="Analysing" /> : null}
+        {running && isAnalyzing ? <Spinner className="size-3.5 shrink-0 text-app-muted" aria-label="Analysing" /> : null}
       </div>
 
       {setupOnly ? (
         <Notice>No engine for a set-up position ({positionIssues.join(", ")}).</Notice>
       ) : failed ? (
-        <Notice tone="danger">Engine unavailable: {error} Retrying…</Notice>
+        <Notice tone="warning">Engine unavailable: {error} Retrying…</Notice>
       ) : (
         lines.map((line, i) => (
           <PvLine key={i} fen={line.fen} evaluation={line.evaluation} pv={line.pv} stale={stale} />
@@ -91,9 +93,9 @@ function evaluationLabel(evaluation: Evaluation | null) {
   return `Evaluation ${formatEvaluation(evaluation)} pawns`;
 }
 
-function Notice({ children, tone }: { children: React.ReactNode; tone?: "danger" }) {
+function Notice({ children, tone }: { children: React.ReactNode; tone?: "warning" }) {
   return (
-    <p className={cn("border-t border-app-border/40 px-3 py-1.5 text-xs", tone === "danger" ? "text-app-danger-ink" : "text-app-muted")}>
+    <p className={cn("border-t border-app-border/40 px-3 py-1.5 text-xs", tone === "warning" ? "text-warning-ink" : "text-app-muted")}>
       {children}
     </p>
   );
@@ -140,7 +142,7 @@ function PvLine({ fen, evaluation, pv, stale }: { fen: string; evaluation: Evalu
             onClick={() => setExpanded((e) => !e)}
             aria-label={expanded ? "Collapse line" : "Show full line"}
             aria-expanded={expanded}
-            className="grid size-5 shrink-0 place-items-center rounded-full text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+            className="grid size-5 shrink-0 place-items-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
           >
             <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} strokeWidth={2.5} />
           </button>

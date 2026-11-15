@@ -1,7 +1,6 @@
 import { randomUUID } from "crypto";
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import { getApiEnv, getCookieBaseOptions } from "@nexa-chess/config/api";
 import {
   API_ROUTES,
   assignLeadDemoClassRequestSchema,
@@ -17,11 +16,13 @@ import {
   type UpdateLeadStatusRequest
 } from "@nexa-chess/types";
 import type { Request, Response } from "express";
+import { trackingCookieBase } from "../auth/auth-cookies";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { LeadService } from "./lead.service";
 import { TRACKING_COOKIE_NAMES, TRACKING_COOKIE_PATH, VISITOR_ID_MAX_AGE } from "./types/tracking-cookie.types";
 import { RequireFeature } from "../platform/require-feature.decorator";
+import { REFERRAL_COOKIE_NAME } from "../referral/referral.util";
 
 @Controller()
 export class LeadController {
@@ -49,6 +50,7 @@ export class LeadController {
     @Req() request: Request
   ) {
     return this.leadService.createLead(body, {
+      referralId: request.cookies?.[REFERRAL_COOKIE_NAME],
       sessionId: request.cookies?.[TRACKING_COOKIE_NAMES.sessionId]
     });
   }
@@ -82,7 +84,7 @@ export class LeadController {
   }
 
   private setTrackingCookies(response: Response, visitorId: string, sessionId: string) {
-    const base = getCookieBaseOptions(getApiEnv());
+    const base = trackingCookieBase();
 
     response.cookie(TRACKING_COOKIE_NAMES.visitorId, visitorId, {
       ...base,

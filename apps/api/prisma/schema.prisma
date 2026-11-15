@@ -16,6 +16,9 @@ enum UserRole {
   ADMIN
   COACH
   STUDENT
+  /// Referral-only account: signs in to the referral board and nothing else
+  /// (enforced in `authenticateUser`, see docs/REFERRALS.md).
+  SALES
 }
 
 enum UserStatus {
@@ -244,7 +247,9 @@ enum CourseModuleContentType {
 //
 
 model User {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   email    String  @unique
   username String? @unique
@@ -257,24 +262,40 @@ model User {
 
   avatarUrl String?
 
-  role   UserRole   @default(STUDENT)
-  status UserStatus @default(PENDING)
+  role              UserRole   @default(STUDENT)
+  status            UserStatus @default(PENDING)
+  /// The academy's hidden "Platform support" account (§I "Support access"):
+  /// support sessions act as it, so no Nexa user id lands in another academy's
+  /// rows. Never listed, never signs in with a password.
+  isPlatformSupport Boolean    @default(false)
 
   timezone String @default("Asia/Kolkata")
 
   isEmailVerified Boolean @default(false)
 
-  emailVerifiedAt     DateTime?
-  lastLoginAt         DateTime?
+  emailVerifiedAt           DateTime?
+  // Set = this person turned off messaging-rule ("notification") emails; system emails
+  // (password reset, verification, invoices) still send. docs/MESSAGING.md "Email channel".
+  notificationEmailOptOutAt DateTime?
+  // Kinds of non-essential email this person turned off one by one (`EMAIL_CATEGORIES`);
+  // the master switch above stops them all. docs/MESSAGING.md "Email channel".
+  emailOptOutCategories     EmailCategory[] @default([])
+  // The random value in the unsubscribe link of this person's emails; made on the first send.
+  emailUnsubscribeToken     String?         @unique
+  // Self-registration's Terms of Service + Privacy Policy checkbox: when it was ticked and which
+  // version (`LEGAL_TERMS_VERSION`). Null for accounts an admin created or made before it existed.
+  termsAcceptedAt           DateTime?
+  termsVersion              String?
+  lastLoginAt               DateTime?
   // Wrong passwords since the last sign-in; the Nth sets loginLockedUntil.
-  failedLoginAttempts Int       @default(0)
-  loginLockedUntil    DateTime?
+  failedLoginAttempts       Int             @default(0)
+  loginLockedUntil          DateTime?
   // Throttled recency signal (updated at most once / 10 min by ActivityTrackingInterceptor).
   // Null = never seen since the feature shipped; analytics treats it as "unknown", not inactive.
-  lastActiveAt        DateTime?
+  lastActiveAt              DateTime?
   // In-app presence: bumped by the web app's /presence/heartbeat (~15s) while
   // any tab is open. "Online" = seen within the last minute.
-  lastSeenAt          DateTime?
+  lastSeenAt                DateTime?
 
   // ── Acquisition attribution (captured at registration; see analytics module) ──
   acquisitionSource AcquisitionSource @default(UNKNOWN)
@@ -294,6 +315,17 @@ model User {
   coachProfile                    CoachProfile?                    @relation("UserCoachProfile")
   approvedCoaches                 CoachProfile[]                   @relation("CoachApprovedBy")
   createdBatches                  Batch[]                          @relation("BatchCreatedBy")
+  assignedSupportTickets          SupportTicket[]                  @relation("SupportTicketAssignee")
+  supportTicketEvents             SupportTicketEvent[]             @relation("SupportTicketEventActor")
+  sentSupportMessages             SupportMessage[]                 @relation("SupportMessageSender")
+  updatedSupportSavedReplies      SupportSavedReply[]              @relation("SupportSavedReplyUpdatedBy")
+  dismissedSupportQuestions       SupportUnansweredQuestion[]      @relation("SupportUnansweredDismissedBy")
+  updatedSupportSettings          SupportSettings[]                @relation("SupportSettingsUpdatedBy")
+  supportContactErasures          SupportContactErasure[]          @relation("SupportContactErasedBy")
+  supportConversationEvents       SupportConversationEvent[]       @relation("SupportConversationEventActor")
+  supportContactLinks             SupportContactLink[]             @relation("SupportContactLinkStudent")
+  supportLinkCodes                SupportLinkCode[]                @relation("SupportLinkCodeStudent")
+  issuedSupportLinkCodes          SupportLinkCode[]                @relation("SupportLinkCodeIssuedBy")
   coachedBatches                  BatchCoach[]                     @relation("BatchCoaches")
   studentBatches                  BatchStudent[]                   @relation("BatchStudents")
   classes                         CoachClass[]                     @relation("ClassCoach")
@@ -306,7 +338,7 @@ model User {
   emailVerifications              EmailVerificationToken[]
   directEmailsReceived            DirectEmail[]                    @relation("DirectEmailRecipient")
   directEmailsSent                DirectEmail[]                    @relation("DirectEmailSender")
-  deletedRecords                 TrashAuditLog[]                  @relation("TrashAuditDeletedBy")
+  deletedRecords                  TrashAuditLog[]                  @relation("TrashAuditDeletedBy")
   deletedStudentProfiles          StudentProfile[]                 @relation("StudentProfileDeletedBy")
   deletedCoachProfiles            CoachProfile[]                   @relation("CoachProfileDeletedBy")
   deletedBatches                  Batch[]                          @relation("BatchDeletedBy")
@@ -331,6 +363,15 @@ model User {
   mcqAttempts                     LiveClassMcqAttempt[]            @relation("StudentMcqAttempts")
   playoutGames                    LiveClassPlayoutGame[]           @relation("StudentPlayoutGames")
   deletedPuzzles                  Puzzle[]                         @relation("PuzzleDeletedBy")
+  deletedAssignments              Assignment[]                     @relation("AssignmentDeletedBy")
+  deletedAnnouncements            Announcement[]                   @relation("AnnouncementDeletedBy")
+  deletedLeads                    Lead[]                           @relation("LeadDeletedBy")
+  deletedFeedbackForms            FeedbackForm[]                   @relation("FeedbackFormDeletedBy")
+  deletedKnowledgeArticles        KnowledgeArticle[]               @relation("KnowledgeArticleDeletedBy")
+  deletedKnowledgeCategories      KnowledgeCategory[]              @relation("KnowledgeCategoryDeletedBy")
+  deletedChessGames               ChessGame[]                      @relation("ChessGameDeletedBy")
+  deletedLiveClassPresets         LiveClassPreset[]                @relation("LiveClassPresetDeletedBy")
+  deletedDemoSchedules            DemoSchedule[]                   @relation("DemoScheduleDeletedBy")
   studentPuzzleAttempts           PuzzleAttempt[]                  @relation("StudentPuzzleAttempts")
   classChangeRequests             ClassChangeRequest[]             @relation("ClassChangeRequestCoach")
   reviewedClassChangeRequests     ClassChangeRequest[]             @relation("ClassChangeRequestReviewer")
@@ -362,6 +403,7 @@ model User {
   coachAttendances                CoachAttendance[]                @relation("CoachClassAttendance")
   coachAttendanceLogs             CoachAttendanceLog[]             @relation("UserCoachAttendanceLogs")
   chatMessages                    LiveChatMessage[]                @relation("UserLiveChatMessages")
+  liveClassTranscriptSegments     LiveClassTranscriptSegment[]     @relation("LiveClassTranscriptSpeaker")
   directChatMessages              LiveChatMessage[]                @relation("UserLiveChatDirectMessages")
   notifications                   Notification[]                   @relation("UserNotifications")
   createdBatchSchedules           BatchClassSchedule[]             @relation("BatchScheduleCreatedBy")
@@ -438,6 +480,9 @@ model User {
   conversationsCreated     Conversation[]            @relation("ConversationCreatedBy")
   chatMessagesSent         ChatMessage[]             @relation("ChatMessageSender")
   platformStaff            PlatformStaff?
+  platformAuditEntries     PlatformAuditLog[]        @relation("PlatformAuditActor")
+  platformPaymentsRecorded PlatformPayment[]         @relation("PlatformPaymentRecorder")
+  platformSupportVisits    PlatformSupportSession[]  @relation("PlatformSupportStaff")
   tenantSubscriptionEvents TenantSubscriptionEvent[]
 
   createdAt                 DateTime                  @default(now())
@@ -455,6 +500,46 @@ model User {
   knowledgeEvents           KnowledgeArticleEvent[]   @relation("KnowledgeEventActor")
   knowledgeFeedback         KnowledgeFeedback[]       @relation("KnowledgeFeedbackUser")
 
+  // ── Referral program (docs/REFERRALS.md) ──
+  referralCode                ReferralCode?              @relation("ReferralCodeOwner")
+  referralsMade               Referral[]                 @relation("ReferralReferrer")
+  referralStageEvents         ReferralStageEvent[]       @relation("ReferralStageEventActor")
+  referralRewards             ReferralReward[]           @relation("ReferralRewardReferrer")
+  referralRewardsReviewed     ReferralReward[]           @relation("ReferralRewardReviewer")
+  referralRewardRulesCreated  ReferralRewardRule[]       @relation("ReferralRewardRuleCreatedBy")
+  referralCreditEntries       ReferralCreditEntry[]      @relation("ReferralCreditOwner")
+  referralCreditEntriesMade   ReferralCreditEntry[]      @relation("ReferralCreditCreatedBy")
+  referralWithdrawals         ReferralWithdrawal[]       @relation("ReferralWithdrawalOwner")
+  referralVouchersCreated     ReferralVoucher[]          @relation("ReferralVoucherCreatedBy")
+  referralRedemptions         ReferralRedemption[]       @relation("ReferralRedemptionOwner")
+  referralRedemptionsReviewed ReferralRedemption[]       @relation("ReferralRedemptionReviewer")
+  referralWithdrawalsHandled  ReferralWithdrawal[]       @relation("ReferralWithdrawalReviewer")
+  referralSettingsUpdates     ReferralSettings[]         @relation("ReferralSettingsUpdatedBy")
+  referredBy                  Referral?                  @relation("ReferralReferredUser")
+  referralPointsSent          ReferralPointsTransfer[]   @relation("ReferralPointsTransferFrom")
+  referralPointsReceived      ReferralPointsTransfer[]   @relation("ReferralPointsTransferTo")
+  referralPointsConversions   ReferralPointsConversion[] @relation("ReferralPointsConversionOwner")
+  personalDiscounts           Discount[]                 @relation("DiscountRestrictedTo")
+
+  // Tournaments (docs/TOURNAMENTS.md)
+  tournamentsCreated            Tournament[]            @relation("TournamentCreatedBy")
+  deletedTournaments            Tournament[]            @relation("TournamentDeletedBy")
+  tournamentHostRoles           TournamentHost[]        @relation("TournamentHostUser")
+  tournamentHostGrants          TournamentHost[]        @relation("TournamentHostGrantedBy")
+  tournamentEntries             TournamentPlayer[]      @relation("TournamentPlayerUser")
+  tournamentEntriesAdded        TournamentPlayer[]      @relation("TournamentPlayerRegisteredBy")
+  tournamentEntriesDecided      TournamentPlayer[]      @relation("TournamentPlayerDecidedBy")
+  tournamentSettingsUpdates     TournamentSettings[]    @relation("TournamentSettingsUpdatedBy")
+  tournamentAuditActions        TournamentAuditLog[]    @relation("TournamentAuditActor")
+  tournamentCommentary          TournamentCommentary[]  @relation("TournamentCommentaryAuthor")
+  tournamentCommentaryHidden    TournamentCommentary[]  @relation("TournamentCommentaryHiddenBy")
+  certificateTemplatesCreated   CertificateTemplate[]   @relation("CertificateTemplateCreatedBy")
+  tournamentCertificates        TournamentCertificate[] @relation("TournamentCertificateUser")
+  tournamentCertificatesRevoked TournamentCertificate[] @relation("TournamentCertificateRevokedBy")
+
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, email])
+  @@unique([tenantId, username])
   @@index([role])
   @@index([status])
   @@index([isDeleted])
@@ -472,7 +557,9 @@ model User {
 //
 
 model StudentProfile {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -518,7 +605,9 @@ model StudentProfile {
 //
 
 model CoachProfile {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   userId String @unique
   user   User   @relation("UserCoachProfile", fields: [userId], references: [id], onDelete: Cascade)
@@ -545,6 +634,11 @@ model CoachProfile {
 
   approvedAt DateTime?
 
+  /// When the coach agreed to have their live-class speech turned into text
+  /// (null = never, or withdrawn), and the `TRANSCRIPT_CONSENT_VERSION` they saw.
+  transcriptConsentAt      DateTime?
+  transcriptConsentVersion Int?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   isDeleted     Boolean   @default(false)
@@ -565,7 +659,9 @@ model CoachProfile {
 //
 
 model AuthSession {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -585,8 +681,10 @@ model AuthSession {
   rotatedAt DateTime?
   revokedAt DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  /// Set when this session is a platform support visit (PlatformSupportSession.id).
+  supportSessionId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([userId])
   @@index([expiresAt])
@@ -596,8 +694,10 @@ model AuthSession {
 
 // TOTP second factor. One row per enrolled (or enrolling) user.
 model UserMfa {
-  userId String @id
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String @id
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // AES-256-GCM with MFA_ENCRYPTION_KEY; never stored or logged in clear.
   secretEncrypted    String
@@ -619,7 +719,9 @@ model UserMfa {
 }
 
 model PasswordResetToken {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -636,7 +738,9 @@ model PasswordResetToken {
 }
 
 model EmailVerificationToken {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -658,15 +762,104 @@ enum EmailVerificationPolicy {
   REQUIRED
 }
 
-/// Single row, id "default". No row means OFF.
+/// An academy's look (docs/SAAS_MULTI_TENANCY.md §F; Phase 5): one row per
+/// academy, written by its admins when the plan has `brandIdentity`. Images are
+/// public URLs under `tenants/<id>/branding/`. Colours are stored as hex and
+/// contrast-checked on save; the web derives the theme variables from them.
+model TenantBranding {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique @default("tenant_nexa")
+  displayName     String?
+  tagline         String?
+  primaryColor    String?
+  accentColor     String?
+  defaultTheme    String   @default("system")
+  logoLightUrl    String?
+  logoDarkUrl     String?
+  faviconUrl      String?
+  loginImageUrl   String?
+  contactEmail    String?
+  contactPhone    String?
+  seoTitle        String?
+  seoDescription  String?
+  emailSenderName String?
+  replyToEmail    String?
+  /// With the plan's `whiteLabel`: hide "Powered by NexaChess" (on by default; the academy may show it).
+  hidePoweredBy   Boolean  @default(true)
+  updatedById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("tenant_brandings")
+}
+
+/// An academy's own wording for a legal page (`/privacy`, `/terms`) on its
+/// own address. No row = the built-in text. Stored as formatted text, never
+/// HTML. Nexa's own pages stay in the web app (features/legal/content.ts).
+model TenantLegalPage {
+  id          String   @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId    String   @default("tenant_nexa")
+  /// LegalPageKind from @nexa-chess/types: "privacy" | "terms".
+  kind        String
+  body        String
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, kind])
+  @@map("tenant_legal_pages")
+}
+
+/// An academy's own WhatsApp Business number (docs/SAAS_MULTI_TENANCY.md §F
+/// "WhatsApp"; Phase 5d). Nexa uses the server's env number and has no row.
+/// The token is AES-256-GCM encrypted (WHATSAPP_CREDENTIALS_KEY, else MFA_ENCRYPTION_KEY).
+model WhatsAppSettings {
+  id                   String    @id @default(cuid())
+  tenantId             String    @unique @default("tenant_nexa")
+  enabled              Boolean   @default(false)
+  /// One academy per number: incoming messages are routed by it (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §6).
+  phoneNumberId        String?   @unique
+  accessTokenEncrypted String?
+  /// The WhatsApp Business Account id (template status sync, Phase C). Not secret.
+  wabaId               String?
+  /// The academy's Meta app secret: verifies X-Hub-Signature-256 on its incoming webhooks.
+  appSecretEncrypted   String?
+  /// Generated by Nexa; the academy pastes it into Meta with the webhook URL.
+  verifyTokenEncrypted String?
+  /// Random last segment of the academy's webhook URL (/webhooks/whatsapp/<key>); names the academy before any secret is read.
+  webhookKey           String?   @unique
+  /// When a signed webhook last arrived for this number ("receiving" on the settings page).
+  lastWebhookAt        DateTime?
+  updatedById          String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@map("whatsapp_settings")
+}
+
+/// One row per academy (Nexa's is id "default"). No row means OFF.
 model EmailSettings {
   id                 String                  @id @default("default")
+  /// Owning academy (Tenant.id): one row per academy (docs/SAAS_MULTI_TENANCY.md
+  /// § "Phase 3 plan", slice 5). Nexa's row keeps id "default".
+  tenantId           String                  @unique @default("tenant_nexa")
   verificationPolicy EmailVerificationPolicy @default(OFF)
   updatedById        String?
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 
   @@map("email_settings")
+}
+
+/// What a non-essential email is about (`@nexa-chess/types` `EMAIL_CATEGORIES`).
+enum EmailCategory {
+  CLASSES
+  HOMEWORK
+  ANNOUNCEMENTS
+  ACCOUNT
+  REFERRALS
+  ACADEMY_TEAM
 }
 
 enum DirectEmailStatus {
@@ -678,7 +871,9 @@ enum DirectEmailStatus {
 /// An email staff wrote to one person. The row is written before sending, so
 /// nothing goes out unlogged; PENDING means the send never reported back.
 model DirectEmail {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   recipientId String
   recipient   User   @relation("DirectEmailRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
@@ -706,7 +901,9 @@ model DirectEmail {
 //
 
 model Batch {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   name          String
   description   String?
@@ -768,7 +965,9 @@ model Batch {
 }
 
 model BatchCoach {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   batchId String
   batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
@@ -793,7 +992,9 @@ model BatchCoach {
 }
 
 model BatchStudent {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   batchId String
   batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
@@ -819,6 +1020,8 @@ model BatchStudent {
 
 model TrashAuditLog {
   id        String   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId  String   @default("tenant_nexa")
   entity    String
   entityId  String
   action    String
@@ -839,7 +1042,9 @@ model TrashAuditLog {
 //
 
 model CoachClass {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   batchId String?
   batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: Cascade)
@@ -962,6 +1167,8 @@ enum DemoGuestApproval {
 /// ahead by `DemoScheduleService`; not soft-deletable.
 model DemoSchedule {
   id              String              @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId        String              @default("tenant_nexa")
   slug            String              @unique
   topic           String
   description     String?
@@ -981,6 +1188,20 @@ model DemoSchedule {
 
   classes CoachClass[]
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("DemoScheduleDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@unique([tenantId, slug])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([isActive])
   @@map("demo_schedules")
 }
@@ -993,6 +1214,8 @@ model DemoSchedule {
 /// `joinedAt` means they signed up ahead of the class starting.
 model DemoClassRegistration {
   id            String                        @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId      String                        @default("tenant_nexa")
   classId       String
   class         CoachClass                    @relation(fields: [classId], references: [id], onDelete: Cascade)
   name          String
@@ -1045,6 +1268,8 @@ enum LeadStatus {
 /// repeat hits, everything else is set once on the first hit of a session.
 model VisitorSession {
   id        String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId  String @default("tenant_nexa")
   sessionId String @unique
   visitorId String
 
@@ -1082,12 +1307,16 @@ model VisitorSession {
 /// (contacts, schedules an actual demo, converts to an enrolled student),
 /// not yet a signup for a specific scheduled class.
 model Lead {
-  id              String @id @default(cuid())
+  id              String  @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId        String  @default("tenant_nexa")
   studentName     String
   parentName      String
   studentAge      Int
   experienceLevel String
   phone           String
+  /// Optional contact email from the demo form, stored lower-cased.
+  email           String?
 
   status   LeadStatus @default(NEW)
   /// First-touch attribution, derived from the linked `VisitorSession` at
@@ -1111,10 +1340,26 @@ model Lead {
   activities        LeadActivity[]
   notes             LeadNote[]
   demoRegistrations DemoClassRegistration[]
+  referral          Referral?
+  /// WhatsApp support tickets for this lead (a demo booked through the bot).
+  supportTickets    SupportTicket[]
+  /// Its copy in Frappe CRM, when one is sent (docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM").
+  crmPush           CrmLeadPush?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("LeadDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([status])
   @@index([createdAt])
   @@index([visitorSessionId])
@@ -1126,9 +1371,11 @@ model Lead {
 /// change) or staff-authored (mirrors a `LeadNote`). `createdById` is null
 /// for system entries.
 model LeadActivity {
-  id     String @id @default(cuid())
-  leadId String
-  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
+  leadId   String
+  lead     Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   activityType String
   title        String
@@ -1143,9 +1390,11 @@ model LeadActivity {
 }
 
 model LeadNote {
-  id     String @id @default(cuid())
-  leadId String
-  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
+  leadId   String
+  lead     Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   note String
 
@@ -1165,7 +1414,9 @@ model LeadNote {
 /// real `CoachClass` rows (one per occurrence) that behave exactly like
 /// manually-created classes for live-class, attendance, assignments, etc.
 model BatchClassSchedule {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   batchId String
   batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
@@ -1201,7 +1452,9 @@ model BatchClassSchedule {
 /// One weekly slot in a schedule: "every <dayOfWeek> from <startTime> to
 /// <endTime> with <coach>".
 model BatchClassScheduleRule {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   scheduleId String
   schedule   BatchClassSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
@@ -1230,7 +1483,9 @@ model BatchClassScheduleRule {
 /// A single local date excluded from a schedule (holiday / batch break). The
 /// recurrence rule stays intact; only generation skips the date.
 model BatchScheduleException {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   scheduleId String
   schedule   BatchClassSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
@@ -1246,7 +1501,9 @@ model BatchScheduleException {
 }
 
 model ClassAttendance {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   classId String
   class   CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -1286,7 +1543,9 @@ model ClassAttendance {
 }
 
 model AttendanceLog {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   attendanceId String
   attendance   ClassAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
@@ -1325,7 +1584,9 @@ model AttendanceLog {
 }
 
 model CoachAttendance {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   classId String     @unique
   class   CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -1355,7 +1616,9 @@ model CoachAttendance {
 }
 
 model CoachAttendanceLog {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   attendanceId String
   attendance   CoachAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
@@ -1385,7 +1648,9 @@ model CoachAttendanceLog {
 }
 
 model AttendancePolicy {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   name     String  @default("Default Policy")
   isActive Boolean @default(true)
@@ -1409,7 +1674,9 @@ model AttendancePolicy {
 //
 
 model LiveSession {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   batchId String?
   batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: Cascade)
@@ -1459,6 +1726,7 @@ model LiveSession {
   metadata Json?
 
   chatMessages             LiveChatMessage[]
+  transcriptSegments       LiveClassTranscriptSegment[]
   recordingWatchProgresses RecordingWatchProgress[]
   waitingParticipants      LiveClassWaitingParticipant[]
   pulls                    LiveClassPull[]
@@ -1482,7 +1750,9 @@ enum LiveClassPullStatus {
 /// on its next presence heartbeat (or first one after login) and joins
 /// directly. Operational session state — not soft-deletable, not in Trash.
 model LiveClassPull {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveSessionId String
   liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
@@ -1519,7 +1789,9 @@ enum WaitingRoomStatus {
 /// duplicates. Operational data scoped to one LiveSession — not
 /// soft-deletable, not Trash-registered, like LiveClassPuzzleAssignment.
 model LiveClassWaitingParticipant {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveSessionId String
   liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
@@ -1556,7 +1828,9 @@ enum ScreenShareRequestStatus {
 /// untouched. Operational session state, like LiveClassWaitingParticipant:
 /// not soft-deletable, not Trash-registered.
 model LiveClassScreenShareRequest {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveSessionId String
   liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
@@ -1579,8 +1853,41 @@ model LiveClassScreenShareRequest {
   @@map("live_class_screen_share_requests")
 }
 
+/// One finished phrase of the coach's speech in a live class, as text. The
+/// coach's browser does the recognition; no audio is stored, and only the
+/// owning coach can write one. Aged out after 30 days (`RETENTION_RULES`).
+/// Not soft-deletable, not Trash-registered.
+model LiveClassTranscriptSegment {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  liveSessionId String
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+
+  speakerId String
+  speaker   User   @relation("LiveClassTranscriptSpeaker", fields: [speakerId], references: [id], onDelete: Cascade)
+
+  /// Client-generated per phrase, so a retried request stores it once.
+  clientId String
+  /// BCP 47 tag the recogniser was listening for (`transcriptLanguageSchema`).
+  lang     String
+  text     String
+  /// When the phrase was first heard (the coach's clock, clamped to the class).
+  spokenAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@unique([liveSessionId, clientId])
+  @@index([liveSessionId, spokenAt, id])
+  @@index([speakerId])
+  @@index([tenantId, createdAt])
+  @@map("live_class_transcript_segments")
+}
+
 model LiveChatMessage {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveSessionId String
   liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
@@ -1634,6 +1941,8 @@ model ProcessedWebhookEvent {
 /// the live row if more than one ever exists.
 model LiveClassPolicy {
   id       String  @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String  @default("tenant_nexa")
   name     String  @default("Default Live Class Policy")
   isActive Boolean @default(true)
 
@@ -1650,7 +1959,9 @@ model LiveClassPolicy {
 /// apply while creating/editing a class. Applying copies `settings` into the
 /// class — never a live reference (§23). Not soft-deletable (like Assignment).
 model LiveClassPreset {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   ownerId String?
   owner   User?   @relation("UserLiveClassPresets", fields: [ownerId], references: [id], onDelete: Cascade)
@@ -1668,6 +1979,17 @@ model LiveClassPreset {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("LiveClassPresetDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([ownerId])
   @@index([scope])
   @@map("live_class_presets")
@@ -1682,6 +2004,8 @@ model LiveClassPreset {
 /// never affects FEN/position/moves/game state.
 model ChessAppearanceSettings {
   id       String  @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String  @default("tenant_nexa")
   name     String  @default("Default Chess Appearance Settings")
   isActive Boolean @default(true)
 
@@ -1711,9 +2035,11 @@ model ChessAppearanceSettings {
 /// personal preference" — the resolver falls through to the admin/system
 /// default. Not soft-deletable (cosmetic, no trash semantics needed).
 model UserChessAppearancePreference {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation("UserChessAppearancePreference", fields: [userId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
+  userId   String @unique
+  user     User   @relation("UserChessAppearancePreference", fields: [userId], references: [id], onDelete: Cascade)
 
   /// Partial ChessAppearanceOverride JSON (validated by @nexa-chess/types).
   settings Json
@@ -1727,7 +2053,9 @@ model UserChessAppearancePreference {
 /// Platform-wide font + text size default (singleton, lazily created). Not
 /// soft-deletable (cosmetic, like ChessAppearanceSettings).
 model TypographySettings {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   /// Partial TypographyOverride JSON (validated by @nexa-chess/types).
   /// Empty object means "untouched" — the system default (Outfit + Nunito Sans) applies.
@@ -1745,9 +2073,11 @@ model TypographySettings {
 /// One user's personal font / text size preference. Row absence means "use
 /// the admin/system default".
 model UserTypographyPreference {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation("UserTypographyPreference", fields: [userId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
+  userId   String @unique
+  user     User   @relation("UserTypographyPreference", fields: [userId], references: [id], onDelete: Cascade)
 
   /// Partial TypographyOverride JSON (validated by @nexa-chess/types).
   settings Json
@@ -1767,6 +2097,8 @@ model UserTypographyPreference {
 // once PUBLISHED. Mirrors Puzzle's status/soft-delete shape.
 model Course {
   id          String       @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId    String       @default("tenant_nexa")
   title       String
   description String?
   status      CourseStatus @default(DRAFT)
@@ -1805,6 +2137,8 @@ model Course {
 // blocked rather than silently orphaning the module.
 model CourseModule {
   id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
   courseId String
   course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title    String
@@ -1838,6 +2172,8 @@ model CourseModule {
 
 model StudentCourseProgress {
   id              String   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId        String   @default("tenant_nexa")
   studentId       String
   student         User     @relation("StudentCourseProgress", fields: [studentId], references: [id], onDelete: Cascade)
   courseId        String
@@ -1857,6 +2193,8 @@ model StudentCourseProgress {
 // same category as PuzzleAttempt.
 model StudentModuleProgress {
   id          String       @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId    String       @default("tenant_nexa")
   studentId   String
   student     User         @relation("StudentModuleProgress", fields: [studentId], references: [id], onDelete: Cascade)
   moduleId    String
@@ -1874,6 +2212,8 @@ model StudentModuleProgress {
 
 model Practice {
   id         String            @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String            @default("tenant_nexa")
   title      String
   difficulty String // BEGINNER, INTERMEDIATE, ADVANCED
   dueDate    DateTime
@@ -1882,6 +2222,8 @@ model Practice {
 
 model StudentPractice {
   id         String   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String   @default("tenant_nexa")
   studentId  String
   student    User     @relation("StudentPractice", fields: [studentId], references: [id], onDelete: Cascade)
   practiceId String
@@ -1898,6 +2240,8 @@ model StudentPractice {
 // delete cascades to every deployment + per-student row.
 model Assignment {
   id               String               @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId         String               @default("tenant_nexa")
   createdById      String?
   createdBy        User?                @relation("AuthoredAssignments", fields: [createdById], references: [id], onDelete: SetNull)
   isLibrary        Boolean              @default(false)
@@ -1938,6 +2282,17 @@ model Assignment {
   sourceTopicId String?
   sourceTopic   PuzzleTopic?       @relation("AssignmentSourceTopic", fields: [sourceTopicId], references: [id], onDelete: SetNull)
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("AssignmentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([createdById])
   @@index([sourceTopicId])
   @@index([isLibrary])
@@ -1947,6 +2302,8 @@ model Assignment {
 // One deployment of a library assignment to a batch, with its own due date.
 model AssignmentBatch {
   id           String     @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId     String     @default("tenant_nexa")
   assignmentId String
   assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   batchId      String
@@ -1967,6 +2324,8 @@ model AssignmentBatch {
 
 model StudentAssignment {
   id                String           @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId          String           @default("tenant_nexa")
   assignmentBatchId String
   assignmentBatch   AssignmentBatch  @relation(fields: [assignmentBatchId], references: [id], onDelete: Cascade)
   studentId         String
@@ -1997,6 +2356,8 @@ model StudentAssignment {
 // incrementally (movesJson); the server evaluates authoritatively on submit.
 model StudentAssignmentAttempt {
   id                  String                  @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId            String                  @default("tenant_nexa")
   studentAssignmentId String
   studentAssignment   StudentAssignment       @relation(fields: [studentAssignmentId], references: [id], onDelete: Cascade)
   attemptNumber       Int
@@ -2026,6 +2387,8 @@ model StudentAssignmentAttempt {
 // of the set (Cascade), the same as its attempts.
 model AssignmentPuzzle {
   id           String     @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId     String     @default("tenant_nexa")
   assignmentId String
   assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   puzzleId     String
@@ -2062,6 +2425,8 @@ enum NotificationType {
   ANNOUNCEMENT
   ACCOUNT_WELCOME
   ACCOUNT_APPROVED
+  ACCOUNT_DECLINED
+  REGISTRATION_PENDING_ADMIN
   PAYMENT_RECEIVED
   PAYMENT_FAILED
   REFUND_PROCESSED
@@ -2070,10 +2435,21 @@ enum NotificationType {
   PAYROLL_PAID
   APPROVAL_REQUESTED
   APPROVAL_DECIDED
+  TOURNAMENT_REGISTRATION_OPEN
+  TOURNAMENT_STARTED
+  REFERRAL_PROGRESS
+  REFERRAL_REWARD
+  REFERRAL_REQUEST_DECIDED
+  REFERRAL_POINTS_EXPIRING
+  REFERRAL_TAKEN_BACK
+  /// A fixed system message sent in-app (SystemNotifier), not a messaging rule.
+  SYSTEM_MESSAGE
 }
 
 model Notification {
   id        String           @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId  String           @default("tenant_nexa")
   userId    String
   user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
   type      NotificationType
@@ -2099,6 +2475,8 @@ model Notification {
 
 model StudentActivity {
   id        String   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId  String   @default("tenant_nexa")
   studentId String
   student   User     @relation("StudentActivity", fields: [studentId], references: [id], onDelete: Cascade)
   type      String // CLASS_JOINED, LESSON_COMPLETED, PRACTICE_FINISHED, FEEDBACK
@@ -2111,6 +2489,8 @@ model StudentActivity {
 
 model Announcement {
   id          String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId    String @default("tenant_nexa")
   title       String
   description String
   /// Legacy label the student dashboard feed still renders: BATCH, COURSE, PLATFORM.
@@ -2126,6 +2506,17 @@ model Announcement {
 
   createdAt DateTime @default(now())
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("AnnouncementDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([audience])
   @@index([batchId])
   @@index([createdAt])
@@ -2134,6 +2525,8 @@ model Announcement {
 
 model RecordingWatchProgress {
   id             String   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId       String   @default("tenant_nexa")
   studentId      String
   classId        String
   liveSessionId  String
@@ -2157,6 +2550,8 @@ model RecordingWatchProgress {
 /// a failed insert never breaks the originating request.
 model AnalyticsEvent {
   id         String   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String   @default("tenant_nexa")
   userId     String
   user       User     @relation("UserAnalyticsEvents", fields: [userId], references: [id], onDelete: Cascade)
   type       String // LOGIN | CLASS_JOIN | ASSIGNMENT_ATTEMPT | RECORDING_WATCH | DASHBOARD_VIEW
@@ -2173,12 +2568,16 @@ model AnalyticsEvent {
 /// written by AnalyticsScheduler. Drives the storage growth chart and forecast.
 model StorageSnapshot {
   id             String   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId       String   @default("tenant_nexa")
   capturedAt     DateTime @default(now())
   capturedDate   DateTime @unique @db.Date
   recordingBytes BigInt
   recordingCount Int
   limitBytes     BigInt
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, capturedDate])
   @@index([capturedAt])
   @@map("storage_snapshots")
 }
@@ -2193,6 +2592,8 @@ model StorageSnapshot {
 // by hand in the migration so a deleted topic's name can be reused.
 model PuzzleTopic {
   id          String  @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId    String  @default("tenant_nexa")
   name        String
   slug        String
   description String?
@@ -2216,7 +2617,7 @@ model PuzzleTopic {
 
   puzzles             Puzzle[]
   libraryActivities   LibraryActivity[]
-  homeworkAssignments Assignment[]   @relation("AssignmentSourceTopic")
+  homeworkAssignments Assignment[]      @relation("AssignmentSourceTopic")
   revisionItems       RevisionItem[]
 
   createdAt     DateTime  @default(now())
@@ -2244,6 +2645,8 @@ model PuzzleTopic {
 // LiveClassPuzzleAssignment (in-class deployment) without being copied.
 model Puzzle {
   id          String      @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId    String      @default("tenant_nexa")
   topicId     String
   topic       PuzzleTopic @relation(fields: [topicId], references: [id], onDelete: Restrict)
   /// COLLATE "natural_sort" (ICU, numeric) — set by migration
@@ -2308,6 +2711,8 @@ model Puzzle {
   deleteGroupId String?
 
   @@unique([source, sourceId], map: "puzzles_source_sourceId_key")
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, source, sourceId])
   @@index([ownerId])
   @@index([topicId])
   @@index([createdById])
@@ -2333,6 +2738,8 @@ model Puzzle {
 // column can split them later if needed).
 model PuzzleAttempt {
   id        String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId  String @default("tenant_nexa")
   puzzleId  String
   puzzle    Puzzle @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
   studentId String
@@ -2382,7 +2789,9 @@ model PuzzleAttempt {
 // `status` column. A partial unique index (`WHERE status = 'ACTIVE'`, added by
 // hand in the migration) enforces one live puzzle per class at a time.
 model LiveClassPuzzleAssignment {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveClassId String
   liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
@@ -2416,7 +2825,9 @@ model LiveClassPuzzleAssignment {
 /// Coach's manual +/- points on the whole-class puzzle leaderboard, on top of
 /// every puzzle's own points. Operational state — not soft-deletable.
 model LiveClassLeaderboardAdjustment {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveClassId String
   liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
@@ -2477,7 +2888,9 @@ enum SimulSide {
 /// class (partial unique index in the migration). Operational class state —
 /// not soft-deletable, not Trash-registered.
 model LiveClassSimul {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveClassId String
   liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
@@ -2501,7 +2914,9 @@ model LiveClassSimul {
 }
 
 model LiveClassSimulGame {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   simulId String
   simul   LiveClassSimul @relation(fields: [simulId], references: [id], onDelete: Cascade)
@@ -2583,7 +2998,9 @@ enum MatchChallengeStatus {
 /// board. One ACTIVE per class (partial unique index in the migration).
 /// Operational class state — not soft-deletable, not Trash-registered.
 model LiveClassMatchRound {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveClassId String
   liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
@@ -2611,7 +3028,9 @@ model LiveClassMatchRound {
 }
 
 model LiveClassMatchGame {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   roundId String
   round   LiveClassMatchRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
@@ -2646,7 +3065,9 @@ model LiveClassMatchGame {
 }
 
 model LiveClassMatchChallenge {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   roundId String
   round   LiveClassMatchRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
@@ -2675,7 +3096,9 @@ enum LiveClassMovePollStatus {
 
 /// A coach's "what would you play?" question on one position.
 model LiveClassMovePoll {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveClassId String
   liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
@@ -2702,7 +3125,9 @@ model LiveClassMovePoll {
 }
 
 model LiveClassMovePollAnswer {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   pollId String
   poll   LiveClassMovePoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
@@ -2732,7 +3157,9 @@ enum PuzzleRushMode {
 /// student plays. One active round per class (hand-written partial unique
 /// index on liveClassId WHERE "endedAt" IS NULL). Operational, not soft-deletable.
 model LiveClassPuzzleRush {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveClassId String
   liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
@@ -2760,7 +3187,9 @@ model LiveClassPuzzleRush {
 
 /// One student's running totals in a round (client-checked moves, server-clamped totals).
 model LiveClassPuzzleRushEntry {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   rushId String
   rush   LiveClassPuzzleRush @relation(fields: [rushId], references: [id], onDelete: Cascade)
@@ -2805,7 +3234,9 @@ enum LiveClassToolKind {
 /// (`batch:<id>` or `class:<id>`, see LIVE_CLASS_TOOL_SCOPE) so a batch's goal
 /// carries over between classes. Operational, not soft-deletable.
 model LiveClassToolState {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   scopeKey String
   tool     LiveClassToolKind
@@ -2833,7 +3264,9 @@ model LiveClassToolState {
 /// over between a batch's classes, `class:<id>` for a class with no batch.
 /// Coach-owner/admin only. Not soft-deletable, not Trash-registered.
 model LiveClassChapter {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   scopeKey String
 
@@ -2866,10 +3299,13 @@ model LiveClassChapter {
 }
 
 // Platform default points + leaderboard rules for live-class puzzles
-// (singleton, id "default"). Seeded lazily on first read — no seed migration.
+// (one row per academy, Nexa's id "default"). Seeded lazily on first read — no seed migration.
 // Cosmetic-level config: not soft-deletable, not Trash-registered.
 model PuzzleScoringSettings {
   id              String   @id @default("default")
+  /// Owning academy (Tenant.id): one row per academy (docs/SAAS_MULTI_TENANCY.md
+  /// § "Phase 3 plan", slice 5). Nexa's row keeps id "default".
+  tenantId        String   @unique @default("tenant_nexa")
   /// PuzzleScoring JSON (validated by @nexa-chess/types).
   scoringJson     Json?
   /// PuzzleLeaderboardOptions JSON.
@@ -2904,6 +3340,8 @@ enum MessagingEvent {
   ANNOUNCEMENT
   ACCOUNT_WELCOME
   ACCOUNT_APPROVED
+  ACCOUNT_DECLINED
+  REGISTRATION_PENDING_ADMIN
   PAYMENT_RECEIVED
   PAYMENT_FAILED
   REFUND_PROCESSED
@@ -2912,6 +3350,13 @@ enum MessagingEvent {
   PAYROLL_PAID
   APPROVAL_REQUESTED
   APPROVAL_DECIDED
+  TOURNAMENT_REGISTRATION_OPEN
+  TOURNAMENT_STARTED
+  REFERRAL_PROGRESS
+  REFERRAL_REWARD
+  REFERRAL_REQUEST_DECIDED
+  REFERRAL_POINTS_EXPIRING
+  REFERRAL_TAKEN_BACK
 }
 
 enum MessagingScheduleMode {
@@ -2951,7 +3396,9 @@ enum AnnouncementAudience {
 /// Admin-editable rule for one event. Seeded from DEFAULT_MESSAGING_RULES the
 /// first time the rules are read; every rule ships disabled.
 model MessagingRule {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   event MessagingEvent @unique
 
@@ -2988,13 +3435,17 @@ model MessagingRule {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, event])
   @@map("messaging_rules")
 }
 
 /// One attempted message. Written before the provider call, so a dropped queue
 /// job or a provider outage still leaves an admin-visible record.
 model MessageDelivery {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   event   MessagingEvent
   channel MessageChannel
@@ -3034,6 +3485,9 @@ model MessageDelivery {
   /// Provider handle ("wamid.…") for a delivered WhatsApp message.
   providerMessageId String?
   error             String?
+  /// WhatsApp status webhooks (docs/WHATSAPP_SUPPORT.md §0): reached the phone / opened.
+  deliveredAt       DateTime?
+  readAt            DateTime?
 
   /// Idempotency key so a scheduler never double-sends. Null = always insert.
   dedupeKey String?
@@ -3053,11 +3507,27 @@ model MessageDelivery {
 /// @nexa-chess/types SYSTEM_MESSAGE_DEFINITIONS.
 model SystemMessageTemplate {
   /// A SystemMessageKey.
-  key String @id
+  key      String @id
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
-  subject     String?
-  body        String
-  actionLabel String?
+  /// Null = the catalogue default (system-messages.ts) for that part.
+  subject      String?
+  body         String?
+  actionLabel  String?
+  /// WhatsApp-only wording. Null = WhatsApp sends `body`.
+  whatsappBody String?
+
+  /// Approved WhatsApp template sent instead of free text (as on MessagingRule). Null name =
+  /// free text. Params are the {{1}}, {{2}}… values, each a short text with placeholders.
+  whatsappTemplateName     String?
+  whatsappTemplateLanguage String?
+  whatsappTemplateParams   String[] @default([])
+
+  /// Channel switches. Null = the message's default for that channel.
+  emailEnabled    Boolean?
+  whatsappEnabled Boolean?
+  inAppEnabled    Boolean?
 
   updatedById String?
   updatedBy   User?   @relation("SystemMessageTemplateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
@@ -3065,6 +3535,8 @@ model SystemMessageTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Per-academy twin of the global `key` primary key; §D5 makes (tenantId, key) the primary key.
+  @@unique([tenantId, key])
   @@map("system_message_templates")
 }
 
@@ -3235,7 +3707,9 @@ enum PaymentProviderEventKind {
 
 /// A sellable product. `batchId` is what a successful purchase enrols into.
 model Plan {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   code        String  @unique
   name        String
@@ -3269,13 +3743,16 @@ model Plan {
   /// Created lazily on first recurring checkout and cached here.
   providerPlanIds Json?
 
-  orders        Order[]
-  subscriptions Subscription[]
-  entitlements  Entitlement[]
+  orders              Order[]
+  subscriptions       Subscription[]
+  entitlements        Entitlement[]
+  referralRedemptions ReferralRedemption[] @relation("ReferralRedemptionPlan")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, code])
   @@index([isActive])
   @@index([batchId])
   @@map("plans")
@@ -3284,7 +3761,9 @@ model Plan {
 /// The business order. One order may carry several payment attempts (§12) but
 /// only ever grants its entitlement once.
 model Order {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   /// Human handle shown to the user and to support. NEXA-2026-000123.
   orderNumber String @unique
@@ -3330,6 +3809,8 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, orderNumber])
   @@index([userId, createdAt])
   @@index([status])
   @@index([planId])
@@ -3341,7 +3822,9 @@ model Order {
 /// One payment as the provider sees it. Created before the gateway is called,
 /// so a network timeout still leaves a reconcilable record.
 model Payment {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   orderId String
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
@@ -3389,6 +3872,8 @@ model Payment {
   updatedAt DateTime @updatedAt
 
   @@unique([provider, providerPaymentId])
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, provider, providerPaymentId])
   @@index([orderId])
   @@index([userId, createdAt])
   @@index([status])
@@ -3404,7 +3889,9 @@ model Payment {
 /// One try at paying an order. Attempt 1 -> Razorpay -> failed, attempt 2 ->
 /// Cashfree -> paid. Kept separate from Payment so retry history survives.
 model PaymentAttempt {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   orderId String
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
@@ -3440,7 +3927,9 @@ model PaymentAttempt {
 /// (provider, eventId) is the idempotency guard: a redelivery collides on
 /// insert instead of re-running the handler.
 model PaymentWebhookEvent {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   provider PaymentProvider
 
@@ -3464,6 +3953,8 @@ model PaymentWebhookEvent {
   processedAt DateTime?
 
   @@unique([provider, eventId])
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, provider, eventId])
   @@index([status, receivedAt])
   @@index([provider, eventType])
   @@index([paymentId])
@@ -3474,7 +3965,9 @@ model PaymentWebhookEvent {
 /// A refund is never SUCCEEDED because the API accepted the request — only
 /// because the provider later said so (§14).
 model Refund {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   paymentId String
   payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
@@ -3507,6 +4000,8 @@ model Refund {
   updatedAt   DateTime  @updatedAt
 
   @@unique([provider, providerRefundId])
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, provider, providerRefundId])
   @@index([paymentId])
   @@index([status])
   @@index([createdAt])
@@ -3516,7 +4011,9 @@ model Refund {
 /// A recurring plan the provider bills. We mirror its state rather than owning
 /// it: the provider's mandate is what actually charges the card.
 model Subscription {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   userId String
   user   User   @relation("UserSubscriptions", fields: [userId], references: [id], onDelete: Restrict)
@@ -3561,6 +4058,8 @@ model Subscription {
   updatedAt DateTime @updatedAt
 
   @@unique([provider, providerSubscriptionId])
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, provider, providerSubscriptionId])
   @@index([userId, status])
   @@index([status, nextBillingDate])
   @@index([planId])
@@ -3570,7 +4069,9 @@ model Subscription {
 /// Issued once, when an order is genuinely PAID. Numbering is gapless per year
 /// via InvoiceSequence.
 model Invoice {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   /// NEXA-INV-2026-000001. Gapless within a year, allocated from
   /// InvoiceSequence under a row lock and never reused.
@@ -3665,6 +4166,8 @@ model Invoice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, number])
   @@index([userId, invoiceDate])
   @@index([status])
   @@index([pdfStatus])
@@ -3678,7 +4181,9 @@ model Invoice {
 /// A credit note reverses value without touching the invoice it references -
 /// an issued invoice is never rewritten after a refund.
 model CreditNote {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   /// NEXA-CN-2026-000001, from its own sequence.
   number String @unique
@@ -3727,6 +4232,8 @@ model CreditNote {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, number])
   @@index([invoiceId])
   @@index([userId, issuedAt])
   @@index([issuedAt])
@@ -3740,7 +4247,9 @@ model CreditNote {
 /// Seeded from StudentProfile.parent* the first time a student checks out, and
 /// editable by the buyer afterwards.
 model BillingProfile {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   userId String @unique
   user   User   @relation("UserBillingProfile", fields: [userId], references: [id], onDelete: Cascade)
@@ -3768,19 +4277,26 @@ model BillingProfile {
 }
 
 model CreditNoteSequence {
-  year       Int @id
-  lastNumber Int @default(0)
+  year       Int    @id
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String @default("tenant_nexa")
+  lastNumber Int    @default(0)
 
   updatedAt DateTime @updatedAt
 
+  /// Per-academy series (slice 5); `year` alone stays the key until §D5.
+  @@unique([tenantId, year])
   @@map("credit_note_sequences")
 }
 
 /// Admin - Settings - Billing and Invoicing. A singleton: business details are
 /// never hard-coded into the PDF template.
 model InvoiceSettings {
-  /// Always "default" - enforced by the service, which upserts on this id.
-  id String @id @default("default")
+  /// "default" for Nexa, the academy id otherwise (`singletonRowId`); look rows up by `tenantId`.
+  id       String @id @default("default")
+  /// Owning academy (Tenant.id): one row per academy (docs/SAAS_MULTI_TENANCY.md
+  /// § "Phase 3 plan", slice 5). Nexa's row keeps id "default".
+  tenantId String @unique @default("tenant_nexa")
 
   legalName String  @default("NexaChess")
   tradeName String?
@@ -3826,7 +4342,9 @@ model InvoiceSettings {
 
 /// Invoice audit trail. Append-only; nothing updates or deletes a row.
 model InvoiceAuditLog {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   invoiceId String?
   invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -3852,11 +4370,15 @@ model InvoiceAuditLog {
 
 model InvoiceSequence {
   /// Indian financial year (April–March, IST) by its starting year.
-  year       Int @id
-  lastNumber Int @default(0)
+  year       Int    @id
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String @default("tenant_nexa")
+  lastNumber Int    @default(0)
 
   updatedAt DateTime @updatedAt
 
+  /// Per-academy series (slice 5); `year` alone stays the key until §D5.
+  @@unique([tenantId, year])
   @@map("invoice_sequences")
 }
 
@@ -3864,7 +4386,9 @@ model InvoiceSequence {
 /// provider saying "paid" is not enough, and a frontend saying so is never
 /// enough (§21).
 model Entitlement {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   userId String
   user   User   @relation("UserEntitlements", fields: [userId], references: [id], onDelete: Restrict)
@@ -3897,6 +4421,9 @@ model Entitlement {
   revokedAt     DateTime?
   revokedReason String?
 
+  /// Referral free-days vouchers that created or extended this access.
+  referralRedemptions ReferralRedemption[] @relation("ReferralRedemptionEntitlement")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -3911,7 +4438,9 @@ model Entitlement {
 /// Admin-managed catalogue of offline ways a student can pay (Cash, personal UPI/GPay,
 /// bank transfer, …). Deactivate instead of delete once a record references one.
 model OfflinePaymentMethod {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   key      String  @unique
   label    String
@@ -3924,6 +4453,8 @@ model OfflinePaymentMethod {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, key])
   @@index([isActive])
   @@map("offline_payment_methods")
 }
@@ -3938,7 +4469,9 @@ model OfflinePaymentMethod {
 ///
 /// Not soft-deletable / not Trash-registered — a financial record is never trashed.
 model ManualPaymentRecord {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   paymentId String  @unique
   payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
@@ -3979,7 +4512,9 @@ model ManualPaymentRecord {
 /// Raw material for provider health (§17). One row per outbound API call and
 /// per inbound webhook, pruned on a schedule.
 model PaymentProviderEvent {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   provider PaymentProvider
   kind     PaymentProviderEventKind
@@ -4003,6 +4538,8 @@ model PaymentProviderEvent {
 /// DEFAULT_PAYMENT_ROUTING in @nexa-chess/types, like LiveClassPolicy.
 model PaymentSetting {
   id       String  @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String  @default("tenant_nexa")
   isActive Boolean @default(true)
 
   /// PaymentRoutingConfig JSON, validated by the shared Zod schema.
@@ -4027,7 +4564,9 @@ enum DiscountType {
 /// different scope, so there is a single place to audit why an order cost what
 /// it did.
 model Discount {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   /// Stored uppercase and matched uppercase, so "diwali25" is the same code.
   code        String  @unique
@@ -4074,9 +4613,19 @@ model Discount {
   redemptions DiscountRedemption[]
   orders      Order[]
 
+  /// A personal code (a referral-credit payment code): only this account may
+  /// apply it. Null = any account. Restrict: a financial record outlives no one.
+  restrictedToUserId    String?
+  restrictedToUser      User?                 @relation("DiscountRestrictedTo", fields: [restrictedToUserId], references: [id], onDelete: Restrict)
+  referralCreditEntries ReferralCreditEntry[]
+  referralReward        ReferralReward?       @relation("ReferralRewardDiscount")
+  referralRedemption    ReferralRedemption?   @relation("ReferralRedemptionDiscount")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, code])
   @@index([isActive])
   @@index([createdAt])
   @@map("discounts")
@@ -4085,7 +4634,9 @@ model Discount {
 /// Written when an order is actually PAID, never when it is created — an
 /// abandoned checkout must not burn a limited code.
 model DiscountRedemption {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   discountId String
   discount   Discount @relation(fields: [discountId], references: [id], onDelete: Restrict)
@@ -4210,7 +4761,9 @@ enum PayslipPdfStatus {
 /// (default EMPLOYEE / HOURLY) the first time an admin opens a coach's payroll
 /// settings.
 model CoachCompensationProfile {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   coachId String @unique
   coach   User   @relation("CoachCompensationProfile", fields: [coachId], references: [id], onDelete: Restrict)
@@ -4230,6 +4783,9 @@ model CoachCompensationProfile {
   panNumber    String?
   gstin        String?
   taxTreatment String?
+  /// This coach's own TDS rate in basis points (1000 = 10%). Null = the
+  /// academy's rate (PayrollSettings); 0 = no TDS for this coach.
+  tdsRateBps   Int?
 
   notes String?
 
@@ -4249,7 +4805,9 @@ model CoachCompensationProfile {
 /// value in place, so a historical payroll period always resolves the rate
 /// that was actually in force when it ran.
 model CoachCompensationRate {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   coachId String
   coach   User   @relation("CoachCompensationRate", fields: [coachId], references: [id], onDelete: Restrict)
@@ -4288,7 +4846,9 @@ model CoachCompensationRate {
 /// CoachCompensationRate, so a rule change never rewrites a past payroll
 /// period's already-frozen ruleSnapshot.
 model PayrollRule {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   name        String
   description String?
@@ -4316,13 +4876,41 @@ model PayrollRule {
   @@map("payroll_rules")
 }
 
+/// An academy's payroll settings (one row per academy; Nexa's keeps id
+/// "default"). TDS is tax deducted at source from a coach's pay: off until an
+/// admin turns it on and sets the rate and the yearly threshold
+/// (docs/FEATURES.md "Coach payroll: TDS").
+model PayrollSettings {
+  id       String @id @default("default")
+  /// Owning academy (Tenant.id).
+  tenantId String @unique @default("tenant_nexa")
+
+  tdsEnabled             Boolean @default(false)
+  /// Basis points (1000 = 10%), no floats.
+  tdsRateBps             Int     @default(0)
+  /// Minor units. TDS starts once a coach's pay in the financial year goes
+  /// above this; 0 = from the first payment.
+  tdsThresholdMinor      Int     @default(0)
+  /// 1–12; the month the financial year starts (4 = April, India's).
+  financialYearStartMonth Int    @default(4)
+
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payroll_settings")
+}
+
 /// A payroll run for a date range, covering every in-scope coach. Statuses
 /// only ever move forward (DRAFT → CALCULATING → REVIEW → APPROVED →
 /// FINALIZED → PAID), or sideways into CANCELLED. Once FINALIZED, nothing
 /// about a period's already-produced CoachPayrollRecord rows may silently
 /// change — a correction is a PayrollAdjustment, never an edit (§31).
 model PayrollPeriod {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   periodType PayrollPeriodType
   startDate  DateTime          @db.Date
@@ -4350,6 +4938,8 @@ model PayrollPeriod {
   updatedAt DateTime @updatedAt
 
   @@unique([periodType, startDate, endDate])
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, periodType, startDate, endDate])
   @@index([status])
   @@index([startDate, endDate])
   @@map("payroll_periods")
@@ -4362,7 +4952,9 @@ model PayrollPeriod {
 /// earningsBreakdown, so a later rate/rule edit can never retroactively
 /// change a finalized record (§14/§31).
 model CoachPayrollRecord {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   periodId String
   period   PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
@@ -4392,7 +4984,15 @@ model CoachPayrollRecord {
   grossEarningsMinor    Int @default(0)
   totalDeductionsMinor  Int @default(0)
   totalAdjustmentsMinor Int @default(0)
+  /// TDS deducted from this record. netPayable = gross - deductions +
+  /// adjustments - tds; payroll-record-totals.util.ts is the only writer.
+  tdsMinor              Int @default(0)
   netPayableMinor       Int @default(0)
+
+  /// The TDS terms frozen at calculation time (PayrollTdsSnapshot: rate,
+  /// threshold, the coach's earlier pay and TDS in the financial year). Null
+  /// = no TDS applies to this record.
+  tdsSnapshot Json?
 
   calculatedAt DateTime?
   reviewedAt   DateTime?
@@ -4417,7 +5017,9 @@ model CoachPayrollRecord {
 /// (reversedById/reversedAt/reversalReason) instead, keeping the row for
 /// audit.
 model PayrollAdjustment {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   payrollRecordId String
   payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Restrict)
@@ -4445,7 +5047,9 @@ model PayrollAdjustment {
 /// (§22). With no bank-transfer integration yet, "Mark as Paid Manually" with
 /// a reference/date/method/notes is the only path to PAID.
 model CoachPayout {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   payrollRecordId String             @unique
   payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
@@ -4471,7 +5075,9 @@ model CoachPayout {
 /// freezes which framing was used so a later engagement-type change never
 /// rewrites an already-issued document.
 model Payslip {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   /// NEXA-PAY-2026-000001. Gapless within a year, allocated from
   /// PayslipSequence under a row lock and never reused.
@@ -4485,6 +5091,8 @@ model Payslip {
 
   /// Private Cloudinary public_id — no permanently-public URL, mirrors Invoice.
   storageKey  String?
+  /// Size of the stored PDF, like Invoice.pdfBytes (academy storage usage).
+  pdfBytes    Int?
   pdfStatus   PayslipPdfStatus @default(PENDING)
   pdfError    String?
   pdfAttempts Int              @default(0)
@@ -4494,17 +5102,23 @@ model Payslip {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, documentNumber])
   @@index([pdfStatus])
   @@map("payslips")
 }
 
 model PayslipSequence {
   /// Calendar year the sequence belongs to.
-  year       Int @id
-  lastNumber Int @default(0)
+  year       Int    @id
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String @default("tenant_nexa")
+  lastNumber Int    @default(0)
 
   updatedAt DateTime @updatedAt
 
+  /// Per-academy series (slice 5); `year` alone stays the key until §D5.
+  @@unique([tenantId, year])
   @@map("payslip_sequences")
 }
 
@@ -4538,6 +5152,8 @@ enum FeedbackResponseStatus {
 
 model FeedbackForm {
   id          String  @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId    String  @default("tenant_nexa")
   title       String
   description String?
   isActive    Boolean @default(true)
@@ -4571,12 +5187,25 @@ model FeedbackForm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("FeedbackFormDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([isActive])
   @@map("feedback_forms")
 }
 
 model FeedbackResponse {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   formId String
   form   FeedbackForm @relation(fields: [formId], references: [id], onDelete: Restrict)
@@ -4609,7 +5238,9 @@ model FeedbackResponse {
 }
 
 model FeedbackAnswer {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   responseId String
   response   FeedbackResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
@@ -4665,6 +5296,8 @@ enum ApprovalEventType {
 /// requester. Not soft-deletable: a decided request is history.
 model ApprovalRequest {
   id         String         @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String         @default("tenant_nexa")
   category   String
   actionType String
   status     ApprovalStatus @default(PENDING)
@@ -4687,7 +5320,7 @@ model ApprovalRequest {
   requestedValue Json
   reason         String
   details        Json?
-  urgent         Boolean   @default(false)
+  urgent         Boolean  @default(false)
   dedupeKey      String
   expiresAt      DateTime
 
@@ -4714,6 +5347,8 @@ model ApprovalRequest {
 /// DELETE and every UPDATE except the user purge's `actorId → NULL`.
 model ApprovalEvent {
   id        String            @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId  String            @default("tenant_nexa")
   requestId String
   request   ApprovalRequest   @relation(fields: [requestId], references: [id], onDelete: Restrict)
   type      ApprovalEventType
@@ -4743,9 +5378,11 @@ enum ClassRequestStatus {
 /// soft-deletable; a decided request is history. A partial unique index (hand
 /// written in the migration) allows one PENDING reschedule per class.
 model ClassChangeRequest {
-  id     String             @id @default(cuid())
-  type   ClassRequestType
-  status ClassRequestStatus @default(PENDING)
+  id       String             @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String             @default("tenant_nexa")
+  type     ClassRequestType
+  status   ClassRequestStatus @default(PENDING)
 
   coachId String
   coach   User        @relation("ClassChangeRequestCoach", fields: [coachId], references: [id], onDelete: Cascade)
@@ -4784,6 +5421,8 @@ model ClassChangeRequest {
 /// One row per student, created on their first rated puzzle or practice day.
 model StudentProgress {
   studentId     String    @id
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId      String    @default("tenant_nexa")
   student       User      @relation("StudentProgress", fields: [studentId], references: [id], onDelete: Cascade)
   puzzleRating  Int       @default(1200)
   peakRating    Int       @default(1200)
@@ -4801,6 +5440,8 @@ model StudentProgress {
 /// finished attempt at a puzzle is rated, and a replayed submit can't rate twice.
 model PuzzleRatingChange {
   id           String   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId     String   @default("tenant_nexa")
   studentId    String
   student      User     @relation("StudentPuzzleRatingChanges", fields: [studentId], references: [id], onDelete: Cascade)
   puzzleId     String
@@ -4892,6 +5533,8 @@ enum ChessGameSource {
   MATCH
   /// A PGN a coach or admin imported into the library.
   IMPORT
+  /// A tournament game (docs/TOURNAMENTS.md), recorded when it finishes.
+  TOURNAMENT
 }
 
 enum ChessGameStatus {
@@ -4909,10 +5552,12 @@ enum ChessGameStatus {
 /// an admin. Class/batch/player links are SetNull so a game outlives them;
 /// the player names are snapshotted for that reason.
 model ChessGame {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   source         ChessGameSource
-  /// "match:<id>", "simul:<id>", "board:<liveSessionId>:<boardGameId>"; null for IMPORT.
+  /// "match:<id>", "simul:<id>", "board:<liveSessionId>:<boardGameId>", "tournament:<gameId>"; null for IMPORT.
   sourceKey      String?         @unique
   sourceRevision BigInt          @default(0)
 
@@ -4973,8 +5618,21 @@ model ChessGame {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("ChessGameDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
   @@unique([ownerId, contentHash])
   @@unique([ownerId, externalProvider, externalId])
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, sourceKey])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([ownerId, startedAt])
   @@index([externalAccountId])
   @@index([classId])
@@ -5012,10 +5670,13 @@ enum GameAutoSyncRule {
   NEVER
 }
 
-/// Academy-wide automatic game sync setting (singleton, id "default", lazily
-/// created). Not personal data, not soft-deletable.
+/// Academy-wide automatic game sync setting (one row per academy, Nexa's id
+/// "default", lazily created). Not personal data, not soft-deletable.
 model GameSourceSettings {
   id             String             @id @default("default")
+  /// Owning academy (Tenant.id): one row per academy (docs/SAAS_MULTI_TENANCY.md
+  /// § "Phase 3 plan", slice 5). Nexa's row keeps id "default".
+  tenantId       String             @unique @default("tenant_nexa")
   autoSyncPolicy GameAutoSyncPolicy @default(OFF)
   updatedById    String?
   createdAt      DateTime           @default(now())
@@ -5029,9 +5690,11 @@ model GameSourceSettings {
 /// (the code in their public profile); a username can be verified by one
 /// student at a time (partial unique index, migration only).
 model ExternalChessAccount {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   provider         ExternalChessProvider
   /// As the provider spells it.
@@ -5088,9 +5751,11 @@ enum GameAnalysisDepth {
 /// is kept so classification can be recomputed without Stockfish;
 /// `reportJson` caches the derived classification + tactics for reads.
 model GameAnalysis {
-  id     String    @id @default(cuid())
-  gameId String
-  game   ChessGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  id       String    @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String    @default("tenant_nexa")
+  gameId   String
+  game     ChessGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   /// sha256 of the start position + mainline at request time.
   gameFingerprint String
@@ -5143,6 +5808,8 @@ enum GameAnalysisSideColor {
 /// who played this side, or null (an opponent who isn't on NexaGen).
 model GameAnalysisSide {
   id         String       @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String       @default("tenant_nexa")
   analysisId String
   analysis   GameAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
 
@@ -5209,7 +5876,9 @@ enum ConversationMemberRole {
 /// = the two user ids, sorted). Not soft-deletable, not Trash-registered. Its
 /// messages are pruned only by an admin-set RetentionPolicy (CHAT_MESSAGES).
 model Conversation {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   type      ConversationType
   /// BATCH only.
@@ -5242,7 +5911,9 @@ model Conversation {
 /// `joinedAt` is where a GROUP member's history starts: someone added later
 /// does not see what was said before they joined.
 model ConversationMember {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -5263,7 +5934,9 @@ model ConversationMember {
 }
 
 model ChatMessage {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -5301,7 +5974,9 @@ enum LiveClassActivityKind {
 /// One LIVE queue per class — hand-written partial unique index. Operational
 /// state: not soft-deletable, not Trash-registered.
 model LiveClassActivityQueue {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveClassId String
   liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
@@ -5331,7 +6006,9 @@ model LiveClassActivityQueue {
 /// live puzzle share or move poll it produced is linked here, which is what
 /// ties each student's response to this item.
 model LiveClassActivityQueueItem {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   queueId String
   queue   LiveClassActivityQueue @relation(fields: [queueId], references: [id], onDelete: Cascade)
@@ -5421,8 +6098,10 @@ enum PlayoutEndReason {
 /// configJson is McqConfig / PlayoutConfig (validated by @nexa-chess/types) and
 /// holds the answer key: it only ever leaves the API on staff routes.
 model LibraryActivity {
-  id   String              @id @default(cuid())
-  kind LibraryActivityKind
+  id       String              @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String              @default("tenant_nexa")
+  kind     LibraryActivityKind
 
   topicId String
   folder  PuzzleTopic @relation(fields: [topicId], references: [id], onDelete: Restrict)
@@ -5477,7 +6156,9 @@ model LibraryActivity {
 /// One ACTIVE run per class: a hand-written partial unique index. Operational
 /// state: not soft-deletable, not Trash-registered.
 model LiveClassActivityRun {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   liveClassId String
   liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
@@ -5515,7 +6196,9 @@ model LiveClassActivityRun {
 /// One submitted answer. `correct` and `score` are decided on the server.
 /// correctOptionIds is the key this answer was marked against.
 model LiveClassMcqAttempt {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   runId String
   run   LiveClassActivityRun @relation(fields: [runId], references: [id], onDelete: Cascade)
@@ -5543,7 +6226,9 @@ model LiveClassMcqAttempt {
 /// every engine search is handed exactly this row's position and settings.
 /// One IN_PROGRESS game per (run, student): a hand-written partial unique index.
 model LiveClassPlayoutGame {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   runId String
   run   LiveClassActivityRun @relation(fields: [runId], references: [id], onDelete: Cascade)
@@ -5556,9 +6241,9 @@ model LiveClassPlayoutGame {
   startFen      String
   fen           String
   /// Half-moves played; every write is claimed with `where ply = <seen>`.
-  ply           Int              @default(0)
-  movesJson     Json             @default("[]")
-  pgn           String           @default("")
+  ply           Int    @default(0)
+  movesJson     Json   @default("[]")
+  pgn           String @default("")
   engineSkill   Int
   engineMoveMs  Int
 
@@ -5625,6 +6310,8 @@ enum RevisionOutcome {
 /// its items with it (Cascade), like its attempts.
 model RevisionItem {
   id        String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId  String @default("tenant_nexa")
   studentId String
   student   User   @relation("StudentRevisionItems", fields: [studentId], references: [id], onDelete: Cascade)
 
@@ -5678,6 +6365,8 @@ model RevisionItem {
 /// One graded review. Unique on attemptId: a replayed request can't record twice.
 model RevisionReview {
   id        String         @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId  String         @default("tenant_nexa")
   itemId    String
   item      RevisionItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
   studentId String
@@ -5711,8 +6400,10 @@ enum AccountDeletionStatus {
 /// not cascaded, when the purge removes the user, so the record that the
 /// request was honoured outlives the account; the snapshot says whose it was.
 model AccountDeletionRequest {
-  id     String                @id @default(cuid())
-  status AccountDeletionStatus @default(PENDING)
+  id       String                @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String                @default("tenant_nexa")
+  status   AccountDeletionStatus @default(PENDING)
 
   userId    String?
   user      User?    @relation("AccountDeletionRequester", fields: [userId], references: [id], onDelete: SetNull)
@@ -5770,17 +6461,61 @@ enum PlatformStaffRole {
 
 /// An academy. `tenant_nexa` (seeded by migration) is the only one for now.
 model Tenant {
-  id        String       @id @default(cuid())
-  slug      String       @unique
-  name      String
-  status    TenantStatus @default(ACTIVE)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  status      TenantStatus @default(ACTIVE)
+  /// IANA zone the academy's dates default to (each user's own zone still wins in the browser).
+  timezone    String       @default("Asia/Kolkata")
+  /// ISO 3166-1 alpha-2.
+  country     String       @default("IN")
+  /// Idempotency key of the console's create request (§H): a double submit returns this academy.
+  creationKey String?      @unique
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
+  domains            TenantDomain[]
+  platformPayments   PlatformPayment[]
+  supportSessions    PlatformSupportSession[]
   subscription       TenantSubscription?
   subscriptionEvents TenantSubscriptionEvent[]
+  platformCheckouts  PlatformCheckout[]
+  platformInvoices   PlatformInvoice[]
+  usage              TenantUsage?
+  usageDays          TenantUsageDay[]
 
   @@map("tenants")
+}
+
+enum TenantDomainKind {
+  SUBDOMAIN
+  CUSTOM
+}
+
+enum TenantDomainStatus {
+  PENDING
+  ACTIVE
+  REMOVED
+}
+
+/// A hostname that resolves to an academy (docs/SAAS_MULTI_TENANCY.md §B, §H).
+/// `hostname` is normalised by `normalizeHostname`: lowercase, no port, no trailing dot, punycode.
+model TenantDomain {
+  id              String             @id @default(cuid())
+  tenantId        String
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  hostname        String             @unique
+  kind            TenantDomainKind
+  status          TenantDomainStatus @default(PENDING)
+  /// The domain links and emails are built from. At most one per academy, kept by the code that sets it.
+  isPrimary       Boolean            @default(false)
+  lastCheckedAt   DateTime?
+  lastCheckResult String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([tenantId, status])
+  @@map("tenant_domains")
 }
 
 /// A SaaS tier. Seeded from DEFAULT_PLATFORM_PLANS (@nexa-chess/types); editable by platform staff.
@@ -5800,11 +6535,24 @@ model PlatformPlan {
   currency          String   @default("INR")
   trialDays         Int      @default(0)
   isPublic          Boolean  @default(true)
+  /// false = retired: no new subscriptions; existing ones continue (§G).
   isActive          Boolean  @default(true)
+  /// Lapse policy (§G): full-access days after a missed payment, then grace days, then locked.
+  pastDueDays       Int      @default(7)
+  graceDays         Int      @default(14)
+  /// GraceAllowance keys (@nexa-chess/types GRACE_ALLOWANCES): what still works in grace.
+  graceAllows       String[] @default(["chat", "fees", "homework", "liveClasses"])
+  /// Bumped on every edit; a subscription keeps the version it signed up on.
+  version           Int      @default(1)
+  /// ContentPack ids this plan includes (§I); a deal adds/removes packs in its overrides.
+  contentPackIds    String[] @default([])
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  subscriptions TenantSubscription[]
+  subscriptions        TenantSubscription[]
+  pendingSubscriptions TenantSubscription[]  @relation("PendingPlan")
+  versions             PlatformPlanVersion[]
+  checkouts            PlatformCheckout[]
 
   @@index([sortOrder])
   @@map("platform_plans")
@@ -5822,8 +6570,17 @@ model TenantSubscription {
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
   graceEndsAt        DateTime?
-  /// EntitlementOverrides JSON (addFeatures / removeFeatures / limits).
+  /// EntitlementOverrides JSON (addFeatures / removeFeatures / limits, and `lapse` overrides).
   overrides          Json                     @default("{}")
+  /// The plan version this subscription signed up on (§G); null = the plan's current version.
+  planVersion        Int?
+  /// A negotiated price per period (integer minor units); null = the plan's price.
+  customPriceMinor   Int?
+  /// What was agreed with the academy, shown beside the overrides.
+  dealNote           String?
+  /// A plan change scheduled for the end of the current period.
+  pendingPlanId      String?
+  pendingPlan        PlatformPlan?            @relation("PendingPlan", fields: [pendingPlanId], references: [id], onDelete: Restrict)
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
 
@@ -5857,6 +6614,338 @@ model TenantSubscriptionEvent {
   @@index([subscriptionId])
   @@index([actorUserId])
   @@map("tenant_subscription_events")
+}
+
+/// A frozen copy of a plan at one version (§G "Editing a plan applies to new subscriptions only").
+model PlatformPlanVersion {
+  id          String       @id @default(cuid())
+  planId      String
+  plan        PlatformPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  version     Int
+  /// features, limits, prices, trialDays and lapse policy at this version.
+  snapshot    Json
+  createdById String?
+  createdAt   DateTime     @default(now())
+
+  @@unique([planId, version])
+  @@map("platform_plan_versions")
+}
+
+enum PlatformPaymentMethod {
+  MANUAL
+  RAZORPAY
+}
+
+/// Money an academy paid the platform for its SaaS plan (§G "Two money flows").
+/// Platform table; never touches student payments. Phase 6 adds gateway payments.
+model PlatformPayment {
+  id               String                @id @default(cuid())
+  tenantId         String
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  method           PlatformPaymentMethod
+  amountMinor      Int
+  currency         String                @default("INR")
+  /// Bank reference, cheque number, or the gateway's payment id.
+  reference        String?
+  /// The paid-up period this payment extends the subscription to.
+  periodEnd        DateTime
+  note             String?
+  recordedById     String?
+  recordedBy       User?                 @relation("PlatformPaymentRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  /// Gateway payments (Phase 6): the provider's payment id, so a payment is applied once.
+  gatewayPaymentId String?               @unique
+  /// The checkout this payment settled (Phase 6).
+  checkoutId       String?               @unique
+  checkout         PlatformCheckout?     @relation(fields: [checkoutId], references: [id], onDelete: Restrict)
+  createdAt        DateTime              @default(now())
+  invoice          PlatformInvoice?
+
+  @@index([tenantId, createdAt])
+  @@map("platform_payments")
+}
+
+enum PlatformBillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+enum PlatformCheckoutStatus {
+  CREATED
+  PAID
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+/// One attempt to pay the platform (SaaS Phase 6, §G "Two money flows" 1): a
+/// plan, a period and a price frozen when it was created, and the Razorpay
+/// order on the owner's account. Only a provider read (webhook or reconcile)
+/// marks it PAID; the browser callback never does.
+model PlatformCheckout {
+  id                String                 @id @default(cuid())
+  tenantId          String
+  tenant            Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  planId            String
+  plan              PlatformPlan           @relation(fields: [planId], references: [id], onDelete: Restrict)
+  period            PlatformBillingPeriod
+  /// Integer minor units, frozen at creation: price before GST, GST, total.
+  subtotalMinor     Int
+  taxMinor          Int
+  amountMinor       Int
+  currency          String                 @default("INR")
+  /// TaxBreakdown from the shared engine, frozen with the price.
+  taxBreakdown      Json                   @default("{}")
+  status            PlatformCheckoutStatus @default(CREATED)
+  /// The Razorpay order id; unique so a webhook names exactly one checkout.
+  providerOrderId   String?                @unique
+  expiresAt         DateTime
+  paidAt            DateTime?
+  /// A pay link the owner sent from the console (vs. one the academy started).
+  createdByPlatform Boolean                @default(false)
+  createdById       String?
+  note              String?
+  failureReason     String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  payment           PlatformPayment?
+
+  @@index([tenantId, status])
+  @@map("platform_checkouts")
+}
+
+/// Every verified webhook from the owner's gateway account, once (Phase 6).
+/// The unique (provider, eventId) makes a redelivery a no-op.
+model PlatformWebhookEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  eventId     String
+  eventType   String
+  payloadHash String
+  /// RECEIVED | PROCESSED | IGNORED | FAILED
+  status      String    @default("RECEIVED")
+  error       String?
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@unique([provider, eventId])
+  @@index([receivedAt])
+  @@map("platform_webhook_events")
+}
+
+/// A GST invoice from the owner to an academy (Phase 6). A frozen snapshot:
+/// never edited after it is issued.
+model PlatformInvoice {
+  id            String          @id @default(cuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  paymentId     String          @unique
+  payment       PlatformPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  /// Own number series, e.g. NXP/2026-27/0001.
+  number        String          @unique
+  financialYear Int
+  sequence      Int
+  issuedAt      DateTime        @default(now())
+  /// Seller, buyer, lines and tax at issue time (PlatformInvoiceView without ids).
+  snapshot      Json
+  totalMinor    Int
+  currency      String          @default("INR")
+
+  @@unique([financialYear, sequence])
+  @@index([tenantId, issuedAt])
+  @@map("platform_invoices")
+}
+
+/// The platform invoice number series, one row per financial year (an atomic increment, no raw SQL).
+model PlatformInvoiceCounter {
+  financialYear Int @id
+  lastSequence  Int @default(0)
+
+  @@map("platform_invoice_counters")
+}
+
+/// The owner's company details on platform invoices (singleton row id "platform").
+model PlatformSellerSettings {
+  id          String   @id @default("platform")
+  details     Json     @default("{}")
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("platform_seller_settings")
+}
+
+/// One run of the nightly tenant integrity check (docs/SAAS_MULTI_TENANCY.md
+/// "Tenant integrity monitoring"): every single-column foreign key between two
+/// academy-scoped tables, looking for a row whose parent belongs to another
+/// academy. Monitoring only, never enforcement. Platform table (no tenantId);
+/// `violations` holds table/column names, row ids and tenant ids, no content.
+model TenantIntegrityRun {
+  id             String                   @id @default(cuid())
+  status         TenantIntegrityRunStatus
+  trigger        String                   @default("cron")
+  linksChecked   Int                      @default(0)
+  violationCount Int                      @default(0)
+  violations     Json                     @default("[]")
+  errors         Json                     @default("[]")
+  startedAt      DateTime                 @default(now())
+  finishedAt     DateTime?
+
+  @@index([startedAt])
+  @@map("tenant_integrity_runs")
+}
+
+enum TenantIntegrityRunStatus {
+  OK
+  VIOLATIONS
+  FAILED
+}
+
+/// Nightly usage counts per academy (Phase 6, §G "Enforcement"): for the
+/// console. Limits are still checked against live counts inside the creating
+/// transaction; this is a reconciled snapshot, never the enforcement source.
+model TenantUsage {
+  tenantId   String   @id
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  counts     Json     @default("{}")
+  measuredAt DateTime @default(now())
+
+  @@map("tenant_usage")
+}
+
+/// One row per academy per UTC day: the history behind `TenantUsage`
+/// (docs/SAAS_PLANS.md § "Usage history"). `counts` holds the plan-limit
+/// counts and storage totals as measured at the end of that day, plus what
+/// happened during it (class minutes, messages, analyses). Analytics only:
+/// nothing is enforced or billed from it.
+model TenantUsageDay {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  day        DateTime @db.Date
+  counts     Json     @default("{}")
+  measuredAt DateTime @default(now())
+
+  @@unique([tenantId, day])
+  @@index([day])
+  @@map("tenant_usage_days")
+}
+
+/// The size of each file `UploadService` put in Cloudinary (images, PGNs), so
+/// an academy's storage can be added up: Cloudinary reports no per-folder
+/// usage on our plan. The row goes when the file is deleted.
+model UploadedFile {
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). No default: the writer passes it.
+  tenantId String
+
+  /// Cloudinary public_id.
+  publicId String
+  bytes    Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, publicId])
+  @@map("uploaded_files")
+}
+
+/// An academy's own gateway keys for student payments (Phase 6, §G "Two money
+/// flows" 2). Nexa's academy keeps the server's env keys and has no row. The
+/// secrets are AES-256-GCM encrypted; `webhookKey` is the random last segment
+/// of the academy's webhook URL and names the academy before any secret is read.
+model TenantPaymentCredential {
+  id               String          @id @default(cuid())
+  tenantId         String          @default("tenant_nexa")
+  provider         PaymentProvider
+  enabled          Boolean         @default(false)
+  /// Razorpay key id, Cashfree app id or Stripe publishable key (not secret).
+  publicKey        String
+  /// Encrypted JSON {keySecret, webhookSecret}.
+  secretsEncrypted String
+  webhookKey       String          @unique
+  updatedById      String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([tenantId, provider])
+  @@map("tenant_payment_credentials")
+}
+
+/// "Open as support" (docs/SAAS_MULTI_TENANCY.md §I "Support access"): a Nexa
+/// operator acts in one academy as its hidden "Platform support" user, for at
+/// most an hour, with a typed reason. Platform table; the academy's super
+/// admin can read its own rows (history).
+model PlatformSupportSession {
+  id             String    @id @default(cuid())
+  /// The academy visited.
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  /// The real staff member (Nexa's super admin).
+  staffUserId    String?
+  staffUser      User?     @relation("PlatformSupportStaff", fields: [staffUserId], references: [id], onDelete: SetNull)
+  reason         String
+  /// Hash of the one-time link that enters the academy's host (5 minutes).
+  entryTokenHash String    @unique
+  entryExpiresAt DateTime
+  enteredAt      DateTime?
+  expiresAt      DateTime
+  endedAt        DateTime?
+  /// Writes made during the visit (reads go to the request log only).
+  actionCount    Int       @default(0)
+  createdAt      DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("platform_support_sessions")
+}
+
+/// A named bundle of Nexa content the owner publishes to other academies (§I "Content packs").
+model ContentPack {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  /// Nothing reaches another academy until the pack is published.
+  isPublished Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  items       ContentPackItem[]
+
+  @@map("content_packs")
+}
+
+enum ContentPackItemKind {
+  PUZZLE_FOLDER
+}
+
+/// One published item: a Nexa puzzle folder (its puzzles, read-only to academies).
+model ContentPackItem {
+  id        String              @id @default(cuid())
+  packId    String
+  pack      ContentPack         @relation(fields: [packId], references: [id], onDelete: Cascade)
+  kind      ContentPackItemKind
+  /// The published item's id in Nexa's academy (e.g. a puzzle_topics id).
+  sourceId  String
+  title     String
+  createdAt DateTime            @default(now())
+
+  @@unique([packId, kind, sourceId])
+  @@map("content_pack_items")
+}
+
+/// Every platform-console write (docs/SAAS_MULTI_TENANCY.md §I). Append-only, platform table.
+model PlatformAuditLog {
+  id             String   @id @default(cuid())
+  /// The Nexa super admin who acted (a platform operator, §E).
+  actorUserId    String?
+  actor          User?    @relation("PlatformAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  /// e.g. "tenant.create", "plan.update", "subscription.update", "support.start".
+  action         String
+  /// The academy acted on, if any (not a scoping column: this table is platform-wide).
+  targetTenantId String?
+  reason         String?
+  details        Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetTenantId, createdAt])
+  @@map("platform_audit_logs")
 }
 
 /// NexaChess staff who run the platform. Never derived from a tenant role.
@@ -5949,6 +7038,8 @@ enum KnowledgeQueryResolution {
 
 model KnowledgeCategory {
   id          String             @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId    String             @default("tenant_nexa")
   name        String             @unique
   description String?
   sortOrder   Int                @default(0)
@@ -5957,11 +7048,27 @@ model KnowledgeCategory {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("KnowledgeCategoryDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@unique([tenantId, name])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("knowledge_categories")
 }
 
 model KnowledgeArticle {
   id                  String                    @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId            String                    @default("tenant_nexa")
   slug                String                    @unique
   kind                KnowledgeArticleKind      @default(ARTICLE)
   status              KnowledgeArticleStatus    @default(DRAFT)
@@ -5996,6 +7103,20 @@ model KnowledgeArticle {
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+
+  // Trash (soft delete): TrashRepository.softDelete; reads hide it (soft-delete.extension.ts).
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("KnowledgeArticleDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@unique([tenantId, slug])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
   @@index([status])
   @@index([categoryId])
   @@index([translationGroupId])
@@ -6009,6 +7130,8 @@ model KnowledgeArticleBatch {
   article   KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
   batchId   String
   batch     Batch            @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId  String           @default("tenant_nexa")
 
   @@id([articleId, batchId])
   @@index([batchId])
@@ -6018,6 +7141,8 @@ model KnowledgeArticleBatch {
 /// Immutable once it leaves DRAFT/SUBMITTED.
 model KnowledgeArticleVersion {
   id           String                  @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId     String                  @default("tenant_nexa")
   articleId    String
   article      KnowledgeArticle        @relation("KnowledgeArticleVersions", fields: [articleId], references: [id], onDelete: Cascade)
   publishedFor KnowledgeArticle?       @relation("KnowledgePublishedVersion")
@@ -6055,6 +7180,8 @@ model KnowledgeArticleVersion {
 /// The change log: who did what, when.
 model KnowledgeArticleEvent {
   id        String                   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId  String                   @default("tenant_nexa")
   articleId String
   article   KnowledgeArticle         @relation(fields: [articleId], references: [id], onDelete: Cascade)
   versionId String?
@@ -6075,6 +7202,8 @@ model KnowledgeArticleEvent {
 /// One helpful / not-helpful vote per reader per article (re-voting overwrites).
 model KnowledgeFeedback {
   id        String           @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId  String           @default("tenant_nexa")
   articleId String
   article   KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
   versionId String?
@@ -6093,6 +7222,8 @@ model KnowledgeFeedback {
 /// only the role and the searcher's batch ids (trends per batch). Kept 90 days (RETENTION_RULES).
 model KnowledgeSearchLog {
   id                String                    @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId          String                    @default("tenant_nexa")
   /// Lower-cased, whitespace-collapsed query.
   query             String
   role              KnowledgeAudience
@@ -6124,7 +7255,9 @@ enum RetentionCategory {
 /// `days` and records what it removed. Fixed operational windows stay in code
 /// (`RETENTION_RULES`). Not soft-deletable: a setting, not a record.
 model RetentionPolicy {
-  id String @id @default(cuid())
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
 
   category RetentionCategory @unique
   days     Int?
@@ -6134,7 +7267,7 @@ model RetentionPolicy {
 
   /// When an admin last set `days`. Not @updatedAt: the sweep's own writes
   /// below must not read as an admin change.
-  changedAt   DateTime?
+  changedAt DateTime?
 
   /// The last sweep that applied this policy, and how many rows it deleted.
   lastSweptAt      DateTime?
@@ -6142,5 +7275,1815 @@ model RetentionPolicy {
 
   createdAt DateTime @default(now())
 
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, category])
   @@map("retention_policies")
+}
+
+//
+// REFERRAL PROGRAM (docs/REFERRALS.md)
+//
+
+/// What moves a referral into a stage on its own. MANUAL stages are only
+/// entered by an admin; each other trigger names at most one stage.
+enum ReferralStageTrigger {
+  MANUAL
+  LINK_VISITED
+  DEMO_BOOKED
+  DEMO_ATTENDED
+  CONVERTED
+  LOST
+}
+
+enum ReferralRewardKind {
+  /// Once per referral that reaches the stage.
+  PER_REFERRAL
+  /// Once each time the referrer's count of referrals at the stage reaches a
+  /// multiple of `milestoneCount`.
+  MILESTONE
+}
+
+enum ReferralRewardStatus {
+  PENDING
+  CREDITED
+  CANCELLED
+}
+
+enum ReferralCreditEntryType {
+  REWARD
+  REWARD_REVERSAL
+  WITHDRAWAL
+  WITHDRAWAL_REVERSAL
+  PAYMENT_CODE
+  PAYMENT_CODE_REVERSAL
+  ADJUSTMENT
+  POINTS_TRANSFER_OUT
+  POINTS_TRANSFER_IN
+  /// Points spent on a conversion (POINTS wallet).
+  CONVERSION_OUT
+  /// Money a conversion paid in (CASH wallet).
+  CONVERSION_IN
+  /// Points spent on a voucher (held while it waits for approval).
+  REDEMPTION
+  /// Points returned: a voucher request rejected, cancelled or revoked.
+  REDEMPTION_REVERSAL
+  /// Unspent points older than the academy's `pointsExpiryDays` (nightly job).
+  EXPIRY
+}
+
+/// CASH is money (coaches and SALES: withdrawable, never transferable);
+/// POINTS (students and new members) are spent on reward vouchers. Nothing
+/// moves between the two.
+enum ReferralWallet {
+  CASH
+  POINTS
+}
+
+/// What a reward rule pays: money, points, or (referred users only) a
+/// one-use percentage discount on their own fees.
+enum ReferralRewardUnit {
+  CASH
+  POINTS
+  DISCOUNT_PERCENT
+}
+
+/// Who a rule rewards: the person who shared the link, or the new person
+/// who joined through it.
+enum ReferralBeneficiary {
+  REFERRER
+  REFERRED
+}
+
+enum ReferralWithdrawalStatus {
+  REQUESTED
+  PAID
+  REJECTED
+  CANCELLED
+}
+
+/// Admin-editable pipeline. `position` orders the board; automatic moves only
+/// ever go forward by position and never out of a CONVERTED/LOST stage.
+model ReferralStage {
+  id          String               @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId    String               @default("tenant_nexa")
+  name        String
+  description String?
+  /// A Badge variant name (`ReferralStageTone` in @nexa-chess/types).
+  tone        String               @default("secondary")
+  position    Int
+  trigger     ReferralStageTrigger @default(MANUAL)
+
+  // ── What reaching this stage earns (docs/REFERRALS.md § Earning) ──
+  /// Points a STUDENT referrer earns per referral reaching this stage.
+  studentPoints   Int @default(0)
+  /// Money (minor units) a COACH referrer earns per referral.
+  coachCashMinor  Int @default(0)
+  /// Money (minor units) a SALES referrer earns per referral.
+  salesCashMinor  Int @default(0)
+  /// Points the new member (the linked referred account) gets.
+  newMemberPoints Int @default(0)
+
+  referrals   Referral[]
+  reaches     ReferralStageReach[]
+  eventsFrom  ReferralStageEvent[] @relation("ReferralStageEventFrom")
+  eventsTo    ReferralStageEvent[] @relation("ReferralStageEventTo")
+  rewardRules ReferralRewardRule[]
+  rewards     ReferralReward[]     @relation("ReferralRewardStage")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([position])
+  @@map("referral_stages")
+}
+
+/// One shareable code per referrer (`/r/<code>`).
+model ReferralCode {
+  id       String  @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String  @default("tenant_nexa")
+  /// Stored uppercase; matched uppercase.
+  code     String  @unique
+  userId   String  @unique
+  user     User    @relation("ReferralCodeOwner", fields: [userId], references: [id], onDelete: Cascade)
+  isActive Boolean @default(true)
+
+  referrals Referral[]
+  visits    ReferralVisit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
+  @@unique([tenantId, code])
+  @@map("referral_codes")
+}
+
+/// Every hit on a referral link (log table; `RETENTION_RULES`). Unique visitors
+/// become `Referral` rows.
+model ReferralVisit {
+  id         String       @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String       @default("tenant_nexa")
+  codeId     String
+  code       ReferralCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  referralId String?
+  referral   Referral?    @relation(fields: [referralId], references: [id], onDelete: SetNull)
+  visitorId  String
+  landingUrl String?
+  referrer   String?
+  deviceType String?
+  createdAt  DateTime     @default(now())
+
+  @@index([codeId, createdAt])
+  @@index([referralId])
+  @@index([createdAt])
+  @@map("referral_visits")
+}
+
+/// A person a referrer brought in, from their first visit onwards.
+model Referral {
+  id         String        @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String        @default("tenant_nexa")
+  codeId     String
+  code       ReferralCode  @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  referrerId String
+  referrer   User          @relation("ReferralReferrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  /// The browser's visitor cookie. Null when the referral started from a typed
+  /// code rather than a visit.
+  visitorId  String?
+  leadId     String?       @unique
+  lead       Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  stageId    String
+  stage      ReferralStage @relation(fields: [stageId], references: [id], onDelete: Restrict)
+
+  /// Name captured from the lead (first name + initial is all a referrer sees).
+  prospectName String?
+
+  /// The account the referred person signed up with (auto-linked at sign-up,
+  /// or by an admin). REFERRED-beneficiary rewards go to this user.
+  referredUserId String? @unique
+  referredUser   User?   @relation("ReferralReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+
+  stageChangedAt DateTime  @default(now())
+  convertedAt    DateTime?
+
+  visits  ReferralVisit[]
+  reaches ReferralStageReach[]
+  events  ReferralStageEvent[]
+  rewards ReferralReward[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([codeId, visitorId])
+  @@index([referrerId, stageId])
+  @@index([stageId])
+  @@index([createdAt])
+  @@map("referrals")
+}
+
+/// Every stage a referral has reached (including the earlier stages a jump
+/// skipped). Rewards and milestone counts read this, never the current stage.
+model ReferralStageReach {
+  id         String        @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String        @default("tenant_nexa")
+  referralId String
+  referral   Referral      @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  stageId    String
+  stage      ReferralStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  reachedAt  DateTime      @default(now())
+
+  @@unique([referralId, stageId])
+  @@index([stageId])
+  @@map("referral_stage_reaches")
+}
+
+/// Append-only history of stage moves.
+model ReferralStageEvent {
+  id          String         @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId    String         @default("tenant_nexa")
+  referralId  String
+  referral    Referral       @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  fromStageId String?
+  fromStage   ReferralStage? @relation("ReferralStageEventFrom", fields: [fromStageId], references: [id], onDelete: SetNull)
+  toStageId   String?
+  toStage     ReferralStage? @relation("ReferralStageEventTo", fields: [toStageId], references: [id], onDelete: SetNull)
+  /// Null = automatic (visit, demo booking, attendance).
+  actorId     String?
+  actor       User?          @relation("ReferralStageEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  note        String?
+  createdAt   DateTime       @default(now())
+
+  @@index([referralId, createdAt])
+  @@map("referral_stage_events")
+}
+
+model ReferralRewardRule {
+  id                String              @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId          String              @default("tenant_nexa")
+  name              String
+  description       String?
+  stageId           String
+  stage             ReferralStage       @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  kind              ReferralRewardKind  @default(PER_REFERRAL)
+  milestoneCount    Int?
+  /// The value in `unit`: minor units (CASH), whole points (POINTS) or whole
+  /// percent (DISCOUNT_PERCENT).
+  amountMinor       Int
+  currency          String              @default("INR")
+  unit              ReferralRewardUnit  @default(CASH)
+  beneficiary       ReferralBeneficiary @default(REFERRER)
+  /// DISCOUNT_PERCENT: the most the code takes off (minor units), and how many
+  /// days it stays valid once issued. Null = no cap / no expiry.
+  maxDiscountMinor  Int?
+  discountValidDays Int?
+  /// Empty = every referrer role. Always the role of the person who shared
+  /// the link, also for REFERRED rules.
+  roles             UserRole[]
+  /// Off = each reward waits for an admin before it becomes credits.
+  autoApprove       Boolean             @default(false)
+  isActive          Boolean             @default(true)
+
+  createdById String?
+  createdBy   User?   @relation("ReferralRewardRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  rewards ReferralReward[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stageId])
+  @@map("referral_reward_rules")
+}
+
+/// A reward a referrer earned. Financial: never soft-deleted; user Restrict.
+model ReferralReward {
+  id           String               @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId     String               @default("tenant_nexa")
+  /// A milestone bonus (or a legacy rule). Null = a stage value.
+  ruleId       String?
+  rule         ReferralRewardRule?  @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  /// A stage value (`ReferralStage.studentPoints` …). Null = a rule reward.
+  stageId      String?
+  stage        ReferralStage?       @relation("ReferralRewardStage", fields: [stageId], references: [id], onDelete: SetNull)
+  referrerId   String
+  referrer     User                 @relation("ReferralRewardReferrer", fields: [referrerId], references: [id], onDelete: Restrict)
+  referralId   String?
+  referral     Referral?            @relation(fields: [referralId], references: [id], onDelete: SetNull)
+  /// `stage:<id>:ref:<id>:referrer|referred` or `rule:<id>:user:<id>:n:<k>` — one reward per fact.
+  dedupeKey    String               @unique
+  /// The value in `unit` (see ReferralRewardRule.amountMinor).
+  amountMinor  Int
+  currency     String
+  unit         ReferralRewardUnit   @default(CASH)
+  /// REFERRED = `referrerId` holds the referred user (the recipient).
+  beneficiary  ReferralBeneficiary  @default(REFERRER)
+  /// DISCOUNT_PERCENT: the personal code issued when the reward was credited.
+  discountId   String?              @unique
+  discount     Discount?            @relation("ReferralRewardDiscount", fields: [discountId], references: [id], onDelete: Restrict)
+  status       ReferralRewardStatus @default(PENDING)
+  description  String
+  reviewedById String?
+  reviewedBy   User?                @relation("ReferralRewardReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  creditedAt   DateTime?
+
+  creditEntries ReferralCreditEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([referrerId, createdAt])
+  @@index([status])
+  @@index([stageId])
+  @@map("referral_rewards")
+}
+
+/// Append-only credits ledger; a user's balance is the sum of `amountMinor`.
+model ReferralCreditEntry {
+  id           String                    @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId     String                    @default("tenant_nexa")
+  userId       String
+  user         User                      @relation("ReferralCreditOwner", fields: [userId], references: [id], onDelete: Restrict)
+  type         ReferralCreditEntryType
+  wallet       ReferralWallet            @default(CASH)
+  /// Signed: minor units in the CASH wallet, whole points in POINTS. + earns, - spends.
+  amountMinor  Int
+  currency     String
+  rewardId     String?
+  reward       ReferralReward?           @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  withdrawalId String?
+  withdrawal   ReferralWithdrawal?       @relation(fields: [withdrawalId], references: [id], onDelete: Restrict)
+  discountId   String?
+  discount     Discount?                 @relation(fields: [discountId], references: [id], onDelete: Restrict)
+  transferId   String?
+  transfer     ReferralPointsTransfer?   @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  conversionId String?
+  conversion   ReferralPointsConversion? @relation(fields: [conversionId], references: [id], onDelete: Restrict)
+  redemptionId String?
+  redemption   ReferralRedemption?       @relation(fields: [redemptionId], references: [id], onDelete: Restrict)
+  note         String?
+  createdById  String?
+  createdBy    User?                     @relation("ReferralCreditCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime                  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([rewardId])
+  @@index([withdrawalId])
+  @@index([discountId])
+  @@index([transferId])
+  @@index([conversionId])
+  @@index([redemptionId])
+  @@index([userId, wallet])
+  @@map("referral_credit_entries")
+}
+
+/// Points one user sent another (points only — money is never transferable).
+/// Financial: never soft-deleted; users Restrict.
+model ReferralPointsTransfer {
+  id         String   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId   String   @default("tenant_nexa")
+  fromUserId String
+  fromUser   User     @relation("ReferralPointsTransferFrom", fields: [fromUserId], references: [id], onDelete: Restrict)
+  toUserId   String
+  toUser     User     @relation("ReferralPointsTransferTo", fields: [toUserId], references: [id], onDelete: Restrict)
+  points     Int
+  note       String?
+  createdAt  DateTime @default(now())
+
+  creditEntries ReferralCreditEntry[]
+
+  @@index([fromUserId, createdAt])
+  @@index([toUserId, createdAt])
+  @@index([createdAt])
+  @@map("referral_points_transfers")
+}
+
+/// Points turned into money at the rate in force (snapshotted). One way only.
+model ReferralPointsConversion {
+  id             String   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId       String   @default("tenant_nexa")
+  userId         String
+  user           User     @relation("ReferralPointsConversionOwner", fields: [userId], references: [id], onDelete: Restrict)
+  points         Int
+  amountMinor    Int
+  currency       String
+  /// The rate used: `ratePoints` points = `rateValueMinor` minor units.
+  ratePoints     Int
+  rateValueMinor Int
+  createdAt      DateTime @default(now())
+
+  creditEntries ReferralCreditEntry[]
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("referral_points_conversions")
+}
+
+model ReferralWithdrawal {
+  id              String                   @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId        String                   @default("tenant_nexa")
+  userId          String
+  user            User                     @relation("ReferralWithdrawalOwner", fields: [userId], references: [id], onDelete: Restrict)
+  amountMinor     Int
+  currency        String
+  /// Where to pay (UPI id / bank details) as the referrer typed it.
+  payoutDetails   String
+  status          ReferralWithdrawalStatus @default(REQUESTED)
+  adminNote       String?
+  payoutReference String?
+  reviewedById    String?
+  reviewedBy      User?                    @relation("ReferralWithdrawalReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt      DateTime?
+
+  creditEntries ReferralCreditEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("referral_withdrawals")
+}
+
+/// One row per academy (Nexa's `id = "default"`): program switches.
+model ReferralSettings {
+  id                 String     @id @default("default")
+  /// Owning academy (Tenant.id): one row per academy (docs/SAAS_MULTI_TENANCY.md
+  /// § "Phase 3 plan", slice 5). Nexa's row keeps id "default".
+  tenantId           String     @unique @default("tenant_nexa")
+  enabled            Boolean    @default(true)
+  /// Roles that get a referral link (SALES always does).
+  referrerRoles      UserRole[] @default([STUDENT, COACH, SALES])
+  /// Days a referral link's cookie keeps attributing a demo booking.
+  attributionDays    Int        @default(30)
+  currency           String     @default("INR")
+  withdrawalRoles    UserRole[] @default([COACH, SALES])
+  minWithdrawalMinor Int        @default(50000)
+  paymentUseRoles    UserRole[] @default([STUDENT])
+  /// Shown on the referrer's board.
+  programTerms       String?
+
+  // ── Points (docs/REFERRALS.md § Points) ──
+  /// Points may be sent between these roles (sender and recipient).
+  pointsTransferEnabled   Boolean    @default(true)
+  pointsTransferRoles     UserRole[] @default([STUDENT, COACH, SALES])
+  minTransferPoints       Int        @default(10)
+  /// Rolling 24 hours, per sender. 0 = no limit.
+  maxTransferPointsPerDay Int        @default(5000)
+  /// Points → money, one way: `conversionPoints` points = `conversionValueMinor`.
+  pointsConversionEnabled Boolean    @default(true)
+  pointsConversionRoles   UserRole[] @default([STUDENT, COACH, SALES])
+  conversionPoints        Int        @default(10)
+  conversionValueMinor    Int        @default(100)
+  minConversionPoints     Int        @default(100)
+  /// Points pay fees directly (a personal code worth the converted value),
+  /// for the roles in `paymentUseRoles`.
+  pointsPaymentEnabled    Boolean    @default(true)
+  // The four point/money switches above are retired (docs/REFERRALS.md
+  // § "What changed in the rebuild"); the columns stay because migrations are
+  // additive. Nothing reads them.
+
+  // ── Earning and redeeming ──
+  /// Stage-value rewards in points are credited at once (off = admin approves).
+  autoApprovePoints       Boolean @default(true)
+  /// Unspent points expire this many days after they were earned; null = never.
+  pointsExpiryDays        Int?
+  /// Stage-value rewards in money wait for an admin unless this is on.
+  autoApproveCash         Boolean @default(false)
+  /// Students may redeem points for vouchers.
+  redemptionsEnabled      Boolean @default(true)
+  /// Per student, rolling 30 days. 0 = no limit.
+  maxRedemptionsPer30Days Int     @default(0)
+
+  updatedById String?
+  updatedBy   User?    @relation("ReferralSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedAt   DateTime @updatedAt
+
+  @@map("referral_settings")
+}
+
+enum ReferralVoucherType {
+  /// Whole percent off one payment, with an optional cap and minimum fee.
+  PERCENT_DISCOUNT
+  /// A fixed amount off one payment, with an optional minimum fee.
+  FIXED_DISCOUNT
+  /// Days added to the student's access to a plan.
+  FREE_DAYS
+}
+
+enum ReferralRedemptionStatus {
+  /// Points held; waiting for an admin (vouchers with `requiresApproval`).
+  PENDING
+  FULFILLED
+  /// An admin said no; points returned.
+  REJECTED
+  /// The student withdrew a pending request; points returned.
+  CANCELLED
+  /// An admin took back an unused discount code; points returned.
+  REVOKED
+}
+
+/// An admin-made reward students buy with points (docs/REFERRALS.md § Vouchers).
+/// Not soft-deletable: one that was redeemed is switched off instead.
+model ReferralVoucher {
+  id               String              @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId         String              @default("tenant_nexa")
+  name             String
+  description      String?
+  type             ReferralVoucherType
+  pointsCost       Int
+  /// PERCENT_DISCOUNT: whole percent (1–100).
+  percentOff       Int?
+  /// FIXED_DISCOUNT: minor units.
+  amountOffMinor   Int?
+  /// PERCENT_DISCOUNT: the most the code takes off. Minor units; null = no cap.
+  maxDiscountMinor Int?
+  /// Discounts: the smallest fee the code applies to. Minor units; null = any.
+  minOrderMinor    Int?
+  /// FREE_DAYS: days of access added.
+  freeDays         Int?
+  /// Discounts: plans the code works on. FREE_DAYS: plans whose access it
+  /// extends. Empty = any plan.
+  planIds          String[]
+  /// Discounts: days the issued code stays valid. Null = no expiry.
+  codeValidDays    Int?
+  /// On = each redemption waits for an admin (points are held meanwhile).
+  requiresApproval Boolean             @default(false)
+  /// Redemptions across everyone. Null = unlimited.
+  stock            Int?
+  /// Redemptions per student. Null = unlimited.
+  perUserLimit     Int?                @default(1)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  isActive         Boolean             @default(true)
+  sortOrder        Int                 @default(0)
+
+  createdById String?
+  createdBy   User?   @relation("ReferralVoucherCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  redemptions ReferralRedemption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@map("referral_vouchers")
+}
+
+/// A student spending points on a voucher. The voucher's terms are
+/// snapshotted, so editing the voucher never changes an issued reward.
+/// Financial: never soft-deleted; users Restrict.
+model ReferralRedemption {
+  id               String                   @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId         String                   @default("tenant_nexa")
+  voucherId        String
+  voucher          ReferralVoucher          @relation(fields: [voucherId], references: [id], onDelete: Restrict)
+  userId           String
+  user             User                     @relation("ReferralRedemptionOwner", fields: [userId], references: [id], onDelete: Restrict)
+  status           ReferralRedemptionStatus @default(PENDING)
+  pointsCost       Int
+  voucherName      String
+  type             ReferralVoucherType
+  percentOff       Int?
+  amountOffMinor   Int?
+  maxDiscountMinor Int?
+  minOrderMinor    Int?
+  freeDays         Int?
+  currency         String
+  /// Discounts: the personal one-use code issued on fulfilment.
+  discountId       String?                  @unique
+  discount         Discount?                @relation("ReferralRedemptionDiscount", fields: [discountId], references: [id], onDelete: Restrict)
+  /// FREE_DAYS: the plan chosen, and the access it created or extended.
+  planId           String?
+  plan             Plan?                    @relation("ReferralRedemptionPlan", fields: [planId], references: [id], onDelete: SetNull)
+  entitlementId    String?
+  entitlement      Entitlement?             @relation("ReferralRedemptionEntitlement", fields: [entitlementId], references: [id], onDelete: SetNull)
+  accessEndsAt     DateTime?
+  adminNote        String?
+  reviewedById     String?
+  reviewedBy       User?                    @relation("ReferralRedemptionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?
+  fulfilledAt      DateTime?
+
+  creditEntries ReferralCreditEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([voucherId, status])
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("referral_redemptions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tournaments (docs/TOURNAMENTS.md). Phase 1: the tournament, its hosts, its
+// players, the academy's tournament settings and the audit log. Rounds and
+// games (Phases 3–4), commentary (Phase 6) and certificates (Phase 8) are
+// added by the phases that use them.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TournamentFormat {
+  SWISS
+  ARENA
+  ROUND_ROBIN
+  KNOCKOUT
+}
+
+/// Stored lifecycle. Whether registration is open is derived from the
+/// registration window, never stored (no cron flips a status).
+enum TournamentStatus {
+  DRAFT
+  PUBLISHED
+  LIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentVisibility {
+  PUBLIC
+  PRIVATE
+  INVITATION_ONLY
+}
+
+/// How the rounds after the first one start (Swiss and round robin).
+enum TournamentRoundStartMode {
+  /// `roundBreakSec` after the previous round's last game.
+  AUTO
+  /// At the times in `roundScheduleJson` (a round without one falls back to the break).
+  SCHEDULED
+  /// When a host starts it.
+  MANUAL
+}
+
+enum TournamentTiebreak {
+  BUCHHOLZ
+  BUCHHOLZ_CUT1
+  MEDIAN_BUCHHOLZ
+  SONNEBORN_BERGER
+  DIRECT_ENCOUNTER
+  WINS
+  PROGRESSIVE
+  PERFORMANCE
+}
+
+enum TournamentHostRole {
+  HOST
+  CO_HOST
+  COMMENTATOR
+}
+
+enum TournamentPlayerStatus {
+  INVITED
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  DISQUALIFIED
+}
+
+/// Where a player's seed rating came from; a future tournament rating adds a value.
+enum TournamentRatingSource {
+  PROFILE
+  UNRATED
+}
+
+/// How a player's name is shown to anonymous spectators.
+enum TournamentPublicNameFormat {
+  FIRST_NAME_LAST_INITIAL
+  FIRST_NAME_ONLY
+  INITIALS
+}
+
+/// Every sensitive tournament action. Later phases add values (additive).
+enum TournamentAuditAction {
+  SETTINGS_UPDATED
+  CREATED
+  UPDATED
+  DELETED
+  PUBLISH_REQUESTED
+  PUBLISHED
+  CANCELLED
+  HOSTS_CHANGED
+  IMAGE_CHANGED
+  PLAYER_ADDED
+  PLAYER_INVITED
+  PLAYER_APPROVED
+  PLAYER_REJECTED
+  PLAYER_DISQUALIFIED
+  STARTED
+  PAUSED
+  RESUMED
+  ROUND_STARTED
+  ROUND_COMPLETED
+  GAME_FORFEITED
+  GAME_ADJUDICATED
+  RESULT_CORRECTED
+  PLAYER_WITHDRAWN_BY_HOST
+  COMPLETED
+  RESULTS_PUBLISHED
+  STANDINGS_RECOMPUTED
+  COMMENTARY_HIDDEN
+  CERTIFICATE_RULES_CHANGED
+  CERTIFICATES_ISSUED
+  CERTIFICATE_REVOKED
+  NEXT_ROUND_RESCHEDULED
+}
+
+enum CertificateOrientation {
+  LANDSCAPE
+  PORTRAIT
+}
+
+enum CertificateBorderStyle {
+  CLASSIC
+  MODERN
+  MINIMAL
+}
+
+enum TournamentCertificateKind {
+  /// The top N of the final standings.
+  PLACEMENT
+  /// The top N of each age group.
+  AGE_GROUP_PLACEMENT
+  /// Everyone who played at least `minGames` games.
+  PARTICIPATION
+}
+
+enum TournamentCommentaryType {
+  GENERAL
+  GAME
+  MOVE
+  PLAYER
+  ROUND
+  ANNOUNCEMENT
+  FEATURED
+  EMERGENCY
+}
+
+enum TournamentRoundStatus {
+  ONGOING
+  COMPLETED
+}
+
+enum TournamentGameStatus {
+  ONGOING
+  FINISHED
+}
+
+enum TournamentGameResult {
+  WHITE_WON
+  BLACK_WON
+  DRAW
+  /// Neither side scores (both forfeited, or the host voided the game).
+  NO_RESULT
+}
+
+enum TournamentEndReason {
+  CHECKMATE
+  STALEMATE
+  INSUFFICIENT_MATERIAL
+  THREEFOLD_REPETITION
+  FIFTY_MOVE_RULE
+  RESIGNATION
+  DRAW_AGREED
+  TIMEOUT
+  /// A side didn't make its first move in time.
+  NO_SHOW
+  /// The opponent left and the remaining player claimed the game.
+  ABANDONED
+  FORFEIT
+  BYE
+  ADJUDICATED
+  /// The arena's clock ran out while the game was being played and it was ended there.
+  ARENA_ENDED
+}
+
+/// How a game's result was decided (engine = from the moves and clocks).
+enum TournamentResultSource {
+  ENGINE
+  BYE
+  FORFEIT
+  HOST
+  CORRECTION
+}
+
+enum TournamentByeKind {
+  FULL
+  HALF
+  ZERO
+}
+
+enum TournamentKnockoutMatchStatus {
+  PENDING
+  ONGOING
+  DECIDED
+}
+
+enum TournamentKnockoutDecision {
+  GAMES
+  SEED
+  BYE
+  FORFEIT
+}
+
+/// A tournament, owned by the organizing academy (`tenantId`). Soft-deletable
+/// (Trash). Format-specific configuration is JSON validated by the shared
+/// schemas in `@nexa-chess/types` `tournaments.ts`.
+model Tournament {
+  id       String @id @default(cuid())
+  /// The organizing academy (Tenant.id).
+  tenantId String @default("tenant_nexa")
+
+  slug        String
+  name        String
+  description String?
+  bannerUrl   String?
+  logoUrl     String?
+
+  format     TournamentFormat
+  status     TournamentStatus     @default(DRAFT)
+  visibility TournamentVisibility @default(PUBLIC)
+
+  startsAt                     DateTime
+  registrationOpensAt          DateTime?
+  registrationClosesAt         DateTime?
+  /// Rounds a late registrant may still join before (0 = none).
+  lateRegistrationRounds       Int       @default(0)
+  minPlayers                   Int       @default(2)
+  /// null = no cap.
+  maxPlayers                   Int?
+  /// `tournamentEligibilitySchema`.
+  eligibilityJson              Json      @default("{}")
+  /// Self-registrations wait for a host's approval (PENDING) instead of entering directly.
+  registrationRequiresApproval Boolean   @default(false)
+  rulesText                    String?
+  prizesText                   String?
+
+  clockInitialMs     Int
+  clockIncrementMs   Int                      @default(0)
+  /// null = the standard starting position.
+  startFen           String?
+  /// Swiss / round robin / knockout; null for arena.
+  rounds             Int?
+  roundBreakSec      Int                      @default(60)
+  roundStartMode     TournamentRoundStartMode @default(AUTO)
+  /// `tournamentRoundScheduleSchema`: [{ round, startsAt }] for rounds 2 and later.
+  roundScheduleJson  Json?
+  arenaDurationMin   Int?
+  /// `tournamentArenaConfigSchema`.
+  arenaConfigJson    Json?
+  /// `tournamentKnockoutConfigSchema`.
+  knockoutConfigJson Json?
+  tiebreaks          TournamentTiebreak[]
+  /// Moves are shown to non-players this long after they are played.
+  spectatorDelaySec  Int                      @default(15)
+
+  publishedAt        DateTime?
+  startedAt          DateTime?
+  endedAt            DateTime?
+  resultsPublishedAt DateTime?
+  cancelledAt        DateTime?
+  cancelReason       String?
+
+  createdById String?
+  createdBy   User?   @relation("TournamentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  /// Optimistic concurrency for edits.
+  version Int @default(1)
+
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("TournamentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  /// Rounds paired so far (Swiss, round robin, knockout).
+  currentRound Int       @default(0)
+  /// When the arena stops pairing (startedAt + arenaDurationMin).
+  arenaEndsAt  DateTime?
+  pausedAt     DateTime?
+  /// When the next round starts on its own. Set when a round completes (by
+  /// `resolveNextRoundAt`), moved by a host, cleared when the round starts.
+  nextRoundAt  DateTime?
+
+  /// Broadcast: the game and player the host is featuring (ids of this tournament's rows).
+  featuredGameId   String?
+  featuredPlayerId String?
+  featuredAt       DateTime?
+
+  /// Claim-first notification markers: the tick claims the row, then sends (never twice).
+  startingSoonNotifiedAt  DateTime?
+  completedNotifiedAt     DateTime?
+  /// The TOURNAMENT_REGISTRATION_OPEN / TOURNAMENT_STARTED messaging rules were dispatched.
+  registrationAnnouncedAt DateTime?
+  startedAnnouncedAt      DateTime?
+
+  hosts            TournamentHost[]
+  players          TournamentPlayer[]
+  auditLogs        TournamentAuditLog[]
+  roundsList       TournamentRound[]
+  games            TournamentGame[]
+  knockoutMatches  TournamentKnockoutMatch[]
+  commentary       TournamentCommentary[]
+  certificateRules TournamentCertificateRule[]
+  certificates     TournamentCertificate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status, startsAt])
+  @@index([createdById])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
+  @@map("tournaments")
+}
+
+/// A per-tournament grant: who may run it (HOST, CO_HOST) or broadcast on it
+/// (COMMENTATOR). Admins need no row. Only staff accounts hold one.
+model TournamentHost {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User               @relation("TournamentHostUser", fields: [userId], references: [id], onDelete: Cascade)
+  role         TournamentHostRole
+
+  grantedById String?
+  grantedBy   User?   @relation("TournamentHostGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, userId])
+  @@index([userId])
+  @@map("tournament_hosts")
+}
+
+/// A registration and the player's place in the tournament. `tenantId` is the
+/// PLAYER's academy (docs/TOURNAMENTS.md §3.8); in v1 it must equal the
+/// tournament's. One row per (tournament, user).
+model TournamentPlayer {
+  id       String @id @default(cuid())
+  /// The player's academy (Tenant.id).
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament             @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                   @relation("TournamentPlayerUser", fields: [userId], references: [id], onDelete: Cascade)
+  status       TournamentPlayerStatus
+
+  /// Snapshot taken at registration (seeding never re-reads the profile).
+  seedRating       Int?
+  seedRatingSource TournamentRatingSource @default(UNRATED)
+  seedNumber       Int?
+  /// Age-group label at the tournament's cutoff date, snapshotted.
+  ageGroup         String?
+
+  /// Who registered or invited them (themselves for a self-registration).
+  registeredById String?
+  registeredBy   User?     @relation("TournamentPlayerRegisteredBy", fields: [registeredById], references: [id], onDelete: SetNull)
+  decidedById    String?
+  decidedBy      User?     @relation("TournamentPlayerDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt      DateTime?
+  withdrawnAt    DateTime?
+
+  /// The game this player is in right now. A player is never in two live games: a
+  /// game is only created by claiming both players where this is null.
+  currentGameId String?
+  /// Arena: not paired again until they rejoin.
+  arenaPausedAt DateTime?
+
+  /// Standings cache, rewritten in the same transaction as every result
+  /// (always recomputable from the games: `computeStandings`).
+  points        Int     @default(0)
+  rank          Int?
+  played        Int     @default(0)
+  wins          Int     @default(0)
+  draws         Int     @default(0)
+  losses        Int     @default(0)
+  streak        Int     @default(0)
+  onFire        Boolean @default(false)
+  tiebreaksJson Json?
+  performance   Int?
+
+  whiteGames   TournamentGame[]        @relation("TournamentGameWhite")
+  blackGames   TournamentGame[]        @relation("TournamentGameBlack")
+  commentary   TournamentCommentary[]
+  certificates TournamentCertificate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId, status])
+  @@index([userId])
+  @@index([currentGameId])
+  @@map("tournament_players")
+}
+
+/// One row per academy (`singletonRowId`); look it up by `tenantId`.
+model TournamentSettings {
+  id       String @id @default("default")
+  tenantId String @unique @default("tenant_nexa")
+
+  coachesMayCreate         Boolean                    @default(false)
+  coachesMayPublishPublic  Boolean                    @default(false)
+  allowAnonymousSpectating Boolean                    @default(false)
+  publicNameFormat         TournamentPublicNameFormat @default(FIRST_NAME_LAST_INITIAL)
+  defaultSpectatorDelaySec Int                        @default(15)
+
+  updatedById String?
+  updatedBy   User?   @relation("TournamentSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tournament_settings")
+}
+
+/// Append-only record of sensitive tournament actions. `tournamentId` is null
+/// for academy-level actions (settings). Never edited; kept as history (no
+/// retention rule, like the invoice audit log).
+model TournamentAuditLog {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String?
+  tournament   Tournament?           @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  action       TournamentAuditAction
+  /// Null for an automated action (cron, worker).
+  actorId      String?
+  actor        User?                 @relation("TournamentAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  targetType   String?
+  targetId     String?
+  reason       String?
+  beforeJson   Json?
+  afterJson    Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([tournamentId, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([actorId])
+  @@map("tournament_audit_logs")
+}
+
+/// A paired round (Swiss, round robin) or a bracket round (knockout). Arenas have none.
+model TournamentRound {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament            @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  number       Int
+  status       TournamentRoundStatus @default(ONGOING)
+  startedAt    DateTime              @default(now())
+  completedAt  DateTime?
+  /// Players were told the round finished (claim-first).
+  notifiedAt   DateTime?
+
+  games TournamentGame[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([tournamentId, number])
+  @@map("tournament_rounds")
+}
+
+/// One knockout match (best of N games) in the bracket. Side A is the higher seed.
+model TournamentKnockoutMatch {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament                    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  bracketRound Int
+  slot         Int
+  /// TournamentPlayer ids; null = not decided yet (or a bye in round 1).
+  playerAId    String?
+  playerBId    String?
+  status       TournamentKnockoutMatchStatus @default(PENDING)
+  winnerId     String?
+  decidedBy    TournamentKnockoutDecision?
+  decidedAt    DateTime?
+
+  games TournamentGame[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, bracketRound, slot])
+  @@map("tournament_knockout_matches")
+}
+
+/// A tournament game, or a bye (black null). Moves are server-validated; every
+/// state change is claimed on `ply` + status (409 on a lost race), like
+/// live-class matches (both use common/chess/game-engine.ts).
+model TournamentGame {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId    String
+  tournament      Tournament               @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  roundId         String?
+  round           TournamentRound?         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  knockoutMatchId String?
+  knockoutMatch   TournamentKnockoutMatch? @relation(fields: [knockoutMatchId], references: [id], onDelete: Cascade)
+  /// Round number (0 for arena games); game number inside a knockout match.
+  roundNumber     Int
+  gameNumber      Int                      @default(1)
+  boardNumber     Int
+
+  whitePlayerId String
+  whitePlayer   TournamentPlayer   @relation("TournamentGameWhite", fields: [whitePlayerId], references: [id], onDelete: Cascade)
+  blackPlayerId String?
+  blackPlayer   TournamentPlayer?  @relation("TournamentGameBlack", fields: [blackPlayerId], references: [id], onDelete: Cascade)
+  byeKind       TournamentByeKind?
+
+  startFen          String
+  fen               String
+  /// MatchMove[] (san, uci).
+  movesJson         Json        @default("[]")
+  /// Server time (epoch ms) of each half-move: drives the spectator delay and fair-play stats.
+  moveTimesJson     Json        @default("[]")
+  ply               Int         @default(0)
+  whiteClockMs      Int
+  blackClockMs      Int
+  turnSince         DateTime    @default(now())
+  drawOfferedBy     MatchColor?
+  whiteBerserk      Boolean     @default(false)
+  blackBerserk      Boolean     @default(false)
+  /// The side to move loses (or the game is void) if it hasn't moved by then (first moves only).
+  firstMoveDeadline DateTime?
+
+  status          TournamentGameStatus    @default(ONGOING)
+  result          TournamentGameResult?
+  endReason       TournamentEndReason?
+  resultSource    TournamentResultSource?
+  /// Points scored, in half-points (2 win, 1 draw, 0 loss). Null while ongoing.
+  whiteHalfPoints Int?
+  blackHalfPoints Int?
+  startedAt       DateTime                @default(now())
+  finishedAt      DateTime?
+  /// Bumped by every host decision or correction (optimistic concurrency).
+  commentary      TournamentCommentary[]
+  version         Int                     @default(1)
+  /// The two players were told about this pairing (claim-first).
+  notifiedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundId, whitePlayerId])
+  @@unique([roundId, blackPlayerId])
+  @@unique([knockoutMatchId, gameNumber])
+  @@index([tournamentId, status])
+  @@index([tournamentId, roundNumber])
+  @@index([status, turnSince])
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
+  @@map("tournament_games")
+}
+
+/// Host commentary and announcements (docs/TOURNAMENTS.md §3.5). `releaseAt`
+/// keeps commentary about a position from reaching spectators before the
+/// position does. Moderation hides an item (never Trash); a resend with the
+/// same (author, clientId) is the same item.
+model TournamentCommentary {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament               @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  type         TournamentCommentaryType
+  body         String
+  authorId     String?
+  author       User?                    @relation("TournamentCommentaryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  clientId     String
+
+  gameId        String?
+  game          TournamentGame?   @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  playerId      String?
+  player        TournamentPlayer? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  /// The half-move it is about (move commentary).
+  ply           Int?
+  fen           String?
+  /// `tournamentHighlightSchema`: squares and arrows.
+  highlightJson Json?
+
+  releaseAt    DateTime
+  pinnedAt     DateTime?
+  hiddenAt     DateTime?
+  hiddenById   String?
+  hiddenBy     User?     @relation("TournamentCommentaryHiddenBy", fields: [hiddenById], references: [id], onDelete: SetNull)
+  hiddenReason String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([authorId, clientId])
+  @@index([tournamentId, createdAt])
+  @@index([tournamentId, pinnedAt])
+  @@index([gameId])
+  @@map("tournament_commentary")
+}
+
+/// An academy's certificate design (docs/TOURNAMENTS.md §3.6). Archived, never
+/// deleted: issued certificates keep a frozen copy of the wording they used.
+model CertificateTemplate {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  name                 String
+  title                String
+  /// Readable text with placeholders (`CERTIFICATE_PLACEHOLDERS`).
+  body                 String
+  orientation          CertificateOrientation @default(LANDSCAPE)
+  borderStyle          CertificateBorderStyle @default(CLASSIC)
+  /// #RRGGBB, checked with `brandColorIssue`.
+  accentColor          String
+  signatoryName        String?
+  signatoryTitle       String?
+  secondSignatoryName  String?
+  secondSignatoryTitle String?
+  archivedAt           DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("CertificateTemplateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  rules        TournamentCertificateRule[]
+  certificates TournamentCertificate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, archivedAt])
+  @@map("certificate_templates")
+}
+
+/// Who in one tournament gets a certificate, and on which template.
+model TournamentCertificateRule {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  templateId   String
+  template     CertificateTemplate       @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  kind         TournamentCertificateKind
+  topN         Int?
+  minGames     Int?
+
+  certificates TournamentCertificate[]
+
+  createdAt DateTime @default(now())
+
+  @@index([tournamentId])
+  @@map("tournament_certificate_rules")
+}
+
+/// An issued certificate: a frozen snapshot (names, placement, score, the
+/// template's wording), never edited. A correction revokes and reissues.
+model TournamentCertificate {
+  id       String @id @default(cuid())
+  tenantId String @default("tenant_nexa")
+
+  tournamentId String
+  tournament   Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  ruleId       String
+  rule         TournamentCertificateRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  templateId   String
+  template     CertificateTemplate       @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  playerId     String
+  player       TournamentPlayer          @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                      @relation("TournamentCertificateUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  snapshotJson     Json
+  serialNumber     String
+  /// Random, for the public verification page.
+  verificationCode String    @unique
+  issuedAt         DateTime  @default(now())
+  revokedAt        DateTime?
+  revokedReason    String?
+  revokedById      String?
+  revokedBy        User?     @relation("TournamentCertificateRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@unique([tournamentId, userId, ruleId])
+  @@unique([tenantId, serialNumber])
+  @@index([userId])
+  @@map("tournament_certificates")
+}
+
+//
+// WHATSAPP SUPPORT BOT (docs/WHATSAPP_SUPPORT.md)
+//
+
+enum SupportConversationStatus {
+  BOT
+  WAITING_AGENT
+  AGENT
+  CLOSED
+}
+
+enum SupportMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum SupportMessageAuthor {
+  CUSTOMER
+  BOT
+  AGENT
+}
+
+enum SupportMessageStatus {
+  RECEIVED
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum SupportCategory {
+  COURSE
+  REFUND
+  CLASS
+  PAYMENT
+  TECH
+  OTHER
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum SupportTicketEventKind {
+  CREATED
+  ASSIGNED
+  STATUS_CHANGED
+  NOTE
+  HANDOFF
+  TAKEN_OVER
+  RETURNED_TO_BOT
+}
+
+/// The academy's WhatsApp support bot settings (docs/WHATSAPP_SUPPORT_MODES_PLAN.md
+/// §9). No row: Nexa's academy uses the server's SUPPORT_* env values, any
+/// other academy has the bot off.
+model SupportSettings {
+  id                         String   @id @default(cuid())
+  tenantId                   String   @unique @default("tenant_nexa")
+  botEnabled                 Boolean  @default(false)
+  /// While non-empty the bot answers only these numbers (digits with country code).
+  testNumbers                String[] @default([])
+  /// 0 = no staff reminders.
+  staffReminderMinutes       Int      @default(15)
+  /// 0 = no parent nudge; always under 24 (the free reply window).
+  leadNudgeHours             Int      @default(20)
+  /// Approved template for staff replies after the 24-hour window; null = such replies are refused.
+  agentReplyTemplate         String?
+  agentReplyTemplateLanguage String   @default("en")
+  /// SupportHours ({ timezone, days: [{ day, open, close }] }); null = the team answers any time.
+  hours                      Json?
+  /// Sent after a hand-off outside hours; null = DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE.
+  outOfHoursMessage          String?
+  /// The main menu: SupportMenuItem[] (supportMenuSchema); null = DEFAULT_SUPPORT_MENU.
+  menu                       Json?
+  /// A number linked to a student (staff-issued code) may ask for its next class.
+  accountAnswers             Boolean  @default(false)
+  updatedById                String?
+  updatedBy                  User?    @relation("SupportSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  @@map("support_settings")
+}
+
+enum SupportAttachmentStatus {
+  PENDING
+  STORED
+  FAILED
+}
+
+/// An image or PDF a customer sent (docs/WHATSAPP_SUPPORT.md §0, D13): fetched
+/// from Meta once and kept privately (Cloudinary `authenticated`) for staff
+/// only; the bot never reads it. When its message goes (retention, erasure)
+/// `messageId` becomes null and a sweep deletes the stored file, then the row.
+model SupportAttachment {
+  id         String                  @id @default(cuid())
+  tenantId   String                  @default("tenant_nexa")
+  messageId  String?                 @unique
+  message    SupportMessage?         @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  mediaId    String
+  mimeType   String?
+  filename   String?
+  status     SupportAttachmentStatus @default(PENDING)
+  attempts   Int                     @default(0)
+  claimedAt  DateTime?
+  error      String?
+  /// Cloudinary public id of the stored file (authenticated, raw).
+  storageKey String?
+  /// Stored size, for the academy's storage usage.
+  bytes      Int?
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+
+  @@index([status, createdAt])
+  @@index([messageId])
+  @@map("support_attachments")
+}
+
+/// A WhatsApp contact a super admin erased (privacy request). No personal
+/// data: who did it, when, and how much went (docs/WHATSAPP_SUPPORT.md §0).
+model SupportContactErasure {
+  id            String   @id @default(cuid())
+  tenantId      String   @default("tenant_nexa")
+  /// The erased contact's id (the row itself is gone, or bare when it opted out).
+  contactId     String
+  erasedById    String?
+  erasedBy      User?    @relation("SupportContactErasedBy", fields: [erasedById], references: [id], onDelete: SetNull)
+  conversations Int
+  messages      Int
+  tickets       Int
+  keptOptOut    Boolean
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("support_contact_erasures")
+}
+
+/// One incoming WhatsApp webhook item (a message, or a status update for one we
+/// sent). Written before the 200 so Meta's retries collide on `dedupeKey`
+/// (`msg:<wamid>` / `status:<wamid>:<status>`), then processed after the
+/// response under a `claimedAt` lease. Message text is redacted before insert;
+/// the raw payload is never stored. Kept 30 days (RETENTION_RULES).
+model WhatsAppWebhookEvent {
+  id                String    @id @default(cuid())
+  tenantId          String    @default("tenant_nexa")
+  dedupeKey         String    @unique
+  /// "message" | "status"
+  kind              String
+  /// The academy's number the item arrived on (Meta's phone_number_id).
+  phoneNumberId     String?
+  /// The customer's WhatsApp id (digits with country code).
+  waId              String
+  /// wamid of the message (ours, for a status).
+  providerMessageId String
+  /// text | interactive | button | image | audio | … (messages only)
+  messageType       String?
+  /// Redacted text, or the tapped option's title.
+  text              String?
+  /// Id of the tapped reply button / list row.
+  replyId           String?
+  /// An image or document: Meta's media id (downloaded once for staff, never read by the bot).
+  mediaId           String?
+  mediaMimeType     String?
+  mediaFilename     String?
+  /// The media's caption, redacted. Not bot input.
+  mediaCaption      String?
+  /// sent | delivered | read | failed (statuses only)
+  status            String?
+  statusError       String?
+  profileName       String?
+  occurredAt        DateTime
+  receivedAt        DateTime  @default(now())
+  claimedAt         DateTime?
+  processedAt       DateTime?
+  /// Recorded but deliberately not acted on (bot off, number not on the allowlist).
+  ignoredAt         DateTime?
+  attempts          Int       @default(0)
+  error             String?
+
+  @@index([processedAt, ignoredAt, receivedAt])
+  @@index([receivedAt])
+  @@map("whatsapp_webhook_events")
+}
+
+/// A WhatsApp number that messaged the academy. Not an account: WhatsApp proves
+/// control of the number, not who the student is (docs/WHATSAPP_SUPPORT.md §9).
+model WhatsAppContact {
+  id               String    @id @default(cuid())
+  tenantId         String    @default("tenant_nexa")
+  waId             String
+  profileName      String?
+  /// Starts the 24-hour customer-service window.
+  lastInboundAt    DateTime?
+  /// "STOP": no proactive WhatsApp (rules, system messages). Support replies still go.
+  optedOutAt       DateTime?
+  /// Wrong LINK codes since `linkFailuresFrom` (a rate limit: docs/WHATSAPP_SUPPORT.md §0 "Existing students").
+  linkFailures     Int       @default(0)
+  linkFailuresFrom DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  conversations SupportConversation[]
+  tickets       SupportTicket[]
+  studentLinks  SupportContactLink[]
+
+  @@unique([tenantId, waId])
+  @@map("whatsapp_contacts")
+}
+
+/// One support conversation with a contact. At most one is not CLOSED per
+/// contact (partial unique index in the migration).
+model SupportConversation {
+  id            String                    @id @default(cuid())
+  tenantId      String                    @default("tenant_nexa")
+  contactId     String
+  contact       WhatsAppContact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  /// A SupportFlowState (@nexa-chess/types support-flows.ts).
+  state         String                    @default("START")
+  flowVersion   Int                       @default(1)
+  /// SupportDraft: what the bot has collected so far.
+  draft         Json                      @default("{}")
+  status        SupportConversationStatus @default(BOT)
+  lastInboundAt DateTime?
+  /// When the bot sent its one follow-up to a parent who asked about classes but didn't book.
+  nudgedAt      DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  messages SupportMessage[]
+  tickets  SupportTicket[]
+  events   SupportConversationEvent[]
+
+  @@index([contactId, status])
+  @@index([status, lastInboundAt])
+  @@map("support_conversations")
+}
+
+/// The transcript: every message in and out. An outgoing row is written PENDING
+/// before the send and carries `clientKey` so a retry never sends twice.
+model SupportMessage {
+  id                String                  @id @default(cuid())
+  tenantId          String                  @default("tenant_nexa")
+  conversationId    String
+  conversation      SupportConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction         SupportMessageDirection
+  author            SupportMessageAuthor
+  /// Redacted plain text (an interactive message is flattened for the transcript).
+  body              String
+  /// The interactive payload to send (SupportReply), outgoing bot messages only.
+  payload           Json?
+  /// Id of the tapped option, incoming only.
+  interactiveId     String?
+  /// wamid; null until Meta accepts an outgoing message.
+  providerMessageId String?                 @unique
+  /// Local idempotency key of an outgoing message.
+  clientKey         String?                 @unique
+  status            SupportMessageStatus
+  attempts          Int                     @default(0)
+  nextAttemptAt     DateTime?
+  claimedAt         DateTime?
+  error             String?
+  sentById          String?
+  sentBy            User?                   @relation("SupportMessageSender", fields: [sentById], references: [id], onDelete: SetNull)
+  attachment        SupportAttachment?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+  @@map("support_messages")
+}
+
+/// A request for staff: created by the bot (form finished or hand-off). The
+/// reference (NXS-2026-000123) comes from the support_ticket_reference_seq sequence.
+model SupportTicket {
+  id             String              @id @default(cuid())
+  tenantId       String              @default("tenant_nexa")
+  reference      String              @unique
+  contactId      String
+  contact        WhatsAppContact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  category       SupportCategory
+  status         SupportTicketStatus @default(OPEN)
+  /// The customer asked for a person instead of finishing a form.
+  handoff        Boolean             @default(false)
+  studentName    String?
+  /// What the customer wrote (redacted).
+  details        String?
+  /// tenant + contact + category + 7-day window: a repeat within a week shows the same reference.
+  dedupeKey      String              @unique
+  assignedToId   String?
+  assignedTo     User?               @relation("SupportTicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  /// The lead a free-demo booking created or matched.
+  leadId         String?
+  lead           Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  /// Staff reminders sent while nobody had replied (support-follow-up.service.ts).
+  remindersSent  Int                 @default(0)
+  lastReminderAt DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  events SupportTicketEvent[]
+
+  @@index([status, updatedAt])
+  @@index([contactId, createdAt])
+  @@index([assignedToId, status])
+  @@index([leadId])
+  @@index([status, createdAt])
+  @@map("support_tickets")
+}
+
+/// Append-only ticket history: creation, assignment, status, notes, hand-offs.
+model SupportTicketEvent {
+  id        String                 @id @default(cuid())
+  tenantId  String                 @default("tenant_nexa")
+  ticketId  String
+  ticket    SupportTicket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  kind      SupportTicketEventKind
+  body      String?
+  actorId   String?
+  actor     User?                  @relation("SupportTicketEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt DateTime               @default(now())
+
+  @@index([ticketId, createdAt])
+  @@map("support_ticket_events")
+}
+
+/// An answer admins write once (fees, timings, levels…). The bot sends it when
+/// a customer taps it or types one of its keywords (`showInBot`), and staff
+/// insert it into their replies (docs/WHATSAPP_SUPPORT.md §0).
+model SupportSavedReply {
+  id          String   @id @default(cuid())
+  tenantId    String   @default("tenant_nexa")
+  /// The list-row title on WhatsApp (24 characters at most).
+  title       String
+  /// The list-row description (72 characters at most).
+  description String?
+  body        String
+  /// Lower-cased words or phrases that pick this answer from a typed question.
+  keywords    String[] @default([])
+  showInBot   Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  updatedById String?
+  updatedBy   User?    @relation("SupportSavedReplyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, sortOrder])
+  @@map("support_saved_replies")
+}
+
+/// A question the WhatsApp bot couldn't answer from the saved answers, so
+/// admins can see what to add (docs/WHATSAPP_SUPPORT.md §0). Repeats of the
+/// same wording count on one row. No contact is stored: only the (redacted) text.
+model SupportUnansweredQuestion {
+  id            String    @id @default(cuid())
+  tenantId      String    @default("tenant_nexa")
+  /// normalizeSupportText of the question (at most 200 characters): the grouping key.
+  normalized    String
+  /// The latest wording, redacted like every stored message.
+  text          String
+  timesAsked    Int       @default(1)
+  firstAskedAt  DateTime  @default(now())
+  lastAskedAt   DateTime  @default(now())
+  /// Hidden from the list until it is asked again.
+  dismissedAt   DateTime?
+  dismissedById String?
+  dismissedBy   User?     @relation("SupportUnansweredDismissedBy", fields: [dismissedById], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, normalized])
+  @@index([tenantId, dismissedAt, timesAsked])
+  @@index([lastAskedAt])
+  @@map("support_unanswered_questions")
+}
+
+enum CrmLeadPushStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// One lead sent one way to Frappe CRM (Nexa's academy only; plan D6,
+/// docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM"). Written in the lead's
+/// transaction, sent after commit, retried by a sweep. Holds no personal data.
+model CrmLeadPush {
+  id            String            @id @default(cuid())
+  tenantId      String            @default("tenant_nexa")
+  leadId        String            @unique
+  lead          Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  status        CrmLeadPushStatus @default(PENDING)
+  attempts      Int               @default(0)
+  nextAttemptAt DateTime          @default(now())
+  claimedAt     DateTime?
+  /// The Frappe document name (e.g. CRM-LEAD-2026-00042).
+  externalId    String?
+  error         String?
+  sentAt        DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@map("crm_lead_pushes")
+}
+
+/// Why a conversation changed hands (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §5.2).
+enum SupportOwnerChangeReason {
+  /// The bot handed it to staff (form sent, "agent", too many unreadable replies).
+  HANDOFF
+  /// The customer typed MENU (or similar) while waiting, so the bot has it again.
+  CUSTOMER_MENU
+  STAFF_REPLY
+  STAFF_TAKE_OVER
+  STAFF_RETURN
+  /// The bot booked a real demo class time; nothing left for staff.
+  DEMO_BOOKED
+  /// Its last open ticket was resolved.
+  TICKET_RESOLVED
+  /// A bot conversation silent for a day.
+  BOT_IDLE
+}
+
+/// Who owns a WhatsApp conversation, over time: one row per status change,
+/// written in the same transaction as the change. Feeds the support analytics
+/// (hand-off rate, first staff reply). No personal data.
+model SupportConversationEvent {
+  id             String                    @id @default(cuid())
+  tenantId       String                    @default("tenant_nexa")
+  conversationId String
+  conversation   SupportConversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  fromStatus     SupportConversationStatus
+  toStatus       SupportConversationStatus
+  reason         SupportOwnerChangeReason
+  /// Staff member who caused it; null for the bot or the customer.
+  actorId        String?
+  actor          User?                     @relation("SupportConversationEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  ticketId       String?
+  createdAt      DateTime                  @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([createdAt, toStatus])
+  @@index([actorId])
+  @@map("support_conversation_events")
+}
+
+/// A WhatsApp number linked to a student of the academy, by a code staff
+/// gave the family (plan Phase D, D8: a code, never a phone-number match).
+/// Only then may the bot tell that number the student's next class.
+model SupportContactLink {
+  id        String          @id @default(cuid())
+  tenantId  String          @default("tenant_nexa")
+  contactId String
+  contact   WhatsAppContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User            @relation("SupportContactLinkStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  /// The code that made it (kept for the audit trail; the code itself is spent).
+  codeId    String?
+  createdAt DateTime        @default(now())
+
+  @@unique([contactId, studentId])
+  @@index([studentId])
+  @@map("support_contact_links")
+}
+
+/// A one-time code staff create for one student and give the family, who send
+/// "LINK <code>" from WhatsApp. Only its SHA-256 is stored; 24 hours; one use.
+model SupportLinkCode {
+  id              String    @id @default(cuid())
+  tenantId        String    @default("tenant_nexa")
+  studentId       String
+  student         User      @relation("SupportLinkCodeStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  codeHash        String    @unique
+  expiresAt       DateTime
+  usedAt          DateTime?
+  usedByContactId String?
+  createdById     String?
+  createdBy       User?     @relation("SupportLinkCodeIssuedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+
+  @@index([studentId])
+  @@index([createdById])
+  @@index([expiresAt])
+  @@map("support_link_codes")
 }

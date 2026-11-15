@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Eye, MailCheck, MailPlus, Send, ShieldCheck } from "lucide-react";
-import type {
-  DirectEmailDto,
-  DirectEmailStatus,
-  EmailVerificationPolicy,
-  UnverifiedAccountDto
+import { Eye, MailCheck, MailMinus, MailPlus, Send, ShieldCheck } from "lucide-react";
+import {
+  EMAIL_CATEGORY_DEFINITIONS,
+  type DirectEmailDto,
+  type DirectEmailStatus,
+  type EmailOptOutAccountDto,
+  type EmailVerificationPolicy,
+  type UnverifiedAccountDto
 } from "@nexa-chess/types";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -35,6 +37,7 @@ import { enumLabel } from "@/lib/utils";
 import { useToast } from "@/providers/ToastProvider";
 import {
   useEmailOverview,
+  useOptedOutAccounts,
   useSendVerificationLink,
   useSentEmails,
   useSetEmailVerificationPolicy,
@@ -76,27 +79,33 @@ export function EmailAdminClient() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] animate-fade-in">
-      <PageHeader
-        actions={
-          <Button onClick={() => setComposing(true)} type="button">
-            <MailPlus aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            Write an email
-          </Button>
-        }
-        description="Decide whether people must verify their email address, and write to anyone with an account."
-        title="Email"
-      />
       <Tabs defaultValue="verification">
-        <TabsList className="w-full justify-start overflow-x-auto sm:w-fit">
-          <TabsTrigger value="verification">
-            <ShieldCheck aria-hidden="true" className="size-4" />
-            Verification
-          </TabsTrigger>
-          <TabsTrigger value="sent">
-            <Send aria-hidden="true" className="size-4" />
-            Sent emails
-          </TabsTrigger>
-        </TabsList>
+        <PageHeader
+          actions={
+            <Button onClick={() => setComposing(true)} type="button">
+              <MailPlus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              Write an email
+            </Button>
+          }
+          description="Decide whether people must verify their email address, and write to anyone with an account."
+          tabs={
+            <TabsList>
+              <TabsTrigger value="verification">
+                <ShieldCheck aria-hidden="true" className="size-4" />
+                Verification
+              </TabsTrigger>
+              <TabsTrigger value="sent">
+                <Send aria-hidden="true" className="size-4" />
+                Sent emails
+              </TabsTrigger>
+              <TabsTrigger value="opted-out">
+                <MailMinus aria-hidden="true" className="size-4" />
+                Opted out
+              </TabsTrigger>
+            </TabsList>
+          }
+          title="Email"
+        />
         <TabsContent className="mt-6 outline-none" value="verification">
           <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
             <PolicyCard />
@@ -105,6 +114,9 @@ export function EmailAdminClient() {
         </TabsContent>
         <TabsContent className="mt-6 outline-none" value="sent">
           <SentEmailsCard />
+        </TabsContent>
+        <TabsContent className="mt-6 outline-none" value="opted-out">
+          <OptedOutCard />
         </TabsContent>
       </Tabs>
       {composing && <DirectEmailDialog onClose={() => setComposing(false)} pickRecipients />}
@@ -306,6 +318,108 @@ function UnverifiedAccountsCard() {
       >
         Use this when you trust the addresses you already hold. Those people won&apos;t be asked to verify, even if an address is wrong.
       </ConfirmationModal>
+    </Card>
+  );
+}
+
+function OptedOutCard() {
+  const tz = useUserTimeZone();
+  const serverTable = useServerTable({ pageSize: 10 });
+  const { clampToPageCount } = serverTable;
+  const query = useOptedOutAccounts(serverTable.params);
+  const pageCount = query.data?.pagination.totalPages ?? 1;
+  useEffect(() => clampToPageCount(pageCount), [pageCount, clampToPageCount]);
+
+  const columns = useMemo<ColumnDef<EmailOptOutAccountDto>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            <p className="font-semibold text-app-text">{row.original.name}</p>
+            <p className="break-all text-xs text-app-muted">{row.original.email}</p>
+          </div>
+        ),
+        enableSorting: false,
+        header: "Person",
+        meta: { label: "Person" }
+      },
+      {
+        accessorKey: "role",
+        cell: ({ row }) => <Badge variant="outline">{enumLabel(row.original.role)}</Badge>,
+        enableSorting: false,
+        header: "Role",
+        meta: { label: "Role" }
+      },
+      {
+        accessorKey: "disabledCategories",
+        cell: ({ row }) =>
+          row.original.notificationEmails ? (
+            <div className="flex flex-wrap gap-1">
+              {row.original.disabledCategories.map((category) => (
+                <Badge key={category} variant="warning">
+                  {EMAIL_CATEGORY_DEFINITIONS[category].label}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <Badge variant="destructive">All non-essential email</Badge>
+          ),
+        enableSorting: false,
+        header: "Turned off",
+        meta: { label: "Turned off" }
+      },
+      {
+        accessorKey: "optedOutAt",
+        cell: ({ row }) => (row.original.optedOutAt ? formatDateTime(row.original.optedOutAt, tz) : "—"),
+        enableSorting: false,
+        header: "Everything off since",
+        meta: { label: "Everything off since" }
+      }
+    ],
+    [tz]
+  );
+
+  const { table } = useDataTable<EmailOptOutAccountDto, unknown>({
+    columns,
+    data: query.data?.accounts ?? [],
+    getRowId: (row) => row.id,
+    pageCount,
+    pagination: serverTable.pagination,
+    setPagination: serverTable.setPagination,
+    setSorting: serverTable.setSorting,
+    sorting: serverTable.sorting,
+    ...serverTable.manual
+  });
+
+  return (
+    <Card className="grid gap-4 p-4">
+      <div>
+        <h2 className="text-lg font-extrabold text-app-text">People who turned emails off</h2>
+        <p className="text-sm text-app-muted">
+          Set by each person on their profile or from the link in an email; only they can turn it back on. Emails about
+          their account (password reset, verification, invoices) still reach them.
+        </p>
+      </div>
+      {query.isError ? (
+        <WidgetError message={query.error?.message} onRetry={() => void query.refetch()} />
+      ) : (
+        <>
+          <DataTableToolbar
+            onSearchChange={serverTable.setSearch}
+            searchPlaceholder="Search people..."
+            searchValue={serverTable.search}
+          />
+          <DataTable
+            columnsLength={columns.length}
+            isLoading={query.isLoading}
+            noDataText="Nobody has turned emails off."
+            stackOnMobile
+            table={table}
+          />
+          <DataTablePagination table={table} totalRows={query.data?.pagination.total ?? 0} />
+        </>
+      )}
     </Card>
   );
 }

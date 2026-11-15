@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
-import { markdownToWhatsApp, type DemoInviteeInput } from "@nexa-chess/types";
+import type { DemoInviteeInput } from "@nexa-chess/types";
 import {
   ClassStatus,
   DemoGuestApproval,
@@ -16,9 +16,9 @@ import {
   LeadStatus,
   Prisma
 } from "@prisma/client";
-import { MailService } from "../mail/mail.service";
-import { SystemMessageRenderer } from "../mail/system-message-renderer.service";
+import { SystemNotifier } from "../mail/system-notifier.service";
 import { formatDemoTime } from "../messaging/messaging.format";
+import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 
@@ -62,9 +62,9 @@ export class DemoInviteService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mail: MailService,
-    private readonly messages: SystemMessageRenderer,
-    private readonly whatsapp: WhatsAppService
+    private readonly notifier: SystemNotifier,
+    private readonly whatsapp: WhatsAppService,
+    private readonly referrals: ReferralTrackerService
   ) {}
 
   /** Same normalization the public join page uses — the dedupe/match key. */
@@ -107,7 +107,7 @@ export class DemoInviteService {
         throw new BadRequestException("One or more leads were not found.");
       }
       for (const lead of leads) {
-        const created = await this.bookLead(demoClass, lead, actorId, notify);
+        const { created } = await this.bookLead(demoClass, lead, actorId, notify);
         if (created) added++;
         else skipped++;
       }
@@ -143,14 +143,15 @@ export class DemoInviteService {
    * Books a lead into a demo class: a PHONE registration linked to the lead,
    * plus the lead's own pipeline bookkeeping (assigned class, status,
    * timeline). Returns whether a new registration was created — re-booking
-   * the same lead still refreshes the lead but adds no duplicate.
+   * the same lead still refreshes the lead but adds no duplicate — and the
+   * guest's personal-link token. `actorId` null = the WhatsApp bot booked it.
    */
   async bookLead(
     demoClass: InvitableClass,
     lead: { id: string; studentName: string; phone: string; status: LeadStatus },
-    actorId: string,
+    actorId: string | null,
     notify = false
-  ): Promise<boolean> {
+  ): Promise<{ created: boolean; inviteToken: string }> {
     const target: InviteTarget = {
       name: lead.studentName,
       contactMethod: DemoRegistrationContactMethod.PHONE,
@@ -185,8 +186,9 @@ export class DemoInviteService {
       }
     });
 
+    await this.referrals.onLeadEvent(lead.id, "DEMO_BOOKED", actorId);
     if (created && notify) void this.sendInvitation(demoClass, target, inviteToken);
-    return created;
+    return { created, inviteToken };
   }
 
   async removeInvitee(classId: string, registrationId: string, actorId: string) {
@@ -233,7 +235,7 @@ export class DemoInviteService {
   private async upsertRegistration(
     classId: string,
     target: InviteTarget,
-    link: { source: DemoRegistrationSource; leadId?: string; invitedById: string }
+    link: { source: DemoRegistrationSource; leadId?: string; invitedById: string | null }
   ): Promise<{ created: boolean; inviteToken: string }> {
     const contactValue = this.normalizeContact(
       target.contactMethod,
@@ -291,23 +293,17 @@ export class DemoInviteService {
     const topic = demoClass.topic ?? "Demo class";
     const joinUrl = `${getFrontendUrl(this.env)}${demoInvitePath(demoClass.id, inviteToken)}`;
     try {
-      if (target.contactMethod === DemoRegistrationContactMethod.EMAIL && target.email) {
-        await this.mail.sendDemoClassInvitation({
-          to: target.email,
-          guestName: target.name,
-          classTopic: topic,
-          startsAt: demoClass.startsAt,
-          joinUrl
-        });
-      } else if (target.phoneNumber) {
-        const { body } = await this.messages.render("DEMO_INVITATION_WHATSAPP", {
+      await this.notifier.send(
+        "DEMO_INVITATION",
+        { email: target.email, phone: target.phoneNumber },
+        {
           "demo.dateTime": formatDemoTime(demoClass.startsAt),
           "demo.topic": topic,
+          "guest.email": target.email ?? "",
           "guest.name": target.name,
           "links.join": joinUrl
-        });
-        await this.whatsapp.trySendText({ to: target.phoneNumber, body: markdownToWhatsApp(body) });
-      }
+        }
+      );
     } catch (error) {
       this.logger.warn(
         `Demo invitation for class ${demoClass.id} failed: ${(error as Error).message}`

@@ -1,5 +1,7 @@
 "use client";
 
+import { StageHeader } from "./classroom/StageHeader";
+
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Crown, Puzzle as PuzzleIcon } from "lucide-react";
@@ -15,6 +17,7 @@ import { useDemoGuestToken } from "../../providers/LiveRoomContext";
 import { InRoomPuzzleSolver } from "./InRoomPuzzleSolver";
 import { EndPuzzleButton, PuzzleTimerBadge } from "./PuzzleSessionControls";
 import { useRoomClassId } from "../../providers/LiveRoomContext";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * The coach's own copy of the class puzzle, to check it plays as intended.
@@ -29,8 +32,15 @@ function CoachPuzzlePreview({ puzzleId }: { puzzleId: string }) {
   const puzzle = detail.data;
   if (!puzzle) {
     return (
-      <p className="py-10 text-center text-sm text-app-muted">
-        {detail.isError ? "Couldn't load the puzzle." : "Loading…"}
+      <p className="flex items-center justify-center gap-2 py-10 text-center text-sm text-app-muted" role={detail.isError ? undefined : "status"}>
+        {detail.isError ? (
+          "Couldn't load the puzzle."
+        ) : (
+          <>
+            <Spinner />
+            Loading…
+          </>
+        )}
       </p>
     );
   }
@@ -68,7 +78,12 @@ function GuestPuzzlePractice({ classId, guestToken, assignmentId }: { classId: s
         </div>
       );
     }
-    return <p className="py-10 text-center text-sm text-app-muted">Loading…</p>;
+    return (
+      <p className="flex items-center justify-center gap-2 py-10 text-center text-sm text-app-muted" role="status">
+        <Spinner />
+        Loading…
+      </p>
+    );
   }
   return (
     <div className="mx-auto w-full max-w-3xl space-y-2 overflow-y-auto">
@@ -103,23 +118,25 @@ export function PuzzleStage({ stageSwitch, className }: { stageSwitch?: ReactNod
 
   return (
     <section className={cn("relative flex min-h-0 min-w-0 flex-1 flex-col gap-2", className)}>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-semibold text-app-text">
-          <PuzzleIcon className="size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
-          <span className="truncate">{activePuzzle.title}</span>
-        </div>
-        <PuzzleTimerBadge endsAt={activePuzzle.endsAt} />
-        {isCoach ? <EndPuzzleButton classId={classId} /> : null}
-        <button
-          type="button"
-          onClick={() => setPuzzleSolverOpen(false)}
-          className="flex shrink-0 items-center gap-1 rounded-full border border-app-border bg-app-surface px-2.5 py-1 text-[11px] font-semibold text-app-text shadow-card transition hover:bg-app-soft active:scale-95"
-        >
-          <Crown className="size-3 text-secondary-ink" strokeWidth={2.5} />
-          Back to board
-        </button>
-        {stageSwitch}
-      </div>
+      <StageHeader
+        nav={stageSwitch}
+        title={
+          <span className="flex min-w-0 items-center gap-1.5">
+            <PuzzleIcon aria-hidden="true" className="size-4 shrink-0 text-primary-ink" strokeWidth={2} />
+            <span className="truncate">{activePuzzle.title}</span>
+          </span>
+        }
+        actions={
+          <>
+            <PuzzleTimerBadge endsAt={activePuzzle.endsAt} />
+            {isCoach ? <EndPuzzleButton classId={classId} /> : null}
+            <Button size="sm" variant="neutral" onClick={() => setPuzzleSolverOpen(false)}>
+              <Crown aria-hidden="true" className="size-4" strokeWidth={2} />
+              Back to board
+            </Button>
+          </>
+        }
+      />
       {/* Keyed by assignment so a swapped puzzle starts a fresh attempt. */}
       {guestToken ? (
         <GuestPuzzlePractice

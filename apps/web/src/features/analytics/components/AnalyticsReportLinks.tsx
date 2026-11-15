@@ -8,7 +8,7 @@ import { adminNavItems, type NavItem } from "@/components/layout/navItems";
 import { pageTitle, type PageRoute } from "@/lib/pageTitles";
 
 const DESCRIPTIONS: Record<string, string> = {
-  "/admin/analytics/acquisition": "How people discover Nexa Chess.",
+  "/admin/analytics/acquisition": "How people discover the academy.",
   "/admin/analytics/attendance": "Attendance trend and the batches, coaches and students that need attention.",
   "/admin/analytics/batches": "Roster sizes, class delivery, attendance and teaching hours per batch.",
   "/admin/analytics/classes": "Live-class delivery: demo vs batch, status and volume over time.",

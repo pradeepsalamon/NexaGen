@@ -1,3 +1,4 @@
+import { runWithTenantContext } from "../tenancy/tenant-context";
 import { BadRequestException, Logger, ServiceUnavailableException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import * as configModule from "@nexa-chess/config/api";
@@ -57,7 +58,10 @@ describe("WhatsAppService", () => {
       STOCKFISH_HASH_MB: 64,
       STOCKFISH_MAX_DEPTH: 20,
       COOKIE_SAME_SITE: "lax",
+      PLATFORM_HOST_ONLY_COOKIES: false,
       TRUST_PROXY_HOPS: 0,
+      TENANT_SCOPE_MODE: "audit" as const,
+    PLATFORM_ROOT_DOMAIN: "nexachess.in",
       RECORDING_STORAGE_DIR: "/recordings",
       RECORDING_STORAGE_LIMIT_GB: 130,
       RECORDING_MIN_RETENTION_DAYS: 14,
@@ -78,6 +82,11 @@ describe("WhatsAppService", () => {
       WHATSAPP_API_VERSION: "v21.0",
       WHATSAPP_DEFAULT_COUNTRY_CODE: "91",
       WHATSAPP_TIMEOUT_MS: 10000,
+      SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE: "en",
+      SUPPORT_BOT_ENABLED: false,
+      SUPPORT_LEAD_NUDGE_HOURS: 20,
+      SUPPORT_SESSION_TIMEOUT_MINUTES: 30,
+      SUPPORT_STAFF_REMINDER_MINUTES: 15,
       EXTERNAL_GAME_IMPORT_ENABLED: false,
       AI_ENABLED: false,
       AI_RUNTIME_SHARED_SECRET: undefined,
@@ -99,6 +108,9 @@ describe("WhatsAppService", () => {
       PAYMENTS_INVOICE_PREFIX: "NEXA",
       PAYMENTS_TAX_LABEL: "GST",
       CASHFREE_API_VERSION: "2023-08-01",
+      FRAPPE_CRM_LEAD_SOURCE: "Direct WhatsApp",
+      FRAPPE_CRM_LEAD_STATUS: "New Inquiry",
+      FRAPPE_CRM_WEBSITE_LEAD_SOURCE: "Website Form",
       STRIPE_API_VERSION: "2024-06-20",
       ...envMocks
     };
@@ -127,6 +139,31 @@ describe("WhatsAppService", () => {
         service.sendText({ to: "+919876543210", body: "hi" })
       ).rejects.toBeInstanceOf(ServiceUnavailableException);
       expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("per academy (§F WhatsApp)", () => {
+    const academy = (tenantId: string) => ({ host: null, label: "spec", source: "host" as const, tenantId });
+
+    it("another academy never uses the server's number; it sends from its own or not at all", async () => {
+      const service = await setupService();
+      const credentials = { forTenant: jest.fn().mockReturnValue(null) };
+      (service as unknown as { credentials: typeof credentials }).credentials = credentials;
+
+      runWithTenantContext(academy("tenant_other"), () => {
+        expect(service.isConfigured()).toBe(false);
+      });
+
+      credentials.forTenant.mockReturnValue({ accessToken: "academy-token", phoneNumberId: "4455" });
+      fetchMock.mockResolvedValue(new Response(JSON.stringify({ messages: [{ id: "wamid.1" }] }), { status: 200 }));
+      await runWithTenantContext(academy("tenant_other"), () => service.sendText({ body: "hi", to: "+919876543210" }));
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain("/4455/messages");
+      expect((init.headers as Record<string, string>).Authorization).toBe("Bearer academy-token");
+
+      runWithTenantContext(academy("tenant_nexa"), () => {
+        expect(service.isConfigured()).toBe(true);
+      });
     });
   });
 
@@ -419,5 +456,49 @@ describe("WhatsAppService", () => {
     expect(service.normalizeRecipient("098765 43210")).toBe("919876543210");
     expect(service.normalizeRecipient("nope")).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  describe("trySendMessage (one path for every outbound message)", () => {
+    const sent = () => JSON.parse(fetchMock.mock.calls[0][1].body as string);
+
+    it("sends the approved template, with its values and language, when one is named", async () => {
+      const service = await setupService();
+
+      const outcome = await service.trySendMessage({
+        template: { bodyParams: ["Asha", "Rook Endgames"], language: "en", name: "demo_registered" },
+        text: "free text that must not be sent",
+        to: "+919876543210"
+      });
+
+      expect(outcome.ok).toBe(true);
+      expect(sent()).toMatchObject({ template: { language: { code: "en" }, name: "demo_registered" }, type: "template" });
+      expect(JSON.stringify(sent())).not.toContain("free text");
+      const body = sent().template.components.find((c: { type: string }) => c.type === "body");
+      expect(body.parameters).toEqual([
+        { text: "Asha", type: "text" },
+        { text: "Rook Endgames", type: "text" }
+      ]);
+    });
+
+    it("sends free text without a template, and a document with the text as caption", async () => {
+      const service = await setupService();
+
+      await service.trySendMessage({ text: "Hello", to: "+919876543210" });
+      expect(sent()).toMatchObject({ text: { body: "Hello" }, type: "text" });
+
+      fetchMock.mockClear();
+      await service.trySendMessage({ document: { mediaId: "media_1" }, text: "Your invoice", to: "+919876543210" });
+      expect(sent()).toMatchObject({ document: { caption: "Your invoice", id: "media_1" }, type: "document" });
+    });
+
+    it("never throws: a rejected template comes back as a failed outcome", async () => {
+      fetchMock.mockResolvedValue(jsonResponse(400, { error: { code: 132001, message: "Template name does not exist" } }));
+      const service = await setupService();
+
+      const outcome = await service.trySendMessage({ template: { name: "missing" }, text: "x", to: "+919876543210" });
+
+      expect(outcome.ok).toBe(false);
+      if (!outcome.ok) expect(outcome.error.message).toContain("Template name does not exist");
+    });
   });
 });

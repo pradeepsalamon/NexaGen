@@ -14,7 +14,7 @@ import {
   type GameReportMove,
   type TacticalOpportunity,
 } from "@nexa-chess/types";
-import { BrainCircuit, Cpu, Loader2, Target, X } from "lucide-react";
+import { BrainCircuit, Cpu, Target, X } from "lucide-react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useAddTacticToRevision, useCancelAnalysis, useGameAnalysisState, useRequestAnalysis } from "../hooks/useGameAnalysis";
 import { CLASSIFICATION_STYLE, KEY_MOMENT_CLASSES, OUTCOME_STYLE, moveNumberLabel } from "../lib/classificationStyle";
+import { Spinner } from "@/components/ui/Spinner";
 
 const DEPTH_OPTIONS = [
   { label: "Quick (a skim, ~30 s)", value: "QUICK" },
@@ -80,7 +81,7 @@ export function GameAnalysisPanel({ gameId, viewer, currentPly, onJump }: Props)
         value={depth}
       />
       <Button disabled={request.isPending} onClick={ask}>
-        {request.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : <Cpu className="mr-2 size-4" aria-hidden />}
+        {request.isPending ? <Spinner className="mr-2 size-4" aria-hidden /> : <Cpu className="mr-2 size-4" aria-hidden />}
         Analyse game
       </Button>
     </div>
@@ -135,7 +136,7 @@ export function GameAnalysisPanel({ gameId, viewer, currentPly, onJump }: Props)
                   onError: (err) => toast.error(err instanceof Error ? err.message : "Could not cancel."),
                 })
               }
-              variant="outline"
+              variant="neutral"
             >
               <X className="mr-2 size-4" aria-hidden />
               Cancel
@@ -245,8 +246,8 @@ function ReportBody({
       <Tactics onJump={onJump} report={report} viewer={viewer} />
 
       <p className="text-xs text-app-muted">
-        NexaGen’s own analysis{report.analysis.engine ? ` (${report.analysis.engine}, ${report.analysis.depth.toLowerCase()})` : ""}. Its
-        labels and accuracy follow NexaGen’s method and are not the same numbers as other chess sites.
+        Our own analysis{report.analysis.engine ? ` (${report.analysis.engine}, ${report.analysis.depth.toLowerCase()})` : ""}. Its
+        labels and accuracy follow our own method and are not the same numbers as other chess sites.
       </p>
     </div>
   );
@@ -292,7 +293,7 @@ function Tactics({ report, viewer, onJump }: { report: GameAnalysisReport; viewe
   return (
     <section className="space-y-2">
       <h3 className="flex items-center gap-2 text-sm font-semibold">
-        <Target className="size-4 text-accent-ink" aria-hidden strokeWidth={2.25} />
+        <Target className="size-4 text-success-ink" aria-hidden strokeWidth={2.25} />
         Tactics
       </h3>
       <ul className="space-y-2">

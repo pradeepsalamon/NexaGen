@@ -47,7 +47,7 @@ function RuleRow({
           <p className="mt-1 line-clamp-2 text-sm text-app-muted">{markdownToPlainText(rule.body)}</p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
           {rule.enabled ? (
             <div className="flex items-center gap-1.5 text-app-muted">
               {rule.whatsappEnabled ? (
@@ -95,7 +95,7 @@ function RuleRow({
               }
               size="sm"
               type="button"
-              variant={rule.enabled ? "outline" : "secondary"}
+              variant={rule.enabled ? "neutral" : "outline"}
             >
               {rule.enabled ? "Turn off" : "Turn on"}
             </Button>
@@ -104,11 +104,11 @@ function RuleRow({
           <SimpleTooltip label="Edit message">
             <Button
               aria-label={`Edit ${definition.label}`}
-              className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+              className="size-8"
               onClick={() => setEditing(true)}
               size="icon"
               type="button"
-              variant="ghost"
+              variant="neutral"
             >
               <Pencil className="size-4" strokeWidth={2.5} />
             </Button>
@@ -140,7 +140,7 @@ export function MessagingRulesPanel() {
   return (
     <div className="space-y-4">
       {!data.whatsappConfigured ? (
-        <Card className="border-app-warning/40 bg-app-warning/5 p-4 text-sm text-app-text">
+        <Card className="border-warning/40 bg-warning/5 p-4 text-sm text-app-text">
           WhatsApp is not configured on this server. Rules still control the in-app bell;
           WhatsApp sends are recorded as failed until{" "}
           <code className="text-xs">WHATSAPP_ACCESS_TOKEN</code> and{" "}
@@ -149,7 +149,7 @@ export function MessagingRulesPanel() {
       ) : null}
 
       {!data.emailConfigured && data.rules.some((rule) => rule.emailEnabled) ? (
-        <Card className="border-app-warning/40 bg-app-warning/5 p-4 text-sm text-app-text">
+        <Card className="border-warning/40 bg-warning/5 p-4 text-sm text-app-text">
           Email is not configured on this server, so rule emails are recorded as failed until the{" "}
           <code className="text-xs">SMTP_*</code> variables are set.
         </Card>

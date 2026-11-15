@@ -28,7 +28,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: "what-we-collect",
     items: [
       {
-        detail: "Name, email, username, phone number, profile picture, time zone and your role (student, coach or admin).",
+        detail: "Name, email, username, phone number, profile picture, time zone and your role (student, coach or admin). If you registered yourself, when you accepted these terms and this policy, and which version.",
         label: "Your account"
       },
       {
@@ -43,7 +43,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
-          "When you joined and left each class, chat messages you sent, puzzle attempts, class questions you answered, games you played against the computer in class, homework results, course progress, poll answers, and your puzzle rating and practice streak.",
+          "When you joined and left each class, chat messages you sent, puzzle attempts, class questions you answered, games you played against the computer in class, homework results, course progress, poll answers, tournaments you entered or helped run, and your puzzle rating and practice streak.",
         label: "Classes and learning"
       },
       {
@@ -58,6 +58,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
+          "If the academy turns it on for a class and the coach has agreed, the coach's own speech is turned into text during the class and kept as a transcript. Only the coach's microphone is used: students are never transcribed, though a voice the coach's microphone picks up in the room may appear in the text. Only that coach and academy admins can read it. No audio is kept.",
+        label: "Class transcripts (coaches)"
+      },
+      {
+        detail:
           "Orders, payments, invoices, refunds, subscriptions and your billing name and address (and GSTIN, if you give one). Card and UPI details are entered with the payment provider; we never see or store them.",
         label: "Payments"
       },
@@ -68,8 +73,13 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
-          "On the academy website: a visitor cookie (kept for a year) and a session cookie, with your IP address, browser, device type, the page you arrived from and any campaign tags in the link. If you book a demo, the student's name and age, the parent's name and phone number, and chess experience.",
+          "On the academy website: a visitor cookie (kept for a year) and a session cookie, with your IP address, browser, device type, the page you arrived from and any campaign tags in the link. If you book a demo, the student's name and age, the parent's name, phone number and (if given) email address, and chess experience.",
         label: "Website visits and demo bookings"
+      },
+      {
+        detail:
+          "If you message the academy's WhatsApp support number: your WhatsApp number and profile name, the messages you and our team exchange, and what you tell the assistant (for example the student's name and the details of your request). Card numbers and one-time codes are removed from a message before it is stored. Only academy admins read these conversations.",
+        label: "WhatsApp support"
       }
     ],
     title: "What we collect"
@@ -86,12 +96,21 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       { detail: "Hosting, the database and backups run on servers we operate on Oracle Cloud.", label: "Oracle Cloud" },
       { detail: "Profile pictures, payment proofs and invoice PDFs are stored with Cloudinary.", label: "Cloudinary" },
       { detail: "Payments are processed by Razorpay, Cashfree or Stripe, depending on how you pay.", label: "Payment providers" },
-      { detail: "Class reminders and invoices may be sent over WhatsApp (Meta).", label: "WhatsApp" },
+      {
+        detail:
+          "Class reminders and invoices may be sent over WhatsApp (Meta), and support conversations on the academy's WhatsApp number go through it. Reply STOP to stop reminders and updates there.",
+        label: "WhatsApp"
+      },
       { detail: "Account and class emails, and emails academy staff write to you, are sent through our email provider.", label: "Email" },
       {
         detail:
           "If a student links an account, its username is sent to that site to read the student's public games. With automatic sync on, which the academy or a coach can require, this happens about once a day until the account is unlinked.",
         label: "Lichess and Chess.com"
+      },
+      {
+        detail:
+          "For a class transcript, the coach's Chrome browser sends the coach's microphone audio to Google's speech service to turn it into text. This happens only for a coach who has agreed, and never for a student's microphone.",
+        label: "Google (speech recognition in Chrome)"
       },
       {
         detail:
@@ -110,7 +129,13 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       { detail: "Removed a day after they expire.", label: "Sign-in sessions and reset links" },
       { detail: "Removed after 180 days of inactivity unless you booked a demo.", label: "Website visit records" },
       { detail: "Removed after 90 days.", label: "Help-centre searches" },
+      { detail: "Removed after 30 days.", label: "Class transcripts" },
       { detail: "Our copy is removed after a year.", label: "Emails academy staff write to you" },
+      {
+        detail:
+          "A conversation and its requests are removed a year after the conversation ends, unless a request is still open. The raw delivery records from WhatsApp are removed after 30 days.",
+        label: "WhatsApp support conversations"
+      },
       {
         detail:
           "Kept for the period the academy sets for each kind of record. Anything older is removed every night. Until a period is set, they are kept.",

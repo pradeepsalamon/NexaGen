@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { useActivityRunGame } from "../../../hooks/useActivityRun";
 import { PuzzleBoardTile } from "../PuzzleBoardTile";
 import { SimulMoveList } from "../simul/SimulMoveList";
+import { Spinner } from "@/components/ui/Spinner";
 
 type StatusFilter = "ALL" | PlayoutMonitorEntry["status"];
 
@@ -190,7 +191,10 @@ function StudentBoardDialog({
                   className="max-h-56 rounded-app border border-app-border p-2"
                 />
               ) : entry.gameId ? (
-                <p className="text-xs text-app-muted">Loading the moves…</p>
+                <p className="flex items-center gap-1.5 text-xs text-app-muted" role="status">
+                  <Spinner className="size-3.5" />
+                  Loading the moves…
+                </p>
               ) : (
                 <p className="text-xs text-app-muted">This student hasn&apos;t started yet.</p>
               )}

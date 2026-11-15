@@ -17,34 +17,32 @@ export function CoachFeedbackClient() {
   const { data, error, isLoading, refetch } = useMyFeedbackQuery();
 
   return (
-    <div className="grid gap-6 pb-10">
+    <div className="animate-fade-in pb-10">
       <PageHeader
         description="What your students say about your classes. Responses are anonymous."
         title="My feedback"
       />
 
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
-          <Skeleton className="h-56 rounded-panel" />
-          <Skeleton className="h-56 rounded-panel" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[20rem_minmax(0,1fr)]">
+          <Skeleton className="h-56 rounded-app" />
+          <Skeleton className="h-56 rounded-app" />
         </div>
       ) : error || !data ? (
         <WidgetError onRetry={() => refetch()} />
       ) : data.summary.responseCount === 0 ? (
-        <Card className="p-6">
-          <EmptyState variant="inline"
-            description="Once students rate your classes, your average and their comments will appear here."
-            icon={MessageSquareHeart}
-            title="No feedback yet"
-          />
-        </Card>
+        <EmptyState
+          description="Once students rate your classes, your average and their comments will appear here."
+          icon={MessageSquareHeart}
+          title="No feedback yet"
+        />
       ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[20rem_minmax(0,1fr)]">
             <Card className="grid content-start gap-4 p-5">
-              <p className="text-xs font-bold text-app-muted">Your rating</p>
+              <p className="text-xs font-semibold text-app-muted">Your rating</p>
               <div className="flex items-end gap-3">
-                <span className="text-5xl font-black tabular-nums text-app-text">
+                <span className="text-5xl font-bold tabular-nums text-app-text">
                   {data.summary.averageRating?.toFixed(1) ?? "—"}
                 </span>
                 <div className="pb-1.5">
@@ -80,12 +78,12 @@ export function CoachFeedbackClient() {
           </div>
 
           <section className="grid gap-3">
-            <h2 className="text-base font-extrabold text-app-text">Recent feedback</h2>
+            <h2 className="text-base font-semibold text-app-text">Recent feedback</h2>
             {data.recent.map((response) => (
               <FeedbackResponseCard key={response.id} response={response} showCoach={false} />
             ))}
           </section>
-        </>
+        </div>
       )}
     </div>
   );

@@ -30,11 +30,12 @@ import { LiveClassAccessService } from "./live-class-access.service";
  * `size` and `duration` are protobuf 64-bit fields, so they cross the wire as
  * strings; `duration` is in nanoseconds.
  */
-type EgressFileResult = {
+export type EgressFileResult = {
   location?: string;
   filename?: string;
-  size?: string | number;
-  duration?: string | number;
+  // The SDK's FileInfo reports these as bigint; raw JSON as a string or number.
+  size?: string | number | bigint;
+  duration?: string | number | bigint;
 };
 
 /** Class recording: egress start/stop, the egress webhook, and authorised playback. */
@@ -54,7 +55,7 @@ export class LiveClassRecordingService {
   ) {}
 
   /** Parses a protobuf 64-bit field, which may arrive as a string, or null. */
-  private static toNumber(value: string | number | undefined | null): number | null {
+  private static toNumber(value: string | number | bigint | undefined | null): number | null {
     if (value === undefined || value === null) return null;
     const parsed = typeof value === "number" ? value : Number(value);
     return Number.isFinite(parsed) ? parsed : null;
@@ -95,7 +96,7 @@ export class LiveClassRecordingService {
       throw new BadRequestException("Class is not live.");
     }
 
-    const metadata = (liveSession.metadata as Record<string, any>) || {};
+    const metadata = (liveSession.metadata as Record<string, unknown>) || {};
     if (metadata.egressId) {
       throw new BadRequestException("Recording is already in progress.");
     }
@@ -155,8 +156,8 @@ export class LiveClassRecordingService {
   async stopRecording(accessToken: string | undefined, classId: string) {
     const { liveSession } = await this.access.resolveClassManager(accessToken, classId);
 
-    const metadata = (liveSession.metadata as Record<string, any>) || {};
-    if (!metadata.egressId) {
+    const metadata = (liveSession.metadata as Record<string, unknown>) || {};
+    if (typeof metadata.egressId !== "string" || !metadata.egressId) {
       throw new BadRequestException("No active recording found for this class.");
     }
 
@@ -208,13 +209,13 @@ export class LiveClassRecordingService {
       });
       liveSession =
         activeSessions.find(
-          (s) => (s.metadata as Record<string, any>)?.egressId === egressId
+          (s) => (s.metadata as Record<string, unknown>)?.egressId === egressId
         ) || null;
     }
 
     if (!liveSession) return;
 
-    const metadata = (liveSession.metadata as Record<string, any>) || {};
+    const metadata = (liveSession.metadata as Record<string, unknown>) || {};
     const statusStr = String(egressInfo.status ?? "").toUpperCase();
     const eventType = egressInfo.eventType || "";
 
@@ -264,7 +265,10 @@ export class LiveClassRecordingService {
 
     const fileResult = egressInfo.fileResults?.[0] ?? egressInfo.file;
     const rawLocation =
-      fileResult?.filename || fileResult?.location || metadata.recordingFilepath || null;
+      fileResult?.filename ||
+      fileResult?.location ||
+      (typeof metadata.recordingFilepath === "string" ? metadata.recordingFilepath : null) ||
+      null;
 
     // Normalize S3 key to recordings/...
     const normalizeRecordingKey = (raw: string | null): string | null => {

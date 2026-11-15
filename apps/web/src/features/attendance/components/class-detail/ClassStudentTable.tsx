@@ -50,7 +50,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
     <Card className="border-app-border bg-app-surface shadow-card overflow-hidden">
       <CardHeader className="bg-app-soft/50 border-b border-app-border">
         <CardTitle className="text-lg flex justify-between items-center">
-          Student Attendance
+          Student attendance
           <span className="text-sm font-normal text-app-muted">
             Click a row for event details
           </span>
@@ -119,7 +119,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                       <div className="flex flex-wrap items-center gap-1.5">
                         <AttendanceStatusBadge status={student.status} />
                         {student.correctedAt ? (
-                          <Badge variant="outline" className="py-0.5 text-[10px] font-semibold">
+                          <Badge variant="outline" className="font-semibold">
                             Corrected
                           </Badge>
                         ) : null}
@@ -140,9 +140,9 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                           <SimpleTooltip label={correction.direct ? "Correct attendance" : "Ask to correct attendance"}>
                             <Button
                               aria-label={`${correction.direct ? "Correct" : "Ask to correct"} attendance for ${student.name}`}
-                              variant="outline"
+                              variant="neutral"
                               size="icon"
-                              className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
+                              className="size-8"
                               onClick={(event) => {
                                 event.stopPropagation();
                                 setCorrecting({ id: student.id, name: student.name, status: student.status });
@@ -155,9 +155,9 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                         <SimpleTooltip label="Full attendance history">
                           <Button
                             aria-label={`View attendance history for ${student.name}`}
-                            variant="outline"
+                            variant="neutral"
                             size="icon"
-                            className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
+                            className="size-8"
                             onClick={(event) => {
                               event.stopPropagation();
                               onViewHistory({ id: student.id, name: student.name });
@@ -177,7 +177,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                       >
                         <div className="pl-4">
                           <p className="text-xs font-semibold text-app-muted mb-2">
-                            Event Timeline
+                            Event timeline
                           </p>
                           <EventTimeline
                             logs={student.logs}

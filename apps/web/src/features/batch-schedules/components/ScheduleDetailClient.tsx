@@ -259,7 +259,7 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
             <Button
               variant="outline"
               size="sm"
-              className="border-app-danger text-app-danger hover:bg-app-danger hover:text-white"
+              className="border-app-danger text-app-danger-ink hover:bg-app-danger-soft"
               onClick={() => runDeactivate(scheduleId)}
             >
               <Ban className="size-4" aria-hidden="true" />
@@ -335,7 +335,7 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
                           Reschedule
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="neutral"
                           size="sm"
                           className="border-app-danger text-app-danger hover:bg-app-soft"
                           onClick={() =>
@@ -435,7 +435,7 @@ function RescheduleDialog({
           </label>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="neutral" onClick={onClose}>
             Cancel
           </Button>
           <Button

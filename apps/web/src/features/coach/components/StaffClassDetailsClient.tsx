@@ -1,9 +1,10 @@
 "use client";
 
+import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useEffect, type ReactNode } from "react";
-import { Calendar, CalendarX, Clock, Loader2, Video } from "lucide-react";
+import { Calendar, CalendarX, Clock, Video } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import {
   CLASS_START_BLOCK_MESSAGES,
   getClassStartAvailability,
@@ -25,6 +26,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate, formatTime } from "@/lib/datetime";
 import { useClassDetail } from "../hooks/useCoachApi";
 import { describeOpensAt } from "./upcoming/StartClassButton";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * `/classes/:id` for the owning coach (and admins, read + join/end). Start
@@ -32,6 +34,7 @@ import { describeOpensAt } from "./upcoming/StartClassButton";
  * the API enforces, so the button never offers a start the server refuses.
  */
 export function StaffClassDetailsClient({ classId, isCoach }: { classId: string; isCoach: boolean }) {
+  const brandName = useBrandName();
   const router = useRouter();
   const startLiveClassMutation = useStartLiveClass(classId);
   const tz = useUserTimeZone();
@@ -41,9 +44,9 @@ export function StaffClassDetailsClient({ classId, isCoach }: { classId: string;
 
   useEffect(() => {
     if (cls) {
-      document.title = `${cls.title || cls.topic || "Class Details"} - Nexa Chess`;
+      document.title = `${cls.title || cls.topic || "Class Details"} - ${brandName}`;
     }
-  }, [cls]);
+  }, [brandName, cls]);
 
   if (isLoading) {
     return (
@@ -147,7 +150,7 @@ export function StaffClassDetailsClient({ classId, isCoach }: { classId: string;
             });
           }}
         >
-          {startLiveClassMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {startLiveClassMutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
           {startLiveClassMutation.isPending ? "Starting Live Class..." : "Start Live Class"}
         </Button>
       </>
@@ -194,7 +197,7 @@ export function StaffClassDetailsClient({ classId, isCoach }: { classId: string;
         </div>
       </div>
 
-      <Card className="p-5 sm:p-8 border-primary/20 bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_5%,var(--color-surface)),color-mix(in_srgb,var(--color-accent)_5%,var(--color-surface)))]">
+      <Card className="p-5 sm:p-8 border-primary/20 bg-app-surface">
         <div className="flex flex-col items-center text-center max-w-md mx-auto space-y-4">
           <div className="p-4 rounded-full bg-primary/10 text-primary-ink mb-2">
             {shown === "CANCELLED" || shown === "NOT_HELD" ? (

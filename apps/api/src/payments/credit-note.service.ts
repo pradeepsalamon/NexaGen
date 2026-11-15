@@ -21,6 +21,7 @@ import {
   normalizeSeller
 } from "./invoice.service";
 import { assertOwnerOrAdmin, fullName } from "./payments-auth.helper";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 type CreditNoteRow = Prisma.CreditNoteGetPayload<{
   include: {
@@ -172,8 +173,9 @@ export class CreditNoteService {
     const year = financialYear(issuedAt);
 
     const sequence = await tx.creditNoteSequence.upsert({
-      where: { year },
-      create: { year, lastNumber: 1 },
+      // Each academy numbers its own documents (slice 5).
+      where: { tenantId_year: { tenantId: requireTenantId("creditNoteSequence"), year } },
+      create: { lastNumber: 1, tenantId: requireTenantId("creditNoteSequence"), year },
       update: { lastNumber: { increment: 1 } }
     });
 

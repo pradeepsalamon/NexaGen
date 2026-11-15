@@ -4,10 +4,12 @@ import {
   DEFAULT_TENANT_ID,
   isWithinLimit,
   resolveEntitlements,
+  resolveLapsePolicy,
   resolveTenantAccessMode,
   sanitizePlanFeatures,
   sanitizePlanLimits,
   type CurrentEntitlementsResponse,
+  type LapsePolicy,
   type PlanFeatureKey,
   type PlanLimitKey,
   type PlanUsage,
@@ -16,6 +18,7 @@ import {
   type TenantAccessMode
 } from "@nexa-chess/types";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
+import { currentTenantId as contextTenantId } from "../tenancy/tenant-context";
 import { PlanRestrictionException } from "./plan-restriction.exception";
 
 /** Every request reads this; plan changes are rare and call `invalidate()`. */
@@ -23,8 +26,49 @@ const CACHE_TTL_MS = 30_000;
 
 type TenantRow = NonNullable<Awaited<ReturnType<EntitlementService["loadTenant"]>>>;
 
+type PlanVersionReader = { platformPlanVersion: Pick<PrismaTransactionClient["platformPlanVersion"], "findUnique"> };
+
+/**
+ * The plan as the subscription signed up for it: the frozen
+ * `PlatformPlanVersion` snapshot when the live plan has moved on (§G "Editing
+ * a plan applies to new subscriptions only"). Features, limits and the lapse
+ * policy all read through here.
+ */
+export async function pinnedPlan<P extends { id: string; version: number }>(
+  db: PlanVersionReader,
+  plan: P,
+  planVersion: number | null
+): Promise<P> {
+  if (planVersion === null || planVersion === plan.version) return plan;
+  const frozen = await db.platformPlanVersion.findUnique({
+    where: { planId_version: { planId: plan.id, version: planVersion } }
+  });
+  if (!frozen) return plan;
+  return { ...plan, ...((frozen.snapshot ?? {}) as Record<string, unknown>) } as P;
+}
+
+/** The lapse policy in force: the pinned plan version's, then the academy's overrides. */
+export async function pinnedLapsePolicy(
+  db: PlanVersionReader,
+  subscription: {
+    overrides: unknown;
+    plan: { graceAllows: unknown; graceDays: number; id: string; pastDueDays: number; version: number };
+    planVersion: number | null;
+  } | null
+): Promise<LapsePolicy> {
+  const plan = subscription ? await pinnedPlan(db, subscription.plan, subscription.planVersion) : null;
+  return resolveLapsePolicy(
+    plan
+      ? { graceAllows: plan.graceAllows as LapsePolicy["graceAllows"], graceDays: plan.graceDays, pastDueDays: plan.pastDueDays }
+      : null,
+    subscription?.overrides as Parameters<typeof resolveLapsePolicy>[1]
+  );
+}
+
 export type TenantEntitlementState = ResolvedEntitlements & {
   accessMode: TenantAccessMode;
+  /** The lapse policy in force (plan version + the academy's overrides). */
+  lapse: LapsePolicy;
   tenant: { id: string; name: string } | null;
   subscription: TenantRow["subscription"];
 };
@@ -38,17 +82,23 @@ export type TenantEntitlementState = ResolvedEntitlements & {
  */
 @Injectable()
 export class EntitlementService {
-  private cache: { at: number; tenantId: string; state: Promise<TenantEntitlementState> } | null = null;
+  /** Per academy: the request's academy now comes from TenantContext, so one slot would thrash. */
+  private readonly cache = new Map<string, { at: number; state: Promise<TenantEntitlementState> }>();
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Single tenant until the host resolver lands (SAAS_MULTI_TENANCY.md Phase 2). */
+  /**
+   * The request's academy (TenantContext). Outside one — crons, boot — Nexa,
+   * the only academy until Phase 3 runs background work in `runInTenant`.
+   */
   currentTenantId() {
-    return DEFAULT_TENANT_ID;
+    return contextTenantId() ?? DEFAULT_TENANT_ID;
   }
 
-  invalidate() {
-    this.cache = null;
+  /** Drops one academy's cached state, or every academy's. */
+  invalidate(tenantId?: string) {
+    if (tenantId) this.cache.delete(tenantId);
+    else this.cache.clear();
   }
 
   private loadTenant(tenantId: string) {
@@ -58,6 +108,14 @@ export class EntitlementService {
     });
   }
 
+  /**
+   * The plan as this subscription has it: the frozen version it signed up on
+   * when the plan has been edited since (§G), else the plan row.
+   */
+  private effectivePlan(subscription: NonNullable<TenantRow["subscription"]>) {
+    return pinnedPlan(this.prisma, subscription.plan, subscription.planVersion);
+  }
+
   private async computeState(tenantId: string): Promise<TenantEntitlementState> {
     const tenant = await this.loadTenant(tenantId);
     const subscription = tenant?.subscription ?? null;
@@ -65,12 +123,20 @@ export class EntitlementService {
     const accessMode = tenant
       ? resolveTenantAccessMode({ subscription, tenantStatus: tenant.status })
       : "LOCKED";
-    const resolved = subscription
-      ? resolveEntitlements(subscription.plan, subscription.overrides)
+    const plan = subscription ? await this.effectivePlan(subscription) : null;
+    const resolved = plan
+      ? resolveEntitlements(plan, subscription?.overrides)
       : resolveEntitlements({ features: [], limits: {} });
+    const lapse = resolveLapsePolicy(
+      plan
+        ? { graceAllows: plan.graceAllows as LapsePolicy["graceAllows"], graceDays: plan.graceDays, pastDueDays: plan.pastDueDays }
+        : null,
+      subscription?.overrides
+    );
     return {
       ...resolved,
       accessMode,
+      lapse,
       subscription,
       tenant: tenant ? { id: tenant.id, name: tenant.name } : null
     };
@@ -78,14 +144,13 @@ export class EntitlementService {
 
   getState(tenantId = this.currentTenantId()): Promise<TenantEntitlementState> {
     const now = Date.now();
-    if (this.cache && this.cache.tenantId === tenantId && now - this.cache.at < CACHE_TTL_MS) {
-      return this.cache.state;
-    }
+    const cached = this.cache.get(tenantId);
+    if (cached && now - cached.at < CACHE_TTL_MS) return cached.state;
     const state = this.computeState(tenantId);
-    this.cache = { at: now, state, tenantId };
+    this.cache.set(tenantId, { at: now, state });
     // A failed load must not be served from the cache for 30s.
     state.catch(() => {
-      if (this.cache?.state === state) this.cache = null;
+      if (this.cache.get(tenantId)?.state === state) this.cache.delete(tenantId);
     });
     return state;
   }
@@ -178,6 +243,7 @@ export class EntitlementService {
 export function toPlatformPlanSummary(plan: {
   id: string;
   code: string;
+  contentPackIds: string[];
   name: string;
   description: string | null;
   sortOrder: number;
@@ -189,9 +255,14 @@ export function toPlatformPlanSummary(plan: {
   trialDays: number;
   isPublic: boolean;
   isActive: boolean;
+  version: number;
+  pastDueDays: number;
+  graceDays: number;
+  graceAllows: string[];
 }): PlatformPlanSummary {
   return {
     code: plan.code,
+    contentPackIds: plan.contentPackIds,
     currency: plan.currency,
     description: plan.description,
     features: sanitizePlanFeatures(plan.features),
@@ -203,6 +274,12 @@ export function toPlatformPlanSummary(plan: {
     priceMonthlyMinor: plan.priceMonthlyMinor,
     priceYearlyMinor: plan.priceYearlyMinor,
     sortOrder: plan.sortOrder,
-    trialDays: plan.trialDays
+    trialDays: plan.trialDays,
+    lapse: resolveLapsePolicy({
+      graceAllows: plan.graceAllows as LapsePolicy["graceAllows"],
+      graceDays: plan.graceDays,
+      pastDueDays: plan.pastDueDays
+    }),
+    version: plan.version
   };
 }

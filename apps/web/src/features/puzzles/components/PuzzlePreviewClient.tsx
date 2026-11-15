@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -21,48 +22,44 @@ export function PuzzlePreviewClient({ id, basePath }: { id: string; basePath: st
   const { data, isLoading, isError, refetch } = usePuzzle(id);
 
   if (isLoading) {
-    return <Skeleton className="h-96 w-full" />;
+    return <Skeleton className="h-96 rounded-app" />;
   }
   if (isError || !data) {
-    return <WidgetError message="Could not load this puzzle." onRetry={() => refetch()} />;
+    return (
+      <WidgetError
+        message="Couldn't load this puzzle. Check your connection and try again."
+        onRetry={() => refetch()}
+      />
+    );
   }
 
   const p = data.puzzle;
 
   return (
-    <div className="space-y-6">
-      <Button variant="ghost" size="sm" asChild>
-        <Link href={basePath}>
-          <ArrowLeft className="mr-1.5 size-4" strokeWidth={2.5} />
-          Puzzle Library
-        </Link>
-      </Button>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">{p.title}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{p.topicName}</Badge>
-            <Badge variant="outline">{PUZZLE_TYPE_LABELS[p.puzzleType]}</Badge>
-            <Badge variant={difficultyBadgeVariant(p.difficulty)}>
-              {PUZZLE_DIFFICULTY_LABELS[p.difficulty]}
-            </Badge>
-            <Badge variant={statusBadgeVariant(p.status)}>{enumLabel(p.status)}</Badge>
-            {p.visibility === "GLOBAL" && <Badge variant="default">Admin Library</Badge>}
-          </div>
-          {p.description ? (
-            <p className="mt-2 max-w-2xl text-sm text-app-muted">{p.description}</p>
-          ) : null}
+    <div className="animate-fade-in pb-10">
+      <PageHeader
+        actions={
+          p.canManage ? (
+            <Button asChild variant="outline">
+              <Link href={`${basePath}/${p.id}/edit`}>
+                <Pencil aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                Edit
+              </Link>
+            </Button>
+          ) : null
+        }
+        breadcrumbs={[{ href: basePath, label: "Puzzle library" }, { label: p.title }]}
+        description={p.description || undefined}
+        title={p.title}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{p.topicName}</Badge>
+          <Badge variant="outline">{PUZZLE_TYPE_LABELS[p.puzzleType]}</Badge>
+          <Badge variant={difficultyBadgeVariant(p.difficulty)}>{PUZZLE_DIFFICULTY_LABELS[p.difficulty]}</Badge>
+          <Badge variant={statusBadgeVariant(p.status)}>{enumLabel(p.status)}</Badge>
+          {p.visibility === "GLOBAL" ? <Badge variant="default">Admin library</Badge> : null}
         </div>
-        {p.canManage && (
-          <Button variant="outline" asChild>
-            <Link href={`${basePath}/${p.id}/edit`}>
-              <Pencil className="mr-2 size-4" strokeWidth={2.5} />
-              Edit
-            </Link>
-          </Button>
-        )}
-      </div>
+      </PageHeader>
 
       <Card className="p-4 sm:p-6">
         <p className="mb-3 text-sm font-semibold text-app-text">

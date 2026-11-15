@@ -325,7 +325,7 @@ describe("knowledge base (real app, real Postgres)", () => {
     expect(JSON.stringify(insights.body)).toContain(a.slug);
   });
 
-  it("export → import round-trips as drafts; permanent delete is super-admin only", async () => {
+  it("export → import round-trips as drafts; delete is super-admin only and goes through the trash", async () => {
     const exported = await t.call(u.admin, "GET", API_ROUTES.adminKnowledge.export);
     const file = exported.body as { items: unknown[] };
     expect(file.items.length).toBeGreaterThan(3);
@@ -337,6 +337,13 @@ describe("knowledge base (real app, real Postgres)", () => {
 
     expect((await t.call(u.admin, "DELETE", API_ROUTES.adminKnowledge.article(ids[0]))).status).toBe(403);
     expect((await t.call(u.superAdmin, "DELETE", API_ROUTES.adminKnowledge.article(ids[0]))).status).toBe(200);
+    // In the trash: hidden, with its versions kept for a restore.
+    expect(await t.prisma.knowledgeArticle.count({ where: { id: ids[0] } })).toBe(0);
+    expect(await t.prisma.knowledgeArticleVersion.count({ where: { articleId: ids[0] } })).toBeGreaterThan(0);
+    // Purged from the trash: every version goes with it.
+    expect(
+      (await t.call(u.superAdmin, "DELETE", API_ROUTES.trash.deleteItem("KnowledgeArticle", ids[0]))).status
+    ).toBeLessThan(300);
     expect(await t.prisma.knowledgeArticleVersion.count({ where: { articleId: ids[0] } })).toBe(0);
   });
 

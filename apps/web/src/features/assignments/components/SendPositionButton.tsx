@@ -6,7 +6,12 @@ import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { useAuthStore } from "@/stores/authStore";
 import { useCoachBatches } from "@/features/coach/hooks/useCoachApi";
-import { AssignmentFormDialog } from "./AssignmentFormDialog";
+import { lazyOnOpen } from "@/lib/lazyOnOpen";
+
+// The form (react-hook-form, the date picker, the puzzle-set editor) is
+// downloaded when the coach first opens it — this button sits on the
+// live-class board, where students would otherwise download it too.
+const AssignmentFormDialog = lazyOnOpen(() => import("./AssignmentFormDialog"), "AssignmentFormDialog");
 
 interface Props {
   /** The position to seed the assignment with (usually the live board FEN). */

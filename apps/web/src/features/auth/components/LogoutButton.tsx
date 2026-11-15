@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { LogOut } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { Button } from "@/components/ui/Button";
 import { getErrorMessage } from "@/lib/errors";
@@ -44,7 +44,7 @@ export function LogoutButton() {
         aria-label="Logout"
         disabled={logoutMutation.isPending}
         onClick={() => setIsConfirmOpen(true)}
-        variant="secondary"
+        variant="neutral"
       >
         <LogOut aria-hidden="true" className="size-4" strokeWidth={2.5} />
         <span>{logoutMutation.isPending ? "Logging out..." : "Logout"}</span>

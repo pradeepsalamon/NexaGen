@@ -17,7 +17,17 @@ is a `BadRequestException` and no request goes out. **One network attempt per
 call** — retries belong to a BullMQ job, which should branch on
 `WhatsAppSendError.retryable`. `trySendText` / `trySendTemplate` / `sendTextToMany`
 return outcomes instead of throwing, for paths that must survive WhatsApp being
-down. Walkthrough below.
+down. **Per academy (SaaS §F):** the env number is Nexa's; another academy sends
+only from its own number (`whatsapp_settings`, `/admin/whatsapp`), so
+`isConfigured()` answers for the request's academy and must be called inside it
+(`runInTenant` in jobs). **Opt-out:** a number that replied STOP to the support
+bot (`whatsapp_contacts."optedOutAt"`) gets no rule or system-message WhatsApp
+— `WhatsAppOptOutService.isOptedOut`, checked at send time by
+`MessagingDeliveryWorker` (row `SKIPPED`) and `SystemNotifier` (channel
+`SKIPPED`). Meta's status webhooks fill `message_deliveries."deliveredAt"` /
+`"readAt"` and turn a late failure into FAILED (once the webhook is set up; the
+log shows DELIVERED / READ). Incoming messages and the support bot: [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0.
+Walkthrough below.
 
 ## 3.6e Admin messaging rules
 
@@ -33,6 +43,7 @@ toggles (WhatsApp / in-app / email) + audience + lead time + `{{placeholder}}` t
 use them, don't reimplement, or the admin preview stops matching the send.
 `MESSAGE_VARIABLE_DOCS` gives every placeholder its label and example value for
 the editors; a new placeholder needs an entry (a spec checks).
+`{{academy.name}}` is the recipient's academy (`BrandingService.nameFor()`, the name its pages show); Nexa's is "Nexa Chess". Both `MessagingDispatchService` and `SystemMessageRenderer` fill it.
 
 - **`MessagingDispatchService.dispatchInBackground(request)` is the only entry
   point** a feature service calls. It never throws — messaging must not fail
@@ -63,6 +74,17 @@ the editors; a new placeholder needs an entry (a spec checks).
   onto `message_deliveries` and the worker sends it as a WhatsApp document.
 - `APPROVAL_REQUESTED` / `APPROVAL_DECIDED` ship **enabled, in-app only** (admin approvals, [PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md](PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md) §2.7). `ApprovalService` dispatches REQUESTED after a request commits — to every ACTIVE user in the action's catalogue `reviewerRoles`, never the requester (audience `ADMINS`, the only admin-side audience) — and DECIDED to the requester after an approval, rejection or expiry. Everything shown is read back from the request row.
 - `CLASS_SUBSTITUTE_ASSIGNED` ships **enabled, in-app only**: sent after commit to the coach who now owns a class, once an admin approves a `CLASS_SUBSTITUTE_COACH` request. The audience is coaches only; the batch isn't told by this event.
+- **Registration messages** ship **enabled, email + in-app** (WhatsApp off until an
+  admin turns it on): `ACCOUNT_WELCOME` ("Registration received") goes to a
+  student or coach right after `AuthService.register`/`registerCoach`;
+  `ACCOUNT_APPROVED` when an admin approves a pending student or coach (or
+  restores an account); `ACCOUNT_DECLINED` (email only — they can't sign in) when
+  a pending registration is declined (`AdminService.updateStudentStatus` /
+  `updateCoachStatus`, only on a real change). `REGISTRATION_PENDING_ADMIN` is
+  in-app to whoever can approve it — admins and super admins for a student,
+  super admins only for a coach, never platform support — linking to
+  `/admin/approvals`. Migration `…_account_registration_messages` switched the
+  two older rules on only where no admin had edited them.
 - `ASSIGNMENT_OVERDUE_COACH` ships **enabled, in-app only**: the hourly
   `assignmentDueReminders` cron (same job lock as due-soon) finds deployments
   whose `dueDate` passed in the last 48h with someone unfinished and dispatches
@@ -148,6 +170,9 @@ every 5 minutes, and the assignment-due sweep hourly.
 | Subscription renewal failed | `SubscriptionService` when a recurring charge fails | on, in-app only |
 | Invoice issued | invoice generation after a capture (can carry the PDF) | on, in-app only |
 | Payroll finalized / paid | an admin finalizing a payroll period / marking a payout paid | on, in-app only |
+| Tournament open for registration | the tournament tick, once a public tournament's registration opens; to the academy's students (only the eligible batches, when it is limited to batches) | on, in-app only |
+| Tournament started | the tournament tick, once a tournament goes live; to its entered players | on, in-app only |
+| Referral moved to a new stage / reward credited / voucher request or withdrawal decided | the referral pipeline and admin board, after commit ([REFERRALS.md](REFERRALS.md) § "Notifications") | on, in-app only |
 
 Each rule carries: a master on/off, per-channel toggles (**WhatsApp**, the
 **in-app bell** and **email**), an audience, **when to send** (immediately, daily
@@ -207,8 +232,43 @@ Things worth knowing before you touch it:
   minutes), so a second API container takes different rows instead of the same
   ones.
 - **Outside WhatsApp's 24-hour window**, free-form text is rejected by Meta
-  (error `131047`). A rule can name an approved template instead, with its
-  positional values written as mini-templates.
+  (error `131047`). A rule or a system message can name an approved template
+  instead (next section).
+
+## WhatsApp templates
+
+Messaging rules and system messages (where WhatsApp is a channel) can each name a
+template approved in WhatsApp Manager. When one is set it is sent **instead of** the
+free text, so it reaches people outside the 24-hour window; with no name the text is
+sent as before. Saved as `whatsappTemplateName` / `whatsappTemplateLanguage` /
+`whatsappTemplateParams` on `messaging_rules` and `system_message_templates`.
+
+- **One set of rules, `@nexa-chess/types` `whatsapp-template.ts`:**
+  `whatsappTemplateIssues` validates before a save (API 400 and the editor, live) —
+  name as in WhatsApp Manager (`[a-z0-9_]`), language like `en` / `en_US` (empty =
+  `en_US`), at most 10 values of 500 characters, and only placeholders the message can
+  fill. A language or values without a name is refused. `resolveWhatsAppTemplate`
+  renders the values for one recipient as plain text (`renderMessageTemplate`; values
+  are never markdown). Meta checks the rest (the template exists, is approved, has as
+  many slots as values) only when it sends.
+- **One send path: `WhatsAppService.trySendMessage`** chooses template, document
+  (text as caption) or text. The outbox worker (rules), `SystemNotifier` (system
+  messages) and both editors' "Send test" use it, so a test proves the template works.
+  A templated rule row with a document sends it as the template's DOCUMENT header.
+- **Backward compatible:** a save that omits the template fields keeps the saved
+  template (rules and system messages); existing rows have none and keep sending text.
+- **Logging:** a failed templated send names the template (`template "x": <Meta
+  error>`) in the delivery log / `SystemNotifier` result and the API log.
+- Editor: `features/messaging/components/WhatsAppTemplateFields.tsx`, shared by both
+  editors, with a preview of each slot's value.
+- **Status from WhatsApp Manager** (2026-11-14): `GET /admin/whatsapp/templates`
+  (admins; `WhatsAppTemplatesService`, cached 5 minutes per academy, `?refresh=1`
+  bypasses) lists the academy's templates from its WhatsApp Business Account
+  (Nexa: `WHATSAPP_BUSINESS_ACCOUNT_ID`; another academy: the WABA ID under
+  Settings → WhatsApp connection (`/admin/whatsapp`)). `WhatsAppTemplateStatus` shows Approved / Pending /
+  Rejected beside every template-name field, or says the name or language isn't
+  there (`checkWhatsAppTemplate`). Read-only: templates are still created in
+  WhatsApp Manager, and a send never waits on this list.
 
 ## Email channel
 
@@ -227,24 +287,80 @@ it through `MailService.sendRuleEmail`.
 - A 5xx from the mail server fails at once; anything else retries like WhatsApp.
   A sweep stops after 4 minutes, before its claims go stale, and later sweeps pick
   up what's left.
-- Email has no unsubscribe link or per-person opt-out yet.
+- **Every rule email carries the recipient's own unsubscribe links** (2026-11-15 rework):
+  a footer link to `/unsubscribe?token=…&category=…`, and RFC 8058 one-click headers
+  (`List-Unsubscribe: <…/api/email-preferences/one-click?token=…&category=…>` +
+  `List-Unsubscribe-Post: List-Unsubscribe=One-Click`). The page changes nothing until a
+  button is pressed, because mail scanners open links; it offers "Stop these emails" (that
+  kind) or "Unsubscribe from all". The one-click POST (a mail app's button) only ever turns
+  emails off, for the email's kind. Both links are on the recipient's own academy's address
+  (`AcademyLinksService`); the one-click goes through the web's `/api` proxy. The profile page
+  ("Email notifications") has the master switch and one switch per kind. Code:
+  `email-admin/email-preferences.service.ts`, `features/email-preferences/`.
+  - **Kinds** (`EMAIL_CATEGORIES`, `@nexa-chess/types` `email-admin.ts`): Classes, Homework and
+    revision, Announcements and tournaments, Account/payments/requests, Referrals, and Messages
+    from the academy team (staff email at `/admin/email`, see EMAIL_ADMIN.md). Each rule's kind
+    is `MESSAGING_EVENT_EMAIL_CATEGORY[event]`, so a new event must pick one (the compiler
+    insists).
+  - Stored on the user: `notificationEmailOptOutAt` (master switch, the first opt-out date) and
+    `emailOptOutCategories` (kinds off one by one). Master off stops every kind. A kind link
+    turning one kind back on while everything is off turns the master switch on with the other
+    kinds off, so only what was asked for resumes.
+  - System messages (password reset, verification, invoices) always send; in-app and WhatsApp
+    are not affected.
+  - It is checked by the worker **at send time** (`EmailPreferencesService.targetFor(userId,
+    category)`), so it also stops emails already queued. Those rows become `SKIPPED` with the
+    reason in the Delivery log. A dispatch summary still counts them as queued.
+  - Admins see who opted out at `/admin/email` → Opted out (read-only).
+  - The token (`User.emailUnsubscribeToken`) is random, made on the person's first email and
+    never expires. The public routes look it up inside `asPlatform`, because a mail app's POST
+    carries no academy. The one-click route allows 120/min per address (mail providers send
+    everyone's clicks from a few addresses).
 - A rule's test email only goes to the admin's own account.
 
 ## System messages
 
-The fixed messages outside the rules can be reworded at `/admin/messaging` →
-System messages: sign-in and account emails, the invoice email, demo-class emails
-and WhatsApp texts, and the notices sent to `ADMIN_EMAILS`. Catalogue and defaults:
-`@nexa-chess/types` `system-messages.ts`. Saved wording: `system_message_templates`.
-No row means the default.
+The fixed messages outside the rules can be reworded, and each one's **email,
+WhatsApp and in-app** channels switched on or off, at `/admin/messaging` → System
+messages: sign-in and account messages, the invoice email, demo-class messages, and
+the notices to admins. Catalogue and defaults: `@nexa-chess/types` `system-messages.ts`
+(`channels` = what a message supports, `defaultChannels` = what is on until an admin
+changes it). Saved wording and switches: `system_message_templates`; a null column
+means that part's default, and no row means all defaults.
 
-- **Send through `SystemMessageRenderer.render`, never hardcoded text.** A new fixed
-  message needs a `SYSTEM_MESSAGE_DEFINITIONS` entry.
-- **Admins change the words only**, not when a message goes out or who gets it.
-- **The code adds an email's button and link** (`actionVariable`), so an edit can't
-  lose a password-reset link. A WhatsApp text has no button, so it lists the link in
-  `requiredVariables`, and the API refuses a body without it.
-- Saving the default wording deletes the row.
+- **Send through `SystemNotifier.send(key, recipients, variables)`** (`mail/system-notifier.service.ts`),
+  never hardcoded text and never `MailService`/`WhatsAppService` directly. It renders once
+  and sends on every channel that is on and that the recipient has a contact for:
+  `{ email, phone, userId }`, each used only by its channel. It never throws; it returns
+  each channel's outcome. A caller that lets a person pick channels (the sales sign-in
+  link) passes `channels`, still limited to what the message supports. Only the two
+  email-only messages (verification, invoice) keep their `MailService` methods.
+- **One wording per message.** `subject` is the email subject and the in-app title; the
+  body is converted per channel. WhatsApp may have its own shorter `whatsappBody`
+  (null = the catalogue's WhatsApp default, else the body). The old `_EMAIL`/`_WHATSAPP`
+  pairs were merged into one key each (migration `…_system_message_channels`).
+- **Every message supports all three channels unless its `channelNote` says why not**
+  (a spec checks): email verification is email only (the link proves the address);
+  password reset, the sales sign-in link and the new-academy invite carry a one-time
+  sign-in link, which is never stored in an in-app inbox; demo guests and a deleted
+  account have no inbox; invoice in-app/WhatsApp are the `INVOICE_ISSUED` rule. At least
+  one channel must stay on.
+- **Admin alerts** (`NEW_LEAD_ADMIN`, `ACCOUNT_DELETION_REQUESTED_ADMIN`) email the
+  `ADMIN_EMAILS` list as before and reach the academy's admin and super-admin accounts
+  by WhatsApp and in-app (`SystemNotifier.adminAlertRecipients`).
+- In-app system messages are `Notification` rows of type `SYSTEM_MESSAGE`; they open the
+  action link's path, else the definition's `inAppLink`.
+- **Admins change the words and the channels**, not when a message goes out or who gets it.
+- **The code adds the action link** (`actionVariable`) so an edit can't lose it: a button
+  under the email, a "label: link" line under the WhatsApp text (unless the text already
+  has the link), the in-app notification's link.
+- Saving the default wording and channels deletes the row.
+- **Demo messages, in order:** `DEMO_BOOKING` confirms the academy site's "book a
+  free demo" form to the parent (`LeadService.createLead`; their email if given, and
+  their phone — no class chosen yet); `DEMO_INVITATION` is the class allotment, sent
+  when staff assign the lead (or anyone) a demo class through `DemoInviteService`,
+  with a personal join link; `DEMO_REGISTRATION` confirms a visitor who signs up for a
+  specific demo class themselves.
 - Direct email (`/admin/email`) is exempt, since staff write it themselves.
 
 ### Formatting and links

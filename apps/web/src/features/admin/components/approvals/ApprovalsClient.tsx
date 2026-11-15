@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { GraduationCap, UserRoundCheck } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { getPendingCoaches, getPendingStudents } from "@/features/admin/api/adminApi";
@@ -16,7 +17,7 @@ type Tab = "students" | "coaches";
 function CountBadge({ count }: { count?: number }) {
   if (!count) return null;
   return (
-    <span className="min-w-5 rounded-full bg-primary/15 px-1.5 text-center text-xs font-bold leading-5 text-primary-ink group-data-[state=active]:bg-white/25 group-data-[state=active]:text-white">
+    <span className="min-w-5 rounded-full bg-primary/15 px-1.5 text-center text-xs font-bold leading-5 text-primary-ink group-data-[state=active]:bg-on-primary/25 group-data-[state=active]:text-on-primary">
       {count}
     </span>
   );
@@ -42,26 +43,27 @@ export function ApprovalsClient() {
 
   return (
     <div className="grid gap-6 pb-10">
-      <PageHeader
-        description="Review self-registered students and coach applications. Nobody can sign in until approved."
-        title="Approvals"
-      />
-
       <Tabs onValueChange={setTab} value={tab}>
-        <TabsList className="w-full justify-start overflow-x-auto sm:w-fit sm:justify-self-end">
-          <TabsTrigger value="students">
-            <UserRoundCheck aria-hidden="true" className="size-4" />
-            Students
-            <CountBadge count={students.data?.students.length} />
-          </TabsTrigger>
-          {canReviewCoaches ? (
-            <TabsTrigger value="coaches">
-              <GraduationCap aria-hidden="true" className="size-4" />
-              Coaches
-              <CountBadge count={coaches.data?.coaches.length} />
-            </TabsTrigger>
-          ) : null}
-        </TabsList>
+        <PageHeader
+          description="Review self-registered students and coach applications. Nobody can sign in until approved."
+          tabs={
+            <TabsList>
+              <TabsTrigger value="students">
+                <UserRoundCheck aria-hidden="true" className="size-4" />
+                Students
+                <CountBadge count={students.data?.students.length} />
+              </TabsTrigger>
+              {canReviewCoaches ? (
+                <TabsTrigger value="coaches">
+                  <GraduationCap aria-hidden="true" className="size-4" />
+                  Coaches
+                  <CountBadge count={coaches.data?.coaches.length} />
+                </TabsTrigger>
+              ) : null}
+            </TabsList>
+          }
+          title="Approvals"
+        />
 
         <TabsContent className="mt-2" value="students">
           <PendingStudentsPanel

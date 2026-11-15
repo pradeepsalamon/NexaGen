@@ -2,7 +2,9 @@ import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
 import type { Job } from "bullmq";
+import { PrismaService } from "../prisma/prisma.service";
 import { buildWorkerOptions } from "../queue/queue.config";
+import { runJobForRow } from "../tenancy/run-job-for-row";
 import { InvoiceGenerationService } from "./invoice-generation.service";
 import {
   INVOICE_JOBS,
@@ -28,7 +30,10 @@ import {
 export class InvoiceProcessor extends WorkerHost {
   private readonly logger = new Logger(InvoiceProcessor.name);
 
-  constructor(private readonly generation: InvoiceGenerationService) {
+  constructor(
+    private readonly generation: InvoiceGenerationService,
+    private readonly prisma: PrismaService
+  ) {
     super();
   }
 
@@ -39,16 +44,27 @@ export class InvoiceProcessor extends WorkerHost {
         // Deliberately awaited and allowed to throw: a throw is what tells
         // BullMQ to retry. `generateAndDeliver` swallows render failures into
         // `pdfStatus: FAILED`, so only an unexpected fault reaches here.
-        await this.generation.generateAndDeliver(data.invoiceId, {
-          force: data.force,
-          sendEmail: data.sendEmail
-        });
+        await runJobForRow(
+          "queue:invoice-pdf",
+          data.tenantId,
+          () => this.prisma.invoice.findUnique({ select: { tenantId: true }, where: { id: data.invoiceId } }),
+          () =>
+            this.generation.generateAndDeliver(data.invoiceId, {
+              force: data.force,
+              sendEmail: data.sendEmail
+            })
+        );
         return;
       }
 
       case INVOICE_JOBS.generateCreditNotePdf: {
         const data = job.data as GenerateCreditNotePdfJob;
-        await this.generation.generateCreditNote(data.creditNoteId, data.force);
+        await runJobForRow(
+          "queue:credit-note-pdf",
+          data.tenantId,
+          () => this.prisma.creditNote.findUnique({ select: { tenantId: true }, where: { id: data.creditNoteId } }),
+          () => this.generation.generateCreditNote(data.creditNoteId, data.force)
+        );
         return;
       }
 

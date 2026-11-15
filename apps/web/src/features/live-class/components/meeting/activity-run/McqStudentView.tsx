@@ -73,7 +73,7 @@ export function McqStudentView({ classId, run, mcq }: { classId: string; run: Ac
                       aria-hidden="true"
                       className={cn(
                         "grid size-4 place-items-center rounded-[4px] border",
-                        isSelected ? "border-primary bg-primary text-white" : "border-app-border bg-app-surface"
+                        isSelected ? "border-primary bg-primary text-on-primary" : "border-app-border bg-app-surface"
                       )}
                     >
                       {isSelected ? <Check className="size-3" strokeWidth={3} /> : null}

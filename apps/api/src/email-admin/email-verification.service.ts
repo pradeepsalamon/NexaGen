@@ -1,12 +1,21 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import type { EmailVerificationPolicy } from "@nexa-chess/types";
 import { UserRole, type User } from "@prisma/client";
 import { createOpaqueToken, hashOpaqueToken } from "../auth/auth.utils";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { AcademyLinksService } from "../tenancy/academy-links.service";
+import { requireTenantId, singletonRowId } from "../tenancy/tenant-sql";
 
-const SETTINGS_ID = "default";
+/**
+ * This academy's row (one per academy, docs/SAAS_MULTI_TENANCY.md § "Phase 3
+ * plan", slice 5): found by `tenantId`, created with its own id.
+ */
+function settingsRow() {
+  const tenantId = requireTenantId("emailSettings");
+  return { create: { id: singletonRowId(tenantId), tenantId }, where: { tenantId } };
+}
 const LINK_TTL_MS = 24 * 60 * 60_000;
 const SIGN_IN_RESEND_COOLDOWN_MS = 5 * 60_000;
 
@@ -19,19 +28,20 @@ export class EmailVerificationService {
 
   constructor(
     private readonly mail: MailService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    @Optional() private readonly links?: AcademyLinksService
   ) {}
 
   async policy(): Promise<EmailVerificationPolicy> {
-    const settings = await this.prisma.emailSettings.findUnique({ where: { id: SETTINGS_ID } });
+    const settings = await this.prisma.emailSettings.findUnique({ where: settingsRow().where });
     return settings?.verificationPolicy ?? "OFF";
   }
 
   async setPolicy(policy: EmailVerificationPolicy, updatedById: string) {
     await this.prisma.emailSettings.upsert({
-      create: { id: SETTINGS_ID, updatedById, verificationPolicy: policy },
+      create: { ...settingsRow().create, updatedById, verificationPolicy: policy },
       update: { updatedById, verificationPolicy: policy },
-      where: { id: SETTINGS_ID }
+      where: settingsRow().where
     });
   }
 
@@ -60,7 +70,7 @@ export class EmailVerificationService {
       })
     ]);
 
-    const link = new URL("/verify-email", this.frontendUrl);
+    const link = new URL("/verify-email", this.links ? await this.links.origin() : this.frontendUrl);
     link.searchParams.set("token", token);
     await this.mail.sendEmailVerificationLink(user.email, link.toString());
   }

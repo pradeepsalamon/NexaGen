@@ -9,11 +9,15 @@ import {
 } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
+import { PlatformPlansService } from "./platform-plans.service";
 import { PlatformService } from "./platform.service";
 
 @Controller()
 export class PlatformController {
-  constructor(private readonly platformService: PlatformService) {}
+  constructor(
+    private readonly plans: PlatformPlansService,
+    private readonly platformService: PlatformService
+  ) {}
 
   private getAccessToken(request: Request) {
     return request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
@@ -21,7 +25,7 @@ export class PlatformController {
 
   @Get(API_ROUTES.platform.plans)
   listPlans(@Req() request: Request) {
-    return this.platformService.listPlans(this.getAccessToken(request));
+    return this.plans.list(this.getAccessToken(request));
   }
 
   @Patch(API_ROUTES.platform.plan())
@@ -30,7 +34,7 @@ export class PlatformController {
     @Param("id") id: string,
     @Body(new ZodBodyPipe(updatePlatformPlanRequestSchema)) body: UpdatePlatformPlanRequest
   ) {
-    return this.platformService.updatePlan(this.getAccessToken(request), id, body);
+    return this.plans.update(this.getAccessToken(request), id, body);
   }
 
   @Get(API_ROUTES.platform.tenantSubscription())

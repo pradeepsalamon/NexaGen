@@ -9,6 +9,7 @@ import { PRACTICE_BOARD_BESIDE } from "@/features/chessboard/components/board/Pr
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
+import { BoardFrame } from "@/features/chessboard/components/board/BoardFrame";
 
 type Ply = { fen: string; san: string; from: string; to: string; check: boolean };
 
@@ -107,20 +108,22 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-start">
       <div className={cn("w-full max-w-[420px]", PRACTICE_BOARD_BESIDE)}>
-        <div
-          ref={containerRef}
-          className="aspect-square w-full rounded-app border border-app-border"
-          data-nexa-board-theme={currentBoardTheme}
-          data-nexa-piece-set={currentPieceSet}
-          data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
-          data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
-        />
+        <BoardFrame className="aspect-square w-full">
+          <div
+            ref={containerRef}
+            className="size-full"
+            data-nexa-board-theme={currentBoardTheme}
+            data-nexa-piece-set={currentPieceSet}
+            data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
+            data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
+          />
+        </BoardFrame>
         <div className="mt-3 flex items-center justify-center gap-2">
           <Button
             aria-label="First move"
-            variant="outline"
+            variant="neutral"
             size="icon"
-            className="size-9 rounded-full p-0"
+            className="size-9"
             disabled={atStart}
             onClick={() => setCursor(-1)}
           >
@@ -128,9 +131,9 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
           </Button>
           <Button
             aria-label="Previous move"
-            variant="outline"
+            variant="neutral"
             size="icon"
-            className="size-9 rounded-full p-0"
+            className="size-9"
             disabled={atStart}
             onClick={() => setCursor((c) => Math.max(-1, c - 1))}
           >
@@ -138,9 +141,9 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
           </Button>
           <Button
             aria-label="Next move"
-            variant="outline"
+            variant="neutral"
             size="icon"
-            className="size-9 rounded-full p-0"
+            className="size-9"
             disabled={atEnd}
             onClick={() => setCursor((c) => Math.min(plies.length - 1, c + 1))}
           >
@@ -148,9 +151,9 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
           </Button>
           <Button
             aria-label="Last move"
-            variant="outline"
+            variant="neutral"
             size="icon"
-            className="size-9 rounded-full p-0"
+            className="size-9"
             disabled={atEnd}
             onClick={() => setCursor(plies.length - 1)}
           >
@@ -176,7 +179,7 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
                     onClick={() => setCursor(index)}
                     className={cn(
                       "rounded px-1.5 py-0.5 font-medium transition-colors hover:bg-app-soft",
-                      cursor === index ? "bg-primary text-white hover:bg-primary" : "text-app-text"
+                      cursor === index ? "bg-primary text-on-primary hover:bg-primary" : "text-app-text"
                     )}
                   >
                     {ply.san}

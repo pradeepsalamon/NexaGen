@@ -80,7 +80,7 @@ export function ActivitySummaryPanel({ summary }: { summary: StudentActivitySumm
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatTile
           context={`${totals.completed} completed`}
           icon={ListChecks}
@@ -146,7 +146,7 @@ export function ActivitySummaryPanel({ summary }: { summary: StudentActivitySumm
             data={chartData}
             series={[
               { color: colors.accent, key: "Correct", label: "Correct" },
-              { color: colors.warm, key: "Incorrect", label: "Incorrect" }
+              { color: colors.primary, key: "Incorrect", label: "Incorrect" }
             ]}
             stacked
             xFormat={(b) => bucketLabel(b, summary.granularity)}
@@ -178,7 +178,7 @@ export function ActivitySummaryPanel({ summary }: { summary: StudentActivitySumm
                       <span className="text-app-muted"> · {t.kind === "TYPE" ? "type" : t.kind === "FOLDER" ? "folder" : "theme"}</span>
                     </span>
                     <span className="shrink-0 text-app-muted">
-                      <span className="font-bold text-warm-ink">{pct(t.accuracyPercent)}</span> of {t.gradedAttempts}
+                      <span className="font-bold text-primary-ink">{pct(t.accuracyPercent)}</span> of {t.gradedAttempts}
                     </span>
                   </li>
                 ))}

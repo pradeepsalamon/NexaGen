@@ -3,12 +3,15 @@ import type {
   AnnouncementItem,
   AnnouncementListResponse,
   CreateAnnouncementRequest,
-  CreateAnnouncementResponse
+  CreateAnnouncementResponse,
+  CursorPageParams
 } from "@nexa-chess/types";
 import type { Announcement, Batch } from "@prisma/client";
+import { CREATED_AT_DESC_ORDER, createdAtCursorWhere, toCursorPage } from "../common/cursor-pagination";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { MessagingRuleService } from "../messaging/messaging-rule.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { TrashRepository } from "../trash/trash.repository";
 
 type AnnouncementRow = Announcement & {
   batch?: Pick<Batch, "name"> | null;
@@ -25,22 +28,29 @@ export class AnnouncementService {
   constructor(
     private readonly dispatch: MessagingDispatchService,
     private readonly messagingRules: MessagingRuleService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly trash: TrashRepository
   ) {}
 
-  async list(accessToken: string | undefined): Promise<AnnouncementListResponse> {
+  /** Newest first, keyset-paged (`cursor` = the previous page's `nextCursor`). */
+  async list(
+    accessToken: string | undefined,
+    query: CursorPageParams
+  ): Promise<AnnouncementListResponse> {
     await this.messagingRules.assertAdmin(accessToken);
 
     const rows = await this.prisma.announcement.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 100,
+      where: createdAtCursorWhere(query.cursor),
+      orderBy: [...CREATED_AT_DESC_ORDER],
+      take: query.limit + 1,
       include: {
         batch: { select: { name: true } },
         createdBy: { select: { firstName: true, lastName: true } }
       }
     });
 
-    return { announcements: rows.map((row) => this.toItem(row)) };
+    const page = toCursorPage(rows, query.limit);
+    return { announcements: page.items.map((row) => this.toItem(row)), nextCursor: page.nextCursor };
   }
 
   async create(
@@ -98,16 +108,16 @@ export class AnnouncementService {
     };
   }
 
-  /** Removes it from the dashboard feed. Messages already sent are not recalled. */
+  /** Moves it to the trash, off the dashboard feed. Messages already sent are not recalled. */
   async delete(accessToken: string | undefined, id: string): Promise<void> {
-    await this.messagingRules.assertAdmin(accessToken);
+    const admin = await this.messagingRules.assertAdmin(accessToken);
 
     const existing = await this.prisma.announcement.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException("Announcement not found.");
     }
 
-    await this.prisma.announcement.delete({ where: { id } });
+    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "Announcement", id, admin.id));
   }
 
   private toItem(row: AnnouncementRow): AnnouncementItem {

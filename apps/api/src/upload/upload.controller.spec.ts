@@ -94,7 +94,7 @@ describe('UploadController — deleteImage', () => {
           provide: UploadService,
           useValue: {
             deleteImage,
-            isProfileImageUrl: (url: string) => new UploadService().isProfileImageUrl(url),
+            isProfileImageUrl: (url: string) => new UploadService({} as never).isProfileImageUrl(url),
           },
         },
         { provide: JwtService, useValue: { verifyAsync: jest.fn().mockResolvedValue({ type: 'access', sub: 'u1' }) } },

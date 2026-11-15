@@ -13,16 +13,17 @@ import {
 } from "@nestjs/common";
 import type { Request } from "express";
 import { Prisma } from "@prisma/client";
-import { WebhookReceiver } from "livekit-server-sdk";
+import { WebhookReceiver, type WebhookEvent } from "livekit-server-sdk";
 import { DisconnectReason } from "@livekit/protocol";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { AttendanceService } from "./attendance.service";
 import { resolveJoinAction } from "./attendance-session.util";
 import { LiveClassModerationService } from "../live-class/live-class-moderation.service";
-import { LiveClassRecordingService } from "../live-class/live-class-recording.service";
+import { LiveClassRecordingService, type EgressFileResult } from "../live-class/live-class-recording.service";
 import { LiveClassScreenShareService } from "../live-class/live-class-screen-share.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { API_ROUTES, isSpectatorIdentity } from "@nexa-chess/types";
+import { asPlatform, runInTenant } from "../tenancy/tenant-context";
+import { API_ROUTES, DEFAULT_TENANT_ID, isSpectatorIdentity } from "@nexa-chess/types";
 
 /**
  * How long after a session is opened a `participant_joined` webhook is treated
@@ -61,6 +62,28 @@ function describeDisconnectReason(reason: DisconnectReason | undefined): string 
     `Reason ${reason}`
   );
 }
+
+
+/** Egress details as LiveKit's SDK reports them, or snake_case in a raw (unverified, development-only) payload. */
+type IncomingEgressInfo = {
+  egressId?: string;
+  egress_id?: string;
+  file?: EgressFileResult;
+  fileResults?: EgressFileResult[];
+  file_results?: EgressFileResult[];
+  roomName?: string;
+  room_name?: string;
+  status?: string | number;
+};
+
+/**
+ * A LiveKit webhook as handled here: the SDK's verified `WebhookEvent`, or in
+ * development (no receiver configured) the raw JSON body.
+ */
+type IncomingWebhook = Omit<WebhookEvent, "egressInfo"> & {
+  egressInfo?: IncomingEgressInfo;
+  egress_info?: IncomingEgressInfo;
+};
 
 @Controller()
 export class AttendanceWebhookController {
@@ -103,7 +126,7 @@ export class AttendanceWebhookController {
           ? request.body
           : JSON.stringify(request.body);
 
-      let event: any;
+      let event: IncomingWebhook;
 
       if (this.webhookReceiver) {
         // Verify the signature. A failure here means the payload is forged or
@@ -169,13 +192,18 @@ export class AttendanceWebhookController {
       }
 
       try {
-        if (typeof event.event === "string" && event.event.startsWith("egress_")) {
-          // Recording lifecycle — finalize `recordingUrl` only on success
-          // (AUDIT M20).
-          await this.handleEgressEvent(event);
-        } else {
-          await this.processEvent(event);
-        }
+        const work = () =>
+          typeof event.event === "string" && event.event.startsWith("egress_")
+            ? // Recording lifecycle — finalize `recordingUrl` only on success
+              // (AUDIT M20).
+              this.handleEgressEvent(event)
+            : this.processEvent(event);
+        // The room's LiveSession row names the academy, never the packet
+        // (docs/SAAS_MULTI_TENANCY.md §E "LiveKit"). No row: the handlers'
+        // own "no session" paths run as before.
+        const tenantId = await this.tenantForRoom(event);
+        if (tenantId) await runInTenant(tenantId, "webhook:livekit", work);
+        else await work();
       } catch (processingError) {
         // Release the claim so LiveKit's retry is processed instead of skipped.
         if (dedupeId) await this.releaseDedupeClaim(dedupeId);
@@ -189,6 +217,20 @@ export class AttendanceWebhookController {
       // 5xx so LiveKit retries the delivery (it gives up after a bounded number of attempts).
       throw new ServiceUnavailableException("Webhook processing failed.");
     }
+  }
+
+  private async tenantForRoom(event: {
+    egressInfo?: { roomName?: unknown; room_name?: unknown };
+    egress_info?: { roomName?: unknown; room_name?: unknown };
+    room?: { name?: unknown };
+  }): Promise<string | null> {
+    const egressInfo = event.egressInfo ?? event.egress_info;
+    const roomName: unknown = event.room?.name ?? egressInfo?.roomName ?? egressInfo?.room_name;
+    if (typeof roomName !== "string" || !roomName) return null;
+    const session = await asPlatform("livekit webhook: the room's academy", () =>
+      this.prisma.liveSession.findUnique({ select: { tenantId: true }, where: { roomName } })
+    );
+    return session ? (session.tenantId ?? DEFAULT_TENANT_ID) : null;
   }
 
   private async releaseDedupeClaim(id: string) {
@@ -215,7 +257,7 @@ export class AttendanceWebhookController {
     return ageMs >= 0 && ageMs < DUPLICATE_JOIN_WINDOW_MS;
   }
 
-  private async processEvent(event: any) {
+  private async processEvent(event: IncomingWebhook) {
     const roomName: string | undefined = event.room?.name;
     const participantIdentity: string | undefined =
       event.participant?.identity;
@@ -258,7 +300,7 @@ export class AttendanceWebhookController {
     if (
       participantIdentity?.startsWith("EG_") ||
       participantKind === 2 || // ParticipantInfo_Kind.EGRESS
-      participantKind === "EGRESS"
+      String(participantKind) === "EGRESS" // a raw JSON (development) payload names the enum
     ) {
       return;
     }
@@ -425,7 +467,7 @@ export class AttendanceWebhookController {
     }
   }
 
-  private async handleEgressEvent(event: any) {
+  private async handleEgressEvent(event: IncomingWebhook) {
     const egressInfo = event.egressInfo ?? event.egress_info;
     if (!egressInfo) return;
     await this.recording.handleEgressEnded({

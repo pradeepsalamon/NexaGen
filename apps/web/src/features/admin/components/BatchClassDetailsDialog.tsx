@@ -53,7 +53,7 @@ export function BatchClassDetailsDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Batch Class Details</DialogTitle>
+          <DialogTitle>Batch class details</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -113,7 +113,7 @@ export function BatchClassDetailsDialog({
                 <div className="flex items-center justify-between p-3 rounded-control border border-app-border/60 bg-app-soft/10">
                   <div className="flex items-center gap-2 text-sm">
                     <Video className="size-4 text-primary-ink" />
-                    <span className="font-medium">Class Recording</span>
+                    <span className="font-medium">Class recording</span>
                   </div>
                   <Button
                     size="sm"

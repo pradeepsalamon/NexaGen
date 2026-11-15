@@ -61,3 +61,4 @@ apps/web/public/vendor/tesseract/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+scripts/palette-compare/shots/

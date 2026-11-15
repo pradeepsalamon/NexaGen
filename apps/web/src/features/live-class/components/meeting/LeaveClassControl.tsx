@@ -85,8 +85,8 @@ export function LeaveClassControl({
                 onClick={handleEndClass}
               >
                 <span className="flex flex-col">
-                  <span className="font-semibold text-white">End class for everyone</span>
-                  <span className="text-sm font-normal text-white/80">
+                  <span className="font-semibold text-on-danger">End class for everyone</span>
+                  <span className="text-sm font-normal text-on-danger/80">
                     Finalizes attendance immediately.
                   </span>
                 </span>
@@ -109,7 +109,7 @@ export function LeaveClassControl({
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2 sm:gap-2">
-              <Button variant="secondary" onClick={() => setOpen(false)}>
+              <Button variant="neutral" onClick={() => setOpen(false)}>
                 Stay
               </Button>
               <Button variant="destructive" onClick={leave}>

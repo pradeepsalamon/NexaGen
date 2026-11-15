@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { API_URL, TEST_USERS, loginContext } from "./fixtures";
+import { API_URL, TEST_USERS, loginContext, loginViaUI } from "./fixtures";
 
 const { admin: ADMIN, student: STUDENT } = TEST_USERS;
 
@@ -85,16 +85,8 @@ test.describe("Admin analytics API", () => {
 
 test.describe("Admin analytics dashboard UI", () => {
   test("renders sections and drills down", async ({ page }) => {
-    await page.goto("/login");
-    await page.waitForLoadState("networkidle");
-    await page.getByLabel(/email/i).fill(ADMIN.email);
-    await page.locator('input[type="password"]').fill(ADMIN.password);
-    await page
-      .getByRole("button", { name: /sign in|log in|login/i })
-      .click();
-    await page.waitForURL((url) => !url.pathname.includes("/login"), {
-      timeout: 30_000
-    });
+    // The shared helper backs off on the login throttle (5 a minute per IP).
+    await loginViaUI(page, ADMIN.email, ADMIN.password);
 
     await page.goto("/admin");
     await expect(
@@ -113,14 +105,7 @@ test.describe("Admin analytics dashboard UI", () => {
   });
 
   test("a student hitting /admin is redirected or blocked", async ({ page }) => {
-    await page.goto("/login");
-    await page.waitForLoadState("networkidle");
-    await page.getByLabel(/email/i).fill(STUDENT.email);
-    await page.locator('input[type="password"]').fill(STUDENT.password);
-    await page.getByRole("button", { name: /sign in|log in|login/i }).click();
-    await page.waitForURL((url) => !url.pathname.includes("/login"), {
-      timeout: 30_000
-    });
+    await loginViaUI(page, STUDENT.email, STUDENT.password);
 
     await page.goto("/admin");
     // middleware.ts sends a wrong role to its own dashboard (lib/routeAccess.ts);

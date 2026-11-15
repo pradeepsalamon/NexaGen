@@ -29,7 +29,7 @@ export const APPROVAL_CATEGORY_LABELS: Record<ApprovalCategory, string> = {
   FINANCE: "Payments & finance",
 };
 
-type ApprovalRole = "SUPER_ADMIN" | "ADMIN" | "COACH" | "STUDENT";
+type ApprovalRole = "SUPER_ADMIN" | "ADMIN" | "COACH" | "STUDENT" | "SALES";
 
 export interface ApprovalActionMeta {
   category: ApprovalCategory;
@@ -120,7 +120,14 @@ export const APPROVAL_ACTIONS = {
     reviewerRoles: ADMINS,
     defaultTtlHours: 72,
   },
-  CLASS_SUBSTITUTE_COACH: {
+  TOURNAMENT_PUBLISH: {
+    category: "COACHING",
+    label: "Publish a public tournament",
+    requesterRoles: ["COACH"],
+    reviewerRoles: ADMINS,
+    defaultTtlHours: 168,
+  },
+    CLASS_SUBSTITUTE_COACH: {
     category: "COACHING",
     label: "Have another coach take a class",
     requesterRoles: ["COACH"],

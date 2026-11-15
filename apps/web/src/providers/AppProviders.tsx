@@ -6,9 +6,12 @@ import {
 } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { usePathname } from "next/navigation";
+import { ConnectionStatus } from "@/components/layout/ConnectionStatus";
 import { EmailVerificationBanner } from "@/components/layout/EmailVerificationBanner";
 import { Header } from "@/components/layout/Header";
+import { NavigationProgress } from "@/components/layout/NavigationProgress";
 import { TooltipProvider } from "@/components/ui/Tooltip";
+import { TenantBrandProvider } from "@/features/branding/context/TenantBrandProvider";
 import { ChessAppearanceProvider } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 import { PresenceBridge } from "@/features/presence/components/PresenceBridge";
 import { TypographySync } from "@/features/typography/context/TypographySync";
@@ -24,10 +27,23 @@ import "@/features/chess-appearance/styles/index.css";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isMeetingRoute = pathname?.startsWith("/live-class") || pathname?.startsWith("/demo");
-  // The academy marketing page has its own nav/footer chrome — never the
-  // dashboard shell.
-  const isChromeless = isMeetingRoute || pathname?.startsWith("/academy");
+  const isMeetingRoute =
+    pathname?.startsWith("/live-class") || pathname?.startsWith("/demo");
+  // The marketing home page and the auth pages bring their own full-page
+  // chrome (AcademyNavbar / AuthSplitShell) — never the dashboard shell.
+  const isAuthRoute =
+    pathname?.startsWith("/login") ||
+    pathname?.startsWith("/register") ||
+    pathname?.startsWith("/forgot-password") ||
+    pathname?.startsWith("/reset-password") ||
+    pathname?.startsWith("/verify-email") ||
+    pathname?.startsWith("/unsubscribe");
+
+  // A referral link (/r/<code>) is a brief hand-off to the home page.
+  const isReferralLink = pathname?.startsWith("/r/");
+  // `/academy` is the Design System v2 rebuild of `/`, reviewed side by side before it replaces it.
+  const isChromeless =
+    isMeetingRoute || isAuthRoute || isReferralLink || pathname === "/" || pathname === "/academy";
 
   const [queryClient] = useState(
     () =>
@@ -47,17 +63,21 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <ThemeProvider>
         <ToastProvider>
           <TooltipProvider delayDuration={600}>
+            <TenantBrandProvider>
             <ChessAppearanceProvider>
               <SessionBootstrap />
               <PresenceBridge />
               <TypographySync />
               <AcquisitionCapture />
+              <NavigationProgress />
+              <ConnectionStatus />
               {!isChromeless && <Header />}
               <div className={!isChromeless ? "pt-16" : ""}>
                 {!isChromeless && <EmailVerificationBanner />}
                 {children}
               </div>
             </ChessAppearanceProvider>
+            </TenantBrandProvider>
           </TooltipProvider>
         </ToastProvider>
       </ThemeProvider>

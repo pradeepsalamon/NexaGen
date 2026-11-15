@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
   DialogTitle
 } from "@/components/ui/Dialog";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { useDashboardPopup } from "@/lib/dashboardPopup";
 import { useMyAssignmentReminders } from "../../hooks/useAssignmentsApi";
 import { describeReminderCounts } from "./reminderText";
 import { ReminderItemRow } from "./ReminderItemRow";
@@ -36,48 +37,81 @@ function markShown() {
   }
 }
 
-/**
- * Opens once per session when something is overdue or due today — "due soon"
- * alone only gets the banner, so the popup stays an interruption worth having.
- */
+const POPUP_ID = "assignment-reminder";
+
 export function AssignmentReminderPopup() {
   const timeZone = useUserTimeZone();
   const { data } = useMyAssignmentReminders();
   const [open, setOpen] = useState(false);
+  // One dashboard pop-up at a time: waits behind the feedback pop-up if that opened first.
+  const popupOwner = useDashboardPopup((s) => s.owner);
+  const claimPopup = useDashboardPopup((s) => s.claim);
+  const releasePopup = useDashboardPopup((s) => s.release);
 
   const pressing = data ? data.counts.overdue + data.counts.dueToday : 0;
 
   useEffect(() => {
-    if (pressing > 0 && !alreadyShown()) {
+    if (pressing > 0 && !alreadyShown() && claimPopup(POPUP_ID)) {
       markShown();
       setOpen(true);
     }
-  }, [pressing]);
+  }, [claimPopup, popupOwner, pressing]);
+
+  // Release only on a real close: in the commit that claims, `open` is still false.
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) releasePopup(POPUP_ID);
+    wasOpen.current = open;
+  }, [open, releasePopup]);
+  useEffect(() => () => releasePopup(POPUP_ID), [releasePopup]);
 
   if (!data) return null;
-  const items = data.items.filter((i) => i.dueStatus !== "DUE_SOON").slice(0, 5);
+  const items = data.items
+    .filter((i) => i.dueStatus !== "DUE_SOON")
+    .slice(0, 5);
 
   return (
     <Dialog onOpenChange={setOpen} open={open}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+      <DialogContent
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-md rounded-2xl border p-6 bg-app-surface border-app-border text-app-text"
+      >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle aria-hidden className="size-5 text-app-danger-ink" />
-            Don&apos;t forget your homework
+          <DialogTitle className="flex items-center gap-2.5 text-base sm:text-lg font-bold">
+            <span
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl border bg-app-danger-soft border-app-danger/30 text-app-danger-ink"
+            >
+              <AlertTriangle aria-hidden className="size-4.5" strokeWidth={2.2} />
+            </span>
+            <span>Don&apos;t forget your homework</span>
           </DialogTitle>
-          <DialogDescription>You have {describeReminderCounts(data.counts)}.</DialogDescription>
+          <DialogDescription
+            className="text-xs sm:text-sm mt-1 text-app-subtle"
+          >
+            You have {describeReminderCounts(data.counts)}.
+          </DialogDescription>
         </DialogHeader>
-        <ul className="space-y-0.5">
+
+        <ul className="space-y-1 my-2">
           {items.map((item) => (
-            <ReminderItemRow item={item} key={item.id} onNavigate={() => setOpen(false)} timeZone={timeZone} />
+            <ReminderItemRow
+              item={item}
+              key={item.id}
+              onNavigate={() => setOpen(false)}
+              timeZone={timeZone}
+            />
           ))}
         </ul>
-        <DialogFooter>
-          <Button onClick={() => setOpen(false)} variant="outline">
+
+        <DialogFooter className="flex items-center justify-end gap-2.5 pt-2">
+          <Button onClick={() => setOpen(false)} variant="neutral">
             Later
           </Button>
-          <Button asChild onClick={() => setOpen(false)}>
-            <Link href="/student/practice">Go to assignments</Link>
+
+          <Button asChild>
+            <Link href="/student/practice" onClick={() => setOpen(false)}>
+              <span>Go to assignments</span>
+              <ArrowRight className="size-3.5" strokeWidth={2.3} />
+            </Link>
           </Button>
         </DialogFooter>
       </DialogContent>

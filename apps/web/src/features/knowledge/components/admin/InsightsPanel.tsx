@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { BarChart3, FilePlus2, Search, SearchX, X } from "lucide-react";
 import type { KnowledgeQueryInsight } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
@@ -38,7 +38,7 @@ export function InsightsPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         <StatTile context={`Last ${d.days} days`} icon={Search} label="Help searches" tone="primary" value={String(d.totals.searches)} />
         <StatTile context={`Last ${d.days} days`} icon={SearchX} label="Found nothing" tone="secondary" value={String(d.totals.unanswered)} />
       </div>

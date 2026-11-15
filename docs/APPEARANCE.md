@@ -74,7 +74,7 @@ component hardcodes its own styling.
 `/profile` (any role, personal), routes `API_ROUTES.typography.*`.
 
 - **Same 3-layer resolver as chess appearance** (§3.6h): system default
-  (Outfit headings + Nunito Sans body, "Default" size) → admin
+  (Inter headings and body, "Default" size) → admin
   `TypographySettings` singleton → the caller's `UserTypographyPreference`.
   `locked` on the singleton skips the user layer and refuses personal saves.
   `resolveTypography`, `mergeTypographyOverrides`, `FONT_CATALOG` and

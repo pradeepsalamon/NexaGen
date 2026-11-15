@@ -5,6 +5,7 @@ export const API_ROUTES = {
     refresh: "/auth/refresh",
     logout: "/auth/logout",
     me: "/auth/me",
+    supportEnter: "/auth/support/enter",
     profile: "/auth/profile",
     forgotPassword: "/auth/forgot-password",
     resetPassword: "/auth/reset-password",
@@ -27,7 +28,15 @@ export const API_ROUTES = {
     restore: (id: string = ":id") => `/users/${id}/restore`,
     delete: (id: string = ":id") => `/users/${id}`
   },
+  emailPreferences: {
+    mine: "/email-preferences",
+    /** Public: the link at the bottom of a notification email. */
+    unsubscribe: "/email-preferences/unsubscribe",
+    /** Public: RFC 8058 one-click POST from the mail app (`List-Unsubscribe-Post`). */
+    oneClick: "/email-preferences/one-click"
+  },
   adminEmail: {
+    optedOut: "/admin/email/opted-out",
     overview: "/admin/email",
     policy: "/admin/email/verification-policy",
     sent: "/admin/email/sent",
@@ -154,6 +163,8 @@ export const API_ROUTES = {
     // Ask one participant to turn their mic / camera back on (a prompt, never a remote unmute).
     requestTrackOn: (id: string = ":id") => `/live-class/${id}/moderate/request-on`,
     kick: (id: string = ":id") => `/live-class/${id}/kick`,
+    // Coach-owner+admin: lower one participant's raised hand.
+    lowerHand: (id: string = ":id") => `/live-class/${id}/lower-hand`,
     // In-class puzzle: POST assign / DELETE end / GET current (coach-owner+admin
     // for write, any participant for read).
     puzzle: (id: string = ":id") => `/live-class/${id}/puzzle`,
@@ -177,6 +188,11 @@ export const API_ROUTES = {
     movePoll: (id: string = ":id") => `/live-class/${id}/move-poll`,
     // Student submits (or changes) their move while the poll is open.
     movePollAnswer: (id: string = ":id") => `/live-class/${id}/move-poll/answer`,
+    // Class transcript (the coach's speech as text): POST lines (the owning coach
+    // only, class LIVE, setting on, consent given) / GET a page (coach-owner+admin).
+    transcript: (id: string = ":id") => `/live-class/${id}/transcript`,
+    // The signed-in coach's own consent to being transcribed: GET / PUT.
+    transcriptConsent: () => `/live-class-transcript/consent`,
     // Chapters (coach-owner+admin): GET list / POST create, POST import puzzles,
     // PUT the order, PATCH rename-or-save / DELETE one, POST delete-many ("Delete all").
     chapters: (id: string = ":id") => `/live-class/${id}/chapters`,
@@ -287,6 +303,8 @@ export const API_ROUTES = {
     requestScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/request`,
     // Screen-share request (coach-owner/admin): approve, deny, or revoke one student's request.
     resolveScreenShareRequest: (id: string = ":id") => `/live-class/${id}/screen-share-requests/resolve`,
+    // Screen-share (coach-owner/admin): let one student share without a request.
+    grantScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/grant`,
     // Screen-share request (student): self-report that sharing has stopped.
     endScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/end`,
     // Pull a student in (coach-owner/admin): GET batch roster with presence,
@@ -619,6 +637,11 @@ export const API_ROUTES = {
     webhookRazorpay: "/payments/webhooks/razorpay",
     webhookCashfree: "/payments/webhooks/cashfree",
     webhookStripe: "/payments/webhooks/stripe",
+    // Another academy's own gateway account (SaaS Phase 6): the key names the
+    // academy whose stored secret verifies the event.
+    webhookRazorpayAcademy: (tenantKey: string = ":tenantKey") => `/payments/webhooks/razorpay/${tenantKey}`,
+    webhookCashfreeAcademy: (tenantKey: string = ":tenantKey") => `/payments/webhooks/cashfree/${tenantKey}`,
+    webhookStripeAcademy: (tenantKey: string = ":tenantKey") => `/payments/webhooks/stripe/${tenantKey}`,
     // ── Manual / offline payments (admin OR coach) ──
     manual: {
       methods: "/payments/manual/methods",
@@ -678,6 +701,10 @@ export const API_ROUTES = {
     subscriptions: "/admin/payments/subscriptions",
     invoices: "/admin/payments/invoices",
     providerHealth: "/admin/payments/provider-health",
+    // The academy's own gateway keys (SaaS Phase 6; super admin only). Not
+    // under /admin/payments/: `GET /admin/payments/:id` would claim it.
+    gateways: "/admin/payment-gateways",
+    gateway: (provider: string = ":provider") => `/admin/payment-gateways/${provider}`,
     routing: "/admin/payments/routing",
     plans: "/admin/payments/plans",
     plan: (id: string = ":id") => `/admin/payments/plans/${id}`,
@@ -738,6 +765,7 @@ export const API_ROUTES = {
     closeCompensationRate: (id: string = ":id") =>
       `/admin/payroll/compensation-rates/${id}/close`,
     rules: "/admin/payroll/rules",
+    settings: "/admin/payroll/settings",
     rule: (id: string = ":id") => `/admin/payroll/rules/${id}`,
     payslipPdf: (id: string = ":id") => `/admin/payroll/payslips/${id}/pdf`,
     retryPayslipPdf: (id: string = ":id") =>
@@ -759,6 +787,168 @@ export const API_ROUTES = {
     regenerate: (id: string = ":id") => `/batch-schedules/${id}/regenerate`,
     occurrenceAction: (classId: string = ":classId") =>
       `/batch-schedules/occurrences/${classId}`
+  },
+  referrals: {
+    /** Public: records a referral-link visit and sets the attribution cookie. */
+    visit: "/referrals/visit",
+    me: "/referrals/me",
+    myReferrals: "/referrals/me/referrals",
+    myRewards: "/referrals/me/rewards",
+    myCredits: "/referrals/me/credits",
+    myWithdrawals: "/referrals/me/withdrawals",
+    cancelWithdrawal: (id: string = ":id") => `/referrals/me/withdrawals/${id}/cancel`,
+    /** Students: the rewards store (vouchers bought with points). */
+    myVouchers: "/referrals/me/vouchers",
+    redeemVoucher: (id: string = ":id") => `/referrals/me/vouchers/${id}/redeem`,
+    myRedemptions: "/referrals/me/redemptions",
+    cancelRedemption: (id: string = ":id") => `/referrals/me/redemptions/${id}/cancel`
+  },
+  // Public, anonymous tournament spectating (docs/TOURNAMENTS.md §4.1): PUBLIC
+  // tournaments of an academy that allows it, through the public projection.
+  publicTournaments: {
+    list: "/public/tournaments",
+    get: (id: string = ":id") => `/public/tournaments/${id}`,
+    live: (id: string = ":id") => `/public/tournaments/${id}/live`,
+    standings: (id: string = ":id") => `/public/tournaments/${id}/standings`,
+    game: (id: string = ":id", gameId: string = ":gameId") => `/public/tournaments/${id}/games/${gameId}`,
+    commentary: (id: string = ":id") => `/public/tournaments/${id}/commentary`,
+    realtimeToken: (id: string = ":id") => `/public/tournaments/${id}/realtime-token`,
+    // Anyone holding a certificate's code can check it (name in the public format only).
+    verifyCertificate: (code: string = ":code") => `/public/certificates/${code}`
+  },
+  // Tournaments (docs/TOURNAMENTS.md). Phase 1: the academy's tournament settings (admins).
+  tournaments: {
+    adminSettings: "/admin/tournaments/settings",
+    // Phase 2: CRUD, publish, discovery, hosts, registration.
+    list: "/tournaments",
+    create: "/tournaments",
+    capabilities: "/tournaments/capabilities",
+    get: (id: string = ":id") => `/tournaments/${id}`,
+    update: (id: string = ":id") => `/tournaments/${id}`,
+    delete: (id: string = ":id") => `/tournaments/${id}`,
+    publish: (id: string = ":id") => `/tournaments/${id}/publish`,
+    cancel: (id: string = ":id") => `/tournaments/${id}/cancel`,
+    image: (id: string = ":id", kind: string = ":kind") => `/tournaments/${id}/images/${kind}`,
+    hosts: (id: string = ":id") => `/tournaments/${id}/hosts`,
+    hostCandidates: (id: string = ":id") => `/tournaments/${id}/host-candidates`,
+    players: (id: string = ":id") => `/tournaments/${id}/players`,
+    player: (id: string = ":id", playerId: string = ":playerId") => `/tournaments/${id}/players/${playerId}`,
+    candidates: (id: string = ":id") => `/tournaments/${id}/candidates`,
+    registration: (id: string = ":id") => `/tournaments/${id}/registration`,
+    invitationAccept: (id: string = ":id") => `/tournaments/${id}/invitation/accept`,
+    invitationDecline: (id: string = ":id") => `/tournaments/${id}/invitation/decline`,
+    // Phases 3–5: running the tournament (hosts), rounds, games.
+    start: (id: string = ":id") => `/tournaments/${id}/start`,
+    pause: (id: string = ":id") => `/tournaments/${id}/pause`,
+    resume: (id: string = ":id") => `/tournaments/${id}/resume`,
+    nextRound: (id: string = ":id") => `/tournaments/${id}/rounds/next`,
+    nextRoundAt: (id: string = ":id") => `/tournaments/${id}/rounds/next/starts-at`,
+    finish: (id: string = ":id") => `/tournaments/${id}/finish`,
+    publishResults: (id: string = ":id") => `/tournaments/${id}/results/publish`,
+    rounds: (id: string = ":id") => `/tournaments/${id}/rounds`,
+    bracket: (id: string = ":id") => `/tournaments/${id}/bracket`,
+    games: (id: string = ":id") => `/tournaments/${id}/games`,
+    game: (id: string = ":id", gameId: string = ":gameId") => `/tournaments/${id}/games/${gameId}`,
+    gameMove: (id: string = ":id", gameId: string = ":gameId") => `/tournaments/${id}/games/${gameId}/move`,
+    gameAction: (id: string = ":id", gameId: string = ":gameId") => `/tournaments/${id}/games/${gameId}/action`,
+    gameDecision: (id: string = ":id", gameId: string = ":gameId") => `/tournaments/${id}/games/${gameId}/decision`,
+    myGame: (id: string = ":id") => `/tournaments/${id}/my-game`,
+    arenaJoin: (id: string = ":id") => `/tournaments/${id}/arena/join`,
+    arenaLeave: (id: string = ":id") => `/tournaments/${id}/arena/leave`,
+    standings: (id: string = ":id") => `/tournaments/${id}/standings`,
+    live: (id: string = ":id") => `/tournaments/${id}/live`,
+    withdrawPlayer: (id: string = ":id", playerId: string = ":playerId") => `/tournaments/${id}/players/${playerId}/withdraw`,
+    recomputeStandings: (id: string = ":id") => `/tournaments/${id}/standings/recompute`,
+    audit: (id: string = ":id") => `/tournaments/${id}/audit`,
+    // Phase 6: commentary, featured, real time.
+    commentary: (id: string = ":id") => `/tournaments/${id}/commentary`,
+    commentaryPin: (id: string = ":id", itemId: string = ":itemId") => `/tournaments/${id}/commentary/${itemId}/pin`,
+    commentaryHide: (id: string = ":id", itemId: string = ":itemId") => `/tournaments/${id}/commentary/${itemId}/hide`,
+    featured: (id: string = ":id") => `/tournaments/${id}/featured`,
+    realtimeToken: (id: string = ":id") => `/tournaments/${id}/realtime-token`,
+    // Phase 8: certificates and history.
+    certificateRules: (id: string = ":id") => `/tournaments/${id}/certificate-rules`,
+    certificates: (id: string = ":id") => `/tournaments/${id}/certificates`,
+    issueCertificates: (id: string = ":id") => `/tournaments/${id}/certificates/issue`,
+    revokeCertificate: (id: string = ":id", certificateId: string = ":certificateId") => `/tournaments/${id}/certificates/${certificateId}/revoke`,
+    certificatePdf: (certificateId: string = ":certificateId") => `/tournaments/certificates/${certificateId}/pdf`,
+    // Hosts pick templates for their rules (read only; the admin route manages them).
+    templates: "/tournaments/certificates/templates",
+    myHistory: "/tournaments/history/me",
+    studentHistory: (userId: string = ":userId") => `/tournaments/history/students/${userId}`,
+    // Academy admin dashboard and certificate templates.
+    adminOverview: "/admin/tournaments/overview",
+    adminRegistrations: "/admin/tournaments/registrations",
+    adminTemplates: "/admin/tournaments/certificate-templates",
+    adminTemplate: (id: string = ":id") => `/admin/tournaments/certificate-templates/${id}`
+  },
+  adminReferrals: {
+    overview: "/admin/referrals/overview",
+    list: "/admin/referrals",
+    get: (id: string = ":id") => `/admin/referrals/${id}`,
+    moveStage: (id: string = ":id") => `/admin/referrals/${id}/stage`,
+    delete: (id: string = ":id") => `/admin/referrals/${id}`,
+    linkUser: (id: string = ":id") => `/admin/referrals/${id}/referred-user`,
+    ledger: "/admin/referrals/ledger",
+    referrers: "/admin/referrals/referrers",
+    referrerCode: (userId: string = ":userId") => `/admin/referrals/referrers/${userId}/code`,
+    referrerAccessLink: (userId: string = ":userId") => `/admin/referrals/referrers/${userId}/access-link`,
+    stages: "/admin/referrals/stages",
+    stage: (id: string = ":id") => `/admin/referrals/stages/${id}`,
+    reorderStages: "/admin/referrals/stages/reorder",
+    /** Milestone bonuses (stage values live on the stages). */
+    bonusRules: "/admin/referrals/bonus-rules",
+    bonusRule: (id: string = ":id") => `/admin/referrals/bonus-rules/${id}`,
+    vouchers: "/admin/referrals/vouchers",
+    voucher: (id: string = ":id") => `/admin/referrals/vouchers/${id}`,
+    redemptions: "/admin/referrals/redemptions",
+    approveRedemption: (id: string = ":id") => `/admin/referrals/redemptions/${id}/approve`,
+    rejectRedemption: (id: string = ":id") => `/admin/referrals/redemptions/${id}/reject`,
+    revokeRedemption: (id: string = ":id") => `/admin/referrals/redemptions/${id}/revoke`,
+    rewards: "/admin/referrals/rewards",
+    approveReward: (id: string = ":id") => `/admin/referrals/rewards/${id}/approve`,
+    cancelReward: (id: string = ":id") => `/admin/referrals/rewards/${id}/cancel`,
+    withdrawals: "/admin/referrals/withdrawals",
+    /** CSV of the withdrawals in the current filter, to pay in bulk outside the app. */
+    withdrawalsExport: "/admin/referrals/withdrawals/export",
+    /** Several at once, from the export filled in with references. */
+    payWithdrawalsBulk: "/admin/referrals/withdrawals/pay-bulk",
+    payWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/pay`,
+    rejectWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/reject`,
+    adjustCredits: "/admin/referrals/credits/adjust",
+    settings: "/admin/referrals/settings"
+  },
+  /** The academy's message templates as WhatsApp Manager lists them (admins; read-only). */
+  whatsappTemplates: "/admin/whatsapp/templates",
+  /** Meta's WhatsApp Cloud API callbacks (GET = subscription handshake, POST = events). */
+  whatsappWebhook: "/webhooks/whatsapp",
+  /** Another academy's own number (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §6): the key names the academy, its app secret signs. */
+  whatsappWebhookAcademy: (webhookKey: string = ":webhookKey") => `/webhooks/whatsapp/${webhookKey}`,
+  adminSupport: {
+    tickets: "/admin/support/tickets",
+    counts: "/admin/support/tickets/counts",
+    agents: "/admin/support/agents",
+    ticket: (id: string = ":id") => `/admin/support/tickets/${id}`,
+    messages: (id: string = ":id") => `/admin/support/tickets/${id}/messages`,
+    reply: (id: string = ":id") => `/admin/support/tickets/${id}/reply`,
+    notes: (id: string = ":id") => `/admin/support/tickets/${id}/notes`,
+    takeOver: (id: string = ":id") => `/admin/support/tickets/${id}/take-over`,
+    returnToBot: (id: string = ":id") => `/admin/support/tickets/${id}/return-to-bot`,
+    savedReplies: "/admin/support/saved-replies",
+    savedReply: (id: string = ":id") => `/admin/support/saved-replies/${id}`,
+    unanswered: "/admin/support/unanswered",
+    dismissUnanswered: (id: string = ":id") => `/admin/support/unanswered/${id}/dismiss`,
+    settings: "/admin/support/settings",
+    analytics: "/admin/support/analytics",
+    /** POST: a one-time WhatsApp link code for a student (admins). */
+    linkCodes: "/admin/support/link-codes",
+    /** DELETE: unlink a WhatsApp contact from a student. */
+    contactLink: (contactId: string = ":id", studentId: string = ":studentId") => `/admin/support/contacts/${contactId}/links/${studentId}`,
+    /** DELETE: erase a WhatsApp contact (super admins). */
+    contact: (id: string = ":id") => `/admin/support/contacts/${id}`,
+    contactExport: (id: string = ":id") => `/admin/support/contacts/${id}/export`,
+    /** GET: an image or PDF a customer sent (streamed; admins). */
+    attachment: (id: string = ":id") => `/admin/support/attachments/${id}`
   },
   leads: {
     create: "/leads",
@@ -852,13 +1042,93 @@ export const API_ROUTES = {
   // user (drives web feature gating); `admin`: academy admins, with usage.
   subscription: {
     current: "/subscription",
-    admin: "/admin/subscription"
+    admin: "/admin/subscription",
+    /** The academy super admin's history of platform support visits (§I). */
+    supportVisits: "/admin/subscription/support-visits",
+    /** Paying the platform (SaaS Phase 6): open checkouts and GST invoices. */
+    billing: "/admin/subscription/billing",
+    checkout: "/admin/subscription/checkout",
+    checkoutGet: (id: string = ":id") => `/admin/subscription/checkout/${id}`,
+    checkoutConfirm: (id: string = ":id") => `/admin/subscription/checkout/${id}/confirm`,
+    invoice: (id: string = ":id") => `/admin/subscription/invoices/${id}`,
+    /** Content packs this academy's plan includes (§I "Content packs"). */
+    contentPacks: "/content-packs",
+    contentPackFolder: (packId: string = ":packId", itemId: string = ":itemId") =>
+      `/content-packs/${packId}/items/${itemId}`,
+    contentPackFolderCopy: (packId: string = ":packId", itemId: string = ":itemId") =>
+      `/content-packs/${packId}/items/${itemId}/copy`
   },
-  // Platform staff only (PlatformStaff row), never a tenant role.
+  // An academy's look and addresses (docs/SAAS_MULTI_TENANCY.md §F, §H; Phase 5).
+  branding: {
+    /** Public, by host: name, logos, colours, SEO; drives every page before sign-in. */
+    publicConfig: "/tenant/public-config",
+    /** Public: echoes a one-time token, so the console can prove a domain reaches this app. */
+    domainCheck: (token: string = ":token") => `/tenant/domain-check/${token}`,
+    admin: "/admin/branding",
+    /** POST multipart PNG/JPEG/WebP; DELETE clears it. */
+    asset: (kind: string = ":kind") => `/admin/branding/assets/${kind}`,
+    whiteLabel: "/admin/branding/white-label",
+    /** The academy's own WhatsApp Business credentials (super admin). */
+    whatsapp: "/admin/branding/whatsapp",
+    /** The academy's own addresses and how to point a domain at it. */
+    domains: "/admin/branding/domains",
+    /** Public, by host: the academy's own wording for `/privacy` or `/terms` (null = the built-in text). */
+    legalPage: (kind: string = ":kind") => `/tenant/legal/${kind}`,
+    /** The academy's admins: read both pages; PUT one (empty text = back to the built-in text). */
+    adminLegalPages: "/admin/branding/legal",
+    adminLegalPage: (kind: string = ":kind") => `/admin/branding/legal/${kind}`
+  },
+  // Platform operators only: Nexa's SUPER_ADMINs (docs/SAAS_MULTI_TENANCY.md §E), never another academy's role.
   platform: {
     plans: "/platform/plans",
     plan: (id: string = ":id") => `/platform/plans/${id}`,
-    tenantSubscription: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/subscription`
+    planDuplicate: (id: string = ":id") => `/platform/plans/${id}/duplicate`,
+    planRetire: (id: string = ":id") => `/platform/plans/${id}/retire`,
+    planApplyToExisting: (id: string = ":id") => `/platform/plans/${id}/apply-to-existing`,
+    tenantDeal: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/deal`,
+    tenantPlan: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/plan`,
+    tenantTransition: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/transition`,
+    tenantPayments: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/payments`,
+    tenantSupport: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/support`,
+    supportSessions: "/platform/support-sessions",
+    supportSessionEnd: (id: string = ":id") => `/platform/support-sessions/${id}/end`,
+    contentPacks: "/platform/content-packs",
+    contentPack: (id: string = ":id") => `/platform/content-packs/${id}`,
+    contentPackItems: (id: string = ":id") => `/platform/content-packs/${id}/items`,
+    contentPackItem: (id: string = ":id", itemId: string = ":itemId") => `/platform/content-packs/${id}/items/${itemId}`,
+    tenantSubscription: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/subscription`,
+    audit: "/platform/audit",
+    tenants: "/platform/tenants",
+    tenant: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}`,
+    tenantSuspend: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/suspend`,
+    tenantReactivate: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/reactivate`,
+    tenantDomains: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/domains`,
+    tenantDomain: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
+      `/platform/tenants/${tenantId}/domains/${domainId}`,
+    tenantDomainPrimary: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
+      `/platform/tenants/${tenantId}/domains/${domainId}/primary`,
+    tenantDomainCheck: (tenantId: string = ":tenantId", domainId: string = ":domainId") =>
+      `/platform/tenants/${tenantId}/domains/${domainId}/check`,
+    tenantPayLink: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/pay-link`,
+    tenantInvoices: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/invoices`,
+    sellerDetails: "/platform/billing/seller",
+    invoices: "/platform/billing/invoices",
+    invoice: (id: string = ":id") => `/platform/billing/invoices/${id}`,
+    usage: "/platform/usage",
+    // Daily usage history per academy (`?tenantId=&days=`), platform operators only.
+    usageHistory: "/platform/usage/history",
+    // GET the latest runs, POST to run the check now (platform operators only).
+    integrityRuns: "/platform/integrity/runs"
+  },
+  // The owner's gateway account (SaaS Phase 6): public, signature-verified.
+  platformBilling: {
+    webhookRazorpay: "/platform-billing/webhooks/razorpay"
+  },
+  security: {
+    // Public: browsers POST Content-Security-Policy violation reports here
+    // (`report-uri` and the Reporting API's `report-to`). The web points its
+    // headers at `/api` + this path (apps/web/next.config.mjs).
+    cspReport: "/security/csp-report"
   },
   health: {
     // Public, unauthenticated, not rate limited. `live` never touches a

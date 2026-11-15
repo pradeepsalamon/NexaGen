@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardPaste, Copy, Cpu, Loader2, Redo2, Undo2 } from "lucide-react";
+import { ClipboardPaste, Copy, Cpu, Redo2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
@@ -10,6 +10,7 @@ import { useBoardStore } from "../../context/BoardProvider";
 import { useEngineMove } from "../../hooks/useEngineMove";
 import { useShallow } from "zustand/react/shallow";
 import { NavIconButton } from "../toolbars/BoardNavigation";
+import { Spinner } from "@/components/ui/Spinner";
 
 /** Coach's board actions: save, setup position, undo/redo, PGN copy/paste, engine move. */
 export function BoardActionsRow({ onPastePgn, className }: { onPastePgn: () => void; className?: string }) {
@@ -56,7 +57,7 @@ export function BoardActionsRow({ onPastePgn, className }: { onPastePgn: () => v
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       <Button
         variant="primary"
-        className="h-auto bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary"
+        className="h-auto bg-primary px-4 py-1.5 text-xs font-medium text-on-primary hover:bg-primary"
         onClick={handleSaveToCloud}
       >
         Save
@@ -88,7 +89,7 @@ export function BoardActionsRow({ onPastePgn, className }: { onPastePgn: () => v
       <SimpleTooltip label={isEngineMoving ? "Thinking…" : "Engine Move"}>
         <NavIconButton
           aria-label={isEngineMoving ? "Thinking…" : "Engine Move"}
-          icon={isEngineMoving ? <Loader2 className="size-4 animate-spin" /> : <Cpu className="size-4" />}
+          icon={isEngineMoving ? <Spinner className="size-4" /> : <Cpu className="size-4" />}
           onClick={() => void playEngineMove()}
           disabled={isEngineMoving || isGameOver}
         />

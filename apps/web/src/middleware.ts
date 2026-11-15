@@ -1,18 +1,41 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isPlatformHost, usesHostOnlySession } from "./lib/apiBase";
 import {
   AUTH_COOKIES,
   canAccessPath,
+  HOST_ONLY_AUTH_COOKIES,
   getRoleDashboardHref,
   isProtectedPath,
   readRoleFromJwt
 } from "./lib/routeAccess";
 
+/**
+ * The visitor's host. A self-hosted Next server builds `request.nextUrl` from its
+ * own hostname and port, never the Host header, so `nextUrl.hostname` is always
+ * "localhost" (or the bind address) and an academy's address looked like Nexa's.
+ * nginx passes the visitor's host on as `Host`. Routing only: the API decides access.
+ */
+function requestHostname(request: NextRequest): string {
+  const raw = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(",")[0].trim().toLowerCase();
+  if (!raw) return request.nextUrl.hostname;
+  if (raw.startsWith("[")) return raw.slice(0, raw.indexOf("]") + 1);
+  return raw.replace(/:\d+$/, "");
+}
+
 // The single page-level auth gate: pages and layouts do not re-check cookies.
 // Rules live in lib/routeAccess.ts (shared with the client guard in SessionBootstrap).
 export function middleware(request: NextRequest) {
-  const accessToken = request.cookies.get(AUTH_COOKIES.accessToken)?.value;
-  const hasSession =
-    Boolean(accessToken) || Boolean(request.cookies.get(AUTH_COOKIES.refreshToken)?.value);
+  // An academy's own address reads only its host-only cookies: Nexa's domain-wide ones also
+  // reach `<slug>.nexachess.in`, and the API refuses them there (lib/apiBase.ts, §E).
+  // Nexa's own hosts with host-only sessions on (lib/apiBase.ts) still read the old
+  // domain-wide cookies until the API swaps them at the next refresh.
+  const hostname = requestHostname(request);
+  const readsLegacy = isPlatformHost(hostname);
+  const names = usesHostOnlySession(hostname) ? HOST_ONLY_AUTH_COOKIES : AUTH_COOKIES;
+  const cookie = (key: keyof typeof AUTH_COOKIES) =>
+    request.cookies.get(names[key])?.value || (readsLegacy ? request.cookies.get(AUTH_COOKIES[key])?.value : undefined);
+  const accessToken = cookie("accessToken");
+  const hasSession = Boolean(accessToken) || Boolean(cookie("refreshToken"));
   // An expired access token still names the role; a refresh-only session has none,
   // so it passes here and SessionBootstrap redirects once /auth/me resolves.
   const role = readRoleFromJwt(accessToken);
@@ -42,6 +65,7 @@ export const config = {
   matcher: [
     "/admin/:path*",
     "/coach/:path*",
+    "/sales/:path*",
     "/student/:path*",
     "/checkout/:path*",
     "/classes/:path*",
@@ -51,6 +75,7 @@ export const config = {
     "/messages/:path*",
     "/plans",
     "/profile",
+    "/tournaments/:path*",
     "/login",
     "/signup"
   ]

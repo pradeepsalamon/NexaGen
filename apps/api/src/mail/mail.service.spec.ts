@@ -6,11 +6,16 @@ import { ServiceUnavailableException } from "@nestjs/common";
 import * as nodemailer from "nodemailer";
 import * as configModule from "@nexa-chess/config/api";
 import type { ApiEnv } from "@nexa-chess/config/api";
+import type { SystemMessageKey } from "@nexa-chess/types";
 
 jest.mock("nodemailer");
 
 describe("MailService", () => {
   let service: MailService;
+  let renderer: SystemMessageRenderer;
+  /** Render a system message (saved wording or default) and send it by email, as SystemNotifier does. */
+  const sendSystem = async (key: SystemMessageKey, to: string, values: Record<string, string>) =>
+    service.sendRenderedSystemEmail(to, await renderer.render(key, values));
   let mockSendMail: jest.Mock;
   let findTemplate: jest.Mock;
 
@@ -57,7 +62,10 @@ describe("MailService", () => {
       STOCKFISH_MAX_DEPTH: 20,
       COOKIE_DOMAIN: undefined,
       COOKIE_SAME_SITE: "lax",
+      PLATFORM_HOST_ONLY_COOKIES: false,
       TRUST_PROXY_HOPS: 0,
+      TENANT_SCOPE_MODE: "audit" as const,
+    PLATFORM_ROOT_DOMAIN: "nexachess.in",
       RECORDING_STORAGE_DIR: "/recordings",
       RECORDING_STORAGE_LIMIT_GB: 130,
       RECORDING_MIN_RETENTION_DAYS: 14,
@@ -79,6 +87,11 @@ describe("MailService", () => {
       WHATSAPP_API_VERSION: "v21.0",
       WHATSAPP_DEFAULT_COUNTRY_CODE: undefined,
       WHATSAPP_TIMEOUT_MS: 10000,
+      SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE: "en",
+      SUPPORT_BOT_ENABLED: false,
+      SUPPORT_LEAD_NUDGE_HOURS: 20,
+      SUPPORT_SESSION_TIMEOUT_MINUTES: 30,
+      SUPPORT_STAFF_REMINDER_MINUTES: 15,
       EXTERNAL_GAME_IMPORT_ENABLED: false,
       AI_ENABLED: false,
       AI_RUNTIME_SHARED_SECRET: undefined,
@@ -100,6 +113,9 @@ describe("MailService", () => {
       PAYMENTS_INVOICE_PREFIX: "NEXA",
       PAYMENTS_TAX_LABEL: "GST",
       CASHFREE_API_VERSION: "2023-08-01",
+      FRAPPE_CRM_LEAD_SOURCE: "Direct WhatsApp",
+      FRAPPE_CRM_LEAD_STATUS: "New Inquiry",
+      FRAPPE_CRM_WEBSITE_LEAD_SOURCE: "Website Form",
       STRIPE_API_VERSION: "2024-06-20",
       ...envMocks
     };
@@ -114,6 +130,7 @@ describe("MailService", () => {
       ],
     }).compile();
 
+    renderer = module.get(SystemMessageRenderer);
     return module.get<MailService>(MailService);
   };
 
@@ -140,7 +157,7 @@ describe("MailService", () => {
     });
 
     it("should send a password reset email successfully", async () => {
-      await service.sendPasswordResetLink("user@example.com", "https://reset.link");
+      await sendSystem("PASSWORD_RESET", "user@example.com", { "links.reset": "https://reset.link" });
 
       expect(nodemailer.createTransport).toHaveBeenCalledWith({
         auth: {
@@ -171,7 +188,7 @@ describe("MailService", () => {
         subject: "Password help"
       });
 
-      await service.sendPasswordResetLink("user@example.com", "https://reset.link");
+      await sendSystem("PASSWORD_RESET", "user@example.com", { "links.reset": "https://reset.link" });
 
       const callArgs = mockSendMail.mock.calls[0][0];
       expect(callArgs.subject).toBe("Password help");
@@ -187,7 +204,7 @@ describe("MailService", () => {
         subject: "Changed"
       });
 
-      await service.sendEmailChangedNotice("old@example.com", "<script>x</script>@example.com");
+      await sendSystem("EMAIL_CHANGED", "old@example.com", { "email.new": "<script>x</script>@example.com" });
 
       const { html } = mockSendMail.mock.calls[0][0];
       expect(html).not.toContain("<script>");
@@ -202,7 +219,7 @@ describe("MailService", () => {
         subject: "Changed"
       });
 
-      await service.sendEmailChangedNotice("old@example.com", "[Pay](https://evil.test)_a_@example.com");
+      await sendSystem("EMAIL_CHANGED", "old@example.com", { "email.new": "[Pay](https://evil.test)_a_@example.com" });
 
       const { html, text } = mockSendMail.mock.calls[0][0];
       expect(html).toContain("<strong>Reset</strong>");
@@ -213,7 +230,7 @@ describe("MailService", () => {
     });
 
     it("keeps a reset link's token intact through the escaping", async () => {
-      await service.sendPasswordResetLink("user@example.com", "https://nexa.test/reset?token=a_b*c_d");
+      await sendSystem("PASSWORD_RESET", "user@example.com", { "links.reset": "https://nexa.test/reset?token=a_b*c_d" });
 
       const { html, text } = mockSendMail.mock.calls[0][0];
       expect(html).toContain('href="https://nexa.test/reset?token=a_b*c_d"');
@@ -227,8 +244,37 @@ describe("MailService", () => {
       expect(html).toContain('<a href="https://nexa.test/a_b"');
     });
 
+    it("resolves an academy's saved WhatsApp template with the message's own values", async () => {
+      findTemplate.mockResolvedValue({
+        whatsappTemplateLanguage: null,
+        whatsappTemplateName: "demo_invite",
+        whatsappTemplateParams: ["{{guest.name}}", "{{academy.name}}: {{links.join}}"]
+      });
+
+      const rendered = await renderer.renderAll("DEMO_INVITATION", {
+        "guest.name": "Asha",
+        "links.join": "https://nexa.test/demo/1?invite=t"
+      });
+
+      expect(rendered.whatsappTemplate).toEqual({
+        bodyParams: ["Asha", "Nexa Chess: https://nexa.test/demo/1?invite=t"],
+        language: "en_US",
+        name: "demo_invite"
+      });
+      // The free-text fallback is still rendered, from the default wording.
+      expect(rendered.whatsapp).toContain("https://nexa.test/demo/1?invite=t");
+    });
+
+    it("never resolves a template for a message that isn't sent by WhatsApp", async () => {
+      findTemplate.mockResolvedValue({ whatsappTemplateName: "verify", whatsappTemplateParams: [] });
+
+      const rendered = await renderer.renderAll("EMAIL_VERIFICATION", { "links.verify": "https://nexa.test/v" });
+
+      expect(rendered.whatsappTemplate).toBeNull();
+    });
+
     it("leaves no gap where an empty optional value was", async () => {
-      await service.sendAccountDeletionResolved({ completed: false, email: "a@example.com", note: null });
+      await sendSystem("ACCOUNT_DELETION_DECLINED", "a@example.com", { "request.noteLine": "" });
 
       expect(mockSendMail.mock.calls[0][0].text).toBe(
         "Your request to delete your Nexa Chess account was not completed."
@@ -249,6 +295,41 @@ describe("MailService", () => {
       expect(callArgs.subject).toBe("Hello Bcc: someone@example.com");
       expect(callArgs.text).toBe("<img src=x>");
       expect(callArgs.html).not.toContain("<img");
+      expect(callArgs.headers).toBeUndefined();
+    });
+
+    it("adds the unsubscribe page as a footer and the RFC 8058 one-click headers", async () => {
+      mockSendMail.mockResolvedValue({ messageId: "<abc@smtp>" });
+      const pageUrl = "https://app.test/unsubscribe?token=abc&x=1";
+      const oneClickUrl = "https://app.test/api/email-preferences/one-click?token=abc";
+
+      await service.sendRuleEmail({
+        body: "Hi",
+        subject: "Hello",
+        to: "user@example.com",
+        unsubscribe: { oneClickUrl, pageUrl }
+      });
+
+      const callArgs = mockSendMail.mock.calls[0][0];
+      expect(callArgs.headers).toEqual({
+        "List-Unsubscribe": `<${oneClickUrl}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+      });
+      expect(callArgs.text).toContain(`Unsubscribe: ${pageUrl}`);
+      expect(callArgs.html).toContain('href="https://app.test/unsubscribe?token=abc&amp;x=1"');
+    });
+
+    it("gives staff-written email the same links", async () => {
+      mockSendMail.mockResolvedValue({ messageId: "<abc@smtp>" });
+      await service.sendDirectEmail({
+        body: "Hi",
+        subject: "Hello",
+        to: "user@example.com",
+        unsubscribe: { oneClickUrl: "https://app.test/api/one", pageUrl: "https://app.test/unsubscribe?token=t" }
+      });
+      const callArgs = mockSendMail.mock.calls[0][0];
+      expect(callArgs.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+      expect(callArgs.text).toContain("Unsubscribe: https://app.test/unsubscribe?token=t");
     });
   });
 
@@ -256,7 +337,7 @@ describe("MailService", () => {
     it("should throw a ServiceUnavailableException", async () => {
       service = await setupService({ SMTP_HOST: undefined });
 
-      await expect(service.sendPasswordResetLink("user@example.com", "https://reset.link"))
+      await expect(sendSystem("PASSWORD_RESET", "user@example.com", { "links.reset": "https://reset.link" }))
         .rejects
         .toThrow(ServiceUnavailableException);
         

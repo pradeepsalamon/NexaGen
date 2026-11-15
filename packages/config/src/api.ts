@@ -15,11 +15,13 @@ const MIN_AI_SECRET_LENGTH = 32;
 const AI_RUNTIME_HOSTS = new Set(["ai-runtime", "localhost", "127.0.0.1"]);
 
 // Mirrors the Prisma UserRole enum (this package has no Prisma dependency).
-const MFA_ROLE_NAMES = ["ADMIN", "COACH", "STUDENT", "SUPER_ADMIN"];
+const MFA_ROLE_NAMES = ["ADMIN", "COACH", "SALES", "STUDENT", "SUPER_ADMIN"];
 
 const apiEnvSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
   FRONTEND_URL: optionalUrlSchema,
+  /** Academies get `<slug>.<PLATFORM_ROOT_DOMAIN>` (docs/SAAS_MULTI_TENANCY.md §H). */
+  PLATFORM_ROOT_DOMAIN: z.string().trim().toLowerCase().default("nexachess.in"),
   JWT_ACCESS_SECRET: z.string().default("change-this-access-token-secret"),
   JWT_ACCESS_TTL: durationSchema.default("15m"),
   JWT_REFRESH_SECRET: z.string().default("change-this-refresh-token-secret"),
@@ -35,11 +37,21 @@ const apiEnvSchema = z.object({
     .min(32, "MFA_ENCRYPTION_KEY must be at least 32 characters.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  // Encrypts academies' own WhatsApp tokens and payment gateway keys at rest (SaaS §F, §G). Unset = MFA_ENCRYPTION_KEY is used.
+  CREDENTIALS_ENCRYPTION_KEY: z
+    .string()
+    .min(32, "CREDENTIALS_ENCRYPTION_KEY must be at least 32 characters.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   // Roles that must sign in with two-factor (comma-separated; empty = none).
   MFA_REQUIRED_ROLES: z.string().default("SUPER_ADMIN,ADMIN"),
   NODE_ENV: z.string().default("development"),
   PASSWORD_RESET_RESPONSE_DELAY: durationSchema.default("5s"),
   PORT: z.coerce.number().int().positive().default(3001),
+  // Multi-tenancy data layer (docs/SAAS_MULTI_TENANCY.md §E): `audit` logs a
+  // query with no academy in context, `enforce` refuses it. Reads are filtered
+  // by the context's academy in both modes.
+  TENANT_SCOPE_MODE: z.enum(["audit", "enforce"]).default("audit"),
   TRASH_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   SMTP_FROM: z.string().optional(),
   SMTP_HOST: z.string().optional(),
@@ -107,6 +119,13 @@ const apiEnvSchema = z.object({
   // Web and API are same-site subdomains, so Lax is enough and blocks cross-site form posts.
   // "none" only for a deployment where the API sits on a different registrable domain.
   COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
+  // Nexa's own hosts also get host-only `nexa_h_*` session cookies (docs/AUTHORIZATION.md
+  // "Cookies"). Turn on with the web build's NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API, after
+  // nexachess.in's nginx `location /api/` rule (docs/DEPLOYMENT.md).
+  PLATFORM_HOST_ONLY_COOKIES: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
   RECORDING_STORAGE_DIR: z.string().default("/recordings"),
   RECORDING_STORAGE_LIMIT_GB: z.coerce.number().positive().default(130),
@@ -160,6 +179,44 @@ const apiEnvSchema = z.object({
     .optional()
     .or(z.literal("").transform(() => undefined)),
   WHATSAPP_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+  // One-way lead push to Frappe CRM for Nexa's own academy (docs/WHATSAPP_SUPPORT.md §0
+  // "Frappe CRM"). Off unless the URL and both API keys are set.
+  FRAPPE_CRM_URL: optionalUrlSchema,
+  FRAPPE_CRM_API_KEY: z.string().optional(),
+  FRAPPE_CRM_API_SECRET: z.string().optional(),
+  /** A `CRM Lead Source` name that exists in Frappe. */
+  FRAPPE_CRM_LEAD_SOURCE: z.string().default("Direct WhatsApp"),
+  /** The `CRM Lead Source` of a lead from the website's demo form. */
+  FRAPPE_CRM_WEBSITE_LEAD_SOURCE: z.string().default("Website Form"),
+  /** A `CRM Lead Status` name that exists in Frappe. */
+  FRAPPE_CRM_LEAD_STATUS: z.string().default("New Inquiry"),
+  // Nexa's WhatsApp Business Account id: reads template status (other academies save theirs under Branding).
+  WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
+  // Incoming WhatsApp: the support bot (docs/WHATSAPP_SUPPORT.md). The webhook
+  // checks X-Hub-Signature-256 with the Meta app secret; the verify token
+  // answers Meta's subscription handshake.
+  WHATSAPP_APP_SECRET: z.string().optional(),
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
+  /** Off = incoming messages are recorded and ignored, the bot never replies. */
+  SUPPORT_BOT_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  /** Idle minutes before the bot asks "continue or start again?". */
+  SUPPORT_SESSION_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(30),
+  /** Comma-separated numbers. Set = the bot answers only these (dev, staff-only rollout). */
+  SUPPORT_TEST_NUMBERS_ALLOWLIST: z.string().optional(),
+  /** Approved template ({{1}} = ticket reference, {{2}} = reply) for agent replies outside the 24h window. */
+  SUPPORT_AGENT_REPLY_TEMPLATE: z.string().optional(),
+  SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE: z.string().default("en"),
+  /** Minutes a new ticket may wait for a first staff reply before admins are reminded; 0 = no reminders. */
+  SUPPORT_STAFF_REMINDER_MINUTES: z.coerce.number().int().min(0).max(1440).default(15),
+  /**
+   * Hours after a parent's last message before the bot's one follow-up to an
+   * enquiry that didn't book a demo; 0 = off. Below 24 so it is sent inside
+   * WhatsApp's free reply window (no template needed).
+   */
+  SUPPORT_LEAD_NUDGE_HOURS: z.coerce.number().min(0).max(23).default(20),
 
   // ── Payments ──
   // Every gateway is optional and independently configurable. A gateway with
@@ -198,6 +255,10 @@ const apiEnvSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  // The owner's own Razorpay account: academies paying their plan (SaaS Phase 6).
+  PLATFORM_RAZORPAY_KEY_ID: z.string().optional(),
+  PLATFORM_RAZORPAY_KEY_SECRET: z.string().optional(),
+  PLATFORM_RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 
   CASHFREE_APP_ID: z.string().optional(),
   CASHFREE_SECRET_KEY: z.string().optional(),
@@ -213,6 +274,14 @@ const apiEnvSchema = z.object({
   // rather than talk to the runtime with a guessable or reused secret.
   if (env.AI_ENABLED) {
     for (const issue of aiConfigIssues(env)) ctx.addIssue({ code: "custom", ...issue });
+  }
+  // An enabled bot without the app secret could only accept unsigned (forged) messages.
+  if (env.SUPPORT_BOT_ENABLED && !env.WHATSAPP_APP_SECRET) {
+    ctx.addIssue({
+      code: "custom",
+      message: "WHATSAPP_APP_SECRET is required while SUPPORT_BOT_ENABLED=true.",
+      path: ["WHATSAPP_APP_SECRET"]
+    });
   }
   if (env.NODE_ENV !== "production") return;
   // A default, empty or short signing secret lets anyone mint access tokens.

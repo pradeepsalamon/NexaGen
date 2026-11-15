@@ -76,40 +76,147 @@ code on 2026-10-31.
 
 ### P2 — reliability / correctness edges
 
+- ~~**E2E specs collide on one coach's time slot (found 2026-11-04).**~~ **Fixed 2026-11-05:** the specs' own cleanup cancelled leftovers with the coach's direct cancel, which V10 refuses within 24 h, so it did nothing. `clearE2EClasses` (`e2e/fixtures.ts`) now cancels the real way (the coach files CLASS_CANCEL / CLASS_CANCEL_EXCEPTIONAL, the admin approves) and runs before every `scheduleClass` and in `live-board-recovery`.
+- ~~**E2E UI logins don't back off on the login throttle (found 2026-11-04).**~~ **Fixed 2026-11-05:** `loginViaUI` waits out a 429 like `loginContext`, and `analytics-dashboard` uses it. Also for split hosts (staging `dev.` + `api-dev.`): every request sends the web `Origin` (`playwright.config.ts` `extraHTTPHeaders`; without it `TENANT_SCOPE_MODE=enforce` refuses `/auth/login` with a 500), and `login()` keeps the cookie's own `Domain` so cookies added to a browser context reach the web host. `findInDataTable` moved to the fixtures and also pages "Next page" pagers (admin completed classes are oldest first). Still not runnable on staging: `recording-flow` (the staging API's `/recordings` doesn't exist on the host).
+- ~~**`progress/activity-history.int-spec.ts` "buckets by day in the viewer's own timezone" fails in the last hour before midnight in `America/Los_Angeles`**~~ **Fixed 2026-11-05:** the server's window was already built from local calendar days; the 24 h steps were in the web's `dayIn` (`features/progress/lib/activityFilters.ts`, so "Last 7 days" covered 6 or 8 days around midnight in the week after a DST change) and in the spec's copy of it. Both now step calendar dates (`addDays` from `@nexa-chess/types`); `daysFromToday` in `lib/datetime.ts` (Today/Tomorrow labels) had the same drift and was fixed too. Reproduced and verified with the Node clock shifted to 23:30 PST on 5 Nov.
+- ~~**`approval/handlers/class-cancel.handler.spec.ts` fails about 1 run in 6**~~ **Fixed 2026-11-05:** the fixture's `startsAt` and the request's snapshot were each built from `Date.now()`, so a millisecond tick between them read as "rescheduled" (409). The spec now runs on one fixed clock (`jest.useFakeTimers({ now })`).
+- ~~**A cold `tsc --noEmit` in `apps/api` runs out of memory on the 11 GB box (found 2026-11-04).**~~ **Fixed 2026-11-05:** the api `typecheck` and `test:integration` scripts run Node with `--max-old-space-size=6144` (written as `node … ../../node_modules/<tool>` so it works in PowerShell too). Measured: a cold typecheck peaks at 3.06 GB against Node's 2,096 MB default heap here, and a cold `test:integration` (ts-jest type-checks the whole program) died with a heap OOM before its first file; with the flag it passed 682/684.
+- ~~**Saving a PGN "to Cloud" without Cloudinary credentials returns 400**~~ **Fixed 2026-11-04:** every Cloudinary upload is a 503 "File uploads aren't set up on this server" without `CLOUDINARY_*` (`assertUploadsConfigured`, `upload.service.spec.ts`). `analysis-board.spec.ts` still needs real Cloudinary credentials for its Save to cloud step.
+- ~~**Empty 400s right after an engine analysis stream (found 2026-11-05; production since 2026-10-03).**~~ **Fixed on `dev` 2026-11-05 (`a74cad1b`), verified on staging (0 failures, was ~12 %); in production since 2026-11-14** through hotfix PR #138 (`051df8a3`, the fix alone on top of `e04a39b4`). Baseline before it: on class days, 93–100 % of streams were followed by an empty 400 (107 on 2026-11-10). Verify with the query in the write-up §8. **Next dev → main release:** release PR #129 was merged by mistake the same day and reverted on `main` by #137 before it deployed, so the next release PR must revert #137 first, or `dev`'s work won't come back. The Node API rejects (`HPE_CLOSED_CONNECTION`, "Data after `Connection: close`") the next request nginx sends on an upstream connection that last served `POST /stockfish/analyze/stream`. Node answers it with a bare 400: no headers, so the browser reports a CORS error.
+  - **Cause:** `stockfish.controller.ts` `analyzeStream` sets `Connection: keep-alive` on the response, while nginx asks for `Connection: close` (the `$connection_upgrade` map) and keeps an upstream pool (`keepalive 64`). nginx then reuses a connection Node is closing.
+  - **Not the cause:** HTTP/2 (reproduced over HTTP/1.1, 4/4) or the web cancelling the stream.
+  - **Impact:** about 55 % of streams poison one pooled connection, and the next request from any user fails: board saves, room loads, heartbeats, PGN upload, a WebKit room reload ("Connection lost"). Over 500 failures in two weeks of production logs.
+  - **Recommended fix:** remove that one header line, plus a spec and a regression check. Optional later nginx clean-up.
+  - Full write-up: [investigations/2026-11-05-empty-400-after-engine-stream.md](investigations/2026-11-05-empty-400-after-engine-stream.md).
+- **Enforce the full web CSP (opened 2026-11-05).** Reports now reach the API (`csp-violation` log lines, docs/AUTHORIZATION.md "CSP reports"). After a release cycle in production, read them, add any missing host to `reportOnlyCsp()` or fix the page, then move the policy from `Content-Security-Policy-Report-Only` to `Content-Security-Policy`. `script-src 'unsafe-inline'` stays until nonces are wired through middleware, so enforcing still blocks foreign hosts but not inline script.
 
 ### P3 — feature follow-ups (net-new, each needs a product yes)
+
+- **Tournament platform (logged 2026-11-09; built 2026-11-09 on
+  `claude/nexachess-tournament-platform-sjutfe`, awaiting review/merge).**
+  Swiss, Arena, Round Robin and Knockout tournaments with live games, host
+  commentary and broadcasting, spectators (incl. anonymous `/watch`),
+  certificates and history. Design, phases and as-built notes:
+  [TOURNAMENTS.md](TOURNAMENTS.md).
+- ~~**Instant feedback on in-app navigation (logged 2026-11-04).**~~ **Built
+  2026-11-13:** a gold bar at the top of the window starts on the click of an
+  internal link and finishes when the path changes (`NavigationProgress`,
+  mounted in `AppProviders`; 20 s safety timeout). `/profile`, `/games`,
+  `/messages`, `/chess-board`, `/help`, `/classes/[id]` and `/tournaments` got a
+  `loading.tsx` that keeps the shell (`ShellPageLoading`), so the nav no longer
+  disappears behind the root spinner. **2026-11-14:** navigation started in
+  code starts it too: `useRouter` comes from `@/lib/navigation` (45 files;
+  ESLint rejects the `next/navigation` one), whose `push`/`replace` fire
+  `nexa:navigation-start` when the path changes. **Checked 2026-11-15 on a
+  production build** (`next start`, Chrome "Slow 4G", `/` → `/login`): with the
+  page prefetched the bar shows at the click and the page lands in ~30 ms; with
+  the prefetch held back 6 s the bar shows at the click (+0 ms) and stays until
+  the page lands (+3.4 s), then finishes. It only makes the wait visible; a slow
+  server needs its own look.
 
 - **Smart Revision:** non-puzzle item kinds (lessons / `REPLAY` assignments,
   course modules, live-class chapters). Blocked by design: no graded attempt to
   cap a self-rating ([SMART_REVISION.md](SMART_REVISION.md)).
-- **Email opt-out.** Rule emails have no unsubscribe link or per-person opt-out.
-  Add one before using them for anything promotional.
+- ~~**Email opt-out.**~~ **Built 2026-11-13:** every rule email has the
+  recipient's unsubscribe link, and the profile page has the same switch
+  ([MESSAGING.md](MESSAGING.md) "Email channel"). **2026-11-15:** per-kind
+  switches (six kinds), RFC 8058 one-click unsubscribe, the link and opt-out on
+  staff-written email, and Admin → Email → Opted out. Nothing left open.
 - **Payroll:** percentage-of-revenue is a stubbed ₹0 line (no revenue linkage,
-  `payroll-calculation.engine.ts` `case "PERCENTAGE"`). No tax/TDS, no bank
-  payout integration, no multi-currency, no rate CSV import/export.
+  `payroll-calculation.engine.ts` `case "PERCENTAGE"`). No bank payout
+  integration, no multi-currency, no rate CSV import/export.
+  **Owner 2026-11-15:** leave percentage-of-revenue as it is for now.
+  **TDS built 2026-11-15** (owner: admin-set rate): an admin-set rate and yearly
+  threshold, a coach's own rate, and a TDS line on every payslip
+  ([FEATURES.md](FEATURES.md) "Coach payroll: TDS"). Still not built: a TDS
+  return (Form 26Q) export, TDS certificates, an automatic higher rate for a
+  coach without a PAN, salary TDS by slab.
 - **Chat push:** a websocket only if the 4 s poll proves too slow or costly.
   There is no evidence of that yet.
+- **Referrals** ([REFERRALS.md](REFERRALS.md), shipped 2026-11-02, rebuilt
+  2026-11-07 as points + vouchers for students, money for staff).
+  **Built 2026-11-13:** notifications (stage move, reward credited, voucher
+  request / withdrawal decided), a CSV export of withdrawals to pay in bulk,
+  and optional points expiry. **2026-11-15:** a 7-day points-expiry notice, a
+  "taken back" notice (credited reward cancelled, voucher code revoked), Import
+  paid CSV (the export filled in with references marks them paid), and
+  admin-created accounts link by email like sign-up. **Still open:** onboarding
+  is still an admin move, and free days given by a voucher can't be taken back
+  from the referral board (adjust the access in Payments).
 
 ### Needs someone with `vps_dev` / production access
 
-- Confirm `LiveKit webhook: event=…` lines in the API logs during a real class
-  (§ "Runtime open question" below).
-- Run `npm run audit:reliability -w apps/api -- --days 90` against real data
-  ([RELIABILITY_DESIGN.md](RELIABILITY_DESIGN.md) §6.1). It has only been run
-  against local dev.
+- ~~Confirm `LiveKit webhook: event=…` lines in the API logs during a real class
+  (§ "Runtime open question" below).~~ **Confirmed 2026-11-14 from production's
+  `processed_webhook_events`:** 1,382 events in the 30 days to 2026-11-13
+  (participant_joined/left 287 each, track published/unpublished 274 each,
+  room_started/finished 107 each, participant_connection_aborted 46).
+- ~~Run `npm run audit:reliability -w apps/api -- --days 90` against real data.~~
+  **Done 2026-11-14 against production: healthy** (3 classes that really ran
+  over, no runaway student duration). The script was fixed to judge each
+  student, not the sum, and to use the stored `totalDuration`. Results:
+  [RELIABILITY_DESIGN.md](RELIABILITY_DESIGN.md) §6.1.
 - Staging-check the 10-minute LiveKit token TTL (below) across a class longer
   than 10 minutes: LiveKit should refresh the token for a connected client
   without dropping it.
 
 ### Waiting on an owner decision (designs exist, nothing to build yet)
 
-[SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) and
-[WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) (proposals),
+[SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) (proposal),
+[WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) Phases 3–4 (Phases 1–2 are built, see below),
 [PARENT_REPORTS.md](PARENT_REPORTS.md) (blocked on a verified guardian
 identity), the AI roadmap phases after 2 / 3a
 ([ai/architecture/ROADMAP.md](ai/architecture/ROADMAP.md)), and puzzle-catalogue
 Phase 6 training modules ([PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) §G.3;
 its precondition, the student training surface, now exists).
+
+- **WhatsApp support bot: Phases 1–2 built, switched off** (2026-11-14,
+  `feat/whatsapp-support-bot`; [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0).
+  Also built: saved answers (instant replies to course questions, "Did you
+  mean …?" for spelling slips, a list of questions it couldn't answer), "Book a
+  free demo" → `Lead`, staff reminders and one parent nudge. Before switching on,
+  admins should write the saved answers (fees, timings, levels…) at
+  `/admin/support/saved-replies`: nothing is pre-loaded.
+  To switch on, the owner needs to: (1) give staging its own Meta test number and token (it still
+  shares production's, so dev would answer real customers); (2) set
+  `WHATSAPP_APP_SECRET` + `WHATSAPP_WEBHOOK_VERIFY_TOKEN` and point the Meta
+  webhook at `/webhooks/whatsapp` (`messages` field); (3) optionally get a
+  reply template approved (`SUPPORT_AGENT_REPLY_TEMPLATE`, {{1}} reference, {{2}}
+  text); (4) roll out with `SUPPORT_TEST_NUMBERS_ALLOWLIST` = staff numbers.
+  Open questions: §12 items 2 (which number; is it on the Business app today),
+  5 (Leads/Frappe), 6 (account linking), 7 (refund policy text, SLAs), 8 (support
+  hours / out-of-hours reply), 12 (AI); a legal (DPDP) review of the new
+  privacy-policy wording in `features/legal/content.ts`. ~~Gaps to build: an nginx IP limit on `/webhooks/whatsapp`~~
+  **Built 2026-11-15** as two nginx snippets ([WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md)
+  "Edge rate limit"); installing them on the box is the owner's step (the contact
+  export/erase action and `message_deliveries` status updates were built in
+  Phase C, 2026-11-14).
+  **Phase B and Phase C were built unattended on 2026-11-14** (branch
+  `feat/whatsapp-native-complete`, PR into `feat/whatsapp-multi-academy`): every
+  academy's own number, team hours, delivery status, real demo slots, contact
+  export/erase, template status, images/PDFs, the Frappe push, ownership events,
+  `/admin/support/insights`, the configurable main menu and Phase D (staff-issued
+  WhatsApp link codes, "next class" for linked families). The questions that
+  run left are under "Questions for the owner" below (2026-11-14 entry).
+  **Next phases are planned in [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md)
+  (2026-11-14, proposal; open decisions in its §0 come first; D3, D6, D12,
+  D13 answered).** Its G1 finding is fixed: a bot reply staff overtook is no longer sent.
+  ~~Found while building Phase C (2026-11-14): messaging rules and system
+  messages build their links with `getFrontendUrl` (Nexa's address) for every
+  academy.~~ **Fixed 2026-11-15:** `AcademyLinksService` puts every link on the
+  academy's own address ([SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) § "Links in messages").
+
+- **Unused asset: `apps/web/public/auth/auth_light.webp`** (2026-11-03). Since the
+  M4 auth redesign the auth panel is navy in both themes and shows only
+  `auth_dark.webp`, so nothing references the light artwork. Kept on purpose:
+  assets and images are only deleted with the owner's yes (keep it, delete it,
+  or bring back a light panel that uses it).
+
+- **Unused assets: `apps/web/public/academy/hero_light.webp` and `hero_dark.webp`**
+  (2026-11-14). Both hero sections (`/` and `/academy`) now show the 3D board
+  (`features/academy/hero3d`) on a drifting-light and faint-chessboard backdrop,
+  so nothing references the hero photos. Kept on purpose, as above: the owner
+  decides (delete them, or use them as the picture shown where WebGL is missing).
 
 ### Closed by this pass (were listed as open, already fixed in code)
 
@@ -121,6 +228,80 @@ its precondition, the student training surface, now exists).
   them deferred. Both shipped 2026-09-14.
 - **`POST /upload/pgn` orphan note.** It has a web caller (`uploadPgn`), so the
   note was dropped.
+
+## Questions for the owner (unattended runs)
+
+- **2026-11-14 (unattended WhatsApp Phase B/C run, `feat/whatsapp-native-complete`): what I assumed or skipped.**
+  1. **D5 was still open; I built option (a)** (the plan's recommendation): fixed flows in code, and on Support → Settings each academy turns main-menu options on/off, reorders and renames them. "Talk to our team" can't be switched off. No flow builder. Change of mind = say so, nothing else depends on it.
+  2. **Routing per intent was not built.** With no helpdesk connected, every hand-off has one destination (the Nexa inbox), so a routing table would have nothing to choose. It comes with Phase E (Crisp), which waits on D1.
+  3. **Frappe push** (owner 2026-11-15: "Frappe is the sales desk, Nexa is the WhatsApp robot"): website-form leads now go too (source "Website Form"), and a number Frappe already has a lead for (last 90 days) gets a note instead of a twin. The API key exists (Frappe user `nexagen-push@nexachess.in`) and is set on staging. **Still to do:** set `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY`, `FRAPPE_CRM_API_SECRET` in production's env with the dev → main release (read the secret from Frappe then; it is stored nowhere else). **Still open:** should a booked demo time set Frappe's status to "Demo Scheduled"? Should a lead Frappe marked lost get a new lead instead of a note? Who should own a copied lead in Frappe? (It arrives unassigned: Sales Managers see it, a plain Sales User doesn't until it is assigned; no Assignment Rule exists.) Connecting the Facebook page for ad-form leads (Frappe → Settings → Lead Syncing) needs the owner's Facebook login. More follow-ups than the bot's one nudge need the owner's texts, timings and (after 24 hours) Meta-approved templates.
+  4. **Phase D built in its narrowest form, D8 assumed "link code only"**: there are no parent accounts, so a code shown to a student's own login would let a minor link any number. Instead **only an admin** makes a one-time code for a student (Admin → Users → student → WhatsApp link code) and gives it to a family they have checked; the family sends `LINK <code>`. A linked number can only ask "next class" (time + batch name). Off until Support → Settings → "Answer linked families". Please confirm: is staff-issued OK, should coaches issue codes too, and may the bot later say more (join link, homework, fees due)?
+  5. **Phases E/F (Crisp) skipped**: D1 says wait. **Phase G (AI answers) skipped**: needs a decision (plan §12, D12 AI).
+  6. **Privacy text**: `features/legal/content.ts` doesn't yet mention that files customers send on WhatsApp are kept (private Cloudinary storage) or that WhatsApp and website-form leads are copied to Frappe CRM (self-hosted, same server). Needs the DPDP review already pending before the bot is switched on.
+  7. **Insights history starts 2026-11-14**: hand-off and first-reply figures come from the new `support_conversation_events` table, so older conversations count in volume but not in hand-offs.
+
+- **Decided 2026-11-04 — the spec's seven open decisions: keep all as built.** (Merged into local `dev` the same day.) Kept for reference:
+  1. Muted mic/camera: soft red (alternative: neutral grey with a slashed icon). `MeetingControlButton` variant `off`.
+  2. Controls: 44px rounded squares, labels in tooltips (alternative: keep round in the room).
+  3. Coach class-wide controls: one "Students" control with a menu (alternative: five buttons). `StudentControlsMenu`.
+  4. Tab overflow: four stage views and three panel tabs, rest under More (alternative: every tab, scrolling). `RoomTabs maxVisible`.
+  5. Coach leaving: one dialog with Leave class / End class for everyone (unchanged; it was already one dialog).
+  6. People rows: mic and camera visible, the rest in a ⋮ menu (alternative: every action on the row).
+  7. Smallest text: 12px everywhere (alternative: 11px for dense labels). Board coordinates are drawn by chessground and not touched.
+  Also: the drafts place the coach's Chapters/Leaderboard column at the far left; the build follows the code (beside the board, only when it fits).
+- **2026-11-04 — approved for build:** a coach lowering a student's hand (today hand raise is sender-only: `HandRaiseBridge`), "allow screen sharing" without a student's request (the approval flow needs a request row), a coach board on phones, and a Design System v2 `LiveClassFab`. All four built on local `dev` (d5ab2fb2, 50a4e165, and the FAB commit after them); browser checks are part of the owed test pass.
+- **2026-11-03, `feat/live-class-redesign` — `GET /live-class/:id` now also returns `batchName`** (name only, no roster) for the top bar. Additive; say if you'd rather the top bar show only the head count.
+- **2026-11-03, `feat/live-class-redesign` — pre-join stays a two-column card** (camera preview beside the details) rather than the spec's 448px single column, which would push the preview below the fold on laptops. Waiting and error screens are 448px.
+
+- **2026-11-04 (overnight run), `feat/saas-phase2-foundation`: builder's calls for SaaS Phase 3 slice 6**, logged as the owner asked; change any of them:
+  1. **Host-only cookies are deferred to Phase 5.** The web middleware reads the auth cookie on the web host while the API sets it from `api.nexachess.in`, so a host-only cookie would never reach the web routes. Host-only needs Phase 5's same-origin `/api`. Meanwhile the session binding (slice 1) already makes a Nexa token useless on another academy's host under `enforce`.
+  2. **Recordings stay in one flat directory**, academy-distinct through the room name (`t_<tenantId>_class_<id>-<time>.mp4`). The plan's `<RECORDING_STORAGE_DIR>/<tenantId>/` was not used because LiveKit egress creating sub-directories isn't verified on this box. Per-academy recording quotas wait for Phase 4 limits.
+  3. **PGN uploads stay public** in Cloudinary (the plan says move them to `authenticated`). They're now under the academy's folder; the access change is a separate step.
+  4. **No per-academy throttle bucket yet** (§E "Throttling"). With one academy it changes nothing; it's listed for Phase 4 with plan limits.
+
+- **2026-11-04 (overnight run), `feat/saas-phase2-foundation`: builder's calls for SaaS Phase 4 (platform console API)**; change any of them:
+  1. **Emails stay unique across the platform until §D5**: creating an academy whose first super admin's email already has an account anywhere is refused (409) with a clear message.
+  2. **Grace allowances** (what still works in grace) are four groups of API prefixes (`GRACE_ALLOWANCES` in `@nexa-chess/types`): live classes + attendance, homework/puzzles/revision, fees/invoices, chat. All four are on by default; admin growth is always blocked.
+  3. **Lapse defaults:** 7 past-due days, then 14 grace days, then locked. The sweep runs hourly. A subscription with no period end (manual billing) never lapses by itself.
+  4. **A plan with trial days starts TRIALING**; with none it starts ACTIVE with no period end (manual billing until Phase 6).
+  5. **The support user is a `SUPER_ADMIN`** of the academy (full access, as the owner said "can control"). Reads during a visit go to the request log only; writes are counted on the visit row.
+  6. **Content packs are a live reference** to Nexa's published folders (only GLOBAL + PUBLISHED puzzles, only through an entitled, published pack). A copy becomes the academy's own `source: NEXA` row; its Lichess origin isn't kept on the copy.
+  7. **Only puzzle folders can be packed for now** (`ContentPackItemKind.PUZZLE_FOLDER`); puzzle sets and courses are a later kind.
+  8. **The Lichess catalogue isn't a pack row yet.** It stays readable by every academy as before (platform tables).
+  9. **Staging runs `TENANT_SCOPE_MODE=enforce`** from the stage API's process environment, not `apps/api/.env`. The unit tests read `.env`, and enforce there broke them. A plain `nexa.sh restart stage api` drops it (see memory).
+  10. **A plan's content packs aren't versioned.** Changing a plan's `contentPackIds` reaches its academies at once (adding is harmless, and a removed pack only stops new copies; copies already made stay). Features, limits and lapse rules still wait for "Apply to existing".
+  11. **Console UI (4g):** one page `/admin/platform` (Academies, Plans, Content packs, Support visits, Audit log tabs) plus `/admin/platform/academies/<id>`. It shows only for Nexa's super admins (`AuthUser.isPlatformOperator`). Academies get `/admin/content-packs` (browse, preview, copy) and a "Support visits" section on `/admin/subscription` (super admins). The banner is on every page of a support visit. Choosing time zones and countries is free text for now.
+- **2026-11-05 (overnight run), `feat/saas-phase2-foundation`: builder's calls for SaaS Phase 5 (domains + branding)**; change any of them:
+  1. **Default tiers:** `brandIdentity` from Growth, `customDomain` from Business, `whiteLabel` on Enterprise (the migration appends them; edit plans in the console).
+  2. **Theming is client-side**, not SSR: rendering the root layout per host would make every Nexa page dynamic. An inline script hides Nexa branding and applies the academy's last saved palette before first paint; a first visit shows default colours for a moment.
+  3. **White label hides "Powered by NexaChess" by default** on plans that include it; the academy can show it again.
+  4. **Colours:** the main colour must give white text 4.5:1; the accent only has to stand out from white (1.5:1). The dark theme lightens both automatically.
+  5. **Academy cookies are host-only and named `nexa_h_*`.** Nexa's `.nexachess.in` cookies are dropped on an academy's address (never used, even in audit mode). Moving Nexa itself to host-only cookies is built (2026-11-05, `feat/saas-followups`) behind two switches, both off: `PLATFORM_HOST_ONLY_COOKIES` (API) and `NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API` (web build). Turning them on is the owner's step after nginx's `/api/` rule on nexachess.in (docs/DEPLOYMENT.md § "Nexa on host-only cookies").
+  6. **Domain check** proves the host's `/api/` reaches this API with a one-time token held in memory for a minute (one API process). DNS, nginx and certbot stay manual (owner decision).
+  7. **Not tested in a real browser on an academy host tonight:** `*.nexachess.in` has no wildcard DNS or certificate yet (DEPLOYMENT.md Step 4c). Covered by integration tests (cookies, config, branding) only.
+  8. **Academy home page** is a simple block (name, tagline, sign in, join, contact). The full block-based landing page builder is later.
+  9. **The Nexa marketing page's analytics script and JSON-LD still load (hidden) on an academy's home page.** Fix with the remaining brand-string sweep (5e).
+  10. **WhatsApp per academy:** another academy sends only from its own connected number (super admin sets it on `/admin/whatsapp`; moved off `/admin/branding` 2026-11-15 so plans without `brandIdentity` can reach it); without one WhatsApp is off for it, never Nexa's number. Tokens use a new optional `CREDENTIALS_ENCRYPTION_KEY` (falls back to `MFA_ENCRYPTION_KEY`), so the integration suite doesn't have to switch on required MFA. Message templates must be approved on the academy's own Meta account; nothing checks that yet.
+  11. **Brand strings left (5e follow-up):** done 2026-11-05 on `feat/saas-followups` except the two below. `{{academy.name}}` in every message rule and system email, payslip PDFs (author + footer), PGN `Site` / default `Event`, the live-class PiP metadata, Wall of Moments and Video Generator now use the academy's name (`BrandingService.nameFor`, the same name its pages show; Nexa's stays "Nexa Chess"). Product-name copy became neutral ("Our website", "Our own analysis", "Class games", "Purchase"). NexaChess-as-vendor copy (contact the NexaChess team, support visits, content packs, Powered by) stays on purpose. **Still open:** `features/legal/content.ts` (**done 2026-11-15**, owner: each academy writes its own text; Admin → Branding → Legal pages, built-in text until it does, [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) §F "Legal pages"), and the root layout / `/` metadata and JSON-LD, which stay Nexa's in the server HTML on an academy's `/` (theming is client-side by the Phase 5 builder's call 2; changing it makes those pages dynamic).
+- **2026-11-05 (overnight run), `feat/saas-phase2-foundation`: builder's calls for SaaS Phase 6 (money)**; change any of them:
+  1. **Plan prices exclude GST.** The checkout adds GST from the shared engine (`computeTax`): seller = the console's seller details (until saved, NexaChess academy's own invoice details), buyer = the academy's own invoice details (its GSTIN decides intra/inter-state). A blank seller GSTIN charges no GST. Default rate 18%.
+  2. **The owner's Razorpay account has its own env keys** (`PLATFORM_RAZORPAY_*`), separate from NexaChess academy's student keys (`RAZORPAY_*`), even if both are the same Razorpay account. Built against mocks and test mode only; no live keys exist.
+  3. **A "pay link" is an in-app checkout link** (`/admin/subscription?checkout=<id>`, open 7 days) that the owner copies from the console and sends; it is not a Razorpay Payment Link and no email goes out automatically. Only the academy's super admin can pay; its admins see the invoices.
+  4. **Yearly price** = the plan's yearly price, else 12 × monthly; a deal's custom price is monthly (× 12 for yearly). A one-off pay link may set its own price.
+  5. **Paying early extends from the current period end**, not from today. A checkout for another plan switches the plan when it is paid (and clears a scheduled change).
+  6. **A payment for less than the order, or in another currency, is not applied** (logged; needs a manual look). A CANCELLED subscription can't be paid until the owner reopens it.
+  7. **Platform invoices are a printable page** (browser print → PDF), frozen at issue, own series `<prefix>/yy-yy/00001` per financial year; no stored PDF and no invoice email yet.
+  8. **Academy gateway keys: super admins only**; Razorpay and Stripe need the webhook secret before they can be switched on (Cashfree verifies with its secret key). NexaChess's academy keeps the server's env keys and can't store any. The old webhook URLs (no key) stay NexaChess's.
+  9. **`WHATSAPP_CREDENTIALS_KEY` (Phase 5) is renamed `CREDENTIALS_ENCRYPTION_KEY`** and now also encrypts gateway keys (nothing was deployed with the old name).
+  10. **Usage counters** (`TenantUsage`) are a nightly snapshot (02:00 UTC) of the plan-limit counts, shown on the console's academy page. Limits are still enforced from live counts. *(2026-11-13: extended with storage, live-class minutes, messages and engine analyses, kept per day in `TenantUsageDay`, with a console Usage tab; analytics only. docs/SAAS_PLANS.md § "Usage history". ~~`StorageSnapshot`'s per-academy rows still hold the whole recordings folder~~ (fixed 2026-11-15: another academy's rows and storage gauge hold only its own recordings). Open: no usage alerts, storage limit or overage billing yet, by the owner's decision.)*
+  11. **Not done in Phase 6:** card-on-file auto-debit (v1 excludes it, §G), Cashfree/Stripe for platform billing, per-academy invoice seller details for student invoices beyond what Phase 3 slice 5 already gives, and refunds of platform payments (record them manually; no credit note flow yet).
+  12. **Found by the staging browser check and fixed (`fix(web)` after Phase 6):** the Phase 5 host rule only knew `NEXT_PUBLIC_SITE_URL`, which the staging build leaves at its localhost default, so `dev.nexachess.in` was treated as an academy's address (host-only cookie names, `/api`, and a title-rewrite loop that froze the page because Nexa's name contains "Nexa Chess"). Nexa's hosts are now the site host plus the web host paired with the API host (`api-dev.x` -> `dev.x`, `api.x` -> `x`), and the title rewrite never writes an unchanged title. Production (`NEXT_PUBLIC_SITE_URL=https://nexachess.in`) was never affected; nothing is deployed.
+
+- **2026-11-05 (unattended CodeRabbit review), `review/coderabbit-2026-11-05`: findings that need your call** (code fixes for the rest are on that branch):
+  1. **Decided 2026-11-14: 45+.** Every section now reads `ACADEMY_COACH_COUNT` from `features/academy/content.ts`. Original note: **Coach count on the home page disagrees with itself.** `SundayTrainingSection` (both `components/` and `v2/`) says "45+ Expert coaches"; `HeroSection` and `StatsSection` say "100+". Which is true? Options: put one number in `features/academy/content.ts` and use it everywhere, or change the Sunday card's metric. Meanwhile: nothing changed (it's a public claim).
+  2. **Decided 2026-11-14: left as they are (owner's call).** Original note: **Testimonials (`TestimonialsSection`, both versions) show parent + child names and ages beside Unsplash stock portraits**, under "Real and proud impressions from families". If invented, that's a fake-review risk; if real, publishing a minor's name and age needs recorded parental consent (`legal/content.ts` lists consent as pending) and a stock face beside a real name misleads. Options: replace with verified, consented testimonials (first name + initial, no stock photo), label them illustrative, or hide the section until then. Meanwhile: nothing changed.
+  3. **Done 2026-11-14 (the TTL option):** every API process reloads all academies' gateway keys and WhatsApp tokens every 60 s (`reloadAll`, `@Interval(CREDENTIALS_RELOAD_MS)`). It swaps in a whole new map, so a failed read keeps the old keys; the saving process still refreshes at once. A key rotated or switched off elsewhere stops working within a minute. Original note: **Academy gateway and WhatsApp keys are cached per API process** (`GatewayCredentialsService`, `WhatsAppCredentialsService`: loaded at boot, refreshed only on the process that saved them; a turned-off or rotated token keeps working elsewhere). Fine with today's single `nexa_api` process; with replicas or a separate worker, other processes keep old/no keys until a restart (checkout says "no gateway", webhooks fail their signature). Options before scaling out: a 30–60 s TTL reload, or a Redis invalidation message. Meanwhile: nothing changed.
+  4. ~~**`SystemMessageTemplate.key` is still a global primary key, and §D5 doesn't change it.**~~ **Done 2026-11-06 (owner chose A):** additive twin migration `20261106044250`, the code uses `tenantId_key`, and §D5 now re-keys the table to `(tenantId, key)`; rehearsal re-run PASS and staging updated. Original note: The first time a second academy customises a system message, its upsert (scoped to that academy) misses Nexa's row and the create collides on `key` → 500. Proposed: add to the §D5 contract `ALTER TABLE "system_message_templates" DROP CONSTRAINT "system_message_templates_pkey", ADD PRIMARY KEY ("tenantId", "key")` (like the sequence tables), the matching `schema.patch` (`@@id([tenantId, key])`), and switch `system-message.service.ts` to `tenantId_key`. Not done tonight because D5 is already applied to staging (`vps_dev_saas`) and was rehearsed as is; it must land before a second academy edits system messages. (The other natural-key `@id`s on academy tables were checked: global ids, or the sequences D5 already re-keys.)
 
 ## Open audit findings (2026-10-31)
 

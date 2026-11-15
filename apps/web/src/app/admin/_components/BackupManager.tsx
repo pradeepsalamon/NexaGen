@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { HardDriveDownload, Loader2, Download } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, HardDriveDownload } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { formatDateTime } from "@/lib/datetime";
@@ -20,6 +20,8 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { Spinner } from "@/components/ui/Spinner";
+import { TableSkeletonRows } from "@/components/ui/TableSkeletonRows";
 
 export interface BackupItem {
   key: string;
@@ -99,36 +101,34 @@ export function BackupManager() {
   const latestBackup = backups.length > 0 ? backups[0] : null;
 
   return (
-    <div className="rounded-panel border border-app-border bg-app-surface shadow-card mt-5 overflow-hidden">
-      <div className="p-5 border-b border-app-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="overflow-hidden rounded-panel border border-app-border bg-app-surface shadow-card">
+      <div className="flex flex-col justify-between gap-4 border-b border-app-border p-5 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-lg font-extrabold text-app-text flex items-center gap-2">
-            <HardDriveDownload className="size-5 text-primary-ink" />
-            Database Backups
-          </h2>
+          <h2 className="text-base font-bold text-app-text">Off-server backups</h2>
           <p className="mt-1 text-sm text-app-muted">
-            Manage off-server database backups stored securely in Oracle Object Storage.
+            Stored in Oracle Object Storage.
           </p>
         </div>
-        <Button
-          onClick={handleCreateBackup}
-          disabled={isCreating}
-          className="gap-2"
-        >
-          {isCreating ? <Loader2 className="size-4 animate-spin" /> : <HardDriveDownload className="size-4" />}
-          Create Backup
+        <Button onClick={handleCreateBackup} disabled={isCreating}>
+          {isCreating ? (
+            <Spinner aria-hidden="true" className="size-4" />
+          ) : (
+            <HardDriveDownload aria-hidden="true" className="size-4" strokeWidth={2.5} />
+          )}
+          Create backup
         </Button>
       </div>
 
-      <div className="bg-app-soft/50 p-4 border-b border-app-border flex items-center gap-4">
+      <div className="flex items-center gap-4 border-b border-app-border bg-app-soft/50 p-4">
         <div className="flex-1">
-          <p className="text-xs font-bold text-app-muted mb-1">Latest Backup Health</p>
+          <p className="mb-1 text-xs font-semibold text-app-muted">Latest backup</p>
           {isLoading ? (
             <Skeleton className="h-6 w-48" />
           ) : latestBackup ? (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Badge variant="success">
-                ✓ Verified
+                <CheckCircle2 aria-hidden="true" className="size-3.5" />
+                Stored
               </Badge>
               <span className="text-sm font-medium text-app-text">
                 {formatDateTime(latestBackup.date, tz)}
@@ -138,7 +138,10 @@ export function BackupManager() {
               </span>
             </div>
           ) : (
-            <p className="text-sm text-app-danger-ink font-medium">⚠️ No database backups found in OCI Object Storage.</p>
+            <p className="flex items-center gap-1.5 text-sm font-medium text-warning-ink">
+              <AlertTriangle aria-hidden="true" className="size-4" />
+              No database backups found in OCI Object Storage.
+            </p>
           )}
         </div>
       </div>
@@ -156,14 +159,7 @@ export function BackupManager() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24">
-                  <div className="flex items-center justify-center text-app-muted gap-2">
-                    <Loader2 className="size-5 animate-spin" />
-                    Loading backups...
-                  </div>
-                </TableCell>
-              </TableRow>
+              <TableSkeletonRows columns={5} label="Loading backups…" rows={3} />
             ) : backups.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center text-app-muted">
@@ -189,10 +185,10 @@ export function BackupManager() {
                     <div className="flex justify-end gap-2">
                       <SimpleTooltip label="Download">
                         <Button
-                          variant="ghost"
+                          variant="neutral"
                           size="icon"
                           aria-label="Download backup"
-                          className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                          className="size-8"
                           onClick={() => handleDownload(backup.key)}
                         >
                           <Download className="size-4" strokeWidth={2.5} />
