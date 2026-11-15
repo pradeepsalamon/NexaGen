@@ -2422,6 +2422,8 @@ enum NotificationType {
   REFERRAL_PROGRESS
   REFERRAL_REWARD
   REFERRAL_REQUEST_DECIDED
+  REFERRAL_POINTS_EXPIRING
+  REFERRAL_TAKEN_BACK
   /// A fixed system message sent in-app (SystemNotifier), not a messaging rule.
   SYSTEM_MESSAGE
 }
@@ -3335,6 +3337,8 @@ enum MessagingEvent {
   REFERRAL_PROGRESS
   REFERRAL_REWARD
   REFERRAL_REQUEST_DECIDED
+  REFERRAL_POINTS_EXPIRING
+  REFERRAL_TAKEN_BACK
 }
 
 enum MessagingScheduleMode {

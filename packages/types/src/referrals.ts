@@ -446,6 +446,114 @@ export const requestReferralWithdrawalRequestSchema = z.object({
 });
 export type RequestReferralWithdrawalRequest = z.infer<typeof requestReferralWithdrawalRequestSchema>;
 
+/**
+ * Several withdrawals paid at once (Withdrawals → Import paid CSV): each id with its own
+ * transfer reference. Each is claimed on its own; one already decided is skipped, not fatal.
+ */
+export const REFERRAL_WITHDRAWAL_BULK_PAY_MAX = 500;
+export const payReferralWithdrawalsBulkRequestSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(64),
+        payoutReference: z.string().trim().min(1, "Add the transfer reference.").max(200)
+      })
+    )
+    .min(1, "Nothing to mark paid.")
+    .max(REFERRAL_WITHDRAWAL_BULK_PAY_MAX)
+});
+export type PayReferralWithdrawalsBulkRequest = z.infer<typeof payReferralWithdrawalsBulkRequestSchema>;
+export type PayReferralWithdrawalsBulkResponse = {
+  paid: string[];
+  skipped: { id: string; reason: string }[];
+};
+
+/**
+ * Reads the Withdrawals export back after the admin filled in "Payout reference" for the rows
+ * they paid: every REQUESTED row with a reference, keyed by "Withdrawal ID". Accepts what a
+ * spreadsheet saves (BOM, `;` instead of `,`, quoted cells, a leading `'` the export adds
+ * against formulas). `problems` explains rows it could not use; nothing is sent from here.
+ */
+export function paidWithdrawalsFromCsv(text: string): {
+  items: PayReferralWithdrawalsBulkRequest["items"];
+  problems: string[];
+} {
+  const rows = parseCsvRows(text.replace(/^\uFEFF/, ""));
+  const header = (rows[0] ?? []).map((cell) => cell.trim().toLowerCase());
+  const idAt = header.indexOf("withdrawal id");
+  const refAt = header.indexOf("payout reference");
+  const statusAt = header.indexOf("status");
+  if (idAt < 0 || refAt < 0) {
+    return { items: [], problems: ['This isn\'t the withdrawals export: it needs "Withdrawal ID" and "Payout reference" columns.'] };
+  }
+  const items: PayReferralWithdrawalsBulkRequest["items"] = [];
+  const problems: string[] = [];
+  const seen = new Set<string>();
+  rows.slice(1).forEach((row, index) => {
+    const line = index + 2;
+    const id = unguard(row[idAt] ?? "").trim();
+    const reference = unguard(row[refAt] ?? "").trim();
+    if (!id && !reference) return;
+    if (statusAt >= 0 && (row[statusAt] ?? "").trim().toUpperCase() !== "REQUESTED") return;
+    if (!reference) return;
+    if (!id) return void problems.push(`Line ${line}: no withdrawal ID.`);
+    if (reference.length > 200) return void problems.push(`Line ${line}: the reference is longer than 200 characters.`);
+    if (seen.has(id)) return void problems.push(`Line ${line}: this withdrawal is listed twice.`);
+    seen.add(id);
+    items.push({ id, payoutReference: reference });
+  });
+  if (items.length > REFERRAL_WITHDRAWAL_BULK_PAY_MAX) {
+    problems.push(`Only ${REFERRAL_WITHDRAWAL_BULK_PAY_MAX} at a time: split the file.`);
+  }
+  return { items, problems };
+}
+
+/** The export guards formula-like text with a leading `'`; a reference typed back may keep it. */
+function unguard(cell: string): string {
+  return /^'[=+\-@\t\r]/.test(cell) ? cell.slice(1) : cell;
+}
+
+/** RFC 4180 rows; the delimiter is `,` unless the header line has more `;` (some Excel locales). */
+export function parseCsvRows(text: string): string[][] {
+  const firstLine = text.slice(0, text.search(/\r?\n|$/));
+  const delimiter = (firstLine.match(/;/g)?.length ?? 0) > (firstLine.match(/,/g)?.length ?? 0) ? ";" : ",";
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') {
+        cell += '"';
+        i += 1;
+      } else if (ch === '"') {
+        quoted = false;
+      } else {
+        cell += ch;
+      }
+    } else if (ch === '"' && cell === "") {
+      quoted = true;
+    } else if (ch === delimiter) {
+      row.push(cell);
+      cell = "";
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i += 1;
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += ch;
+    }
+  }
+  if (cell !== "" || row.length > 0) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows.filter((r) => r.some((c) => c.trim() !== ""));
+}
+
 export const payReferralWithdrawalRequestSchema = z.object({
   payoutReference: z.string().trim().min(1, "Add the transfer reference.").max(200),
   adminNote: z.string().trim().max(500).optional()
@@ -760,6 +868,8 @@ export type ReorderReferralStagesRequest = z.infer<typeof reorderReferralStagesR
 export const REFERRAL_POINTS_EXPIRY_MIN_DAYS = 30;
 /** The board warns about points that expire within this many days. */
 export const REFERRAL_POINTS_EXPIRY_WARNING_DAYS = 30;
+/** A student is told about points expiring within this many days (at most once a week). */
+export const REFERRAL_POINTS_EXPIRY_NOTICE_DAYS = 7;
 
 /**
  * How many points of one wallet have expired by `cutoff` (docs/REFERRALS.md § "Points expiry").

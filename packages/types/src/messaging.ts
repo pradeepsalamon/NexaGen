@@ -37,7 +37,9 @@ export const messagingEventSchema = z.enum([
   "TOURNAMENT_STARTED",
   "REFERRAL_PROGRESS",
   "REFERRAL_REWARD",
-  "REFERRAL_REQUEST_DECIDED"
+  "REFERRAL_REQUEST_DECIDED",
+  "REFERRAL_POINTS_EXPIRING",
+  "REFERRAL_TAKEN_BACK"
 ]);
 export type MessagingEvent = z.infer<typeof messagingEventSchema>;
 
@@ -65,9 +67,11 @@ export const MESSAGING_EVENT_EMAIL_CATEGORY: Record<MessagingEvent, EmailCategor
   PAYMENT_RECEIVED: "ACCOUNT",
   PAYROLL_FINALIZED: "ACCOUNT",
   PAYROLL_PAID: "ACCOUNT",
+  REFERRAL_POINTS_EXPIRING: "REFERRALS",
   REFERRAL_PROGRESS: "REFERRALS",
   REFERRAL_REQUEST_DECIDED: "REFERRALS",
   REFERRAL_REWARD: "REFERRALS",
+  REFERRAL_TAKEN_BACK: "REFERRALS",
   REFUND_PROCESSED: "ACCOUNT",
   REGISTRATION_PENDING_ADMIN: "ACCOUNT",
   REVISION_DUE: "HOMEWORK",
@@ -238,6 +242,10 @@ const REFERRAL_VARIABLES = [
   "referral.request",
   "referral.decision",
   "referral.note",
+  "referral.points",
+  "referral.expiresOn",
+  "referral.takenBack",
+  "referral.balanceChange",
   "links.referrals"
 ] as const;
 
@@ -524,6 +532,24 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     variables: REFERRAL_VARIABLES,
     audiences: ["STUDENTS_AND_COACHES"],
     supportsLeadTime: false
+  },
+  REFERRAL_POINTS_EXPIRING: {
+    event: "REFERRAL_POINTS_EXPIRING",
+    label: "Referral points about to expire",
+    description:
+      "Sent to a student whose unspent referral points expire within 7 days, at most once a week, while the academy has points expiry switched on.",
+    variables: REFERRAL_VARIABLES,
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false
+  },
+  REFERRAL_TAKEN_BACK: {
+    event: "REFERRAL_TAKEN_BACK",
+    label: "Referral reward or voucher taken back",
+    description:
+      "Sent when an admin cancels a reward that was already credited (the points or money come off the balance), or takes back a student's unused voucher code (the points are returned).",
+    variables: REFERRAL_VARIABLES,
+    audiences: ["STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
   }
 };
 
@@ -695,6 +721,13 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "referral.request": { label: "What was asked for", sample: "the voucher 10% off next month" },
   "referral.decision": { label: "The decision (approved, declined or paid)", sample: "approved" },
   "referral.note": { label: "The admin's note, if any", sample: "Paid by bank transfer." },
+  "referral.points": { label: "Points about to expire", sample: "120 points" },
+  "referral.expiresOn": { label: "The day they expire, in the recipient's time zone", sample: "Sat, 21 Nov" },
+  "referral.takenBack": { label: "What was taken back", sample: "the voucher 10% off next month" },
+  "referral.balanceChange": {
+    label: "What it did to the balance",
+    sample: "Your 200 points were returned."
+  },
   "links.referrals": { label: "Link to the referral board", sample: "https://nexa.test/student/referrals" },
   "registration.statusLine": {
     label: "Whether the entry is confirmed or waiting for the host",
@@ -1085,6 +1118,24 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "Your request was {{referral.decision}}",
     body: "Hi {{recipient.firstName}}, your request for {{referral.request}} was {{referral.decision}}. See it at {{links.referrals}}. {{referral.note}}"
+  },
+  REFERRAL_POINTS_EXPIRING: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    title: "{{referral.points}} expire soon",
+    body: "Hi {{recipient.firstName}}, {{referral.points}} of your referral points expire by {{referral.expiresOn}}. Spend them on a voucher at {{links.referrals}}."
+  },
+  REFERRAL_TAKEN_BACK: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS_AND_COACHES",
+    leadTimeMinutes: null,
+    title: "{{referral.takenBack}} was taken back",
+    body: "Hi {{recipient.firstName}}, an admin took back {{referral.takenBack}}. {{referral.balanceChange}} {{referral.note}} See your referrals at {{links.referrals}}."
   }
 };
 

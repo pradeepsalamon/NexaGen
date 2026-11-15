@@ -143,7 +143,15 @@ export type DispatchRequest =
    */
   | { event: "REFERRAL_PROGRESS"; referralId: string }
   | { event: "REFERRAL_REWARD"; rewardId: string }
-  | { event: "REFERRAL_REQUEST_DECIDED"; kind: "REDEMPTION" | "WITHDRAWAL"; id: string };
+  | { event: "REFERRAL_REQUEST_DECIDED"; kind: "REDEMPTION" | "WITHDRAWAL"; id: string }
+  /**
+   * Nightly, from the points-expiry job: `points` expire by `expiresBy`. At most one a week per
+   * student (`week` is in the dedupe key). The job computed the figure under the student's own
+   * ledger rule; nothing here re-derives it.
+   */
+  | { event: "REFERRAL_POINTS_EXPIRING"; userId: string; points: number; expiresBy: Date; week: number }
+  /** An admin cancelled a credited reward, or took back a voucher code. Read back from the row. */
+  | { event: "REFERRAL_TAKEN_BACK"; kind: "REWARD" | "REDEMPTION"; id: string };
 
 const EMPTY_SUMMARY: MessagingDispatchSummary = {
   ruleEnabled: false,
@@ -439,6 +447,10 @@ export class MessagingDispatchService {
         return this.referralRewardRecipients(request.rewardId);
       case "REFERRAL_REQUEST_DECIDED":
         return this.referralDecisionRecipients(request.kind, request.id);
+      case "REFERRAL_POINTS_EXPIRING":
+        return this.referralExpiringRecipients(request);
+      case "REFERRAL_TAKEN_BACK":
+        return this.referralTakenBackRecipients(request.kind, request.id);
     }
   }
 
@@ -1043,6 +1055,78 @@ export class MessagingDispatchService {
         linkPath: referralBoardPath(decided.user.role),
         linkVariable: "links.referrals",
         dedupeKey: `REFERRAL_REQUEST_DECIDED:${kind}:${id}:${decided.status}`
+      })
+    ];
+  }
+
+  /** The student whose unspent points expire soon. */
+  private async referralExpiringRecipients(request: {
+    userId: string;
+    points: number;
+    expiresBy: Date;
+    week: number;
+  }): Promise<Recipient[]> {
+    if (request.points <= 0) return [];
+    const user = await this.prisma.user.findUnique({ where: { id: request.userId } });
+    if (!user || user.isDeleted || user.role !== UserRole.STUDENT) return [];
+    return [
+      this.toRecipient(user, {
+        variables: {
+          "referral.expiresOn": formatInZone(request.expiresBy, user.timezone, "date"),
+          "referral.points": `${request.points} ${request.points === 1 ? "point" : "points"}`
+        },
+        linkPath: referralBoardPath(user.role),
+        linkVariable: "links.referrals",
+        dedupeKey: `REFERRAL_POINTS_EXPIRING:${user.id}:${request.week}`
+      })
+    ];
+  }
+
+  /**
+   * Whoever lost a credited reward (the points or money came off), or the student whose unused
+   * voucher code was taken back (the points came back). A reward cancelled before it was
+   * credited never reached a balance, so it sends nothing; nor does a legacy discount reward.
+   */
+  private async referralTakenBackRecipients(kind: "REWARD" | "REDEMPTION", id: string): Promise<Recipient[]> {
+    if (kind === "REWARD") {
+      const reward = await this.prisma.referralReward.findUnique({ include: { referrer: true }, where: { id } });
+      if (!reward || reward.status !== "CANCELLED" || reward.unit === "DISCOUNT_PERCENT" || reward.referrer.isDeleted) {
+        return [];
+      }
+      const reversal = await this.prisma.referralCreditEntry.findFirst({
+        select: { note: true },
+        where: { rewardId: reward.id, type: "REWARD_REVERSAL" }
+      });
+      if (!reversal) return [];
+      const amount =
+        reward.unit === "POINTS"
+          ? `${reward.amountMinor} ${reward.amountMinor === 1 ? "point" : "points"}`
+          : formatMoney(reward.amountMinor, reward.currency);
+      return [
+        this.toRecipient(reward.referrer, {
+          variables: {
+            "referral.balanceChange": `${amount} came off your balance.`,
+            "referral.note": reversal.note?.trim() ?? "",
+            "referral.takenBack": `the reward "${reward.description ?? "Referral reward"}"`
+          },
+          linkPath: referralBoardPath(reward.referrer.role),
+          linkVariable: "links.referrals",
+          dedupeKey: `REFERRAL_TAKEN_BACK:REWARD:${reward.id}`
+        })
+      ];
+    }
+    const redemption = await this.prisma.referralRedemption.findUnique({ include: { user: true }, where: { id } });
+    if (!redemption || redemption.status !== "REVOKED" || redemption.user.isDeleted) return [];
+    return [
+      this.toRecipient(redemption.user, {
+        variables: {
+          "referral.balanceChange": `Your ${redemption.pointsCost} ${redemption.pointsCost === 1 ? "point was" : "points were"} returned.`,
+          "referral.note": redemption.adminNote?.trim() ?? "",
+          "referral.takenBack": `the voucher ${redemption.voucherName}`
+        },
+        linkPath: referralBoardPath(redemption.user.role),
+        linkVariable: "links.referrals",
+        dedupeKey: `REFERRAL_TAKEN_BACK:REDEMPTION:${redemption.id}`
       })
     ];
   }

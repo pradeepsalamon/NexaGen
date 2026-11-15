@@ -3,7 +3,8 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  NotFoundException
+  NotFoundException,
+  Optional
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type {
@@ -27,6 +28,7 @@ import { MessagingDispatchService } from "../messaging/messaging-dispatch.servic
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum } from "../common/query-params";
 import { EntitlementService } from "../platform/entitlement.service";
+import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
@@ -45,7 +47,8 @@ export class UserService {
     private readonly jwtService: JwtService,
     private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
-    private readonly trashRepository: TrashRepository
+    private readonly trashRepository: TrashRepository,
+    @Optional() private readonly referralTracker?: ReferralTrackerService
   ) { }
 
   async list(
@@ -167,6 +170,12 @@ export class UserService {
         include: userInclude
       });
     }).catch(rethrowUniqueAsConflict);
+
+    // Same as self sign-up (docs/REFERRALS.md "The new member's account"): a referral whose lead
+    // used this email gets the account, and its new-member points. Never throws.
+    if (newUser.role === UserRole.STUDENT || newUser.role === UserRole.COACH) {
+      await this.referralTracker?.linkSignup({ email: newUser.email, userId: newUser.id });
+    }
 
     return { user: this.toAuthUser(newUser) };
   }

@@ -128,12 +128,12 @@ code on 2026-10-31.
   2026-11-07 as points + vouchers for students, money for staff).
   **Built 2026-11-13:** notifications (stage move, reward credited, voucher
   request / withdrawal decided), a CSV export of withdrawals to pay in bulk,
-  and optional points expiry. **Still open:** nothing announces points about to
-  expire (the board shows it), a cancelled reward or a revoked voucher; the
-  export doesn't mark anything paid. Sign-up links the new member's account
-  automatically, but onboarding is still an admin move. Accounts an admin
-  creates (Users page) are only linked by hand. Free days given by a voucher
-  can't be taken back from the referral board (adjust the access in Payments).
+  and optional points expiry. **2026-11-15:** a 7-day points-expiry notice, a
+  "taken back" notice (credited reward cancelled, voucher code revoked), Import
+  paid CSV (the export filled in with references marks them paid), and
+  admin-created accounts link by email like sign-up. **Still open:** onboarding
+  is still an admin move, and free days given by a voucher can't be taken back
+  from the referral board (adjust the access in Payments).
 
 ### Needs someone with `vps_dev` / production access
 

@@ -910,6 +910,8 @@ export const API_ROUTES = {
     withdrawals: "/admin/referrals/withdrawals",
     /** CSV of the withdrawals in the current filter, to pay in bulk outside the app. */
     withdrawalsExport: "/admin/referrals/withdrawals/export",
+    /** Several at once, from the export filled in with references. */
+    payWithdrawalsBulk: "/admin/referrals/withdrawals/pay-bulk",
     payWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/pay`,
     rejectWithdrawal: (id: string = ":id") => `/admin/referrals/withdrawals/${id}/reject`,
     adjustCredits: "/admin/referrals/credits/adjust",
