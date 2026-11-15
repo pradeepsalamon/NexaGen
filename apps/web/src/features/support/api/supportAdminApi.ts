@@ -1,5 +1,10 @@
 import { API_ROUTES } from "@nexa-chess/types";
 import type {
+  SupportLinkCodeResponse,
+  SupportAnalyticsDays,
+  SupportAnalyticsResponse,
+  SupportContactErasureResult,
+  SupportContactExport,
   SupportMessageItem,
   SupportMessagePage,
   SupportNoteRequest,
@@ -102,4 +107,24 @@ export function getSupportSettings(): Promise<SupportSettingsResponse> {
 
 export function updateSupportSettings(body: UpdateSupportSettingsRequest): Promise<SupportSettingsResponse> {
   return apiFetch<SupportSettingsResponse>(API_ROUTES.adminSupport.settings, { body, method: "PUT" });
+}
+
+export function exportSupportContact(contactId: string): Promise<SupportContactExport> {
+  return apiFetch<SupportContactExport>(API_ROUTES.adminSupport.contactExport(contactId));
+}
+
+export function eraseSupportContact(contactId: string): Promise<SupportContactErasureResult> {
+  return apiFetch<SupportContactErasureResult>(API_ROUTES.adminSupport.contact(contactId), { method: "DELETE" });
+}
+
+export function getSupportAnalytics(days: SupportAnalyticsDays, tz: string): Promise<SupportAnalyticsResponse> {
+  return apiFetch<SupportAnalyticsResponse>(`${API_ROUTES.adminSupport.analytics}?${new URLSearchParams({ days, tz })}`);
+}
+
+export function createSupportLinkCode(studentId: string): Promise<SupportLinkCodeResponse> {
+  return apiFetch<SupportLinkCodeResponse>(API_ROUTES.adminSupport.linkCodes, { body: { studentId }, method: "POST" });
+}
+
+export function unlinkSupportContact(contactId: string, studentId: string): Promise<{ removed: true }> {
+  return apiFetch<{ removed: true }>(API_ROUTES.adminSupport.contactLink(contactId, studentId), { method: "DELETE" });
 }

@@ -1160,6 +1160,9 @@ export interface MessageDeliveryItem {
   attempts: number;
   /** When the outbox will send it (or did). */
   scheduledFor: string;
+  /** WhatsApp only, from Meta's status updates: reached the phone / was opened. */
+  deliveredAt: string | null;
+  readAt: string | null;
   createdAt: string;
 }
 

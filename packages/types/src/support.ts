@@ -1,9 +1,13 @@
 import { z } from "zod";
+import { SUPPORT_OUT_OF_HOURS_MAX, supportHoursSchema, type SupportHours } from "./support-hours";
 import {
   SUPPORT_CATEGORIES,
   SUPPORT_CONVERSATION_STATUSES,
+  SUPPORT_MENU_DESCRIPTION_MAX,
+  SUPPORT_MENU_TITLE_MAX,
   type SupportCategory,
-  type SupportConversationStatus
+  type SupportConversationStatus,
+  type SupportMenuItem
 } from "./support-flows";
 
 // The staff side of WhatsApp support (docs/WHATSAPP_SUPPORT.md): tickets the
@@ -47,6 +51,14 @@ export interface SupportContactSummary {
   optedOut: boolean;
   /** When the 24-hour customer-service window closes; null = closed (only a template can be sent). */
   replyWindowEndsAt: string | null;
+  /** Students this number is linked to by a staff-issued code (Phase D). */
+  linkedStudents: SupportLinkedStudent[];
+}
+
+export interface SupportLinkedStudent {
+  id: string;
+  name: string;
+  linkedAt: string;
 }
 
 export interface SupportTicketListItem {
@@ -102,7 +114,17 @@ export interface SupportMessageItem {
   status: SupportMessageStatus;
   error: string | null;
   sentBy: SupportPerson | null;
+  /** An image or PDF the customer sent: open it through `API_ROUTES.adminSupport.attachment(id)` once STORED. */
+  attachment: SupportAttachmentItem | null;
   createdAt: string;
+}
+
+export interface SupportAttachmentItem {
+  id: string;
+  kind: "image" | "pdf";
+  filename: string | null;
+  status: "PENDING" | "STORED" | "FAILED";
+  error: string | null;
 }
 
 export interface SupportMessagePage {
@@ -242,6 +264,24 @@ export const SUPPORT_SETTINGS_LIMITS = {
   templateNameMax: 512
 } as const;
 
+/** The academy's main menu: all six options, in order, each on or off (Talk to our team stays on). */
+export const supportMenuSchema = z
+  .array(
+    z.object({
+      category: z.enum(SUPPORT_CATEGORIES),
+      enabled: z.boolean(),
+      title: z.string().trim().min(1, "Give the option a title.").max(SUPPORT_MENU_TITLE_MAX),
+      description: z.string().trim().max(SUPPORT_MENU_DESCRIPTION_MAX)
+    })
+  )
+  .length(SUPPORT_CATEGORIES.length)
+  .refine((items) => new Set(items.map((item) => item.category)).size === items.length, "Each option once.")
+  .refine((items) => items.some((item) => item.category === "OTHER" && item.enabled), "Talk to our team must stay on: it's the way to a person.")
+  .refine(
+    (items) => new Set(items.map((item) => item.title.trim().toLowerCase())).size === items.length,
+    "Give each option a different title."
+  );
+
 export const updateSupportSettingsRequestSchema = z.object({
   botEnabled: z.boolean(),
   /** Numbers with country code; the API normalizes them (spaces, "+", a national number). */
@@ -257,7 +297,15 @@ export const updateSupportSettingsRequestSchema = z.object({
   agentReplyTemplateLanguage: z
     .string()
     .trim()
-    .regex(/^[a-z]{2,3}(_[A-Z]{2})?$/, "A language code such as en or en_US.")
+    .regex(/^[a-z]{2,3}(_[A-Z]{2})?$/, "A language code such as en or en_US."),
+  /** null = the team answers any time (24/7). */
+  hours: supportHoursSchema.nullable(),
+  /** Sent after a hand-off outside hours; empty = DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE. */
+  outOfHoursMessage: z.string().trim().max(SUPPORT_OUT_OF_HOURS_MAX),
+  /** The main menu (DEFAULT_SUPPORT_MENU until changed). */
+  menu: supportMenuSchema,
+  /** Numbers linked to a student by a staff-issued code may ask for its next class. */
+  accountAnswers: z.boolean()
 });
 export type UpdateSupportSettingsRequest = z.infer<typeof updateSupportSettingsRequestSchema>;
 
@@ -271,6 +319,13 @@ export interface SupportSettingsValues {
   /** null = none. */
   agentReplyTemplate: string | null;
   agentReplyTemplateLanguage: string;
+  /** null = 24/7. */
+  hours: SupportHours | null;
+  /** null = the default out-of-hours message. */
+  outOfHoursMessage: string | null;
+  /** All six options in the academy's order, including switched-off ones. */
+  menu: SupportMenuItem[];
+  accountAnswers: boolean;
 }
 
 export interface SupportSettingsResponse extends SupportSettingsValues {
@@ -285,4 +340,74 @@ export interface SupportSettingsResponse extends SupportSettingsValues {
     lastWebhookAt: string | null;
   };
   updatedAt: string | null;
+}
+
+// ── A WhatsApp contact's data (privacy requests; docs/WHATSAPP_SUPPORT.md §0) ──
+
+/** Everything stored about one WhatsApp number, for a parent's access request. */
+export interface SupportContactExport {
+  exportedAt: string;
+  /** Students this number was linked to (Phase D). */
+  linkedStudents: Array<{ name: string; linkedAt: string }>;
+  contact: { waId: string; profileName: string | null; firstSeenAt: string; optedOutAt: string | null };
+  conversations: Array<{
+    startedAt: string;
+    closedAt: string | null;
+    messages: Array<{ at: string; direction: SupportMessageDirection; author: SupportMessageAuthor; body: string; status: SupportMessageStatus }>;
+  }>;
+  tickets: Array<{
+    reference: string;
+    category: SupportCategory;
+    status: SupportTicketStatus;
+    studentName: string | null;
+    details: string | null;
+    openedAt: string;
+    resolvedAt: string | null;
+    history: Array<{ at: string; kind: SupportTicketEventKind; body: string | null }>;
+  }>;
+}
+
+export interface SupportContactErasureResult {
+  conversations: number;
+  messages: number;
+  tickets: number;
+  /** The number replied STOP: it is kept, bare, so automatic messages stay off. */
+  keptOptOut: boolean;
+}
+
+// ── Support analytics (docs/WHATSAPP_SUPPORT.md §0 "Analytics") ──
+
+/** The windows the analytics card offers, in days. */
+export const SUPPORT_ANALYTICS_DAYS = ["7", "30", "90"] as const;
+export type SupportAnalyticsDays = (typeof SUPPORT_ANALYTICS_DAYS)[number];
+
+export interface SupportAnalyticsResponse {
+  days: number;
+  from: string;
+  to: string;
+  /** WhatsApp conversations started in the window. */
+  conversations: number;
+  /** Conversations the bot handed to staff in the window (each counted once). */
+  handedToStaff: number;
+  /** handedToStaff / conversations, 0–1; null without conversations. */
+  handoffRate: number | null;
+  /** From each hand-off to the first staff reply in that conversation. */
+  firstReply: { answered: number; waiting: number; medianMinutes: number | null; p90Minutes: number | null };
+  tickets: { opened: number; resolved: number; byCategory: Array<{ category: SupportCategory; count: number }> };
+  /** New leads the bot made (demo bookings) in the window. */
+  newLeads: number;
+  /** Per local day (the `tz` asked for), oldest first. */
+  daily: Array<{ date: string; conversations: number; handoffs: number }>;
+}
+
+// ── Existing students: link a WhatsApp number to a student (Phase D) ──
+
+export const supportLinkCodeRequestSchema = z.object({ studentId: z.string().trim().min(1).max(64) });
+export type SupportLinkCodeRequest = z.infer<typeof supportLinkCodeRequestSchema>;
+
+/** Shown once to the admin who made it; only a hash is stored. */
+export interface SupportLinkCodeResponse {
+  code: string;
+  expiresAt: string;
+  studentName: string;
 }

@@ -8,17 +8,26 @@ import {
   restoreWhatsAppEnv
 } from "./whatsapp-env";
 import { createHmac } from "node:crypto";
+import { PassThrough } from "node:stream";
+import { v2 as cloudinary } from "cloudinary";
 import {
   API_ROUTES,
+  DEFAULT_SUPPORT_MENU,
   DEFAULT_TENANT_ID,
   type LeadDetailResponse,
+  type PersonalDataExport,
+  type SupportContactExport,
   type SupportSavedReplyItem,
   type SupportUnansweredQuestionListResponse,
+  type SupportAnalyticsResponse,
+  type SupportLinkCodeResponse,
   type SupportTicketDetail,
   type SupportTicketListResponse
 } from "@nexa-chess/types";
 import { UserRole, type User } from "@prisma/client";
+import { FrappeCrmPushService } from "../../../lead/frappe-crm-push.service";
 import { setTenantScopeModeForTesting } from "../../../prisma/tenant-scope.extension";
+import { SupportAttachmentsService } from "../../../support/support-attachments.service";
 import { SupportFollowUpService } from "../../../support/support-follow-up.service";
 import { asPlatform, runInTenant } from "../../../tenancy/tenant-context";
 import { createTestApp, type TestApp } from "../app";
@@ -28,6 +37,9 @@ import { createUser, resetDatabase } from "../db";
 // webhooks into the real app and database, Meta's send API stubbed.
 
 type Sent = { to: string; type: string; body: string };
+
+/** The smallest valid PNG header: what the attachment check looks for. */
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
 
 describe("WhatsApp support bot (real app, real Postgres)", () => {
   let t: TestApp;
@@ -40,7 +52,18 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
   beforeAll(async () => {
     global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      // A customer's image: Meta's file, and the private copy read back for staff (both stubbed, never fetched).
+      if (url.startsWith("https://media.int.test/") || url.startsWith("https://api.cloudinary.com/")) {
+        return new Response(new Uint8Array(PNG), { status: 200 });
+      }
       if (!url.startsWith(TEST_GRAPH_BASE)) return realFetch(input, init);
+      if (!url.endsWith("/messages")) {
+        const mediaId = url.split("/").pop();
+        return new Response(JSON.stringify({ file_size: PNG.length, id: mediaId, mime_type: "image/png", url: `https://media.int.test/${mediaId}` }), {
+          headers: { "Content-Type": "application/json" },
+          status: 200
+        });
+      }
       expect(url).toBe(`${TEST_GRAPH_BASE}/v21.0/${TEST_PHONE_NUMBER_ID}/messages`);
       const payload = JSON.parse(String(init?.body)) as {
         interactive?: { body?: { text?: string }; type: string };
@@ -234,6 +257,26 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
     await say(textFrom(ALLOWED_NUMBER, "STOP"));
     const contact = await db(() => t.prisma.whatsAppContact.findFirstOrThrow({ where: { waId: ALLOWED_NUMBER } }));
     expect(contact.optedOutAt).not.toBeNull();
+
+    // A messaging-rule message gets the same news: read implies delivered, a late failure marks it FAILED.
+    const delivery = (providerMessageId: string) =>
+      db(() =>
+        t.prisma.messageDelivery.create({
+          data: { body: "Class at 5", channel: "WHATSAPP", event: "ANNOUNCEMENT", providerMessageId, recipientPhone: ALLOWED_NUMBER, status: "SENT" }
+        })
+      );
+    const ruleStatus = (providerMessageId: string, state: string) =>
+      status(state).replace(String(out.providerMessageId), providerMessageId);
+    const read = await delivery("wamid.rule.read");
+    const failed = await delivery("wamid.rule.failed");
+    await say(ruleStatus("wamid.rule.read", "read"));
+    await say(ruleStatus("wamid.rule.failed", "failed"));
+    const [readRow, failedRow] = await db(() =>
+      Promise.all([read, failed].map((row) => t.prisma.messageDelivery.findUniqueOrThrow({ where: { id: row.id } })))
+    );
+    expect([readRow.status, Boolean(readRow.deliveredAt), Boolean(readRow.readAt)]).toEqual(["SENT", true, true]);
+    expect(failedRow.status).toBe("FAILED");
+    expect(failedRow.error).toMatch(/^WhatsApp couldn't deliver it/);
   });
 
   describe("staff inbox", () => {
@@ -286,6 +329,118 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       sent = [];
       await say(textFrom(ALLOWED_NUMBER, "thanks"));
       expect(sent[0]).toMatchObject({ type: "list" });
+
+      // Who had the conversation, in order (plan §5.2).
+      const changes = await db(() =>
+        t.prisma.supportConversationEvent.findMany({ orderBy: { createdAt: "asc" }, where: { conversationId: ticket.conversationId } })
+      );
+      expect(changes.map((change) => [change.fromStatus, change.toStatus, change.reason, change.actorId])).toEqual([
+        ["BOT", "WAITING_AGENT", "HANDOFF", null],
+        ["WAITING_AGENT", "AGENT", "STAFF_REPLY", admin.id],
+        ["AGENT", "CLOSED", "TICKET_RESOLVED", admin.id]
+      ]);
+
+      const analytics = await t.call(admin, "GET", `${API_ROUTES.adminSupport.analytics}?days=7&tz=Asia/Kolkata`);
+      expect(analytics.status).toBe(200);
+      const summary = analytics.body as SupportAnalyticsResponse;
+      expect(summary).toMatchObject({ conversations: 3, days: 7, handedToStaff: 2, tickets: { opened: 2, resolved: 1 } });
+      expect(summary.firstReply).toMatchObject({ answered: 1, waiting: 1 });
+      expect(summary.daily).toHaveLength(8);
+      expect(summary.daily.reduce((sum, day) => sum + day.handoffs, 0)).toBe(2);
+      expect((await t.call(admin, "GET", `${API_ROUTES.adminSupport.analytics}?days=12`)).status).toBe(400);
+      expect((await t.call(admin, "GET", `${API_ROUTES.adminSupport.analytics}?tz=Mars/Base`)).status).toBe(400);
+    });
+
+    it("keeps an image a parent sends for staff, never reads it, and deletes the copy with the contact", async () => {
+      // Fake storage credentials and a stubbed upload: nothing reaches a real Cloudinary account.
+      const saved = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"].map((key) => [key, process.env[key]] as const);
+      Object.assign(process.env, { CLOUDINARY_API_KEY: "int-key", CLOUDINARY_API_SECRET: "int-secret", CLOUDINARY_CLOUD_NAME: "int-cloud" });
+      cloudinary.config({ api_key: "int-key", api_secret: "int-secret", cloud_name: "int-cloud" });
+      const upload = jest.spyOn(cloudinary.uploader, "upload_stream").mockImplementation(((options: { public_id: string }, done: (error: unknown, result: unknown) => void) => {
+        const stream = new PassThrough();
+        stream.on("finish", () => done(undefined, { bytes: PNG.length, public_id: options.public_id }));
+        stream.resume();
+        return stream;
+      }) as never);
+      const destroy = jest.spyOn(cloudinary.uploader, "destroy").mockResolvedValue({ result: "ok" } as never);
+      try {
+        const ticket = await handoff();
+        sent = [];
+        await say(messageBody(ALLOWED_NUMBER, { image: { caption: "fees paid", id: "img-1", mime_type: "image/png" }, type: "image" }));
+        expect(sent).toEqual([]); // staff have it: the bot stays quiet
+        const attachment = await db(() => t.prisma.supportAttachment.findFirstOrThrow());
+        expect(attachment).toMatchObject({ bytes: PNG.length, mediaId: "img-1", mimeType: "image/png", status: "STORED" });
+        expect(attachment.storageKey).toContain(`support/${attachment.id}`);
+
+        const page = await t.call(admin, "GET", API_ROUTES.adminSupport.messages(ticket.id));
+        const items = (page.body as { items: Array<{ body: string; attachment: unknown }> }).items;
+        expect(items.find((item) => item.attachment)).toMatchObject({ attachment: { id: attachment.id, kind: "image", status: "STORED" }, body: "[Image] fees paid" });
+        expect((await t.call(admin, "GET", API_ROUTES.adminSupport.attachment(attachment.id))).status).toBe(200);
+        expect((await t.call(student, "GET", API_ROUTES.adminSupport.attachment(attachment.id))).status).toBe(403);
+
+        // While the bot has the conversation it thanks the parent but never reads the file.
+        await say(textFrom(OTHER_ALLOWED_NUMBER, "hi"));
+        sent = [];
+        await say(messageBody(OTHER_ALLOWED_NUMBER, { image: { id: "img-2", mime_type: "image/png" }, type: "image" }));
+        expect(sent[0]?.body).toContain("kept your file for our team");
+
+        // Erasing the contact leaves the file without a message; the sweep deletes the copy, then the row.
+        const owner = await db(async () => {
+          const user = await createUser(t.prisma, UserRole.SUPER_ADMIN);
+          return t.prisma.user.update({ data: { status: "ACTIVE" }, where: { id: user.id } });
+        });
+        expect((await t.call(owner, "DELETE", API_ROUTES.adminSupport.contact(ticket.contactId))).status).toBe(200);
+        const removed = await db(() => t.app.get(SupportAttachmentsService).removeOrphans());
+        expect(removed).toBe(1);
+        expect(destroy).toHaveBeenCalledWith(attachment.storageKey, { resource_type: "raw", type: "authenticated" });
+        expect(await db(() => t.prisma.supportAttachment.count({ where: { id: attachment.id } }))).toBe(0);
+      } finally {
+        upload.mockRestore();
+        destroy.mockRestore();
+        for (const [key, value] of saved) {
+          if (value === undefined) delete process.env[key];
+          else process.env[key] = value;
+        }
+      }
+    });
+
+    it("exports a contact's data, and a super admin erases it (keeping only a STOP)", async () => {
+      const ticket = await handoff();
+      const exported = await t.call(admin, "GET", API_ROUTES.adminSupport.contactExport(ticket.contactId));
+      expect(exported.status).toBe(200);
+      const data = exported.body as SupportContactExport;
+      expect(data.contact.waId).toBe(ALLOWED_NUMBER);
+      expect(data.tickets.map((row) => row.reference)).toEqual([ticket.reference]);
+      expect(data.conversations[0].messages.map((message) => message.direction)).toContain("INBOUND");
+
+      // Erasing is for super admins only.
+      expect((await t.call(admin, "DELETE", API_ROUTES.adminSupport.contact(ticket.contactId))).status).toBe(403);
+      const owner = await db(async () => {
+        const user = await createUser(t.prisma, UserRole.SUPER_ADMIN);
+        return t.prisma.user.update({ data: { status: "ACTIVE" }, where: { id: user.id } });
+      });
+      const erased = await t.call(owner, "DELETE", API_ROUTES.adminSupport.contact(ticket.contactId));
+      expect(erased.status).toBe(200);
+      expect(erased.body).toMatchObject({ keptOptOut: false, tickets: 1 });
+      const left = await db(() =>
+        Promise.all([
+          t.prisma.whatsAppContact.count({ where: { waId: ALLOWED_NUMBER } }),
+          t.prisma.supportTicket.count(),
+          t.prisma.supportMessage.count(),
+          t.prisma.whatsAppWebhookEvent.count({ where: { waId: ALLOWED_NUMBER } }),
+          t.prisma.supportContactErasure.count({ where: { contactId: ticket.contactId, erasedById: owner.id } })
+        ])
+      );
+      expect(left).toEqual([0, 0, 0, 0, 1]);
+
+      // A number that said STOP stays, bare, so automatic messages stay off.
+      const other = await handoff(OTHER_ALLOWED_NUMBER);
+      await say(textFrom(OTHER_ALLOWED_NUMBER, "STOP"));
+      const keep = await t.call(owner, "DELETE", API_ROUTES.adminSupport.contact(other.contactId));
+      expect(keep.body).toMatchObject({ keptOptOut: true });
+      const bare = await db(() => t.prisma.whatsAppContact.findFirstOrThrow({ where: { waId: OTHER_ALLOWED_NUMBER } }));
+      expect([bare.profileName, bare.optedOutAt === null]).toEqual([null, false]);
+      expect(await db(() => t.prisma.supportConversation.count({ where: { contactId: bare.id } }))).toBe(0);
     });
 
     it("returns a conversation to the bot", async () => {
@@ -293,6 +448,10 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       expect((await t.call(admin, "POST", API_ROUTES.adminSupport.takeOver(ticket.id))).status).toBe(201);
       const back = await t.call(admin, "POST", API_ROUTES.adminSupport.returnToBot(ticket.id));
       expect((back.body as SupportTicketDetail).conversationStatus).toBe("BOT");
+      const reasons = await db(() =>
+        t.prisma.supportConversationEvent.findMany({ orderBy: { createdAt: "asc" }, select: { reason: true }, where: { conversationId: ticket.conversationId } })
+      );
+      expect(reasons.map((row) => row.reason)).toEqual(["HANDOFF", "STAFF_TAKE_OVER", "STAFF_RETURN"]);
       sent = [];
       await say(textFrom(ALLOWED_NUMBER, "2"));
       expect(sent[0].body).toContain("student's name");
@@ -339,10 +498,17 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
           ["POST", API_ROUTES.adminSupport.returnToBot(otherTicket.id), undefined],
           ["PUT", API_ROUTES.adminSupport.savedReply(otherAnswer.id), ANSWER],
           ["DELETE", API_ROUTES.adminSupport.savedReply(otherAnswer.id), undefined],
-          ["POST", API_ROUTES.adminSupport.dismissUnanswered(otherQuestion.id), undefined]
+          ["POST", API_ROUTES.adminSupport.dismissUnanswered(otherQuestion.id), undefined],
+          ["GET", API_ROUTES.adminSupport.contactExport(otherTicket.contactId), undefined]
         ] as const) {
           expect({ path, status: (await t.call(admin, method, path, body)).status }).toEqual({ path, status: 404 });
         }
+        // Erasing is super-admin only (an admin gets 403 first); even Nexa's super admin can't reach another academy's contact.
+        const owner = await db(async () => {
+          const user = await createUser(t.prisma, UserRole.SUPER_ADMIN);
+          return t.prisma.user.update({ data: { status: "ACTIVE" }, where: { id: user.id } });
+        });
+        expect((await t.call(owner, "DELETE", API_ROUTES.adminSupport.contact(otherTicket.contactId))).status).toBe(404);
         const list = await t.call(admin, "GET", API_ROUTES.adminSupport.tickets);
         expect((list.body as SupportTicketListResponse).items.map((item) => item.id)).toEqual([ticket.id]);
         const answers = await t.call(admin, "GET", API_ROUTES.adminSupport.savedReplies);
@@ -458,6 +624,193 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       expect(await db(() => t.prisma.leadActivity.count({ where: { activityType: "WHATSAPP_DEMO_REQUEST", leadId: lead.id } }))).toBe(1);
     });
 
+    it("copies a new WhatsApp lead to Frappe CRM once, when the push is on", async () => {
+      const push = t.app.get(FrappeCrmPushService);
+      const config = jest.spyOn(push, "config").mockReturnValue({
+        apiKey: "k",
+        apiSecret: "s",
+        countryCode: "91",
+        leadSource: "Direct WhatsApp",
+        leadStatus: "New Inquiry",
+        url: "https://crm.int.test"
+      });
+      const crmCalls: { body: Record<string, unknown>; url: string }[] = [];
+      const stub = global.fetch;
+      global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (!url.startsWith("https://crm.int.test/")) return stub(input, init);
+        crmCalls.push({ body: JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>, url });
+        return new Response(JSON.stringify({ data: { name: url.includes("CRM%20Lead") ? "CRM-LEAD-2026-00001" : "n1" } }), { status: 200 });
+      }) as typeof fetch;
+      try {
+        await say(textFrom(ALLOWED_NUMBER, "hi"));
+        await say(textFrom(ALLOWED_NUMBER, "1"));
+        await say(textFrom(ALLOWED_NUMBER, "book a demo"));
+        for (const answer of ["Ravi Menon", "12", "3", "Priya Menon", "Sunday", "yes"]) await say(textFrom(ALLOWED_NUMBER, answer));
+
+        const lead = await db(() => t.prisma.lead.findFirstOrThrow({ include: { activities: true, crmPush: true } }));
+        expect(lead.crmPush).toMatchObject({ externalId: "CRM-LEAD-2026-00001", status: "SENT" });
+        expect(lead.activities.map((activity) => activity.activityType)).toContain("CRM_PUSHED");
+        expect(crmCalls[0].body).toMatchObject({ first_name: "Priya Menon", mobile_no: `+${ALLOWED_NUMBER.replace(/\D/g, "")}`, source: "Direct WhatsApp" });
+        expect(crmCalls[1].body).toMatchObject({ reference_docname: "CRM-LEAD-2026-00001", reference_doctype: "CRM Lead" });
+
+        // The same parent again adds to the NexaGen lead; Frappe isn't sent a twin.
+        await say(textFrom(ALLOWED_NUMBER, "menu"));
+        await say(textFrom(ALLOWED_NUMBER, "1"));
+        await say(textFrom(ALLOWED_NUMBER, "book a demo"));
+        for (const answer of ["Asha Menon", "9", "1", "Priya Menon", "Monday", "yes"]) await say(textFrom(ALLOWED_NUMBER, answer));
+        expect(crmCalls).toHaveLength(2);
+        expect(await db(() => t.prisma.crmLeadPush.count())).toBe(1);
+      } finally {
+        global.fetch = stub;
+        config.mockRestore();
+      }
+    });
+
+    it("links a parent's number with a staff code, then tells only that number the next class", async () => {
+      const settings = {
+        accountAnswers: true,
+        agentReplyTemplate: "",
+        agentReplyTemplateLanguage: "en",
+        botEnabled: true,
+        hours: null,
+        leadNudgeHours: 20,
+        menu: DEFAULT_SUPPORT_MENU,
+        outOfHoursMessage: "",
+        staffReminderMinutes: 15,
+        testNumbers: []
+      };
+      expect((await t.call(admin, "PUT", API_ROUTES.adminSupport.settings, settings)).status).toBe(200);
+      const coach = await db(() => createUser(t.prisma, UserRole.COACH));
+      const batch = await db(() =>
+        t.prisma.batch.create({ data: { name: "Knights Tuesday", students: { create: { studentId: student.id } } } })
+      );
+      const startsAt = new Date(Date.now() + 26 * 60 * 60_000);
+      await db(() =>
+        t.prisma.coachClass.create({
+          data: { batchId: batch.id, coachId: coach.id, endsAt: new Date(startsAt.getTime() + 3_600_000), startsAt, status: "SCHEDULED" }
+        })
+      );
+
+      // Not linked yet: no account data, only how to link.
+      await say(textFrom(ALLOWED_NUMBER, "hi"));
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "next class"));
+      expect(sent.map((message) => message.body).join("\n")).toContain("isn't linked to a student yet");
+      expect(sent.map((message) => message.body).join("\n")).not.toContain("Knights");
+
+      // Only admins make codes, only for this academy's students.
+      expect((await t.call(student, "POST", API_ROUTES.adminSupport.linkCodes, { studentId: student.id })).status).toBe(403);
+      expect((await t.call(admin, "POST", API_ROUTES.adminSupport.linkCodes, { studentId: admin.id })).status).toBe(404);
+      const made = await t.call(admin, "POST", API_ROUTES.adminSupport.linkCodes, { studentId: student.id });
+      expect(made.status).toBe(200);
+      const { code } = made.body as SupportLinkCodeResponse;
+      expect(code).toMatch(/^[2-9A-Z]{4}-[2-9A-Z]{4}$/);
+      expect(await db(() => t.prisma.supportLinkCode.count({ where: { codeHash: code } }))).toBe(0);
+
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, `link ${code.toLowerCase().replace("-", "")}`));
+      expect(sent.at(-1)?.body).toContain("now linked to");
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "Next class"));
+      expect(sent.at(-1)?.body).toContain("(Knights Tuesday)");
+
+      // The code is spent: another number can't reuse it.
+      sent = [];
+      await say(textFrom(OTHER_ALLOWED_NUMBER, `LINK ${code}`));
+      expect(sent.at(-1)?.body).toContain("didn't work");
+      sent = [];
+      await say(textFrom(OTHER_ALLOWED_NUMBER, "next class"));
+      expect(sent.at(-1)?.body).not.toContain("Knights");
+
+      // Too many wrong codes: the number has to wait.
+      for (let i = 0; i < 5; i += 1) await say(textFrom(OTHER_ALLOWED_NUMBER, "LINK ZZZZ-ZZZZ"));
+      const another = (await t.call(admin, "POST", API_ROUTES.adminSupport.linkCodes, { studentId: student.id })).body as SupportLinkCodeResponse;
+      sent = [];
+      await say(textFrom(OTHER_ALLOWED_NUMBER, `LINK ${another.code}`));
+      expect(sent.at(-1)?.body).toContain("Too many codes");
+
+      // Staff see the link on the ticket page and can remove it.
+      await say(textFrom(ALLOWED_NUMBER, "agent"));
+      const ticket = await db(() => t.prisma.supportTicket.findFirstOrThrow({ where: { contact: { waId: ALLOWED_NUMBER } } }));
+      const detail = (await t.call(admin, "GET", API_ROUTES.adminSupport.ticket(ticket.id))).body as SupportTicketDetail;
+      expect(detail.contact.linkedStudents.map((link) => link.id)).toEqual([student.id]);
+      // The student's own data export lists the linked number.
+      const exported = await t.call(student, "GET", API_ROUTES.privacy.dataExport);
+      expect((exported.body as PersonalDataExport).sections.whatsAppLinks).toEqual([expect.objectContaining({ whatsAppNumber: ALLOWED_NUMBER })]);
+      const unlink = await t.call(admin, "DELETE", API_ROUTES.adminSupport.contactLink(detail.contact.id, student.id));
+      expect(unlink.status).toBe(200);
+      expect(await db(() => t.prisma.supportContactLink.count())).toBe(0);
+      expect((await t.call(admin, "DELETE", API_ROUTES.adminSupport.contactLink(detail.contact.id, student.id))).status).toBe(404);
+    });
+
+    it("books a real demo time: a registration, the join link, and nothing left for staff", async () => {
+      const coach = await db(() => createUser(t.prisma, UserRole.COACH));
+      const schedule = await db(() =>
+        t.prisma.demoSchedule.create({ data: { coachId: coach.id, slots: [], slug: "int-trial", topic: "Chess basics" } })
+      );
+      const startsAt = new Date(Date.now() + 2 * 24 * 60 * 60_000);
+      const occurrence = (offsetMs: number) =>
+        db(() =>
+          t.prisma.coachClass.create({
+            data: {
+              coachId: coach.id,
+              demoScheduleId: schedule.id,
+              endsAt: new Date(startsAt.getTime() + offsetMs + 60 * 60_000),
+              isDemo: true,
+              startsAt: new Date(startsAt.getTime() + offsetMs),
+              status: "SCHEDULED",
+              topic: "Chess basics"
+            }
+          })
+        );
+      const first = await occurrence(0);
+      const second = await occurrence(24 * 60 * 60_000);
+
+      async function upToTime(from: string) {
+        await say(textFrom(from, "hi"));
+        await say(textFrom(from, "1"));
+        await say(tapFrom(from, "course.demo"));
+        for (const answer of ["Asha Menon", "9"]) await say(textFrom(from, answer));
+        await say(tapFrom(from, "demo.level.beginner"));
+        sent = [];
+        await say(textFrom(from, "Priya Menon"));
+        expect(sent.at(-1)).toMatchObject({ type: "list" });
+      }
+
+      await upToTime(ALLOWED_NUMBER);
+      await say(tapFrom(ALLOWED_NUMBER, `demo.slot.${first.id}`));
+      await say(tapFrom(ALLOWED_NUMBER, "confirm.send"));
+
+      const lead = await db(() => t.prisma.lead.findFirstOrThrow({ where: { phone: ALLOWED_NUMBER } }));
+      expect(lead).toMatchObject({ assignedClassId: first.id, status: "DEMO_SCHEDULED" });
+      const registration = await db(() => t.prisma.demoClassRegistration.findFirstOrThrow({ where: { classId: first.id } }));
+      expect(registration).toMatchObject({ leadId: lead.id, source: "LEAD" });
+      expect(sent.at(-1)?.body).toContain("You're booked: free demo class on");
+      expect(sent.at(-1)?.body).toContain(`/demo/${first.id}?invite=${registration.inviteToken}`);
+      const ticket = await db(() => t.prisma.supportTicket.findFirstOrThrow({ where: { leadId: lead.id } }));
+      expect(ticket.status).toBe("RESOLVED");
+      const conversation = await db(() =>
+        t.prisma.supportConversation.findFirstOrThrow({ include: { events: { orderBy: { createdAt: "asc" } } }, where: { id: ticket.conversationId } })
+      );
+      expect(conversation.status).toBe("BOT");
+      expect(conversation.events.map((event) => event.reason)).toEqual(["HANDOFF", "DEMO_BOOKED"]);
+
+      // The class is cancelled between the pick and the confirm: never "booked", staff fix the time.
+      await upToTime(OTHER_ALLOWED_NUMBER);
+      await say(tapFrom(OTHER_ALLOWED_NUMBER, `demo.slot.${second.id}`));
+      await db(() => t.prisma.coachClass.update({ data: { status: "CANCELLED" }, where: { id: second.id } }));
+      sent = [];
+      await say(tapFrom(OTHER_ALLOWED_NUMBER, "confirm.send"));
+      expect(sent.map((message) => message.body).join("\n")).not.toContain("You're booked");
+      expect(sent.at(-1)?.body).toContain("Our team will message you here soon to fix a time.");
+      const otherTicket = await db(() =>
+        t.prisma.supportTicket.findFirstOrThrow({ where: { contact: { waId: OTHER_ALLOWED_NUMBER } } })
+      );
+      expect(otherTicket.status).toBe("OPEN");
+      expect(await db(() => t.prisma.demoClassRegistration.count({ where: { classId: second.id } }))).toBe(0);
+    });
+
     it("reminds admins about a request nobody answered, at most twice", async () => {
       const followUps = t.app.get(SupportFollowUpService);
       await say(textFrom(ALLOWED_NUMBER, "hi"));
@@ -482,6 +835,84 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
       await db(() => t.prisma.supportTicket.update({ data: { remindersSent: 0 }, where: { id: ticket.id } }));
       await t.call(admin, "POST", API_ROUTES.adminSupport.reply(ticket.id), { body: "Hello!" });
       expect(await followUps.remindStaff(new Date(Date.now() + 16 * 60_000))).toBe(0);
+    });
+
+    it("shows the academy's own main menu: hidden options, new order and titles", async () => {
+      const base = {
+        accountAnswers: false,
+        agentReplyTemplate: "",
+        agentReplyTemplateLanguage: "en",
+        botEnabled: true,
+        hours: null,
+        leadNudgeHours: 20,
+        outOfHoursMessage: "",
+        staffReminderMinutes: 15,
+        testNumbers: [ALLOWED_NUMBER]
+      };
+      const byCategory = Object.fromEntries(DEFAULT_SUPPORT_MENU.map((item) => [item.category, item]));
+      const menu = [
+        { ...byCategory.CLASS, title: "Class problem" },
+        { ...byCategory.COURSE },
+        { ...byCategory.REFUND, enabled: false },
+        { ...byCategory.PAYMENT, enabled: false },
+        { ...byCategory.TECH },
+        { ...byCategory.OTHER }
+      ];
+      // The way to a person can't be switched off.
+      const noPerson = menu.map((item) => (item.category === "OTHER" ? { ...item, enabled: false } : item));
+      expect((await t.call(admin, "PUT", API_ROUTES.adminSupport.settings, { ...base, menu: noPerson })).status).toBe(400);
+      const saved = await t.call(admin, "PUT", API_ROUTES.adminSupport.settings, { ...base, menu });
+      expect(saved.status).toBe(200);
+      expect((saved.body as { menu: unknown }).menu).toEqual(menu);
+
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "hi"));
+      expect(sent[0]).toMatchObject({ type: "list" });
+      expect(sent[0].body).toContain("(1–4)");
+      // "1" is now the first visible option.
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "1"));
+      expect(sent[0].body).toContain("student's name");
+      const conversation = await db(() => t.prisma.supportConversation.findFirstOrThrow({ where: { status: { not: "CLOSED" } } }));
+      expect(conversation.draft).toMatchObject({ category: "CLASS" });
+      // A hidden option isn't guessed from words either.
+      await say(textFrom(ALLOWED_NUMBER, "menu"));
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "I want a refund"));
+      expect(sent[0].body).toContain("didn't get that");
+    });
+
+    it("outside the team's hours: the academy's away message after a hand-off, reminders wait", async () => {
+      const followUps = t.app.get(SupportFollowUpService);
+      // No open day at all: always outside hours, whatever time the suite runs.
+      const settings = {
+        accountAnswers: false,
+        agentReplyTemplate: "",
+        agentReplyTemplateLanguage: "en",
+        botEnabled: true,
+        hours: { days: [], timezone: "Asia/Kolkata" },
+        leadNudgeHours: 20,
+        menu: DEFAULT_SUPPORT_MENU,
+        outOfHoursMessage: "We're back on Monday at 9.",
+        staffReminderMinutes: 15,
+        testNumbers: [ALLOWED_NUMBER]
+      };
+      expect((await t.call(admin, "PUT", API_ROUTES.adminSupport.settings, settings)).status).toBe(200);
+      await say(textFrom(ALLOWED_NUMBER, "hi"));
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "agent"));
+      expect(sent.at(-1)?.body).toBe("We're back on Monday at 9.");
+
+      // Said once, at the hand-off: another message while waiting gets nothing.
+      sent = [];
+      await say(textFrom(ALLOWED_NUMBER, "hello?"));
+      expect(sent).toEqual([]);
+      expect(await followUps.remindStaff(new Date(Date.now() + 16 * 60_000))).toBe(0);
+
+      // Open every day, all day: the waiting reminder goes.
+      const allDay = [0, 1, 2, 3, 4, 5, 6].map((day) => ({ close: "23:59", day, open: "00:00" }));
+      await t.call(admin, "PUT", API_ROUTES.adminSupport.settings, { ...settings, hours: { days: allDay, timezone: "Asia/Kolkata" } });
+      expect(await followUps.remindStaff(new Date(Date.now() + 16 * 60_000))).toBe(1);
     });
 
     it("nudges a quiet course enquiry once, inside the reply window, and never after STOP", async () => {

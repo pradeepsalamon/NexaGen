@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, Req, Res } from "@nestjs/common";
 import {
   API_ROUTES,
   supportNoteRequestSchema,
@@ -8,15 +8,20 @@ import {
   type SupportNoteRequest,
   type SupportReplyRequest,
   type SupportSavedReplyInput,
+  supportLinkCodeRequestSchema,
   updateSupportSettingsRequestSchema,
+  type SupportLinkCodeRequest,
   type UpdateSupportSettingsRequest,
   type UpdateSupportTicketRequest
 } from "@nexa-chess/types";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { RequireFeature } from "../platform/require-feature.decorator";
+import { SupportAccountService } from "./support-account.service";
 import { SupportAdminService } from "./support-admin.service";
+import { SupportAnalyticsService } from "./support-analytics.service";
+import { SupportAttachmentsService } from "./support-attachments.service";
 import { SupportSavedRepliesService } from "./support-saved-replies.service";
 import { SupportSettingsService } from "./support-settings.service";
 import { SupportUnansweredService } from "./support-unanswered.service";
@@ -30,11 +35,46 @@ import { SupportUnansweredService } from "./support-unanswered.service";
 @RequireFeature("whatsappSupport", { allowReads: true })
 export class SupportAdminController {
   constructor(
+    private readonly account: SupportAccountService,
+    private readonly analytics: SupportAnalyticsService,
+    private readonly attachments: SupportAttachmentsService,
     private readonly savedReplies: SupportSavedRepliesService,
     private readonly settings: SupportSettingsService,
     private readonly support: SupportAdminService,
     private readonly unanswered: SupportUnansweredService
   ) {}
+
+  /** 200, like the other "own data" actions the access suites check: it returns a code, not a resource. */
+  @Post(API_ROUTES.adminSupport.linkCodes)
+  @HttpCode(200)
+  createLinkCode(@Req() request: Request, @Body(new ZodBodyPipe(supportLinkCodeRequestSchema)) body: SupportLinkCodeRequest) {
+    return this.account.createLinkCode(this.getAccessToken(request), body);
+  }
+
+  @Delete(API_ROUTES.adminSupport.contactLink())
+  unlinkContact(@Req() request: Request, @Param("id") id: string, @Param("studentId") studentId: string) {
+    return this.account.unlink(this.getAccessToken(request), id, studentId);
+  }
+
+  @Get(API_ROUTES.adminSupport.analytics)
+  getAnalytics(@Req() request: Request, @Query() query: Record<string, unknown>) {
+    return this.analytics.summary(this.getAccessToken(request), query);
+  }
+
+  @Get(API_ROUTES.adminSupport.attachment())
+  attachment(@Req() request: Request, @Param("id") id: string, @Res() res: Response) {
+    return this.attachments.stream(this.getAccessToken(request), id, res);
+  }
+
+  @Get(API_ROUTES.adminSupport.contactExport())
+  exportContact(@Req() request: Request, @Param("id") id: string) {
+    return this.support.exportContact(this.getAccessToken(request), id);
+  }
+
+  @Delete(API_ROUTES.adminSupport.contact())
+  eraseContact(@Req() request: Request, @Param("id") id: string) {
+    return this.support.eraseContact(this.getAccessToken(request), id);
+  }
 
   @Get(API_ROUTES.adminSupport.settings)
   getSettings(@Req() request: Request) {

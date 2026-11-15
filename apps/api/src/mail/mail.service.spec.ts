@@ -113,6 +113,8 @@ describe("MailService", () => {
       PAYMENTS_INVOICE_PREFIX: "NEXA",
       PAYMENTS_TAX_LABEL: "GST",
       CASHFREE_API_VERSION: "2023-08-01",
+      FRAPPE_CRM_LEAD_SOURCE: "Direct WhatsApp",
+      FRAPPE_CRM_LEAD_STATUS: "New Inquiry",
       STRIPE_API_VERSION: "2024-06-20",
       ...envMocks
     };

@@ -107,7 +107,7 @@ export class DemoInviteService {
         throw new BadRequestException("One or more leads were not found.");
       }
       for (const lead of leads) {
-        const created = await this.bookLead(demoClass, lead, actorId, notify);
+        const { created } = await this.bookLead(demoClass, lead, actorId, notify);
         if (created) added++;
         else skipped++;
       }
@@ -143,14 +143,15 @@ export class DemoInviteService {
    * Books a lead into a demo class: a PHONE registration linked to the lead,
    * plus the lead's own pipeline bookkeeping (assigned class, status,
    * timeline). Returns whether a new registration was created — re-booking
-   * the same lead still refreshes the lead but adds no duplicate.
+   * the same lead still refreshes the lead but adds no duplicate — and the
+   * guest's personal-link token. `actorId` null = the WhatsApp bot booked it.
    */
   async bookLead(
     demoClass: InvitableClass,
     lead: { id: string; studentName: string; phone: string; status: LeadStatus },
-    actorId: string,
+    actorId: string | null,
     notify = false
-  ): Promise<boolean> {
+  ): Promise<{ created: boolean; inviteToken: string }> {
     const target: InviteTarget = {
       name: lead.studentName,
       contactMethod: DemoRegistrationContactMethod.PHONE,
@@ -187,7 +188,7 @@ export class DemoInviteService {
 
     await this.referrals.onLeadEvent(lead.id, "DEMO_BOOKED", actorId);
     if (created && notify) void this.sendInvitation(demoClass, target, inviteToken);
-    return created;
+    return { created, inviteToken };
   }
 
   async removeInvitee(classId: string, registrationId: string, actorId: string) {
@@ -234,7 +235,7 @@ export class DemoInviteService {
   private async upsertRegistration(
     classId: string,
     target: InviteTarget,
-    link: { source: DemoRegistrationSource; leadId?: string; invitedById: string }
+    link: { source: DemoRegistrationSource; leadId?: string; invitedById: string | null }
   ): Promise<{ created: boolean; inviteToken: string }> {
     const contactValue = this.normalizeContact(
       target.contactMethod,

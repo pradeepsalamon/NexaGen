@@ -2,10 +2,19 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { Controller, useForm } from "react-hook-form";
+import { useMemo } from "react";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { z } from "zod";
 import {
+  DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE,
+  SUPPORT_CATEGORY_LABELS,
+  SUPPORT_MENU_DESCRIPTION_MAX,
+  SUPPORT_MENU_TITLE_MAX,
+  SUPPORT_OUT_OF_HOURS_MAX,
   SUPPORT_SETTINGS_LIMITS,
+  SUPPORT_WEEKDAY_LABELS,
+  supportMenuSchema,
   updateSupportSettingsRequestSchema,
   type SupportSettingsResponse,
   type UpdateSupportSettingsRequest
@@ -15,12 +24,18 @@ import { PageLoading } from "@/components/layout/PageLoading";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Combobox, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/Combobox";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { Switch } from "@/components/ui/Switch";
 import { Textarea } from "@/components/ui/Textarea";
+import { TimePicker } from "@/components/ui/TimePicker";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
+import { getTimezoneOptions } from "@/features/auth/components/profile-form/profileForm.utils";
+import { WhatsAppTemplateStatus } from "@/features/messaging/components/WhatsAppTemplateStatus";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import { useAuthStore } from "@/stores/authStore";
@@ -33,8 +48,25 @@ const wholeNumber = (max: number, unit: string) =>
     .regex(/^\d{1,4}$/, `A whole number of ${unit}, 0 to ${max}`)
     .refine((value) => Number(value) <= max, `At most ${max} ${unit}`);
 
+const dayRowSchema = z.object({ close: z.string(), enabled: z.boolean(), open: z.string() });
+
 /** Numbers stay text in the form (one per line for the test list) and become the API body on save. */
 const formSchema = z.object({
+  accountAnswers: z.boolean(),
+  days: z
+    .array(dayRowSchema)
+    .length(7)
+    .superRefine((days, ctx) => {
+      days.forEach((day, index) => {
+        if (day.enabled && day.open >= day.close) {
+          ctx.addIssue({ code: "custom", message: "Closes after it opens", path: [index, "close"] });
+        }
+      });
+    }),
+  hoursEnabled: z.boolean(),
+  menu: supportMenuSchema,
+  outOfHoursMessage: z.string().trim().max(SUPPORT_OUT_OF_HOURS_MAX, `At most ${SUPPORT_OUT_OF_HOURS_MAX} characters`),
+  timezone: z.string().trim().min(1, "Pick a time zone"),
   agentReplyTemplate: updateSupportSettingsRequestSchema.shape.agentReplyTemplate,
   agentReplyTemplateLanguage: updateSupportSettingsRequestSchema.shape.agentReplyTemplateLanguage,
   botEnabled: z.boolean(),
@@ -57,11 +89,24 @@ function splitNumbers(text: string): string[] {
     .filter(Boolean);
 }
 
-function toForm(data: SupportSettingsResponse): FormValues {
+/** Mon–Sat 9 to 6 until the academy sets its own. */
+const DEFAULT_DAY = (day: number) => ({ close: "18:00", enabled: day !== 0, open: "09:00" });
+
+function toForm(data: SupportSettingsResponse, fallbackZone: string): FormValues {
   return {
+    accountAnswers: data.accountAnswers,
     agentReplyTemplate: data.agentReplyTemplate ?? "",
     agentReplyTemplateLanguage: data.agentReplyTemplateLanguage,
     botEnabled: data.botEnabled,
+    days: SUPPORT_WEEKDAY_LABELS.map((_, day) => {
+      if (!data.hours) return DEFAULT_DAY(day);
+      const saved = data.hours.days.find((row) => row.day === day);
+      return saved ? { close: saved.close, enabled: true, open: saved.open } : { close: "18:00", enabled: false, open: "09:00" };
+    }),
+    hoursEnabled: data.hours !== null,
+    menu: data.menu,
+    outOfHoursMessage: data.outOfHoursMessage ?? "",
+    timezone: data.hours?.timezone ?? fallbackZone,
     leadNudgeHours: String(data.leadNudgeHours),
     staffReminderMinutes: String(data.staffReminderMinutes),
     testNumbers: data.testNumbers.map((number) => `+${number}`).join("\n")
@@ -70,10 +115,19 @@ function toForm(data: SupportSettingsResponse): FormValues {
 
 function toRequest(values: FormValues): UpdateSupportSettingsRequest {
   return {
+    accountAnswers: values.accountAnswers,
     agentReplyTemplate: values.agentReplyTemplate,
     agentReplyTemplateLanguage: values.agentReplyTemplateLanguage,
     botEnabled: values.botEnabled,
+    hours: values.hoursEnabled
+      ? {
+          days: values.days.flatMap((day, index) => (day.enabled ? [{ close: day.close, day: index, open: day.open }] : [])),
+          timezone: values.timezone
+        }
+      : null,
     leadNudgeHours: Number(values.leadNudgeHours),
+    menu: values.menu,
+    outOfHoursMessage: values.outOfHoursMessage,
     staffReminderMinutes: Number(values.staffReminderMinutes),
     testNumbers: splitNumbers(values.testNumbers)
   };
@@ -118,19 +172,29 @@ function ConnectionCard({ data }: { data: SupportSettingsResponse }) {
 
 function SettingsForm({ data }: { data: SupportSettingsResponse }) {
   const save = useUpdateSupportSettings();
+  const userZone = useUserTimeZone();
   const {
     control,
     formState: { errors, isDirty },
     handleSubmit,
     register,
     reset
-  } = useForm<FormValues>({ defaultValues: toForm(data), resolver: zodResolver(formSchema) });
+  } = useForm<FormValues>({ defaultValues: toForm(data, userZone), resolver: zodResolver(formSchema) });
+  const hoursEnabled = useWatch({ control, name: "hoursEnabled" });
+  const days = useWatch({ control, name: "days" });
+  const timezone = useWatch({ control, name: "timezone" });
+  const zoneOptions = useMemo(() => getTimezoneOptions(timezone), [timezone]);
+  const templateName = useWatch({ control, name: "agentReplyTemplate" });
+  const templateLanguage = useWatch({ control, name: "agentReplyTemplateLanguage" });
+  const menu = useFieldArray({ control, keyName: "key", name: "menu" });
+  const menuValues = useWatch({ control, name: "menu" });
+  const menuError = errors.menu?.root?.message ?? errors.menu?.message;
 
   return (
     <form
       className="grid gap-6"
       onSubmit={handleSubmit((values) => {
-        save.mutateAsync(toRequest(values)).then((saved) => reset(toForm(saved)), () => undefined);
+        save.mutateAsync(toRequest(values)).then((saved) => reset(toForm(saved, userZone)), () => undefined);
       })}
     >
       {data.source === "SERVER" ? (
@@ -156,6 +220,173 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
           >
             <Textarea id="support-test-numbers" placeholder="+91 90000 00000" rows={3} {...register("testNumbers")} />
           </FormField>
+          <div className="grid gap-1">
+            <Controller
+              control={control}
+              name="accountAnswers"
+              render={({ field }) => (
+                <Switch checked={field.value} id="support-account-answers" label="Answer linked families" onCheckedChange={field.onChange} />
+              )}
+            />
+            <p className="text-xs text-app-muted">
+              A family whose number you linked to a student (Admin → Users → the student → WhatsApp link code) can send NEXT CLASS and
+              get that student&apos;s next class time. Nothing else about the account is ever sent, and other numbers get nothing.
+            </p>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        description="The options in the bot's first message, in this order. Customers can also reply with an option's number. Talk to our team always stays: it's the way to a person."
+        title="Main menu"
+      >
+        <ol className="grid gap-3">
+          {menu.fields.map((item, index) => {
+            const enabled = menuValues?.[index]?.enabled ?? item.enabled;
+            const shown = (menuValues ?? []).slice(0, index + 1).filter((row) => row.enabled || row.category === "OTHER").length;
+            return (
+              <li className="grid gap-3 rounded-control border border-app-border p-3 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.4fr)_auto] sm:items-start" key={item.key}>
+                <div className="flex items-center gap-2 sm:pt-7">
+                  <span className="w-5 text-right text-sm tabular-nums text-app-muted">{enabled || item.category === "OTHER" ? shown : "–"}</span>
+                  <Controller
+                    control={control}
+                    name={`menu.${index}.enabled`}
+                    render={({ field }) => (
+                      <Switch
+                        aria-label={`Show ${SUPPORT_CATEGORY_LABELS[item.category]}`}
+                        checked={item.category === "OTHER" ? true : field.value}
+                        disabled={item.category === "OTHER"}
+                        id={`support-menu-${item.category}-enabled`}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                </div>
+                <FormField
+                  error={errors.menu?.[index]?.title?.message}
+                  hint={SUPPORT_CATEGORY_LABELS[item.category]}
+                  id={`support-menu-${item.category}-title`}
+                  label="Title"
+                  required
+                >
+                  <Input id={`support-menu-${item.category}-title`} maxLength={SUPPORT_MENU_TITLE_MAX} {...register(`menu.${index}.title`)} />
+                </FormField>
+                <FormField error={errors.menu?.[index]?.description?.message} id={`support-menu-${item.category}-description`} label="Description">
+                  <Input id={`support-menu-${item.category}-description`} maxLength={SUPPORT_MENU_DESCRIPTION_MAX} {...register(`menu.${index}.description`)} />
+                </FormField>
+                <div className="flex gap-1 sm:pt-6">
+                  <SimpleTooltip label="Move up">
+                    <Button aria-label={`Move ${SUPPORT_CATEGORY_LABELS[item.category]} up`} disabled={index === 0} onClick={() => menu.move(index, index - 1)} size="icon" type="button" variant="neutral">
+                      <ArrowUp className="size-4" strokeWidth={2.5} />
+                    </Button>
+                  </SimpleTooltip>
+                  <SimpleTooltip label="Move down">
+                    <Button
+                      aria-label={`Move ${SUPPORT_CATEGORY_LABELS[item.category]} down`}
+                      disabled={index === menu.fields.length - 1}
+                      onClick={() => menu.move(index, index + 1)}
+                      size="icon"
+                      type="button"
+                      variant="neutral"
+                    >
+                      <ArrowDown className="size-4" strokeWidth={2.5} />
+                    </Button>
+                  </SimpleTooltip>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+        {menuError ? <p className="mt-2 text-sm text-danger-ink">{menuError}</p> : null}
+      </SectionCard>
+
+      <SectionCard
+        description="Outside these hours the bot still answers. Someone who asks for a person gets your out-of-hours message, and staff reminders wait until you open."
+        title="Team hours"
+      >
+        <div className="grid gap-4">
+          <Controller
+            control={control}
+            name="hoursEnabled"
+            render={({ field }) => (
+              <Switch checked={field.value} id="support-hours-enabled" label="My team answers only at set hours" onCheckedChange={field.onChange} />
+            )}
+          />
+          {hoursEnabled ? (
+            <>
+              <FormField error={errors.timezone?.message} id="support-hours-zone" label="Time zone" required>
+                <Controller
+                  control={control}
+                  name="timezone"
+                  render={({ field }) => (
+                    <Combobox id="support-hours-zone" items={zoneOptions} onValueChange={field.onChange} value={field.value}>
+                      <ComboboxInput placeholder="Select time zone" />
+                      <ComboboxContent>
+                        <ComboboxEmpty>No time zone found.</ComboboxEmpty>
+                        <ComboboxList>
+                          {(zone) => (
+                            <ComboboxItem key={zone} value={zone}>
+                              {zone}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
+                  )}
+                />
+              </FormField>
+              <div className="grid gap-2">
+                {SUPPORT_WEEKDAY_LABELS.map((label, index) => (
+                  <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-2 sm:grid-cols-[9rem_auto_auto_auto]" key={label}>
+                    <Controller
+                      control={control}
+                      name={`days.${index}.enabled`}
+                      render={({ field }) => (
+                        <Checkbox
+                          checked={field.value}
+                          id={`support-day-${index}`}
+                          label={label}
+                          onCheckedChange={(checked) => field.onChange(checked === true)}
+                        />
+                      )}
+                    />
+                    {days[index]?.enabled ? (
+                      <>
+                        <Controller
+                          control={control}
+                          name={`days.${index}.open`}
+                          render={({ field }) => (
+                            <TimePicker aria-label={`${label} opens`} id={`support-day-${index}-open`} onChange={field.onChange} value={field.value} />
+                          )}
+                        />
+                        <span className="text-sm text-app-muted">to</span>
+                        <Controller
+                          control={control}
+                          name={`days.${index}.close`}
+                          render={({ field }) => (
+                            <TimePicker aria-label={`${label} closes`} id={`support-day-${index}-close`} onChange={field.onChange} value={field.value} />
+                          )}
+                        />
+                        {errors.days?.[index]?.close?.message ? (
+                          <p className="text-xs text-app-danger-ink sm:col-start-2 sm:col-end-5">{errors.days[index]?.close?.message}</p>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-sm text-app-muted sm:col-span-3">Closed</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <FormField
+                error={errors.outOfHoursMessage?.message}
+                hint="Sent after the hand-off message outside these hours. Leave it empty to send the text shown in the box."
+                id="support-out-of-hours"
+                label="Out-of-hours message"
+              >
+                <Textarea id="support-out-of-hours" placeholder={DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE} rows={2} {...register("outOfHoursMessage")} />
+              </FormField>
+            </>
+          ) : null}
         </div>
       </SectionCard>
 
@@ -197,10 +428,13 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
             <Input autoComplete="off" id="support-template-language" placeholder="en" {...register("agentReplyTemplateLanguage")} />
           </FormField>
         </div>
+        <div className="mt-2">
+          <WhatsAppTemplateStatus language={templateLanguage} name={templateName} />
+        </div>
       </SectionCard>
 
       <div className="flex justify-end gap-2">
-        <Button disabled={!isDirty || save.isPending} onClick={() => reset(toForm(data))} type="button" variant="neutral">
+        <Button disabled={!isDirty || save.isPending} onClick={() => reset(toForm(data, userZone))} type="button" variant="neutral">
           Reset
         </Button>
         <Button disabled={!isDirty && data.source === "ACADEMY"} isLoading={save.isPending} type="submit">

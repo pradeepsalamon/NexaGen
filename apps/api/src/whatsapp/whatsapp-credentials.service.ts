@@ -7,7 +7,7 @@ import { decryptSecret, deriveMfaKey, encryptSecret } from "../auth/mfa/mfa-cryp
 import { PrismaService } from "../prisma/prisma.service";
 import { asPlatform } from "../tenancy/tenant-context";
 
-export type AcademyWhatsAppCredentials = { accessToken: string; phoneNumberId: string };
+export type AcademyWhatsAppCredentials = { accessToken: string; phoneNumberId: string; wabaId: string | null };
 
 /** What an academy's incoming webhook needs: whose it is, which number, and the secret that signs it. */
 export type AcademyWhatsAppInbound = { appSecret: string; phoneNumberId: string; tenantId: string };
@@ -23,6 +23,7 @@ type WhatsAppRow = {
   phoneNumberId: string | null;
   tenantId: string;
   updatedAt?: Date;
+  wabaId?: string | null;
   webhookKey?: string | null;
 };
 
@@ -156,7 +157,7 @@ export class WhatsAppCredentialsService implements OnModuleInit {
       }
       if (!accessToken) return;
     }
-    target.set(row.tenantId, { accessToken, phoneNumberId: row.phoneNumberId });
+    target.set(row.tenantId, { accessToken, phoneNumberId: row.phoneNumberId, wabaId: row.wabaId ?? null });
     if (appSecret && row.webhookKey) {
       inbound.set(row.webhookKey, { appSecret, phoneNumberId: row.phoneNumberId, tenantId: row.tenantId });
     }

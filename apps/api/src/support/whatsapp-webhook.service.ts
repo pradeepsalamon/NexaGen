@@ -133,6 +133,10 @@ export class WhatsAppWebhookService {
       // Rollback is "switch off": messages that arrive meanwhile are recorded but never
       // replayed when the bot comes back on.
       ignoredAt: supportAnswersNumber(settings, event.waId) ? null : new Date(),
+      mediaCaption: event.media?.caption ?? null,
+      mediaFilename: event.media?.filename ?? null,
+      mediaId: event.media?.id ?? null,
+      mediaMimeType: event.media?.mimeType ?? null,
       messageType: event.messageType,
       profileName: event.profileName,
       replyId: event.replyId,

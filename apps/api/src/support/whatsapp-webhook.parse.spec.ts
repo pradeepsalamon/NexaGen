@@ -44,6 +44,7 @@ describe("parseWhatsAppWebhook", () => {
       {
         dedupeKey: "msg:wamid.A",
         kind: "message",
+        media: null,
         messageType: "text",
         occurredAt: new Date(1700000000 * 1000),
         phoneNumberId: "PNID",
@@ -72,6 +73,24 @@ describe("parseWhatsAppWebhook", () => {
       ["menu.refund", "Refund request", "interactive"],
       [null, null, "image"]
     ]);
+  });
+
+  it("keeps an image or a document's media id and details, never as bot text, and redacts its caption", () => {
+    const events = parseWhatsAppWebhook(
+      webhook({
+        messages: [
+          { from: "91", id: "m1", image: { caption: "paid, card 4111 1111 1111 1111", id: "img-1", mime_type: "image/jpeg" }, type: "image" },
+          { document: { filename: "receipt.pdf", id: "doc-1", mime_type: "application/pdf" }, from: "91", id: "m2", type: "document" },
+          { audio: { id: "voice-1", mime_type: "audio/ogg" }, from: "91", id: "m3", type: "audio" }
+        ]
+      })
+    );
+    const media = events.map((event) => (event.kind === "message" ? event.media : null));
+    expect(media[0]).toMatchObject({ filename: null, id: "img-1", mimeType: "image/jpeg" });
+    expect(media[0]?.caption).not.toContain("4111");
+    expect(media[1]).toEqual({ caption: null, filename: "receipt.pdf", id: "doc-1", mimeType: "application/pdf" });
+    expect(media[2]).toBeNull(); // voice notes aren't kept
+    expect(events.every((event) => event.kind !== "message" || event.text === null)).toBe(true);
   });
 
   it("redacts a card number before it is ever stored", () => {

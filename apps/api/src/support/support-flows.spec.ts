@@ -1,4 +1,8 @@
 import {
+  supportLinkCodeIn,
+  DEFAULT_SUPPORT_MENU,
+  supportMainMenu,
+  supportMenuEntries,
   isSupportQuestionWorthListing,
   matchSupportAnswer,
   normalizeSupportKeywords,
@@ -175,6 +179,11 @@ describe("transitionSupport", () => {
     const media = transitionSupport(at("ASK_STUDENT", { category: "CLASS" }), { kind: "unsupported" }, ctx);
     expect(media.state).toBe("ASK_STUDENT");
     expect(media.replies[0].body).toContain("only read text");
+    // A kept image or PDF: thanked for, never read, and the same question again.
+    const file = transitionSupport(at("ASK_STUDENT", { category: "PAYMENT" }), { kind: "media" }, ctx);
+    expect(file).toMatchObject({ actions: [], state: "ASK_STUDENT" });
+    expect(file.replies[0].body).toContain("kept your file for our team");
+    expect(transitionSupport(at("DONE", {}, "WAITING_AGENT"), { kind: "media" }, ctx).replies).toEqual([]);
   });
 
   it("flattens interactive replies for the transcript", () => {
@@ -295,6 +304,55 @@ describe("free demo booking", () => {
     expect(prompt.replies[0].body).toContain("booking a free demo class");
   });
 
+  describe("with the academy's real demo times", () => {
+    const slots: SupportTransitionContext = {
+      ...ctx,
+      demoSlots: [
+        { description: "Chess basics", id: "class_tue", title: "Tue 18 Nov, 5:00 pm" },
+        { id: "class_sat", title: "Sat 22 Nov, 10:00 am" }
+      ]
+    };
+    const filled = { category: "COURSE" as const, level: "beginner" as const, parentName: "Priya", studentAge: 9, studentName: "Asha" };
+
+    it("offers the times as a list with Another time, and a tap books that class", () => {
+      const ask = transitionSupport(at("DEMO_PARENT", { ...filled, parentName: undefined }), text("Priya"), slots);
+      expect(ask.state).toBe("DEMO_TIME");
+      expect(ask.replies[0]).toMatchObject({ kind: "list" });
+      const rows = ask.replies[0].kind === "list" ? ask.replies[0].rows : [];
+      expect(rows.map((row) => row.id)).toEqual(["demo.slot.class_tue", "demo.slot.class_sat", "demo.slot.other"]);
+
+      const confirm = transitionSupport(at("DEMO_TIME", filled), tap("demo.slot.class_tue"), slots);
+      expect(confirm).toMatchObject({ draft: { preferredTime: "Tue 18 Nov, 5:00 pm", slotId: "class_tue" }, state: "DEMO_CONFIRM" });
+      expect(confirm.replies[0].body).toContain("Class: Tue 18 Nov, 5:00 pm");
+
+      const sent = transitionSupport(at("DEMO_CONFIRM", confirm.draft), tap("confirm.send"), slots);
+      expect(sent.actions[0]).toMatchObject({ demo: { preferredTime: "Tue 18 Nov, 5:00 pm", slotClassId: "class_tue" }, kind: "TICKET" });
+      // Booked is said only by the API, after the booking succeeds.
+      expect(sent.replies[0].body).not.toMatch(/booked/i);
+    });
+
+    it("asks in words after Another time, and takes typed words as a preferred time", () => {
+      const other = transitionSupport(at("DEMO_TIME", filled), tap("demo.slot.other"), slots);
+      expect(other).toMatchObject({ draft: { askedOwnTime: true }, state: "DEMO_TIME" });
+      expect(other.replies[0].kind).toBe("text");
+      const typed = transitionSupport(at("DEMO_TIME", filled), text("Sunday evening"), slots);
+      expect(typed).toMatchObject({ draft: { preferredTime: "Sunday evening" }, state: "DEMO_CONFIRM" });
+      expect(typed.draft.slotId).toBeUndefined();
+    });
+
+    it("refuses a time from an old list and shows the current ones", () => {
+      const stale = transitionSupport(at("DEMO_TIME", filled), tap("demo.slot.class_gone"), slots);
+      expect(stale.state).toBe("DEMO_TIME");
+      expect(stale.replies.map((reply) => reply.body).join(" ")).toContain("no longer available");
+      expect(stale.replies.at(-1)?.kind).toBe("list");
+    });
+
+    it("asks in words when the academy has no upcoming demo times", () => {
+      const ask = transitionSupport(at("DEMO_PARENT", { ...filled, parentName: undefined }), text("Priya"), { ...ctx, demoSlots: [] });
+      expect(ask.replies[0].kind).toBe("text");
+    });
+  });
+
   it("never books with a half-filled draft", () => {
     const next = transitionSupport(at("DEMO_CONFIRM", { category: "COURSE", studentName: "Asha" }), tap("confirm.send"), ctx);
     expect(next.actions).toEqual([]);
@@ -412,5 +470,59 @@ describe("redactSupportText", () => {
   it("removes a code written next to OTP, PIN or password", () => {
     expect(redactSupportText("my OTP is 482913")).toEqual({ redacted: true, text: "my OTP is [removed]" });
     expect(redactSupportText("password: hunter2").text).toBe("password: [removed]");
+  });
+});
+
+describe("supportMenuEntries (the academy's main menu)", () => {
+  it("keeps the built-in menu without settings", () => {
+    expect(supportMenuEntries(null).map((entry) => entry.row.id)).toEqual([
+      "menu.course",
+      "menu.refund",
+      "menu.class",
+      "menu.payment",
+      "menu.tech",
+      "menu.human"
+    ]);
+  });
+
+  it("follows the academy's order and titles, drops switched-off options, and never drops Talk to our team", () => {
+    const items = DEFAULT_SUPPORT_MENU.map((item) =>
+      item.category === "TECH"
+        ? { ...item, enabled: false }
+        : item.category === "OTHER"
+          ? { ...item, enabled: false, title: "A person, please" }
+          : item.category === "CLASS"
+            ? { ...item, description: "", title: "  Class problem  " }
+            : item
+    ).reverse();
+    const entries = supportMenuEntries(items);
+    expect(entries.map((entry) => entry.category)).toEqual(["OTHER", "PAYMENT", "CLASS", "REFUND", "COURSE"]);
+    expect(entries[0].row).toMatchObject({ id: "menu.human", title: "A person, please" });
+    expect(entries[2].row).toEqual({ id: "menu.class", title: "Class problem" });
+    expect(supportMainMenu(undefined, entries).body).toContain("(1–5)");
+  });
+});
+
+describe("existing students (LINK and NEXT CLASS)", () => {
+  const menu = { draft: {}, state: "MAIN_MENU" as const, status: "BOT" as const };
+
+  it("reads a link code with or without the dash, in any case", () => {
+    expect(supportLinkCodeIn("LINK ABCD-2345")).toBe("ABCD2345");
+    expect(supportLinkCodeIn("  link abcd 2345 ")).toBe("ABCD2345");
+    expect(supportLinkCodeIn("link abc")).toBeNull();
+    expect(supportLinkCodeIn("please link my account")).toBeNull();
+  });
+
+  it("hands both to the API only where the academy switched it on, without moving the conversation", () => {
+    const on = { ...ctx, accountAnswers: true };
+    expect(transitionSupport(menu, text("LINK ABCD-2345"), on)).toMatchObject({ actions: [{ code: "ABCD2345", kind: "LINK_ACCOUNT" }], replies: [], state: "MAIN_MENU" });
+    expect(transitionSupport(menu, text("Next class"), on)).toMatchObject({ actions: [{ kind: "ACCOUNT_QUERY" }], replies: [] });
+    expect(transitionSupport(menu, text("next class"), ctx).actions.map((action) => action.kind)).not.toContain("ACCOUNT_QUERY");
+    expect(transitionSupport(menu, text("LINK ABCD-2345"), ctx).actions.map((action) => action.kind)).not.toContain("LINK_ACCOUNT");
+  });
+
+  it("never answers for an account while staff have the conversation", () => {
+    const on = { ...ctx, accountAnswers: true };
+    expect(transitionSupport({ ...menu, status: "AGENT" }, text("next class"), on)).toMatchObject({ actions: [], replies: [] });
   });
 });

@@ -2,14 +2,16 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Bot, Hand, MessageSquareText, Send } from "lucide-react";
+import { Bot, Download, Hand, MessageSquareText, Paperclip, Send, Trash2 } from "lucide-react";
 import {
+  API_ROUTES,
   SUPPORT_REPLY_MAX,
   type SupportMessageItem,
   type SupportTicketDetail,
   type SupportTicketEventItem,
   type SupportTicketStatus
 } from "@nexa-chess/types";
+import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLoading } from "@/components/layout/PageLoading";
 import { Alert } from "@/components/ui/Alert";
@@ -33,10 +35,17 @@ import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { chatDayLabel } from "@/features/chat/lib/chatFormat";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { apiUrl } from "@/lib/apiBase";
 import { formatDateTime, formatTime } from "@/lib/datetime";
+import { useRouter } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/ToastProvider";
+import { useAuthStore } from "@/stores/authStore";
+import { exportSupportContact } from "../api/supportAdminApi";
 import {
   useAddSupportNote,
+  useEraseSupportContact,
+  useUnlinkSupportContact,
   useReplyToSupportTicket,
   useReturnSupportTicketToBot,
   useSupportAgentsQuery,
@@ -133,6 +142,7 @@ function TicketView({ ticket }: { ticket: SupportTicketDetail }) {
         <div className="grid content-start gap-5">
           <TicketFacts ticket={ticket} />
           <TicketHistory ticket={ticket} />
+          <ContactData ticket={ticket} />
         </div>
       </div>
     </div>
@@ -325,12 +335,37 @@ function MessageBubble({ message, showName, time }: { message: SupportMessageIte
         )}
       >
         <LinkedText onColour={message.author === "AGENT"} text={message.body} />
+        {message.attachment ? <AttachmentLink attachment={message.attachment} /> : null}
       </div>
       <span className={cn("mt-0.5 px-1 text-xs", message.status === "FAILED" ? "text-app-danger-ink" : "text-app-muted")}>
         {[time, status].filter(Boolean).join(" · ")}
         {message.status === "FAILED" && message.error ? `: ${message.error}` : ""}
       </span>
     </div>
+  );
+}
+
+/** An image or PDF the customer sent, opened through the API (admins only; never a storage URL). */
+function AttachmentLink({ attachment }: { attachment: NonNullable<SupportMessageItem["attachment"]> }) {
+  const label = attachment.kind === "pdf" ? "Download PDF" : "Open image";
+  if (attachment.status === "STORED") {
+    return (
+      <a
+        className="mt-1.5 flex items-center gap-1.5 font-semibold text-primary-ink underline-offset-2 hover:underline"
+        href={apiUrl(API_ROUTES.adminSupport.attachment(attachment.id))}
+        rel="noopener"
+        target="_blank"
+      >
+        <Paperclip className="size-4" strokeWidth={2.25} />
+        {attachment.filename ?? label}
+      </a>
+    );
+  }
+  return (
+    <p className={cn("mt-1.5 flex items-center gap-1.5 text-xs", attachment.status === "FAILED" ? "text-app-danger-ink" : "text-app-muted")}>
+      <Paperclip className="size-3.5" strokeWidth={2.25} />
+      {attachment.status === "PENDING" ? "Saving the file…" : `File not kept: ${attachment.error ?? "unknown reason"}`}
+    </p>
   );
 }
 
@@ -416,6 +451,95 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
       <dt className="text-xs text-app-muted">{label}</dt>
       <dd className="break-words text-app-text">{children}</dd>
     </div>
+  );
+}
+
+/** A parent's access or erasure request (docs/WHATSAPP_SUPPORT.md §0): the number isn't an account. */
+function ContactData({ ticket }: { ticket: SupportTicketDetail }) {
+  const router = useRouter();
+  const toast = useToast();
+  const isSuperAdmin = useAuthStore((state) => state.user?.role === "SUPER_ADMIN");
+  const erase = useEraseSupportContact();
+  const unlink = useUnlinkSupportContact(ticket.id);
+  const [downloading, setDownloading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const data = await exportSupportContact(ticket.contact.id);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `whatsapp-${ticket.contact.waId}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (cause) {
+      toast.error({ message: cause instanceof Error ? cause.message : undefined, title: "Couldn't download the data" });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <Card className="grid gap-3 p-4">
+      <h2 className="text-base font-bold text-app-text">Contact&apos;s data</h2>
+      <p className="text-sm text-app-muted">
+        For a parent who asks what you hold about them, or asks you to delete it. This WhatsApp number isn&apos;t an account, so it
+        isn&apos;t in the account privacy tools.
+      </p>
+      {ticket.contact.linkedStudents.length > 0 ? (
+        <div className="grid gap-2">
+          <h3 className="text-sm font-semibold text-app-text">Linked students</h3>
+          <p className="text-xs text-app-muted">This number may ask the assistant for these students&apos; next class.</p>
+          <ul className="grid gap-1.5">
+            {ticket.contact.linkedStudents.map((student) => (
+              <li className="flex items-center justify-between gap-2 text-sm" key={student.id}>
+                <Link className="truncate text-primary-ink hover:underline" href={`/admin/students/${student.id}`}>
+                  {student.name}
+                </Link>
+                <Button
+                  disabled={unlink.isPending}
+                  onClick={() => unlink.mutate({ contactId: ticket.contact.id, studentId: student.id })}
+                  size="sm"
+                  type="button"
+                  variant="neutral"
+                >
+                  Unlink
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button isLoading={downloading} onClick={() => void download()} variant="outline">
+          <Download className="mr-1.5 size-4" strokeWidth={2.25} />
+          Download data
+        </Button>
+        {isSuperAdmin ? (
+          <Button onClick={() => setConfirming(true)} variant="danger-soft">
+            <Trash2 className="mr-1.5 size-4" strokeWidth={2.25} />
+            Erase contact
+          </Button>
+        ) : null}
+      </div>
+      <ConfirmationModal
+        confirmLabel="Erase"
+        icon={Trash2}
+        isConfirming={erase.isPending}
+        isOpen={confirming}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => {
+          erase.mutateAsync(ticket.contact.id).then(() => router.push("/admin/support"), () => setConfirming(false));
+        }}
+        title="Erase this WhatsApp contact?"
+      >
+        Every conversation, message and request from {formatWaNumber(ticket.contact.waId)} is deleted for good, including this
+        one. A lead made from it stays in Leads. If the number replied STOP, only the number is kept, so it gets no automatic
+        messages.
+      </ConfirmationModal>
+    </Card>
   );
 }
 

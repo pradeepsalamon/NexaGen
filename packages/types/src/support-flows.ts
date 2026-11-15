@@ -61,7 +61,28 @@ export interface SupportDemoRequest {
   level: SupportDemoLevel;
   parentName: string;
   preferredTime: string;
+  /** A demo class the parent picked from the offered slots; the API books it after the ticket. */
+  slotClassId?: string;
 }
+
+/**
+ * An upcoming demo class the bot may offer (the academy's demo schedules,
+ * read by the API just before the question). The API books it only after the
+ * parent confirms, and says the time is booked only once it is.
+ */
+export interface SupportDemoSlot {
+  /** The demo class (`CoachClass`) id. */
+  id: string;
+  /** WhatsApp list-row limit: 24 characters, e.g. "Tue 18 Nov, 5:00 pm". */
+  title: string;
+  /** WhatsApp list-row limit: 72 characters (the class topic). */
+  description?: string;
+}
+
+/** List rows for slots: WhatsApp allows 10, one is "Another time". */
+export const SUPPORT_DEMO_SLOTS_MAX = 9;
+export const SUPPORT_DEMO_SLOT_PREFIX = "demo.slot.";
+const DEMO_SLOT_OTHER = "demo.slot.other";
 
 /** An admin-written answer the bot may send (a SupportSavedReply with `showInBot`). */
 export interface SupportBotAnswer {
@@ -92,6 +113,10 @@ export interface SupportDraft {
   level?: SupportDemoLevel;
   parentName?: string;
   preferredTime?: string;
+  /** The offered demo slot the parent tapped (its class id and label). */
+  slotId?: string;
+  /** The parent chose "Another time": ask for a time in their own words. */
+  askedOwnTime?: boolean;
   /** "Did you mean …?" is waiting for Yes/No: the answer offered and the question as typed. */
   suggestion?: { answerId: string; question: string };
   /** Consecutive replies the bot couldn't understand. */
@@ -105,7 +130,9 @@ export type SupportInput =
   /** A tap on a reply button or list row: its id, as sent in our payload. */
   | { kind: "reply"; id: string }
   /** An image, voice note, sticker, location… — nothing the bot can read. */
-  | { kind: "unsupported" };
+  | { kind: "unsupported" }
+  /** An image or PDF the API kept for staff (a payment screenshot…). The bot never reads it. */
+  | { kind: "media" };
 
 export interface SupportReplyButton {
   id: string;
@@ -145,7 +172,11 @@ export type SupportAction =
   | { kind: "OPT_OUT" }
   | { kind: "OPT_IN" }
   /** A question no saved answer matched (or the customer said No to a guess): listed for admins. */
-  | { kind: "UNANSWERED"; text: string };
+  | { kind: "UNANSWERED"; text: string }
+  /** "LINK <code>": the API checks the code and links this number to its student (Phase D). */
+  | { kind: "LINK_ACCOUNT"; code: string }
+  /** "NEXT CLASS" from a number: the API answers only if it is linked to a student. */
+  | { kind: "ACCOUNT_QUERY" };
 
 export interface SupportConversationSnapshot {
   state: SupportFlowState;
@@ -164,6 +195,35 @@ export interface SupportTransitionContext {
   redacted: boolean;
   /** The academy's saved answers shown in the bot, in menu order (at most SUPPORT_BOT_ANSWERS_MAX). */
   answers: SupportBotAnswer[];
+  /** Upcoming demo classes to offer at DEMO_TIME (at most SUPPORT_DEMO_SLOTS_MAX); none = ask for a time. */
+  demoSlots?: SupportDemoSlot[];
+  /** The academy's main menu (`supportMenuEntries`); absent = the built-in one. */
+  menu?: SupportMenuEntry[];
+  /** The academy lets linked numbers ask for their next class (Phase D). */
+  accountAnswers?: boolean;
+}
+
+/** Characters of a link code: no 0/O, 1/I/L, so it can be read out on the phone. */
+export const SUPPORT_LINK_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+export const SUPPORT_LINK_CODE_LENGTH = 8;
+
+/** The code in "LINK ABCD-2345" (any case, dash or space optional), normalized; null otherwise. */
+export function supportLinkCodeIn(text: string): string | null {
+  const match = /^\s*link\s+([a-z0-9][a-z0-9\s-]{5,20})\s*$/i.exec(text);
+  if (!match) return null;
+  const code = match[1].replace(/[\s-]/g, "").toUpperCase();
+  return code.length === SUPPORT_LINK_CODE_LENGTH ? code : null;
+}
+
+/** Typed questions a linked number can ask about its student. */
+const ACCOUNT_WORDS = new Set(["next class", "my class", "my classes", "class time", "class timing", "batch timing", "when is my class", "when is the next class"]);
+
+export function isSupportAccountQuestion(text: string): boolean {
+  return ACCOUNT_WORDS.has(normalizeSupportText(text));
+}
+
+function menuOf(ctx: Pick<SupportTransitionContext, "menu">): SupportMenuEntry[] {
+  return ctx.menu ?? MAIN_MENU_ROWS;
 }
 
 export interface SupportTransitionResult extends SupportConversationSnapshot {
@@ -197,6 +257,48 @@ const MAIN_MENU_ROWS: { category: SupportCategory; row: SupportListRow }[] = [
   { category: "TECH", row: { description: "Can't sign in, app not working", id: "menu.tech", title: "App or login help" } },
   { category: "OTHER", row: { description: "A person replies here", id: "menu.human", title: "Talk to our team" } }
 ];
+
+/** One main-menu option as an academy sets it (Support → Settings; plan D5 (a)). */
+export interface SupportMenuItem {
+  category: SupportCategory;
+  enabled: boolean;
+  title: string;
+  description: string;
+}
+
+export type SupportMenuEntry = { category: SupportCategory; row: SupportListRow };
+
+/** WhatsApp list limits: row title 24, description 72 characters. */
+export const SUPPORT_MENU_TITLE_MAX = 24;
+export const SUPPORT_MENU_DESCRIPTION_MAX = 72;
+
+/** The menu as built: every option, in this order. */
+export const DEFAULT_SUPPORT_MENU: SupportMenuItem[] = MAIN_MENU_ROWS.map((entry) => ({
+  category: entry.category,
+  description: entry.row.description ?? "",
+  enabled: true,
+  title: entry.row.title
+}));
+
+/**
+ * The options the bot shows, in the academy's order. "Talk to our team"
+ * (OTHER) can't be switched off: it is the way to a person. Each option keeps
+ * its built-in row id, so a tap still means the same thing after a rename.
+ */
+export function supportMenuEntries(items?: SupportMenuItem[] | null): SupportMenuEntry[] {
+  if (!items) return MAIN_MENU_ROWS;
+  const entries: SupportMenuEntry[] = [];
+  for (const item of items) {
+    const builtIn = MAIN_MENU_ROWS.find((entry) => entry.category === item.category);
+    if (!builtIn || entries.some((entry) => entry.category === item.category)) continue;
+    if (!item.enabled && item.category !== "OTHER") continue;
+    const title = item.title.trim().slice(0, SUPPORT_MENU_TITLE_MAX) || builtIn.row.title;
+    const description = item.description.trim().slice(0, SUPPORT_MENU_DESCRIPTION_MAX);
+    entries.push({ category: item.category, row: { ...(description ? { description } : {}), id: builtIn.row.id, title } });
+  }
+  if (!entries.some((entry) => entry.category === "OTHER")) entries.push(MAIN_MENU_ROWS.find((entry) => entry.category === "OTHER")!);
+  return entries;
+}
 
 const STUDENT_QUESTION: Record<SupportCategory, string> = {
   CLASS: "What is the student's name?",
@@ -268,13 +370,13 @@ const ANSWER_ROW_PREFIX = "answer.";
 /** Preview of the details inside the confirm message (its body is capped at 1024 characters). */
 const CONFIRM_PREVIEW_CHARS = 600;
 
-export function supportMainMenu(intro?: string): SupportReply {
-  const lines = [intro, "How can we help? Pick an option, or reply with its number (1–6)."].filter(Boolean);
+export function supportMainMenu(intro?: string, menu: SupportMenuEntry[] = MAIN_MENU_ROWS): SupportReply {
+  const lines = [intro, `How can we help? Pick an option, or reply with its number (1–${menu.length}).`].filter(Boolean);
   return {
     body: lines.join("\n\n"),
     button: "Choose an option",
     kind: "list",
-    rows: MAIN_MENU_ROWS.map((entry) => entry.row)
+    rows: menu.map((entry) => entry.row)
   };
 }
 
@@ -338,7 +440,7 @@ function demoConfirmMessage(draft: SupportDraft): SupportReply {
       `Student: ${draft.studentName ?? "-"}, age ${draft.studentAge ?? "-"}`,
       `Level: ${draft.level ? SUPPORT_DEMO_LEVEL_LABELS[draft.level] : "-"}`,
       `Parent: ${draft.parentName ?? "-"}`,
-      `Preferred time: ${draft.preferredTime ?? "-"}`,
+      draft.slotId ? `Class: ${draft.preferredTime ?? "-"}` : `Preferred time: ${draft.preferredTime ?? "-"}`,
       "Book it?"
     ].join("\n"),
     buttons: DEMO_CONFIRM_BUTTONS,
@@ -366,11 +468,28 @@ function questionFor(state: SupportFlowState, draft: SupportDraft, ctx: SupportT
       return { body: `What is ${student}'s chess level?`, buttons: DEMO_LEVEL_BUTTONS, kind: "buttons" };
     case "DEMO_PARENT":
       return { body: "Thanks! And your name (parent or guardian)?", kind: "text" };
-    case "DEMO_TIME":
+    case "DEMO_TIME": {
+      const slots = (ctx.demoSlots ?? []).slice(0, SUPPORT_DEMO_SLOTS_MAX);
+      if (slots.length > 0 && !draft.askedOwnTime) {
+        return {
+          body: "Pick a time for the free demo class, or choose Another time.",
+          button: "See times",
+          kind: "list",
+          rows: [
+            ...slots.map((slot) => ({
+              id: `${SUPPORT_DEMO_SLOT_PREFIX}${slot.id}`,
+              title: slot.title.slice(0, 24),
+              ...(slot.description ? { description: slot.description.slice(0, 72) } : {})
+            })),
+            { description: "Tell us what suits you", id: DEMO_SLOT_OTHER, title: "Another time" }
+          ]
+        };
+      }
       return {
         body: "When would suit you for the free demo class? For example: weekdays after 5 pm, or Saturday morning.",
         kind: "text"
       };
+    }
     case "DEMO_CONFIRM":
       return demoConfirmMessage(draft);
     case "RESUME_PROMPT": {
@@ -384,7 +503,7 @@ function questionFor(state: SupportFlowState, draft: SupportDraft, ctx: SupportT
       };
     }
     default:
-      return supportMainMenu();
+      return supportMainMenu(undefined, menuOf(ctx));
   }
 }
 
@@ -446,22 +565,26 @@ const MENU_KEYWORDS: { category: SupportCategory; words: string[] }[] = [
 ];
 
 /** A main-menu option picked exactly: a tapped row, its number or its title. */
-function menuChoice(input: SupportInput): SupportCategory | null {
+function menuChoice(input: SupportInput, menu: SupportMenuEntry[]): SupportCategory | null {
   if (input.kind === "reply") {
-    return MAIN_MENU_ROWS.find((entry) => entry.row.id === input.id)?.category ?? null;
+    return menu.find((entry) => entry.row.id === input.id)?.category ?? null;
   }
   if (input.kind !== "text") return null;
   const text = normalizeSupportText(input.text);
   const index = /^\d+$/.test(text) ? Number(text) - 1 : -1;
-  if (index >= 0 && index < MAIN_MENU_ROWS.length) return MAIN_MENU_ROWS[index].category;
-  return MAIN_MENU_ROWS.find((entry) => entry.row.title.toLowerCase() === text)?.category ?? null;
+  if (index >= 0 && index < menu.length) return menu[index].category;
+  return menu.find((entry) => normalizeSupportText(entry.row.title) === text)?.category ?? null;
 }
 
 /** A main-menu option guessed from words in a typed message ("refund", "paid twice"…). */
-function menuKeywordChoice(input: SupportInput): SupportCategory | null {
+function menuKeywordChoice(input: SupportInput, menu: SupportMenuEntry[]): SupportCategory | null {
   if (input.kind !== "text") return null;
   const text = normalizeSupportText(input.text);
-  return MENU_KEYWORDS.find((entry) => entry.words.some((word) => text.includes(word)))?.category ?? null;
+  // A switched-off option isn't guessed either.
+  return (
+    MENU_KEYWORDS.find((entry) => menu.some((item) => item.category === entry.category) && entry.words.some((word) => text.includes(word)))
+      ?.category ?? null
+  );
 }
 
 /**
@@ -679,6 +802,7 @@ function buttonChoice(input: SupportInput, state: SupportFlowState): ButtonChoic
     return buttons.some((button) => button.id === input.id) ? ids[input.id] ?? null : null;
   }
   if (input.kind !== "text") return null;
+  // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- /^\d+$/ runs in linear time
   const text = normalizeSupportText(input.text);
   const index = /^\d+$/.test(text) ? Number(text) - 1 : -1;
   const button =
@@ -767,7 +891,7 @@ export function supportDemoSummary(demo: SupportDemoRequest): string {
     `Student: ${demo.studentName}, age ${demo.studentAge}`,
     `Level: ${SUPPORT_DEMO_LEVEL_LABELS[demo.level]}`,
     `Parent: ${demo.parentName}`,
-    `Preferred time: ${demo.preferredTime}`
+    demo.slotClassId ? `Chosen class: ${demo.preferredTime}` : `Preferred time: ${demo.preferredTime}`
   ].join("\n");
 }
 
@@ -777,6 +901,7 @@ function demoFromDraft(draft: SupportDraft): SupportDemoRequest | null {
     level: draft.level,
     parentName: draft.parentName,
     preferredTime: draft.preferredTime,
+    ...(draft.slotId ? { slotClassId: draft.slotId } : {}),
     studentAge: draft.studentAge,
     studentName: draft.studentName
   };
@@ -841,6 +966,7 @@ export function transitionSupport(
   ctx: SupportTransitionContext
 ): SupportTransitionResult {
   const command = globalCommand(input);
+  // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- the regexes below (\p{L}, \s+) run in linear time
   const draft = current.draft ?? {};
   const warning: SupportReply[] = ctx.redacted
     ? [{ body: `For your safety I removed a card number or code from your message. ${NEVER_SEND}`, kind: "text" }]
@@ -888,7 +1014,7 @@ export function transitionSupport(
     // Only an explicit MENU leaves the queue; a "hi" while waiting is for the team.
     const explicitMenu = input.kind === "text" && ["0", "main menu", "menu"].includes(normalizeSupportText(input.text));
     if (explicitMenu) {
-      return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu()]));
+      return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu(undefined, menuOf(ctx))]));
     }
     return result(current, []);
   }
@@ -897,9 +1023,17 @@ export function transitionSupport(
     return result(current, []);
   }
 
+  // Existing students (Phase D): only where the academy switched it on. The
+  // API answers; the conversation stays where it was.
+  if (ctx.accountAnswers && input.kind === "text") {
+    const code = supportLinkCodeIn(input.text);
+    if (code) return result(current, [], [{ code, kind: "LINK_ACCOUNT" }]);
+    if (isSupportAccountQuestion(input.text)) return result(current, [], [{ kind: "ACCOUNT_QUERY" }]);
+  }
+
   if (command === "START") {
     return withWarning(
-      result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [{ body: "WhatsApp reminders and updates are back on.", kind: "text" }, supportMainMenu()], [
+      result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [{ body: "WhatsApp reminders and updates are back on.", kind: "text" }, supportMainMenu(undefined, menuOf(ctx))], [
         { kind: "OPT_IN" }
       ])
     );
@@ -907,11 +1041,11 @@ export function transitionSupport(
   if (command === "AGENT") return withWarning(handoff(draft));
   if (command === "MENU") {
     const intro = current.state === "START" ? greeting(ctx) : undefined;
-    return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu(intro)]));
+    return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu(intro, menuOf(ctx))]));
   }
   if (command === "CANCEL") {
     return withWarning(
-      result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu("Cancelled. Nothing was sent to our team.")])
+      result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu("Cancelled. Nothing was sent to our team.", menuOf(ctx))])
     );
   }
   if (command === "BACK") {
@@ -930,7 +1064,7 @@ export function transitionSupport(
     if (typedSuggestion) return suggested(typedSuggestion, [{ body: greeting(ctx), kind: "text" }]);
     // A first message is often just "hi"; only a real question goes on the admins' list.
     const asked = input.kind === "text" && input.text.includes("?") ? unanswered() : [];
-    return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu(greeting(ctx))], asked));
+    return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu(greeting(ctx), menuOf(ctx))], asked));
   }
 
   // Back after a pause in the middle of a form: offer to continue.
@@ -946,7 +1080,7 @@ export function transitionSupport(
   if (current.state === "DONE") {
     if (typedAnswer) return answered(typedAnswer);
     if (typedSuggestion) return suggested(typedSuggestion);
-    return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu("Welcome back!")]));
+    return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu("Welcome back!", menuOf(ctx))]));
   }
 
   if (input.kind === "unsupported") {
@@ -955,19 +1089,28 @@ export function transitionSupport(
       questionFor(current.state, draft, ctx)
     ]);
   }
+  if (input.kind === "media") {
+    return result(current, [
+      {
+        body: "Thanks, I've kept your file for our team. I can only read text myself, so please type your question too, or reply AGENT to reach a person.",
+        kind: "text"
+      },
+      questionFor(current.state, draft, ctx)
+    ]);
+  }
 
   switch (current.state) {
     case "MAIN_MENU": {
       if (input.kind === "text" && GREETINGS.has(normalizeSupportText(input.text))) {
-        return withWarning(result({ ...current, draft: {} }, [supportMainMenu()]));
+        return withWarning(result({ ...current, draft: {} }, [supportMainMenu(undefined, menuOf(ctx))]));
       }
       // An exact pick first, then one of the academy's answers, then a guess from words.
-      const picked = menuChoice(input);
+      const picked = menuChoice(input, menuOf(ctx));
       if (!picked && typedAnswer) return answered(typedAnswer);
-      const category = picked ?? menuKeywordChoice(input);
+      const category = picked ?? menuKeywordChoice(input, menuOf(ctx));
       if (!category) {
         if (typedSuggestion) return suggested(typedSuggestion);
-        return withWarning({ ...invalid(current, "Sorry, I didn't get that.", supportMainMenu()), actions: unanswered() });
+        return withWarning({ ...invalid(current, "Sorry, I didn't get that.", supportMainMenu(undefined, menuOf(ctx))), actions: unanswered() });
       }
       if (category === "OTHER") return withWarning(handoff({ category: "OTHER" }));
       if (category === "COURSE") return withWarning(result(courseMenuState(), [supportCourseMenu(ctx.answers)]));
@@ -1017,7 +1160,7 @@ export function transitionSupport(
       if (answer) return answered(answer);
       if (wantsDemo(input)) return withWarning(startDemo());
       // Something else from the main menu ("refund", "class") moves there.
-      const category = menuKeywordChoice(input);
+      const category = menuKeywordChoice(input, menuOf(ctx));
       if (category && category !== "COURSE") {
         const nextDraft: SupportDraft = { category };
         return withWarning(
@@ -1076,6 +1219,19 @@ export function transitionSupport(
     }
 
     case "DEMO_TIME": {
+      if (input.kind === "reply" && input.id === DEMO_SLOT_OTHER) {
+        const nextDraft: SupportDraft = { ...draft, askedOwnTime: true, invalidCount: 0 };
+        return withWarning(result({ draft: nextDraft, state: "DEMO_TIME", status: "BOT" }, [questionFor("DEMO_TIME", nextDraft, ctx)]));
+      }
+      if (input.kind === "reply" && input.id.startsWith(SUPPORT_DEMO_SLOT_PREFIX)) {
+        const slot = (ctx.demoSlots ?? []).find((candidate) => `${SUPPORT_DEMO_SLOT_PREFIX}${candidate.id}` === input.id);
+        if (!slot) {
+          // An old list: that class has started or is gone. Offer the current times.
+          return withWarning(invalid(current, "That time is no longer available.", questionFor("DEMO_TIME", draft, ctx)));
+        }
+        const nextDraft: SupportDraft = { ...draft, invalidCount: 0, preferredTime: slot.title, slotId: slot.id };
+        return withWarning(result({ draft: nextDraft, state: "DEMO_CONFIRM", status: "BOT" }, [demoConfirmMessage(nextDraft)]));
+      }
       const time = input.kind === "text" ? input.text.trim().replace(/\s+/g, " ") : "";
       const { max, min } = SUPPORT_INPUT_LIMITS.preferredTime;
       if (time.length < min || time.length > max) {
@@ -1083,7 +1239,8 @@ export function transitionSupport(
           invalid(current, `Please tell us a day and time that suits you (under ${max} characters).`, questionFor("DEMO_TIME", draft, ctx))
         );
       }
-      const nextDraft: SupportDraft = { ...draft, invalidCount: 0, preferredTime: time };
+      // Typed words are a preferred time even while the list is showing.
+      const nextDraft: SupportDraft = { ...draft, invalidCount: 0, preferredTime: time, slotId: undefined };
       return withWarning(result({ draft: nextDraft, state: "DEMO_CONFIRM", status: "BOT" }, [demoConfirmMessage(nextDraft)]));
     }
 
@@ -1096,7 +1253,9 @@ export function transitionSupport(
             { draft: {}, state: "DONE", status: "WAITING_AGENT" },
             [
               {
-                body: `Thank you, ${demo.parentName}! Your free demo request ${SUPPORT_TICKET_REFERENCE_PLACEHOLDER} is with our team. We'll message you here soon to fix the time. Reply MENU if you need anything else.`,
+                body: demo.slotClassId
+                  ? `Thank you, ${demo.parentName}! Your free demo request ${SUPPORT_TICKET_REFERENCE_PLACEHOLDER} is in. One moment while we book your place.`
+                  : `Thank you, ${demo.parentName}! Your free demo request ${SUPPORT_TICKET_REFERENCE_PLACEHOLDER} is with our team. We'll message you here soon to fix the time. Reply MENU if you need anything else.`,
                 kind: "text"
               }
             ],
@@ -1118,7 +1277,7 @@ export function transitionSupport(
       }
       if (choice === "CANCEL") {
         return withWarning(
-          result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu("Cancelled. Nothing was sent to our team.")])
+          result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu("Cancelled. Nothing was sent to our team.", menuOf(ctx))])
         );
       }
       return withWarning(invalid(current, "Please tap Book demo, Edit details or Cancel.", demoConfirmMessage(draft)));
@@ -1173,7 +1332,7 @@ export function transitionSupport(
       }
       if (choice === "CANCEL") {
         return withWarning(
-          result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu("Cancelled. Nothing was sent to our team.")])
+          result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu("Cancelled. Nothing was sent to our team.", menuOf(ctx))])
         );
       }
       return withWarning(invalid(current, "Please tap Send, Edit details or Cancel.", confirmMessage(draft)));
@@ -1187,13 +1346,13 @@ export function transitionSupport(
         return withWarning(result({ draft: nextDraft, state, status: "BOT" }, [questionFor(state, nextDraft, ctx)]));
       }
       if (choice === "RESTART" || choice === "CONTINUE") {
-        return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu()]));
+        return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu(undefined, menuOf(ctx))]));
       }
       return withWarning(invalid(current, "Please tap Continue or Start again.", questionFor("RESUME_PROMPT", draft, ctx)));
     }
 
     default:
-      return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu()]));
+      return withWarning(result({ draft: {}, state: "MAIN_MENU", status: "BOT" }, [supportMainMenu(undefined, menuOf(ctx))]));
   }
 }
 

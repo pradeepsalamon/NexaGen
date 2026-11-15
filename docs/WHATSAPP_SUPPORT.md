@@ -47,7 +47,8 @@ bot can't use add "reply AGENT". After 30 idle minutes mid-form it asks
 next message starts fresh. Numbers, titles and a few keywords ("refund",
 "paid twice") pick menu options. Card numbers (Luhn) and codes after
 OTP/PIN/password are replaced before anything is stored, and the customer is
-warned. Image, voice, etc. get "I can only read text".
+warned. An image (JPEG/PNG/WebP) or PDF is kept for staff (below, *Files*);
+voice, video, stickers etc. get "I can only read text".
 
 **Staff.** A new ticket sends the `SUPPORT_TICKET_ADMIN` system message
 (email to `ADMIN_EMAILS`, in-app to admins by default; editable in
@@ -104,6 +105,116 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   bot off whatever was saved.
 - *Follow-ups* run academy by academy (`forEachTenant`) with each academy's
   minutes and hours.
+- *Team hours* (Phase C, D12): optional weekly hours in the academy's time zone
+  (`hours` = `{ timezone, days: [{ day, open, close }] }`, one window per day;
+  null = 24/7). `supportHoursOpen` (`@nexa-chess/types` `support-hours.ts`) is
+  the one rule; an unknown zone counts as open. Outside hours the bot still
+  answers, and a message that hands the conversation to staff also gets the
+  academy's `outOfHoursMessage` (default: "Our team is away right now…", never
+  a time it didn't write), once per hand-off. Staff reminders wait until
+  opening time.
+- *Real demo times* (Phase C): at DEMO_TIME the bot lists up to 9 upcoming
+  occurrences of the academy's **active demo schedules** (`SupportDemoSlotsService.upcoming`:
+  `SCHEDULED`, starting 1 h to 14 days ahead; one-off demo classes an admin
+  made for a family are never offered), labelled in the schedule's zone
+  ("Wed 18 Nov, 5:00 pm"), plus "Another time" (then a typed time, as before).
+  Typed words always count as a preferred time; a tap from an old list gets
+  "no longer available" and the current list. After "Book demo" the request
+  and lead are saved as before, then `DemoInviteService.bookLead` (actor = the
+  bot, null) registers the lead into that class. **Only a booking that
+  succeeded is announced** ("You're booked … Join from this link: /demo/<class>?invite=<token>"
+  on the academy's own address, `SupportDemoSlotsService.academyOrigin`); the
+  request is then RESOLVED with an event and the bot has the conversation
+  again. If the class has started, changed or gone, the parent is told staff
+  will fix a time and the request stays OPEN for staff. The privacy link in the
+  greeting also uses the academy's own address now.
+- *A contact's data* (Phase C, G7): the ticket page's "Contact's data" card.
+  **Download data** (admins, `GET /admin/support/contacts/:id/export`) gives the
+  number's conversations, transcript and requests as JSON for an access
+  request. **Erase contact** (super admins, `DELETE /admin/support/contacts/:id`)
+  deletes its conversations, messages, requests with their history, and its
+  webhook items, in one transaction under the contact's lock. A number that
+  replied STOP keeps a bare row (number + opt-out) so automatic messages stay
+  off. A lead made from it stays (a CRM record; delete it from Leads). Each
+  erasure is logged in `support_contact_erasures` (who, when, counts; no personal data).
+- *Files* (Phase C, D13): an image or PDF a customer sends shows in the
+  transcript as "[Image] caption" / "[PDF: name]" with a link, and the bot
+  answers "Thanks, I've kept your file for our team…" without reading it.
+  After the message's transaction, `SupportAttachmentsService.store` downloads
+  it from Meta with the academy's token (`WhatsAppService.downloadMedia`, up to
+  10 MB), checks its first bytes (the declared type is never trusted), and keeps
+  it in Cloudinary as a private (`authenticated`, raw) file under the academy's
+  folder. A per-minute sweep (`JOB_LOCKS.supportAttachments`, each academy)
+  retries up to 3 times within a day, then marks it FAILED; with no Cloudinary
+  keys it fails at once. Admins open it through
+  `GET /admin/support/attachments/:id`, which streams it (re-checked, `nosniff`,
+  PDFs as downloads); no storage URL reaches the browser. When its message is
+  deleted (contact erasure) the row loses its message and the sweep deletes
+  the stored file, then the row. Stored bytes count toward the academy's
+  document storage in usage history. A contact's export shows the "[Image]" /
+  "[PDF: …]" lines, not the files themselves.
+- *Frappe CRM* (Phase C, D6): a **new** lead the bot makes in Nexa's own
+  academy is also copied to Frappe CRM (`crm.nexachess.in`), one way.
+  `FrappeCrmPushService` writes a `crm_lead_pushes` row in the lead's
+  transaction, sends it after commit (`POST /api/resource/CRM Lead`: parent's
+  name, `+<country>` mobile, `FRAPPE_CRM_LEAD_SOURCE`/`_STATUS`; then an
+  `FCRM Note` with the child's name, age, level and the NexaGen lead id), and a
+  per-minute sweep (`JOB_LOCKS.crmLeadPush`) retries after 1 m, 5 m, 30 m, 2 h,
+  12 h. A retry first looks the number up in Frappe, so a lost answer doesn't
+  make a twin. Frappe refusing the document (400/404/409/417/422, e.g. a
+  source or status name that doesn't exist there) fails at once. Either way
+  the lead's timeline says "Sent to Frappe CRM" (with the Frappe name) or
+  "Not sent to Frappe CRM" (with the reason). A repeat booking from the same
+  number only adds to the NexaGen lead; nothing is sent again, and nothing
+  comes back from Frappe. Off unless `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY`
+  and `FRAPPE_CRM_API_SECRET` are set; other academies never push.
+- *Who has the conversation* (Phase C, plan §5.2): every status change
+  (`BOT` / `WAITING_AGENT` / `AGENT` / `CLOSED`) writes a
+  `support_conversation_events` row in the same transaction: from, to, reason
+  (`HANDOFF`, `CUSTOMER_MENU`, `STAFF_REPLY`, `STAFF_TAKE_OVER`,
+  `STAFF_RETURN`, `DEMO_BOOKED`, `TICKET_RESOLVED`, `BOT_IDLE`), the staff
+  member and the ticket (`support/support-ownership.ts`, `recordOwnerChange`).
+  Return to bot and resolving now take the contact's lock like every other
+  change. The helpdesk states of the plan (`EXTERNAL_PENDING`/`EXTERNAL`) wait
+  for Phase E.
+- *Analytics* (Phase C): `/admin/support/insights` (Insights on the inbox;
+  `GET /admin/support/analytics?days=7|30|90&tz=<zone>`): conversations
+  started, the share handed to staff, minutes from each hand-off to the team's
+  first reply (median and 90th percentile, plus how many still wait), new leads,
+  requests by topic, and a per-day chart in the viewer's time zone. Built from
+  the events above, so hand-off figures start on 2026-11-14.
+- *Main menu* (Phase C, plan D5 (a)): Support → Settings → Main menu turns
+  each of the six options on or off, reorders them and renames them (WhatsApp
+  limits: title 24, description 72 characters). Stored as
+  `support_settings.menu` (`supportMenuSchema`; unreadable or empty = the
+  built-in menu). The flow gets the result as `ctx.menu`
+  (`supportMenuEntries`): numbers follow the visible order, a switched-off
+  option isn't guessed from words either, and each option keeps its row id, so
+  a renamed one still means the same thing. "Talk to our team" can't be
+  switched off. The flows themselves stay in code (no flow builder).
+- *Existing students* (Phase D; D8 assumed "link code only"): off until
+  Support → Settings → "Answer linked families" is on. An admin opens
+  Admin → Users → the student and makes a **WhatsApp link code**
+  (`POST /admin/support/link-codes`: 8 characters without 0/O/1/I/L, shown once
+  as `ABCD-2345`, only its SHA-256 stored, 24 hours, one use) and gives it to
+  a family they have checked. The family sends `LINK ABCD-2345`; the bot
+  links that number to the student (`support_contact_links`). Then
+  `NEXT CLASS` (also "my class", "batch timing"…) answers each linked
+  student's next scheduled batch class, in the student's time zone, with the
+  batch name, and nothing else. An unlinked number is told how to link and
+  gets no account data. 5 wrong codes in an hour block that number for the
+  hour. Codes are per academy (another academy's code is "didn't work").
+  Staff see linked students on the ticket page's "Contact's data" card and can
+  unlink them; erasing the contact removes its links; the student's own data
+  export lists linked numbers (`whatsAppLinks`). A phone number typed in a
+  profile never links anything (D8). Only while the bot has the conversation:
+  with staff it stays silent as always.
+- *Template status* (Phase C): the reply-template field on the settings page
+  shows whether WhatsApp Manager approved it ([MESSAGING.md](MESSAGING.md) "WhatsApp templates").
+- *Delivery status for rules and system messages* (Phase C): a status webhook
+  for a `message_deliveries` row sets `deliveredAt` / `readAt` (read implies
+  delivered), and a late `failed` marks it FAILED with Meta's reason. The
+  delivery log shows DELIVERED / READ.
 
 **Consent.** `STOP` sets `WhatsAppContact.optedOutAt`; messaging rules and
 system messages then skip that number (`SKIPPED`, checked at send time, so
@@ -169,13 +280,10 @@ version 2).** Owner's priority: answer leads at once and follow up quickly.
   has a lead from the last 90 days. A tap on it after the conversation expired
   still starts the booking.
 
-**Not built / known gaps.** No account linking or account-aware answers, no
-Frappe push (Phase 3); no AI (Phase 4); no out-of-hours reply (§12 item 8), so
-reminders also fire at night. No
-privacy-export section and no erase action for a WhatsApp contact: contacts are
-not accounts, and a phone number is not proof of identity (§9), so an erasure
-request is handled by hand for now (docs/BACKLOG.md). Message status updates
-don't reach `message_deliveries` rows. No nginx IP limit on the webhook yet.
+**Not built / known gaps.** Account answers are only "next class"; no
+AI (Phase 4). The Frappe push covers WhatsApp leads only. A contact's export and erasure are
+staff actions on the ticket page, not self-service: a phone number is not proof
+of identity (§9), so staff confirm who is asking first. No nginx IP limit on the webhook yet.
 
 **Before switching it on** (owner): Meta app secret + verify token; webhook
 URL `https://api.nexachess.in/webhooks/whatsapp` subscribed to `messages`;
@@ -403,7 +511,8 @@ resolved from the number's `phone_number_id`.
 | `SUPPORT_SESSION_TIMEOUT_MINUTES` | Idle expiry (§5) |
 | `SUPPORT_TEST_NUMBERS_ALLOWLIST` | Dev: the bot replies only to these numbers |
 | `SUPPORT_AGENT_REPLY_TEMPLATE` | Template used when an agent replies outside 24 h |
-| `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY`, `FRAPPE_CRM_API_SECRET` | Only if the Frappe lead push is approved |
+| `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY`, `FRAPPE_CRM_API_SECRET` | Frappe lead push (§0 "Frappe CRM"); off unless all three are set |
+| `FRAPPE_CRM_LEAD_SOURCE`, `FRAPPE_CRM_LEAD_STATUS` | Names in Frappe; defaults `Direct WhatsApp`, `New Inquiry` |
 
 Validated in `packages/config/src/api.ts`. With `SUPPORT_BOT_ENABLED=true` in
 production, a missing app secret refuses to boot (same pattern as

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, MessageSquareText, Settings } from "lucide-react";
+import { ChartColumn, ExternalLink, MessageSquareText, Settings } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { SupportCategory, SupportTicketListItem, SupportTicketListQuery, SupportTicketStatus } from "@nexa-chess/types";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -157,6 +157,12 @@ export function SupportTicketsClient() {
         <PageHeader
           actions={
             <>
+              <Button asChild variant="neutral">
+                <Link href="/admin/support/insights">
+                  <ChartColumn className="mr-1.5 size-4" strokeWidth={2.25} />
+                  Insights
+                </Link>
+              </Button>
               <Button asChild variant="neutral">
                 <Link href="/admin/support/settings">
                   <Settings className="mr-1.5 size-4" strokeWidth={2.25} />

@@ -27,6 +27,16 @@ D6: Nexa `Lead` is the record, **plus a one-way push to Frappe CRM** (Phase C,
 Nexa's own academy). D12: set hours per academy. D13: accept images and PDFs.
 The G1 fix (§3) was approved and is done. Everything else is still open.
 
+**Progress (2026-11-14, branch `feat/whatsapp-native-complete`):** Phase B
+(every academy's own number) and, from Phase C: hours + away message,
+delivery status on rule messages, real demo slots, contact export/erase,
+template status, images/PDFs (D13), the Frappe push (D6), conversation
+ownership events, analytics, the configurable main menu (D5 assumed (a);
+per-intent routing waits for a second destination, Phase E), and Phase D
+(staff-issued link codes, "next class"; D8 assumed "link code only"). As built:
+[WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0. Phase C items still to come are
+marked in §12.
+
 | # | Decision | Options | Recommendation | Blocks |
 |---|---|---|---|---|
 | D1 | **What to build now** | (a) Native first: External/Hybrid get only the extension points (ownership fields, provider interface); the Crisp adapter waits for an academy that needs it. (b) Build Native + Crisp together | **(a).** No academy has asked for a helpdesk yet ❓. Several Crisp behaviours need a test account before the adapter can be designed (§8.2) | Phase E |
@@ -126,8 +136,8 @@ time to first reply, handoff rate); a health view for the integration.
 | G3 | ~~`phoneNumberId` not unique.~~ **Fixed in Phase B** (unique index + 409, Nexa's env number refused) | — | — |
 | G4 | ~~Bot settings are server env.~~ **Fixed in Phase B** (`SupportSettings`; env = Nexa's defaults until saved; session timeout stays server-wide) | — | — |
 | G5 | Staging shares production's WhatsApp number and token (checked by hash 2026-11-14) | High: dev could answer real customers | Phase A (owner) |
-| G6 | No out-of-hours behaviour; reminders at night | Low–medium | Phase C |
-| G7 | Contacts can't be exported or erased (not accounts) | Compliance (DPDP) | Phase C |
+| G6 | ~~No out-of-hours behaviour.~~ **Fixed in Phase C** (team hours, away message, reminders wait) | — | — |
+| G7 | ~~Contacts can't be exported or erased.~~ **Fixed in Phase C** (staff export + super-admin erase, STOP kept, erasure log) | — | — |
 | G8 | Demo booking takes a free-text time instead of a real slot | Product | Phase C |
 | G9 | An external helpdesk and Nexa both replying on one number (if both have a token or a bot) | High in External/Hybrid | §5 rules + D4, D10 |
 | G10 | Meta policy: general-purpose AI assistants are barred from the Business Solution since 2026-01-15. A support bot is allowed, but an open-ended "ask anything" bot is a risk | Medium | D9 |
@@ -282,7 +292,7 @@ delivered to <provider>".
 - **Statuses:** sent → delivered → read move forward only; `FAILED` wins
   (built). 🆕 The same status also updates `message_deliveries` by
   `providerMessageId`, so rules and system messages show real delivery.
-- **Media (D13):** 🆕 inbound image/PDF → download through the media endpoint
+- **Media (D13):** ✅ built 2026-11-14 ([WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0 *Files*): inbound image/PDF → download through the media endpoint
   with the academy's token, store privately, attach to the transcript; size
   and type limits; never passed to the bot or to AI; deleted with the transcript.
 - **Handoff:** §5.

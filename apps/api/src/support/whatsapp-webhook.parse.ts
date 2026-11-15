@@ -27,6 +27,8 @@ export interface ParsedWhatsAppMessage {
   redacted: boolean;
   profileName: string | null;
   occurredAt: Date;
+  /** An image or document (the only media kept, for staff): Meta's media id and what it says about it. */
+  media: { id: string; mimeType: string | null; filename: string | null; caption: string | null } | null;
 }
 
 /** A delivery update for a message we sent. */
@@ -84,6 +86,22 @@ function readMessage(message: Json): { messageType: string; text: string | null;
   return { messageType, replyId: null, text: null };
 }
 
+/** Kept media: an image or a document (photos of receipts, PDFs). Voice, video and stickers aren't. */
+function readMedia(message: Json): ParsedWhatsAppMessage["media"] {
+  const type = str(message.type);
+  if (type !== "image" && type !== "document") return null;
+  const media = obj(message[type]);
+  const id = str(media?.id);
+  if (!id) return null;
+  const caption = str(media?.caption, 1024);
+  return {
+    caption: caption ? redactSupportText(caption).text : null,
+    filename: str(media?.filename, 200),
+    id,
+    mimeType: str(media?.mime_type, 100)
+  };
+}
+
 /**
  * Flattens a webhook body into the events the bot acts on. Anything it doesn't
  * recognise (other fields, malformed entries) is skipped, never thrown on.
@@ -118,6 +136,7 @@ export function parseWhatsAppWebhook(body: unknown): ParsedWhatsAppEvent[] {
         events.push({
           dedupeKey: `msg:${wamid}`,
           kind: "message",
+          media: readMedia(message),
           messageType: read.messageType,
           occurredAt: timestamp(message.timestamp),
           phoneNumberId,

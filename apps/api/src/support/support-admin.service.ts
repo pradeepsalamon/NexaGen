@@ -3,6 +3,8 @@ import { JwtService } from "@nestjs/jwt";
 import {
   cursorPageQuerySchema,
   supportTicketListQuerySchema,
+  type SupportContactErasureResult,
+  type SupportContactExport,
   type SupportMessageItem,
   type SupportMessagePage,
   type SupportNoteRequest,
@@ -15,7 +17,7 @@ import {
   type SupportTicketListResponse,
   type UpdateSupportTicketRequest
 } from "@nexa-chess/types";
-import { Prisma, UserRole, UserStatus, type User } from "@prisma/client";
+import { Prisma, UserRole, UserStatus, type SupportOwnerChangeReason, type User } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
 import { CREATED_AT_DESC_ORDER, createdAtCursorWhere, toCursorPage } from "../common/cursor-pagination";
 import { paginationMeta, resolvePagination } from "../common/pagination";
@@ -24,11 +26,17 @@ import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.se
 import { replyWindowEndsAt } from "./support-conversation.service";
 import type { SupportOutboundPayload } from "./support-outbox.service";
 import { SupportOutboxService } from "./support-outbox.service";
+import { recordOwnerChange } from "./support-ownership";
 import { SupportSettingsService } from "./support-settings.service";
 
 type StaffUser = Pick<User, "id" | "role">;
 
 const PERSON_SELECT = { firstName: true, id: true, lastName: true } as const;
+
+const MESSAGE_INCLUDE = {
+  attachment: { select: { error: true, filename: true, id: true, mimeType: true, status: true } },
+  sentBy: { select: PERSON_SELECT }
+} as const;
 
 const TICKET_LIST_INCLUDE = {
   assignedTo: { select: PERSON_SELECT },
@@ -125,7 +133,7 @@ export class SupportAdminService {
     const { cursor, limit } = parseOrBadRequest(cursorPageQuerySchema, rawQuery, "query");
     const ticket = await this.findTicket(id);
     const rows = await this.prisma.supportMessage.findMany({
-      include: { sentBy: { select: PERSON_SELECT } },
+      include: MESSAGE_INCLUDE,
       orderBy: [...CREATED_AT_DESC_ORDER],
       take: limit + 1,
       where: { AND: [{ conversationId: ticket.conversationId }, createdAtCursorWhere(cursor)] }
@@ -163,7 +171,7 @@ export class SupportAdminService {
         };
 
     const { conversationId, message } = await this.prisma.$transaction(async (tx) => {
-      const conversationId = await this.claimConversation(tx, ticket, "AGENT");
+      const conversationId = await this.claimConversation(tx, ticket, "AGENT", { actorId: user.id, reason: "STAFF_REPLY" });
       const message = await tx.supportMessage.create({
         data: {
           author: "AGENT",
@@ -174,7 +182,7 @@ export class SupportAdminService {
           sentById: user.id,
           status: "PENDING"
         },
-        include: { sentBy: { select: PERSON_SELECT } }
+        include: MESSAGE_INCLUDE
       });
       await tx.supportTicket.update({
         data: {
@@ -187,7 +195,7 @@ export class SupportAdminService {
     });
 
     await this.outbox.sendPending(conversationId);
-    const sent = await this.prisma.supportMessage.findFirst({ include: { sentBy: { select: PERSON_SELECT } }, where: { id: message.id } });
+    const sent = await this.prisma.supportMessage.findFirst({ include: MESSAGE_INCLUDE, where: { id: message.id } });
     return this.toMessage(sent ?? message);
   }
 
@@ -238,7 +246,7 @@ export class SupportAdminService {
         data.status = body.status;
         data.resolvedAt = body.status === "RESOLVED" ? now : null;
         events.push({ actorId: user.id, body: `Status: ${ticket.status} → ${body.status}.`, kind: "STATUS_CHANGED", ticketId: ticket.id });
-        if (body.status === "RESOLVED") await this.closeIfDone(tx, ticket.id, ticket.conversationId, now);
+        if (body.status === "RESOLVED") await this.closeIfDone(tx, ticket, now, user.id);
       }
       if (events.length === 0) return;
       await tx.supportTicket.update({ data, where: { id: ticket.id } });
@@ -252,7 +260,7 @@ export class SupportAdminService {
     const user = await this.getStaff(accessToken);
     const ticket = await this.findTicket(id);
     await this.prisma.$transaction(async (tx) => {
-      await this.claimConversation(tx, ticket, "AGENT");
+      await this.claimConversation(tx, ticket, "AGENT", { actorId: user.id, reason: "STAFF_TAKE_OVER" });
       await tx.supportTicket.update({
         data: {
           ...(ticket.assignedToId ? {} : { assignedToId: user.id }),
@@ -270,6 +278,7 @@ export class SupportAdminService {
     const user = await this.getStaff(accessToken);
     const ticket = await this.findTicket(id);
     await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`support-contact:${ticket.contactId}`}))`;
       const conversation = await tx.supportConversation.findFirst({ where: { id: ticket.conversationId } });
       if (!conversation || conversation.status === "CLOSED") {
         throw new ConflictException("This conversation has ended; the bot answers the customer's next message anyway.");
@@ -278,9 +287,108 @@ export class SupportAdminService {
         data: { draft: {}, state: "MAIN_MENU", status: "BOT" },
         where: { id: conversation.id }
       });
+      await recordOwnerChange(tx, { actorId: user.id, conversationId: conversation.id, from: conversation.status, reason: "STAFF_RETURN", ticketId: ticket.id, to: "BOT" });
       await tx.supportTicketEvent.create({ data: { actorId: user.id, body: "Handed back to the bot.", kind: "RETURNED_TO_BOT", ticketId: ticket.id } });
     });
     return this.loadDetail(ticket.id);
+  }
+
+  // ── Privacy requests for a WhatsApp contact (docs/WHATSAPP_SUPPORT.md §0) ──
+
+  /** Everything stored about one WhatsApp number, oldest first, for a parent's access request. */
+  async exportContact(accessToken: string | undefined, contactId: string): Promise<SupportContactExport> {
+    await this.getStaff(accessToken);
+    const contact = await this.prisma.whatsAppContact.findFirst({ where: { id: contactId } });
+    if (!contact) throw new NotFoundException("Contact not found.");
+    const [conversations, tickets, links] = await Promise.all([
+      this.prisma.supportConversation.findMany({
+        include: { messages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
+        orderBy: { createdAt: "asc" },
+        where: { contactId }
+      }),
+      this.prisma.supportTicket.findMany({
+        include: { events: { orderBy: { createdAt: "asc" } } },
+        orderBy: { createdAt: "asc" },
+        where: { contactId }
+      }),
+      this.prisma.supportContactLink.findMany({
+        include: { student: { select: { firstName: true, lastName: true } } },
+        orderBy: { createdAt: "asc" },
+        where: { contactId }
+      })
+    ]);
+    return {
+      contact: {
+        firstSeenAt: contact.createdAt.toISOString(),
+        optedOutAt: contact.optedOutAt?.toISOString() ?? null,
+        profileName: contact.profileName,
+        waId: contact.waId
+      },
+      conversations: conversations.map((conversation) => ({
+        closedAt: conversation.closedAt?.toISOString() ?? null,
+        messages: conversation.messages.map((message) => ({
+          at: message.createdAt.toISOString(),
+          author: message.author,
+          body: message.body,
+          direction: message.direction,
+          status: message.status
+        })),
+        startedAt: conversation.createdAt.toISOString()
+      })),
+      exportedAt: new Date().toISOString(),
+      linkedStudents: links.map((link) => ({ linkedAt: link.createdAt.toISOString(), name: `${link.student.firstName} ${link.student.lastName ?? ""}`.trim() })),
+      tickets: tickets.map((ticket) => ({
+        category: ticket.category,
+        details: ticket.details,
+        history: ticket.events.map((event) => ({ at: event.createdAt.toISOString(), body: event.body, kind: event.kind })),
+        openedAt: ticket.createdAt.toISOString(),
+        reference: ticket.reference,
+        resolvedAt: ticket.resolvedAt?.toISOString() ?? null,
+        status: ticket.status,
+        studentName: ticket.studentName
+      }))
+    };
+  }
+
+  /**
+   * Erases a WhatsApp contact (super admins): conversations, transcript,
+   * tickets and their history, and the stored webhook items. A number that
+   * replied STOP keeps a bare row (number + opt-out, nothing else) so
+   * automatic messages stay off. A lead made from it is a CRM record and stays
+   * (staff delete it from Leads). The erasure itself is recorded without
+   * personal data.
+   */
+  async eraseContact(accessToken: string | undefined, contactId: string): Promise<SupportContactErasureResult> {
+    const user = await this.getStaff(accessToken);
+    if (user.role !== UserRole.SUPER_ADMIN) throw new ForbiddenException("Only a super admin can erase a WhatsApp contact.");
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`support-contact:${contactId}`}))`;
+      const contact = await tx.whatsAppContact.findFirst({ where: { id: contactId } });
+      if (!contact) throw new NotFoundException("Contact not found.");
+      const [conversations, messages, tickets] = await Promise.all([
+        tx.supportConversation.count({ where: { contactId } }),
+        tx.supportMessage.count({ where: { conversation: { contactId } } }),
+        tx.supportTicket.count({ where: { contactId } })
+      ]);
+      // Tickets, messages and ticket history go with their conversations (cascade).
+      await tx.supportTicket.deleteMany({ where: { contactId } });
+      await tx.supportConversation.deleteMany({ where: { contactId } });
+      await tx.whatsAppWebhookEvent.deleteMany({ where: { waId: contact.waId } });
+      await tx.supportContactLink.deleteMany({ where: { contactId } });
+      const keptOptOut = contact.optedOutAt !== null;
+      if (keptOptOut) {
+        await tx.whatsAppContact.update({
+          data: { lastInboundAt: null, linkFailures: 0, linkFailuresFrom: null, profileName: null },
+          where: { id: contact.id }
+        });
+      } else {
+        await tx.whatsAppContact.delete({ where: { id: contact.id } });
+      }
+      await tx.supportContactErasure.create({
+        data: { contactId, conversations, erasedById: user.id, keptOptOut, messages, tickets }
+      });
+      return { conversations, keptOptOut, messages, tickets };
+    });
   }
 
   // ── Internals ──
@@ -294,35 +402,45 @@ export class SupportAdminService {
   private async claimConversation(
     tx: PrismaTransactionClient,
     ticket: { id: string; contactId: string; conversationId: string },
-    status: "AGENT" | "WAITING_AGENT"
+    status: "AGENT" | "WAITING_AGENT",
+    why: { actorId: string; reason: SupportOwnerChangeReason }
   ): Promise<string> {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`support-contact:${ticket.contactId}`}))`;
     const own = await tx.supportConversation.findFirst({ where: { id: ticket.conversationId } });
     if (!own) throw new NotFoundException("Conversation not found.");
 
-    let targetId = own.id;
+    let target = own;
     if (own.status === "CLOSED") {
       const current = await tx.supportConversation.findFirst({ where: { contactId: ticket.contactId, status: { not: "CLOSED" } } });
       if (current) {
-        targetId = current.id;
+        target = current;
         await tx.supportTicket.update({ data: { conversationId: current.id }, where: { id: ticket.id } });
       }
     }
     await tx.supportConversation.update({
       data: { closedAt: null, draft: {}, state: "DONE", status },
-      where: { id: targetId }
+      where: { id: target.id }
     });
-    return targetId;
+    await recordOwnerChange(tx, { ...why, conversationId: target.id, from: target.status, ticketId: ticket.id, to: status });
+    return target.id;
   }
 
   /** Resolving the last open ticket of a conversation ends it; the next message gets a fresh greeting. */
-  private async closeIfDone(tx: PrismaTransactionClient, ticketId: string, conversationId: string, now: Date) {
-    const others = await tx.supportTicket.count({ where: { conversationId, id: { not: ticketId }, status: { not: "RESOLVED" } } });
-    if (others > 0) return;
-    await tx.supportConversation.updateMany({
-      data: { closedAt: now, status: "CLOSED" },
-      where: { id: conversationId, status: { in: ["AGENT", "WAITING_AGENT"] } }
+  private async closeIfDone(
+    tx: PrismaTransactionClient,
+    ticket: { contactId: string; conversationId: string; id: string },
+    now: Date,
+    actorId: string
+  ) {
+    const others = await tx.supportTicket.count({
+      where: { conversationId: ticket.conversationId, id: { not: ticket.id }, status: { not: "RESOLVED" } }
     });
+    if (others > 0) return;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`support-contact:${ticket.contactId}`}))`;
+    const conversation = await tx.supportConversation.findFirst({ select: { status: true }, where: { id: ticket.conversationId } });
+    if (conversation?.status !== "AGENT" && conversation?.status !== "WAITING_AGENT") return;
+    await tx.supportConversation.update({ data: { closedAt: now, status: "CLOSED" }, where: { id: ticket.conversationId } });
+    await recordOwnerChange(tx, { actorId, conversationId: ticket.conversationId, from: conversation.status, reason: "TICKET_RESOLVED", ticketId: ticket.id, to: "CLOSED" });
   }
 
   private async findTicket(id: string) {
@@ -335,7 +453,15 @@ export class SupportAdminService {
     const row = await this.prisma.supportTicket.findFirst({
       include: {
         ...TICKET_LIST_INCLUDE,
-        contact: true,
+        contact: {
+          include: {
+            studentLinks: {
+              include: { student: { select: { firstName: true, id: true, lastName: true } } },
+              orderBy: { createdAt: "asc" },
+              where: { student: { isDeleted: false } }
+            }
+          }
+        },
         events: { include: { actor: { select: PERSON_SELECT } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
         lead: { select: { id: true, isDeleted: true, status: true, studentName: true } }
       },
@@ -347,6 +473,11 @@ export class SupportAdminService {
       ...this.toListItem(row),
       contact: {
         id: row.contact.id,
+        linkedStudents: row.contact.studentLinks.map((link) => ({
+          id: link.student.id,
+          linkedAt: link.createdAt.toISOString(),
+          name: `${link.student.firstName} ${link.student.lastName ?? ""}`.trim()
+        })),
         optedOut: row.contact.optedOutAt !== null,
         profileName: row.contact.profileName,
         replyWindowEndsAt: windowEnds ? windowEnds.toISOString() : null,
@@ -388,9 +519,19 @@ export class SupportAdminService {
   }
 
   private toMessage(
-    row: Prisma.SupportMessageGetPayload<{ include: { sentBy: { select: typeof PERSON_SELECT } } }>
+    row: Prisma.SupportMessageGetPayload<{ include: typeof MESSAGE_INCLUDE }>
   ): SupportMessageItem {
+    const file = row.attachment;
     return {
+      attachment: file
+        ? {
+            error: file.error,
+            filename: file.filename,
+            id: file.id,
+            kind: (file.mimeType ?? "") === "application/pdf" ? "pdf" : "image",
+            status: file.status
+          }
+        : null,
       author: row.author,
       body: row.body,
       createdAt: row.createdAt.toISOString(),

@@ -163,6 +163,30 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.supportSettings;
   }
 
+  get supportContactErasure() {
+    return this.client.supportContactErasure;
+  }
+
+  get supportAttachment() {
+    return this.client.supportAttachment;
+  }
+
+  get supportConversationEvent() {
+    return this.client.supportConversationEvent;
+  }
+
+  get supportContactLink() {
+    return this.client.supportContactLink;
+  }
+
+  get supportLinkCode() {
+    return this.client.supportLinkCode;
+  }
+
+  get crmLeadPush() {
+    return this.client.crmLeadPush;
+  }
+
   get directEmail() {
     return this.client.directEmail;
   }

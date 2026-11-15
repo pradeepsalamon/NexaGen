@@ -912,6 +912,8 @@ export const API_ROUTES = {
     adjustCredits: "/admin/referrals/credits/adjust",
     settings: "/admin/referrals/settings"
   },
+  /** The academy's message templates as WhatsApp Manager lists them (admins; read-only). */
+  whatsappTemplates: "/admin/whatsapp/templates",
   /** Meta's WhatsApp Cloud API callbacks (GET = subscription handshake, POST = events). */
   whatsappWebhook: "/webhooks/whatsapp",
   /** Another academy's own number (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §6): the key names the academy, its app secret signs. */
@@ -930,7 +932,17 @@ export const API_ROUTES = {
     savedReply: (id: string = ":id") => `/admin/support/saved-replies/${id}`,
     unanswered: "/admin/support/unanswered",
     dismissUnanswered: (id: string = ":id") => `/admin/support/unanswered/${id}/dismiss`,
-    settings: "/admin/support/settings"
+    settings: "/admin/support/settings",
+    analytics: "/admin/support/analytics",
+    /** POST: a one-time WhatsApp link code for a student (admins). */
+    linkCodes: "/admin/support/link-codes",
+    /** DELETE: unlink a WhatsApp contact from a student. */
+    contactLink: (contactId: string = ":id", studentId: string = ":studentId") => `/admin/support/contacts/${contactId}/links/${studentId}`,
+    /** DELETE: erase a WhatsApp contact (super admins). */
+    contact: (id: string = ":id") => `/admin/support/contacts/${id}`,
+    contactExport: (id: string = ":id") => `/admin/support/contacts/${id}/export`,
+    /** GET: an image or PDF a customer sent (streamed; admins). */
+    attachment: (id: string = ":id") => `/admin/support/attachments/${id}`
   },
   leads: {
     create: "/leads",

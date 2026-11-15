@@ -467,6 +467,8 @@ export class MessagingRuleService {
       error: row.error,
       attempts: row.attempts,
       scheduledFor: row.scheduledFor.toISOString(),
+      deliveredAt: row.deliveredAt?.toISOString() ?? null,
+      readAt: row.readAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString()
     };
   }

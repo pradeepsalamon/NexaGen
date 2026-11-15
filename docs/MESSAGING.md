@@ -24,7 +24,9 @@ only from its own number (`whatsapp_settings`, `/admin/branding`), so
 bot (`whatsapp_contacts."optedOutAt"`) gets no rule or system-message WhatsApp
 — `WhatsAppOptOutService.isOptedOut`, checked at send time by
 `MessagingDeliveryWorker` (row `SKIPPED`) and `SystemNotifier` (channel
-`SKIPPED`). Incoming messages and the support bot: [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0.
+`SKIPPED`). Meta's status webhooks fill `message_deliveries."deliveredAt"` /
+`"readAt"` and turn a late failure into FAILED (once the webhook is set up; the
+log shows DELIVERED / READ). Incoming messages and the support bot: [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) §0.
 Walkthrough below.
 
 ## 3.6e Admin messaging rules
@@ -259,6 +261,14 @@ sent as before. Saved as `whatsappTemplateName` / `whatsappTemplateLanguage` /
   error>`) in the delivery log / `SystemNotifier` result and the API log.
 - Editor: `features/messaging/components/WhatsAppTemplateFields.tsx`, shared by both
   editors, with a preview of each slot's value.
+- **Status from WhatsApp Manager** (2026-11-14): `GET /admin/whatsapp/templates`
+  (admins; `WhatsAppTemplatesService`, cached 5 minutes per academy, `?refresh=1`
+  bypasses) lists the academy's templates from its WhatsApp Business Account
+  (Nexa: `WHATSAPP_BUSINESS_ACCOUNT_ID`; another academy: the WABA ID under
+  Branding → WhatsApp). `WhatsAppTemplateStatus` shows Approved / Pending /
+  Rejected beside every template-name field, or says the name or language isn't
+  there (`checkWhatsAppTemplate`). Read-only: templates are still created in
+  WhatsApp Manager, and a send never waits on this list.
 
 ## Email channel
 
