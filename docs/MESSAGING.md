@@ -18,7 +18,7 @@ call** — retries belong to a BullMQ job, which should branch on
 `WhatsAppSendError.retryable`. `trySendText` / `trySendTemplate` / `sendTextToMany`
 return outcomes instead of throwing, for paths that must survive WhatsApp being
 down. **Per academy (SaaS §F):** the env number is Nexa's; another academy sends
-only from its own number (`whatsapp_settings`, `/admin/branding`), so
+only from its own number (`whatsapp_settings`, `/admin/whatsapp`), so
 `isConfigured()` answers for the request's academy and must be called inside it
 (`runInTenant` in jobs). **Opt-out:** a number that replied STOP to the support
 bot (`whatsapp_contacts."optedOutAt"`) gets no rule or system-message WhatsApp
@@ -265,7 +265,7 @@ sent as before. Saved as `whatsappTemplateName` / `whatsappTemplateLanguage` /
   (admins; `WhatsAppTemplatesService`, cached 5 minutes per academy, `?refresh=1`
   bypasses) lists the academy's templates from its WhatsApp Business Account
   (Nexa: `WHATSAPP_BUSINESS_ACCOUNT_ID`; another academy: the WABA ID under
-  Branding → WhatsApp). `WhatsAppTemplateStatus` shows Approved / Pending /
+  Settings → WhatsApp connection (`/admin/whatsapp`)). `WhatsAppTemplateStatus` shows Approved / Pending /
   Rejected beside every template-name field, or says the name or language isn't
   there (`checkWhatsAppTemplate`). Read-only: templates are still created in
   WhatsApp Manager, and a send never waits on this list.

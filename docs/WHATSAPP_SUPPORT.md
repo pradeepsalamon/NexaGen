@@ -101,7 +101,7 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   unchanged until an admin saves the page) and any other academy has the bot
   off. `SUPPORT_SESSION_TIMEOUT_MINUTES` stays server-wide.
 - *Another academy's number*: its super admin saves phone number ID, token,
-  **app secret** and optionally the WABA ID under Branding → WhatsApp. The
+  **app secret** and optionally the WABA ID under Settings → WhatsApp connection (`/admin/whatsapp`). The
   first save makes a random `webhookKey` and verify token, which are kept on
   later saves. The page shows the callback URL `/webhooks/whatsapp/<webhookKey>`
   (on the academy's own address, `/api/...`) and the verify token to paste into
@@ -305,7 +305,7 @@ customers; optionally an approved reply template; then
 on the settings page, the bot switched on with staff numbers as test numbers,
 then the list emptied (or, before anyone saves that page, the same through
 `SUPPORT_BOT_ENABLED` + `SUPPORT_TEST_NUMBERS_ALLOWLIST`). Another academy:
-Branding → WhatsApp (token, app secret, switch on), paste the callback URL and
+Settings → WhatsApp connection (`/admin/whatsapp`) (token, app secret, switch on), paste the callback URL and
 verify token into its Meta app, then its own settings page.
 
 Legend: ✅ verified in the repo / on the box · ❓ assumption or not verifiable

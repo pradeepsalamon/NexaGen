@@ -142,7 +142,7 @@ function ConnectionCard({ data }: { data: SupportSettingsResponse }) {
       description={
         connection.usesPlatformNumber
           ? "This academy uses the WhatsApp number set up on the server."
-          : "Messages reach the bot through your own WhatsApp Business number, connected under Branding → WhatsApp."
+          : "Messages reach the bot through your own WhatsApp Business number, connected under Settings → WhatsApp connection."
       }
       title="Connection"
     >
@@ -155,15 +155,15 @@ function ConnectionCard({ data }: { data: SupportSettingsResponse }) {
         ) : null}
         {!connection.usesPlatformNumber && isSuperAdmin ? (
           <Button asChild className="ml-auto" variant="outline">
-            <Link href="/admin/branding">WhatsApp connection</Link>
+            <Link href="/admin/whatsapp">WhatsApp connection</Link>
           </Button>
         ) : null}
       </div>
       {!connection.receiving && !connection.usesPlatformNumber ? (
         <p className="mt-3 text-sm text-app-muted">
           {isSuperAdmin
-            ? "Save the access token and app secret under Branding → WhatsApp, switch it on, then paste the webhook URL and verify token shown there into your Meta app."
-            : "A super admin connects the number under Branding → WhatsApp."}
+            ? "Save the access token and app secret under Settings → WhatsApp connection, switch it on, then paste the webhook URL and verify token shown there into your Meta app."
+            : "A super admin connects the number under Settings → WhatsApp connection."}
         </p>
       ) : null}
     </SectionCard>

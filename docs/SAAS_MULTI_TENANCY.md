@@ -1201,7 +1201,7 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
   Nexa's hosts, cookies and absolute API URL are unchanged.
 - **5d (built 2026-11-05, migration `…_saas_academy_whatsapp`):** `whatsapp_settings` (one row per
   academy, token AES-256-GCM encrypted with `CREDENTIALS_ENCRYPTION_KEY`, else a key derived from
-  `MFA_ENCRYPTION_KEY`), `GET/PUT /admin/branding/whatsapp` (the academy's super admin),
+  `MFA_ENCRYPTION_KEY`), `GET/PUT /admin/branding/whatsapp` (the academy's super admin; web page `/admin/whatsapp`, on every plan),
   `WhatsAppCredentialsService` (decrypted per academy in memory, loaded at boot, on save, and on every process every 60 s).
   `WhatsAppService.isConfigured()` and every send pick the request's academy: Nexa and work
   outside an academy use the env number; any other academy only its own, else WhatsApp is off.

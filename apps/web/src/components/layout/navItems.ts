@@ -24,6 +24,7 @@ import {
   LifeBuoy,
   LineChart,
   Mail,
+  MessageCircle,
   MessageSquare,
   MessageSquareHeart,
   MessagesSquare,
@@ -186,6 +187,8 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/branding", label: "Branding", icon: Paintbrush, group: "Settings", feature: "brandIdentity" },
   // On every plan: an academy's own privacy policy and terms (Nexa's are part of the app).
   { href: "/admin/legal-pages", label: "Legal pages", icon: Scale, group: "Settings", academyOnly: true },
+  // On every plan: an academy's own WhatsApp Business number (Nexa uses the server's).
+  { href: "/admin/whatsapp", label: "WhatsApp connection", icon: MessageCircle, group: "Settings", superAdminOnly: true, academyOnly: true },
   { href: "/admin/chess-appearance", label: "Chess appearance", icon: Palette, group: "Settings", feature: "customBranding" },
   { href: "/admin/typography", label: "Fonts & text", icon: Type, group: "Settings", feature: "customBranding" },
   { href: "/admin/game-sync", label: "Game sync", icon: RefreshCw, group: "Settings", feature: "gameAnalysis" },

@@ -38,8 +38,6 @@ import {
   useUploadTenantBrandAsset
 } from "../hooks/useBranding";
 import { AcademyDomainsSection } from "./AcademyDomainsSection";
-import { WhatsAppSettingsSection } from "./WhatsAppSettingsSection";
-import { useAuthStore } from "@/stores/authStore";
 
 const hexOrBlank = z
   .string()
@@ -279,7 +277,6 @@ export function BrandingClient() {
   const query = useTenantBranding();
   const whiteLabel = useSetTenantWhiteLabel();
   const hasCustomDomain = usePlanFeature("customDomain") === true;
-  const isSuperAdmin = useAuthStore((state) => state.user?.role === "SUPER_ADMIN");
   const data = query.data;
 
   return (
@@ -313,7 +310,6 @@ export function BrandingClient() {
             </SectionCard>
           ) : null}
           {hasCustomDomain ? <AcademyDomainsSection /> : null}
-          {isSuperAdmin ? <WhatsAppSettingsSection /> : null}
         </>
       )}
     </div>

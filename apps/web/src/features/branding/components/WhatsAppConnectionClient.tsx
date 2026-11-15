@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from "react";
 import type { WhatsAppSettingsResponse } from "@nexa-chess/types";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { SectionCard } from "@/components/ui/SectionCard";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Switch } from "@/components/ui/Switch";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { apiUrl } from "@/lib/apiBase";
 import { formatDateTime } from "@/lib/datetime";
@@ -123,16 +127,37 @@ function Form({ data }: { data: WhatsAppSettingsResponse }) {
   );
 }
 
-/** The academy's own WhatsApp Business number (super admins; §F "WhatsApp"). */
-export function WhatsAppSettingsSection() {
+/**
+ * `/admin/whatsapp`: the academy's own WhatsApp Business number (super admins;
+ * §F "WhatsApp"). On every plan, so it is its own page and not part of Branding
+ * (which is a plan feature). Nexa's own academy uses the server's number.
+ */
+export function WhatsAppConnectionClient() {
   const query = useWhatsAppSettings(true);
-  if (!query.data || query.data.usesPlatformNumber) return null;
+  const data = query.data;
+
   return (
-    <SectionCard
-      description="Messages to your students and parents go from your own WhatsApp Business number, and the WhatsApp support bot answers on it. Without one, WhatsApp is off and email still works."
-      title="WhatsApp"
-    >
-      <Form data={query.data} key={query.data.updatedAt ?? "new"} />
-    </SectionCard>
+    <div className="space-y-6">
+      <PageHeader
+        description="Messages to your students and parents go from your own WhatsApp Business number, and the WhatsApp support bot answers on it."
+        title="WhatsApp connection"
+      />
+      {query.isError ? (
+        <WidgetError message="Couldn't load the WhatsApp connection." onRetry={() => void query.refetch()} />
+      ) : !data ? (
+        <Skeleton className="h-64 w-full" />
+      ) : data.usesPlatformNumber ? (
+        <Alert title="Nothing to set here" variant="info">
+          This academy sends and receives on the number configured on the server.
+        </Alert>
+      ) : (
+        <SectionCard
+          description="Without a connected number, WhatsApp is off and email still works."
+          title="Your WhatsApp Business number"
+        >
+          <Form data={data} key={data.updatedAt ?? "new"} />
+        </SectionCard>
+      )}
+    </div>
   );
 }

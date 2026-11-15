@@ -89,6 +89,7 @@ export const PAGE_TITLES = {
   "/admin/trash": "Trash",
   "/admin/typography": "Fonts & text",
   "/admin/users": "Users",
+  "/admin/whatsapp": "WhatsApp connection",
   "/checkout/[planId]": "Checkout",
   "/chess-board": "Chess board",
   "/classes/[id]": "Class details",
