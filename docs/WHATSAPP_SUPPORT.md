@@ -205,6 +205,10 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
     nothing). Set on staging, **not yet on production** (it gets them with the
     dev → main release). Staging and production share the one CRM, so a
     demo-form test on dev.nexachess.in makes a real Frappe lead.
+    Staging has no `WHATSAPP_DEFAULT_COUNTRY_CODE`, so its copies arrive as
+    `+<10 digits>`; production has `91`. Checked on staging 2026-11-15 against
+    the real CRM: a form lead made a Frappe lead with its note, and a second
+    lead with the same number only added a note (test records removed).
   - *Who sees a copied lead in Frappe*: it arrives with no lead owner, so
     Sales Managers see it and a plain Sales User doesn't until someone assigns
     it (or an Assignment Rule for CRM Lead does; none exists yet).
