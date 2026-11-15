@@ -94,7 +94,6 @@ export function useCreateCheckout() {
 }
 
 export function useVerifyPayment() {
-  const toast = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -105,7 +104,6 @@ export function useVerifyPayment() {
       paymentId: string;
       data: VerifyPaymentRequest;
     }) => verifyPayment(paymentId, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't verify payment" }),
     onSuccess: (status) => {
       queryClient.setQueryData(queryKeys.payments.status(status.paymentId), status);
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.billing });
