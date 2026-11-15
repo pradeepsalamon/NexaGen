@@ -158,6 +158,7 @@ export function useCheckPlatformTenantDomain(tenantId: string) {
   const toast = useToast();
   return useMutation({
     mutationFn: (domainId: string) => checkPlatformTenantDomain(tenantId, domainId),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't check domain" }),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.platform.all });
       if (result.ok) toast.success({ message: result.result, title: "Domain is live" });
@@ -233,6 +234,7 @@ export function useCopyAcademyContentPackFolder() {
   const toast = useToast();
   return useMutation({
     mutationFn: ({ itemId, packId }: { itemId: string; packId: string }) => copyAcademyContentPackFolder(packId, itemId),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't copy folder" }),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.all });
       toast.success({

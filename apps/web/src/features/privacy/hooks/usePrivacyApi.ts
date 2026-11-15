@@ -8,6 +8,7 @@ import {
   requestAccountDeletion,
   withdrawAccountDeletion
 } from "../api/privacyApi";
+import { useToast } from "@/providers/ToastProvider";
 
 export const PRIVACY_INVALIDATES = [queryKeys.privacy.all];
 
@@ -36,9 +37,11 @@ export function useMyDeletionRequest() {
 }
 
 export function useRequestAccountDeletion() {
+  const toast = useToast();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: CreateAccountDeletionRequest) => requestAccountDeletion(body),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't request account deletion" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.privacy.all })
   });
 }

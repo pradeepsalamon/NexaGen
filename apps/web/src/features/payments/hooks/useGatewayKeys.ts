@@ -15,6 +15,7 @@ export function useUpdateGatewayKeys() {
   return useMutation({
     mutationFn: ({ body, provider }: { provider: TenantGatewayProvider; body: UpdateTenantGatewayRequest }) =>
       updateGatewayKeys(provider, body),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't update gateway keys" }),
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.payments.gatewayKeys, data);
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.providerHealth });

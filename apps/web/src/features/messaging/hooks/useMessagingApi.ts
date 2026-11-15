@@ -53,6 +53,7 @@ export function useUpdateMessagingRule() {
       event: MessagingEvent;
       data: UpdateMessagingRuleRequest;
     }) => updateMessagingRule(event, data),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't update messaging rule" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.messaging.rules });
       toast.success({ title: "Rule saved" });
@@ -62,6 +63,7 @@ export function useUpdateMessagingRule() {
 
 /** A test send is an outbound message — never undoable, so it is not wrapped. */
 export function useTestMessagingRule() {
+  const toast = useToast();
   return useMutation({
     mutationFn: ({
       event,
@@ -69,7 +71,8 @@ export function useTestMessagingRule() {
     }: {
       event: MessagingEvent;
       data: TestMessagingRuleRequest;
-    }) => testMessagingRule(event, data)
+    }) => testMessagingRule(event, data),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't test messaging rule" })
   });
 }
 
@@ -87,6 +90,7 @@ export function useUpdateSystemMessage() {
   return useMutation({
     mutationFn: ({ data, key }: { data: UpdateSystemMessageRequest; key: SystemMessageKey }) =>
       updateSystemMessage(key, data),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't update system message" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.messaging.systemMessages });
       toast.success({ title: "Message saved" });
@@ -96,9 +100,11 @@ export function useUpdateSystemMessage() {
 
 /** A test send is an outbound message — never undoable, so it is not wrapped. */
 export function useTestSystemMessage() {
+  const toast = useToast();
   return useMutation({
     mutationFn: ({ data, key }: { data: TestSystemMessageRequest; key: SystemMessageKey }) =>
-      testSystemMessage(key, data)
+      testSystemMessage(key, data),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't test system message" })
   });
 }
 
@@ -120,6 +126,7 @@ export function useRetryMessageDelivery() {
 
   return useMutation({
     mutationFn: (id: string) => retryMessageDelivery(id),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't retry message delivery" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.messaging.all });
       toast.success({ title: "Queued for another try" });
@@ -143,10 +150,12 @@ export function useAnnouncements() {
  * (see lib/undo/README.md — outbound sends are a policy exclusion).
  */
 export function useCreateAnnouncement() {
+  const toast = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data: CreateAnnouncementRequest) => createAnnouncement(data),
+    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't create announcement" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.messaging.all });
     }
