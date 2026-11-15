@@ -39,7 +39,6 @@ import {
 } from "../hooks/useBranding";
 import { AcademyDomainsSection } from "./AcademyDomainsSection";
 import { WhatsAppSettingsSection } from "./WhatsAppSettingsSection";
-import { LegalPagesSection } from "@/features/legal/components/LegalPagesSection";
 import { useAuthStore } from "@/stores/authStore";
 
 const hexOrBlank = z
@@ -313,7 +312,6 @@ export function BrandingClient() {
               />
             </SectionCard>
           ) : null}
-          <LegalPagesSection />
           {hasCustomDomain ? <AcademyDomainsSection /> : null}
           {isSuperAdmin ? <WhatsAppSettingsSection /> : null}
         </>

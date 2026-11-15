@@ -60,6 +60,7 @@ export const PAGE_TITLES = {
   "/admin/knowledge/[id]": "Edit help article",
   "/admin/knowledge/new": "New help article",
   "/admin/leads": "Leads",
+  "/admin/legal-pages": "Legal pages",
   "/admin/referrals": "Referrals",
   "/admin/live-class": "Live class settings",
   "/admin/live-classes": "Live now",

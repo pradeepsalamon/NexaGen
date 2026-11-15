@@ -566,7 +566,7 @@ only**).
 ### Legal pages
 
 `/privacy` and `/terms` on an academy's own address show **the academy's own
-wording** once its admins have written it (Admin → Branding → Legal pages);
+wording** once its admins have written it (Admin → Settings → Legal pages, `/admin/legal-pages`, on every plan, so not part of the plan-gated Branding page);
 until then they show the built-in text. Every plan has it: the academy is the
 one responsible for its families' data.
 

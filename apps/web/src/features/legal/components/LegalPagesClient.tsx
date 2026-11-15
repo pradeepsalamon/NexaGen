@@ -10,6 +10,8 @@ import {
   type LegalPageKind,
   type PublicLegalPage
 } from "@nexa-chess/types";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { SectionCard } from "@/components/ui/SectionCard";
@@ -71,38 +73,52 @@ function LegalPageEditor({ page }: { page: PublicLegalPage }) {
 }
 
 /**
- * Admin → Branding → Legal pages: the academy's own privacy policy and terms,
- * shown at `/privacy` and `/terms` on its own address. Hidden for Nexa's own
- * academy, whose pages are part of the app.
+ * `/admin/legal-pages`: the academy's own privacy policy and terms, shown at
+ * `/privacy` and `/terms` on its own address. On every plan, so it is its own
+ * page and not part of Branding (which is a plan feature). Nexa's own academy
+ * has nothing to edit: its pages are part of the app.
  */
-export function LegalPagesSection() {
+export function LegalPagesClient() {
   const query = useAdminLegalPages();
   const [tab, setTab] = useState<LegalPageKind>("privacy");
-
-  if (query.isError) return <WidgetError message="Couldn't load the legal pages." onRetry={() => void query.refetch()} />;
-  if (!query.data) return <Skeleton className="h-64 w-full" />;
-  if (!query.data.editable) return null;
+  const data = query.data;
 
   return (
-    <SectionCard
-      description="Your privacy policy and terms, shown on your own address and linked from the sign-up form. New sign-ups are recorded against the version shown at the time."
-      title="Legal pages"
-    >
-      <Tabs onValueChange={(value) => setTab(value as LegalPageKind)} value={tab}>
-        <TabsList>
-          {LEGAL_PAGE_KINDS.map((kind) => (
-            <TabsTrigger key={kind} value={kind}>
-              {LEGAL_PAGE_LABELS[kind]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {query.data.pages.map((page) => (
-          // Kept mounted so a draft in the other tab survives switching.
-          <TabsContent className="pt-4 data-[state=inactive]:hidden" forceMount key={page.kind} value={page.kind}>
-            <LegalPageEditor key={page.updatedAt ?? "built-in"} page={page} />
-          </TabsContent>
-        ))}
-      </Tabs>
-    </SectionCard>
+    <div className="space-y-6">
+      <PageHeader
+        description="Your privacy policy and terms, shown on your own address and linked from the sign-up form."
+        title="Legal pages"
+      />
+      {query.isError ? (
+        <WidgetError message="Couldn't load the legal pages." onRetry={() => void query.refetch()} />
+      ) : !data ? (
+        <Skeleton className="h-64 w-full" />
+      ) : !data.editable ? (
+        <Alert title="Nothing to edit here" variant="info">
+          This academy&apos;s privacy policy and terms are built into the app.
+        </Alert>
+      ) : (
+        <SectionCard
+          description="New sign-ups are recorded against the version shown at the time."
+          title="Your own text"
+        >
+          <Tabs onValueChange={(value) => setTab(value as LegalPageKind)} value={tab}>
+            <TabsList>
+              {LEGAL_PAGE_KINDS.map((kind) => (
+                <TabsTrigger key={kind} value={kind}>
+                  {LEGAL_PAGE_LABELS[kind]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {data.pages.map((page) => (
+              // Kept mounted so a draft in the other tab survives switching.
+              <TabsContent className="pt-4 data-[state=inactive]:hidden" forceMount key={page.kind} value={page.kind}>
+                <LegalPageEditor key={page.updatedAt ?? "built-in"} page={page} />
+              </TabsContent>
+            ))}
+          </Tabs>
+        </SectionCard>
+      )}
+    </div>
   );
 }
