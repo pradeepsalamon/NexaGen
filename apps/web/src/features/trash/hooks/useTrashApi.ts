@@ -9,6 +9,7 @@ import {
   listTrash,
   restoreTrashItem
 } from "../api/trashApi";
+import { useToast } from "@/providers/ToastProvider";
 
 export function useTrashQuery(params: TrashListRequest) {
   return useQuery({
@@ -58,9 +59,11 @@ export function useBulkDeleteTrashItemsPermanentlyMutation() {
 }
 
 export function useEmptyTrashMutation() {
+  const toast = useToast();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: emptyTrash,
+    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't empty trash" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
     }

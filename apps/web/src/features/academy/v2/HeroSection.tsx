@@ -49,7 +49,33 @@ export function HeroSection() {
             </Button>
           </div>
         </div>
-        <HeroStage className="mx-auto max-w-[26rem] lg:max-w-[min(34rem,62dvh)]" />
+        <div className="relative">
+          <HeroStage className="mx-auto max-w-[26rem] lg:max-w-[min(34rem,62dvh)]" />
+          {/* "Play Beyond Limits": the handwritten callout the original page has over the board's corner. */}
+          <div aria-hidden="true" className="pointer-events-none absolute right-0 top-0 hidden select-none lg:block">
+            <div className="mr-1 mt-2 -rotate-[14deg] text-right xl:mr-2">
+              <div
+                className="text-xl leading-[1.08] tracking-wide text-accent-ink xl:text-[25px]"
+                style={{
+                  fontFamily: "'Brush Script MT', 'Segoe Script', 'Snell Roundhand', cursive",
+                  fontStyle: "italic"
+                }}
+              >
+                <span className="block pr-4">Play</span>
+                <span className="block pr-1">Beyond</span>
+                <span className="block pl-3">Limits</span>
+              </div>
+              <svg className="-mt-0.5 ml-auto h-4 w-20 text-accent-ink xl:w-24" fill="none" viewBox="0 0 120 22">
+                <path
+                  d="M6 16C36 8 78 5 114 3M24 19C52 13 82 11 106 9"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeWidth="2"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
         </div>
 
         <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">

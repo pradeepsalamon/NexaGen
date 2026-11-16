@@ -348,9 +348,10 @@ export async function findInDataTable(page: Page, text: string, maxPages = 15) {
 }
 
 /**
- * Opens a live-room tab by name. Room tab rows show a few tabs and put the
- * rest under a "More views" menu (`RoomTabs maxVisible`), so a tab may be a
- * menu item instead.
+ * Opens a tab by name. A tab strip may be a plain row of tabs, put the rest
+ * under a "More views" menu (`RoomTabs maxVisible`), or, when the strip is too
+ * narrow, collapse into one "Choose a tab" dropdown (`components/ui/Tabs.tsx`),
+ * so a tab may be a menu item instead.
  */
 export async function openRoomTab(page: Page, name: string | RegExp, timeout = 15_000) {
   const tab = page.getByRole("tab", { name }).first();
@@ -358,7 +359,8 @@ export async function openRoomTab(page: Page, name: string | RegExp, timeout = 1
     await tab.click({ timeout });
     return;
   }
-  const more = page.getByRole("button", { name: /^More views/ }).first();
+  const collapsed = page.getByRole("button", { name: "Choose a tab" }).first();
+  const more = (await collapsed.isVisible()) ? collapsed : page.getByRole("button", { name: /^More views/ }).first();
   await more.click({ timeout });
   await page.getByRole("menuitem", { name }).first().click({ timeout });
 }

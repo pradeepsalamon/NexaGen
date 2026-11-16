@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils";
 import { ACADEMY_PROGRAMS } from "../content";
 import { CheckItem, Section, SectionHeader } from "./parts";
 
+const PROGRAMS_BG_LIGHT = "/programs/01_chess_reverie_light.webp";
+const PROGRAMS_BG_DARK = "/programs/02_chess_reverie_dark.webp";
+
 const programPresentation = [
   {
     featured: false,
@@ -42,7 +45,11 @@ const programs = programPresentation.map((program) => ({
 
 export function ProgramsSection() {
   return (
-    <Section id="programs" labelledBy="programs-heading">
+    <Section
+      backdrop={{ dark: PROGRAMS_BG_DARK, light: PROGRAMS_BG_LIGHT }}
+      id="programs"
+      labelledBy="programs-heading"
+    >
       <SectionHeader
         description="Structured learning paths designed for every stage of your chess journey."
         eyebrow="Our programs"
