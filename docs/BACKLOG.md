@@ -231,6 +231,11 @@ its precondition, the student training surface, now exists).
 
 ## Questions for the owner (unattended runs)
 
+- **2026-11-16 (night run, item 10, `feat/solo-puzzle-rush`): solo Storm / Racer built; what I assumed.** Page `/student/puzzle-rush`, docs [PUZZLE_RUSH_SOLO.md](PUZZLE_RUSH_SOLO.md).
+  1. **Who may play: students of a batch with puzzle training on** (the existing `puzzleTrainingEnabled` switch), so no new setting. Say if solo play should be its own switch, or open to coaches.
+  2. **Leaderboard = best finished run per student, per batch, per mode**, "this week" or "all time", showing first and last names like the live standings. Students are minors: if names should be shortened to first name + initial, it is one line in `SoloPuzzleRushService.leaderboard`.
+  3. **No points, rating or history**: solo runs don't touch the puzzle rating, Smart Revision or the activity history. Say if they should.
+  4. **Not done**: live leaderboard push, dashboard badge. Browser-checked: not yet (needs the staging build of this branch; the owner's test pass).
 - **2026-11-14 (unattended WhatsApp Phase B/C run, `feat/whatsapp-native-complete`): what I assumed or skipped.**
   1. **D5 was still open; I built option (a)** (the plan's recommendation): fixed flows in code, and on Support → Settings each academy turns main-menu options on/off, reorders and renames them. "Talk to our team" can't be switched off. No flow builder. Change of mind = say so, nothing else depends on it.
   2. **Routing per intent was not built.** With no helpdesk connected, every hand-off has one destination (the Nexa inbox), so a routing table would have nothing to choose. It comes with Phase E (Crisp), which waits on D1.

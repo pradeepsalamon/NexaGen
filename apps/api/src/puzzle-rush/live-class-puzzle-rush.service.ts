@@ -12,8 +12,6 @@ import {
   maxComboBonus,
   PUZZLE_RACER_CONFIG,
   PUZZLE_RUSH_GRACE_SECONDS,
-  PUZZLE_RUSH_MAX_RATING_DEVIATION,
-  PUZZLE_RUSH_RATING_BUCKETS,
   PUZZLE_STORM_CONFIG,
   puzzleRushPlayerMoves,
   rankPuzzleRushStandings,
@@ -30,6 +28,7 @@ import { Prisma, PuzzleRushMode, UserRole } from "@prisma/client";
 import { LiveClassService } from "../live-class/live-class.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { MIN_RUN_SIZE, selectPuzzleRushRun } from "./puzzle-rush-run";
 import { fullName } from "../puzzle/puzzle-auth.helper";
 
 const entryInclude = {
@@ -42,12 +41,7 @@ const rushInclude = {
 
 type EntryRow = Prisma.LiveClassPuzzleRushEntryGetPayload<{ include: typeof entryInclude }>;
 type RushRow = Prisma.LiveClassPuzzleRushGetPayload<{ include: typeof rushInclude }>;
-type CatalogueRow = { id: string; fen: string; moves: string; rating: number; randKey: number };
 
-/** Below this many puzzles the catalogue isn't really loaded (a fresh dev box). */
-const MIN_RUN_SIZE = 20;
-/** §6 catalogue guard, same as the browse routes. */
-const STATEMENT_TIMEOUT = "3s";
 const GRACE_MS = PUZZLE_RUSH_GRACE_SECONDS * 1000;
 
 /**
@@ -87,7 +81,7 @@ export class LiveClassPuzzleRushService {
     const { user, liveSession } = await this.liveClass.resolveClassManager(accessToken, classId, {
       requireLive: true
     });
-    const puzzles = await this.selectRun();
+    const puzzles = await selectPuzzleRushRun(this.prisma);
     if (puzzles.length < MIN_RUN_SIZE) {
       throw new ServiceUnavailableException(
         "The Lichess puzzle catalogue isn't loaded on this server, so there are no puzzles to race."
@@ -209,51 +203,6 @@ export class LiveClassPuzzleRushService {
   }
 
   // ── Run selection ──
-
-  /**
-   * Lichess' Storm ladder: for each rating bucket, that many random puzzles
-   * from the three 50-point bands around it (a seek into the walk index from a
-   * random `randKey`, wrapping round), quality-gated and with a settled
-   * rating; then the whole run in rising rating order.
-   */
-  private async selectRun(): Promise<PuzzleRushPuzzle[]> {
-    const rows = await this.prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '${STATEMENT_TIMEOUT}'`);
-      // Same reason as the catalogue browse: keep Postgres on custom plans.
-      await tx.$executeRawUnsafe(`SET LOCAL plan_cache_mode = force_custom_plan`);
-      const picked: CatalogueRow[] = [];
-      for (const [rating, count] of PUZZLE_RUSH_RATING_BUCKETS) {
-        const centre = Math.floor(rating / 50);
-        const candidates: CatalogueRow[] = [];
-        for (const band of [centre - 1, centre, centre + 1]) {
-          const seed = Math.floor(Math.random() * 2 ** 31);
-          const after = await tx.$queryRaw<CatalogueRow[]>`
-            SELECT id, fen, moves, rating, "randKey" FROM lichess_puzzles
-            WHERE "ratingBand" = ${band}::smallint AND "randKey" >= ${seed}::int
-              AND "passesQualityGate" AND "ratingDeviation" <= ${PUZZLE_RUSH_MAX_RATING_DEVIATION}::smallint
-            ORDER BY "ratingBand", "randKey", id LIMIT ${count}`;
-          candidates.push(...after);
-          if (after.length < count) {
-            const before = await tx.$queryRaw<CatalogueRow[]>`
-              SELECT id, fen, moves, rating, "randKey" FROM lichess_puzzles
-              WHERE "ratingBand" = ${band}::smallint AND "randKey" < ${seed}::int
-                AND "passesQualityGate" AND "ratingDeviation" <= ${PUZZLE_RUSH_MAX_RATING_DEVIATION}::smallint
-              ORDER BY "ratingBand", "randKey", id LIMIT ${count - after.length}`;
-            candidates.push(...before);
-          }
-        }
-        picked.push(...shuffle(candidates).slice(0, count));
-      }
-      return picked;
-    });
-
-    const seen = new Set<string>();
-    return rows
-      .filter((row) => !seen.has(row.id) && seen.add(row.id))
-      .map((row) => ({ fen: row.fen, id: row.id, moves: row.moves.split(" ").filter(Boolean), rating: row.rating }))
-      .filter((puzzle) => puzzle.moves.length >= 2)
-      .sort((a, b) => a.rating - b.rating);
-  }
 
   // ── Progress ──
 
@@ -398,13 +347,4 @@ export class LiveClassPuzzleRushService {
       // Nudge only — REST is authoritative and clients poll while a round runs.
     }
   }
-}
-
-function shuffle<T>(items: T[]): T[] {
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
 }

@@ -107,6 +107,8 @@ export const CROSS_USER: Case[] = [
   { name: "student grants themselves screen share", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.grantScreenShare(w.a.liveClass.id), body: (w: World) => ({ studentId: w.a.student.id }) },
   { name: "student reads another class's classroom tools", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.tools(w.b.liveClass.id) },
   { name: "coach reads another class's classroom tools", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.tools(w.b.liveClass.id) },
+  { name: "student reports into another student's solo Puzzle Storm run", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.puzzleRushSolo.progress(w.b.soloRun.id), body: soloReport() },
+  { name: "student reads a batch leaderboard they are not in", as: (w) => w.a.student, path: (w) => `${API_ROUTES.puzzleRushSolo.leaderboard}?batchId=${w.b.batch.id}&mode=STORM&period=ALL` },
   { name: "student reads another class's Puzzle Storm", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.puzzleRush(w.b.liveClass.id) },
   { name: "student reports into another class's Puzzle Storm", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.liveClass.puzzleRushProgress(w.b.liveClass.id), body: (w: World) => rushReport(w.b.rush.id) },
   { name: "student reports into another class's round through their own class", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.liveClass.puzzleRushProgress(w.a.liveClass.id), body: (w: World) => rushReport(w.b.rush.id) },
@@ -253,6 +255,8 @@ export const OWN_CASES: Case[] = [
   { name: "coach reads own class pull roster", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.pullRoster(w.a.liveClass.id) },
   { name: "coach reads own class simul", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.simul(w.a.liveClass.id) },
   { name: "student reads own class's classroom tools", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.tools(w.a.liveClass.id) },
+  { name: "student reports into own solo Puzzle Storm run", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.puzzleRushSolo.progress(w.a.soloRun.id), body: soloReport() },
+  { name: "student reads own batch's solo leaderboard", as: (w) => w.a.student, path: (w) => `${API_ROUTES.puzzleRushSolo.leaderboard}?batchId=${w.a.batch.id}&mode=STORM&period=ALL` },
   { name: "student reads own class's Puzzle Storm", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.puzzleRush(w.a.liveClass.id) },
   { name: "student reports into own class's Puzzle Storm", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.liveClass.puzzleRushProgress(w.a.liveClass.id), body: (w: World) => rushReport(w.a.rush.id) },
   { name: "coach reads own class's Puzzle Storm", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.puzzleRush(w.a.liveClass.id) },
@@ -323,6 +327,11 @@ export const LIST_CASES: Case[] = [
   { name: "coach's personal data export", as: (w) => w.a.coach, path: () => API_ROUTES.privacy.dataExport }
 ];
 
+export function soloReport() {
+  const { rushId: _rushId, ...rest } = rushReport("");
+  return rest;
+}
+
 export function rushReport(rushId: string) {
   return {
     bestCombo: 0,
@@ -340,6 +349,8 @@ export function rushReport(rushId: string) {
 }
 
 export const WRONG_ROLE: Case[] = [
+  { name: "coach starts a solo Puzzle Storm run", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.puzzleRushSolo.runs, body: { mode: "STORM" } },
+  { name: "coach reads the solo Puzzle Storm overview", as: (w) => w.a.coach, path: () => API_ROUTES.puzzleRushSolo.overview },
   { name: "student monitors own class's activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.a.liveClass.id, w.a.playoutRun.id) },
   { name: "student opens a board through the coach's monitor", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRunGame(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
   { name: "student ends own class's activity", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.activityRunEnd(w.a.liveClass.id, w.a.playoutRun.id) },

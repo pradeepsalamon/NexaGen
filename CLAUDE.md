@@ -130,6 +130,7 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 ### 3.6i–3.6l Feature rules (details in the linked doc)
 
 - **Coach feedback** (`feedback/`): pending feedback is computed, never stored (`computePendingFeedback`); unique `(formId, studentId, coachId, contextKey)`. [FEATURES](docs/FEATURES.md)
+- **Solo Storm / Racer** (`puzzle-rush/solo-puzzle-rush.*`, `/student/puzzle-rush`, `API_ROUTES.puzzleRushSolo`): the live class's run selection (`selectPuzzleRushRun`) and clamping, students of a training-enabled batch only, only finished runs reach the batch leaderboard, a run is read through the student's own id. [PUZZLE_RUSH_SOLO](docs/PUZZLE_RUSH_SOLO.md)
 - **Puzzle sets** (`PUZZLE_SET`): `AssignmentPuzzle` rows reference library puzzles; `PuzzleAttemptService` is the only attempt engine; points never stored (`computePuzzleSetResults`). [PUZZLES](docs/PUZZLES.md)
 - **Class timing**: `@nexa-chess/types` `class-availability.ts` decides upcoming/past/not-held/start window — never re-derive from `status`. **Batch type** via `resolveBatchType`. [CLASSES](docs/CLASSES.md)
 - **Move tree** (`packages/types/src/move-tree.ts`): a different move adds a variation, never truncates. Game Library `game-library/`, `GameRecorderService` idempotent on `sourceKey`. [FEATURES](docs/FEATURES.md)

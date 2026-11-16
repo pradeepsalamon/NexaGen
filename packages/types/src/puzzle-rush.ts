@@ -280,3 +280,62 @@ export function rankPuzzleRushStandings<T extends Rankable>(rows: readonly T[]):
     return { ...row, rank };
   });
 }
+
+// ── Solo play (the student's practice page) ──
+// The same modes and numbers as a live-class round, played alone: the run is
+// frozen onto a `SoloPuzzleRushRun`, moves are checked in the browser, the
+// server clamps the reported totals, and a batch leaderboard ranks each
+// student's best finished run.
+
+export const soloRushPeriodSchema = z.enum(["WEEK", "ALL"]);
+export type SoloRushPeriod = z.infer<typeof soloRushPeriodSchema>;
+
+export type SoloRushBatch = { id: string; name: string };
+
+export type SoloRushBest = { mode: PuzzleRushMode; score: number; achievedAt: string };
+
+export type SoloRushOverview = {
+  /** Batches with training switched on — the leaderboards the student can see. */
+  batches: SoloRushBatch[];
+  bests: SoloRushBest[];
+  enabled: boolean;
+};
+
+export type SoloRushRun = {
+  id: string;
+  mode: PuzzleRushMode;
+  /** Racer: the race starts here (after the countdown). Storm: when the run opened. */
+  startsAt: string;
+  /** Racer: the race ends here. Storm: null — the player's own clock decides. */
+  endsAt: string | null;
+  puzzles: PuzzleRushPuzzle[];
+  /** ISO server time — the browser derives its clock skew from it. */
+  serverTime: string;
+};
+
+export type ReportSoloRushProgressRequest = Omit<ReportPuzzleRushProgressRequest, "rushId">;
+export const reportSoloRushProgressRequestSchema = reportPuzzleRushProgressRequestSchema.omit({ rushId: true });
+
+export type ReportSoloRushProgressResponse = {
+  /** The run's best totals so far, after clamping. */
+  score: number;
+  finished: boolean;
+};
+
+export type SoloRushLeaderboardRow = {
+  rank: number;
+  studentId: string;
+  name: string;
+  score: number;
+  moves: number;
+  errors: number;
+  bestCombo: number;
+  achievedAt: string;
+};
+
+export type SoloRushLeaderboard = {
+  batchId: string;
+  mode: PuzzleRushMode;
+  period: SoloRushPeriod;
+  rows: SoloRushLeaderboardRow[];
+};
