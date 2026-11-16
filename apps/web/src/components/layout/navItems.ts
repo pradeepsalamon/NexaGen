@@ -50,7 +50,8 @@ import {
   Users,
   Video,
   Wallet,
-  Wifi
+  Wifi,
+  Zap
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { PlanFeatureKey } from "@nexa-chess/types";
@@ -92,6 +93,7 @@ export const studentNavItems: NavItem[] = [
   { href: "/student/batches", label: "My batches", icon: Layers3 },
   { href: "/student/practice", label: "Assignments", icon: ClipboardList },
   { href: "/student/training", label: "Puzzle training", icon: Puzzle },
+  { href: "/student/puzzle-rush", label: "Storm and Racer", icon: Zap },
   { href: "/student/revision", label: "Smart revision", icon: Brain, feature: "smartRevision" },
   { href: "/student/progress", label: "Progress", icon: TrendingUp },
   { href: "/student/insights", label: "Game insights", icon: ScanSearch, feature: "gameAnalysis" },

@@ -331,6 +331,12 @@ export const queryKeys = {
   puzzleRush: {
     state: (classId: string) => ["puzzle-rush", "state", classId] as const,
   },
+  soloRush: {
+    all: ["solo-rush"] as const,
+    leaderboard: (batchId: string, mode: string, period: string) =>
+      ["solo-rush", "leaderboard", batchId, mode, period] as const,
+    overview: ["solo-rush", "overview"] as const,
+  },
   payroll: {
     all: ["payroll"] as const,
     mine: ["payroll", "mine"] as const,

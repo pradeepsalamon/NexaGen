@@ -153,3 +153,7 @@ In the app: Puzzle Library → **Lichess catalogue** tab (admins select puzzles 
 which opens the assignment form with the position and line filled in), and the
 live-class share dialog's **Lichess catalogue** tab, which shares a puzzle
 straight from the catalogue.
+
+## Storm and Racer on your own
+
+Students of a batch with puzzle training on can also play Puzzle Storm and Puzzle Racer alone and compete on the batch leaderboard: [PUZZLE_RUSH_SOLO.md](PUZZLE_RUSH_SOLO.md).

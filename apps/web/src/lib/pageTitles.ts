@@ -145,6 +145,7 @@ export const PAGE_TITLES = {
   "/student/puzzles/[id]": "Solve puzzle",
   "/student/revision": "Smart revision",
   "/student/schedule": "Schedule",
+  "/student/puzzle-rush": "Storm and Racer",
   "/student/training": "Puzzle training",
   "/support/enter": "Support visit",
   "/tournaments": "Tournaments",
