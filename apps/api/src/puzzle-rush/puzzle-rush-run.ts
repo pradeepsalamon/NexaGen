@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import type { PuzzleRushPuzzle } from "@nexa-chess/types";
 import { PUZZLE_RUSH_MAX_RATING_DEVIATION, PUZZLE_RUSH_RATING_BUCKETS } from "@nexa-chess/types";
 import type { PrismaService } from "../prisma/prisma.service";
@@ -25,7 +26,7 @@ export async function selectPuzzleRushRun(prisma: PrismaService): Promise<Puzzle
       const centre = Math.floor(rating / 50);
       const candidates: CatalogueRow[] = [];
       for (const band of [centre - 1, centre, centre + 1]) {
-        const seed = Math.floor(Math.random() * 2 ** 31);
+        const seed = randomInt(2 ** 31);
         const after = await tx.$queryRaw<CatalogueRow[]>`
           SELECT id, fen, moves, rating, "randKey" FROM lichess_puzzles
           WHERE "ratingBand" = ${band}::smallint AND "randKey" >= ${seed}::int
@@ -57,7 +58,7 @@ export async function selectPuzzleRushRun(prisma: PrismaService): Promise<Puzzle
 function shuffle<T>(items: T[]): T[] {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(i + 1);
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out;
