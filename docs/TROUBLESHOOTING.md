@@ -8,6 +8,7 @@
 
 | Symptom | Start here |
 |---|---|
+| Puzzle Storm / Racer: after a solve the board keeps showing the solving move and the next puzzle can't be played (score stops) | Two puzzles in a row with the same start position and setup move: `PracticeBoard` only re-sends a changed FEN. Both players pass `resetKey={rushBoardKey(run)}` (puzzle index + ply, `lib/puzzleRushRun.ts`); a new rush board must too |
 | Mini player (browser Picture-in-Picture on phones / Safari) shows a frozen frame | The room uses adaptive streaming, which pauses a camera no LiveKit-attached element shows. `VideoPipSurface` feeds its `<video>` by hand, so it must stay registered through `track.observeElementInfo` ([LIVE_CLASS](LIVE_CLASS.md) "Download and network cost in the room") |
 | Every page's JS grew by ~100 kB gzipped / a `zod` chunk with locale strings on every route | A workspace package is being bundled from its CommonJS build. `@nexa-chess/config` and `@nexa-chess/types` each need the `dist/esm` build and the `import` export condition pointing at it, or the web bundle gets a second, un-tree-shaken zod |
 | Theme toggle or docked-nav collapse feels laggy (worse on phones) | `ThemeProvider.applyMode` must keep its freeze `<style>` until after the new theme paints (two rAFs) and run React's update in `startTransition`; `useChartColors` re-reads after paint. `AppShell` must not animate its `padding` (every frame re-lays out the page). Measure at 4× CPU: theme worst frame went 217–300 ms → 67–83 ms (2026-11-06) |
