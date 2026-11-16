@@ -2,6 +2,9 @@ import { ArrowRight, BookOpen, GraduationCap, type LucideIcon, TrendingUp, Troph
 import { Button } from "@/components/ui/Button";
 import { Section, SectionHeader } from "./parts";
 
+const BG_LIGHT = "/academy_advantage/01_cinematic_chess_light.webp";
+const BG_DARK = "/academy_advantage/02_cinematic_chess_shadow.webp";
+
 const features: { description: string; Icon: LucideIcon; title: string }[] = [
   {
     description:
@@ -43,7 +46,11 @@ const features: { description: string; Icon: LucideIcon; title: string }[] = [
 
 export function WhyChooseUsSection() {
   return (
-    <Section id="why-choose-us" labelledBy="why-heading">
+    <Section
+      backdrop={{ dark: BG_DARK, light: BG_LIGHT, position: "center" }}
+      id="why-choose-us"
+      labelledBy="why-heading"
+    >
       <SectionHeader
         description="Discover why thousands of students and parents choose our structured coaching methodology."
         eyebrow="Academy advantages"
