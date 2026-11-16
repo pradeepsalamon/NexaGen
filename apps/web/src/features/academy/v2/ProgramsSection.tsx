@@ -6,8 +6,6 @@ import { cn } from "@/lib/utils";
 import { ACADEMY_PROGRAMS } from "../content";
 import { CheckItem, Section, SectionHeader } from "./parts";
 
-const PROGRAMS_BG_LIGHT = "/programs/01_chess_reverie_light.webp";
-const PROGRAMS_BG_DARK = "/programs/02_chess_reverie_dark.webp";
 
 const programPresentation = [
   {
@@ -46,7 +44,6 @@ const programs = programPresentation.map((program) => ({
 export function ProgramsSection() {
   return (
     <Section
-      backdrop={{ dark: PROGRAMS_BG_DARK, light: PROGRAMS_BG_LIGHT }}
       id="programs"
       labelledBy="programs-heading"
     >
@@ -61,21 +58,22 @@ export function ProgramsSection() {
         {programs.map((program) => (
           <li
             className={cn(
-              "flex flex-col overflow-hidden rounded-panel border bg-app-surface shadow-card",
+              "group flex flex-col overflow-hidden rounded-panel border bg-app-surface shadow-card transition-shadow hover:shadow-lg",
               program.featured ? "border-primary ring-1 ring-primary" : "border-app-border"
             )}
             key={program.level}
           >
-            <div aria-hidden="true" className="relative h-44 bg-app-soft">
+            <div aria-hidden="true" className="relative aspect-[4/3] overflow-hidden bg-app-soft">
               <Image
                 alt=""
-                className="object-cover object-center"
+                className="object-cover object-[center_60%] transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
                 fill
                 sizes="(min-width: 768px) 33vw, 100vw"
                 src={program.pieceImage}
               />
+              <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-app-surface to-transparent" />
             </div>
-            <div className="flex flex-1 flex-col gap-5 p-6">
+            <div className="-mt-6 relative flex flex-1 flex-col gap-5 px-6 pb-6">
               <div className="grid gap-2">
                 <Badge className="w-fit" variant={program.featured ? "accent" : "secondary"}>
                   {program.featured ? <Sparkles aria-hidden="true" className="size-3.5" strokeWidth={2.25} /> : null}

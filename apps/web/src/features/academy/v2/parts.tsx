@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import Image from "next/image";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,53 +41,14 @@ export function CheckItem({ children }: { children: ReactNode }) {
   );
 }
 
-export interface SectionBackdropImages {
-  dark: string;
-  light: string;
-  /** CSS object-position, default "center top". */
-  position?: string;
-}
-
-/** Decorative artwork: never read out, never takes a click, sits under the content; the veil keeps text readable. */
-function SectionBackdrop({
-  dark,
-  light,
-  position = "center top",
-  tone
-}: SectionBackdropImages & { tone: "background" | "surface" }) {
-  const surface = tone === "surface";
-  return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 select-none">
-      <Image alt="" className="object-cover dark:hidden" fill sizes="100vw" src={light} style={{ objectPosition: position }} />
-      <Image alt="" className="hidden object-cover dark:block" fill sizes="100vw" src={dark} style={{ objectPosition: position }} />
-      <div className={cn("absolute inset-0", surface ? "bg-app-surface/60" : "bg-app-background/60")} />
-      <div
-        className={cn(
-          "absolute inset-x-0 top-0 h-24 bg-gradient-to-b to-transparent",
-          surface ? "from-app-surface" : "from-app-background"
-        )}
-      />
-      <div
-        className={cn(
-          "absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t to-transparent",
-          surface ? "from-app-surface" : "from-app-background"
-        )}
-      />
-    </div>
-  );
-}
-
 /** A section's outer frame: one content width and vertical rhythm for the whole page. */
 export function Section({
-  backdrop,
   children,
   className,
   id,
   labelledBy,
   tone = "background"
 }: {
-  /** Full-bleed artwork behind the content: one image per theme, faded into the section colour. */
-  backdrop?: SectionBackdropImages;
   children: ReactNode;
   className?: string;
   id: string;
@@ -100,13 +60,11 @@ export function Section({
       aria-labelledby={labelledBy}
       className={cn(
         "scroll-mt-16 py-16 sm:py-20 lg:py-24",
-        backdrop && "relative isolate overflow-hidden",
         tone === "surface" ? "bg-app-surface" : "bg-app-background",
         className
       )}
       id={id}
     >
-      {backdrop ? <SectionBackdrop {...backdrop} tone={tone} /> : null}
       <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">{children}</div>
     </section>
   );

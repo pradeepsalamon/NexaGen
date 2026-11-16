@@ -33,13 +33,10 @@ const featureChips: { Icon: LucideIcon; label: string }[] = [
   { Icon: BarChart3, label: "Progress tracking" }
 ];
 
-const PORTAL_BG_LIGHT = "/session/01_golden_chess_portal_light.webp";
-const PORTAL_BG_DARK = "/session/02_golden_chess_portal_dark.webp";
 
 const TARGET_MINUTES = 55;
 // 55 minutes on a 60-minute face = 330 degrees.
 const TARGET_ANGLE = (TARGET_MINUTES / 60) * 360;
-const TICK_ANGLES = [30, 60, 120, 150, 210, 240, 300, 330];
 
 const pieceIconProps = {
   fill: "none",
@@ -139,7 +136,6 @@ export function SessionTimingSection() {
 
   return (
     <Section
-      backdrop={{ dark: PORTAL_BG_DARK, light: PORTAL_BG_LIGHT, position: "46% bottom" }}
       id="session-blueprint"
       labelledBy="session-heading"
     >
@@ -152,25 +148,58 @@ export function SessionTimingSection() {
 
       <div className="mt-12 grid grid-cols-1 items-center gap-10 lg:grid-cols-12">
         <div className="flex flex-col items-center gap-6 lg:col-span-5">
-          <div
-            className="relative flex size-64 items-center justify-center rounded-full border-2 border-app-border bg-app-soft shadow-card sm:size-72"
-            ref={ref}
-          >
-            <div aria-hidden="true" className="pointer-events-none absolute inset-[6px] rounded-full border border-app-border" />
-            {TICK_ANGLES.map((deg) => (
-              <div aria-hidden="true" className="pointer-events-none absolute inset-0" key={deg} style={{ transform: `rotate(${deg}deg)` }}>
-                <span className="mx-auto mt-4 block h-3 w-0.5 rounded-full bg-app-subtle" />
-              </div>
+          <div className="relative size-72 sm:size-80" ref={ref}>
+            <svg aria-hidden="true" className="absolute inset-0 size-full" viewBox="0 0 200 200">
+              <circle className="fill-app-soft stroke-app-border" cx="100" cy="100" r="98" strokeWidth="1.5" />
+              {Array.from({ length: 60 }, (_, i) => {
+                const major = i % 5 === 0;
+                return (
+                  <line
+                    className={major ? "stroke-app-muted" : "stroke-app-border"}
+                    key={i}
+                    strokeLinecap="round"
+                    strokeWidth={major ? 2 : 1}
+                    transform={`rotate(${i * 6} 100 100)`}
+                    x1="100"
+                    x2="100"
+                    y1="4.5"
+                    y2={major ? 11 : 8}
+                  />
+                );
+              })}
+              <circle className="stroke-app-border" cx="100" cy="100" r="88" fill="none" strokeWidth="5" />
+              <circle
+                className="stroke-accent"
+                cx="100"
+                cy="100"
+                fill="none"
+                pathLength={360}
+                r="88"
+                strokeDasharray={`${angle} 360`}
+                strokeLinecap="round"
+                strokeWidth="5"
+                transform="rotate(-90 100 100)"
+              />
+              <g transform={`rotate(${angle} 100 100)`}>
+                <circle className="fill-app-surface stroke-accent" cx="100" cy="12" r="6" strokeWidth="3" />
+              </g>
+            </svg>
+            {[
+              { Icon: KingIcon, pos: "left-1/2 top-[15%] -translate-x-1/2" },
+              { Icon: QueenIcon, pos: "right-[15%] top-1/2 -translate-y-1/2" },
+              { Icon: RookIcon, pos: "bottom-[15%] left-1/2 -translate-x-1/2" },
+              { Icon: KnightIcon, pos: "left-[15%] top-1/2 -translate-y-1/2" }
+            ].map(({ Icon, pos }, i) => (
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none absolute flex size-9 items-center justify-center rounded-full border border-app-border bg-app-surface text-primary-ink shadow-card ${pos}`}
+                key={i}
+              >
+                <Icon className="size-5" />
+              </span>
             ))}
-            <KingIcon className="pointer-events-none absolute left-1/2 top-3 size-6 -translate-x-1/2 text-app-muted" />
-            <QueenIcon className="pointer-events-none absolute right-3 top-1/2 size-6 -translate-y-1/2 text-app-muted" />
-            <RookIcon className="pointer-events-none absolute bottom-3 left-1/2 size-6 -translate-x-1/2 text-app-muted" />
-            <KnightIcon className="pointer-events-none absolute left-3 top-1/2 size-6 -translate-y-1/2 text-app-muted" />
-            <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-10" style={{ transform: `rotate(${angle}deg)` }}>
-              <div className="mx-auto mt-8 h-11 w-1 rounded-full bg-accent shadow-card" />
-            </div>
-            <p className="relative z-20 grid size-[60%] place-content-center rounded-full border border-app-border bg-app-surface text-center shadow-card">
-              <span className="text-6xl font-extrabold leading-none tracking-tight text-primary-ink tabular-nums">
+            <p className="absolute left-1/2 top-1/2 z-20 grid size-[50%] -translate-x-1/2 -translate-y-1/2 place-content-center rounded-full border border-app-border bg-app-surface text-center shadow-card">
+              <span className="text-5xl font-extrabold leading-none tracking-tight text-primary-ink tabular-nums sm:text-6xl">
                 <span aria-hidden="true">{minutes}</span>
                 <span className="sr-only">Up to 55</span>
               </span>
