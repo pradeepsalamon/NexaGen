@@ -33,7 +33,7 @@ Routes in `API_ROUTES.puzzleRushSolo`, contract in `packages/types/src/puzzle-ru
 
 | Route | |
 |---|---|
-| `GET /puzzle-rush/solo` | batches, personal bests, `enabled` |
+| `GET /puzzle-rush/solo` | batches, personal bests (`bests` all time, `weekBests` the last 7 days), `enabled` |
 | `POST /puzzle-rush/solo/runs` `{ mode }` | closes the student's unfinished run, freezes a new one |
 | `PUT /puzzle-rush/solo/runs/:id/progress` | the running totals; the server clamps them |
 | `GET /puzzle-rush/solo/leaderboard?batchId&mode&period` | `period` is `WEEK` or `ALL` |
@@ -53,8 +53,9 @@ Rules that must stay true:
 - **Only finished runs reach the leaderboard.** Each student's best run counts
   (score, then fewer errors, then earliest); ties on score and errors share a
   rank. The raw query carries `tenantFilter("r")` and is listed in
-  `tenancy/raw-sql-review.spec.ts`. Names are first and last name, as in the
-  live standings; at most 50 rows.
+  `tenancy/raw-sql-review.spec.ts`. Names are **first name and last initial**
+  ("Arjun K.", `leaderboardName`), because students are minors (owner's call
+  left to the builder, 2026-11-16); at most 50 rows.
 - **A run is read through the student's own id**: another student's run id is a
   404 (`cross-user-access` rows "student reports into another student's solo
   Puzzle Storm run" and "…a batch leaderboard they are not in").
@@ -70,9 +71,19 @@ student's privacy export (`soloPuzzleRushRuns`, without the puzzle list). There
 is no retention rule: a run is a few hundred bytes after it finishes and
 the leaderboard's "all time" reads them.
 
+## Web
+
+`/student/puzzle-rush` (`features/puzzle-rush-solo/`). The leaderboard
+refreshes itself every 45 s while it is on screen and the tab is visible
+(`refetchInterval` + `refetchIntervalInBackground: false`, a poll like chat's,
+no websocket), and at once after a finished run (the final report invalidates
+every `soloRush` query). The student dashboard shows `SoloRushDashboardCard`
+only when `enabled`: this week's best per mode (`weekBests`), or "Try Puzzle
+Storm"; nothing while it loads or if it fails.
+
 ## Not done
 
-- Live push of a leaderboard change (it refetches when a run finishes and on focus).
+- Live push of a leaderboard change (polled instead, above).
 - Points or rating for solo runs; the runs are not part of the student's puzzle
-  rating, Smart Revision or the activity history.
-- A batch-scoped "personal best" badge in the student dashboard.
+  rating, Smart Revision or the activity history (unchanged on purpose,
+  2026-11-16).
