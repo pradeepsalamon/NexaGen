@@ -234,6 +234,56 @@ its precondition, the student training surface, now exists).
 
 ## Questions for the owner (unattended runs)
 
+- **2026-11-17 night run (its plan file is removed by this PR; it is in git history as `docs/NIGHT_RUN_2026-11-17.md`): results, and what I assumed.** PRs, all into `dev`, none merged: **#156** app shell overlay nav (`feat/app-shell-overlay-nav`), **#157** form validation (`fix/form-validation-ux`), and this docs PR.
+  1. **Results as they came out.**
+     - **#156:** typecheck ✓, lint 0 errors (1 existing `<img>` warning), worktree `next build` ✓. `e2e/app-shell-nav.spec.ts`: Chromium 14/14. WebKit 12/14 on the first run: the two phone drawer guards (light and dark) tapped the backdrop mid-slide in WebKit's slow Linux build. Both passed once the test waited for the slide (the other 12 were not re-run).
+     - **#156 shots:** 126 across `/admin`, `/coach`, `/student` × 21 devices × light/dark, plus 18 desktop expanded and flyout cases (1280, 1440, 1920 px); 0 horizontal overflow.
+     - **#157:** typecheck ✓, lint 0 errors (same warning), worktree `next build` ✓. `e2e/form-validation.spec.ts` in Chromium: 22 passed, 2 skipped (batch edit at 390 px: batches are cards there).
+     - **#157 shots:** 168 with errors showing (login, register, reset password, new sales account dialog × 21 devices × light/dark); 0 overflow.
+  2. **`main`'s rect from the sidebar spec**, identical on the rail, expanded and collapsed again, in both themes and both browsers. The header toggle's and logo's rects were equal too.
+     - 1440 px: `{x:64, y:64, width:1376, height:2178}`
+     - 1280 px: `{x:64, y:64, width:1216, height:2238}`
+  3. **Forms:** 105 files audited (`docs/FORM_VALIDATION_AUDIT.md`; 42 with `<form>`, 17 with `useForm`, 72 dialogs with inputs).
+     - Tested automatically: **6**.
+     - Clicked through by hand: **0**.
+     - Read only (changed or inheriting the new `FormField`, checked by typecheck, lint and build but never driven in a browser): **49**.
+     - Not tested (unchanged): **50**.
+     - Some read-only rows could still hide a regression. The ones most worth a click: class request, deploy assignment, voucher, credit note, refund, withdrawal, stage editor.
+  4. **Client vs server rules.** Coach registration accepted a FIDE rating up to 9999 and up to 99 years of experience; the API allows 4000 and 80, and the client now enforces the API's limits. Two client rules are stricter than the API, as before, and were left: student registration requires "How did you hear about us?" (optional in the API), and age must be 3–99 (the API only asks for digits). Say if either should match the API.
+  5. **Calls made on your behalf.** The seven in the plan, all built as written:
+     - the page is offset by the rail only, and the panel slides over it
+     - the panel behaves like a popover and closes after navigation
+     - the rail is the resting state; the saved `collapsed` is no longer read, but the key is kept
+     - flyouts open on click and on hover after 150 ms, close 250 ms after the pointer leaves, and work from the keyboard
+     - phones and tablets unchanged
+     - field messages anchored under the field, never adding height
+     - form and server errors as toasts, except a lockout's wait time
+  6. **Calls I added (each yours to change):**
+     - **Nav:**
+       - The expand toggle keeps the rail's position in both states; the logo now sits to its right when expanded, where it used to be on the left. This is so the toggle never moves.
+       - The panel sits above the header's left end (`z-[45]`).
+       - A hover-opened flyout that is then clicked stays open.
+       - The flyout is navy like the nav, not the light popover style.
+       - Admin and SALES rail roles weren't rendered: `admin@nexa.test` doesn't sign in on staging, and no SALES user exists there. Their code paths are unchanged.
+     - **Forms:**
+       - Messages are announced once, when they appear (`role="alert"` on mount), rather than only after a submit.
+       - Auth forms got a fixed 20 px field gap; other forms keep 16 px or more.
+       - A group's message (assignment solution and batches) sits on its title line.
+       - The bulk puzzle edit's "why Review is disabled" is a fixed one-line slot.
+       - The original home page kept at `/academy` shows its checks as toasts, not field messages.
+       - The shared `Form` no longer toasts the list of field errors.
+       - The guest demo-join page got its own name and contact checks.
+     - **Left in place:** WhatsApp connection, gateway keys and the academy detail form still rely on browser `required` (they have no client validation; an empty submit gets the API's own message).
+  7. **Staging and the box.**
+     - Staging's dev-mode API (`nest start --watch`) had crashed out of memory at 20:09 before the run began. I relaunched only that window with `NODE_OPTIONS=--max-old-space-size=6144`. Say if `scripts/nexa.sh` `DEV_API_CMD` should set that.
+     - `TENANT_SCOPE_MODE` is unset in `apps/api/.env`, so dev mode runs the code default rather than `enforce` as stage does. Not changed.
+     - **An incident I caused and repaired.** I started a worktree's web with `scripts/nexa.sh start dev web`. Its `install_deps_if_needed` ran `npm install` (a fresh checkout's lockfile is always "newer"), and through the worktree's symlinks npm renamed 393 packages in the main checkout's `node_modules` (scoped folders, `.bin`, `apps/{api,web}/node_modules`) and created 121 empty folders before failing. Nothing ran from them in the meantime; staging's processes had their modules loaded already.
+       - Repaired by renaming each package back. The empty folders were moved into the session scratchpad, not deleted.
+       - Installed versions match `package-lock.json`. The `npm ls` complaints left (ajv / deepmerge-ts / chokidar ranges and 3 extraneous packages) are in files last written 2026-11-07 and 2026-11-16, i.e. they predate this run.
+       - Worktrees are now launched with tmux directly, and the memory notes say never to use `nexa.sh start` from a symlinked worktree.
+     - A `pkill -f` I ran matched only my own shell; no other process was touched.
+  8. **Dev servers:** back on this checkout (`dev`, dev mode, :3010/:3011, tmux `nexa-dev`), confirmed at the end of the run. The API window is the 20:09 relaunch, from this checkout.
+  9. **Tidy-up:** this run's worktrees `app-shell`, `forms` and `night-results-1117` stay until their open PRs are reviewed. Last night's worktrees are untouched. No branch was deleted.
 - **2026-11-16 (night run, item 10, `feat/solo-puzzle-rush`): solo Storm / Racer built; what I assumed.** Page `/student/puzzle-rush`, docs [PUZZLE_RUSH_SOLO.md](PUZZLE_RUSH_SOLO.md).
   1. **Who may play: students of a batch with puzzle training on** (the existing `puzzleTrainingEnabled` switch), so no new setting. Say if solo play should be its own switch, or open to coaches.
   2. **Leaderboard = best finished run per student, per batch, per mode**, "this week" or "all time", showing first and last names like the live standings. Students are minors: if names should be shortened to first name + initial, it is one line in `SoloPuzzleRushService.leaderboard`.
