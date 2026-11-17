@@ -17,8 +17,10 @@ import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/providers/ToastProvider";
+import { ApiError } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { useTouchedFields } from "@/hooks/useTouchedFields";
+import { focusFirstInvalid } from "@/lib/forms";
 import type { LoginFormValues } from "../types/auth";
 import { validateLoginForm } from "../validation/authValidation";
 import { login } from "../api/authApi";
@@ -47,9 +49,16 @@ export function LoginForm() {
     [touched, values]
   );
 
+  const [lockout, setLockout] = useState<string | null>(null);
   const loginMutation = useMutation({
     mutationFn: login,
     onError: (error) => {
+      // Too many attempts: the wait time has to stay on screen while they wait, so it sits
+      // under the password field instead of in a toast that fades.
+      if (error instanceof ApiError && error.status === 429) {
+        setLockout(getErrorMessage(error));
+        return;
+      }
       toast.error({
         message: getErrorMessage(error),
         title: "Login failed"
@@ -88,8 +97,10 @@ export function LoginForm() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     touchAll(values);
+    setLockout(null);
 
-    if (!values.email.trim() || !values.password.trim()) {
+    if (validateLoginForm(values, { email: true, password: true }).email || !values.password.trim()) {
+      focusFirstInvalid(event.currentTarget);
       return;
     }
 
@@ -138,7 +149,6 @@ export function LoginForm() {
         <FormField error={errors.email} id="email" label="Email address">
           <Input
             autoComplete="email"
-            aria-describedby={errors.email ? "email-error" : undefined}
             id="email"
             hasError={Boolean(errors.email)}
             inputMode="email"
@@ -146,21 +156,22 @@ export function LoginForm() {
             onBlur={() => touchField("email")}
             onChange={(e) => updateField("email", e.target.value)}
             placeholder="name@example.com"
+            required
             type="email"
             value={values.email}
           />
         </FormField>
 
-        <FormField error={errors.password} id="password" label="Password">
+        <FormField error={errors.password ?? lockout ?? undefined} id="password" label="Password">
           <PasswordInput
             autoComplete="current-password"
-            aria-describedby={errors.password ? "password-error" : undefined}
             id="password"
-            hasError={Boolean(errors.password)}
+            hasError={Boolean(errors.password ?? lockout)}
             leadingIcon={<Lock strokeWidth={2.25} />}
             onBlur={() => touchField("password")}
             onChange={(e) => updateField("password", e.target.value)}
             placeholder="Enter your password"
+            required
             value={values.password}
           />
         </FormField>

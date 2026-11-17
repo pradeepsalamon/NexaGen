@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/Select";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { getStoredAcquisition } from "@/lib/acquisition";
+import { focusFirstInvalid, getConfirmPasswordError, getEmailError, getFieldError, getNewPasswordError } from "@/lib/forms";
 import { registerCoach } from "../api/authApi";
 import type {
   AcquisitionSourceValue,
@@ -54,6 +55,9 @@ export function CoachRegisterForm() {
   const termsRef = useRef<HTMLButtonElement>(null);
 
   const hasFideTitle = Boolean(values.title && values.title !== "NONE");
+  const [touched, setTouched] = useState<Partial<Record<CoachField, boolean>>>({});
+  const touch = (field: CoachField) => setTouched((current) => ({ ...current, [field]: true }));
+  const errors = validateCoach(values, acquisitionSource, touched);
 
   const registerMutation = useMutation({
     mutationFn: registerCoach,
@@ -91,18 +95,16 @@ export function CoachRegisterForm() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (values.password !== values.confirmPassword) {
-      const confirmPassword = event.currentTarget.elements.namedItem(
-        "confirmPassword"
-      );
-
-      if (confirmPassword instanceof HTMLInputElement) {
-        confirmPassword.setCustomValidity("Passwords must match.");
-        confirmPassword.reportValidity();
-      }
+    const all = Object.fromEntries(COACH_FIELDS.map((field) => [field, true]));
+    setTouched(all);
+    const blocked = Object.values(validateCoach(values, acquisitionSource, all)).some(Boolean);
+    if (!acceptedTerms) setTermsError(TERMS_REQUIRED_MESSAGE);
+    if (blocked) {
+      focusFirstInvalid(event.currentTarget);
       return;
     }
 
+    // Already reported above; narrows the type for the request.
     if (!acquisitionSource) return;
 
     if (!acceptedTerms) {
@@ -141,12 +143,14 @@ export function CoachRegisterForm() {
   }
 
   return (
-    <form className="grid gap-6" onSubmit={handleSubmit}>
+    <form className="grid gap-6" noValidate onSubmit={handleSubmit}>
       <RegistrationFieldset legend="About you">
-        <FormField id="coach-name" label="Full name" required>
+        <FormField error={errors.coachName} id="coach-name" label="Full name" required>
           <Input
             autoComplete="name"
+            hasError={Boolean(errors.coachName)}
             id="coach-name"
+            onBlur={() => touch("coachName")}
             leadingIcon={<UserRound />}
             onChange={(e) => updateField("coachName", e.target.value)}
             placeholder="e.g. John Doe"
@@ -185,9 +189,11 @@ export function CoachRegisterForm() {
               />
             </FormField>
 
-            <FormField id="fide-rating" label="FIDE rating (optional)">
+            <FormField error={errors.fideRating} id="fide-rating" label="FIDE rating (optional)">
               <Input
+                hasError={Boolean(errors.fideRating)}
                 id="fide-rating"
+                onBlur={() => touch("fideRating")}
                 inputMode="numeric"
                 onChange={(e) => {
                   const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 4);
@@ -203,9 +209,11 @@ export function CoachRegisterForm() {
           </>
         )}
 
-        <FormField id="years-of-experience" label="Years of experience">
+        <FormField error={errors.yearsOfExperience} id="years-of-experience" label="Years of experience">
           <Input
+            hasError={Boolean(errors.yearsOfExperience)}
             id="years-of-experience"
+            onBlur={() => touch("yearsOfExperience")}
             inputMode="numeric"
             onChange={(e) => {
               const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 2);
@@ -225,6 +233,8 @@ export function CoachRegisterForm() {
         <AcquisitionSourceSelect
           detail={acquisitionDetail}
           onDetailChange={setAcquisitionDetail}
+          error={errors.acquisitionSource}
+          onBlur={() => touch("acquisitionSource")}
           onValueChange={setAcquisitionSource}
           required
           value={acquisitionSource}
@@ -232,10 +242,12 @@ export function CoachRegisterForm() {
       </RegistrationFieldset>
 
       <RegistrationFieldset legend="Contact and account">
-        <FormField id="email" label="Email address" required>
+        <FormField error={errors.email} id="email" label="Email address" required>
           <Input
             autoComplete="email"
+            hasError={Boolean(errors.email)}
             id="email"
+            onBlur={() => touch("email")}
             inputMode="email"
             leadingIcon={<AtSign />}
             onChange={(e) => updateField("email", e.target.value)}
@@ -246,10 +258,12 @@ export function CoachRegisterForm() {
           />
         </FormField>
 
-        <FormField id="contact-number" label="WhatsApp or phone number" required>
+        <FormField error={errors.contactNumber} id="contact-number" label="WhatsApp or phone number" required>
           <Input
             autoComplete="tel"
+            hasError={Boolean(errors.contactNumber)}
             id="contact-number"
+            onBlur={() => touch("contactNumber")}
             inputMode="numeric"
             leadingIcon={<Phone />}
             maxLength={15}
@@ -265,10 +279,12 @@ export function CoachRegisterForm() {
           />
         </FormField>
 
-        <FormField id="coach-password" label="Password" required>
+        <FormField error={errors.password} id="coach-password" label="Password" required>
           <PasswordInput
             autoComplete="new-password"
+            hasError={Boolean(errors.password)}
             id="coach-password"
+            onBlur={() => touch("password")}
             leadingIcon={<Lock />}
             onChange={(e) => updateField("password", e.target.value)}
             placeholder="Create a secure password"
@@ -277,14 +293,15 @@ export function CoachRegisterForm() {
           />
         </FormField>
 
-        <FormField id="coach-confirm-password" label="Confirm password" required>
+        <FormField error={errors.confirmPassword} id="coach-confirm-password" label="Confirm password" required>
           <PasswordInput
             autoComplete="new-password"
+            hasError={Boolean(errors.confirmPassword)}
             id="coach-confirm-password"
+            onBlur={() => touch("confirmPassword")}
             leadingIcon={<Lock />}
             name="confirmPassword"
             onChange={(e) => {
-              e.target.setCustomValidity("");
               updateField("confirmPassword", e.target.value);
             }}
             placeholder="Confirm your password"
@@ -321,4 +338,40 @@ export function CoachRegisterForm() {
       </div>
     </form>
   );
+}
+
+const COACH_FIELDS = [
+  "coachName",
+  "fideRating",
+  "yearsOfExperience",
+  "acquisitionSource",
+  "email",
+  "contactNumber",
+  "password",
+  "confirmPassword"
+] as const;
+type CoachField = (typeof COACH_FIELDS)[number];
+
+/** Field messages; the limits are the API's (`RegisterCoachDto`): rating 0–4000, experience 0–80. */
+function validateCoach(
+  values: Omit<RegisterCoachRequest, "acceptedTerms">,
+  acquisitionSource: string,
+  touched: Partial<Record<CoachField, boolean>>
+): Partial<Record<CoachField, string>> {
+  return {
+    acquisitionSource: getFieldError(Boolean(touched.acquisitionSource), acquisitionSource, "Choose an option"),
+    coachName: getFieldError(Boolean(touched.coachName), values.coachName, "Enter your full name"),
+    confirmPassword: getConfirmPasswordError(Boolean(touched.confirmPassword), values.confirmPassword, values.password),
+    contactNumber: getFieldError(Boolean(touched.contactNumber), values.contactNumber, "Enter a phone number"),
+    email: getEmailError(Boolean(touched.email), values.email),
+    fideRating:
+      touched.fideRating && values.fideRating !== undefined && values.fideRating > 4000
+        ? "Enter a rating up to 4000"
+        : undefined,
+    password: getNewPasswordError(Boolean(touched.password), values.password),
+    yearsOfExperience:
+      touched.yearsOfExperience && values.yearsOfExperience !== undefined && values.yearsOfExperience > 80
+        ? "Enter up to 80 years"
+        : undefined
+  };
 }

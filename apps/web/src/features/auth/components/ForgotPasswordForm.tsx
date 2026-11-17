@@ -9,6 +9,7 @@ import { Mail } from "lucide-react";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { getErrorMessage } from "@/lib/errors";
+import { focusFirstInvalid, getEmailError } from "@/lib/forms";
 import { useToast } from "@/providers/ToastProvider";
 import { forgotPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
@@ -19,6 +20,8 @@ export function ForgotPasswordForm() {
   const brandName = useBrandName();
   const toast = useToast();
   const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
+  const emailError = getEmailError(emailTouched, email);
   const [sentTo, setSentTo] = useState<string | null>(null);
 
   const forgotPasswordMutation = useMutation({
@@ -41,8 +44,12 @@ export function ForgotPasswordForm() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!email.trim()) return;
-    forgotPasswordMutation.mutate({ email });
+    setEmailTouched(true);
+    if (getEmailError(true, email)) {
+      focusFirstInvalid(event.currentTarget);
+      return;
+    }
+    forgotPasswordMutation.mutate({ email: email.trim() });
   }
 
   if (sentTo) {
@@ -77,13 +84,15 @@ export function ForgotPasswordForm() {
         title="Forgot your password?"
       />
 
-      <form className="grid gap-4" onSubmit={handleSubmit}>
-        <FormField id="forgot-email" label="Email address">
+      <form className="grid gap-4" noValidate onSubmit={handleSubmit}>
+        <FormField error={emailError} id="forgot-email" label="Email address">
           <Input
             autoComplete="email"
+            hasError={Boolean(emailError)}
             id="forgot-email"
             inputMode="email"
             leadingIcon={<Mail strokeWidth={2.25} />}
+            onBlur={() => setEmailTouched(true)}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="name@example.com"
             required
