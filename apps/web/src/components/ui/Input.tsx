@@ -11,9 +11,11 @@ export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
 };
 
 const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { className, density = "default", hasError = false, leadingIcon, type, ...props },
+  { className, density = "default", hasError: hasErrorProp = false, leadingIcon, type, ...props },
   ref
 ) {
+  // FormField marks its control aria-invalid when it has an error: show the error border too.
+  const hasError = hasErrorProp || props["aria-invalid"] === true || props["aria-invalid"] === "true";
   const compact = density === "compact";
   const input = (
     <input
