@@ -37,10 +37,18 @@ and are mapped in `tailwind.config.ts`.
 - **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
   scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
 - **Role nav** (`components/layout/Sidebar.tsx`): from `xl` a full-height navy
-  card with the logo and a collapse button on top and the user (name + role)
-  at the foot; the header starts beside it. The active link is a solid
-  `bg-primary` fill. Below `xl` it is the off-canvas drawer with main's gold
-  edge tab.
+  64 px icon rail with the expand button on top and the user at the foot; the
+  header starts beside it. **The page is offset by the rail only
+  (`--app-rail-w`) and never moves or resizes when the nav opens**: the
+  expanded 256 px panel (logo, labels, sections) slides *over* the page like a
+  popover and closes on any navigation, Escape, its toggle or a click outside
+  it and the header. Every load starts on the rail (nothing is saved). A rail
+  link shows its label as a tooltip; a rail section (admin) opens a flyout of
+  its links on click, on hover after 150 ms (closing 250 ms after the pointer
+  leaves icon and flyout) and from the keyboard (Enter / Space / ArrowRight,
+  Escape returns to the icon). Never add page padding or width that follows
+  the nav's state. The active link is a solid `bg-primary` fill. Below `xl` it
+  is the off-canvas drawer with main's gold edge tab.
 
 | Need | Use | Never |
 |---|---|---|
@@ -194,8 +202,8 @@ disagree.
   use the `tailwindcss-animate` classes (`animate-in fade-in-0 zoom-in-95` …);
   pages fade in with `animate-fade-in` (opacity only: a transform would trap
   `position: fixed` children); buttons press to 97%. Animate `transform` and
-  `opacity`, never a page-wide `padding`/`width` (the docked nav animates only
-  its own column). `prefers-reduced-motion` turns it all off (globals.css).
+  `opacity`, never a page-wide `padding`/`width` (the nav animates only its
+  own panel, which floats over the page). `prefers-reduced-motion` turns it all off (globals.css).
 - **KPI / stat tiles are two per row on phones** (`KpiCardRow`, and grids
   holding `StatTile` start at `grid-cols-2`) — never one full-width tile per
   number, never a sideways strip.
