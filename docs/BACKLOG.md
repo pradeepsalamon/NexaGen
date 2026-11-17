@@ -283,7 +283,7 @@ its precondition, the student training surface, now exists).
        - Worktrees are now launched with tmux directly, and the memory notes say never to use `nexa.sh start` from a symlinked worktree.
      - A `pkill -f` I ran matched only my own shell; no other process was touched.
   8. **Dev servers:** back on this checkout (`dev`, dev mode, :3010/:3011, tmux `nexa-dev`), confirmed at the end of the run. The API window is the 20:09 relaunch, from this checkout.
-  9. **Tidy-up:** this run's worktrees `app-shell`, `forms` and `night-results-1117` stay until their open PRs are reviewed. Last night's worktrees are untouched. No branch was deleted.
+  9. **Tidy-up:** removed this run's clean worktree `night-results-1117`. **Kept `app-shell` and `forms`**: their only change is `apps/web/next-env.d.ts` (the rewrite every `next dev`/`next build` makes), so they aren't clean. Both hold a copy of `apps/web/.env.local` and `.env.e2e` (gitignored, staging URLs only), and `app-shell` also `apps/api/.env`. Last night's worktrees are untouched. No branch was deleted locally or on GitHub.
 - **2026-11-16 (night run, item 10, `feat/solo-puzzle-rush`): solo Storm / Racer built; what I assumed.** Page `/student/puzzle-rush`, docs [PUZZLE_RUSH_SOLO.md](PUZZLE_RUSH_SOLO.md).
   1. **Who may play: students of a batch with puzzle training on** (the existing `puzzleTrainingEnabled` switch), so no new setting. Say if solo play should be its own switch, or open to coaches.
   2. **Leaderboard = best finished run per student, per batch, per mode**, "this week" or "all time", showing first and last names like the live standings. Students are minors: if names should be shortened to first name + initial, it is one line in `SoloPuzzleRushService.leaderboard`.
