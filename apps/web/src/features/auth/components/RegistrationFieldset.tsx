@@ -10,7 +10,7 @@ export function RegistrationFieldset({ legend, children }: RegistrationFieldsetP
   return (
     <fieldset className="min-w-0">
       <legend className="mb-3 text-sm font-semibold text-app-text">{legend}</legend>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
+      <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">{children}</div>
     </fieldset>
   );
 }

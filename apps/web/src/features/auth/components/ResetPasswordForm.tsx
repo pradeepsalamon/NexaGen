@@ -86,7 +86,7 @@ export function ResetPasswordForm() {
         description="Use at least 8 characters, with at least one letter and one number."
         title="Reset your password"
       />
-      <form className="grid gap-4" noValidate onSubmit={handleSubmit}>
+      <form className="grid gap-5" noValidate onSubmit={handleSubmit}>
         <FormField error={passwordError} id="reset-password" label="New password">
           <PasswordInput
             autoComplete="new-password"

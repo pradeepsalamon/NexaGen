@@ -145,7 +145,7 @@ export function LoginForm() {
         title="Welcome back"
       />
 
-      <form className="grid gap-4" noValidate onSubmit={handleSubmit}>
+      <form className="grid gap-5" noValidate onSubmit={handleSubmit}>
         <FormField error={errors.email} id="email" label="Email address">
           <Input
             autoComplete="email"

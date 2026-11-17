@@ -84,7 +84,7 @@ export function ForgotPasswordForm() {
         title="Forgot your password?"
       />
 
-      <form className="grid gap-4" noValidate onSubmit={handleSubmit}>
+      <form className="grid gap-5" noValidate onSubmit={handleSubmit}>
         <FormField error={emailError} id="forgot-email" label="Email address">
           <Input
             autoComplete="email"
