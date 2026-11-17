@@ -100,6 +100,121 @@ for (const theme of THEMES) {
         await expect(toast).not.toContainText(/Exception|undefined|status code/i);
         expect(await heightOf(form)).toBe(before);
       });
+
+      test("register: password rules and an empty select, all under their fields", async ({ page }) => {
+        await useTheme(page, theme);
+        await page.goto("/register");
+        const form = page.locator("form").first();
+        await expect(form).toBeVisible({ timeout: 60_000 });
+        const calls = countRequests(page, "/auth/register");
+        const before = await heightOf(form);
+
+        await page.locator("#password").fill("short1");
+        await page.locator("#password").blur();
+        await expectFieldError(page, "password", "Use at least 8 characters");
+        await page.locator("#password").fill("lettersonly");
+        await expectFieldError(page, "password", "Use at least one letter and one number");
+        await page.locator("#confirm-password").fill("different1");
+        await page.locator("#confirm-password").blur();
+        await expectFieldError(page, "confirm-password", "Passwords don't match");
+        expect(await heightOf(form)).toBe(before);
+
+        await page.getByRole("button", { name: "Complete registration" }).click();
+        await expectFieldError(page, "acquisition-source", "Choose an option");
+        await expectFieldError(page, "student-name", "Enter the student's name");
+        await expect(page.locator("#student-name")).toBeFocused();
+        expect(await heightOf(form)).toBe(before);
+
+        // Fixed values clear their messages at once.
+        await page.locator("#password").fill("letters123");
+        await expect(page.locator("#password-error")).toHaveCount(0);
+        await page.locator("#acquisition-source").selectOption({ index: 1 });
+        await expect(page.locator("#acquisition-source-error")).toHaveCount(0);
+        expect(calls.count).toBe(0);
+      });
+
+      test("coach register: the API's number limit is checked in the browser", async ({ page }) => {
+        await useTheme(page, theme);
+        await page.goto("/register");
+        await page.getByRole("tab", { name: "Coach" }).click();
+        const field = page.locator("#years-of-experience");
+        await expect(field).toBeVisible({ timeout: 60_000 });
+        await field.fill("99");
+        await field.blur();
+        await expectFieldError(page, "years-of-experience", "Enter up to 80 years");
+        await field.fill("12");
+        await expect(page.locator("#years-of-experience-error")).toHaveCount(0);
+      });
+
+      test("dialog: new sales account blocks an empty submit and shows a duplicate email as a toast", async ({ page }) => {
+        await useTheme(page, theme);
+        await page.context().addCookies(adminCookies);
+        await page.goto("/admin/referrals?tab=referrers");
+        await page.getByRole("button", { name: "New sales account" }).click({ timeout: 60_000 });
+        const dialog = page.getByRole("dialog", { name: "New sales account" });
+        await expect(dialog).toBeVisible();
+        // Let the open animation (zoom-in) finish: its transform is in the measured box.
+        await page.waitForTimeout(500);
+        const calls = countRequests(page, "/users");
+        const before = await heightOf(dialog);
+
+        await dialog.getByRole("button", { name: /create/i }).click();
+        await expectFieldError(page, "sales-first", "Enter a first name");
+        expect(await heightOf(dialog)).toBe(before);
+        await page.locator("#sales-first").fill("E2E");
+        await dialog.getByRole("button", { name: /create/i }).click();
+        await expectFieldError(page, "sales-email", "Enter a valid email");
+        expect(await heightOf(dialog)).toBe(before);
+        expect(calls.count).toBe(0);
+
+        // A server refusal: an email that already has an account. Nothing is created.
+        await page.locator("#sales-email").fill("superadmin@nexa.test");
+        const [response] = await Promise.all([
+          page.waitForResponse((r) => new URL(r.url()).pathname.endsWith("/users") && r.request().method() === "POST"),
+          dialog.getByRole("button", { name: /create/i }).click()
+        ]);
+        expect(response.status()).toBeGreaterThanOrEqual(400);
+        expect(response.status()).toBeLessThan(500);
+        const toast = page.locator("[data-sonner-toast]").filter({ hasText: "Could not create the account" });
+        await expect(toast).toBeVisible();
+        await expect(toast).not.toContainText(/Exception|undefined|status code/i);
+        expect(await heightOf(dialog)).toBe(before);
+      });
+
+      test("edit: a batch loads, an empty name is blocked, and a valid save goes through", async ({ page }) => {
+        // Phones list batches as cards; the 390 px checks are the login and dialog tests.
+        test.skip(width === 390, "desktop table only");
+        await useTheme(page, theme);
+        await page.context().addCookies(adminCookies);
+        await page.goto("/admin/batches");
+        // Row actions are labelled "Edit <batch name>".
+        const edit = page.locator("table").first().getByRole("button", { name: /^Edit / }).first();
+        await edit.click({ timeout: 60_000 });
+        const name = page.locator("#name");
+        await expect(name).not.toHaveValue("", { timeout: 30_000 });
+        const original = await name.inputValue();
+        const form = page.locator("form").filter({ has: name });
+        const before = await heightOf(form);
+        const saves = { count: 0 };
+        page.on("request", (r) => {
+          if (r.method() === "PATCH" && /\/batches\//.test(new URL(r.url()).pathname)) saves.count += 1;
+        });
+
+        await name.fill("");
+        await page.getByRole("button", { name: "Save Batch" }).click();
+        await expectFieldError(page, "name", /required/i);
+        expect(await heightOf(form)).toBe(before);
+        await page.waitForTimeout(400);
+        expect(saves.count).toBe(0);
+
+        await name.fill(original);
+        await expect(page.locator("#name-error")).toHaveCount(0);
+        const [response] = await Promise.all([
+          page.waitForResponse((r) => r.request().method() === "PATCH" && /\/batches\//.test(new URL(r.url()).pathname)),
+          page.getByRole("button", { name: "Save Batch" }).click()
+        ]);
+        expect(response.ok()).toBeTruthy();
+      });
     });
   }
 }

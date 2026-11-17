@@ -52,7 +52,7 @@ export function AcquisitionSourceSelect({
     value === "coach_referral" ? "Which coach?" : "Tell us more";
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-4">
       <FormField error={error} id="acquisition-source" label="How did you hear about us?" required={required}>
         <Select
           density={density}

@@ -237,7 +237,7 @@ function StageDialog({ currency, onClose, stage }: { stage: ReferralStageItem | 
             ) : (
               <p className="text-xs text-app-muted">Blank = nothing. Applies to referrals reaching the stage from now on.</p>
             )}
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-x-3 gap-y-4 sm:grid-cols-2">
               <FormField error={errorFor("student")} hint="Spent in the rewards store" id="stage-student" label="Student referrer (points)">
                 <Input hasError={Boolean(errorFor("student"))} id="stage-student" inputMode="numeric" onChange={(event) => setStudentPoints(event.target.value)} value={studentPoints} />
               </FormField>
