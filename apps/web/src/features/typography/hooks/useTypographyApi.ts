@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { UpdateTypographyAdminRequest, UpdateTypographyRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
@@ -31,7 +32,7 @@ export function useUpdateTypographyMutation() {
       qc.setQueryData(queryKeys.typography.resolved, data);
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't save text settings", message: error.message }),
+      toast.error({ title: "Couldn't save text settings", message: getErrorMessage(error) }),
   });
 }
 
@@ -45,7 +46,7 @@ export function useResetTypographyMutation() {
       qc.setQueryData(queryKeys.typography.resolved, data);
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't reset text settings", message: error.message }),
+      toast.error({ title: "Couldn't reset text settings", message: getErrorMessage(error) }),
   });
 }
 
@@ -67,7 +68,7 @@ export function useUpdateTypographyAdminMutation() {
       qc.invalidateQueries({ queryKey: queryKeys.typography.resolved });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't update the platform fonts", message: error.message }),
+      toast.error({ title: "Couldn't update the platform fonts", message: getErrorMessage(error) }),
   });
 }
 
@@ -82,6 +83,6 @@ export function useResetTypographyAdminMutation() {
       qc.invalidateQueries({ queryKey: queryKeys.typography.resolved });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't reset the platform fonts", message: error.message }),
+      toast.error({ title: "Couldn't reset the platform fonts", message: getErrorMessage(error) }),
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/providers/ToastProvider";
 import { Mail, MessageCircle } from "lucide-react";
 import type { ReferrerStatsItem, SendReferrerAccessLinkResponse } from "@nexa-chess/types";
 import { Alert } from "@/components/ui/Alert";
@@ -123,7 +124,10 @@ export function NewSalesAccountDialog({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [channels, setChannels] = useState<Channel[]>(["EMAIL"]);
-  const [error, setError] = useState<string | null>(null);
+  // A message goes under the field it is about (UI_RULES § "Form errors").
+  const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
+  const toast = useToast();
   const [result, setResult] = useState<SendReferrerAccessLinkResponse | null>(null);
 
   // The account and its link are two writes: when only the link fails, the
@@ -150,7 +154,7 @@ export function NewSalesAccountDialog({ onClose }: { onClose: () => void }) {
       try {
         return await referralAdminApi.sendAccessLink(userId, { channels, phoneNumber: phone.trim() || undefined });
       } catch (linkError) {
-        setError("The account was created, but its sign-in link wasn't sent. Try again, or send it later from the Referrers tab.");
+        toast.error({ message: "Try again, or send it later from the Referrers tab.", title: "The account was created, but its sign-in link wasn't sent" });
         throw linkError;
       }
     },
@@ -159,10 +163,10 @@ export function NewSalesAccountDialog({ onClose }: { onClose: () => void }) {
 
   const submit = () => {
     if (!createdUserId) {
-      if (!firstName.trim()) return setError("Enter a first name.");
-      if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Enter a valid email address.");
+      if (!firstName.trim()) return setError({ field: "first", message: "Enter a first name" });
+      if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError({ field: "email", message: "Enter a valid email" });
     }
-    if (channels.includes("WHATSAPP") && phone.replace(/\D/g, "").length < 10) return setError("Enter a WhatsApp number.");
+    if (channels.includes("WHATSAPP") && phone.replace(/\D/g, "").length < 10) return setError({ field: "phone", message: "Enter a WhatsApp number" });
     setError(null);
     create.mutate(undefined, {
       onSuccess: (sent) => (sent ? setResult(sent) : onClose())
@@ -183,21 +187,20 @@ export function NewSalesAccountDialog({ onClose }: { onClose: () => void }) {
         ) : (
           <div className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField id="sales-first" label="First name" required>
+              <FormField error={errorFor("first")} id="sales-first" label="First name" required>
                 <Input disabled={!!createdUserId} id="sales-first" maxLength={120} onChange={(event) => setFirstName(event.target.value)} value={firstName} />
               </FormField>
               <FormField id="sales-last" label="Last name">
                 <Input disabled={!!createdUserId} id="sales-last" maxLength={120} onChange={(event) => setLastName(event.target.value)} value={lastName} />
               </FormField>
             </div>
-            <FormField id="sales-email" label="Email" required>
+            <FormField error={errorFor("email")} id="sales-email" label="Email" required>
               <Input disabled={!!createdUserId} id="sales-email" inputMode="email" onChange={(event) => setEmail(event.target.value)} type="email" value={email} />
             </FormField>
-            <FormField hint="Needed to send the link by WhatsApp." id="sales-phone" label="Phone (WhatsApp)">
-              <Input id="sales-phone" inputMode="tel" onChange={(event) => setPhone(event.target.value)} value={phone} />
+            <FormField error={errorFor("phone")} hint="Needed to send the link by WhatsApp." id="sales-phone" label="Phone (WhatsApp)">
+              <Input hasError={Boolean(errorFor("phone"))} id="sales-phone" inputMode="tel" onChange={(event) => setPhone(event.target.value)} value={phone} />
             </FormField>
             <ChannelPicker channels={channels} onChange={setChannels} />
-            {error ? <Alert variant="error">{error}</Alert> : null}
           </div>
         )}
         <DialogFooter>

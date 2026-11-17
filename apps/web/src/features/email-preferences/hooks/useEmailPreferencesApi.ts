@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   getEmailPreferences,
@@ -25,7 +26,7 @@ export function useSetEmailPreferencesByLink() {
   return useMutation({
     mutationFn: setEmailPreferencesByLink,
     // The link may belong to whoever is signed in here; their profile switch must not show a stale value.
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't save email preferences" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't save email preferences" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.emailPreferences.mine })
   });
 }

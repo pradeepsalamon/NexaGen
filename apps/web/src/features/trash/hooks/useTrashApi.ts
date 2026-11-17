@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { TrashBulkActionRequest, TrashItem, TrashListRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import {
@@ -63,7 +64,7 @@ export function useEmptyTrashMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: emptyTrash,
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't empty trash" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't empty trash" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
     }

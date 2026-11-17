@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   AdjustClassLeaderboardRequest,
   AdjustLivePuzzlePointsRequest,
@@ -92,7 +93,7 @@ export function useAssignLivePuzzle(classId: string) {
       qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.boards(classId) });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't share the puzzle", message: error.message })
+      toast.error({ title: "Couldn't share the puzzle", message: getErrorMessage(error) })
   });
 }
 
@@ -109,7 +110,7 @@ export function useShareLivePuzzleFromBoard(classId: string) {
       qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.boards(classId) });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't share the puzzle", message: error.message })
+      toast.error({ title: "Couldn't share the puzzle", message: getErrorMessage(error) })
   });
 }
 
@@ -125,7 +126,7 @@ export function useEndLivePuzzle(classId: string) {
       qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.boards(classId) });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't end the puzzle", message: error.message })
+      toast.error({ title: "Couldn't end the puzzle", message: getErrorMessage(error) })
   });
 }
 
@@ -144,7 +145,7 @@ export function useUpdateLivePuzzle(classId: string, opts: { quiet?: boolean } =
       qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't update the puzzle", message: error.message })
+      toast.error({ title: "Couldn't update the puzzle", message: getErrorMessage(error) })
   });
 }
 
@@ -170,7 +171,7 @@ export function useAdjustClassLeaderboard(classId: string) {
       qc.setQueryData(queryKeys.livePuzzle.classLeaderboard(classId), data);
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't adjust points", message: error.message })
+      toast.error({ title: "Couldn't adjust points", message: getErrorMessage(error) })
   });
 }
 
@@ -185,6 +186,6 @@ export function useAdjustLivePuzzlePoints(classId: string) {
       qc.setQueryData(queryKeys.livePuzzle.leaderboard(classId), data);
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't adjust points", message: error.message })
+      toast.error({ title: "Couldn't adjust points", message: getErrorMessage(error) })
   });
 }

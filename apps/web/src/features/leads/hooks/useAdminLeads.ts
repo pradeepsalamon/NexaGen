@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   AssignLeadDemoClassRequest,
   CreateLeadNoteRequest,
@@ -52,7 +53,7 @@ export function useUpdateLeadStatusMutation(id: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.leads.all });
     },
     onError: (error: Error) => {
-      toast.error({ title: "Failed to update lead status", message: error.message });
+      toast.error({ title: "Failed to update lead status", message: getErrorMessage(error) });
     }
   });
 }
@@ -68,7 +69,7 @@ export function useAddLeadNoteMutation(id: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.leads.detail(id) });
     },
     onError: (error: Error) => {
-      toast.error({ title: "Failed to add note", message: error.message });
+      toast.error({ title: "Failed to add note", message: getErrorMessage(error) });
     }
   });
 }
@@ -92,7 +93,7 @@ export function useAssignLeadDemoClassMutation(id: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.leads.all });
     },
     onError: (error: Error) => {
-      toast.error({ title: "Failed to assign demo class", message: error.message });
+      toast.error({ title: "Failed to assign demo class", message: getErrorMessage(error) });
     }
   });
 }
@@ -108,7 +109,7 @@ export function useDeleteLeadMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.leads.all });
     },
     onError: (error: Error) => {
-      toast.error({ title: "Failed to delete lead", message: error.message });
+      toast.error({ title: "Failed to delete lead", message: getErrorMessage(error) });
     }
   });
 }

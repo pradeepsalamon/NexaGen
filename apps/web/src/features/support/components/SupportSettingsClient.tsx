@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { FieldError } from "@/components/ui/FieldError";
 import Link from "next/link";
 import { useMemo } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
@@ -193,6 +194,7 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
   return (
     <form
       className="grid gap-6"
+      noValidate
       onSubmit={handleSubmit((values) => {
         save.mutateAsync(toRequest(values)).then((saved) => reset(toForm(saved, userZone)), () => undefined);
       })}
@@ -367,9 +369,7 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
                             <TimePicker aria-label={`${label} closes`} id={`support-day-${index}-close`} onChange={field.onChange} value={field.value} />
                           )}
                         />
-                        {errors.days?.[index]?.close?.message ? (
-                          <p className="text-xs text-app-danger-ink sm:col-start-2 sm:col-end-5">{errors.days[index]?.close?.message}</p>
-                        ) : null}
+                        <FieldError className="sm:col-start-2 sm:col-end-5" id={`support-day-${index}-close`} message={errors.days?.[index]?.close?.message} standalone />
                       </>
                     ) : (
                       <span className="text-sm text-app-muted sm:col-span-3">Closed</span>

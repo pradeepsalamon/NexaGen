@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   AttachCourseModuleRequest,
   CourseListQuery,
@@ -53,7 +54,7 @@ export function useCreateCourse() {
     mutationFn: (data: CreateCourseRequest) => createCourse(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.courses.all }),
     onError: (error: Error) =>
-      toast.error({ title: "Could not create course", message: error.message })
+      toast.error({ title: "Could not create course", message: getErrorMessage(error) })
   });
 }
 
@@ -64,7 +65,7 @@ export function useUpdateCourse() {
     mutationFn: ({ id, data }: { id: string; data: UpdateCourseRequest }) => updateCourse(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.courses.all }),
     onError: (error: Error) =>
-      toast.error({ title: "Could not save course", message: error.message })
+      toast.error({ title: "Could not save course", message: getErrorMessage(error) })
   });
 }
 
@@ -111,7 +112,7 @@ export function useAttachModule(courseId: string) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.courses.lists });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Could not attach module", message: error.message })
+      toast.error({ title: "Could not attach module", message: getErrorMessage(error) })
   });
 }
 
@@ -123,7 +124,7 @@ export function useUpdateModule(courseId: string) {
       updateCourseModule(courseId, moduleId, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.courses.detail(courseId) }),
     onError: (error: Error) =>
-      toast.error({ title: "Could not update module", message: error.message })
+      toast.error({ title: "Could not update module", message: getErrorMessage(error) })
   });
 }
 
@@ -144,7 +145,7 @@ export function useReorderModules(courseId: string) {
     mutationFn: (data: ReorderCourseModulesRequest) => reorderCourseModules(courseId, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.courses.detail(courseId) }),
     onError: (error: Error) =>
-      toast.error({ title: "Could not reorder modules", message: error.message })
+      toast.error({ title: "Could not reorder modules", message: getErrorMessage(error) })
   });
 }
 
@@ -172,6 +173,6 @@ export function useCompleteModule(courseId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.courses.mine });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Could not mark this complete", message: error.message })
+      toast.error({ title: "Could not mark this complete", message: getErrorMessage(error) })
   });
 }

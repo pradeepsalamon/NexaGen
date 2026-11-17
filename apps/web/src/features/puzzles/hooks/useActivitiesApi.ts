@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { CreateLibraryActivityRequest, LibraryListQuery, UpdateLibraryActivityRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
@@ -28,7 +29,7 @@ export function useCreateActivity() {
   const toast = useToast();
   return useMutation({
     mutationFn: (body: CreateLibraryActivityRequest) => createActivity(body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't save" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't save" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.puzzles.all })
   });
 }
@@ -39,7 +40,7 @@ export function useUpdateActivity(id: string) {
   const toast = useToast();
   return useMutation({
     mutationFn: (body: UpdateLibraryActivityRequest) => updateActivity(id, body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't save" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't save" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.puzzles.all })
   });
 }

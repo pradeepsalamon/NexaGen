@@ -198,6 +198,7 @@ function BonusDialog({
         <form
           className="grid max-h-[65dvh] gap-4 overflow-y-auto pr-1"
           id="bonus-form"
+          noValidate
           onSubmit={form.handleSubmit((values) => save.mutate(values, { onSuccess: onClose }))}
         >
           <FormField error={errors.name?.message} id="bonus-name" label="Name" required>

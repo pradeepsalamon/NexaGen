@@ -31,7 +31,7 @@ export function FieldError({
   /**
    * For a field without a `relative` wrapper: renders a zero-height anchor (always, with or
    * without a message, so any gap it takes in a grid or stack is fixed) and the message hangs
-   * from it.
+   * from it. `className` then goes on the anchor (e.g. its grid placement).
    */
   standalone?: boolean;
 }) {
@@ -51,8 +51,8 @@ export function FieldError({
 
   if (standalone) {
     return (
-      <div className="relative h-0">
-        <FieldError className={className} id={id} message={message} />
+      <div className={cn("relative h-0", className)}>
+        <FieldError id={id} message={message} />
       </div>
     );
   }

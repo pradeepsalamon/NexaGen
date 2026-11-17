@@ -484,7 +484,7 @@ export function AssignmentFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={onSubmit} className="grid gap-4 py-2">
+        <form noValidate onSubmit={onSubmit} className="grid gap-4 py-2">
           {mode === "create" && !fromFolder && allowLibrarySource ? (
             <div className="grid gap-1.5">
               <p className="text-sm font-semibold text-app-text">What are you assigning?</p>

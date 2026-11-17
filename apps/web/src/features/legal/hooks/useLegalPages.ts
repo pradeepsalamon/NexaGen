@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { LegalPageKind } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
@@ -22,7 +23,7 @@ export function useUpdateLegalPage() {
   const toast = useToast();
   return useMutation({
     mutationFn: ({ body, kind }: { body: string; kind: LegalPageKind }) => updateAdminLegalPage(kind, { body }),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Page not saved" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Page not saved" }),
     onSuccess: (data, { body, kind }) => {
       queryClient.setQueryData(queryKeys.branding.legalPages, data);
       void queryClient.invalidateQueries({ queryKey: queryKeys.branding.legalPage(kind) });
