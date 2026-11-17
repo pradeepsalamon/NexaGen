@@ -264,7 +264,7 @@ its precondition, the student training surface, now exists).
        - The panel sits above the header's left end (`z-[45]`).
        - A hover-opened flyout that is then clicked stays open.
        - The flyout is navy like the nav, not the light popover style.
-       - The nav link list was diffed before/after for super admin, coach and student (unchanged). The plain admin account and SALES weren't rendered: `admin@nexa.test` returns 401 on staging (retried at the end of the run; fixing it needs a database write, which the plan rules out), and no SALES user exists there. Admin uses the same `AdminSidebar` as super admin and its code path is unchanged.
+       - The nav link list was diffed before/after for super admin, coach and student (unchanged). The plain admin account and SALES weren't rendered: `admin@nexa.test` returns 401 on staging (retried at the end of the run; fixing it needs a database write, which the plan rules out), and no SALES user exists there. To diff the admin list without signing in, I ran `getAdminNavGroups("ADMIN", …)` (the one source of the admin links, unchanged by #156) from both `dev` and the branch, with and without the platform-operator flag: 91 entries each, identical. The rendering path (`AdminSidebar` → `Sidebar`) is the one exercised for super admin, whose rendered list was unchanged.
      - **Forms:**
        - Messages are announced once, when they appear (`role="alert"` on mount), rather than only after a submit.
        - Auth forms got a fixed 20 px field gap; other forms keep 16 px or more.
