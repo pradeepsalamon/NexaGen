@@ -276,9 +276,10 @@ export function BulkEditPuzzlesDialog({
                 <Input aria-label="Replace with" value={replace} maxLength={200} placeholder="Replace with" onChange={(e) => setReplace(e.target.value)} />
               </div>
             </FieldRow>
-            {on.size > 0 && problems.length > 0 ? (
-              <p className="text-sm text-app-danger-ink">{problems[0]}</p>
-            ) : null}
+            {/* Why "Review" is disabled: a one-line notice in a fixed slot, so it never moves the dialog. */}
+            <p aria-live="polite" className="m-0 h-5 truncate text-sm leading-5 text-app-danger-ink">
+              {on.size > 0 && problems.length > 0 ? problems[0] : null}
+            </p>
           </div>
         ) : (
           <ul className="list-disc space-y-1.5 rounded-control bg-app-soft py-3 pl-8 pr-3 text-sm text-app-text">

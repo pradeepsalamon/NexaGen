@@ -98,6 +98,7 @@ function DeletionDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) 
   const toast = useToast();
   const submit = useRequestAccountDeletion();
   const form = useForm<CreateAccountDeletionRequest>({
+    mode: "onTouched",
     defaultValues: { currentPassword: "", reason: "" },
     resolver: zodResolver(createAccountDeletionRequestSchema)
   });

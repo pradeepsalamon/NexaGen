@@ -153,6 +153,7 @@ function BonusDialog({
 }) {
   const defaultStage = stages.find((stage) => stage.trigger === "CONVERTED") ?? stages[0];
   const form = useForm<BonusForm>({
+    mode: "onTouched",
     defaultValues: {
       amount: rule ? (rule.audience === "STUDENTS" ? String(rule.amount) : String(toMajorUnits(rule.amount, rule.currency))) : "",
       audience: rule?.audience ?? "STUDENTS",

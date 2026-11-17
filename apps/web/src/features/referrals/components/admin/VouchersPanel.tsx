@@ -184,6 +184,7 @@ function VoucherDialog({ currency, onClose, voucher }: { voucher: ReferralVouche
   const plans = planData?.plans ?? [];
   const major = (minor: number | null) => (minor === null ? "" : String(toMajorUnits(minor, currency)));
   const form = useForm<VoucherForm>({
+    mode: "onTouched",
     defaultValues: {
       amountOff: major(voucher?.amountOffMinor ?? null),
       codeValidDays: blankOr(voucher?.codeValidDays ?? null),
@@ -209,7 +210,9 @@ function VoucherDialog({ currency, onClose, voucher }: { voucher: ReferralVouche
   const { errors } = form.formState;
   const type = form.watch("type");
   const planIds = form.watch("planIds");
-  const [problem, setProblem] = useState<string | null>(null);
+  // The shared voucher rule names the field it is about; the message goes under that field.
+  const [problem, setProblem] = useState<{ field: VoucherProblemField; message: string } | null>(null);
+  const problemFor = (field: VoucherProblemField) => (problem?.field === field ? problem.message : undefined);
 
   const save = useReferralAdminMutation(
     (body: CreateReferralVoucherRequest) => (voucher ? referralAdminApi.updateVoucher(voucher.id, body) : referralAdminApi.createVoucher(body)),
@@ -240,8 +243,10 @@ function VoucherDialog({ currency, onClose, voucher }: { voucher: ReferralVouche
       type
     };
     const shape = referralVoucherProblem(body);
-    if (shape) return setProblem(shape.message);
-    if (body.percentOff !== null && body.percentOff !== undefined && body.percentOff > 100) return setProblem("A discount is at most 100%.");
+    if (shape) return setProblem({ field: VOUCHER_PROBLEM_FIELDS[shape.path] ?? "percentOff", message: shape.message.replace(/\.$/, "") });
+    if (body.percentOff !== null && body.percentOff !== undefined && body.percentOff > 100) {
+      return setProblem({ field: "percentOff", message: "A discount is at most 100%" });
+    }
     setProblem(null);
     save.mutate(body, { onSuccess: onClose });
   };
@@ -278,27 +283,27 @@ function VoucherDialog({ currency, onClose, voucher }: { voucher: ReferralVouche
 
           {type === "PERCENT_DISCOUNT" ? (
             <div className="grid items-start gap-4 sm:grid-cols-3">
-              <FormField id="voucher-percent" label="Percent off" required>
+              <FormField error={problemFor("percentOff")} id="voucher-percent" label="Percent off" required>
                 <Input id="voucher-percent" inputMode="numeric" {...form.register("percentOff")} />
               </FormField>
-              <FormField hint="Blank = no cap" id="voucher-max" label={`At most (${currency})`}>
+              <FormField error={problemFor("maxDiscount")} hint="Blank = no cap" id="voucher-max" label={`At most (${currency})`}>
                 <Input id="voucher-max" inputMode="decimal" {...form.register("maxDiscount")} />
               </FormField>
-              <FormField hint="Blank = any fee" id="voucher-min" label={`Minimum fee (${currency})`}>
+              <FormField error={problemFor("minOrder")} hint="Blank = any fee" id="voucher-min" label={`Minimum fee (${currency})`}>
                 <Input id="voucher-min" inputMode="decimal" {...form.register("minOrder")} />
               </FormField>
             </div>
           ) : type === "FIXED_DISCOUNT" ? (
             <div className="grid items-start gap-4 sm:grid-cols-2">
-              <FormField id="voucher-amount" label={`Amount off (${currency})`} required>
+              <FormField error={problemFor("amountOff")} id="voucher-amount" label={`Amount off (${currency})`} required>
                 <Input id="voucher-amount" inputMode="decimal" {...form.register("amountOff")} />
               </FormField>
-              <FormField hint="Blank = any fee" id="voucher-min" label={`Minimum fee (${currency})`}>
+              <FormField error={problemFor("minOrder")} hint="Blank = any fee" id="voucher-min" label={`Minimum fee (${currency})`}>
                 <Input id="voucher-min" inputMode="decimal" {...form.register("minOrder")} />
               </FormField>
             </div>
           ) : (
-            <FormField hint="7 = a week, 30 = a month" id="voucher-days" label="Free days" required>
+            <FormField error={problemFor("freeDays")} hint="7 = a week, 30 = a month" id="voucher-days" label="Free days" required>
               <Input className="w-32" id="voucher-days" inputMode="numeric" {...form.register("freeDays")} />
             </FormField>
           )}
@@ -350,7 +355,7 @@ function VoucherDialog({ currency, onClose, voucher }: { voucher: ReferralVouche
                 withTime
               />
             </FormField>
-            <FormField hint="Blank = no end" id="voucher-ends" label="Available until">
+            <FormField error={problemFor("endsAt")} hint="Blank = no end" id="voucher-ends" label="Available until">
               <DatePicker
                 id="voucher-ends"
                 onChange={(date) => form.setValue("endsAt", date ? date.toISOString() : "", { shouldDirty: true })}
@@ -381,7 +386,6 @@ function VoucherDialog({ currency, onClose, voucher }: { voucher: ReferralVouche
               onCheckedChange={(checked) => form.setValue("isActive", checked, { shouldDirty: true })}
             />
           </label>
-          {problem ? <p className="text-sm text-app-danger-ink">{problem}</p> : null}
         </form>
         <DialogFooter>
           <Button onClick={onClose} variant="neutral">
@@ -395,3 +399,15 @@ function VoucherDialog({ currency, onClose, voucher }: { voucher: ReferralVouche
     </Dialog>
   );
 }
+
+type VoucherProblemField = "amountOff" | "endsAt" | "freeDays" | "maxDiscount" | "minOrder" | "percentOff";
+
+/** `referralVoucherProblem`'s paths (request fields) → this form's fields. */
+const VOUCHER_PROBLEM_FIELDS: Record<string, VoucherProblemField> = {
+  amountOffMinor: "amountOff",
+  endsAt: "endsAt",
+  freeDays: "freeDays",
+  maxDiscountMinor: "maxDiscount",
+  minOrderMinor: "minOrder",
+  percentOff: "percentOff"
+};

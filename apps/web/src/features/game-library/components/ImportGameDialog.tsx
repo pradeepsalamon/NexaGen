@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "@/lib/navigation";
 import { FileUp } from "lucide-react";
 import { toast } from "sonner";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
+import { getErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -37,6 +39,7 @@ export function ImportGameDialog({
   const [pgn, setPgn] = useState("");
   const [title, setTitle] = useState("");
   const [batchId, setBatchId] = useState("");
+  // About the PGN field (file too big or unreadable); a refused import is a toast.
   const [error, setError] = useState<string | null>(null);
 
   const onFile = async (input: HTMLInputElement) => {
@@ -45,14 +48,14 @@ export function ImportGameDialog({
     input.value = "";
     if (!file) return;
     if (file.size > MAX_FILE_BYTES) {
-      setError("That file is too large (200 KB max).");
+      setError("That file is too large (200 KB max)");
       return;
     }
     try {
       setPgn(await file.text());
       setError(null);
     } catch {
-      setError("That file could not be read.");
+      setError("That file could not be read");
     }
   };
 
@@ -67,7 +70,7 @@ export function ImportGameDialog({
     importGame.mutate(
       { batchId: batchId || undefined, pgn, title: title.trim() || undefined },
       {
-        onError: (err) => setError(err instanceof Error ? err.message : "That PGN could not be imported."),
+        onError: (err) => toast.error("That PGN could not be imported", { description: getErrorMessage(err) }),
         onSuccess: (game) => {
           toast.success("Game imported");
           onOpenChange(false);
@@ -87,14 +90,19 @@ export function ImportGameDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-1.5">
+          <div className="relative space-y-1.5">
             <Label htmlFor="import-pgn">PGN</Label>
             <Textarea
               id="import-pgn"
               className="min-h-[180px] font-mono text-xs"
               placeholder={'[White "Player A"]\n[Black "Player B"]\n\n1. e4 e5 (1... c5) 2. Nf3 *'}
               value={pgn}
-              onChange={(e) => setPgn(e.target.value)}
+              aria-describedby={error ? fieldErrorId("import-pgn") : undefined}
+              aria-invalid={Boolean(error)}
+              onChange={(e) => {
+                setPgn(e.target.value);
+                setError(null);
+              }}
             />
             <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-primary-ink hover:underline">
               <FileUp className="size-3.5" aria-hidden />
@@ -106,6 +114,7 @@ export function ImportGameDialog({
                 onChange={(e) => void onFile(e.target)}
               />
             </label>
+            <FieldError id="import-pgn" message={error} />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -122,11 +131,6 @@ export function ImportGameDialog({
               />
             </div>
           </div>
-          {error && (
-            <p role="alert" className="rounded-control border border-app-danger/40 bg-app-danger/10 px-3 py-2 text-sm text-app-danger-ink">
-              {error}
-            </p>
-          )}
         </div>
         <DialogFooter>
           <Button variant="neutral" disabled={importGame.isPending} onClick={() => handleOpenChange(false)}>

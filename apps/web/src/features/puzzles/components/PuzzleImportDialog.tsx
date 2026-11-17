@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { FieldError } from "@/components/ui/FieldError";
 import {
   MAX_PUZZLE_IMPORT,
   MAX_PUZZLE_SOLUTION_MOVES,
@@ -201,7 +202,7 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="relative space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <FormField id="pz-import-topic" label="Topic">
                 <Select
@@ -276,11 +277,7 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
                 </li>
               ))}
             </ul>
-            {tooMany ? (
-              <p className="text-xs text-app-danger-ink">
-                Import at most {MAX_PUZZLE_IMPORT} puzzles at a time.
-              </p>
-            ) : null}
+            <FieldError id="puzzle-import-list" message={tooMany ? `Import at most ${MAX_PUZZLE_IMPORT} puzzles at a time` : undefined} />
           </div>
         )}
 

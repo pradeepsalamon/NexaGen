@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { FieldError } from "@/components/ui/FieldError";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Save } from "lucide-react";
@@ -51,6 +52,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
   const updateMutation = useUpdateDemoClassMutation(selectedClass?.id || "");
 
   const form = useForm<z.infer<typeof formSchema>>({
+    mode: "onTouched",
     resolver: zodResolver(formSchema),
     defaultValues: {
       coachId: "",
@@ -188,7 +190,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
                 withTime
               />
             </BaseFormField>
-            <div className="space-y-2">
+            <div className="relative space-y-2">
               <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Duration</label>
               <div className="relative">
                 <Input
@@ -232,11 +234,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
                   </div>
                 )}
               </div>
-              {durationError ? (
-                <p className="m-0 text-xs leading-5 text-app-danger-ink" id="demo-duration-error" role="alert">
-                  {durationError}
-                </p>
-              ) : null}
+              <FieldError id="demo-duration" message={durationError} />
             </div>
           </div>
           <BaseFormField

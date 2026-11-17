@@ -63,6 +63,7 @@ export function ClassNotesDialog({ open, onOpenChange, classItem }: ClassNotesDi
   });
 
   const form = useForm<UpdateClassRequest>({
+    mode: "onTouched",
     resolver: zodResolver(updateClassRequestSchema),
     defaultValues: { title: "", topic: "", description: "", homework: "", notes: "" }
   });

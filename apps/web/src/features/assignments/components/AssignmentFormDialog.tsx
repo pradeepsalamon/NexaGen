@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FieldError } from "@/components/ui/FieldError";
 import { Controller, useForm } from "react-hook-form";
 import {
   resolvePuzzleLeaderboard,
@@ -286,7 +287,7 @@ export function AssignmentFormDialog({
   // An admin's set is a shared library item, so it may hold global puzzles only.
   const isAdmin = isStaffRole(useAuthStore((state) => state.user?.role));
 
-  const form = useForm<FormValues>({ defaultValues: DEFAULTS });
+  const form = useForm<FormValues>({ mode: "onTouched", defaultValues: DEFAULTS });
 
   useEffect(() => {
     if (!open) return;
@@ -756,10 +757,11 @@ export function AssignmentFormDialog({
           {activityType === "SOLVE_LINE" && (
             <>
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-app-text">Correct solution</p>
-                {errors.solutionMoves && (
-                  <p className="text-xs text-app-danger-ink">{errors.solutionMoves.message as string}</p>
-                )}
+                {/* The group's message sits on its title line (UI_RULES § "Form errors"): no extra height. */}
+                <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
+                  <p className="text-sm font-semibold text-app-text">Correct solution</p>
+                  <FieldError className="static mt-0" id="assignment-solution" message={errors.solutionMoves?.message as string | undefined} />
+                </div>
                 <Controller
                   control={form.control}
                   name="solutionMoves"
@@ -863,12 +865,10 @@ export function AssignmentFormDialog({
               {assignNow && (
                 <div className="mt-3 grid gap-3">
                   <div className="grid gap-2">
-                    <p className="text-sm font-medium text-app-text">Batches</p>
-                    {errors.batchIds ? (
-                      <p className="text-xs font-semibold text-app-danger-ink" role="alert">
-                        {errors.batchIds.message as string}
-                      </p>
-                    ) : null}
+                    <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
+                      <p className="text-sm font-medium text-app-text">Batches</p>
+                      <FieldError className="static mt-0" id="assignment-batches" message={errors.batchIds?.message as string | undefined} />
+                    </div>
                     <Controller
                       control={form.control}
                       name="batchIds"

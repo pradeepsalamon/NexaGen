@@ -21,12 +21,19 @@ export function fieldErrorId(fieldId: string) {
 export function FieldError({
   className,
   id,
-  message
+  message,
+  standalone = false
 }: {
   className?: string;
   /** The field's id: the message gets `fieldErrorId(id)`. */
   id: string;
   message?: string | null;
+  /**
+   * For a field without a `relative` wrapper: renders a zero-height anchor (always, with or
+   * without a message, so any gap it takes in a grid or stack is fixed) and the message hangs
+   * from it.
+   */
+  standalone?: boolean;
 }) {
   const shown = Boolean(message);
   const [announce, setAnnounce] = useState(true);
@@ -41,6 +48,14 @@ export function FieldError({
     if (first.current === null) first.current = message ?? "";
     else if (first.current !== message) setAnnounce(false);
   }, [message, shown]);
+
+  if (standalone) {
+    return (
+      <div className="relative h-0">
+        <FieldError className={className} id={id} message={message} />
+      </div>
+    );
+  }
 
   if (!message) return null;
 

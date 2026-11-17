@@ -115,7 +115,7 @@ function EditorForm({ tournament }: { tournament?: TournamentDetailDto }) {
   const qc = useQueryClient();
   const toast = useToast();
   const initial = defaultTournamentForm(tournament);
-  const form = useForm<TournamentForm>({ defaultValues: initial, resolver: zodResolver(tournamentFormSchema) });
+  const form = useForm<TournamentForm>({ mode: "onTouched", defaultValues: initial, resolver: zodResolver(tournamentFormSchema) });
   const { errors } = form.formState;
   const format = form.watch("format");
   const roundStartMode = form.watch("roundStartMode");

@@ -179,7 +179,7 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
     handleSubmit,
     register,
     reset
-  } = useForm<FormValues>({ defaultValues: toForm(data, userZone), resolver: zodResolver(formSchema) });
+  } = useForm<FormValues>({ mode: "onTouched", defaultValues: toForm(data, userZone), resolver: zodResolver(formSchema) });
   const hoursEnabled = useWatch({ control, name: "hoursEnabled" });
   const days = useWatch({ control, name: "days" });
   const timezone = useWatch({ control, name: "timezone" });
