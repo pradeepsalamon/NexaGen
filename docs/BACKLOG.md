@@ -236,10 +236,10 @@ its precondition, the student training surface, now exists).
 
 - **2026-11-17 night run (its plan file is removed by this PR; it is in git history as `docs/NIGHT_RUN_2026-11-17.md`): results, and what I assumed.** PRs, all into `dev`, none merged: **#156** app shell overlay nav (`feat/app-shell-overlay-nav`), **#157** form validation (`fix/form-validation-ux`), and this docs PR.
   1. **Results as they came out.**
-     - **#156:** typecheck ✓, lint 0 errors (1 existing `<img>` warning), worktree `next build` ✓. `e2e/app-shell-nav.spec.ts`: Chromium 14/14. WebKit 12/14 on the first run: the two phone drawer guards (light and dark) tapped the backdrop mid-slide in WebKit's slow Linux build. Both passed once the test waited for the slide (the other 12 were not re-run).
+     - **#156:** typecheck ✓, lint 0 errors (1 existing `<img>` warning), worktree `next build` ✓. `e2e/app-shell-nav.spec.ts`: Chromium 14/14. WebKit 12/14 on the first run: the two phone drawer guards (light and dark) tapped the backdrop mid-slide in WebKit's slow Linux build. Both passed once the test waited for the slide; a full WebKit re-run afterwards passed 14/14.
      - **#156 shots:** 126 across `/admin`, `/coach`, `/student` × 21 devices × light/dark, plus 18 desktop expanded and flyout cases (1280, 1440, 1920 px); 0 horizontal overflow.
      - **#157:** typecheck ✓, lint 0 errors (same warning), worktree `next build` ✓. `e2e/form-validation.spec.ts` in Chromium: 22 passed, 2 skipped (batch edit at 390 px: batches are cards there).
-     - **#157 shots:** 168 with errors showing (login, register, reset password, new sales account dialog × 21 devices × light/dark); 0 overflow.
+     - **#157 shots:** 252 with errors showing (login, register, reset password, and three dialogs: new sales account, new voucher, add referral stage; each × 21 devices × light/dark); 0 overflow, 0 page errors.
   2. **`main`'s rect from the sidebar spec**, identical on the rail, expanded and collapsed again, in both themes and both browsers. The header toggle's and logo's rects were equal too.
      - 1440 px: `{x:64, y:64, width:1376, height:2178}`
      - 1280 px: `{x:64, y:64, width:1216, height:2238}`
@@ -264,7 +264,7 @@ its precondition, the student training surface, now exists).
        - The panel sits above the header's left end (`z-[45]`).
        - A hover-opened flyout that is then clicked stays open.
        - The flyout is navy like the nav, not the light popover style.
-       - Admin and SALES rail roles weren't rendered: `admin@nexa.test` doesn't sign in on staging, and no SALES user exists there. Their code paths are unchanged.
+       - The nav link list was diffed before/after for super admin, coach and student (unchanged). The plain admin account and SALES weren't rendered: `admin@nexa.test` returns 401 on staging (retried at the end of the run; fixing it needs a database write, which the plan rules out), and no SALES user exists there. Admin uses the same `AdminSidebar` as super admin and its code path is unchanged.
      - **Forms:**
        - Messages are announced once, when they appear (`role="alert"` on mount), rather than only after a submit.
        - Auth forms got a fixed 20 px field gap; other forms keep 16 px or more.
@@ -282,8 +282,8 @@ its precondition, the student training surface, now exists).
        - Installed versions match `package-lock.json`. The `npm ls` complaints left (ajv / deepmerge-ts / chokidar ranges and 3 extraneous packages) are in files last written 2026-11-07 and 2026-11-16, i.e. they predate this run.
        - Worktrees are now launched with tmux directly, and the memory notes say never to use `nexa.sh start` from a symlinked worktree.
      - A `pkill -f` I ran matched only my own shell; no other process was touched.
-  8. **Dev servers:** back on this checkout (`dev`, dev mode, :3010/:3011, tmux `nexa-dev`), confirmed at the end of the run. The API window is the 20:09 relaunch, from this checkout.
-  9. **Tidy-up:** removed this run's three worktrees (`app-shell`, `forms`, `night-results-1117`; all clean, PRs open). Their screenshots were moved first to `scripts/responsive/shots/night-2026-11-17-*` in this checkout (gitignored, 7 folders). Last night's worktrees are untouched. No branch was deleted locally or on GitHub.
+  8. **Dev servers:** back on this checkout (`dev`, dev mode, :3010/:3011, tmux `nexa-dev`) through `NEXA_NO_PULL=1 scripts/nexa.sh start dev web` and `… start dev api`, with `NODE_OPTIONS=--max-old-space-size=6144` set in the `nexa-dev` tmux session environment so the dev API keeps its larger heap. Confirmed: both processes' working directory is this checkout, `api-dev …/health` 200, `dev.nexachess.in/login` 200.
+  9. **Tidy-up:** removed this run's three worktrees (`app-shell`, `forms`, `night-results-1117`; all clean, PRs open). Their screenshots were moved first to `scripts/responsive/shots/night-2026-11-17-*` in this checkout (gitignored, 9 folders). Last night's worktrees are untouched. No branch was deleted locally or on GitHub.
 - **2026-11-16 (night run, item 10, `feat/solo-puzzle-rush`): solo Storm / Racer built; what I assumed.** Page `/student/puzzle-rush`, docs [PUZZLE_RUSH_SOLO.md](PUZZLE_RUSH_SOLO.md).
   1. **Who may play: students of a batch with puzzle training on** (the existing `puzzleTrainingEnabled` switch), so no new setting. Say if solo play should be its own switch, or open to coaches.
   2. **Leaderboard = best finished run per student, per batch, per mode**, "this week" or "all time", showing first and last names like the live standings. Students are minors: if names should be shortened to first name + initial, it is one line in `SoloPuzzleRushService.leaderboard`.
