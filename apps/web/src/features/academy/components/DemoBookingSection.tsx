@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/providers/ToastProvider";
 import {
   Users,
   BookOpen,
@@ -63,7 +64,8 @@ const programOptions = [
 export function DemoBookingSection() {
 
   const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState("");
+  // This original page (kept at /academy) shows form problems as toasts; a failed send is a toast too.
+  const toast = useToast();
   const [formData, setFormData] = useState({
     fullName: "",
     parentName: "",
@@ -80,20 +82,20 @@ export function DemoBookingSection() {
     const cleanPhone = formData.phone.replace(/\D/g, "");
 
     if (cleanPhone.length !== 10) {
-      setError("Please enter a valid 10-digit mobile number.");
+      toast.error({ message: "Enter a 10-digit mobile number", title: "Check the form" });
       return;
     }
 
     const studentName = formData.fullName.trim();
     if (!studentName) {
-      setError("Full name is required.");
+      toast.error({ message: "Enter the student's name", title: "Check the form" });
       return;
     }
 
     const parentName = formData.parentName.trim() || studentName;
     const studentAge = Number(formData.age);
     if (!Number.isInteger(studentAge) || studentAge < 3 || studentAge > 99) {
-      setError("Please enter the student's age (3–99).");
+      toast.error({ message: "Enter an age from 3 to 99", title: "Check the form" });
       return;
     }
     const experienceLevel = (formData.program || "beginner") as LeadExperienceLevel;
@@ -101,11 +103,10 @@ export function DemoBookingSection() {
     const email = formData.email.trim();
     // The API's own rule (createLeadRequestSchema), so the two never disagree.
     if (email && !createLeadRequestSchema.shape.email.safeParse(email).success) {
-      setError("Please enter a valid email address, or leave it blank.");
+      toast.error({ message: "Enter a valid email, or leave it blank", title: "Check the form" });
       return;
     }
 
-    setError("");
 
     createLead.mutate(
       {
@@ -132,7 +133,7 @@ export function DemoBookingSection() {
           });
         },
         onError: () => {
-          setError("Failed to register. Please try again or reach us via WhatsApp.");
+          toast.error({ message: "Please try again, or reach us on WhatsApp.", title: "We couldn't book your demo" });
         }
       }
     );
@@ -208,7 +209,7 @@ export function DemoBookingSection() {
                 class.
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
+              <form noValidate onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
                 {/* Row 1: Full Name (Student) */}
                 <div>
                   <label htmlFor="demo-full-name" className={labelClass}>
@@ -393,15 +394,6 @@ export function DemoBookingSection() {
                     {selectedProgram.hint}
                   </p>
                 </div>
-
-                {error && (
-                  <div
-                    role="alert"
-                    className="p-3 rounded-xl text-xs font-semibold bg-app-danger/10 border border-app-danger/30 text-app-danger-ink"
-                  >
-                    {error}
-                  </div>
-                )}
 
                 {/* Gold CTA Button */}
                 <button

@@ -7,7 +7,9 @@ type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
 };
 
 const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  function Textarea({ className, hasError = false, ...props }, ref) {
+  function Textarea({ className, hasError: hasErrorProp = false, ...props }, ref) {
+    // FormField marks its control aria-invalid when it has an error: show the error border too.
+    const hasError = hasErrorProp || props["aria-invalid"] === true || props["aria-invalid"] === "true";
     return (
       <textarea
         aria-invalid={hasError}

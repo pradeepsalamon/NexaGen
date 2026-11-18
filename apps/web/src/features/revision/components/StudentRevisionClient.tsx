@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getErrorMessage } from "@/lib/errors";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { AlarmClock, Brain, CalendarCheck, CheckCircle2, Flame, Sparkles } from "lucide-react";
@@ -115,7 +116,7 @@ export function StudentRevisionClient() {
         .catch((error: Error) => {
           if (generation !== pollGeneration.current) return;
           if (tries > 0) retry(tries);
-          else toast.error({ message: error.message, title: "Couldn't load your result" });
+          else toast.error({ message: getErrorMessage(error), title: "Couldn't load your result" });
         });
     void read(3);
   }, [attemptId, toast]);

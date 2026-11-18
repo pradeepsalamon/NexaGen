@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   FeedbackFormDto,
   FeedbackResponseListQuery,
@@ -56,7 +57,7 @@ export function useSubmitFeedbackMutation() {
   return useMutation({
     mutationFn: (body: SubmitFeedbackRequest) => submitFeedback(body),
     onError: (error: Error) => {
-      toast.error({ message: error.message, title: "Couldn't send feedback" });
+      toast.error({ message: getErrorMessage(error), title: "Couldn't send feedback" });
     },
     onSuccess: () => {
       toast.success({ title: "Thanks for your feedback!" });
@@ -72,7 +73,7 @@ export function useSkipFeedbackMutation() {
   return useMutation({
     mutationFn: (body: SkipFeedbackRequest) => skipFeedback(body),
     onError: (error: Error) => {
-      toast.error({ message: error.message, title: "Couldn't skip feedback" });
+      toast.error({ message: getErrorMessage(error), title: "Couldn't skip feedback" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.feedback.all });
@@ -100,7 +101,7 @@ export function useSaveFeedbackFormMutation() {
     mutationFn: ({ body, id }: { id?: string; body: UpsertFeedbackFormRequest }) =>
       id ? updateFeedbackForm(id, body) : createFeedbackForm(body),
     onError: (error: Error) => {
-      toast.error({ message: error.message, title: "Couldn't save the form" });
+      toast.error({ message: getErrorMessage(error), title: "Couldn't save the form" });
     },
     onSuccess: (_result, { id }) => {
       toast.success({ title: id ? "Feedback form updated" : "Feedback form created" });
@@ -133,7 +134,7 @@ export function useToggleFeedbackFormMutation() {
         trigger: form.trigger
       }),
     onError: (error: Error) => {
-      toast.error({ message: error.message, title: "Couldn't update the form" });
+      toast.error({ message: getErrorMessage(error), title: "Couldn't update the form" });
     },
     onSuccess: ({ form }) => {
       toast.success({ title: form.isActive ? "Form activated" : "Form deactivated" });

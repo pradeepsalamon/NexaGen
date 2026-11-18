@@ -47,9 +47,9 @@ export function Header({
   const hasSidebar = useSidebarStore((state) => state.available);
   const sidebarOpen = useSidebarStore((state) => state.open);
   const toggleSidebar = useSidebarStore((state) => state.toggle);
-  const navCollapsed = useSidebarStore((state) => state.collapsed);
-  const toggleNavCollapsed = useSidebarStore((state) => state.toggleCollapsed);
-  // From `xl` the nav is docked: the same button collapses it to a rail instead of opening a drawer.
+  const navExpanded = useSidebarStore((state) => state.expanded);
+  const toggleNavExpanded = useSidebarStore((state) => state.toggleExpanded);
+  // From `xl` the nav is a rail: the same button slides its full panel out instead of opening a drawer.
   const navDocked = useMediaQuery(NAV_DOCKED_QUERY);
 
   const isAuthPending = !isHydrated || isSessionLoading || !isSessionChecked;
@@ -62,8 +62,9 @@ export function Header({
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-app-surface px-3 text-app-text sm:px-4 md:px-6 lg:px-8",
-        // Docked, the nav card runs full height on the left and the header starts beside it.
-        hasSidebar && navDocked && "left-[var(--app-nav-w,0px)] motion-safe:transition-[left] motion-safe:duration-200 motion-safe:ease-out"
+        // From xl the rail runs full height on the left and the header starts beside it. Fixed:
+        // the expanded nav slides over the header's left end, it never pushes it.
+        hasSidebar && navDocked && "left-[var(--app-rail-w,0px)]"
       )}
     >
       {/* Docked nav: the menu button and logo sit over the nav column, not in the centred page width. */}
@@ -76,13 +77,13 @@ export function Header({
         {/* Left: menu + logo */}
         <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-3">
           {!SHOW_HEADER_MENU_BUTTON ? null : hasSidebar && navDocked ? (
-            <SimpleTooltip label={navCollapsed ? "Expand menu" : "Collapse menu"} side="bottom">
+            <SimpleTooltip label={navExpanded ? "Collapse menu" : "Expand menu"} side="bottom">
               <button
                 aria-controls="nav-drawer"
-                aria-expanded={!navCollapsed}
-                aria-label={navCollapsed ? "Expand menu" : "Collapse menu"}
+                aria-expanded={navExpanded}
+                aria-label={navExpanded ? "Collapse menu" : "Expand menu"}
                 className={HEADER_ICON_BUTTON}
-                onClick={toggleNavCollapsed}
+                onClick={toggleNavExpanded}
                 type="button"
               >
                 <Menu aria-hidden="true" className="size-5" strokeWidth={2.25} />

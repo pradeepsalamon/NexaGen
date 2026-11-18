@@ -9,6 +9,7 @@ import { formatRushClock, useServerNow } from "@/features/live-class/hooks/usePu
 import {
   createRushRun,
   playRushMove,
+  rushBoardKey,
   rushScore,
   skipRushMove,
   type RushRun
@@ -193,6 +194,7 @@ export function SoloRushPlayer({
           onMove={onMove}
           orientation={run.color}
           playerColor={run.color}
+          resetKey={rushBoardKey(run)}
         />
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ChangeEvent } from "react";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { formatMoney } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import {
@@ -206,21 +207,21 @@ function ManualPaymentForm({
             />
           </div>
 
-          <div>
+          <div className="relative">
             <Label htmlFor="manual-attachment">Proof of payment (optional)</Label>
             <input
               accept={ATTACHMENT_ACCEPT}
               className="block w-full text-sm text-app-muted file:mr-3 file:rounded-control file:border-0 file:bg-app-soft file:px-3 file:py-2 file:text-sm file:font-semibold file:text-app-text hover:file:bg-app-border"
               id="manual-attachment"
+              aria-describedby={fileError ? fieldErrorId("manual-attachment") : undefined}
+              aria-invalid={Boolean(fileError)}
               onChange={handleFileChange}
               type="file"
             />
             <p className="mt-1 text-xs text-app-muted">
               A screenshot or PDF receipt, up to 8 MB.
             </p>
-            {fileError ? (
-              <p className="mt-1 text-xs text-app-danger-ink">{fileError}</p>
-            ) : null}
+            <FieldError id="manual-attachment" message={fileError} />
           </div>
 
           {selectedPlan ? (

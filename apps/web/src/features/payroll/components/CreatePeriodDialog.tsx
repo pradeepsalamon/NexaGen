@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FieldError } from "@/components/ui/FieldError";
 import { PAYROLL_PERIOD_TYPE_LABELS, type PayrollPeriodType } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import {
@@ -71,19 +72,16 @@ export function CreatePeriodDialog({ onClose }: { onClose: () => void }) {
                 value={startDate}
               />
             </div>
-            <div>
+            <div className="relative">
               <Label htmlFor="period-end">End date</Label>
               <DateStringPicker
                 id="period-end"
                 onChange={(value) => setEndDate(value)}
-                
                 value={endDate}
               />
+              <FieldError id="period-end" message={startDate && endDate && endDate <= startDate ? "End date must be after the start date" : undefined} />
             </div>
           </div>
-          {startDate && endDate && endDate <= startDate ? (
-            <p className="text-xs text-app-danger-ink">End date must be after start date.</p>
-          ) : null}
 
           <div>
             <Label htmlFor="period-notes">Notes (optional)</Label>

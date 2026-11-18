@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { getErrorMessage } from "@/lib/errors";
 import {
   useInfiniteQuery,
   useMutation,
@@ -49,7 +50,7 @@ export function useMarkNotificationsRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data?: MarkNotificationsReadRequest) => markNotificationsRead(data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't mark notifications read" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't mark notifications read" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
     }

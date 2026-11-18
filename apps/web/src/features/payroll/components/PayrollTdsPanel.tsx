@@ -54,7 +54,7 @@ const toForm = (settings: PayrollSettingsItem): FormValues => ({
 
 function TdsForm({ settings }: { settings: PayrollSettingsItem }) {
   const save = useUpdatePayrollSettings();
-  const form = useForm<FormValues>({ defaultValues: toForm(settings), resolver: zodResolver(formSchema) });
+  const form = useForm<FormValues>({ mode: "onTouched", defaultValues: toForm(settings), resolver: zodResolver(formSchema) });
   const { errors, isDirty } = form.formState;
   const enabled = form.watch("tdsEnabled");
   const rateBps = Math.round(Number(form.watch("ratePercent")) * 100) || 0;

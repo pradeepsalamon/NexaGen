@@ -153,6 +153,7 @@ function BonusDialog({
 }) {
   const defaultStage = stages.find((stage) => stage.trigger === "CONVERTED") ?? stages[0];
   const form = useForm<BonusForm>({
+    mode: "onTouched",
     defaultValues: {
       amount: rule ? (rule.audience === "STUDENTS" ? String(rule.amount) : String(toMajorUnits(rule.amount, rule.currency))) : "",
       audience: rule?.audience ?? "STUDENTS",
@@ -197,6 +198,7 @@ function BonusDialog({
         <form
           className="grid max-h-[65dvh] gap-4 overflow-y-auto pr-1"
           id="bonus-form"
+          noValidate
           onSubmit={form.handleSubmit((values) => save.mutate(values, { onSuccess: onClose }))}
         >
           <FormField error={errors.name?.message} id="bonus-name" label="Name" required>

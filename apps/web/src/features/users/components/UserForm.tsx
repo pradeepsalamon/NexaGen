@@ -71,6 +71,7 @@ export function UserForm({ selectedUser, onSuccess }: UserFormProps) {
   });
 
   const form = useForm<UserFormValues>({
+    mode: "onTouched",
     resolver: zodResolver(userFormSchema),
     defaultValues: {
       firstName: selectedUser?.firstName || "",

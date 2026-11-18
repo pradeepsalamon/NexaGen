@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/errors";
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -53,7 +54,7 @@ export function useUpdateMessagingRule() {
       event: MessagingEvent;
       data: UpdateMessagingRuleRequest;
     }) => updateMessagingRule(event, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't update messaging rule" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't update messaging rule" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.messaging.rules });
       toast.success({ title: "Rule saved" });
@@ -72,7 +73,7 @@ export function useTestMessagingRule() {
       event: MessagingEvent;
       data: TestMessagingRuleRequest;
     }) => testMessagingRule(event, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't test messaging rule" })
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't test messaging rule" })
   });
 }
 
@@ -90,7 +91,7 @@ export function useUpdateSystemMessage() {
   return useMutation({
     mutationFn: ({ data, key }: { data: UpdateSystemMessageRequest; key: SystemMessageKey }) =>
       updateSystemMessage(key, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't update system message" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't update system message" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.messaging.systemMessages });
       toast.success({ title: "Message saved" });
@@ -104,7 +105,7 @@ export function useTestSystemMessage() {
   return useMutation({
     mutationFn: ({ data, key }: { data: TestSystemMessageRequest; key: SystemMessageKey }) =>
       testSystemMessage(key, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't test system message" })
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't test system message" })
   });
 }
 
@@ -126,7 +127,7 @@ export function useRetryMessageDelivery() {
 
   return useMutation({
     mutationFn: (id: string) => retryMessageDelivery(id),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't retry message delivery" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't retry message delivery" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.messaging.all });
       toast.success({ title: "Queued for another try" });
@@ -155,7 +156,7 @@ export function useCreateAnnouncement() {
 
   return useMutation({
     mutationFn: (data: CreateAnnouncementRequest) => createAnnouncement(data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't create announcement" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't create announcement" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.messaging.all });
     }

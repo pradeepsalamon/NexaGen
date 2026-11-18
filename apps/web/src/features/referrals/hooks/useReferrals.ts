@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { RequestReferralWithdrawalRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
@@ -55,7 +56,7 @@ function useWalletMutation<TArgs, TResult>(fn: (args: TArgs) => Promise<TResult>
   const toast = useToast();
   return useMutation({
     mutationFn: fn,
-    onError: (error: Error) => toast.error({ message: error.message, title: failure }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: failure }),
     onSuccess: () => {
       toast.success({ title: success });
       void queryClient.invalidateQueries({ queryKey: queryKeys.referrals.me });

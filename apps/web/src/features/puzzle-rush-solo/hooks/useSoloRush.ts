@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { PuzzleRushMode, SoloRushPeriod } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
@@ -21,7 +22,7 @@ export function useStartSoloRush() {
   const toast = useToast();
   return useMutation({
     mutationFn: (mode: PuzzleRushMode) => startSoloRush(mode),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't start" })
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't start" })
   });
 }
 

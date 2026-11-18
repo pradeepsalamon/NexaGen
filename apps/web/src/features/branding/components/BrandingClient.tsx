@@ -188,7 +188,7 @@ function AssetsCard({ data }: { data: TenantBrandingResponse }) {
 
 function DetailsForm({ data }: { data: TenantBrandingResponse }) {
   const save = useUpdateTenantBranding();
-  const form = useForm<FormValues>({ defaultValues: toForm(data.branding), resolver: zodResolver(formSchema) });
+  const form = useForm<FormValues>({ mode: "onTouched", defaultValues: toForm(data.branding), resolver: zodResolver(formSchema) });
   const { errors, isDirty } = form.formState;
 
   const submit = form.handleSubmit(async (values) => {

@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
 import { referralAdminApi } from "../api/referralAdminApi";
@@ -92,7 +93,7 @@ export function useReferralAdminMutation<TArgs, TResult>(
   const toast = useToast();
   return useMutation({
     mutationFn: fn,
-    onError: (error: Error) => toast.error({ message: error.message, title: messages.failure }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: messages.failure }),
     onSuccess: () => {
       toast.success({ title: messages.success });
       void queryClient.invalidateQueries({ queryKey: queryKeys.referrals.all });

@@ -41,7 +41,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   // A referral link (/r/<code>) is a brief hand-off to the home page.
   const isReferralLink = pathname?.startsWith("/r/");
-  // `/academy` is the Design System v2 rebuild of `/`, reviewed side by side before it replaces it.
+  // `/` is the Design System v2 academy page; `/academy` keeps the original one (swapped 2026-11-16).
   const isChromeless =
     isMeetingRoute || isAuthRoute || isReferralLink || pathname === "/" || pathname === "/academy";
 

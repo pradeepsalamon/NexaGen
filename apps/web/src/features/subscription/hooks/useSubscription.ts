@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { ConfirmPlatformCheckoutRequest, PlanFeatureKey } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useAuthStore } from "@/stores/authStore";
@@ -65,7 +66,7 @@ export function useConfirmPlatformCheckout() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ body, id }: { id: string; body: ConfirmPlatformCheckoutRequest }) => confirmPlatformCheckout(id, body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't confirm checkout" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't confirm checkout" }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.subscription.all }),
   });
 }

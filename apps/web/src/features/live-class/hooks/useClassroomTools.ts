@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { getErrorMessage } from "@/lib/errors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDataChannel } from "@livekit/components-react";
 import {
@@ -87,7 +88,7 @@ export function useSaveClassroomTool<K extends LiveClassToolKind>(
     },
     onError: (error: Error, _state, context) => {
       if (context?.previous) qc.setQueryData(key, context.previous);
-      toast.error({ title: "Couldn't save", message: error.message });
+      toast.error({ title: "Couldn't save", message: getErrorMessage(error) });
     },
     onSettled: () => void qc.invalidateQueries({ queryKey: key }),
   });
