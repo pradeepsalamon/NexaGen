@@ -456,10 +456,12 @@ Tests: `payroll/payroll-tds.spec.ts` (the rule and the totals writer),
 
 ## SEO & AI search (GEO)
 
-The public home page `/` is the academy marketing site; everything signed-in
-is disallowed in `robots.ts`. `/academy` is its Design System v2 rebuild (`features/academy/v2`), kept
-beside it for review: same content and form, `noindex` with a canonical of `/`, and no JSON-LD, so
-search engines only ever see `/`.
+The public home page `/` is the academy marketing site, the Design System v2
+page (`features/academy/v2`, body `AcademyHomeV2`); everything signed-in is
+disallowed in `robots.ts`. `/academy` keeps the original page
+(`features/academy/components`, body `AcademyHomeV1`; owner swapped them
+2026-11-16): same content and form, `noindex` with a canonical of `/`, and no
+JSON-LD, so search engines only ever see `/`.
 
 - **Hero 3D board** (`features/academy/hero3d`, used by both hero sections): a
   three.js scene in its own chunk, fetched only when the stage is near the
