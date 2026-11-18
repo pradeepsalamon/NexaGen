@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useId } from "react";
+import { FieldError as SharedFieldError } from "@/components/ui/FieldError";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus } from "lucide-react";
@@ -54,8 +55,10 @@ function Section({ children, description, title }: { title: string; description?
   );
 }
 
+/** The shared field message (UI_RULES § "Form errors"), hung under the field it follows. */
 function FieldError({ message }: { message?: string }) {
-  return message ? <p className="text-xs font-medium text-app-danger-ink">{message}</p> : null;
+  const id = useId();
+  return <SharedFieldError id={id} message={message} standalone />;
 }
 
 const toNumber = (value: string) => (value === "" ? 0 : Number(value));
@@ -83,6 +86,7 @@ export function FeedbackFormEditor({
     setValue,
     watch
   } = useForm<UpsertFeedbackFormRequest>({
+    mode: "onTouched",
     defaultValues: defaultFormValues(),
     resolver: zodResolver(upsertFeedbackFormRequestSchema)
   });

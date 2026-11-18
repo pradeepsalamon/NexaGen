@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   CancelPayrollPeriodRequest,
   CloseCompensationRateRequest,
@@ -92,7 +93,7 @@ export function useCreatePayrollPeriod() {
 
   return useMutation({
     mutationFn: (body: CreatePayrollPeriodRequest) => createPayrollPeriod(body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't create payroll period" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't create payroll period" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminPeriods });
       toast.success({ title: "Payroll period created" });
@@ -178,7 +179,7 @@ export function useRecalculatePayrollRecord() {
 
   return useMutation({
     mutationFn: (id: string) => recalculatePayrollRecord(id),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't recalculate payroll record" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't recalculate payroll record" }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminRecord(result.record.id) });
       queryClient.invalidateQueries({
@@ -214,7 +215,7 @@ export function useCreatePayrollAdjustment() {
   return useMutation({
     mutationFn: ({ recordId, body }: { recordId: string; body: CreatePayrollAdjustmentRequest }) =>
       createPayrollAdjustment(recordId, body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't create payroll adjustment" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't create payroll adjustment" }),
     onSuccess: (_result, { recordId }) => {
       // payroll.all also covers the period's record list, whose totals just changed.
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminAdjustments(recordId) });
@@ -237,7 +238,7 @@ export function useReversePayrollAdjustment() {
       recordId: string;
       body: ReversePayrollAdjustmentRequest;
     }) => reversePayrollAdjustment(id, body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't reverse payroll adjustment" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't reverse payroll adjustment" }),
     onSuccess: (_result, { recordId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminAdjustments(recordId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.all });
@@ -270,7 +271,7 @@ export function useUpdateCompensationProfile() {
   return useMutation({
     mutationFn: ({ coachId, body }: { coachId: string; body: UpdateCompensationProfileRequest }) =>
       updateCompensationProfile(coachId, body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't update compensation profile" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't update compensation profile" }),
     onSuccess: (_result, { coachId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminCompensationProfiles });
       queryClient.invalidateQueries({
@@ -296,7 +297,7 @@ export function useAddCompensationRate() {
   return useMutation({
     mutationFn: ({ coachId, body }: { coachId: string; body: CreateCompensationRateRequest }) =>
       addCompensationRate(coachId, body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't add compensation rate" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't add compensation rate" }),
     onSuccess: (_result, { coachId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminCompensationRates(coachId) });
       // CompensationProfileDialog lists the rates from the profile query.
@@ -319,7 +320,7 @@ export function useCloseCompensationRate() {
       coachId: string;
       body: CloseCompensationRateRequest;
     }) => closeCompensationRate(id, body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't close compensation rate" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't close compensation rate" }),
     onSuccess: (_result, { coachId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminCompensationRates(coachId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminCompensationProfile(coachId) });
@@ -340,7 +341,7 @@ export function useCreatePayrollRule() {
 
   return useMutation({
     mutationFn: (body: CreatePayrollRuleRequest) => createPayrollRule(body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't create payroll rule" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't create payroll rule" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminRules });
       toast.success({ title: "Rule created" });
@@ -355,7 +356,7 @@ export function useUpdatePayrollRule() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: UpdatePayrollRuleRequest }) =>
       updatePayrollRule(id, body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't update payroll rule" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't update payroll rule" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminRules });
       toast.success({ title: "Rule updated" });
@@ -375,7 +376,7 @@ export function useUpdatePayrollSettings() {
 
   return useMutation({
     mutationFn: (body: UpdatePayrollSettingsRequest) => updatePayrollSettings(body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "TDS settings not saved" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "TDS settings not saved" }),
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.payroll.adminSettings, data);
       toast.success({ title: "TDS settings saved" });
@@ -399,7 +400,7 @@ export function useCreatePayout() {
 
   return useMutation({
     mutationFn: (body: CreatePayoutRequest) => createPayout(body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't create payout" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't create payout" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.all });
       toast.success({ title: "Payout created" });
@@ -414,7 +415,7 @@ export function useMarkPayoutPaid() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: MarkPayoutPaidRequest }) =>
       markPayoutPaid(id, body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't mark payout paid" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't mark payout paid" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.all });
       toast.success({ title: "Payout marked paid" });

@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import { endLiveClass, startLiveClass } from "../api/live-class";
 import { useToast } from "@/providers/ToastProvider";
 import { queryKeys } from "@/lib/queryKeys";
@@ -18,7 +19,7 @@ export function useStartLiveClass(roomId: string) {
     onError: (error: Error) => {
       toast.error({
         title: "Failed to start class",
-        message: error.message || "An unexpected error occurred."
+        message: getErrorMessage(error) || "An unexpected error occurred."
       });
     }
   });
@@ -39,7 +40,7 @@ export function useEndLiveClass(roomId: string) {
     onError: (error: Error) => {
       toast.error({
         title: "Failed to end class",
-        message: error.message || "An unexpected error occurred."
+        message: getErrorMessage(error) || "An unexpected error occurred."
       });
     }
   });

@@ -29,6 +29,9 @@ type Props = {
   detail: string;
   onValueChange: (value: AcquisitionSourceValue | "") => void;
   onDetailChange: (detail: string) => void;
+  /** Field message for the source select (shown under it, never adding height). */
+  error?: string;
+  onBlur?: () => void;
   required?: boolean;
   /** Passed to the Select and the detail Input. */
   density?: "default" | "compact";
@@ -39,6 +42,8 @@ export function AcquisitionSourceSelect({
   detail,
   onValueChange,
   onDetailChange,
+  error,
+  onBlur,
   required,
   density
 }: Props) {
@@ -47,11 +52,13 @@ export function AcquisitionSourceSelect({
     value === "coach_referral" ? "Which coach?" : "Tell us more";
 
   return (
-    <div className="grid gap-3">
-      <FormField id="acquisition-source" label="How did you hear about us?" required={required}>
+    <div className="grid gap-5">
+      <FormField error={error} id="acquisition-source" label="How did you hear about us?" required={required}>
         <Select
           density={density}
+          hasError={Boolean(error)}
           id="acquisition-source"
+          onBlur={onBlur}
           onChange={(event) =>
             onValueChange(event.target.value as AcquisitionSourceValue | "")
           }

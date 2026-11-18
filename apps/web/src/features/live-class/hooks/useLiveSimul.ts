@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   LiveSimulGame,
   LiveSimulGameActionRequest,
@@ -70,7 +71,7 @@ export function useStartLiveSimul(classId: string) {
       qc.setQueryData(queryKeys.liveSimul.state(classId), data);
       toast.success({ title: "Simul started", message: `${data.simul?.games.length ?? 0} boards are live.` });
     },
-    onError: (error: Error) => toast.error({ title: "Couldn't start the simul", message: error.message })
+    onError: (error: Error) => toast.error({ title: "Couldn't start the simul", message: getErrorMessage(error) })
   });
 }
 
@@ -81,7 +82,7 @@ export function useEndLiveSimul(classId: string) {
   return useMutation({
     mutationFn: () => endLiveSimul(classId),
     onSuccess: (data) => qc.setQueryData(queryKeys.liveSimul.state(classId), data),
-    onError: (error: Error) => toast.error({ title: "Couldn't end the simul", message: error.message })
+    onError: (error: Error) => toast.error({ title: "Couldn't end the simul", message: getErrorMessage(error) })
   });
 }
 
@@ -95,7 +96,7 @@ export function useAddLiveSimulPlayer(classId: string) {
       toast.success({ title: `${data.game.studentName} joined the simul` });
       void invalidate();
     },
-    onError: (error: Error) => toast.error({ title: "Couldn't add the player", message: error.message })
+    onError: (error: Error) => toast.error({ title: "Couldn't add the player", message: getErrorMessage(error) })
   });
 }
 
@@ -121,7 +122,7 @@ export function useLiveSimulMove(classId: string, side: SimulSide) {
     },
     onSuccess: (data) => mergeSimulGame(qc, classId, data.game),
     onError: (error: Error) => {
-      toast.error({ title: "Move not played", message: error.message });
+      toast.error({ title: "Move not played", message: getErrorMessage(error) });
       void invalidate();
     }
   });
@@ -137,7 +138,7 @@ export function useLiveSimulEngineMove(classId: string) {
       playLiveSimulEngineMove(classId, game.id, { ply: game.ply, skillLevel }),
     onSuccess: (data) => mergeSimulGame(qc, classId, data.game),
     onError: (error: Error, { game }) => {
-      toast.error({ title: `Engine move failed on ${game.studentName}'s board`, message: error.message });
+      toast.error({ title: `Engine move failed on ${game.studentName}'s board`, message: getErrorMessage(error) });
       void invalidate();
     }
   });
@@ -154,7 +155,7 @@ export function useLiveSimulAction(classId: string) {
       liveSimulGameAction(classId, game.id, body),
     onSuccess: (data) => mergeSimulGame(qc, classId, data.game),
     onError: (error: Error) => {
-      toast.error({ title: "Couldn't update the game", message: error.message });
+      toast.error({ title: "Couldn't update the game", message: getErrorMessage(error) });
       void invalidate();
     }
   });

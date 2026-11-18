@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { FieldError } from "@/components/ui/FieldError";
 import { useQuery } from "@tanstack/react-query";
 import { SIMUL_MAX_PLAYERS, type SimulColorMode } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
@@ -94,7 +95,7 @@ export function SimulStartDialog() {
             move line up first.
           </p>
 
-          <section className="space-y-2">
+          <section className="relative space-y-2">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-app-text">
                 Players <span className="text-app-muted">({selected.size})</span>
@@ -139,9 +140,7 @@ export function SimulStartDialog() {
                 ))
               )}
             </div>
-            {tooMany ? (
-              <p className="text-xs text-app-danger-ink">A simul can have at most {SIMUL_MAX_PLAYERS} boards.</p>
-            ) : null}
+            <FieldError id="simul-players" message={tooMany ? `A simul can have at most ${SIMUL_MAX_PLAYERS} boards` : undefined} />
           </section>
 
           <section className="space-y-2">

@@ -257,6 +257,22 @@ disagree.
   fill so no transform stays on the panel, and are `motion-safe:`.
 - Dates/times: `lib/datetime.ts` + `useUserTimeZone()`; never `toLocale*` in a
   component (see CLAUDE.md §3.6).
+- **Form errors** (2026-11-17, `docs/FORM_VALIDATION_AUDIT.md`): a field's
+  problem is **`FieldError`** (`components/ui/FieldError.tsx`; `FormField` uses
+  it for you): a danger icon + short human text ("Enter your email", "Use at
+  least 8 characters") absolutely placed under the field, so showing it never
+  changes the form's or dialog's height. Keep field stacks at `gap-4` or more;
+  without a `relative` wrapper use `<FieldError standalone>`; a group's message
+  may sit on its title line. Show it after blur or submit (react-hook-form
+  `mode: "onTouched"`, or `useTouchedFields`), clear it as soon as the value is
+  valid, and focus the first invalid field on a blocked submit
+  (`focusFirstInvalid`). Forms are `noValidate`: no browser bubbles, but keep
+  `type`, `required`, `min`/`max`, `inputMode` and `autoComplete`. Client
+  limits mirror the API's schema or DTO, never looser or invented. Form-level
+  and server errors are a toast through `getErrorMessage` (never raw server or
+  Zod text); only a message the user must keep reading while acting on it (a
+  lockout's wait time) stays on screen, in the field's message slot or a fixed
+  one-line notice. No red banners inside forms.
 
 ## 6. Typography
 
@@ -274,3 +290,7 @@ disagree.
 4. Radii/shadows are tokens.
 5. Checked in **light and dark** at phone and laptop width
    (`npm run shots -- --paths <routes> --devices mobile,laptop --theme both`).
+6. A form you touched: submit it empty and with a bad value. Each message sits
+   under its field (`FieldError`), the form or dialog keeps its height, no
+   browser bubble appears, and server errors arrive as a human toast
+   (`npm run shots -- --action <file.mjs>` captures the error state).

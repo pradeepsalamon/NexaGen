@@ -12,7 +12,6 @@ import {
   type ReferralWallet,
   type ReferrerStatsItem
 } from "@nexa-chess/types";
-import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -190,7 +189,9 @@ export function ReferrersPanel({ onViewReferrals }: { onViewReferrals: (referrer
 
 function ChangeCodeDialog({ onClose, referrer }: { referrer: ReferrerStatsItem; onClose: () => void }) {
   const [code, setCode] = useState(referrer.code ?? "");
-  const [error, setError] = useState<string | null>(null);
+  // A message goes under the field it is about (UI_RULES § "Form errors").
+  const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
   const save = useReferralAdminMutation(
     (value: string) => referralAdminApi.updateReferrerCode(referrer.userId, { code: value }),
     { failure: "Could not change the code", success: "Code changed" }
@@ -198,7 +199,7 @@ function ChangeCodeDialog({ onClose, referrer }: { referrer: ReferrerStatsItem; 
 
   const submit = async () => {
     const parsed = referralCodeSchema.safeParse(code);
-    if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Invalid code.");
+    if (!parsed.success) return setError({ field: "code", message: parsed.error.issues[0]?.message ?? "Use 4 to 16 letters or digits" });
     setError(null);
     await save.mutateAsync(parsed.data);
     onClose();
@@ -213,10 +214,9 @@ function ChangeCodeDialog({ onClose, referrer }: { referrer: ReferrerStatsItem; 
             {referrer.name}&apos;s old link stops working. Referrals already tracked stay with them.
           </DialogDescription>
         </DialogHeader>
-        <FormField hint="4 to 16 letters or digits" id="referrer-code" label="Code" required>
+        <FormField error={errorFor("code")} hint="4 to 16 letters or digits" id="referrer-code" label="Code" required>
           <Input className="font-mono uppercase" id="referrer-code" onChange={(event) => setCode(event.target.value)} value={code} />
         </FormField>
-        {error ? <Alert variant="error">{error}</Alert> : null}
         <DialogFooter>
           <Button onClick={onClose} variant="neutral">
             Cancel
@@ -235,7 +235,9 @@ function AdjustCreditsDialog({ currency, onClose, referrer }: { referrer: Referr
   const [wallet, setWallet] = useState<ReferralWallet>("CASH");
   const [deduct, setDeduct] = useState(false);
   const [note, setNote] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // A message goes under the field it is about (UI_RULES § "Form errors").
+  const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
   const adjust = useReferralAdminMutation(referralAdminApi.adjustCredits, {
     failure: "Could not adjust credits",
     success: "Credits adjusted"
@@ -244,14 +246,17 @@ function AdjustCreditsDialog({ currency, onClose, referrer }: { referrer: Referr
   const submit = async () => {
     const whole = Number(amount.trim());
     const minor = wallet === "POINTS" ? (Number.isInteger(whole) && whole > 0 ? whole : null) : parseMajorAmount(amount, currency);
-    if (minor === null) return setError(wallet === "POINTS" ? "Enter a whole number of points." : "Enter an amount.");
+    if (minor === null) return setError({ field: "amount", message: wallet === "POINTS" ? "Enter a whole number of points" : "Enter an amount" });
     const parsed = adjustReferralCreditsRequestSchema.safeParse({
       amountMinor: deduct ? -minor : minor,
       note,
       userId: referrer.userId,
       wallet
     });
-    if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Check the form.");
+    if (!parsed.success) return setError({
+      field: parsed.error.issues[0]?.path[0] === "note" ? "note" : "amount",
+      message: parsed.error.issues[0]?.message ?? "Check the amount"
+    });
     setError(null);
     await adjust.mutateAsync(parsed.data);
     onClose();
@@ -279,17 +284,16 @@ function AdjustCreditsDialog({ currency, onClose, referrer }: { referrer: Referr
               value={wallet}
             />
           </FormField>
-          <FormField id="adjust-amount" label={wallet === "POINTS" ? "Points" : `Amount (${currency})`} required>
-            <Input id="adjust-amount" inputMode="decimal" onChange={(event) => setAmount(event.target.value)} value={amount} />
+          <FormField error={errorFor("amount")} id="adjust-amount" label={wallet === "POINTS" ? "Points" : `Amount (${currency})`} required>
+            <Input hasError={Boolean(errorFor("amount"))} id="adjust-amount" inputMode="decimal" onChange={(event) => setAmount(event.target.value)} value={amount} />
           </FormField>
           <label className="flex items-center gap-3 text-sm text-app-text" htmlFor="adjust-deduct">
             <Switch checked={deduct} id="adjust-deduct" onCheckedChange={setDeduct} />
             Deduct instead of add
           </label>
-          <FormField id="adjust-note" label="Reason" required>
-            <Textarea id="adjust-note" maxLength={500} onChange={(event) => setNote(event.target.value)} rows={2} value={note} />
+          <FormField error={errorFor("note")} id="adjust-note" label="Reason" required>
+            <Textarea hasError={Boolean(errorFor("note"))} id="adjust-note" maxLength={500} onChange={(event) => setNote(event.target.value)} rows={2} value={note} />
           </FormField>
-          {error ? <Alert variant="error">{error}</Alert> : null}
         </div>
         <DialogFooter>
           <Button onClick={onClose} variant="neutral">

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   UpdateChessAppearanceAdminRequest,
   UpdateChessAppearanceRequest,
@@ -44,7 +45,7 @@ export function useUpdateChessAppearanceMutation() {
       qc.invalidateQueries({ queryKey: queryKeys.chessAppearance.resolved });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't save board appearance", message: error.message }),
+      toast.error({ title: "Couldn't save board appearance", message: getErrorMessage(error) }),
   });
 }
 
@@ -58,7 +59,7 @@ export function useResetChessAppearanceMutation() {
       qc.invalidateQueries({ queryKey: queryKeys.chessAppearance.resolved });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't reset board appearance", message: error.message }),
+      toast.error({ title: "Couldn't reset board appearance", message: getErrorMessage(error) }),
   });
 }
 
@@ -83,7 +84,7 @@ export function useUpdateChessAppearanceAdminMutation() {
       qc.invalidateQueries({ queryKey: queryKeys.chessAppearance.resolved });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't update the global default", message: error.message }),
+      toast.error({ title: "Couldn't update the global default", message: getErrorMessage(error) }),
   });
 }
 
@@ -98,6 +99,6 @@ export function useResetChessAppearanceAdminMutation() {
       qc.invalidateQueries({ queryKey: queryKeys.chessAppearance.resolved });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't reset the global default", message: error.message }),
+      toast.error({ title: "Couldn't reset the global default", message: getErrorMessage(error) }),
   });
 }

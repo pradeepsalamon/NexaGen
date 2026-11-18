@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import {
   EXTERNAL_CHESS_PROVIDER_LABELS,
   EXTERNAL_CHESS_PROVIDERS,
@@ -149,10 +150,10 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
             </Button>
             <span className="text-xs text-app-muted">or paste below</span>
           </div>
-          <div className="space-y-1">
+          <div className="relative space-y-1">
             <Label htmlFor="pgn-text">PGN</Label>
-            <Textarea className="min-h-40 font-mono text-xs" id="pgn-text" onChange={(e) => setPgn(e.target.value)} value={pgn} />
-            {tooBig && <p className="text-xs text-app-danger-ink">Too long — at most {PGN_IMPORT_LIMITS.maxChars.toLocaleString("en-US")} characters.</p>}
+            <Textarea className="min-h-40 font-mono text-xs" id="pgn-text" aria-describedby={tooBig ? fieldErrorId("pgn-text") : undefined} hasError={tooBig} onChange={(e) => setPgn(e.target.value)} value={pgn} />
+            <FieldError id="pgn-text" message={tooBig ? `Too long: at most ${PGN_IMPORT_LIMITS.maxChars.toLocaleString("en-US")} characters` : undefined} />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">

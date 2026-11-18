@@ -8,7 +8,6 @@ import {
   toMinorUnits,
   type CreditNoteReason
 } from "@nexa-chess/types";
-import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -22,6 +21,8 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { getErrorMessage } from "@/lib/errors";
+import { useToast } from "@/providers/ToastProvider";
 import { useCreateCreditNote } from "../hooks/useInvoicesApi";
 import { Switch } from "@/components/ui/Switch";
 
@@ -60,7 +61,7 @@ export function CreditNoteDialog({
   );
   const [reason, setReason] = useState<CreditNoteReason>("REFUND");
   const [note, setNote] = useState("");
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const toast = useToast();
 
   const amountMinor = full
     ? maxAmount
@@ -70,7 +71,6 @@ export function CreditNoteDialog({
     !full && (amountMinor <= 0 || amountMinor > maxAmount || !amountMajor);
 
   const submit = async () => {
-    setSubmitError(null);
     try {
       await createCreditNote.mutateAsync({
         invoiceId,
@@ -81,7 +81,7 @@ export function CreditNoteDialog({
       onClose();
     } catch (error) {
       // Stay open so the admin can correct the amount and retry.
-      setSubmitError(error instanceof Error ? error.message : "The credit note could not be issued.");
+      toast.error({ message: getErrorMessage(error), title: "The credit note could not be issued" });
     }
   };
 
@@ -118,7 +118,6 @@ export function CreditNoteDialog({
                 min={0}
                 onChange={(event) => {
                   setAmountMajor(event.target.value);
-                  setSubmitError(null);
                 }}
                 step="0.01"
                 type="number"
@@ -157,8 +156,6 @@ export function CreditNoteDialog({
             />
           </div>
         </div>
-
-        {submitError ? <Alert variant="error">{submitError}</Alert> : null}
 
         <DialogFooter>
           <Button onClick={onClose} variant="neutral">

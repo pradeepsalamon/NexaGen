@@ -8,7 +8,6 @@ import {
   createAccountDeletionRequestSchema,
   type CreateAccountDeletionRequest
 } from "@nexa-chess/types";
-import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import {
@@ -98,6 +97,7 @@ function DeletionDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) 
   const toast = useToast();
   const submit = useRequestAccountDeletion();
   const form = useForm<CreateAccountDeletionRequest>({
+    mode: "onTouched",
     defaultValues: { currentPassword: "", reason: "" },
     resolver: zodResolver(createAccountDeletionRequestSchema)
   });
@@ -133,7 +133,6 @@ function DeletionDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) 
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 grid gap-4">
-            {submit.error ? <Alert variant="error">{getErrorMessage(submit.error)}</Alert> : null}
             <FormField
               error={form.formState.errors.currentPassword?.message}
               id="deletion-password"

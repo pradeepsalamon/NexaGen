@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { forwardRef } from "react";
 import { Checkbox } from "@/components/ui/Checkbox";
 
@@ -22,9 +23,9 @@ export const TermsConsent = forwardRef<
     onCheckedChange: (checked: boolean) => void;
   }
 >(function TermsConsent({ checked, error, id, onCheckedChange }, ref) {
-  const errorId = `${id}-error`;
+  const errorId = fieldErrorId(id);
   return (
-    <div className="grid gap-1">
+    <div className="relative grid gap-1">
       <div className="flex items-start gap-2.5">
         <Checkbox
           aria-describedby={error ? errorId : undefined}
@@ -51,11 +52,7 @@ export const TermsConsent = forwardRef<
           </span>
         </label>
       </div>
-      {error ? (
-        <p className="m-0 pl-7 text-xs leading-5 text-app-danger-ink" id={errorId} role="alert">
-          {error}
-        </p>
-      ) : null}
+      <FieldError className="pl-7" id={id} message={error} />
     </div>
   );
 });

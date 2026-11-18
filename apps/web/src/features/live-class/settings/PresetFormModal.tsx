@@ -134,7 +134,7 @@ export function PresetFormModal({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <FormField id="preset-name" label="Preset name">
+          <FormField error={nameError ?? undefined} id="preset-name" label="Preset name">
             <Input
               id="preset-name"
               value={name}
@@ -146,7 +146,6 @@ export function PresetFormModal({
                 if (nameError) setNameError(null);
               }}
             />
-            {nameError && <p className="text-xs font-medium text-app-danger">{nameError}</p>}
           </FormField>
 
           <FormField id="preset-description" label="Description (optional)">

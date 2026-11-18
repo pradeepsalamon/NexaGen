@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import {
   formatMoney,
   toMajorUnits,
@@ -90,11 +91,12 @@ export function RefundDialog({ payment, onClose }: Props) {
           </label>
 
           {!full ? (
-            <div>
+            <div className="relative">
               <Label htmlFor="refund-amount">
                 Amount ({payment.currency})
               </Label>
               <Input
+                aria-describedby={amountValid ? undefined : fieldErrorId("refund-amount")}
                 hasError={!amountValid}
                 id="refund-amount"
                 inputMode="decimal"
@@ -105,12 +107,7 @@ export function RefundDialog({ payment, onClose }: Props) {
                 type="number"
                 value={amountMajor}
               />
-              {!amountValid ? (
-                <p className="mt-1 text-xs text-app-danger-ink">
-                  Enter an amount between 0 and{" "}
-                  {formatMoney(refundable, payment.currency)}.
-                </p>
-              ) : null}
+              <FieldError id="refund-amount" message={amountValid ? undefined : `Enter an amount between 0 and ${formatMoney(refundable, payment.currency)}`} />
             </div>
           ) : null}
 

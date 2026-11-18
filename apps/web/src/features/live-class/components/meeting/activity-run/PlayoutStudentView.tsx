@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { getErrorMessage } from "@/lib/errors";
 import { Flag, Lightbulb, RotateCcw, Target, Trophy, XCircle } from "lucide-react";
 import {
   PLAYOUT_END_REASON_LABELS,
@@ -179,7 +180,7 @@ export function PlayoutStudentView({ classId, run, playout }: { classId: string;
         // Refused or stale: the board goes back to what the API holds.
         setOptimistic(null);
         setResetKey((k) => k + 1);
-        toast.error({ message: error.message, title: "That move didn't go through" });
+        toast.error({ message: getErrorMessage(error), title: "That move didn't go through" });
         void actions.continueGame.mutateAsync({ gameId: game.id, runId: run.id }).catch(() => undefined);
       });
   };

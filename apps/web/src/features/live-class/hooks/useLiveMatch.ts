@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   LiveMatchChallengeResponseRequest,
   LiveMatchGame,
@@ -83,7 +84,7 @@ function useRoundMutation<TVars>(
     mutationFn: fn,
     onSuccess: (data) => qc.setQueryData(queryKeys.liveMatch.state(classId), data),
     onError: (error: Error) => {
-      toast.error({ title: errorTitle, message: error.message });
+      toast.error({ title: errorTitle, message: getErrorMessage(error) });
       void qc.invalidateQueries({ queryKey: queryKeys.liveMatch.state(classId) });
     }
   });
@@ -162,7 +163,7 @@ export function useLiveMatchMove(classId: string) {
     },
     onSuccess: (data) => mergeMatchGame(qc, classId, data.game),
     onError: (error: Error) => {
-      toast.error({ title: "Move not played", message: error.message });
+      toast.error({ title: "Move not played", message: getErrorMessage(error) });
       void qc.invalidateQueries({ queryKey: queryKeys.liveMatch.state(classId) });
     }
   });
@@ -180,7 +181,7 @@ export function useLiveMatchAction(classId: string) {
     onError: (error: Error, { body }) => {
       // A timeout claim racing the opponent's move is expected; stay quiet.
       if (body.action !== "CLAIM_TIMEOUT") {
-        toast.error({ title: "Couldn't update the game", message: error.message });
+        toast.error({ title: "Couldn't update the game", message: getErrorMessage(error) });
       }
       void qc.invalidateQueries({ queryKey: queryKeys.liveMatch.state(classId) });
     }

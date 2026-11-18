@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/providers/ToastProvider";
 import {
   BarChart3,
   BookOpen,
@@ -15,7 +16,6 @@ import {
   Users
 } from "lucide-react";
 import { createLeadRequestSchema, type LeadExperienceLevel } from "@nexa-chess/types";
-import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
@@ -66,7 +66,10 @@ const programOptions = [
 export function DemoBookingSection() {
 
   const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState("");
+  // Field problems go under their field (v2) or a toast (the original page); a failed send is a toast.
+  const [error, setError] = useState<{ field: "age" | "email" | "fullName" | "phone"; message: string } | null>(null);
+  const errorFor = (field: "age" | "email" | "fullName" | "phone") => (error?.field === field ? error.message : undefined);
+  const toast = useToast();
   const [formData, setFormData] = useState({
     fullName: "",
     parentName: "",
@@ -83,20 +86,20 @@ export function DemoBookingSection() {
     const cleanPhone = formData.phone.replace(/\D/g, "");
 
     if (cleanPhone.length !== 10) {
-      setError("Please enter a valid 10-digit mobile number.");
+      setError({ field: "phone", message: "Enter a 10-digit mobile number" });
       return;
     }
 
     const studentName = formData.fullName.trim();
     if (!studentName) {
-      setError("Full name is required.");
+      setError({ field: "fullName", message: "Enter the student's name" });
       return;
     }
 
     const parentName = formData.parentName.trim() || studentName;
     const studentAge = Number(formData.age);
     if (!Number.isInteger(studentAge) || studentAge < 3 || studentAge > 99) {
-      setError("Please enter the student's age (3–99).");
+      setError({ field: "age", message: "Enter an age from 3 to 99" });
       return;
     }
     const experienceLevel = (formData.program || "beginner") as LeadExperienceLevel;
@@ -104,11 +107,11 @@ export function DemoBookingSection() {
     const email = formData.email.trim();
     // The API's own rule (createLeadRequestSchema), so the two never disagree.
     if (email && !createLeadRequestSchema.shape.email.safeParse(email).success) {
-      setError("Please enter a valid email address, or leave it blank.");
+      setError({ field: "email", message: "Enter a valid email, or leave it blank" });
       return;
     }
 
-    setError("");
+    setError(null);
 
     createLead.mutate(
       {
@@ -135,7 +138,7 @@ export function DemoBookingSection() {
           });
         },
         onError: () => {
-          setError("Failed to register. Please try again or reach us via WhatsApp.");
+          toast.error({ message: "Please try again, or reach us on WhatsApp.", title: "We couldn't book your demo" });
         }
       }
     );
@@ -191,9 +194,10 @@ export function DemoBookingSection() {
               <p className="mt-1 text-sm text-app-muted">
                 Fill in your details and our team will schedule your personalized class.
               </p>
-              <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
-                <FormField id="demo-full-name" label="Student's full name" required>
+              <form className="mt-6 grid gap-4" noValidate onSubmit={handleSubmit}>
+                <FormField error={errorFor("fullName")} id="demo-full-name" label="Student's full name" required>
                   <Input
+                    hasError={Boolean(errorFor("fullName"))}
                     autoComplete="off"
                     enterKeyHint="next"
                     id="demo-full-name"
@@ -219,11 +223,12 @@ export function DemoBookingSection() {
                       value={formData.parentName}
                     />
                   </FormField>
-                  <FormField id="demo-student-age" label="Age">
+                  <FormField error={errorFor("age")} id="demo-student-age" label="Age">
                     <Input
                       autoComplete="off"
                       enterKeyHint="next"
-                      id="demo-student-age"
+                      hasError={Boolean(errorFor("age"))}
+                    id="demo-student-age"
                       inputMode="numeric"
                       leadingIcon={<CalendarDays strokeWidth={2.25} />}
                       onChange={(e) => {
@@ -238,10 +243,11 @@ export function DemoBookingSection() {
                   </FormField>
                 </div>
 
-                <FormField id="demo-email" label="Email address (optional)">
+                <FormField error={errorFor("email")} id="demo-email" label="Email address (optional)">
                   <Input
                     autoComplete="email"
                     enterKeyHint="next"
+                    hasError={Boolean(errorFor("email"))}
                     id="demo-email"
                     inputMode="email"
                     leadingIcon={<Mail strokeWidth={2.25} />}
@@ -252,10 +258,11 @@ export function DemoBookingSection() {
                   />
                 </FormField>
 
-                <FormField id="demo-phone" label="Phone number (10 digits)" required>
+                <FormField error={errorFor("phone")} id="demo-phone" label="Phone number (10 digits)" required>
                   <Input
                     autoComplete="tel-national"
                     enterKeyHint="next"
+                    hasError={Boolean(errorFor("phone"))}
                     id="demo-phone"
                     inputMode="numeric"
                     leadingIcon={<Phone strokeWidth={2.25} />}
@@ -280,8 +287,6 @@ export function DemoBookingSection() {
                     value={formData.program}
                   />
                 </FormField>
-
-                {error ? <Alert variant="error">{error}</Alert> : null}
 
                 <Button fullWidth isLoading={createLead.isPending} size="lg" type="submit">
                   {createLead.isPending ? "Booking…" : "Book my free demo class"}
