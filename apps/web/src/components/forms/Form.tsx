@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import {
   FormProvider,
-  type FieldError,
   type FieldErrors,
   type FieldValues,
   type SubmitHandler,
@@ -28,21 +27,14 @@ export function Form<TFieldValues extends FieldValues>({
 }: FormProps<TFieldValues>) {
   const { error } = useToast();
 
+  // Each field shows its own message under it (and react-hook-form focuses the first one), so
+  // a blocked submit needs no toast listing them again. Only an error with no field of its own
+  // (`root`) is a toast (UI_RULES § "Form errors").
   function handleInvalid(errors: FieldErrors<TFieldValues>) {
-    const messages = getFieldErrorMessages(errors);
-    const visibleMessages = messages.slice(0, 3);
-    const remainingCount = messages.length - visibleMessages.length;
-
-    error({
-      title: "Please fix the form",
-      message:
-        visibleMessages.length > 0
-          ? [
-              ...visibleMessages,
-              ...(remainingCount > 0 ? [`${remainingCount} more error${remainingCount === 1 ? "" : "s"}.`] : [])
-            ].join("\n")
-          : "Check the form and try again."
-    });
+    const rootMessage = errors.root?.message;
+    if (typeof rootMessage === "string" && rootMessage) {
+      error({ title: "Please fix the form", message: rootMessage });
+    }
   }
 
   return (
@@ -54,30 +46,4 @@ export function Form<TFieldValues extends FieldValues>({
   );
 }
 
-function getFieldErrorMessages(errors: FieldErrors<FieldValues>) {
-  const messages: string[] = [];
 
-  Object.values(errors).forEach((error) => {
-    if (!error) return;
-
-    if (isFieldError(error)) {
-      if (typeof error.message === "string") {
-        messages.push(error.message);
-      }
-    } else if (typeof error === "object" && error !== null && !Array.isArray(error)) {
-      messages.push(...getFieldErrorMessages(error as FieldErrors<FieldValues>));
-    } else if (Array.isArray(error)) {
-      error.forEach((item) => {
-        if (typeof item === "object" && item !== null) {
-          messages.push(...getFieldErrorMessages(item as FieldErrors<FieldValues>));
-        }
-      });
-    }
-  });
-
-  return Array.from(new Set(messages));
-}
-
-function isFieldError(error: unknown): error is FieldError {
-  return typeof error === "object" && error !== null && "type" in error;
-}

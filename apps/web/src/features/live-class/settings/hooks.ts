@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   UpdateBatchLiveClassSettingsRequest,
   UpdateLiveClassPolicyRequest,
@@ -53,7 +54,7 @@ export function useUpdateLiveClassPolicy() {
       qc.invalidateQueries({ queryKey: queryKeys.liveClassSettings.audit });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't update defaults", message: error.message }),
+      toast.error({ title: "Couldn't update defaults", message: getErrorMessage(error) }),
   });
 }
 
@@ -83,7 +84,7 @@ export function useUpdateClassLiveSettings(classId: string) {
       qc.invalidateQueries({ queryKey: queryKeys.liveClassSettings.forClass(classId) });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't save class settings", message: error.message }),
+      toast.error({ title: "Couldn't save class settings", message: getErrorMessage(error) }),
   });
 }
 
@@ -103,7 +104,7 @@ export function useUpdateLiveSettingsMidClass(classId: string) {
       qc.invalidateQueries({ queryKey: queryKeys.liveClassSettings.forClass(classId) });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't apply settings", message: error.message }),
+      toast.error({ title: "Couldn't apply settings", message: getErrorMessage(error) }),
   });
 }
 
@@ -131,7 +132,7 @@ export function useUpdateBatchLiveClassSettings(batchId: string) {
       qc.invalidateQueries({ queryKey: queryKeys.liveClassSettings.audit });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't update batch defaults", message: error.message }),
+      toast.error({ title: "Couldn't update batch defaults", message: getErrorMessage(error) }),
   });
 }
 
@@ -163,6 +164,6 @@ export function useSetDefaultLiveClassPreset() {
       invalidate();
     },
     onError: (error: Error) =>
-      toast.error({ title: "Couldn't set default preset", message: error.message }),
+      toast.error({ title: "Couldn't set default preset", message: getErrorMessage(error) }),
   });
 }

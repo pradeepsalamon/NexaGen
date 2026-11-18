@@ -15,7 +15,7 @@
 import { chromium } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { DEVICES, resolveDevices } from "./devices.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -56,6 +56,7 @@ function parseArgs(argv) {
       case "--full-page": a.fullPage = true; break;
       case "--theme": a.theme = next(); break;
       case "--wait": a.wait = Number(next()); break;
+      case "--action": a.action = next(); break;
       case "--dpr": a.dpr = Number(next()); break;
       case "-h": case "--help": a.help = true; break;
       default: throw new Error(`Unknown flag: ${arg}`);
@@ -80,6 +81,8 @@ const HELP = `Responsive screenshot tool
   --full-page           Full-page screenshots (default: viewport only)
   --dpr <n>             Force devicePixelRatio for every device (e.g. 1 = smaller PNGs)
   --wait <ms>           Settle time per page (default 2000)
+  --action <file.mjs>   Run this module's default export (page) => Promise before each
+                        shot, e.g. open a dialog and submit it empty to show errors
   --out <dir>           Output dir (default scripts/responsive/shots/<timestamp>)
 `;
 
@@ -138,6 +141,7 @@ async function capturePage(page, { fullPage }) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const action = args.action ? (await import(pathToFileURL(resolve(args.action)).href)).default : null;
   if (args.help) { console.log(HELP); return; }
 
   const targets = [
@@ -209,6 +213,10 @@ async function main() {
           await page.goto(t.url, { waitUntil: "domcontentloaded", timeout: 45_000 });
           await page.waitForLoadState("networkidle", { timeout: 4000 }).catch(() => {});
           await page.waitForTimeout(args.wait);
+          if (action) {
+            await action(page);
+            await page.waitForTimeout(600);
+          }
           if (t.liveClass) {
             const join = page.locator('button:has-text("Join"), button.lk-join-button');
             if (await join.count()) {

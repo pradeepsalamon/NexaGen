@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import {
   mergePlayoutMonitorEntry,
   type ActivityRunMonitorResponse,
@@ -111,7 +112,7 @@ function usePutPlayoutGame(classId: string) {
 export function usePlayoutActions(classId: string) {
   const put = usePutPlayoutGame(classId);
   const toast = useToast();
-  const onError = (title: string) => (error: Error) => toast.error({ message: error.message, title });
+  const onError = (title: string) => (error: Error) => toast.error({ message: getErrorMessage(error), title });
 
   // undo: intentionally excluded — chess moves and a student's own game state are not undoable.
   const start = useMutation({
@@ -154,7 +155,7 @@ export function useSubmitMcq(classId: string) {
   return useMutation({
     mutationFn: (vars: { runId: string; body: SubmitMcqAnswerRequest }) => submitMcqAnswer(classId, vars.runId, vars.body),
     onError: (error: Error) => {
-      toast.error({ message: error.message, title: "Couldn't submit your answer" });
+      toast.error({ message: getErrorMessage(error), title: "Couldn't submit your answer" });
       void qc.invalidateQueries({ queryKey: queryKeys.activityRun.state(classId) });
     },
     onSuccess: (data) => {
@@ -174,12 +175,12 @@ export function useActivityRunControls(classId: string) {
   };
   const end = useMutation({
     mutationFn: (runId: string) => endActivityRun(classId, runId),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't end the activity" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't end the activity" }),
     onSuccess: refresh
   });
   const reveal = useMutation({
     mutationFn: (runId: string) => revealActivityRun(classId, runId),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't reveal the answer" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't reveal the answer" }),
     onSuccess: refresh
   });
   return { end, reveal };

@@ -14,7 +14,6 @@ import {
   type ReferralStageTone
 } from "@nexa-chess/types";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
-import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
@@ -174,7 +173,9 @@ function StageDialog({ currency, onClose, stage }: { stage: ReferralStageItem | 
   const [newMemberPoints, setNewMemberPoints] = useState(stage?.newMemberPoints ? String(stage.newMemberPoints) : "");
   const [coachCash, setCoachCash] = useState(stage?.coachCashMinor ? String(toMajorUnits(stage.coachCashMinor, currency)) : "");
   const [salesCash, setSalesCash] = useState(stage?.salesCashMinor ? String(toMajorUnits(stage.salesCashMinor, currency)) : "");
-  const [error, setError] = useState<string | null>(null);
+  // A message goes under the field it is about (UI_RULES § "Form errors").
+  const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
   const save = useReferralAdminMutation(
     (body: CreateReferralStageRequest) => (stage ? referralAdminApi.updateStage(stage.id, body) : referralAdminApi.createStage(body)),
     { failure: "Could not save the stage", success: stage ? "Stage updated" : "Stage added" }
@@ -188,9 +189,12 @@ function StageDialog({ currency, onClose, stage }: { stage: ReferralStageItem | 
       salesCashMinor: parseMoney(salesCash, currency),
       studentPoints: parseCount(studentPoints)
     };
-    if (Object.values(values).some((value) => value === null)) return setError("Rewards must be 0 or more (points are whole numbers).");
+    if (values.studentPoints === null) return setError({ field: "student", message: "Use a whole number, 0 or more" });
+    if (values.newMemberPoints === null) return setError({ field: "newMember", message: "Use a whole number, 0 or more" });
+    if (values.coachCashMinor === null) return setError({ field: "coach", message: "Use an amount of 0 or more" });
+    if (values.salesCashMinor === null) return setError({ field: "sales", message: "Use an amount of 0 or more" });
     const parsed = createReferralStageRequestSchema.safeParse({ description: description || null, name, tone, ...values });
-    if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Check the form.");
+    if (!parsed.success) return setError({ field: "name", message: parsed.error.issues[0]?.message ?? "Check the name" });
     setError(null);
     await save.mutateAsync({ ...parsed.data, description: parsed.data.description ?? null });
     onClose();
@@ -208,8 +212,8 @@ function StageDialog({ currency, onClose, stage }: { stage: ReferralStageItem | 
           </DialogDescription>
         </DialogHeader>
         <div className="grid max-h-[65dvh] gap-4 overflow-y-auto pr-1">
-          <FormField id="stage-name" label="Name" required>
-            <Input id="stage-name" maxLength={60} onChange={(event) => setName(event.target.value)} value={name} />
+          <FormField error={errorFor("name")} id="stage-name" label="Name" required>
+            <Input hasError={Boolean(errorFor("name"))} id="stage-name" maxLength={60} onChange={(event) => setName(event.target.value)} value={name} />
           </FormField>
           <FormField id="stage-description" label="Description">
             <Textarea id="stage-description" maxLength={300} onChange={(event) => setDescription(event.target.value)} rows={2} value={description} />
@@ -233,22 +237,21 @@ function StageDialog({ currency, onClose, stage }: { stage: ReferralStageItem | 
             ) : (
               <p className="text-xs text-app-muted">Blank = nothing. Applies to referrals reaching the stage from now on.</p>
             )}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FormField hint="Spent in the rewards store" id="stage-student" label="Student referrer (points)">
-                <Input id="stage-student" inputMode="numeric" onChange={(event) => setStudentPoints(event.target.value)} value={studentPoints} />
+            <div className="grid gap-x-3 gap-y-4 sm:grid-cols-2">
+              <FormField error={errorFor("student")} hint="Spent in the rewards store" id="stage-student" label="Student referrer (points)">
+                <Input hasError={Boolean(errorFor("student"))} id="stage-student" inputMode="numeric" onChange={(event) => setStudentPoints(event.target.value)} value={studentPoints} />
               </FormField>
-              <FormField hint="Once their account is linked" id="stage-new-member" label="New member (points)">
-                <Input id="stage-new-member" inputMode="numeric" onChange={(event) => setNewMemberPoints(event.target.value)} value={newMemberPoints} />
+              <FormField error={errorFor("newMember")} hint="Once their account is linked" id="stage-new-member" label="New member (points)">
+                <Input hasError={Boolean(errorFor("newMember"))} id="stage-new-member" inputMode="numeric" onChange={(event) => setNewMemberPoints(event.target.value)} value={newMemberPoints} />
               </FormField>
-              <FormField hint="Withdrawable" id="stage-coach" label={`Coach referrer (${currency})`}>
-                <Input id="stage-coach" inputMode="decimal" onChange={(event) => setCoachCash(event.target.value)} value={coachCash} />
+              <FormField error={errorFor("coach")} hint="Withdrawable" id="stage-coach" label={`Coach referrer (${currency})`}>
+                <Input hasError={Boolean(errorFor("coach"))} id="stage-coach" inputMode="decimal" onChange={(event) => setCoachCash(event.target.value)} value={coachCash} />
               </FormField>
-              <FormField hint="Withdrawable" id="stage-sales" label={`Sales referrer (${currency})`}>
-                <Input id="stage-sales" inputMode="decimal" onChange={(event) => setSalesCash(event.target.value)} value={salesCash} />
+              <FormField error={errorFor("sales")} hint="Withdrawable" id="stage-sales" label={`Sales referrer (${currency})`}>
+                <Input hasError={Boolean(errorFor("sales"))} id="stage-sales" inputMode="decimal" onChange={(event) => setSalesCash(event.target.value)} value={salesCash} />
               </FormField>
             </div>
           </fieldset>
-          {error ? <Alert variant="error">{error}</Alert> : null}
         </div>
         <DialogFooter>
           <Button onClick={onClose} variant="neutral">

@@ -19,9 +19,11 @@ type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
   function Select(
-    { className, density = "default", hasError = false, options, placeholder, ...props },
+    { className, density = "default", hasError: hasErrorProp = false, options, placeholder, ...props },
     ref
   ) {
+    // FormField marks its control aria-invalid when it has an error: show the error border too.
+    const hasError = hasErrorProp || props["aria-invalid"] === true || props["aria-invalid"] === "true";
     return (
       <select
         aria-invalid={hasError}

@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useMemo, useState } from "react";
+import { getErrorMessage } from "@/lib/errors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Clock, Magnet, Search, Send, X } from "lucide-react";
 import { compareNatural, type PullRosterStudent } from "@nexa-chess/types";
@@ -174,13 +175,13 @@ export function PullStudentsSection({ classId }: { classId: string }) {
       });
       void qc.invalidateQueries({ queryKey: rosterKey });
     },
-    onError: (error: Error) => toast.error({ title: "Couldn't pull student", message: error.message })
+    onError: (error: Error) => toast.error({ title: "Couldn't pull student", message: getErrorMessage(error) })
   });
 
   const cancel = useMutation({
     mutationFn: (s: PullRosterStudent) => cancelPull(classId, s.studentId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: rosterKey }),
-    onError: (error: Error) => toast.error({ title: "Couldn't cancel", message: error.message })
+    onError: (error: Error) => toast.error({ title: "Couldn't cancel", message: getErrorMessage(error) })
   });
 
   const debounced = useDebouncedValue(query.trim(), 300);

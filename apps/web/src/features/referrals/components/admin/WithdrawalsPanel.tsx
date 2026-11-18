@@ -268,7 +268,9 @@ function WithdrawalActionDialog({ action, onClose }: { action: NonNullable<Actio
   const { kind, withdrawal } = action;
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // A message goes under the field it is about (UI_RULES § "Form errors").
+  const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
   const pay = useReferralAdminMutation(
     () => referralAdminApi.payWithdrawal(withdrawal.id, { adminNote: note.trim() || undefined, payoutReference: reference.trim() }),
     { failure: "Could not mark it paid", success: "Withdrawal marked paid" }
@@ -279,8 +281,8 @@ function WithdrawalActionDialog({ action, onClose }: { action: NonNullable<Actio
   });
 
   const submit = async () => {
-    if (kind === "pay" && !reference.trim()) return setError("Add the transfer reference.");
-    if (kind === "reject" && !note.trim()) return setError("Say why.");
+    if (kind === "pay" && !reference.trim()) return setError({ field: "reference", message: "Add the transfer reference" });
+    if (kind === "reject" && !note.trim()) return setError({ field: "note", message: "Say why" });
     setError(null);
     await (kind === "pay" ? pay : reject).mutateAsync(undefined);
     onClose();
@@ -301,14 +303,13 @@ function WithdrawalActionDialog({ action, onClose }: { action: NonNullable<Actio
             <LinkedText text={withdrawal.payoutDetails} />
           </div>
           {kind === "pay" ? (
-            <FormField id="withdrawal-reference" label="Transfer reference" required>
-              <Input id="withdrawal-reference" onChange={(event) => setReference(event.target.value)} value={reference} />
+            <FormField error={errorFor("reference")} id="withdrawal-reference" label="Transfer reference" required>
+              <Input hasError={Boolean(errorFor("reference"))} id="withdrawal-reference" onChange={(event) => setReference(event.target.value)} value={reference} />
             </FormField>
           ) : null}
-          <FormField id="withdrawal-note" label={kind === "pay" ? "Note (optional)" : "Reason"} required={kind === "reject"}>
-            <Textarea id="withdrawal-note" maxLength={500} onChange={(event) => setNote(event.target.value)} rows={2} value={note} />
+          <FormField error={errorFor("note")} id="withdrawal-note" label={kind === "pay" ? "Note (optional)" : "Reason"} required={kind === "reject"}>
+            <Textarea hasError={Boolean(errorFor("note"))} id="withdrawal-note" maxLength={500} onChange={(event) => setNote(event.target.value)} rows={2} value={note} />
           </FormField>
-          {error ? <Alert variant="error">{error}</Alert> : null}
         </div>
         <DialogFooter>
           <Button onClick={onClose} variant="neutral">

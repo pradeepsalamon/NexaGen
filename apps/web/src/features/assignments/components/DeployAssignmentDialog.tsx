@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/Dialog";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { FormField } from "@/components/ui/FormField";
 import { useDeployAssignment } from "../hooks/useAssignmentsApi";
 
@@ -27,26 +28,24 @@ export function DeployAssignmentDialog({ open, onOpenChange, assignment, coachBa
   const deployMutation = useDeployAssignment();
   const [batchIds, setBatchIds] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<{ batches?: string; dueDate?: string }>({});
 
   useEffect(() => {
     if (open) {
       setBatchIds([]);
       setDueDate("");
-      setError(null);
+      setErrors({});
     }
   }, [open]);
 
   const submit = () => {
     if (!assignment) return;
-    if (batchIds.length === 0) {
-      setError("Select at least one batch.");
-      return;
-    }
-    if (!dueDate) {
-      setError("Pick a due date.");
-      return;
-    }
+    const next = {
+      batches: batchIds.length === 0 ? "Select at least one batch" : undefined,
+      dueDate: dueDate ? undefined : "Pick a due date"
+    };
+    setErrors(next);
+    if (next.batches || next.dueDate) return;
     deployMutation.mutate(
       { assignmentId: assignment.id, batchIds, dueDate },
       { onSuccess: () => onOpenChange(false) }
@@ -64,8 +63,8 @@ export function DeployAssignmentDialog({ open, onOpenChange, assignment, coachBa
         </DialogHeader>
 
         <div className="grid gap-4 py-2">
-          <div className="grid gap-2">
-            <p className="text-sm font-medium text-app-text">Batches</p>
+          <div className="relative grid gap-2" role="group" aria-labelledby="deploy-batches-label" aria-describedby={errors.batches ? fieldErrorId("deploy-batches") : undefined}>
+            <p className="text-sm font-medium text-app-text" id="deploy-batches-label">Batches</p>
             {coachBatches.length === 0 ? (
               <p className="text-sm text-app-muted">You are not assigned to any batches yet.</p>
             ) : (
@@ -76,26 +75,30 @@ export function DeployAssignmentDialog({ open, onOpenChange, assignment, coachBa
                     id={`deploy-batch-${batch.id}`}
                     label={batch.name}
                     checked={batchIds.includes(batch.id)}
-                    onCheckedChange={(v) =>
+                    onCheckedChange={(v) => {
                       setBatchIds((prev) =>
                         v === true ? [...prev, batch.id] : prev.filter((id) => id !== batch.id)
-                      )
-                    }
+                      );
+                      setErrors((current) => ({ ...current, batches: undefined }));
+                    }}
                   />
                 ))}
               </div>
             )}
+            <FieldError id="deploy-batches" message={errors.batches} />
           </div>
 
-          <FormField id="deploy-dueDate" label="Due date">
+          <FormField error={errors.dueDate} id="deploy-dueDate" label="Due date">
             <DatePicker
               withTime
               value={dueDate ? new Date(dueDate) : undefined}
-              onChange={(date) => setDueDate(date ? date.toISOString() : "")}
+              onChange={(date) => {
+                setDueDate(date ? date.toISOString() : "");
+                setErrors((current) => ({ ...current, dueDate: undefined }));
+              }}
             />
           </FormField>
 
-          {error && <p className="text-sm font-medium text-app-danger-ink">{error}</p>}
         </div>
 
         <DialogFooter>

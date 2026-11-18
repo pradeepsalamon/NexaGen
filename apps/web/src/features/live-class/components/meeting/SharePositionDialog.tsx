@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { useQuery } from "@tanstack/react-query";
 import { sanitizeCastlingRights, type PuzzleDetail, type SolutionMove } from "@nexa-chess/types";
 import { Pencil } from "lucide-react";
@@ -213,40 +214,40 @@ export function SharePositionDialog({
                 <Label htmlFor="share-title">Title</Label>
                 <Input id="share-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
               </div>
-              <div className="space-y-1.5">
+              <div className="relative space-y-1.5">
                 <Label htmlFor="share-seconds">Time in seconds</Label>
                 <Input
-                  id="share-seconds"
+                  id="share-seconds" aria-describedby={durationError ? fieldErrorId("share-seconds") : undefined} hasError={Boolean(durationError)}
                   type="number"
                   inputMode="numeric"
                   placeholder="No timer"
                   value={seconds}
                   onChange={(e) => setSeconds(e.target.value)}
                 />
-                {durationError ? <p className="text-xs text-app-danger-ink">{durationError}</p> : null}
+                <FieldError id="share-seconds" message={durationError} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
+                <div className="relative space-y-1.5">
                   <Label htmlFor="share-points">Points</Label>
                   <Input
-                    id="share-points"
+                    id="share-points" aria-describedby={pointsError ? fieldErrorId("share-points") : undefined} hasError={Boolean(pointsError)}
                     type="number"
                     inputMode="numeric"
                     value={points}
                     onChange={(e) => setPoints(e.target.value)}
                   />
-                  {pointsError ? <p className="text-xs text-app-danger-ink">{pointsError}</p> : null}
+                  <FieldError id="share-points" message={pointsError} />
                 </div>
-                <div className="space-y-1.5">
+                <div className="relative space-y-1.5">
                   <Label htmlFor="share-penalty">Negative points</Label>
                   <Input
-                    id="share-penalty"
+                    id="share-penalty" aria-describedby={penaltyError ? fieldErrorId("share-penalty") : undefined} hasError={Boolean(penaltyError)}
                     type="number"
                     inputMode="numeric"
                     value={penalty}
                     onChange={(e) => setPenalty(e.target.value)}
                   />
-                  {penaltyError ? <p className="text-xs text-app-danger-ink">{penaltyError}</p> : null}
+                  <FieldError id="share-penalty" message={penaltyError} />
                 </div>
               </div>
               <div className="space-y-1.5">

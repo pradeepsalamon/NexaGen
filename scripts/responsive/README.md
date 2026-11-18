@@ -68,6 +68,7 @@ overflow or errored.
 | `--dpr <n>` | force devicePixelRatio for every device (`1` = smaller PNGs) |
 | `--wait <ms>` | settle time per page (default 2000) |
 | `--out <dir>` | output dir (default `scripts/responsive/shots/<timestamp>`) |
+| `--action <file.mjs>` | before each shot, run the module's default export `async (page) => {}` (e.g. open a dialog and submit it empty to capture field errors) |
 
 ### Device categories
 

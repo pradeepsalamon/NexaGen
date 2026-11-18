@@ -174,6 +174,15 @@ export function skipRushMove(run: RushRun, puzzles: PuzzleRushPuzzle[]): RushRun
   return advance({ ...run, feedback: feedback("good", "Skipped"), skipsUsed: run.skipsUsed + 1 }, puzzles, chess, expected, false);
 }
 
+/**
+ * The board's `resetKey`: changes on every puzzle and every ply, so the board
+ * always re-sends the run's position. Keying on the FEN alone misses a puzzle
+ * that starts where the previous one did (same position, same setup move):
+ * nothing the board sees changes, so it keeps showing the solving move and
+ * the next puzzle can't be played.
+ */
+export const rushBoardKey = (run: RushRun) => `${run.puzzleIndex}:${run.ply}`;
+
 /** The run's score as the leaderboard counts it. */
 export const rushScore = (run: RushRun) => (run.mode === "STORM" ? run.solved : run.points);
 

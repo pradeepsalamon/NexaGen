@@ -17,6 +17,7 @@ import {
 import { Logo } from "@/components/Logo";
 import type { NavItem } from "@/components/layout/navItems";
 import { Avatar } from "@/components/ui/Avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useAuthStore } from "@/stores/authStore";
@@ -26,8 +27,18 @@ import { cn, enumLabel } from "@/lib/utils";
 /** From here the nav is docked beside the page instead of an off-canvas drawer. */
 export const NAV_DOCKED_QUERY = "(min-width: 1280px)";
 
-/** True while the docked nav is collapsed to an icon rail: labels become tooltips. */
+/** True while the nav is the icon rail (from `xl`, panel not out): labels become tooltips. */
 const NavRailContext = createContext(false);
+
+/** Closes whatever nav is out (the drawer below `xl`, the expanded panel from it): a link was chosen. */
+function useNavDone() {
+  const close = useSidebarStore((state) => state.close);
+  const setExpanded = useSidebarStore((state) => state.setExpanded);
+  return () => {
+    close();
+    setExpanded(false);
+  };
+}
 
 /** In the rail a label is only a tooltip; elsewhere the label is on screen. */
 function RailTooltip({ children, label }: { children: ReactElement; label: string }) {
@@ -92,12 +103,15 @@ export function NavDrawer({
   const show = useSidebarStore((state) => state.show);
   const toggle = useSidebarStore((state) => state.toggle);
   const setAvailable = useSidebarStore((state) => state.setAvailable);
-  const collapsed = useSidebarStore((state) => state.collapsed);
-  const toggleCollapsed = useSidebarStore((state) => state.toggleCollapsed);
+  const expanded = useSidebarStore((state) => state.expanded);
+  const setExpanded = useSidebarStore((state) => state.setExpanded);
+  const toggleExpanded = useSidebarStore((state) => state.toggleExpanded);
   const docked = useMediaQuery(NAV_DOCKED_QUERY);
-  const rail = docked && collapsed;
+  const rail = docked && !expanded;
 
   const panelRef = useRef<HTMLElement>(null);
+  const dockedRef = useRef<HTMLDivElement>(null);
+  const expandToggleRef = useRef<HTMLButtonElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [peek, setPeek] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -111,29 +125,61 @@ export function NavDrawer({
 
   useEffect(() => {
     setAvailable(true);
-    return () => setAvailable(false);
-  }, [setAvailable]);
+    return () => {
+      setAvailable(false);
+      setExpanded(false);
+    };
+  }, [setAvailable, setExpanded]);
 
-  // `--app-nav-w` (globals.css) sizes the docked column and AppShell's offset.
-  // The root layout's init script sets it before paint; this keeps it current.
+  // `data-nav` sets `--app-rail-w` (globals.css), the rail's fixed page offset from `xl`.
+  // The root layout's init script sets it before paint; this keeps it while a nav is mounted.
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.nav = collapsed ? "collapsed" : "expanded";
+    root.dataset.nav = "rail";
     return () => {
       delete root.dataset.nav;
     };
-  }, [collapsed]);
+  }, []);
 
   // Widening past `xl` docks the nav: an open drawer or a peek has no meaning there.
+  // Narrowing below it leaves no rail for the expanded panel to come back to.
   useEffect(() => {
-    if (!docked) return;
+    if (!docked) {
+      setExpanded(false);
+      return;
+    }
     close();
     setPeek(false);
-  }, [close, docked]);
+  }, [close, docked, setExpanded]);
 
+  // Any navigation (a link, back/forward, a redirect) puts the nav away: the rail is the resting state.
   useEffect(() => {
     close();
-  }, [close, pathname]);
+    setExpanded(false);
+  }, [close, pathname, setExpanded]);
+
+  // The expanded panel floats like a popover: Escape or a press outside it (and outside the
+  // header, whose controls work alongside it) puts it away.
+  useEffect(() => {
+    if (!docked || !expanded) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      setExpanded(false);
+      expandToggleRef.current?.focus();
+    };
+    const onPointerDown = (event: globalThis.PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (dockedRef.current?.contains(target) || target.closest("header")) return;
+      setExpanded(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [docked, expanded, setExpanded]);
 
   useEffect(() => {
     if (!open) return;
@@ -225,32 +271,37 @@ export function NavDrawer({
   if (docked) {
     return (
       <NavRailContext.Provider value={rail}>
-        {/* Full-height navy card left of the header: logo and collapse control on top, user at the foot. */}
-        <div className="fixed inset-y-0 left-0 z-30 w-[var(--app-nav-w)] py-2 pl-2 motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out">
+        {/* Full-height navy card left of the header: the expand control (and, out, the logo) on top,
+            user at the foot. Resting, it is the rail the page is offset by; expanded, the same card
+            widens over the page (above the header's left end, under its menus), so nothing behind
+            it moves. Only this element animates. */}
+        <div
+          className={cn(
+            "fixed inset-y-0 left-0 z-[45] py-2 pl-2 motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out",
+            expanded ? "w-64" : "w-[var(--app-rail-w,4rem)]"
+          )}
+          ref={dockedRef}
+        >
           <aside
             aria-label={`${title} navigation`}
-            className="surface-brand flex h-full flex-col overflow-hidden rounded-panel bg-app-drawer text-on-brand shadow-lift [contain:layout_paint]"
+            className={cn(
+              "surface-brand flex h-full flex-col overflow-hidden rounded-panel bg-app-drawer text-on-brand shadow-lift [contain:layout_paint]",
+              expanded && "shadow-card"
+            )}
             id="nav-drawer"
             ref={panelRef}
           >
-            <div
-              className={cn(
-                "flex h-14 shrink-0 items-center gap-2",
-                rail ? "justify-center" : "justify-between pl-4 pr-3"
-              )}
-            >
-              {rail ? null : (
-                <span className="min-w-0 overflow-hidden">
-                  <Logo compact onDark size={30} />
-                </span>
-              )}
+            {/* The toggle keeps the rail's spot (centred in the 56px card) in both states, so it
+                never moves under the pointer; the logo appears to its right when expanded. */}
+            <div className="flex h-14 shrink-0 items-center gap-3 pl-3.5 pr-3">
               <SimpleTooltip label={rail ? "Expand menu" : "Collapse menu"} side="right">
                 <button
                   aria-controls="nav-drawer"
-                  aria-expanded={!collapsed}
+                  aria-expanded={expanded}
                   aria-label={rail ? "Expand menu" : "Collapse menu"}
                   className="inline-flex size-7 shrink-0 items-center justify-center rounded-control border border-app-drawer-border text-on-brand-muted transition-colors hover:bg-brand-800 hover:text-on-brand"
-                  onClick={toggleCollapsed}
+                  onClick={toggleExpanded}
+                  ref={expandToggleRef}
                   type="button"
                 >
                   <ChevronLeft
@@ -260,6 +311,11 @@ export function NavDrawer({
                   />
                 </button>
               </SimpleTooltip>
+              {rail ? null : (
+                <span className="min-w-0 overflow-hidden">
+                  <Logo compact onDark size={30} />
+                </span>
+              )}
             </div>
             <nav
               className={cn(
@@ -470,7 +526,7 @@ export function NavDrawerLink({
   item: NavItem;
 }) {
   const Icon = item.icon;
-  const close = useSidebarStore((state) => state.close);
+  const done = useNavDone();
   const rail = useContext(NavRailContext);
 
   return (
@@ -485,7 +541,7 @@ export function NavDrawerLink({
         rail && "justify-center px-0"
       )}
       href={item.href}
-      onClick={close}
+      onClick={done}
     >
       <span className="relative flex size-5 shrink-0 items-center justify-center">
         <Icon aria-hidden="true" className="size-5" strokeWidth={active ? 2.3 : 2} />
@@ -496,6 +552,190 @@ export function NavDrawerLink({
       {item.badge?.label && rail ? <span className="sr-only">{item.badge.label}</span> : null}
     </Link>
     </RailTooltip>
+  );
+}
+
+/** Hover intent for rail flyouts: a pointer passing over the rail opens nothing. */
+const FLYOUT_OPEN_DELAY_MS = 150;
+/** Long enough to cross the gap from the icon into the flyout. */
+const FLYOUT_CLOSE_DELAY_MS = 250;
+
+type FlyoutOpener = "click" | "hover" | "keyboard";
+
+/**
+ * A nav section in the rail: its icon opens a flyout to the right (portalled, so the rail's
+ * overflow can't clip it) listing the section's links. Opens on click, on hover after a short
+ * delay (closing once the pointer has left both icon and flyout for a moment), and from the
+ * keyboard (Enter, Space or ArrowRight, focusing the first link; Escape returns to the icon).
+ * A hover-opened flyout stays open once clicked.
+ */
+function RailFlyout({
+  icon: Icon,
+  id,
+  isItemActive,
+  items,
+  label
+}: {
+  icon: LucideIcon;
+  id: string;
+  isItemActive: (href: string) => boolean;
+  items: NavItem[];
+  label: string;
+}) {
+  const pathname = usePathname();
+  const done = useNavDone();
+  const [open, setOpen] = useState(false);
+  const opener = useRef<FlyoutOpener>("click");
+  const timer = useRef<number | undefined>(undefined);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const holdsRoute = items.some((item) => isItemActive(item.href));
+
+  const clearTimer = () => {
+    window.clearTimeout(timer.current);
+    timer.current = undefined;
+  };
+  const after = (ms: number, action: () => void) => {
+    clearTimer();
+    timer.current = window.setTimeout(action, ms);
+  };
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  const links = () => Array.from(contentRef.current?.querySelectorAll<HTMLElement>("a[href]") ?? []);
+
+  const onPointerEnter = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType !== "mouse") return;
+    if (open) {
+      clearTimer();
+      return;
+    }
+    after(FLYOUT_OPEN_DELAY_MS, () => {
+      opener.current = "hover";
+      setOpen(true);
+    });
+  };
+
+  const onPointerLeave = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType !== "mouse") return;
+    if (!open) {
+      clearTimer();
+      return;
+    }
+    if (opener.current === "hover") after(FLYOUT_CLOSE_DELAY_MS, () => setOpen(false));
+  };
+
+  return (
+    <Popover
+      onOpenChange={(next) => {
+        clearTimer();
+        setOpen(next);
+      }}
+      open={open}
+    >
+      <PopoverTrigger asChild>
+        <button
+          aria-label={label}
+          className={cn(
+            "flex h-10 w-full items-center justify-center rounded-control transition-colors duration-150",
+            holdsRoute
+              ? "bg-primary text-on-primary shadow-card"
+              : open
+                ? "bg-brand-800 text-on-brand"
+                : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
+          )}
+          data-nav-flyout-trigger={id}
+          onClick={(event) => {
+            // Ours, not Radix's toggle: a click on a flyout that hover just opened keeps it open.
+            event.preventDefault();
+            clearTimer();
+            if (open && opener.current === "hover") {
+              opener.current = "click";
+              return;
+            }
+            opener.current = event.detail === 0 ? "keyboard" : "click";
+            setOpen(!open);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowRight") return;
+            event.preventDefault();
+            clearTimer();
+            opener.current = "keyboard";
+            if (open) links()[0]?.focus();
+            else setOpen(true);
+          }}
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+          type="button"
+        >
+          <Icon aria-hidden="true" className="size-5" strokeWidth={holdsRoute ? 2.3 : 2} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        aria-label={label}
+        className="surface-brand w-60 rounded-panel border border-app-drawer-border bg-app-drawer p-2 text-on-brand shadow-lift"
+        collisionPadding={12}
+        id={`sidebar-flyout-${id}`}
+        onCloseAutoFocus={(event) => {
+          // Back to the icon after a keyboard close; a pointer that wandered off keeps focus where it is.
+          if (opener.current === "hover") event.preventDefault();
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+          const all = links();
+          if (all.length === 0) return;
+          event.preventDefault();
+          const at = all.indexOf(document.activeElement as HTMLElement);
+          const step = event.key === "ArrowDown" ? 1 : -1;
+          all[(at + step + all.length) % all.length]?.focus();
+        }}
+        onOpenAutoFocus={(event) => {
+          // Radix skips links when it picks what to focus; a hover never moves focus at all.
+          event.preventDefault();
+          if (opener.current !== "hover") links()[0]?.focus();
+        }}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        ref={contentRef}
+        side="right"
+        sideOffset={14}
+      >
+        <p className="px-2.5 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide text-on-brand-muted">
+          {label}
+        </p>
+        <ul className="flex flex-col gap-1">
+          {items.map((item) => {
+            const ItemIcon = item.icon;
+            const active = isItemActive(item.href);
+            return (
+              <li key={item.href}>
+                <Link
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex h-9 items-center gap-2 rounded-control px-2.5 text-sm transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-focus",
+                    active
+                      ? "bg-primary font-semibold text-on-primary shadow-card"
+                      : "font-medium text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
+                  )}
+                  href={item.href}
+                  onClick={() => {
+                    setOpen(false);
+                    done();
+                  }}
+                >
+                  <ItemIcon aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {item.badge ? <NavBadge badge={item.badge} /> : null}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -516,34 +756,13 @@ export function NavDrawerAccordion({
   onToggle: () => void;
   open: boolean;
 }) {
-  const close = useSidebarStore((state) => state.close);
-  const setCollapsed = useSidebarStore((state) => state.setCollapsed);
+  const done = useNavDone();
   const rail = useContext(NavRailContext);
   const panelId = `sidebar-submenu-${id}`;
 
-  // The rail has no room for a section's links: its icon widens the nav and opens the section.
+  // The rail has no room for a section's links: its icon opens them in a flyout beside it.
   if (rail) {
-    const holdsRoute = items.some((item) => isItemActive(item.href));
-    return (
-      <SimpleTooltip label={label} side="right">
-        <button
-          aria-label={`${label}: expand the menu`}
-          className={cn(
-            "flex h-10 w-full items-center justify-center rounded-control transition-colors duration-150",
-            holdsRoute
-              ? "bg-primary text-on-primary shadow-card"
-              : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
-          )}
-          onClick={() => {
-            setCollapsed(false);
-            if (!open) onToggle();
-          }}
-          type="button"
-        >
-          <Icon aria-hidden="true" className="size-5" strokeWidth={holdsRoute ? 2.3 : 2} />
-        </button>
-      </SimpleTooltip>
-    );
+    return <RailFlyout icon={Icon} id={id} isItemActive={isItemActive} items={items} label={label} />;
   }
 
   return (
@@ -601,7 +820,7 @@ export function NavDrawerAccordion({
                 )}
                 href={item.href}
                 key={item.href}
-                onClick={close}
+                onClick={done}
                 tabIndex={open ? undefined : -1}
               >
                 <ItemIcon

@@ -308,6 +308,7 @@ function SavedReplyDialog({
   const save = useSaveSupportSavedReply();
   const dismiss = useDismissSupportUnanswered();
   const form = useForm<FormValues>({
+    mode: "onTouched",
     defaultValues: {
       body: item?.body ?? "",
       description: item?.description ?? "",

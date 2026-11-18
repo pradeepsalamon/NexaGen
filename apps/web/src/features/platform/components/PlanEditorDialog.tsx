@@ -102,7 +102,7 @@ function defaults(plan: PlatformPlanSummary | null): FormValues {
 export function PlanEditorDialog({ onClose, plan }: { onClose: () => void; plan: PlatformPlanSummary | null }) {
   const create = useCreatePlatformPlan();
   const update = useUpdatePlatformPlan();
-  const form = useForm<FormValues>({ defaultValues: defaults(plan), resolver: zodResolver(formSchema) });
+  const form = useForm<FormValues>({ mode: "onTouched", defaultValues: defaults(plan), resolver: zodResolver(formSchema) });
   const { errors } = form.formState;
   const features = form.watch("features");
   const graceAllows = form.watch("graceAllows");

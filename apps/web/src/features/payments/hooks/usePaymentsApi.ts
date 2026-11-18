@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   ApplyDiscountRequest,
   CancelSubscriptionRequest,
@@ -164,7 +165,7 @@ export function useCancelSubscription() {
       id: string;
       data: CancelSubscriptionRequest;
     }) => cancelSubscription(id, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't cancel subscription" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't cancel subscription" }),
     onSuccess: (subscription) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       toast.success({
@@ -213,7 +214,7 @@ export function useRefundPayment() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: CreateRefundRequest }) =>
       refundPayment(id, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't refund payment" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't refund payment" }),
     onSuccess: (refund) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       toast.success({
@@ -233,7 +234,7 @@ export function useReconcilePayment() {
 
   return useMutation({
     mutationFn: (id: string) => reconcilePayment(id),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't reconcile payment" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't reconcile payment" }),
     onSuccess: (status) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       toast.info({
@@ -283,7 +284,7 @@ export function useSaveRouting() {
 
   return useMutation({
     mutationFn: (config: PaymentRoutingConfig) => saveRouting(config),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't save routing" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't save routing" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.routing });
       toast.success({ title: "Routing saved" });
@@ -304,7 +305,7 @@ export function useCreatePlan() {
 
   return useMutation({
     mutationFn: (data: CreatePlanRequest) => createPlan(data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't create plan" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't create plan" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.plans });
       toast.success({ title: "Plan created" });
@@ -319,7 +320,7 @@ export function useUpdatePlan() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdatePlanRequest }) =>
       updatePlan(id, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't update plan" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't update plan" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.plans });
       toast.success({ title: "Plan saved" });
@@ -333,7 +334,7 @@ export function useArchivePlan() {
 
   return useMutation({
     mutationFn: (id: string) => archivePlan(id),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't archive plan" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't archive plan" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.plans });
       toast.success({
@@ -359,7 +360,7 @@ export function useCreateDiscount() {
 
   return useMutation({
     mutationFn: (data: CreateDiscountRequest) => createDiscount(data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't create discount" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't create discount" }),
     onSuccess: (discount) => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.payments.discounts
@@ -376,7 +377,7 @@ export function useUpdateDiscount() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateDiscountRequest }) =>
       updateDiscount(id, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't update discount" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't update discount" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.payments.discounts
@@ -442,7 +443,7 @@ export function useCreateBatchPlan(batchId: string) {
 
   return useMutation({
     mutationFn: (data: CreateBatchPlanRequest) => createBatchPlan(batchId, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't create batch plan" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't create batch plan" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.payments.batchPricing(batchId)
@@ -460,7 +461,7 @@ export function useUpdateBatchPlan(batchId: string) {
   return useMutation({
     mutationFn: ({ planId, data }: { planId: string; data: UpdatePlanRequest }) =>
       updateBatchPlan(batchId, planId, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't update batch plan" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't update batch plan" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.payments.batchPricing(batchId)
@@ -480,7 +481,7 @@ export function useArchiveBatchPlan(batchId: string) {
 
   return useMutation({
     mutationFn: (planId: string) => archiveBatchPlan(batchId, planId),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't archive batch plan" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't archive batch plan" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.payments.batchPricing(batchId)
@@ -535,7 +536,7 @@ export function useRecordManualPayment() {
   return useMutation({
     mutationFn: ({ data, file }: { data: RecordManualPaymentRequest; file?: File }) =>
       recordManualPayment(data, file),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't record manual payment" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't record manual payment" }),
     onSuccess: (record) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.manualMine });
       void queryClient.invalidateQueries({
@@ -574,7 +575,7 @@ export function useApproveManualPayment() {
 
   return useMutation({
     mutationFn: (id: string) => approveManualPayment(id),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't approve manual payment" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't approve manual payment" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       toast.success({ title: "Payment approved" });
@@ -589,7 +590,7 @@ export function useRejectManualPayment() {
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       rejectManualPayment(id, reason),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't reject manual payment" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't reject manual payment" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       toast.success({ title: "Request rejected" });
@@ -610,7 +611,7 @@ export function useCreateOfflineMethod() {
 
   return useMutation({
     mutationFn: (data: CreateOfflinePaymentMethodRequest) => createOfflineMethod(data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't create offline method" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't create offline method" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.payments.manualAdminMethods
@@ -630,7 +631,7 @@ export function useUpdateOfflineMethod() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateOfflinePaymentMethodRequest }) =>
       updateOfflineMethod(id, data),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Couldn't update offline method" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't update offline method" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.payments.manualAdminMethods

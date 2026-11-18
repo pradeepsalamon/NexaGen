@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { getErrorMessage } from "@/lib/errors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDataChannel } from "@livekit/components-react";
 import {
@@ -61,7 +62,7 @@ export function useStartLiveMovePoll(classId: string) {
   return useMutation({
     mutationFn: (body: StartLiveMovePollRequest) => startLiveMovePoll(classId, body),
     onSuccess: setPoll,
-    onError: (error: Error) => toast.error({ title: "Couldn't ask the question", message: error.message })
+    onError: (error: Error) => toast.error({ title: "Couldn't ask the question", message: getErrorMessage(error) })
   });
 }
 
@@ -72,7 +73,7 @@ export function useUpdateLiveMovePoll(classId: string) {
   return useMutation({
     mutationFn: (body: UpdateLiveMovePollRequest) => updateLiveMovePoll(classId, body),
     onSuccess: setPoll,
-    onError: (error: Error) => toast.error({ title: "Couldn't update the question", message: error.message })
+    onError: (error: Error) => toast.error({ title: "Couldn't update the question", message: getErrorMessage(error) })
   });
 }
 
@@ -83,7 +84,7 @@ export function useEndLiveMovePoll(classId: string) {
   return useMutation({
     mutationFn: () => endLiveMovePoll(classId),
     onSuccess: setPoll,
-    onError: (error: Error) => toast.error({ title: "Couldn't end the question", message: error.message })
+    onError: (error: Error) => toast.error({ title: "Couldn't end the question", message: getErrorMessage(error) })
   });
 }
 
@@ -94,6 +95,6 @@ export function useAnswerLiveMovePoll(classId: string) {
   return useMutation({
     mutationFn: (uci: string) => answerLiveMovePoll(classId, { uci }),
     onSuccess: setPoll,
-    onError: (error: Error) => toast.error({ title: "Answer not sent", message: error.message })
+    onError: (error: Error) => toast.error({ title: "Answer not sent", message: getErrorMessage(error) })
   });
 }
