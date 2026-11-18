@@ -24,7 +24,7 @@ import {
 import { Prisma, PuzzleRushMode as DbMode } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { tenantFilter } from "../tenancy/tenant-sql";
-import { assertStudent, authenticateUser, fullName } from "../puzzle/puzzle-auth.helper";
+import { assertStudent, authenticateUser } from "../puzzle/puzzle-auth.helper";
 import { MIN_RUN_SIZE, selectPuzzleRushRun } from "./puzzle-rush-run";
 
 const GRACE_MS = PUZZLE_RUSH_GRACE_SECONDS * 1000;
@@ -60,28 +60,12 @@ export class SoloPuzzleRushService {
   async overview(accessToken: string | undefined): Promise<SoloRushOverview> {
     const student = await this.getStudent(accessToken);
     const batches = await this.trainingBatches(student.id);
-    const best = await this.prisma.soloPuzzleRushRun.groupBy({
-      _max: { score: true },
-      by: ["mode"],
-      where: { finishedAt: { not: null }, studentId: student.id }
-    });
-    const bests = await Promise.all(
-      best
-        .filter((row) => row._max.score !== null)
-        .map(async (row) => {
-          const top = await this.prisma.soloPuzzleRushRun.findFirstOrThrow({
-            orderBy: { finishedAt: "asc" },
-            select: { finishedAt: true },
-            where: { finishedAt: { not: null }, mode: row.mode, score: row._max.score!, studentId: student.id }
-          });
-          return {
-            achievedAt: top.finishedAt!.toISOString(),
-            mode: row.mode as PuzzleRushMode,
-            score: row._max.score!
-          };
-        })
-    );
-    return { batches, bests, enabled: batches.length > 0 };
+    const [bests, weekBests] = await Promise.all([
+      this.bestsSince(student.id, null),
+      // The same 7-day window as the leaderboard's "this week".
+      this.bestsSince(student.id, new Date(Date.now() - WEEK_MS))
+    ]);
+    return { batches, bests, enabled: batches.length > 0, weekBests };
   }
 
   async start(accessToken: string | undefined, mode: PuzzleRushMode): Promise<SoloRushRun> {
@@ -219,7 +203,8 @@ export class SoloPuzzleRushService {
           bestCombo: row.bestCombo,
           errors: row.errors,
           moves: row.moves,
-          name: fullName(row) ?? "Student",
+          // Students are minors: first name and last initial only (owner's call, 2026-11-16).
+          name: leaderboardName(row),
           rank,
           score: row.score,
           studentId: row.studentId
@@ -229,6 +214,32 @@ export class SoloPuzzleRushService {
   }
 
   // ── Internals ──
+
+  /** The student's best finished score per mode (the earliest run reaching it), since `since` or ever. */
+  private async bestsSince(studentId: string, since: Date | null) {
+    const finishedAt = since ? { gte: since } : { not: null };
+    const best = await this.prisma.soloPuzzleRushRun.groupBy({
+      _max: { score: true },
+      by: ["mode"],
+      where: { finishedAt, studentId }
+    });
+    return Promise.all(
+      best
+        .filter((row) => row._max.score !== null)
+        .map(async (row) => {
+          const top = await this.prisma.soloPuzzleRushRun.findFirstOrThrow({
+            orderBy: { finishedAt: "asc" },
+            select: { finishedAt: true },
+            where: { finishedAt, mode: row.mode, score: row._max.score!, studentId }
+          });
+          return {
+            achievedAt: top.finishedAt!.toISOString(),
+            mode: row.mode as PuzzleRushMode,
+            score: row._max.score!
+          };
+        })
+    );
+  }
 
   private async getStudent(accessToken: string | undefined) {
     return assertStudent(await authenticateUser(this.jwtService, this.prisma, accessToken));
@@ -316,4 +327,12 @@ export class SoloPuzzleRushService {
       solved: Math.max(solved, prev.solved)
     };
   }
+}
+
+/** "Arjun K.": first name and the last name's initial, never the full surname. */
+export function leaderboardName(user: { firstName: string; lastName: string | null }): string {
+  const first = user.firstName.trim();
+  const initial = user.lastName?.trim().charAt(0).toUpperCase();
+  const name = [first, initial ? `${initial}.` : ""].filter(Boolean).join(" ");
+  return name || "Student";
 }

@@ -9,9 +9,15 @@ export function useSoloRushOverview() {
   return useQuery({ queryFn: getSoloRushOverview, queryKey: queryKeys.soloRush.overview });
 }
 
+/** How often an on-screen leaderboard refreshes itself (polled like chat; no websocket). */
+const LEADERBOARD_POLL_MS = 45_000;
+
 export function useSoloRushLeaderboard(batchId: string | null, mode: PuzzleRushMode, period: SoloRushPeriod) {
   return useQuery({
     enabled: !!batchId,
+    // Only while it is mounted and the tab is visible; a finished run invalidates it at once.
+    refetchInterval: LEADERBOARD_POLL_MS,
+    refetchIntervalInBackground: false,
     queryFn: () => getSoloRushLeaderboard({ batchId: batchId ?? "", mode, period }),
     queryKey: queryKeys.soloRush.leaderboard(batchId ?? "", mode, period)
   });

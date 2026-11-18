@@ -299,6 +299,8 @@ export type SoloRushOverview = {
   batches: SoloRushBatch[];
   bests: SoloRushBest[];
   enabled: boolean;
+  /** Best finished score per mode in the last 7 days (the leaderboard's "this week"); empty if none. */
+  weekBests: SoloRushBest[];
 };
 
 export type SoloRushRun = {

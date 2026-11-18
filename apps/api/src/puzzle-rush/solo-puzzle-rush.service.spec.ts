@@ -2,7 +2,7 @@
 import { ConflictException, ForbiddenException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { UserRole, UserStatus } from "@prisma/client";
 import { PUZZLE_STORM_CONFIG } from "@nexa-chess/types";
-import { SoloPuzzleRushService } from "./solo-puzzle-rush.service";
+import { leaderboardName, SoloPuzzleRushService } from "./solo-puzzle-rush.service";
 
 const mockSelectRun = jest.fn();
 let mockUser: Record<string, unknown> = { id: "s-1", role: UserRole.STUDENT, status: UserStatus.ACTIVE };
@@ -89,6 +89,31 @@ describe("SoloPuzzleRushService", () => {
   it("is for students only", async () => {
     mockUser = { id: "c-1", role: UserRole.COACH, status: UserStatus.ACTIVE };
     await expect(build().service.overview("t")).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  describe("overview", () => {
+    it("returns all-time and this-week bests, the week from the leaderboard's 7-day window", async () => {
+      const { service, solo } = build();
+      const done = new Date("2026-11-16T10:00:00Z");
+      solo.groupBy.mockImplementation(async ({ where }: any) =>
+        where.finishedAt.gte ? [{ _max: { score: 7 }, mode: "STORM" }] : [{ _max: { score: 12 }, mode: "STORM" }]
+      );
+      solo.findFirstOrThrow.mockResolvedValue({ finishedAt: done });
+      const before = Date.now();
+      const res = await service.overview("t");
+      expect(res.bests).toEqual([{ achievedAt: done.toISOString(), mode: "STORM", score: 12 }]);
+      expect(res.weekBests).toEqual([{ achievedAt: done.toISOString(), mode: "STORM", score: 7 }]);
+      const weekCall = solo.groupBy.mock.calls.map((c: any) => c[0]).find((q: any) => q.where.finishedAt.gte);
+      const since = weekCall.where.finishedAt.gte.getTime();
+      expect(before - since).toBeGreaterThanOrEqual(7 * 24 * 3600 * 1000 - 1000);
+      expect(weekCall.where.studentId).toBe("s-1");
+    });
+
+    it("has no week bests when nothing was finished this week", async () => {
+      const res = await build().service.overview("t");
+      expect(res.weekBests).toEqual([]);
+      expect(res.enabled).toBe(true);
+    });
   });
 
   describe("start", () => {
@@ -188,6 +213,18 @@ describe("SoloPuzzleRushService", () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
+    it("shows first name and last initial only (students are minors)", async () => {
+      const { service } = build({
+        root: {
+          $queryRaw: jest.fn(async () => [
+            { achievedAt: new Date(), bestCombo: 1, errors: 0, firstName: "Arjun", lastName: "kumar", moves: 5, score: 9, studentId: "a" }
+          ])
+        }
+      });
+      const res = await service.leaderboard("t", { batchId: "b-1", mode: "STORM", period: "WEEK" });
+      expect(res.rows[0].name).toBe("Arjun K.");
+    });
+
     it("ranks ties on score and errors together", async () => {
       const row = (id: string, score: number, errors: number) => ({
         achievedAt: new Date("2026-11-16T10:00:00Z"),
@@ -209,5 +246,17 @@ describe("SoloPuzzleRushService", () => {
         ["c", 3]
       ]);
     });
+  });
+});
+
+describe("leaderboardName", () => {
+  it.each([
+    [{ firstName: "Arjun", lastName: "Kumar" }, "Arjun K."],
+    [{ firstName: "Arjun", lastName: null }, "Arjun"],
+    [{ firstName: " Meera ", lastName: "  " }, "Meera"],
+    [{ firstName: "", lastName: "Rao" }, "R."],
+    [{ firstName: "", lastName: null }, "Student"]
+  ])("%j → %s", (user, expected) => {
+    expect(leaderboardName(user)).toBe(expected);
   });
 });
