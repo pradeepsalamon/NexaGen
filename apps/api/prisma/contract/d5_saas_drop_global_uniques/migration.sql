@@ -608,6 +608,9 @@ ALTER TABLE "referral_redemptions" ALTER COLUMN "tenantId" SET DEFAULT nexa_tena
 ALTER TABLE "referral_vouchers" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
 
 -- AlterTable
+ALTER TABLE "solo_puzzle_rush_runs" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- AlterTable
 ALTER TABLE "support_attachments" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
 
 -- AlterTable
