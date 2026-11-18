@@ -4,6 +4,15 @@ import type { LoginFormValues, RegisterFormValues } from "../types/auth";
 export type TouchedFields<TValues> = Partial<Record<keyof TValues, boolean>>;
 export type FormErrors<TValues> = Partial<Record<keyof TValues, string>>;
 
+/** 3–99 written as plain digits with no leading zero (no regex: Semgrep's regex-DoS rule). */
+function isStudentAge(value: string): boolean {
+  if (value.length < 1 || value.length > 2 || value.startsWith("0")) return false;
+  for (const char of value) {
+    if (char < "0" || char > "9") return false;
+  }
+  return Number(value) >= 3;
+}
+
 export function validateLoginForm(
   values: LoginFormValues,
   touched: TouchedFields<LoginFormValues>
@@ -30,7 +39,7 @@ export function validateRegisterForm(
       ? undefined
       : values.studentAge.trim().length === 0
         ? "Enter the student's age"
-        : /^(?:[3-9]|[1-9][0-9])$/.test(values.studentAge)
+        : isStudentAge(values.studentAge)
           ? undefined
           : "Enter an age from 3 to 99",
     acquisitionSource: getFieldError(Boolean(touched.acquisitionSource), values.acquisitionSource, "Choose an option"),
