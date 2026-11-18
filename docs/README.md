@@ -77,4 +77,3 @@ stay as written; the living doc for that area wins where they disagree.
 | [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md) | Proposal: multi-academy WhatsApp, conversation ownership, Native / External helpdesk / Hybrid support modes; decisions first |
 | [PARENT_REPORTS.md](PARENT_REPORTS.md) | Parent reports — deferred, and why |
 | [NIGHT_RUN_2026-11-16.md](NIGHT_RUN_2026-11-16.md) | Work list for the 2026-11-16 unattended run: home/academy swap, Storm fixes and follow-ups, WebKit PDF import, D5 rehearsal; remove once done |
-| [NIGHT_RUN_2026-11-17.md](NIGHT_RUN_2026-11-17.md) | Work list for the 2026-11-17 unattended run: desktop overlay nav with rail flyouts (mobile unchanged), app-wide form validation audit and sweep; remove once done |
