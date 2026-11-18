@@ -24,6 +24,7 @@ import {
 import {
   createRushRun,
   playRushMove,
+  rushBoardKey,
   rushScore,
   skipRushMove,
   type RushRun,
@@ -342,6 +343,7 @@ function ActiveRun({
           onMove={onMove}
           orientation={run.color}
           playerColor={run.color}
+          resetKey={rushBoardKey(run)}
         />
       </div>
 
