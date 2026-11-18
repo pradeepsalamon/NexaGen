@@ -331,16 +331,14 @@ html[data-theme-reveal]::view-transition-new(root) {
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Docked role nav width (components/layout/Sidebar.tsx, AppShell). `data-nav`
-     is set before paint by the root layout and kept current by NavDrawer;
-     unset (signed out, or no nav) means no column. Below xl the nav is a drawer:
-     docked at 1280 the page keeps 960px, what lg layouts were built for. */
+  /* The page offset for the role nav's icon rail (components/layout/Sidebar.tsx,
+     AppShell, Header). `data-nav` is set before paint by the root layout and kept
+     by NavDrawer; unset (signed out, or no nav) means no rail. It never changes
+     while the nav is open: the full panel slides over the page instead
+     (2026-11-17). Below xl the nav is a drawer and the page has no offset. */
   @media (min-width: 1280px) {
-    html[data-nav="expanded"] {
-      --app-nav-w: 16rem;
-    }
-    html[data-nav="collapsed"] {
-      --app-nav-w: 4rem;
+    html[data-nav] {
+      --app-rail-w: 4rem;
     }
   }
 

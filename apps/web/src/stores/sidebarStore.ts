@@ -7,16 +7,22 @@ export const SIDEBAR_STORAGE_KEY = "nexa-sidebar";
 type SidebarState = {
   /** A role nav drawer is mounted — the header shows its menu button only then. */
   available: boolean;
-  /** From `xl`: the docked sidebar is an icon rail. Saved per browser. */
+  /**
+   * Saved per browser before 2026-11-17, when it chose between a docked 16rem nav and the rail.
+   * The rail is now always the resting state, so nothing reads it; kept (with the storage key)
+   * so an older saved value still loads cleanly.
+   */
   collapsed: boolean;
+  /** From `xl`: the full nav panel is out over the page (never saved; every load starts on the rail). */
+  expanded: boolean;
   /** Below `xl`: the off-canvas drawer is out. */
   open: boolean;
   close: () => void;
   setAvailable: (available: boolean) => void;
-  setCollapsed: (collapsed: boolean) => void;
+  setExpanded: (expanded: boolean) => void;
   show: () => void;
   toggle: () => void;
-  toggleCollapsed: () => void;
+  toggleExpanded: () => void;
 };
 
 /** On `<html>` while the drawer is out; the drawer's slide is CSS on this attribute alone. */
@@ -46,8 +52,8 @@ function moveDrawer(open: boolean, commit: (open: boolean) => void) {
 }
 
 /**
- * The role nav: docked (expanded or a rail) from `xl`, an off-canvas drawer
- * below it. Driven by the drawer's own controls and the header's menu button.
+ * The role nav: from `xl` a fixed icon rail whose full panel slides out over the page
+ * (`expanded`), an off-canvas drawer below it. Driven by the drawer's own controls and the header's menu button.
  */
 export const useSidebarStore = create<SidebarState>()(
   persist(
@@ -56,6 +62,7 @@ export const useSidebarStore = create<SidebarState>()(
       return {
       available: false,
       collapsed: false,
+      expanded: false,
       open: false,
       close: () => {
         // Called on every route change and resize; nothing to do while it is already in.
@@ -65,16 +72,10 @@ export const useSidebarStore = create<SidebarState>()(
         if (!available) moveDrawer(false, commit);
         set({ available });
       },
-      setCollapsed: (collapsed) => set({ collapsed }),
+      setExpanded: (expanded) => set((state) => (state.expanded === expanded ? state : { expanded })),
       show: () => moveDrawer(true, commit),
       toggle: () => moveDrawer(!drawerTarget, commit),
-      toggleCollapsed: () =>
-        set((state) => {
-          const collapsed = !state.collapsed;
-          // Start the column's width animation with the click, not after React re-renders the nav.
-          if (typeof document !== "undefined") document.documentElement.dataset.nav = collapsed ? "collapsed" : "expanded";
-          return { collapsed };
-        })
+      toggleExpanded: () => set((state) => ({ expanded: !state.expanded }))
       };
     },
     {
