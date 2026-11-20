@@ -53,6 +53,19 @@ Moved out of CLAUDE.md §3.2 on 2026-10-31; the text is unchanged in substance.
   token** — the 25 copies this replaced had drifted (admin/backup skipped the
   ACTIVE check, Stockfish trusted the token's role). The module
   `*-auth.helper.ts` files re-export it.
+- **Active role (multi-role accounts, [MULTI_ROLE_ACCOUNTS.md](MULTI_ROLE_ACCOUNTS.md)).**
+  An ADMIN / SUPER_ADMIN account may also hold COACH (`User.extraRoles`). The
+  login session acts in one role (`AuthSession.activeRole`, null = primary;
+  carried to the successor on refresh), and `authenticateUser` returns the
+  user with **`role` replaced by that active role** while the account still
+  holds it, plus non-enumerable `primaryRole` / `roles`. So every role check
+  judges the role the session acts in. Use `primaryRoleOf(user)` only for
+  account-level facts (MFA is judged on the primary role, so a switched view
+  never makes it optional). The access token is minted with the active role.
+  Switch: `POST /auth/switch-role` (same session, new access cookie). A query
+  that looks users up *as coaches* uses `coachWhere()` / `isCoachAccount()`
+  (`common/coach-accounts.ts`; `coach-accounts.spec.ts` fails a raw
+  `role: COACH` filter).
 - **Params and queries.** Parse a param/query inside a handler with
   `parseOrBadRequest` (`common/zod-body.pipe.ts`), never a bare `schema.parse` —
   a ZodError is a 500, thrown before the handler has even authenticated anyone.

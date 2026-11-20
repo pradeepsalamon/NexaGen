@@ -47,6 +47,7 @@ import { useDataTable } from "@/hooks/useDataTable";
 import { useServerTable } from "@/hooks/useServerTable";
 
 import { UserForm } from "./UserForm";
+import { CanAlsoTeachSwitch } from "./CanAlsoTeachSwitch";
 import { UserSettings } from "./UserSettings";
 import {
   useUsersQuery
@@ -218,7 +219,11 @@ export function UserManagementClient() {
           />
         ),
         cell: ({ row }) => (
-          <Badge variant="outline">{enumLabel(row.original.role)}</Badge>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="outline">{enumLabel(row.original.role)}</Badge>
+            {/* Multi-role accounts (docs/MULTI_ROLE_ACCOUNTS.md). */}
+            {row.original.extraRoles?.includes("COACH") && <Badge variant="secondary">Can also teach</Badge>}
+          </div>
         )
       },
       {
@@ -454,11 +459,14 @@ export function UserManagementClient() {
           <TabsContent value="create" className="outline-none">
             {/* When switching to 'create' tab via "Edit", React doesn't remount if key is same, 
                 so we use key to force reset of useForm default values */}
-            <UserForm
-              key={editingUserId ?? "new"}
-              selectedUser={selectedUser}
-              onSuccess={() => setActiveTab("all")}
-            />
+            <div className="grid gap-4">
+              <UserForm
+                key={editingUserId ?? "new"}
+                selectedUser={selectedUser}
+                onSuccess={() => setActiveTab("all")}
+              />
+              {selectedUser && <CanAlsoTeachSwitch key={selectedUser.id} user={selectedUser} />}
+            </div>
           </TabsContent>
 
           <TabsContent value="settings" className="outline-none">

@@ -1,9 +1,9 @@
 # Multi-role accounts with a role switch
 
-Status: **design, not built** (2026-11-20). Owner asked for it on 2026-11-20 as
-the fix for a solo coach who runs their own academy. Nothing here needs a
-product decision before building; the defaults below are the builder's calls
-and can be changed in review.
+Status: **built** 2026-11-20 on branch `feat/multi-role-accounts` (PR into
+`dev`, not merged). Owner asked for it on 2026-11-20 as the fix for a solo
+coach who runs their own academy. §10 lists what the build changed from the
+design below; the defaults are the builder's calls and can be changed in review.
 
 ## 1. Problem
 
@@ -72,7 +72,7 @@ follow the switch with no change.
 
 | Flow | What happens |
 |---|---|
-| **Grant** `PUT /admin/users/:id/extra-roles` | SUPER_ADMIN only; target must be ADMIN/SUPER_ADMIN of the same academy and ACTIVE; seat check (`EntitlementService.assert*`, under the existing limit lock) inside the transaction; create `CoachProfile` if missing; `UserRoleChange` row. |
+| **Grant** `PUT /users/:id/extra-roles` (`API_ROUTES.users.extraRoles`) | SUPER_ADMIN only; target must be ADMIN/SUPER_ADMIN of the same academy and ACTIVE; seat check (`EntitlementService.assert*`, under the existing limit lock) inside the transaction; create `CoachProfile` if missing; `UserRoleChange` row. |
 | **Remove** same route | Clears `COACH`; sessions whose `activeRole` is COACH fall back on their next request (§5.3), no forced logout. Batches the account coaches keep it as coach (history), and the admin sees a warning listing them. |
 | **Login** | Session starts in the primary role (admin). |
 | **Switch** `POST /auth/switch-role { role }` | Role must be the primary or in `extraRoles`; sets `AuthSession.activeRole` on the current session, mints a new access token (same session, refresh token unchanged), sets the cookie, returns `/auth/me`. Throttled like other auth writes; structured log line `role-switch`. |
@@ -163,3 +163,51 @@ one helper (medium, mechanical), web switcher + admin toggle (small), tests
   admin and tick "Can also teach", same result).
 - Viewing both dashboards at once (deliberately not done: one role at a time
   keeps every permission rule simple and auditable).
+
+## 10. As built (2026-11-20)
+
+- **Route** `PUT /users/:id/extra-roles` `{ extraRoles: [] | ["COACH"] }`
+  (next to the other `/users` routes, so the admin-route access suite covers
+  it), answer `{ user, coachedBatches }`. `POST /auth/switch-role { role }`
+  answers `/auth/me`'s shape and replaces only the access cookie
+  (`setAccessCookie`); 10 a minute per caller. A support visit cannot switch.
+- **A super admin may grant it to their own account** (a solo owner has one
+  login). Logged as an owner question in BACKLOG.md.
+- **Enforcement**: `applyActiveRole` (`auth/authenticate.ts`) sets `role` and
+  adds non-enumerable `primaryRole` / `roles`, so a spread of the user into a
+  Prisma write or a JSON body never carries them. `primaryRoleOf(user)` for
+  account-level facts; MFA `status` / `disable` use it. Rules shared with the
+  web: `@nexa-chess/types` `multi-role.ts` (`canHoldExtraRole`,
+  `accountRoles`, `resolveActiveRole`, `rolesOf`).
+- **Database**: `users.extraRoles` (default `{}`) with a CHECK constraint
+  `users_extra_roles_v1_check` (only `{COACH}` on ADMIN / SUPER_ADMIN),
+  `auth_sessions.activeRole`, `user_role_changes`. Migration
+  `20261120192549_multi_role_accounts`.
+- **Primary role changes**: editing an account to a role that can't hold its
+  extra roles (e.g. admin → coach) drops them in the same update and records
+  REMOVED. Reactivating or restoring an admin who can teach takes a coach seat
+  again.
+- **Coach lookups** (`common/coach-accounts.ts`): `coachWhere()` for queries,
+  `isCoachAccount()` for a loaded account (the approval handlers' "is the
+  requester still a coach" revalidation, demo-class coach checks). Changed:
+  batch / schedule / class coach pickers and validation, substitute options,
+  feedback ratings, payroll compensation profiles, attendance report and
+  monitoring counts, analytics coach counts and the coach leaderboard SQL,
+  plan seat counting and usage, announcements to coaches. Kept on the primary
+  role (marked `coach-role-ok`): coach applications, a new applicant's
+  account, two type/label literals.
+- **Privacy export**: section `roleChanges` (without the actor's id).
+- **Web**: "Switch to coach view / admin view" in the user menu
+  (`useSwitchRole`: `mutateAsync`, `setUser`, `queryClient.clear()`, go to the
+  role's dashboard), a "Coach view" chip in the header from `sm`, a "Can also
+  teach" card under Admin → Users → Edit (super admins, staff rows only) that
+  warns which batches still list the account as coach after removal, and a
+  "Can also teach" badge in the users table.
+- **Tests**: `auth/authenticate.spec.ts`, `auth/multi-role.spec.ts`,
+  `auth/auth.service.spec.ts` (switch, refresh carry-over),
+  `user/user.service.spec.ts` (`setExtraRoles`, role change),
+  `common/coach-accounts.spec.ts` (the raw-filter guard),
+  `user/multi-role.int-spec.ts` (grant, switch, coach-view powers, fallback on
+  removal, seat count, CHECK constraint), and rows in the access suites. The
+  staging e2e of §6 is not run yet.
+

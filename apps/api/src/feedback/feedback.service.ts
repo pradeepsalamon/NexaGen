@@ -50,6 +50,7 @@ import {
 } from "./feedback-pending.util";
 import { authenticateUser } from "../auth/authenticate";
 import { queryString } from "../common/query-params";
+import { coachWhere } from "../common/coach-accounts";
 
 type AuthenticatedUser = Pick<User, "id" | "role" | "status">;
 
@@ -176,7 +177,7 @@ export class FeedbackService {
     this.assertAdmin(await this.getAuthenticatedUser(accessToken));
 
     const coaches = await this.prisma.user.findMany({
-      where: { role: UserRole.COACH, status: UserStatus.ACTIVE },
+      where: { status: UserStatus.ACTIVE, ...coachWhere() },
       select: { id: true, firstName: true, lastName: true },
       orderBy: { firstName: "asc" }
     });

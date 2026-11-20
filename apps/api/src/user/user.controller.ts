@@ -6,12 +6,14 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req
 } from "@nestjs/common";
 import type { Request } from "express";
-import { API_ROUTES } from "@nexa-chess/types";
-import type { PaginatedQuery } from "@nexa-chess/types";
+import { API_ROUTES, updateExtraRolesRequestSchema } from "@nexa-chess/types";
+import type { PaginatedQuery, UpdateExtraRolesRequest } from "@nexa-chess/types";
+import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { UserService } from "./user.service";
 import { CreateUserDto, UpdateUserDto } from "./dto/user.dto";
@@ -55,6 +57,16 @@ export class UserController {
   @Patch(API_ROUTES.users.restore())
   restore(@Param("id") id: string, @Req() request: Request) {
     return this.userService.restore(this.getAccessToken(request), id);
+  }
+
+  /** "Can also teach": a super admin sets an admin account's extra roles (docs/MULTI_ROLE_ACCOUNTS.md). */
+  @Put(API_ROUTES.users.extraRoles())
+  setExtraRoles(
+    @Body(new ZodBodyPipe(updateExtraRolesRequestSchema)) body: UpdateExtraRolesRequest,
+    @Param("id") id: string,
+    @Req() request: Request
+  ) {
+    return this.userService.setExtraRoles(this.getAccessToken(request), id, body);
   }
 
   @Delete(API_ROUTES.users.delete())

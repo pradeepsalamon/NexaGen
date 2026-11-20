@@ -6,13 +6,15 @@ import Link from "next/link";
 import { useRouter } from "@/lib/navigation";
 import { useMutation } from "@tanstack/react-query";
 import {
+  ArrowLeftRight,
   LayoutDashboard,
   User as UserIcon,
   LogOut,
   ChevronDown,
   Palette
 } from "lucide-react";
-import type { AuthUser } from "@nexa-chess/types";
+import { rolesOf, type AuthUser } from "@nexa-chess/types";
+import { roleViewLabel, useSwitchRole } from "@/features/auth/hooks/useSwitchRole";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { logout } from "@/features/auth/api/authApi";
 import { useToast } from "@/providers/ToastProvider";
@@ -90,6 +92,10 @@ export function UserNavMenu({
     }
   });
 
+  const { isSwitching, switchTo } = useSwitchRole();
+  // Multi-role accounts (docs/MULTI_ROLE_ACCOUNTS.md): the other roles this login can act in.
+  const otherRoles = rolesOf(user).filter((role) => role !== user.role);
+
   const dashboardHref = getRoleDashboardHref(user.role);
   const newTabProps = openLinksInNewTab
     ? { target: "_blank" as const, rel: "noopener noreferrer" }
@@ -135,6 +141,26 @@ export function UserNavMenu({
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          {otherRoles.length > 0 && (
+            <>
+              <DropdownMenuGroup>
+                {otherRoles.map((role) => (
+                  <DropdownMenuItem
+                    className="flex cursor-pointer items-center gap-2.5 py-2 font-medium text-app-text"
+                    disabled={isSwitching}
+                    key={role}
+                    onSelect={() => {
+                      void switchTo(role).catch(() => undefined);
+                    }}
+                  >
+                    <ArrowLeftRight className="size-4 text-app-muted" />
+                    <span>Switch to {roleViewLabel(role).toLowerCase()}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuGroup>
             <DropdownMenuItem asChild>
               <Link

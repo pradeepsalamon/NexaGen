@@ -1,6 +1,7 @@
+import { isCoachAccount } from "../../common/coach-accounts";
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { attendanceCorrectionPayloadSchema, type AttendanceCorrectionPayload } from "@nexa-chess/types";
-import { UserRole, UserStatus, type ApprovalRequest, type AttendanceStatus } from "@prisma/client";
+import { UserStatus, type ApprovalRequest, type AttendanceStatus } from "@prisma/client";
 import {
   applyAttendanceCorrection,
   currentAttendanceStatus,
@@ -53,7 +54,7 @@ export class AttendanceCorrectionHandler implements ApprovalHandler<AttendanceCo
     if (
       cls.coachId !== requesterId ||
       cls.coach.isDeleted ||
-      cls.coach.role !== UserRole.COACH ||
+      !isCoachAccount(cls.coach) ||
       cls.coach.status !== UserStatus.ACTIVE
     ) {
       throw new ConflictException("The class is no longer this coach's (or the coach is inactive). Reject this request.");

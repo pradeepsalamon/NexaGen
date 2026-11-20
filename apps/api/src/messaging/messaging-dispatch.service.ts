@@ -545,7 +545,7 @@ export class MessagingDispatchService {
       });
     }
     if (audience !== "STUDENTS") {
-      people.push({ users: [cls.coach], role: UserRole.COACH });
+      people.push({ users: [cls.coach], role: UserRole.COACH }); // coach-role-ok: the recipient's part
     }
 
     return people.flatMap(({ users, role }) =>
@@ -771,7 +771,12 @@ export class MessagingDispatchService {
     const users = await this.prisma.user.findMany({
       where: {
         status: UserStatus.ACTIVE,
-        role: { in: roleFilter },
+        // A staff account that can also teach hears what coaches hear (docs/MULTI_ROLE_ACCOUNTS.md §5.4).
+        AND: [
+          roleFilter.includes(UserRole.COACH)
+            ? { OR: [{ role: { in: roleFilter } }, { extraRoles: { has: UserRole.COACH } }] }
+            : { role: { in: roleFilter } }
+        ],
         ...(announcement.audience === "BATCH" && announcement.batchId
           ? {
               OR: [

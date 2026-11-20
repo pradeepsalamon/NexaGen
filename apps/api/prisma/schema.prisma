@@ -263,6 +263,10 @@ model User {
   avatarUrl String?
 
   role              UserRole   @default(STUDENT)
+  /// Roles held besides `role` (docs/MULTI_ROLE_ACCOUNTS.md). v1: only COACH,
+  /// only on ADMIN / SUPER_ADMIN accounts (service rule + CHECK constraint).
+  /// A login session acts in one role at a time (`AuthSession.activeRole`).
+  extraRoles        UserRole[] @default([])
   status            UserStatus @default(PENDING)
   /// The academy's hidden "Platform support" account (§I "Support access"):
   /// support sessions act as it, so no Nexa user id lands in another academy's
@@ -327,6 +331,8 @@ model User {
   supportLinkCodes                SupportLinkCode[]                @relation("SupportLinkCodeStudent")
   issuedSupportLinkCodes          SupportLinkCode[]                @relation("SupportLinkCodeIssuedBy")
   coachedBatches                  BatchCoach[]                     @relation("BatchCoaches")
+  roleChanges                     UserRoleChange[]                 @relation("UserRoleChangeUser")
+  roleChangesMade                 UserRoleChange[]                 @relation("UserRoleChangeActor")
   studentBatches                  BatchStudent[]                   @relation("BatchStudents")
   classes                         CoachClass[]                     @relation("ClassCoach")
   createdFeedbackForms            FeedbackForm[]                   @relation("FeedbackFormCreatedBy")
@@ -684,6 +690,10 @@ model AuthSession {
 
   /// Set when this session is a platform support visit (PlatformSupportSession.id).
   supportSessionId String?
+  /// The role this login session acts in (docs/MULTI_ROLE_ACCOUNTS.md). Null =
+  /// the account's primary `User.role`. Copied to the successor on refresh;
+  /// applied by `authenticateUser` only while the account still holds it.
+  activeRole       UserRole?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -691,6 +701,34 @@ model AuthSession {
   @@index([expiresAt])
   @@index([familyId])
   @@map("auth_sessions")
+}
+
+enum UserRoleChangeAction {
+  GRANTED
+  REMOVED
+}
+
+/// Audit of extra roles granted to / removed from an account
+/// (docs/MULTI_ROLE_ACCOUNTS.md §5.1). Kept with the account; in the privacy export.
+model UserRoleChange {
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId String @default("tenant_nexa")
+
+  userId String
+  user   User   @relation("UserRoleChangeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  role   UserRole
+  action UserRoleChangeAction
+
+  /// Who granted or removed it; null once that account is purged.
+  actorId String?
+  actor   User?   @relation("UserRoleChangeActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("user_role_changes")
 }
 
 // TOTP second factor. One row per enrolled (or enrolling) user.

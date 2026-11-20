@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -59,7 +60,12 @@ import {
   splitStudentName,
   verifySecret
 } from "./auth.utils";
-import { authenticateUser, verifyAccessToken as verifySharedAccessToken } from "./authenticate";
+import {
+  applyActiveRole,
+  authenticateUser,
+  primaryRoleOf,
+  verifyAccessToken as verifySharedAccessToken
+} from "./authenticate";
 import { MfaService } from "./mfa/mfa.service";
 import { isPlatformOperator } from "../platform/platform-operator";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
@@ -273,7 +279,7 @@ export class AuthService {
         firstName,
         lastName,
         phoneNumber: payload.contactNumber,
-        role: UserRole.COACH,
+        role: UserRole.COACH, // coach-role-ok: a new applicant's account
         status: UserStatus.PENDING,
         timezone: "Asia/Kolkata",
         isEmailVerified: !verifyEmail,
@@ -438,7 +444,7 @@ export class AuthService {
       ...tokenPair,
       accessTokenMaxAge: this.accessTokenMaxAge,
       refreshTokenMaxAge,
-      user: this.toAuthUser(user)
+      user: this.toAuthUser(applyActiveRole(user, null))
     };
   }
 
@@ -514,8 +520,11 @@ export class AuthService {
       1,
       Math.floor(refreshTokenMaxAge / 1_000)
     )}s` as JwtDuration;
+    // The successor keeps the device's active role while the account still
+    // holds it (docs/MULTI_ROLE_ACCOUNTS.md); a removed role falls back here.
+    const acting = applyActiveRole(session.user, session.activeRole);
     const tokenPair = await this.createSession(
-      session.user,
+      acting,
       context,
       refreshTokenMaxAge,
       refreshTokenTtl,
@@ -527,7 +536,7 @@ export class AuthService {
       ...tokenPair,
       accessTokenMaxAge: this.accessTokenMaxAge,
       refreshTokenMaxAge,
-      user: this.toAuthUser(session.user)
+      user: this.toAuthUser(acting)
     };
   }
 
@@ -808,7 +817,8 @@ export class AuthService {
       if (reverifyEmail) void this.emailVerification.sendLinkBestEffort(updatedUser);
     }
 
-    return { user: this.toAuthUser(updatedUser) };
+    // Shown in the role this session acts in, not the stored one.
+    return { user: this.toAuthUser(applyActiveRole(updatedUser, user.role)) };
   }
 
   /** Counts a wrong password against the account; the Nth one locks sign-in. */
@@ -1001,24 +1011,13 @@ export class AuthService {
         ipAddress: context.ipAddress,
         supportSessionId: supportSessionId ?? null,
         userAgent: context.userAgent,
-        userId: user.id
+        userId: user.id,
+        // `user.role` is the acting role (applyActiveRole); null = the primary role.
+        activeRole: user.role === primaryRoleOf(user) ? null : user.role
       }
     });
 
-    const accessToken = await this.jwtService.signAsync(
-      {
-        email: user.email,
-        role: user.role,
-        sessionId: session.id,
-        sub: user.id,
-        type: "access",
-        ...(supportSessionId ? { support: supportSessionId } : {})
-      } satisfies AccessTokenPayload,
-      {
-        expiresIn: this.accessTokenTtl,
-        secret: this.accessSecret
-      }
-    );
+    const accessToken = await this.signAccessToken(user, session.id, supportSessionId);
     const refreshToken = await this.jwtService.signAsync(
       {
         sessionId: session.id,
@@ -1037,6 +1036,68 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  /** The access token carries the acting role, so web routing follows a role switch. */
+  private signAccessToken(user: Pick<User, "email" | "id" | "role">, sessionId: string, supportSessionId?: string | null) {
+    return this.jwtService.signAsync(
+      {
+        email: user.email,
+        role: user.role,
+        sessionId,
+        sub: user.id,
+        type: "access",
+        ...(supportSessionId ? { support: supportSessionId } : {})
+      } satisfies AccessTokenPayload,
+      {
+        expiresIn: this.accessTokenTtl,
+        secret: this.accessSecret
+      }
+    );
+  }
+
+  /**
+   * Switches this login session to another role the account holds
+   * (docs/MULTI_ROLE_ACCOUNTS.md §5.2). Same session and refresh token; only
+   * `AuthSession.activeRole` and a fresh access token change. Other devices
+   * keep their own role.
+   */
+  async switchRole(
+    accessToken: string | undefined,
+    role: UserRole
+  ): Promise<AuthResponse & { accessToken: string; accessTokenMaxAge: number }> {
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, {
+      allowSales: true,
+      include: { coachProfile: true, studentProfile: true }
+    });
+    const payload = this.jwtService.decode<Partial<AccessTokenPayload> | null>(accessToken ?? "");
+    if (!payload?.sessionId) {
+      throw new UnauthorizedException("Sign in again to switch roles.");
+    }
+    if (payload.support) {
+      throw new ForbiddenException("A support visit cannot switch roles.");
+    }
+    if (!user.roles.includes(role)) {
+      throw new ForbiddenException("This account cannot act in that role.");
+    }
+
+    const from = user.role;
+    const claimed = await this.prisma.authSession.updateMany({
+      data: { activeRole: role === user.primaryRole ? null : role },
+      where: { id: payload.sessionId, revokedAt: null, userId: user.id }
+    });
+    if (claimed.count === 0) {
+      throw new UnauthorizedException("Invalid session.");
+    }
+    user.role = role;
+    this.logger.log(JSON.stringify({ event: "role-switch", from, sessionId: payload.sessionId, to: role, userId: user.id }));
+
+    return {
+      accessToken: await this.signAccessToken(user, payload.sessionId),
+      accessTokenMaxAge: this.accessTokenMaxAge,
+      support: null,
+      user: this.toAuthUser(user)
+    };
   }
 
   private verifyAccessToken(token: string) {
@@ -1080,10 +1141,13 @@ export class AuthService {
       firstName: user.firstName,
       id: user.id,
       isEmailVerified: user.isEmailVerified,
+      extraRoles: [...(user.extraRoles ?? [])],
       isPlatformOperator: isPlatformOperator(user),
       lastName: user.lastName,
       phoneNumber: user.phoneNumber,
+      primaryRole: primaryRoleOf(user),
       role: user.role,
+      roles: (user as Partial<{ roles: UserRole[] }>).roles ?? [user.role],
       status: user.status,
       studentProfile: user.studentProfile && !user.studentProfile.isDeleted
         ? {

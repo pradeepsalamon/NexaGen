@@ -82,7 +82,7 @@ attendance, assignments, the puzzle library, announcements, notifications.
 | Key | Counts | Checked in |
 |---|---|---|
 | `maxStudents` | ACTIVE students | `UserService.create/update/restore`, `AdminService.updateStudentStatus` |
-| `maxCoaches` | ACTIVE coaches | same, plus `AdminService.updateCoachStatus` |
+| `maxCoaches` | ACTIVE coaches, **including admins who can also teach** (`coachWhere()`) | same, plus `AdminService.updateCoachStatus` and `UserService.setExtraRoles` ("Can also teach", [MULTI_ROLE_ACCOUNTS.md](MULTI_ROLE_ACCOUNTS.md)) |
 | `maxBatches` | non-deleted batches (archived count) | `BatchService.create` |
 | `maxConcurrentLiveClasses` | `LiveSession` rows LIVE | `LiveClassService.startClass` |
 

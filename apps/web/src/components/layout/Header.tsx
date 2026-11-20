@@ -17,6 +17,9 @@ import { useSidebarStore } from "@/stores/sidebarStore";
 import { resolvePageTitle } from "@/lib/pageTitles";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/Spinner";
+import { rolesOf } from "@nexa-chess/types";
+import { roleViewLabel } from "@/features/auth/hooks/useSwitchRole";
+import { Badge } from "@/components/ui/Badge";
 
 /**
  * The header's own menu (three bars) button is switched off, not deleted: the nav is opened by
@@ -167,7 +170,15 @@ export function Header({
               <Spinner aria-hidden="true" className="size-4" />
             </div>
           ) : activeUser ? (
-            <UserNavMenu user={activeUser} openLinksInNewTab={openLinksInNewTab} />
+            <>
+              {/* Multi-role accounts: which hat this session is wearing (docs/MULTI_ROLE_ACCOUNTS.md §5.6). */}
+              {rolesOf(activeUser).length > 1 && (
+                <Badge className={cn("hidden shrink-0 sm:inline-flex", compact && "sm:hidden lg:inline-flex")} variant="secondary">
+                  {roleViewLabel(activeUser.role)}
+                </Badge>
+              )}
+              <UserNavMenu user={activeUser} openLinksInNewTab={openLinksInNewTab} />
+            </>
           ) : pathname === "/login" ? null : (
             <Button asChild>
               <Link aria-label="Log in" href="/login">

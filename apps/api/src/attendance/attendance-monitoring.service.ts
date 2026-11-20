@@ -17,6 +17,7 @@ import {
 import type { ParticipantPresence } from "@nexa-chess/types";
 import { authenticateUser } from "../auth/authenticate";
 import { AttendanceService } from "./attendance.service";
+import { coachWhere } from "../common/coach-accounts";
 
 /** Admin dashboard, live-class presence monitoring and reliability metrics. */
 @Injectable()
@@ -71,7 +72,7 @@ export class AttendanceMonitoringService {
         where: { role: UserRole.STUDENT, status: UserStatus.ACTIVE, isDeleted: false },
       }),
       this.prisma.user.count({
-        where: { role: UserRole.COACH, status: UserStatus.ACTIVE, isDeleted: false },
+        where: { status: UserStatus.ACTIVE, isDeleted: false, ...coachWhere() },
       }),
       this.prisma.coachClass.count({
         where: { status: ClassStatus.COMPLETED },
@@ -322,7 +323,7 @@ export class AttendanceMonitoringService {
     type ReliabilityParticipant = {
       id: string;
       name: string;
-      role: "COACH" | "STUDENT";
+      role: "COACH" | "STUDENT"; // coach-role-ok: a type, not a filter
       presence: ParticipantPresence;
       lastHeartbeatAt: string | null;
     };
@@ -342,7 +343,7 @@ export class AttendanceMonitoringService {
         participants.push({
           id: coachClass.coachId,
           name: `${coachClass.coach.firstName} ${coachClass.coach.lastName || ""}`.trim(),
-          role: "COACH",
+          role: "COACH", // coach-role-ok: the participant's part in the class
           presence,
           lastHeartbeatAt: coachClass.coachAttendance.lastHeartbeatAt?.toISOString() || null,
         });

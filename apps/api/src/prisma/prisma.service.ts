@@ -63,6 +63,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.authSession;
   }
 
+  get userRoleChange() {
+    return this.client.userRoleChange;
+  }
+
   get userMfa() {
     return this.client.userMfa;
   }

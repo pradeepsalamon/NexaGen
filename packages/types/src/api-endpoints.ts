@@ -6,6 +6,7 @@ export const API_ROUTES = {
     logout: "/auth/logout",
     me: "/auth/me",
     supportEnter: "/auth/support/enter",
+    switchRole: "/auth/switch-role",
     profile: "/auth/profile",
     forgotPassword: "/auth/forgot-password",
     resetPassword: "/auth/reset-password",
@@ -26,6 +27,7 @@ export const API_ROUTES = {
     update: (id: string = ":id") => `/users/${id}`,
     archive: (id: string = ":id") => `/users/${id}/archive`,
     restore: (id: string = ":id") => `/users/${id}/restore`,
+    extraRoles: (id: string = ":id") => `/users/${id}/extra-roles`,
     delete: (id: string = ":id") => `/users/${id}`
   },
   emailPreferences: {
