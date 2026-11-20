@@ -90,6 +90,7 @@ export function DeployAssignmentDialog({ open, onOpenChange, assignment, coachBa
 
           <FormField error={errors.dueDate} id="deploy-dueDate" label="Due date">
             <DatePicker
+              id="deploy-dueDate"
               withTime
               value={dueDate ? new Date(dueDate) : undefined}
               onChange={(date) => {
