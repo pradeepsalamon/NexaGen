@@ -81,6 +81,16 @@ plan and `studentPayments` (the academy's own gateway) stays from Growth up.
   has no reconcile/refund buttons, and a student's billing page has no "See the
   available plans" link. A batch's **Pricing** tab needs `feeTracking`.
 
+### Per-academy deals
+
+Platform console → academy → **Edit deal**: a custom monthly price, limit
+overrides, **extra features** (`addFeatures`), **features taken away**
+(`removeFeatures`, a tick per feature the academy's plan includes; the screen
+since 2026-11-20, the API before) and extra content packs. Removal wins over an
+addition, but a feature another kept feature implies stays on (the dialog says
+so: "Stays on while Online student payments is on"). The academy's card lists
+its extra and taken-away features.
+
 **Rule:** a key exists in `PLAN_FEATURE_KEYS` only if some route enforces it.
 `platform/platform-plans.spec.ts` fails a catalogued feature that no
 `@RequireFeature` uses. Something not enforced yet is not listed.
