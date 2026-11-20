@@ -1,4 +1,5 @@
--- Fee tracking split out of online student payments, and the Mini plan
+-- Fee tracking split out of online student payments, in-class activities on
+-- every plan, and the Mini plan
 -- (docs/SAAS_PLANS.md "Fee tracking and online payments", "Mini").
 --
 -- `feeTracking` gates manual (cash / UPI / bank) payments, fee plans, invoices
@@ -13,6 +14,12 @@ UPDATE "platform_plans" SET "features" = array_append("features", 'feeTracking')
 WHERE "id" IN ('plan_starter', 'plan_growth', 'plan_business', 'plan_enterprise')
   AND NOT ('feeTracking' = ANY("features"));
 
+-- In-class activities (simuls, polls, puzzle rush, matches, activity queue) on
+-- every plan (owner 2026-11-20); Growth and up had them already.
+UPDATE "platform_plans" SET "features" = array_append("features", 'interactiveClassroom')
+WHERE "id" IN ('plan_starter')
+  AND NOT ('interactiveClassroom' = ANY("features"));
+
 -- Mini: one coach on a NexaChess subdomain. Prices and limits are editable in
 -- the platform console; skipped if a plan with this id or code already exists.
 INSERT INTO "platform_plans" (
@@ -20,7 +27,7 @@ INSERT INTO "platform_plans" (
   "priceMonthlyMinor", "priceYearlyMinor", "currency", "trialDays", "updatedAt"
 )
 SELECT 'plan_mini', 'MINI', 'Mini', 'For one coach teaching on their own, on a NexaChess address.', 5,
-       ARRAY['directChat', 'feeTracking', 'gameLibrary'],
+       ARRAY['directChat', 'feeTracking', 'gameLibrary', 'interactiveClassroom'],
        '{"maxBatches":5,"maxCoaches":1,"maxConcurrentLiveClasses":1,"maxStudents":25}',
        99900, 999000, 'INR', 14, (now() AT TIME ZONE 'UTC')
 WHERE NOT EXISTS (SELECT 1 FROM "platform_plans" WHERE "id" = 'plan_mini' OR "code" = 'MINI');

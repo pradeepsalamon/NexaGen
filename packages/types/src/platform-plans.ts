@@ -302,7 +302,7 @@ export type PlatformPlanSeed = {
   trialDays: number;
 };
 
-const MINI_FEATURES: PlanFeatureKey[] = ["directChat", "feeTracking", "gameLibrary"];
+const MINI_FEATURES: PlanFeatureKey[] = ["directChat", "feeTracking", "gameLibrary", "interactiveClassroom"];
 const STARTER_FEATURES: PlanFeatureKey[] = [...MINI_FEATURES];
 const GROWTH_FEATURES: PlanFeatureKey[] = [
   ...STARTER_FEATURES,
@@ -312,7 +312,6 @@ const GROWTH_FEATURES: PlanFeatureKey[] = [
   "brandIdentity",
   "customBranding",
   "demoClasses",
-  "interactiveClassroom",
   "leadsCrm",
   "referralProgram",
   "smartRevision",

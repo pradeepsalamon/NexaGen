@@ -274,7 +274,7 @@ features, limits, visibility; it applies to every tenant on that plan at once.
 | | Mini | Starter | Growth | Business | Enterprise |
 |---|---|---|---|---|---|
 | Students / coaches / batches / live at once | 25 / 1 / 5 / 1 | 50 / 3 / 10 / 2 | 250 / 15 / 50 / 5 | 1000 / 50 / 200 / 15 | unlimited |
-| Features | direct chat, game library, fee tracking | same as Mini | + recording, feedback, courses, logo and colours, board appearance, demo classes, interactive classroom, leads, referrals, smart revision, online student payments | + analytics, payroll, own domain, game analysis, messaging automation, WhatsApp support | everything |
+| Features | direct chat, game library, fee tracking, interactive classroom | same as Mini | + recording, feedback, courses, logo and colours, board appearance, demo classes, leads, referrals, smart revision, online student payments | + analytics, payroll, own domain, game analysis, messaging automation, WhatsApp support | everything |
 | Price (INR / month) | 999 | 2,499 | 6,999 | 14,999 | contact us |
 
 Prices and tiers are placeholders for the owner to set.

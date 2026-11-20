@@ -150,11 +150,11 @@ code on 2026-10-31.
   feature on every plan; online payments (`studentPayments`) stay Growth up and
   imply it ([SAAS_PLANS.md](SAAS_PLANS.md) "Fee tracking and online payments").
   New **Mini** plan: 25 students, 1 coach, 5 batches, 1 live class, ₹999/month,
-  ₹9,990/year, 14-day trial. **Owner to confirm:** Mini's price and limits
-  (editable in the platform console); whether Mini/Starter should get the
-  in-class activities (`interactiveClassroom`: simuls, polls, puzzle rush,
-  activity queue), today Growth up; whether a solo coach should manage the
-  academy from a single account (today one admin + one coach account).
+  ₹9,990/year, 14-day trial (placeholder: the owner sets prices live in the
+  platform console). **Owner 2026-11-20:** in-class activities
+  (`interactiveClassroom`) on every plan, so Mini and Starter have them. A solo
+  coach still needs one admin + one coach account until multi-role accounts
+  with a role switch are built (proposed 2026-11-20, not started).
 
 ### Needs someone with `vps_dev` / production access
 
