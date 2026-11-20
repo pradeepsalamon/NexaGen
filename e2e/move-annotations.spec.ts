@@ -135,14 +135,16 @@ test.describe("Move annotations", () => {
     await coachPage.getByRole("button", { name: "Edit annotation", exact: true }).click();
     await panel.getByRole("button", { name: "Mistake", exact: true }).click();
     await expect(panel.getByRole("button", { name: "Brilliant move" })).toHaveAttribute("aria-pressed", "false");
-    await coachPage.keyboard.press("Escape");
+    await panel.getByRole("button", { name: "Done" }).click();
+    await expect(panel).toBeHidden();
     await expect(moveButton(coachPage, /^2\. Nf3, Mistake, White is better/)).toBeVisible();
 
     // ── right-click an earlier move opens Annotate for it ────
     await moveButton(coachPage, /^1\.\.\. e5/).click({ button: "right" });
     await expect(panel.getByText(/Annotate\s*e5/)).toBeVisible();
     await panel.getByRole("button", { name: "Dubious move" }).click();
-    await coachPage.keyboard.press("Escape");
+    await panel.getByRole("button", { name: "Done" }).click();
+    await expect(panel).toBeHidden();
     await expect(moveButton(coachPage, /^1\.\.\. e5, Dubious move/)).toBeVisible();
     // The board followed the right-click: the badge is now e5's "?!".
     await expect(coachPage.locator("cg-container svg text", { hasText: "?!" })).toHaveCount(1);
