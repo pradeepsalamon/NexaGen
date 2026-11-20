@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { CreateAccountDeletionRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import {
@@ -8,6 +9,7 @@ import {
   requestAccountDeletion,
   withdrawAccountDeletion
 } from "../api/privacyApi";
+import { useToast } from "@/providers/ToastProvider";
 
 export const PRIVACY_INVALIDATES = [queryKeys.privacy.all];
 
@@ -36,9 +38,11 @@ export function useMyDeletionRequest() {
 }
 
 export function useRequestAccountDeletion() {
+  const toast = useToast();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: CreateAccountDeletionRequest) => requestAccountDeletion(body),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't request account deletion" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.privacy.all })
   });
 }

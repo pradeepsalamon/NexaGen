@@ -126,6 +126,16 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     }
   });
 
+  // This side's student has a solo Puzzle Storm run in progress.
+  const soloRun = await prisma.soloPuzzleRushRun.create({
+    data: {
+      mode: "STORM",
+      puzzles: [{ fen: FEN, id: `sp-${label}`, moves: ["g1f1", "g8f8"], rating: 1000 }],
+      startsAt: new Date(),
+      studentId: student.id
+    }
+  });
+
   // A Playout running in that class, with this side's student mid-game. Both
   // sides' runs are on the same position, like their private puzzles.
   const playoutConfig = {
@@ -417,6 +427,7 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     rush,
     setDeployment,
     setStudentAssignment,
+    soloRun,
     student,
     studentAssignment
   };

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { getErrorMessage } from "@/lib/errors";
+import { focusFirstInvalid, getConfirmPasswordError, getNewPasswordError } from "@/lib/forms";
 import { useToast } from "@/providers/ToastProvider";
 import { resetPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
@@ -21,6 +22,9 @@ export function ResetPasswordForm() {
   const toast = useToast();
   const [confirmPassword, setConfirmPassword] = useState("");
   const [password, setPassword] = useState("");
+  const [touched, setTouched] = useState({ confirmPassword: false, password: false });
+  const passwordError = getNewPasswordError(touched.password, password);
+  const confirmError = getConfirmPasswordError(touched.confirmPassword, confirmPassword, password);
   const token = searchParams.get("token") ?? "";
   const resetPasswordMutation = useMutation({
     mutationFn: resetPassword,
@@ -43,16 +47,9 @@ export function ResetPasswordForm() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (password !== confirmPassword) {
-      const confirmPasswordInput = event.currentTarget.elements.namedItem(
-        "confirmPassword"
-      );
-
-      if (confirmPasswordInput instanceof HTMLInputElement) {
-        confirmPasswordInput.setCustomValidity("Passwords must match.");
-        confirmPasswordInput.reportValidity();
-      }
-
+    setTouched({ confirmPassword: true, password: true });
+    if (getNewPasswordError(true, password) || getConfirmPasswordError(true, confirmPassword, password)) {
+      focusFirstInvalid(event.currentTarget);
       return;
     }
 
@@ -89,28 +86,29 @@ export function ResetPasswordForm() {
         description="Use at least 8 characters, with at least one letter and one number."
         title="Reset your password"
       />
-      <form className="grid gap-4" onSubmit={handleSubmit}>
-        <FormField id="reset-password" label="New password">
+      <form className="grid gap-5" noValidate onSubmit={handleSubmit}>
+        <FormField error={passwordError} id="reset-password" label="New password">
           <PasswordInput
             autoComplete="new-password"
+            hasError={Boolean(passwordError)}
             id="reset-password"
             minLength={8}
+            onBlur={() => setTouched((current) => ({ ...current, password: true }))}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Create a password"
             required
             value={password}
           />
         </FormField>
-        <FormField id="reset-confirm-password" label="Confirm password">
+        <FormField error={confirmError} id="reset-confirm-password" label="Confirm password">
           <PasswordInput
             autoComplete="new-password"
+            hasError={Boolean(confirmError)}
             id="reset-confirm-password"
             minLength={8}
             name="confirmPassword"
-            onChange={(event) => {
-              event.target.setCustomValidity("");
-              setConfirmPassword(event.target.value);
-            }}
+            onBlur={() => setTouched((current) => ({ ...current, confirmPassword: true }))}
+            onChange={(event) => setConfirmPassword(event.target.value)}
             placeholder="Confirm your password"
             required
             value={confirmPassword}

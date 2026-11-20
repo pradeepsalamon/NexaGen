@@ -18,7 +18,7 @@ import { SectionTitle } from "../../shared";
 export const RUSH_LABEL: Record<PuzzleRushMode, string> = { RACER: "Puzzle Racer", STORM: "Puzzle Storm" };
 
 /** The rules, as Lichess states them. */
-export function RushRules({ mode }: { mode: PuzzleRushMode }) {
+export function RushRules({ mode, solo = false }: { mode: PuzzleRushMode; solo?: boolean }) {
   const items =
     mode === "STORM"
       ? [
@@ -28,7 +28,9 @@ export function RushRules({ mode }: { mode: PuzzleRushMode }) {
           "Correct moves in a row build a combo: 5, 12, 20 and 30 add 3, 5, 7 and 10 seconds.",
         ]
       : [
-          `Race the whole class through the same puzzles for ${PUZZLE_RACER_CONFIG.durationSeconds} seconds.`,
+          solo
+            ? `Race through the puzzles for ${PUZZLE_RACER_CONFIG.durationSeconds} seconds, after a ${PUZZLE_RACER_CONFIG.countdownSeconds}-second countdown.`
+            : `Race the whole class through the same puzzles for ${PUZZLE_RACER_CONFIG.durationSeconds} seconds.`,
           "Every correct move is a point. Puzzles get harder as you go.",
           "A wrong move skips the puzzle and breaks your combo.",
           "Combos of 5, 12, 20 and 30 add 1, 2, 3 and 4 bonus points. You may skip one move per race.",

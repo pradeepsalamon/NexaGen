@@ -50,6 +50,7 @@ export function CreateAcademyDialog({ onClose, rootDomain }: { onClose: () => vo
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [slugTouched, setSlugTouched] = useState(false);
   const form = useForm<FormValues>({
+    mode: "onTouched",
     defaultValues: {
       country: "IN",
       email: "",

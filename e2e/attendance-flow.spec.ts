@@ -444,12 +444,10 @@ test.describe("Admin Attendance Pages", () => {
     // Title
     await expect(page.getByText(/completed classes/i).first()).toBeVisible();
 
-    // Filters. Scoped to <main>: while the page streams in, Next.js keeps a
-    // hidden copy in <div hidden id="S:0">, and WebKit holds it long enough for
-    // an unscoped getByText to match twice (strict mode).
-    const main = page.getByRole("main");
-    await expect(main.getByText(/^from$/i)).toBeVisible();
-    await expect(main.getByText(/^to$/i)).toBeVisible();
+    // Filters sit behind the "Filters" button; its panel opens outside <main>.
+    await page.getByRole("main").getByRole("button", { name: /^filters/i }).click();
+    await expect(page.getByLabel("From date")).toBeVisible();
+    await expect(page.getByLabel("To date")).toBeVisible();
   });
 
   test("coach teaching report page loads", async ({ page }) => {

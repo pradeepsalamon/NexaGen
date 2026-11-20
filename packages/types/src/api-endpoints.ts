@@ -457,6 +457,17 @@ export const API_ROUTES = {
     markRead: (id: string = ":id") => `/chat/conversations/${id}/read`,
     members: (id: string = ":id") => `/chat/conversations/${id}/members`
   },
+  // Solo Puzzle Storm / Racer from the student's practice page (docs/PUZZLE_RUSH_SOLO.md).
+  puzzleRushSolo: {
+    // GET: the student's batches, personal bests and whether solo play is on.
+    overview: "/puzzle-rush/solo",
+    // POST: start a run (body { mode }).
+    runs: "/puzzle-rush/solo/runs",
+    // PUT: running totals of one run.
+    progress: (id: string = ":id") => `/puzzle-rush/solo/runs/${id}/progress`,
+    // GET ?batchId=&mode=&period=: the batch leaderboard.
+    leaderboard: "/puzzle-rush/solo/leaderboard"
+  },
   puzzles: {
     // ── Topics (admin authors; staff + coach read) ──
     topics: "/puzzles/topics",

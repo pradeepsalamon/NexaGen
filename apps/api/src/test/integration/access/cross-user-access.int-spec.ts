@@ -100,6 +100,7 @@ describe("cross-user access (real app, real Postgres)", () => {
     expect(await t.prisma.libraryActivity.count({ where: { title: "hijacked" } })).toBe(0);
     expect(await t.prisma.revisionItem.count({ where: { source: "COACH" } })).toBe(0);
     expect(await t.prisma.liveClassPuzzleRush.findUnique({ where: { id: b.rush.id } })).toMatchObject({ endedAt: null });
+    expect(await t.prisma.soloPuzzleRushRun.findUnique({ where: { id: b.soloRun.id } })).toMatchObject({ finishedAt: null, moves: 0 });
     expect(await t.prisma.liveClassChapter.findMany({ where: { scopeKey: `batch:${b.batch.id}` } })).toEqual([
       expect.objectContaining({ id: b.chapter.id, title: "Chapter B" })
     ]);

@@ -1,4 +1,5 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   SupportAnalyticsDays,
   SupportMessagePage,
@@ -82,7 +83,7 @@ function useTicketMutation<TArgs>(
   const toast = useToast();
   return useMutation({
     mutationFn,
-    onError: (error: Error) => toast.error({ message: error.message, title: messages.error }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: messages.error }),
     onSuccess: async () => {
       if (messages.success) toast.success({ title: messages.success });
       await queryClient.invalidateQueries({ queryKey: queryKeys.support.all });
@@ -135,7 +136,7 @@ function useSavedReplyMutation<TArgs>(mutationFn: (args: TArgs) => Promise<unkno
   const toast = useToast();
   return useMutation({
     mutationFn,
-    onError: (error: Error) => toast.error({ message: error.message, title: messages.error }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: messages.error }),
     onSuccess: async () => {
       toast.success({ title: messages.success });
       await queryClient.invalidateQueries({ queryKey: queryKeys.support.savedReplies });
@@ -175,7 +176,7 @@ export function useDismissSupportUnanswered() {
   const toast = useToast();
   return useMutation({
     mutationFn: ({ id }: { id: string; quiet?: boolean }) => dismissSupportUnanswered(id),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Question not dismissed" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Question not dismissed" }),
     onSuccess: async (_data, { quiet }) => {
       if (!quiet) toast.success({ title: "Question dismissed" });
       await queryClient.invalidateQueries({ queryKey: queryKeys.support.unansweredAll });
@@ -194,7 +195,7 @@ export function useUpdateSupportSettings() {
   const toast = useToast();
   return useMutation({
     mutationFn: (body: UpdateSupportSettingsRequest) => updateSupportSettings(body),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Settings not saved" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Settings not saved" }),
     onSuccess: (data) => {
       toast.success({ title: "WhatsApp bot settings saved" });
       queryClient.setQueryData(queryKeys.support.settings, data);
@@ -209,7 +210,7 @@ export function useEraseSupportContact() {
   const toast = useToast();
   return useMutation({
     mutationFn: (contactId: string) => eraseSupportContact(contactId),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Contact not erased" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Contact not erased" }),
     onSuccess: async (result) => {
       toast.success({
         message: result.keptOptOut ? "The number is kept only to remember it replied STOP." : undefined,
@@ -237,7 +238,7 @@ export function useCreateSupportLinkCode() {
   const toast = useToast();
   return useMutation({
     mutationFn: (studentId: string) => createSupportLinkCode(studentId),
-    onError: (error: Error) => toast.error({ message: error.message, title: "No link code made" })
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "No link code made" })
   });
 }
 
@@ -246,7 +247,7 @@ export function useUnlinkSupportContact(ticketId: string) {
   const toast = useToast();
   return useMutation({
     mutationFn: ({ contactId, studentId }: { contactId: string; studentId: string }) => unlinkSupportContact(contactId, studentId),
-    onError: (error: Error) => toast.error({ message: error.message, title: "Not unlinked" }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Not unlinked" }),
     onSuccess: async () => {
       toast.success({ title: "Number unlinked from the student" });
       await queryClient.invalidateQueries({ queryKey: queryKeys.support.detail(ticketId) });

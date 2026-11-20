@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { TenantGatewayProvider, UpdateTenantGatewayRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
@@ -15,6 +16,7 @@ export function useUpdateGatewayKeys() {
   return useMutation({
     mutationFn: ({ body, provider }: { provider: TenantGatewayProvider; body: UpdateTenantGatewayRequest }) =>
       updateGatewayKeys(provider, body),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't update gateway keys" }),
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.payments.gatewayKeys, data);
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.providerHealth });

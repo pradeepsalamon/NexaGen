@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { TrashBulkActionRequest, TrashItem, TrashListRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import {
@@ -9,6 +10,7 @@ import {
   listTrash,
   restoreTrashItem
 } from "../api/trashApi";
+import { useToast } from "@/providers/ToastProvider";
 
 export function useTrashQuery(params: TrashListRequest) {
   return useQuery({
@@ -58,9 +60,11 @@ export function useBulkDeleteTrashItemsPermanentlyMutation() {
 }
 
 export function useEmptyTrashMutation() {
+  const toast = useToast();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: emptyTrash,
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't empty trash" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
     }

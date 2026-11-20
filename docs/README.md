@@ -15,7 +15,8 @@ stay as written; the living doc for that area wins where they disagree.
 | Doc | What it covers |
 |---|---|
 | [PROJECT_RULES.md](PROJECT_RULES.md) | Development manual: repo shape, backend/frontend conventions, testing, git |
-| [UI_RULES.md](UI_RULES.md) | Colour/radius tokens, which component for which control, pre-PR UI checklist |
+| [UI_RULES.md](UI_RULES.md) | Colour/radius tokens, which component for which control, form errors, pre-PR UI checklist |
+| [FORM_VALIDATION_AUDIT.md](FORM_VALIDATION_AUDIT.md) | 2026-11-17 inventory of every form and dialog with inputs: validation, how errors show, what changed, how it was tested |
 | [RESPONSIVE.md](RESPONSIVE.md) | Breakpoints, per-area responsive spec, device test matrix |
 | [API_DEVELOPMENT_RULES.md](API_DEVELOPMENT_RULES.md) | **Strict** rules for any API change: contract, auth, validation, academy isolation, schema, side effects, errors, tests, definition of done |
 | [AUTHORIZATION.md](AUTHORIZATION.md) | Auth mechanics (sessions, MFA, lockout, cookies, CSRF, headers), who may do what per resource, the 2026-10-16 audit, access test suites |
@@ -34,6 +35,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [CLASSES.md](CLASSES.md) | Class scheduling, timing rules, batch types, demo classes |
 | [PUZZLES.md](PUZZLES.md) | Puzzle Library, puzzle-set homework, student progress |
 | [PUZZLE_ACTIVITIES.md](PUZZLE_ACTIVITIES.md) | MCQs and Playouts in the Puzzle Library and the live class |
+| [PUZZLE_RUSH_SOLO.md](PUZZLE_RUSH_SOLO.md) | Puzzle Storm / Racer played alone, with a batch leaderboard |
 | [SMART_REVISION.md](SMART_REVISION.md) | Spaced-repetition revision |
 | [STUDENT_ACTIVITY_HISTORY.md](STUDENT_ACTIVITY_HISTORY.md) | Student activity history and progress summary |
 | [FEATURES.md](FEATURES.md) | Feedback, Game Library, chat, reminders, revision, analysis, PDF import, SEO, privacy |

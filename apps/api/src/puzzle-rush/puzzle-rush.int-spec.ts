@@ -135,4 +135,52 @@ describe("Puzzle Storm / Racer (real Postgres)", () => {
       { rank: 1, score: 3, studentId: w.a.student.id }
     ]);
   });
+  describe("solo runs", () => {
+    const report = (over: Record<string, unknown> = {}) => ({
+      bestCombo: 0,
+      clockEndsAt: null,
+      errors: 0,
+      finished: false,
+      highestRating: null,
+      moves: 0,
+      puzzleIndex: 0,
+      score: 0,
+      skipsUsed: 0,
+      solved: 0,
+      ...over
+    });
+
+    it("plays a run, finishes it, and ranks the best finished run on the batch leaderboard only", async () => {
+      const started = await t.call(w.a.student, "POST", API_ROUTES.puzzleRushSolo.runs, { mode: "STORM" });
+      expect(started.status).toBe(201);
+      const run = started.body as { id: string; puzzles: unknown[] };
+      expect(run.puzzles.length).toBeGreaterThan(20);
+
+      const played = await t.call(w.a.student, "PUT", API_ROUTES.puzzleRushSolo.progress(run.id), report({ moves: 3, puzzleIndex: 3, solved: 3 }));
+      expect(played.status).toBe(200);
+      const done = await t.call(w.a.student, "PUT", API_ROUTES.puzzleRushSolo.progress(run.id), report({ finished: true, moves: 3, puzzleIndex: 3, solved: 3 }));
+      expect(done.body).toEqual({ finished: true, score: 3 });
+      // The frozen puzzle list is dropped once the run is over.
+      expect((await t.prisma.soloPuzzleRushRun.findUniqueOrThrow({ where: { id: run.id } })).puzzles).toEqual([]);
+
+      const board = `${API_ROUTES.puzzleRushSolo.leaderboard}?batchId=${w.a.batch.id}&mode=STORM&period=ALL`;
+      const mine = await t.call(w.a.student, "GET", board);
+      expect(mine.status).toBe(200);
+      expect((mine.body as { rows: { studentId: string; score: number; rank: number }[] }).rows).toEqual([
+        expect.objectContaining({ rank: 1, score: 3, studentId: w.a.student.id })
+      ]);
+      // Another academy-mate's batch is not theirs to read.
+      expect((await t.call(w.a.student, "GET", `${API_ROUTES.puzzleRushSolo.leaderboard}?batchId=${w.b.batch.id}&mode=STORM&period=ALL`)).status).toBe(404);
+      // Racer scores are a separate board.
+      const racer = await t.call(w.a.student, "GET", `${API_ROUTES.puzzleRushSolo.leaderboard}?batchId=${w.a.batch.id}&mode=RACER&period=ALL`);
+      expect((racer.body as { rows: unknown[] }).rows).toEqual([]);
+    });
+
+    it("starting a new run closes an abandoned one, and a malformed query is a 400", async () => {
+      const first = (await t.call(w.a.student, "POST", API_ROUTES.puzzleRushSolo.runs, { mode: "RACER" })).body as { id: string };
+      await t.call(w.a.student, "POST", API_ROUTES.puzzleRushSolo.runs, { mode: "STORM" });
+      expect((await t.prisma.soloPuzzleRushRun.findUniqueOrThrow({ where: { id: first.id } })).finishedAt).not.toBeNull();
+      expect((await t.call(w.a.student, "GET", `${API_ROUTES.puzzleRushSolo.leaderboard}?batchId=${w.a.batch.id}&period=FOREVER`)).status).toBe(400);
+    });
+  });
 });

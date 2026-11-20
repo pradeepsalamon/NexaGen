@@ -11,6 +11,9 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { getStoredAcquisition } from "@/lib/acquisition";
+import { focusFirstInvalid } from "@/lib/forms";
+import { useTouchedFields } from "@/hooks/useTouchedFields";
+import { ALL_REGISTER_FIELDS_TOUCHED, validateRegisterForm } from "../validation/authValidation";
 import { register } from "../api/authApi";
 import type { RegisterFormValues } from "../types/auth";
 import { AcquisitionSourceSelect } from "./AcquisitionSourceSelect";
@@ -38,6 +41,8 @@ export function RegisterForm() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState<string | undefined>();
   const termsRef = useRef<HTMLButtonElement>(null);
+  const { touched, touchAll, touchField } = useTouchedFields<RegisterFormValues>();
+  const errors = validateRegisterForm(values, touched);
 
   const registerMutation = useMutation({
     mutationFn: register,
@@ -66,21 +71,16 @@ export function RegisterForm() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (values.password !== values.confirmPassword) {
-      const confirmPassword = event.currentTarget.elements.namedItem(
-        "confirmPassword"
-      );
-
-      if (confirmPassword instanceof HTMLInputElement) {
-        confirmPassword.setCustomValidity("Passwords must match.");
-        confirmPassword.reportValidity();
-      }
+    touchAll(values);
+    const blocked = Object.values(validateRegisterForm(values, ALL_REGISTER_FIELDS_TOUCHED)).some(Boolean);
+    if (!acceptedTerms) setTermsError(TERMS_REQUIRED_MESSAGE);
+    if (blocked) {
+      focusFirstInvalid(event.currentTarget);
       return;
     }
 
-    if (!values.acquisitionSource) {
-      return;
-    }
+    // Already reported above; narrows the type for the request.
+    if (!values.acquisitionSource) return;
 
     if (!acceptedTerms) {
       setTermsError(TERMS_REQUIRED_MESSAGE);
@@ -119,12 +119,14 @@ export function RegisterForm() {
   }
 
   return (
-    <form className="grid gap-6" onSubmit={handleSubmit}>
+    <form className="grid gap-6" noValidate onSubmit={handleSubmit}>
       <RegistrationFieldset legend="Student">
-        <FormField id="student-name" label="Student's full name" required>
+        <FormField error={errors.studentName} id="student-name" label="Student's full name" required>
           <Input
             autoComplete="name"
+            hasError={Boolean(errors.studentName)}
             id="student-name"
+            onBlur={() => touchField("studentName")}
             leadingIcon={<UserRound />}
             onChange={(e) => updateField("studentName", e.target.value)}
             placeholder="e.g. Aarav Sharma"
@@ -134,19 +136,18 @@ export function RegisterForm() {
           />
         </FormField>
 
-        <FormField id="student-age" label="Student's age" required>
+        <FormField error={errors.studentAge} id="student-age" label="Student's age" required>
           <Input
+            hasError={Boolean(errors.studentAge)}
             id="student-age"
+            onBlur={() => touchField("studentAge")}
             inputMode="numeric"
             leadingIcon={<CalendarDays />}
             onChange={(e) => {
-              e.currentTarget.setCustomValidity("");
               const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 2);
               updateField("studentAge", digitsOnly);
             }}
-            // The browser's own message for the pattern below, not a title= tooltip.
-            onInvalid={(e) => e.currentTarget.setCustomValidity("Enter an age from 3 to 99.")}
-            // 3–99 with no leading zero: the demo form's rule.
+            // 3–99 with no leading zero (validateRegisterForm); a hint for keyboards and autofill.
             pattern="[3-9]|[1-9][0-9]"
             placeholder="e.g. 9"
             required
@@ -157,10 +158,12 @@ export function RegisterForm() {
       </RegistrationFieldset>
 
       <RegistrationFieldset legend="Parent or guardian contact">
-        <FormField id="parent-name" label="Parent or guardian name" required>
+        <FormField error={errors.parentName} id="parent-name" label="Parent or guardian name" required>
           <Input
             autoComplete="name"
+            hasError={Boolean(errors.parentName)}
             id="parent-name"
+            onBlur={() => touchField("parentName")}
             leadingIcon={<UserRound />}
             onChange={(e) => updateField("parentName", e.target.value)}
             placeholder="e.g. Rajesh Sharma"
@@ -170,10 +173,12 @@ export function RegisterForm() {
           />
         </FormField>
 
-        <FormField id="contact-number" label="WhatsApp or phone number" required>
+        <FormField error={errors.contactNumber} id="contact-number" label="WhatsApp or phone number" required>
           <Input
             autoComplete="tel"
+            hasError={Boolean(errors.contactNumber)}
             id="contact-number"
+            onBlur={() => touchField("contactNumber")}
             inputMode="numeric"
             leadingIcon={<Phone />}
             maxLength={15}
@@ -191,10 +196,12 @@ export function RegisterForm() {
       </RegistrationFieldset>
 
       <RegistrationFieldset legend="Account">
-        <FormField id="email" label="Email address" required>
+        <FormField error={errors.email} id="email" label="Email address" required>
           <Input
             autoComplete="email"
+            hasError={Boolean(errors.email)}
             id="email"
+            onBlur={() => touchField("email")}
             inputMode="email"
             leadingIcon={<AtSign />}
             onChange={(e) => updateField("email", e.target.value)}
@@ -208,15 +215,19 @@ export function RegisterForm() {
         <AcquisitionSourceSelect
           detail={values.acquisitionDetail}
           onDetailChange={(detail) => updateField("acquisitionDetail", detail)}
+          error={errors.acquisitionSource}
+          onBlur={() => touchField("acquisitionSource")}
           onValueChange={(value) => updateField("acquisitionSource", value)}
           required
           value={values.acquisitionSource}
         />
 
-        <FormField id="password" label="Password" required>
+        <FormField error={errors.password} id="password" label="Password" required>
           <PasswordInput
             autoComplete="new-password"
+            hasError={Boolean(errors.password)}
             id="password"
+            onBlur={() => touchField("password")}
             leadingIcon={<Lock />}
             onChange={(e) => updateField("password", e.target.value)}
             placeholder="Create a secure password"
@@ -225,16 +236,15 @@ export function RegisterForm() {
           />
         </FormField>
 
-        <FormField id="confirm-password" label="Confirm password" required>
+        <FormField error={errors.confirmPassword} id="confirm-password" label="Confirm password" required>
           <PasswordInput
             autoComplete="new-password"
+            hasError={Boolean(errors.confirmPassword)}
             id="confirm-password"
+            onBlur={() => touchField("confirmPassword")}
             leadingIcon={<Lock />}
             name="confirmPassword"
-            onChange={(e) => {
-              e.target.setCustomValidity("");
-              updateField("confirmPassword", e.target.value);
-            }}
+            onChange={(e) => updateField("confirmPassword", e.target.value)}
             placeholder="Confirm your password"
             required
             value={values.confirmPassword}

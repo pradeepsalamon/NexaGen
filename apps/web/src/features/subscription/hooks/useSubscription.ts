@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { ConfirmPlatformCheckoutRequest, PlanFeatureKey } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useAuthStore } from "@/stores/authStore";
@@ -10,6 +11,7 @@ import {
   getCurrentEntitlements,
   startPlatformCheckout,
 } from "../api/subscriptionApi";
+import { useToast } from "@/providers/ToastProvider";
 
 /** What the academy's SaaS plan includes. Shared by nav filtering, page gates and feature hooks. */
 export function useCurrentEntitlements() {
@@ -60,9 +62,11 @@ export function useStartPlatformCheckout() {
 
 /** Asks the API to read the order from the gateway; refreshes the plan view when it is paid. */
 export function useConfirmPlatformCheckout() {
+  const toast = useToast();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ body, id }: { id: string; body: ConfirmPlatformCheckoutRequest }) => confirmPlatformCheckout(id, body),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't confirm checkout" }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.subscription.all }),
   });
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getErrorMessage } from "@/lib/errors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDataChannel } from "@livekit/components-react";
 import {
@@ -102,7 +103,7 @@ export function useStartPuzzleRush(classId: string) {
   return useMutation({
     mutationFn: (mode: PuzzleRushMode) => startPuzzleRush(classId, mode),
     onSuccess: (res) => qc.setQueryData(queryKeys.puzzleRush.state(classId), withSkew(res)),
-    onError: (error: Error) => toast.error({ title: "Couldn't start", message: error.message }),
+    onError: (error: Error) => toast.error({ title: "Couldn't start", message: getErrorMessage(error) }),
   });
 }
 
@@ -112,7 +113,7 @@ export function useEndPuzzleRush(classId: string) {
   return useMutation({
     mutationFn: () => endPuzzleRush(classId),
     onSuccess: (res) => qc.setQueryData(queryKeys.puzzleRush.state(classId), withSkew(res)),
-    onError: (error: Error) => toast.error({ title: "Couldn't end the round", message: error.message }),
+    onError: (error: Error) => toast.error({ title: "Couldn't end the round", message: getErrorMessage(error) }),
   });
 }
 

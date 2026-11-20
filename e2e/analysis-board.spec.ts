@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { api, login, scheduleClass, seededBatchId, type Cookie } from "./fixtures";
+import { api, login, openRoomTab, scheduleClass, seededBatchId, type Cookie } from "./fixtures";
 
 /**
  * Board workspace — Engine analysis, Load Game, Setup Position (in place, tap-to-place, illegal positions), Save.
@@ -83,7 +83,7 @@ test.describe("Analysis board", () => {
     await page.waitForFunction(() => !!window.__nexaBoard, null, { timeout: 20_000 });
 
     // ── Engine analysis ───────────────────────────────────────────
-    await page.getByRole("tab", { name: "Engine" }).click();
+    await openRoomTab(page, "Engine");
     await page.evaluate(() => window.__nexaBoard!.move("e2", "e4"));
 
     const evalText = page.locator("text=Evaluation").locator("xpath=following-sibling::*[1]");
@@ -95,7 +95,7 @@ test.describe("Analysis board", () => {
 
     // ── Load Game (PGN) ───────────────────────────────────────────
     await page.getByRole("button", { name: /^Setup Position$/ }).click();
-    await page.getByRole("tab", { name: /Load Game/i }).click();
+    await openRoomTab(page, /Load Game/i);
     await page
       .getByPlaceholder(/Casual game/i)
       .fill("1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *");
@@ -104,7 +104,7 @@ test.describe("Analysis board", () => {
     await expect.poll(() => page.evaluate(() => window.__nexaBoard!.moveCount())).toBe(6);
     // The move list is on the Moves tab; the Engine tab only shows "Nf3" when its
     // suggested line happens to contain it.
-    await page.getByRole("tab", { name: /^Moves$/ }).click();
+    await openRoomTab(page, /^Moves$/);
     await expect(page.getByText("Nf3", { exact: false }).first()).toBeVisible();
 
     // ── Setup Position (in place of the board, not a dialog) ─────

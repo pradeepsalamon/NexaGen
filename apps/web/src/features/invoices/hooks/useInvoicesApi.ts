@@ -1,6 +1,7 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   AdminInvoiceQuery,
   CreateCreditNoteRequest,
@@ -81,6 +82,7 @@ export function useUpdateBillingProfile() {
 
   return useMutation({
     mutationFn: (body: UpdateBillingProfileRequest) => updateBillingProfile(body),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't update billing profile" }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.invoices.billingProfile
@@ -136,6 +138,7 @@ export function useRetryInvoicePdf() {
   return useMutation({
     mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
       retryInvoicePdf(id, force),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't retry invoice PDF" }),
     onSuccess: (invoice) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all });
       if (invoice.pdfStatus === "READY") {
@@ -155,6 +158,7 @@ export function useResendInvoiceEmail() {
 
   return useMutation({
     mutationFn: (id: string) => resendInvoiceEmail(id),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't resend invoice email" }),
     onSuccess: (result) => {
       if (result.sent) {
         toast.success({ title: "Invoice email sent" });
@@ -197,6 +201,7 @@ export function useUpdateInvoiceSettings() {
 
   return useMutation({
     mutationFn: (body: UpdateInvoiceSettingsRequest) => updateInvoiceSettings(body),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't update invoice settings" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices.settings });
       toast.success({

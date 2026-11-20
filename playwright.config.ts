@@ -54,6 +54,10 @@ export default defineConfig({
     },
     // Opt-in Safari engine: E2E_WEBKIT=1 npx playwright test --project=webkit.
     // WebKit has no fake camera, so a room is joined with camera and mic off.
-    ...(process.env.E2E_WEBKIT === "1" ? [{ name: "webkit", use: { ...devices["Desktop Safari"] } }] : []),
+    // Playwright's Linux WebKit draws canvases in software: pdf.js takes ~8 s a page there
+    // against ~0.5 s in Chromium on the ARM box (2026-11-16), so its waits get more room.
+    ...(process.env.E2E_WEBKIT === "1"
+      ? [{ expect: { timeout: 20_000 }, name: "webkit", use: { ...devices["Desktop Safari"], actionTimeout: 30_000 } }]
+      : []),
   ],
 });

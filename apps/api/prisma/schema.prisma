@@ -397,6 +397,7 @@ model User {
   movePollAnswers                 LiveClassMovePollAnswer[]        @relation("LiveClassMovePollAnswerStudent")
   startedPuzzleRushes             LiveClassPuzzleRush[]            @relation("LiveClassPuzzleRushStartedBy")
   puzzleRushEntries               LiveClassPuzzleRushEntry[]       @relation("LiveClassPuzzleRushEntryStudent")
+  soloPuzzleRushRuns              SoloPuzzleRushRun[]              @relation("SoloPuzzleRushRunStudent")
   activities                      StudentActivity[]                @relation("StudentActivity")
   classAttendances                ClassAttendance[]
   attendanceLogs                  AttendanceLog[]                  @relation("UserAttendanceLogs")
@@ -3217,6 +3218,45 @@ model LiveClassPuzzleRushEntry {
   @@map("live_class_puzzle_rush_entries")
 }
 
+/// One solo Puzzle Storm / Racer run from the student's practice page
+/// (docs/PUZZLE_RUSH_SOLO.md). Moves are checked in the browser; the totals are
+/// server-clamped and only move forward. `puzzles` is emptied once finished.
+model SoloPuzzleRushRun {
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
+  tenantId String @default("tenant_nexa")
+
+  studentId String
+  student   User   @relation("SoloPuzzleRushRunStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  mode     PuzzleRushMode
+  /// PuzzleRushPuzzle[] — frozen at start; [] once the run is finished.
+  puzzles  Json
+  startsAt DateTime
+  /// Racer: race end. Storm: null (the player's own clock).
+  endsAt   DateTime?
+
+  score         Int       @default(0)
+  moves         Int       @default(0)
+  errors        Int       @default(0)
+  solved        Int       @default(0)
+  bestCombo     Int       @default(0)
+  highestRating Int?
+  puzzleIndex   Int       @default(0)
+  skipsUsed     Int       @default(0)
+  /// Storm: set by the first report that shows a move.
+  playedAt      DateTime?
+  clockEndsAt   DateTime?
+  finishedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId, mode, finishedAt])
+  @@index([mode, finishedAt, score])
+  @@map("solo_puzzle_rush_runs")
+}
+
 enum LiveClassToolKind {
   PICK_STUDENT
   MYSTERY_BOX
@@ -4885,14 +4925,14 @@ model PayrollSettings {
   /// Owning academy (Tenant.id).
   tenantId String @unique @default("tenant_nexa")
 
-  tdsEnabled             Boolean @default(false)
+  tdsEnabled              Boolean @default(false)
   /// Basis points (1000 = 10%), no floats.
-  tdsRateBps             Int     @default(0)
+  tdsRateBps              Int     @default(0)
   /// Minor units. TDS starts once a coach's pay in the financial year goes
   /// above this; 0 = from the first payment.
-  tdsThresholdMinor      Int     @default(0)
+  tdsThresholdMinor       Int     @default(0)
   /// 1–12; the month the financial year starts (4 = April, India's).
-  financialYearStartMonth Int    @default(4)
+  financialYearStartMonth Int     @default(4)
 
   updatedById String?
 

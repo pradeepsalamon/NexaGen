@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { getErrorMessage } from "@/lib/errors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDataChannel } from "@livekit/components-react";
 import {
@@ -335,7 +336,7 @@ export function useLaunchActivityQueue(classId: string) {
       onResult(queue);
       toast.success({ title: `"${queue.title}" is live`, message: "The first activity is with the class." });
     },
-    onError: (error: Error) => toast.error({ title: "Couldn't launch the queue", message: error.message })
+    onError: (error: Error) => toast.error({ title: "Couldn't launch the queue", message: getErrorMessage(error) })
   });
 }
 
@@ -354,7 +355,7 @@ export function useAdvanceActivityQueue(classId: string) {
     onError: (error: Error) => {
       // Usually a 409: another tab already moved on — show where the class really is.
       void qc.invalidateQueries({ queryKey: queryKeys.activityQueues.list(classId) });
-      toast.error({ title: "Couldn't move on", message: error.message });
+      toast.error({ title: "Couldn't move on", message: getErrorMessage(error) });
     }
   });
 }
@@ -369,6 +370,6 @@ export function useFinishActivityQueue(classId: string) {
       onResult(queue);
       toast.success({ title: "Queue finished" });
     },
-    onError: (error: Error) => toast.error({ title: "Couldn't finish the queue", message: error.message })
+    onError: (error: Error) => toast.error({ title: "Couldn't finish the queue", message: getErrorMessage(error) })
   });
 }

@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/providers/ToastProvider";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ListParams } from "@/lib/pagination";
@@ -30,7 +31,7 @@ export function useCreateDemoClassMutation() {
       queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
     },
     onError: (error) => {
-      toast.error({ title: "Failed to create demo class", message: error.message });
+      toast.error({ title: "Failed to create demo class", message: getErrorMessage(error) });
     }
   });
 }
@@ -46,7 +47,7 @@ export function useUpdateDemoClassMutation(id: string) {
       queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
     },
     onError: (error) => {
-      toast.error({ title: "Failed to update demo class", message: error.message });
+      toast.error({ title: "Failed to update demo class", message: getErrorMessage(error) });
     }
   });
 }
@@ -62,7 +63,7 @@ export function useCancelDemoClassMutation() {
       queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
     },
     onError: (error) => {
-      toast.error({ title: "Failed to cancel demo class", message: error.message });
+      toast.error({ title: "Failed to cancel demo class", message: getErrorMessage(error) });
     }
   });
 }
@@ -78,7 +79,7 @@ export function useRestoreDemoClassMutation() {
       queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
     },
     onError: (error) => {
-      toast.error({ title: "Failed to restore demo class", message: error.message });
+      toast.error({ title: "Failed to restore demo class", message: getErrorMessage(error) });
     }
   });
 }
@@ -107,7 +108,7 @@ export function useAddDemoInviteesMutation(classId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.leads.all });
     },
     onError: (error) => {
-      toast.error({ title: "Failed to invite guests", message: error.message });
+      toast.error({ title: "Failed to invite guests", message: getErrorMessage(error) });
     }
   });
 }
@@ -131,7 +132,7 @@ export function useSaveDemoScheduleMutation(scheduleId: string | null) {
       queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
     },
     onError: (error) => {
-      toast.error({ title: "Failed to save demo schedule", message: error.message });
+      toast.error({ title: "Failed to save demo schedule", message: getErrorMessage(error) });
     }
   });
 }
@@ -148,7 +149,7 @@ export function useToggleDemoScheduleMutation() {
       queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
     },
     onError: (error) => {
-      toast.error({ title: "Failed to update demo schedule", message: error.message });
+      toast.error({ title: "Failed to update demo schedule", message: getErrorMessage(error) });
     }
   });
 }

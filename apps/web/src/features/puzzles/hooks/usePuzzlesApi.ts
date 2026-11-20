@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/errors";
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -102,7 +103,7 @@ export function useCreatePuzzle() {
       queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.all });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Could not save puzzle", message: error.message })
+      toast.error({ title: "Could not save puzzle", message: getErrorMessage(error) })
   });
 }
 
@@ -126,7 +127,7 @@ export function useUpdatePuzzle() {
       queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.all });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Could not save puzzle", message: error.message })
+      toast.error({ title: "Could not save puzzle", message: getErrorMessage(error) })
   });
 }
 
@@ -140,7 +141,7 @@ export function useCreatePuzzleTopic() {
       queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.topics });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Could not create topic", message: error.message })
+      toast.error({ title: "Could not create topic", message: getErrorMessage(error) })
   });
 }
 
@@ -155,7 +156,7 @@ export function useUpdatePuzzleTopic() {
       queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.topics });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Could not update topic", message: error.message })
+      toast.error({ title: "Could not update topic", message: getErrorMessage(error) })
   });
 }
 
@@ -196,7 +197,7 @@ export function useUpdatePuzzleScoringSettings() {
       toast.success({ title: "Puzzle scoring defaults saved" });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Could not save scoring defaults", message: error.message })
+      toast.error({ title: "Could not save scoring defaults", message: getErrorMessage(error) })
   });
 }
 

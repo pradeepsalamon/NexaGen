@@ -2,6 +2,7 @@ import { ArrowRight, BookOpen, GraduationCap, type LucideIcon, TrendingUp, Troph
 import { Button } from "@/components/ui/Button";
 import { Section, SectionHeader } from "./parts";
 
+
 const features: { description: string; Icon: LucideIcon; title: string }[] = [
   {
     description:
@@ -43,7 +44,10 @@ const features: { description: string; Icon: LucideIcon; title: string }[] = [
 
 export function WhyChooseUsSection() {
   return (
-    <Section id="why-choose-us" labelledBy="why-heading">
+    <Section
+      id="why-choose-us"
+      labelledBy="why-heading"
+    >
       <SectionHeader
         description="Discover why thousands of students and parents choose our structured coaching methodology."
         eyebrow="Academy advantages"

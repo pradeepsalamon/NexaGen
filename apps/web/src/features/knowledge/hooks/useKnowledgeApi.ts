@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   KnowledgeAdminListQuery,
   KnowledgeHelpQuery,
@@ -6,6 +7,7 @@ import type {
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import * as api from "../api/knowledgeApi";
+import { useToast } from "@/providers/ToastProvider";
 
 // ── Help centre ──
 
@@ -27,9 +29,11 @@ export function useHelpArticle(slug: string) {
 }
 
 export function useHelpFeedback(slug: string) {
+  const toast = useToast();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, helpful }: { id: string; helpful: boolean }) => api.sendHelpFeedback(id, helpful),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't send feedback" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.article(slug) }),
   });
 }

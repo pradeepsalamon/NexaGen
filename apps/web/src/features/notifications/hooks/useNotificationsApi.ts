@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { getErrorMessage } from "@/lib/errors";
 import {
   useInfiniteQuery,
   useMutation,
@@ -8,6 +9,7 @@ import {
 import type { MarkNotificationsReadRequest, NotificationListResponse } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { getNotifications, markNotificationsRead } from "../api/notificationsApi";
+import { useToast } from "@/providers/ToastProvider";
 
 /**
  * Poll notifications while the tab is open. `enabled` gates it on an active
@@ -44,9 +46,11 @@ export function useTrimNotificationPages() {
 // undo: intentionally excluded — no reverse endpoint, and marking read carries
 // no real risk of an unwanted "oops" (see docs/UNDO_ARCHITECTURE.md §4).
 export function useMarkNotificationsRead() {
+  const toast = useToast();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data?: MarkNotificationsReadRequest) => markNotificationsRead(data),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't mark notifications read" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
     }

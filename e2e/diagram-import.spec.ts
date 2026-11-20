@@ -143,7 +143,13 @@ test.describe("PDF diagram import", () => {
     await request.dispose();
   });
 
-  test.beforeEach(async ({ context, page }) => {
+  test.beforeEach(async ({ browserName, context, page }) => {
+    // Not a Safari bug (2026-11-16): pdf.js opens, renders and reads the text layer in
+    // WebKit, and this suite passes there against staging. Playwright's Linux WebKit just
+    // renders a page ~16x slower than Chromium (software canvas), so under load a wait can
+    // expire. Check on a real Mac / iPhone before calling a WebKit failure here a product bug
+    // (docs/TROUBLESHOOTING.md, "PDF diagram import finds nothing in WebKit").
+    test.slow(browserName === "webkit", "pdf.js renders ~16x slower in Playwright's Linux WebKit");
     await context.addCookies(cookies);
     await page.goto("/coach/puzzles/import-pdf");
     await expect(page.getByRole("heading", { name: "Import chess diagrams from a PDF" })).toBeVisible();

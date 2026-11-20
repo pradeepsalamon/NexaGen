@@ -74,12 +74,10 @@ const themeInitScript = `
     }
   } catch {}
   try {
-    // Signed in: reserve the docked nav column (globals.css --app-nav-w) at its saved width.
+    // Signed in: reserve the nav's icon rail (globals.css --app-rail-w). The rail is the
+    // resting state on every load; the full nav only ever slides over the page.
     const auth = JSON.parse(window.localStorage.getItem("nexa-auth") || "null");
-    if (auth && auth.state && auth.state.user) {
-      const nav = JSON.parse(window.localStorage.getItem("nexa-sidebar") || "null");
-      root.dataset.nav = nav && nav.state && nav.state.collapsed ? "collapsed" : "expanded";
-    }
+    if (auth && auth.state && auth.state.user) root.dataset.nav = "rail";
   } catch {}
 })();
 `;

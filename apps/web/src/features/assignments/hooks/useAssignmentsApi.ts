@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 import type {
   AssignmentOverviewQuery,
   CreateAssignmentRequest,
@@ -57,7 +58,7 @@ export function useCreateAssignment() {
       queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Failed to save assignment", message: error.message })
+      toast.error({ title: "Failed to save assignment", message: getErrorMessage(error) })
   });
 }
 
@@ -89,7 +90,7 @@ export function useDeployAssignment() {
       queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Failed to assign", message: error.message })
+      toast.error({ title: "Failed to assign", message: getErrorMessage(error) })
   });
 }
 
@@ -133,7 +134,7 @@ export function useUpdateMyAssignmentStatus(id: string) {
       queryClient.invalidateQueries({ queryKey: STUDENT_KEYS.dashboard });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Could not update assignment", message: error.message })
+      toast.error({ title: "Could not update assignment", message: getErrorMessage(error) })
   });
 }
 
@@ -152,7 +153,7 @@ export function useStartAttempt(id: string) {
   return useMutation({
     mutationFn: () => startAttempt(id),
     onError: (error: Error) =>
-      toast.error({ title: "Could not start the assignment", message: error.message })
+      toast.error({ title: "Could not start the assignment", message: getErrorMessage(error) })
   });
 }
 
@@ -174,7 +175,7 @@ export function useSubmitAttempt(id: string) {
       queryClient.invalidateQueries({ queryKey: STUDENT_KEYS.dashboard });
     },
     onError: (error: Error) =>
-      toast.error({ title: "Could not submit your attempt", message: error.message })
+      toast.error({ title: "Could not submit your attempt", message: getErrorMessage(error) })
   });
 }
 

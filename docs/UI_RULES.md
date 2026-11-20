@@ -2,9 +2,10 @@
 
 These rules keep every screen looking and behaving like one product. They apply
 to everything under `apps/web/src` except the recording template (`app/recorder`).
-The academy marketing site (`features/academy`, served at `/`) follows the colour rules;
-its layout and type keep their own look. Its Design System v2 rebuild is `features/academy/v2`
-at `/academy`, which follows every rule here and reads the same `content.ts`.
+The academy marketing site at `/` is the Design System v2 page (`features/academy/v2`), which
+follows every rule here and reads `features/academy/content.ts`. The original page
+(`features/academy/components`, kept at `/academy` since 2026-11-16) follows the colour rules;
+its layout and type keep their own look.
 
 **NexaChess Design System v2** is the colour, type and spacing specification
 (`docs/ui-redesign/`). Never branch on `useTheme()` to pick a
@@ -37,10 +38,18 @@ and are mapped in `tailwind.config.ts`.
 - **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
   scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
 - **Role nav** (`components/layout/Sidebar.tsx`): from `xl` a full-height navy
-  card with the logo and a collapse button on top and the user (name + role)
-  at the foot; the header starts beside it. The active link is a solid
-  `bg-primary` fill. Below `xl` it is the off-canvas drawer with main's gold
-  edge tab.
+  64 px icon rail with the expand button on top and the user at the foot; the
+  header starts beside it. **The page is offset by the rail only
+  (`--app-rail-w`) and never moves or resizes when the nav opens**: the
+  expanded 256 px panel (logo, labels, sections) slides *over* the page like a
+  popover and closes on any navigation, Escape, its toggle or a click outside
+  it and the header. Every load starts on the rail (nothing is saved). A rail
+  link shows its label as a tooltip; a rail section (admin) opens a flyout of
+  its links on click, on hover after 150 ms (closing 250 ms after the pointer
+  leaves icon and flyout) and from the keyboard (Enter / Space / ArrowRight,
+  Escape returns to the icon). Never add page padding or width that follows
+  the nav's state. The active link is a solid `bg-primary` fill. Below `xl` it
+  is the off-canvas drawer with main's gold edge tab.
 
 | Need | Use | Never |
 |---|---|---|
@@ -194,8 +203,8 @@ disagree.
   use the `tailwindcss-animate` classes (`animate-in fade-in-0 zoom-in-95` …);
   pages fade in with `animate-fade-in` (opacity only: a transform would trap
   `position: fixed` children); buttons press to 97%. Animate `transform` and
-  `opacity`, never a page-wide `padding`/`width` (the docked nav animates only
-  its own column). `prefers-reduced-motion` turns it all off (globals.css).
+  `opacity`, never a page-wide `padding`/`width` (the nav animates only its
+  own panel, which floats over the page). `prefers-reduced-motion` turns it all off (globals.css).
 - **KPI / stat tiles are two per row on phones** (`KpiCardRow`, and grids
   holding `StatTile` start at `grid-cols-2`) — never one full-width tile per
   number, never a sideways strip.
@@ -249,6 +258,22 @@ disagree.
   fill so no transform stays on the panel, and are `motion-safe:`.
 - Dates/times: `lib/datetime.ts` + `useUserTimeZone()`; never `toLocale*` in a
   component (see CLAUDE.md §3.6).
+- **Form errors** (2026-11-17, `docs/FORM_VALIDATION_AUDIT.md`): a field's
+  problem is **`FieldError`** (`components/ui/FieldError.tsx`; `FormField` uses
+  it for you): a danger icon + short human text ("Enter your email", "Use at
+  least 8 characters") absolutely placed under the field, so showing it never
+  changes the form's or dialog's height. Keep field stacks at `gap-4` or more;
+  without a `relative` wrapper use `<FieldError standalone>`; a group's message
+  may sit on its title line. Show it after blur or submit (react-hook-form
+  `mode: "onTouched"`, or `useTouchedFields`), clear it as soon as the value is
+  valid, and focus the first invalid field on a blocked submit
+  (`focusFirstInvalid`). Forms are `noValidate`: no browser bubbles, but keep
+  `type`, `required`, `min`/`max`, `inputMode` and `autoComplete`. Client
+  limits mirror the API's schema or DTO, never looser or invented. Form-level
+  and server errors are a toast through `getErrorMessage` (never raw server or
+  Zod text); only a message the user must keep reading while acting on it (a
+  lockout's wait time) stays on screen, in the field's message slot or a fixed
+  one-line notice. No red banners inside forms.
 
 ## 6. Typography
 
@@ -266,3 +291,7 @@ disagree.
 4. Radii/shadows are tokens.
 5. Checked in **light and dark** at phone and laptop width
    (`npm run shots -- --paths <routes> --devices mobile,laptop --theme both`).
+6. A form you touched: submit it empty and with a bad value. Each message sits
+   under its field (`FieldError`), the form or dialog keeps its height, no
+   browser bubble appears, and server errors arrive as a human toast
+   (`npm run shots -- --action <file.mjs>` captures the error state).

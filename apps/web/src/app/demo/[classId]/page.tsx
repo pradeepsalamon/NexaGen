@@ -13,6 +13,7 @@ import { ClassroomStateShell } from "@/features/live-class/components/states/Cla
 import { Alert } from "@/components/ui/Alert";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { Button } from "@/components/ui/Button";
 import { apiFetch, ApiError } from "@/lib/api";
 import {
@@ -25,6 +26,7 @@ import {
 import { useToast } from "@/providers/ToastProvider";
 import { formatDateTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
+import { focusFirstInvalid, getEmailError } from "@/lib/forms";
 import { CalendarClock, CalendarX, Hourglass, KeyRound, Mail, Phone } from "lucide-react";
 
 const WAITING_POLL_MS = 20_000;
@@ -70,6 +72,7 @@ function DemoClassJoin() {
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [waitingMessage, setWaitingMessage] = useState<string | null>(null);
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
+  const [guestErrors, setGuestErrors] = useState<{ contact?: string; name?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const requestRef = useRef<GuestJoinDemoRequest | null>(null);
 
@@ -167,9 +170,21 @@ function DemoClassJoin() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const contactReady =
-      values.contactMethod === "EMAIL" ? values.email.trim() : values.phoneNumber.trim();
-    if (!info || !values.guestName.trim() || !contactReady) return;
+    const contact = values.contactMethod === "EMAIL" ? values.email.trim() : values.phoneNumber.trim();
+    const errors = {
+      contact: !contact
+        ? values.contactMethod === "EMAIL" ? "Enter your email" : "Enter your mobile number"
+        : values.contactMethod === "EMAIL"
+          ? getEmailError(true, contact)
+          : undefined,
+      name: values.guestName.trim() ? undefined : "Enter your name"
+    };
+    setGuestErrors(errors);
+    if (errors.name || errors.contact) {
+      focusFirstInvalid(e.currentTarget as HTMLFormElement);
+      return;
+    }
+    if (!info) return;
     setPasscodeError(null);
 
     await attemptJoin(
@@ -287,17 +302,26 @@ function DemoClassJoin() {
             This class is for invited guests. Use the phone number or email your invitation was sent to. Otherwise the coach can let you in.
           </Alert>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form noValidate onSubmit={handleSubmit} className="space-y-4">
+          <div className="relative">
           <Input
+            id="guest-name"
+            hasError={!!guestErrors.name}
+            aria-describedby={guestErrors.name ? fieldErrorId("guest-name") : undefined}
             type="text"
             placeholder="Your full name"
             aria-label="Your full name"
             value={values.guestName}
-            onChange={(e) => setValues((v) => ({ ...v, guestName: e.target.value }))}
+            onChange={(e) => {
+              setValues((v) => ({ ...v, guestName: e.target.value }));
+              setGuestErrors((current) => ({ ...current, name: undefined }));
+            }}
             disabled={isSubmitting}
             required
             maxLength={50}
           />
+          <FieldError id="guest-name" message={guestErrors.name} />
+          </div>
 
           <div className="flex rounded-control border border-app-border bg-app-soft p-1 text-sm font-medium">
             <ContactMethodTab
@@ -316,43 +340,59 @@ function DemoClassJoin() {
             />
           </div>
 
+          <div className="relative">
           {values.contactMethod === "PHONE" ? (
             <Input
+              id="guest-contact"
+              hasError={!!guestErrors.contact}
+              aria-describedby={guestErrors.contact ? fieldErrorId("guest-contact") : undefined}
               type="tel"
               inputMode="tel"
               autoComplete="tel"
               placeholder="Mobile number"
               aria-label="Mobile number"
               value={values.phoneNumber}
-              onChange={(e) => setValues((v) => ({ ...v, phoneNumber: e.target.value }))}
+              onChange={(e) => {
+                setValues((v) => ({ ...v, phoneNumber: e.target.value }));
+                setGuestErrors((current) => ({ ...current, contact: undefined }));
+              }}
               disabled={isSubmitting}
               required
               maxLength={20}
             />
           ) : (
             <Input
+              id="guest-contact"
+              hasError={!!guestErrors.contact}
+              aria-describedby={guestErrors.contact ? fieldErrorId("guest-contact") : undefined}
               type="email"
               inputMode="email"
               autoComplete="email"
               placeholder="Email address"
               aria-label="Email address"
               value={values.email}
-              onChange={(e) => setValues((v) => ({ ...v, email: e.target.value }))}
+              onChange={(e) => {
+                setValues((v) => ({ ...v, email: e.target.value }));
+                setGuestErrors((current) => ({ ...current, contact: undefined }));
+              }}
               disabled={isSubmitting}
               required
               maxLength={200}
             />
           )}
+          <FieldError id="guest-contact" message={guestErrors.contact} />
+          </div>
 
           {accessMode === "PASSCODE" && (
-            <div className="space-y-1">
+            <div className="relative space-y-1">
               <Input
                   leadingIcon={<KeyRound aria-hidden="true" className="size-4" strokeWidth={2.25} />}
                   type="text"
                   autoComplete="off"
                   placeholder="Class passcode"
                   aria-label="Class passcode"
-                  aria-invalid={!!passcodeError}
+                  hasError={!!passcodeError}
+                  aria-describedby={passcodeError ? fieldErrorId("demo-passcode") : undefined}
                   value={values.passcode}
                   onChange={(e) => {
                     setPasscodeError(null);
@@ -362,9 +402,8 @@ function DemoClassJoin() {
                   maxLength={12}
                   className="font-mono uppercase tracking-widest"
                 />
-              <p className={cn("text-xs", passcodeError ? "text-app-danger-ink" : "text-app-muted")}>
-                {passcodeError ?? "Invited guests can leave this empty."}
-              </p>
+              <p className="text-xs text-app-muted">Invited guests can leave this empty.</p>
+              <FieldError id="demo-passcode" message={passcodeError} />
             </div>
           )}
 

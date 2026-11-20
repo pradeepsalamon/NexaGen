@@ -78,6 +78,7 @@ export class PrivacyService {
       feedbackGiven,
       movePollAnswers,
       mcqAttempts,
+      soloPuzzleRushRuns,
       playoutGames,
       chatMessages,
       classTranscriptLines,
@@ -168,6 +169,8 @@ export class PrivacyService {
       p.feedbackResponse.findMany({ include: { answers: true }, where: { studentId: id } }),
       p.liveClassMovePollAnswer.findMany({ where: { studentId: id } }),
       p.liveClassMcqAttempt.findMany({ where: { studentId: id } }),
+      // The frozen puzzle list is catalogue data, not the student's.
+      p.soloPuzzleRushRun.findMany({ omit: { puzzles: true }, where: { studentId: id } }),
       p.liveClassPlayoutGame.findMany({ where: { studentId: id } }),
       p.liveChatMessage.findMany({
         select: { createdAt: true, id: true, liveSessionId: true, message: true, recipientId: true },
@@ -301,6 +304,7 @@ export class PrivacyService {
         platformStaff: records(platformStaff),
         playoutGames: records(playoutGames),
         practice: records(practice),
+        soloPuzzleRushRuns: records(soloPuzzleRushRuns),
         progress: records(progress),
         puzzleAttempts: records(puzzleAttempts),
         puzzleRatingChanges: records(puzzleRatingChanges),

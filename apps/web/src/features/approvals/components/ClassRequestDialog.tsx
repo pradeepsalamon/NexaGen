@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { useToast } from "@/providers/ToastProvider";
 import { cancelApprovalRequest, createApprovalRequest } from "../api/approvalsApi";
 import { APPROVAL_INVALIDATES } from "../hooks/useApprovals";
 
@@ -70,11 +71,20 @@ export function ClassRequestDialog({
   const [duration, setDuration] = useState("60");
   const [topic, setTopic] = useState("");
   const [reason, setReason] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // A message belongs under the field it is about; anything else is a toast (UI_RULES § "Form errors").
+  const [errors, setErrors] = useState<{ reason?: string; start?: string }>({});
+  const toast = useToast();
+  const showIssue = (issue: { message: string; path: PropertyKey[] } | undefined) => {
+    const message = issue?.message ?? "Check the details.";
+    const path = issue?.path.map(String) ?? [];
+    if (path.includes("reason")) setErrors({ reason: message });
+    else if (path.some((key) => key === "startsAt" || key === "endsAt")) setErrors({ start: message });
+    else toast.error({ message, title: "Check the request" });
+  };
 
   useEffect(() => {
     if (!open) return;
-    setError(null);
+    setErrors({});
     setReason("");
     setTopic("");
     if (rescheduleClass) {
@@ -104,7 +114,7 @@ export function ClassRequestDialog({
 
   const submit = () => {
     if (!startsAt) {
-      setError("Pick a start time.");
+      setErrors({ start: "Pick a start time" });
       return;
     }
     const endsAt = new Date(startsAt.getTime() + Number(duration) * 60000);
@@ -113,7 +123,7 @@ export function ClassRequestDialog({
       ? classReschedulePayloadSchema.safeParse({ classId: rescheduleClass!.id, ...window })
       : classExtraPayloadSchema.safeParse({ batchId, ...window, topic: topic.trim() || undefined });
     if (!payload.success) {
-      setError(payload.error.issues[0]?.message ?? "Check the details.");
+      showIssue(payload.error.issues[0]);
       return;
     }
     const parsed = createApprovalRequestSchema.safeParse({
@@ -122,10 +132,10 @@ export function ClassRequestDialog({
       reason: reason.trim()
     });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Check the details.");
+      showIssue(parsed.error.issues[0]);
       return;
     }
-    setError(null);
+    setErrors({});
     run(parsed.data);
   };
 
@@ -154,8 +164,15 @@ export function ClassRequestDialog({
           ) : null}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField id="request-start" label={isReschedule ? "New start time" : "Start time"}>
-              <DatePicker withTime value={startsAt} onChange={(d) => setStartsAt(d ?? undefined)} />
+            <FormField error={errors.start} id="request-start" label={isReschedule ? "New start time" : "Start time"}>
+              <DatePicker
+                withTime
+                value={startsAt}
+                onChange={(d) => {
+                  setStartsAt(d ?? undefined);
+                  setErrors((current) => ({ ...current, start: undefined }));
+                }}
+              />
             </FormField>
             <FormField id="request-duration" label="Duration">
               <Select
@@ -182,17 +199,19 @@ export function ClassRequestDialog({
             </FormField>
           ) : null}
 
-          <FormField id="request-reason" label="Reason">
+          <FormField error={errors.reason} id="request-reason" label="Reason">
             <Textarea
               id="request-reason"
               rows={3}
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => {
+                setReason(e.target.value);
+                setErrors((current) => ({ ...current, reason: undefined }));
+              }}
               placeholder={isReschedule ? "e.g. Tournament that weekend" : "e.g. Make-up for the holiday"}
             />
           </FormField>
 
-          {error ? <p className="text-sm text-app-danger-ink">{error}</p> : null}
         </div>
 
         <DialogFooter>

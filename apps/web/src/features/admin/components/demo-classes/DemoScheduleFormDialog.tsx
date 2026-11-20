@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { Plus, Save, X } from "lucide-react";
 import {
   createDemoScheduleRequestSchema,
@@ -277,15 +278,18 @@ function Field({
   children: React.ReactNode;
 }) {
   const Wrapper = group ? "div" : "label";
+  const id = useId();
+  // The hint keeps its slot; the error hangs under the field and never adds height.
   return (
-    <Wrapper className="grid gap-1" {...(group ? { role: "group", "aria-label": label } : {})}>
+    <Wrapper
+      aria-describedby={error ? fieldErrorId(id) : undefined}
+      className="relative grid gap-1"
+      {...(group ? { role: "group", "aria-label": label } : {})}
+    >
       <span className="text-sm font-medium text-app-text">{label}</span>
       {children}
-      {error ? (
-        <p className="text-xs text-app-danger-ink">{error}</p>
-      ) : hint ? (
-        <p className="text-xs text-app-muted">{hint}</p>
-      ) : null}
+      {hint ? <p className="text-xs text-app-muted">{hint}</p> : null}
+      <FieldError id={id} message={error} />
     </Wrapper>
   );
 }
