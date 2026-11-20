@@ -185,7 +185,7 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedDocument> {
     throw new DocumentReadError("malformed", "This PDF is damaged or uses a format we can't read. Try re-saving or re-exporting it.");
   }
   if (doc.numPages > DOCUMENT_LIMITS.maxPages) {
-    await doc.destroy();
+    await task.destroy();
     throw new DocumentReadError(
       "too-many-pages",
       `This PDF has ${doc.numPages} pages — the limit is ${DOCUMENT_LIMITS.maxPages}. Export the chapter you need as its own PDF.`,
@@ -350,7 +350,8 @@ export async function openPdf(bytes: Uint8Array): Promise<OpenedDocument> {
   };
 
   return {
-    destroy: () => doc.destroy(),
+    // pdf.js 6 dropped PDFDocumentProxy.destroy(); the loading task owns the document and its worker.
+    destroy: () => task.destroy(),
     kind: "pdf",
     pageCount: doc.numPages,
     renderPage,
