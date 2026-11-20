@@ -54,7 +54,21 @@ variations/comments/NAGs round-trips via `moveTreeToPgn` /
   `historyIndex` cursor + `gameId`. Live sync / board snapshot carry optional
   `treePgn` / `treeLinePath` / `gameId` / `savedAt`; old clients still read the
   current line from `pgn`. `MoveTreeView` + `MoveHistory` render it; promote /
-  delete / comment are coach/staff only (AlertDialog confirm).
+  delete / annotate are coach/staff only (AlertDialog confirm for promote/delete).
+- **Annotations** (glyphs + comments): `MOVE_GLYPHS` in `move-tree.ts` is the
+  one glyph catalogue (standard PGN NAGs, three groups — move `!! ! !? ?! ? ?? □ ⨀`,
+  position `= ∞ ⩲ ⩱ ± ∓ +− −+`, observation `N ↑↑ ↑ → ⇆ ⊕ ∆` — each with a
+  name and a one-line meaning). `toggleMoveNag` is the only writer: one glyph
+  per group, clicking the chosen one removes it, NAGs outside the catalogue
+  (imported PGN) are kept. The coach opens **Annotate** from the bar above the
+  move list or by right-clicking a move (live-class Moves tab, analysis board,
+  Game Library); glyphs apply at once, the comment on Save. The list colours a
+  move by its quality glyph and shows each glyph's meaning on hover;
+  `ChessgroundBoard` draws the current move's first glyph as a badge on its
+  destination square (`lib/moveGlyphs.ts`, theme colours, chessground
+  `customSvg`). In a live class nothing new is sent: glyphs and comments ride
+  the coach's existing `treePgn`, receivers take a tree only from the coach,
+  and the board-state save keeps them.
 - **Game Library** (`apps/api/src/game-library/`, `features/game-library/`,
   pages `/games` + `/games/[id]`, routes `API_ROUTES.games.*`): `ChessGame`
   rows (`source` LIVE_BOARD / SIMUL / MATCH / IMPORT). `GameRecorderService`

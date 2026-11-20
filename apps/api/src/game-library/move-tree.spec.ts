@@ -7,13 +7,17 @@ import {
   mainlineNodes,
   moveNumberLabel,
   moveTreeHasVariations,
+  moveGlyph,
   moveTreeToPgn,
+  MOVE_GLYPHS,
+  nagSymbol,
   parsePgnToMoveTree,
   PgnParseError,
   promoteToMainline,
   promoteVariationOneLevel,
   setMoveComment,
   STANDARD_START_FEN,
+  toggleMoveNag,
   type MoveTree,
   type MoveTreePath,
 } from "@nexa-chess/types";
@@ -184,5 +188,56 @@ describe("PGN with variations", () => {
     expect(parsed.headers.Event).toBe("A");
     expect(mainlineNodes(parsed.tree).map((n) => n.san)).toEqual(["e4", "e5"]);
     expect(parsed.result).toBe("1-0");
+  });
+});
+
+describe("annotation glyphs", () => {
+  const base = () => play(createMoveTree(), [], ["e4", "e5", "Nf3"]).tree;
+
+  it("toggles a glyph on and off", () => {
+    const on = toggleMoveNag(base(), [0], 1);
+    expect(on.children[0].nags).toEqual([1]);
+    const off = toggleMoveNag(on, [0], 1);
+    expect(off.children[0].nags).toBeUndefined();
+  });
+
+  it("keeps one glyph per group, ordered move → position → observation", () => {
+    let tree = toggleMoveNag(base(), [0, 0], 40); // → attack
+    tree = toggleMoveNag(tree, [0, 0], 16); // ± White is better
+    tree = toggleMoveNag(tree, [0, 0], 1); // !
+    tree = toggleMoveNag(tree, [0, 0], 4); // ?? replaces !
+    tree = toggleMoveNag(tree, [0, 0], 18); // +− replaces ±
+    expect(tree.children[0].children[0].nags).toEqual([4, 18, 40]);
+  });
+
+  it("keeps NAGs it does not know and ignores unknown glyphs, the start position and missing paths", () => {
+    const { tree: imported } = parsePgnToMoveTree("1. e4 $201 e5 *", createMoveTreeChess);
+    const tree = toggleMoveNag(imported, [0], 3);
+    expect(tree.children[0].nags).toEqual([3, 201]);
+    expect(toggleMoveNag(tree, [0], 201)).toBe(tree);
+    expect(toggleMoveNag(tree, [], 1)).toBe(tree);
+    expect(toggleMoveNag(tree, [0, 5], 1)).toBe(tree);
+  });
+
+  it("does not touch the original tree", () => {
+    const tree = base();
+    toggleMoveNag(tree, [0], 1);
+    expect(tree.children[0].nags).toBeUndefined();
+  });
+
+  it("round-trips every glyph through PGN", () => {
+    let tree = base();
+    for (const glyph of MOVE_GLYPHS) tree = toggleMoveNag(toggleMoveNag(tree, [0], glyph.nag), [0], glyph.nag);
+    tree = toggleMoveNag(toggleMoveNag(toggleMoveNag(tree, [0], 3), [0], 14), [0], 146);
+    const parsed = parsePgnToMoveTree(moveTreeToPgn(tree), createMoveTreeChess).tree;
+    expect(parsed.children[0].nags).toEqual([3, 14, 146]);
+  });
+
+  it("has unique NAGs and symbols, and names unknown ones $n", () => {
+    expect(new Set(MOVE_GLYPHS.map((g) => g.nag)).size).toBe(MOVE_GLYPHS.length);
+    expect(new Set(MOVE_GLYPHS.map((g) => g.symbol)).size).toBe(MOVE_GLYPHS.length);
+    expect(nagSymbol(14)).toBe("⩲");
+    expect(moveGlyph(4)?.name).toBe("Blunder");
+    expect(nagSymbol(201)).toBe("$201");
   });
 });

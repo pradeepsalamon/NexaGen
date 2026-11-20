@@ -293,6 +293,86 @@ export function setMoveComment(tree: MoveTree, path: MoveTreePath, comment: stri
   return next;
 }
 
+// ── Annotation glyphs ───────────────────────────────────────────────────────
+
+export type MoveGlyphGroup = "move" | "position" | "observation";
+
+export interface MoveGlyph {
+  /** PGN Numeric Annotation Glyph (`$n`). */
+  nag: number;
+  symbol: string;
+  name: string;
+  /** One line a student can read to learn what the glyph means. */
+  description: string;
+  group: MoveGlyphGroup;
+}
+
+export const MOVE_GLYPH_GROUPS: readonly { group: MoveGlyphGroup; label: string }[] = [
+  { group: "move", label: "Move" },
+  { group: "position", label: "Position" },
+  { group: "observation", label: "Observation" },
+];
+
+/**
+ * The annotation glyphs a coach can put on a move, the same set and order an
+ * analysis board offers (standard PGN NAG numbers, so the PGN stays portable).
+ * A move holds at most one glyph per group.
+ */
+export const MOVE_GLYPHS: readonly MoveGlyph[] = [
+  { nag: 3, symbol: "!!", name: "Brilliant move", description: "An excellent move that is hard to find.", group: "move" },
+  { nag: 1, symbol: "!", name: "Good move", description: "A strong move.", group: "move" },
+  { nag: 5, symbol: "!?", name: "Interesting move", description: "A move worth considering, though not clearly best.", group: "move" },
+  { nag: 6, symbol: "?!", name: "Dubious move", description: "A questionable move; there was probably something better.", group: "move" },
+  { nag: 2, symbol: "?", name: "Mistake", description: "A bad move that gives away part of the advantage.", group: "move" },
+  { nag: 4, symbol: "??", name: "Blunder", description: "A very bad move that can lose the game.", group: "move" },
+  { nag: 7, symbol: "□", name: "Only move", description: "The only move that does not lose.", group: "move" },
+  { nag: 22, symbol: "⨀", name: "Zugzwang", description: "The side to move would rather pass: every move makes things worse.", group: "move" },
+  { nag: 10, symbol: "=", name: "Equal position", description: "Neither side is better.", group: "position" },
+  { nag: 13, symbol: "∞", name: "Unclear position", description: "Hard to say who is better.", group: "position" },
+  { nag: 14, symbol: "⩲", name: "White is slightly better", description: "White has a small advantage.", group: "position" },
+  { nag: 15, symbol: "⩱", name: "Black is slightly better", description: "Black has a small advantage.", group: "position" },
+  { nag: 16, symbol: "±", name: "White is better", description: "White has a clear advantage.", group: "position" },
+  { nag: 17, symbol: "∓", name: "Black is better", description: "Black has a clear advantage.", group: "position" },
+  { nag: 18, symbol: "+−", name: "White is winning", description: "White should win with correct play.", group: "position" },
+  { nag: 19, symbol: "−+", name: "Black is winning", description: "Black should win with correct play.", group: "position" },
+  { nag: 146, symbol: "N", name: "Novelty", description: "A new move in a known opening.", group: "observation" },
+  { nag: 32, symbol: "↑↑", name: "Development", description: "A lead in development.", group: "observation" },
+  { nag: 36, symbol: "↑", name: "Initiative", description: "The initiative: this side is making the threats.", group: "observation" },
+  { nag: 40, symbol: "→", name: "Attack", description: "An attack, usually against the king.", group: "observation" },
+  { nag: 132, symbol: "⇆", name: "Counterplay", description: "Counterplay against the opponent's plans.", group: "observation" },
+  { nag: 138, symbol: "⊕", name: "Time trouble", description: "Little time left on the clock.", group: "observation" },
+  { nag: 140, symbol: "∆", name: "With the idea", description: "The move prepares a specific plan.", group: "observation" },
+];
+
+const GLYPH_BY_NAG = new Map(MOVE_GLYPHS.map((glyph) => [glyph.nag, glyph]));
+const GLYPH_ORDER = new Map(MOVE_GLYPHS.map((glyph, i) => [glyph.nag, i]));
+
+export function moveGlyph(nag: number): MoveGlyph | undefined {
+  return GLYPH_BY_NAG.get(nag);
+}
+
+/**
+ * Turns `nag` on or off for the move at `path`. Turning one on replaces the
+ * move's glyph from the same group (a move is not both "!" and "?"); NAGs
+ * outside `MOVE_GLYPHS` (from an imported PGN) are kept. The start position
+ * (`[]`) takes no glyph. Returns `tree` unchanged when nothing applies.
+ */
+export function toggleMoveNag(tree: MoveTree, path: MoveTreePath, nag: number): MoveTree {
+  const glyph = moveGlyph(nag);
+  if (!glyph || path.length === 0 || !getMoveTreeNode(tree, path)) return tree;
+  const { tree: next, nodes } = cloneAlong(tree, path);
+  const node = nodes[nodes.length - 1];
+  const current = node.nags ?? [];
+  const nags = current.includes(nag)
+    ? current.filter((n) => n !== nag)
+    : [...current.filter((n) => moveGlyph(n)?.group !== glyph.group), nag];
+  // Catalogue order (move, position, observation) so "e4!! ±" reads naturally.
+  nags.sort((a, b) => (GLYPH_ORDER.get(a) ?? Infinity) - (GLYPH_ORDER.get(b) ?? Infinity));
+  if (nags.length > 0) node.nags = nags;
+  else delete node.nags;
+  return next;
+}
+
 // ── Move numbering ──────────────────────────────────────────────────────────
 
 interface FenTurn {
@@ -321,13 +401,12 @@ export function moveNumberLabel(rootFen: string, depth: number): string {
 
 // ── PGN export ──────────────────────────────────────────────────────────────
 
-const NAG_SYMBOLS: Record<number, string> = { 1: "!", 2: "?", 3: "!!", 4: "??", 5: "!?", 6: "?!" };
-const SYMBOL_NAGS: Record<string, number> = Object.fromEntries(
-  Object.entries(NAG_SYMBOLS).map(([nag, symbol]) => [symbol, Number(nag)]),
-);
+/** The "!" / "?" suffixes a hand-typed PGN may glue to a move. */
+const SYMBOL_NAGS: Record<string, number> = { "!": 1, "?": 2, "!!": 3, "??": 4, "!?": 5, "?!": 6 };
 
+/** The glyph's symbol ("!", "±", "N", …), or "$n" for a NAG outside `MOVE_GLYPHS`. */
 export function nagSymbol(nag: number): string {
-  return NAG_SYMBOLS[nag] ?? `$${nag}`;
+  return moveGlyph(nag)?.symbol ?? `$${nag}`;
 }
 
 function escapeComment(text: string) {
