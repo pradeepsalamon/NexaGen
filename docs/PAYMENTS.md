@@ -107,6 +107,8 @@ for India.
   boots and a checkout attempt is a clean 503.
 - **Manual / offline payments (cash, a coach's personal UPI/GPay, bank
   transfer) are tracked the same way without a gateway.**
+  Plan feature `feeTracking` (every SaaS plan), not `studentPayments` (online,
+  Growth up): docs/SAAS_PLANS.md "Fee tracking and online payments".
   `apps/api/src/payments/manual-payment.service.ts` builds an ordinary
   `Order` + `Payment` (`provider: MANUAL`, never routed to by
   `PaymentRouterService` or given a provider adapter) and reaches `PAID`

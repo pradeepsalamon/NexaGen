@@ -40,7 +40,7 @@ const MANUAL_ATTACHMENT_MIME_PATTERN =
  * touch, always scoped to their own batches (§3.2: no guards, controller
  * lifts the cookie, `assertAdminOrCoach`/the service assert the rest).
  */
-@RequireFeature("studentPayments")
+@RequireFeature("feeTracking")
 @Controller()
 export class ManualPaymentController {
   constructor(

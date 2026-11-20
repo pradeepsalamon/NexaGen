@@ -32,6 +32,7 @@ export const PLAN_FEATURE_KEYS = [
   "customDomain",
   "demoClasses",
   "directChat",
+  "feeTracking",
   "gameAnalysis",
   "gameLibrary",
   "interactiveClassroom",
@@ -124,6 +125,13 @@ export const PLAN_FEATURES: Record<PlanFeatureKey, PlanFeatureDefinition> = {
     key: "directChat",
     label: "Direct messages"
   },
+  feeTracking: {
+    category: "Operations",
+    description:
+      "Record fees paid in cash, UPI/GPay or bank transfer, with fee plans per batch and invoices. Students see their payment history.",
+    key: "feeTracking",
+    label: "Fee tracking"
+  },
   gameAnalysis: {
     category: "Learning",
     description: "Engine game analysis, tactics detection, game imports and game insights.",
@@ -168,9 +176,10 @@ export const PLAN_FEATURES: Record<PlanFeatureKey, PlanFeatureDefinition> = {
   },
   studentPayments: {
     category: "Operations",
-    description: "Sell plans to students: online payments, invoices, credit notes and manual payments.",
+    description:
+      "Students pay online through the academy's own payment gateway, with subscriptions, discount codes, refunds and credit notes. Includes fee tracking.",
     key: "studentPayments",
-    label: "Student payments & invoices"
+    label: "Online student payments"
   },
   tournaments: {
     category: "Learning",
@@ -243,6 +252,23 @@ export const planLimitsSchema = z.object({
   maxStudents: limitValueSchema
 });
 
+/**
+ * Features that come with another one. Online payments need the fee records,
+ * invoices and billing pages fee tracking gates, so `studentPayments` always
+ * brings `feeTracking` (plans and deals written before the split keep working
+ * without a data change).
+ */
+export const IMPLIED_PLAN_FEATURES: Partial<Record<PlanFeatureKey, PlanFeatureKey[]>> = {
+  studentPayments: ["feeTracking"]
+};
+
+/** `features` plus everything they imply, in catalogue order. */
+export function withImpliedFeatures(features: Iterable<PlanFeatureKey>): PlanFeatureKey[] {
+  const set = new Set(features);
+  for (const key of [...set]) for (const implied of IMPLIED_PLAN_FEATURES[key] ?? []) set.add(implied);
+  return PLAN_FEATURE_KEYS.filter((key) => set.has(key));
+}
+
 /** Per-tenant overrides on top of the plan (negotiated deals, support exceptions). */
 export const entitlementOverridesSchema = z.object({
   addFeatures: z.array(planFeatureKeySchema).default([]),
@@ -259,7 +285,7 @@ export type EntitlementOverrides = z.infer<typeof entitlementOverridesSchema>;
 // Default plans (seed data — the database is the source once created)
 // ──────────────────────────────────────────────
 
-export type PlatformPlanCode = "STARTER" | "GROWTH" | "BUSINESS" | "ENTERPRISE";
+export type PlatformPlanCode = "MINI" | "STARTER" | "GROWTH" | "BUSINESS" | "ENTERPRISE";
 
 export type PlatformPlanSeed = {
   id: string;
@@ -276,7 +302,8 @@ export type PlatformPlanSeed = {
   trialDays: number;
 };
 
-const STARTER_FEATURES: PlanFeatureKey[] = ["directChat", "gameLibrary"];
+const MINI_FEATURES: PlanFeatureKey[] = ["directChat", "feeTracking", "gameLibrary"];
+const STARTER_FEATURES: PlanFeatureKey[] = [...MINI_FEATURES];
 const GROWTH_FEATURES: PlanFeatureKey[] = [
   ...STARTER_FEATURES,
   "classRecording",
@@ -302,6 +329,19 @@ const BUSINESS_FEATURES: PlanFeatureKey[] = [
 ];
 
 export const DEFAULT_PLATFORM_PLANS: PlatformPlanSeed[] = [
+  {
+    code: "MINI",
+    currency: "INR",
+    description: "For one coach teaching on their own, on a NexaChess address.",
+    features: MINI_FEATURES,
+    id: "plan_mini",
+    limits: { maxBatches: 5, maxCoaches: 1, maxConcurrentLiveClasses: 1, maxStudents: 25 },
+    name: "Mini",
+    priceMonthlyMinor: 99900,
+    priceYearlyMinor: 999000,
+    sortOrder: 5,
+    trialDays: 14
+  },
   {
     code: "STARTER",
     currency: "INR",
@@ -453,6 +493,8 @@ export function resolveEntitlements(
   const raw = overrides && typeof overrides === "object" ? (overrides as Record<string, unknown>) : {};
   const features = new Set([...sanitizePlanFeatures(plan.features), ...sanitizePlanFeatures(raw.addFeatures)]);
   for (const key of sanitizePlanFeatures(raw.removeFeatures)) features.delete(key);
+  // After removal: a deal can't keep online payments while taking away the records they need.
+  for (const key of withImpliedFeatures(features)) features.add(key);
   const limits = sanitizePlanLimits(plan.limits);
   const limitOverrides = raw.limits && typeof raw.limits === "object" ? (raw.limits as Record<string, unknown>) : {};
   for (const key of PLAN_LIMIT_KEYS) {
@@ -475,7 +517,7 @@ export function cheapestPlanWithFeature<T extends { features: unknown; sortOrder
   return (
     [...plans]
       .sort((a, b) => a.sortOrder - b.sortOrder)
-      .find((plan) => sanitizePlanFeatures(plan.features).includes(feature)) ?? null
+      .find((plan) => withImpliedFeatures(sanitizePlanFeatures(plan.features)).includes(feature)) ?? null
   );
 }
 

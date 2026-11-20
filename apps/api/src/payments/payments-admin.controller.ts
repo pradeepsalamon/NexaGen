@@ -57,7 +57,7 @@ import { SubscriptionService } from "./subscription.service";
 import { RequireFeature } from "../platform/require-feature.decorator";
 
 /** Admin payment dashboard, refunds, plan catalogue and routing config. */
-@RequireFeature("studentPayments")
+@RequireFeature("feeTracking")
 @Controller()
 export class PaymentsAdminController {
   constructor(
@@ -100,12 +100,14 @@ export class PaymentsAdminController {
     return this.admin.exportCsv(admin, query);
   }
 
+  @RequireFeature("studentPayments")
   @Get(API_ROUTES.adminPayments.refunds)
   async listRefunds(@Req() request: Request) {
     await this.adminUser(request);
     return { refunds: await this.refunds.list() };
   }
 
+  @RequireFeature("studentPayments")
   @Get(API_ROUTES.adminPayments.subscriptions)
   async listSubscriptions(@Req() request: Request) {
     await this.adminUser(request);
@@ -118,18 +120,21 @@ export class PaymentsAdminController {
     return { invoices: await this.invoices.listAll() };
   }
 
+  @RequireFeature("studentPayments")
   @Get(API_ROUTES.adminPayments.providerHealth)
   async providerHealth(@Req() request: Request) {
     await this.adminUser(request);
     return this.admin.providerHealth();
   }
 
+  @RequireFeature("studentPayments")
   @Get(API_ROUTES.adminPayments.routing)
   async getRouting(@Req() request: Request) {
     await this.adminUser(request);
     return this.admin.getRouting();
   }
 
+  @RequireFeature("studentPayments")
   @Put(API_ROUTES.adminPayments.routing)
   async saveRouting(
     @Body(new ZodBodyPipe(paymentRoutingConfigSchema)) body: PaymentRoutingConfig,
@@ -175,12 +180,14 @@ export class PaymentsAdminController {
 
   // ── Discounts ──
 
+  @RequireFeature("studentPayments")
   @Get(API_ROUTES.adminPayments.discounts)
   async listDiscounts(@Req() request: Request) {
     await this.adminUser(request);
     return { discounts: await this.discounts.list() };
   }
 
+  @RequireFeature("studentPayments")
   @Post(API_ROUTES.adminPayments.discounts)
   async createDiscount(
     @Body(new ZodBodyPipe(createDiscountRequestSchema)) body: CreateDiscountRequest,
@@ -190,6 +197,7 @@ export class PaymentsAdminController {
     return this.discounts.create(admin, body);
   }
 
+  @RequireFeature("studentPayments")
   @Put(API_ROUTES.adminPayments.discount())
   async updateDiscount(
     @Param("id") id: string,
@@ -201,6 +209,7 @@ export class PaymentsAdminController {
   }
 
   /** Deactivates instead of deleting once a code has been claimed. */
+  @RequireFeature("studentPayments")
   @Delete(API_ROUTES.adminPayments.discount())
   async deleteDiscount(@Param("id") id: string, @Req() request: Request) {
     await this.adminUser(request);
@@ -314,6 +323,7 @@ export class PaymentsAdminController {
   }
 
   /** Re-reads a payment from its gateway. The safe first move on any dispute. */
+  @RequireFeature("studentPayments")
   @Post(API_ROUTES.adminPayments.reconcile())
   async reconcile(@Param("id") id: string, @Req() request: Request) {
     await this.adminUser(request);
@@ -321,6 +331,7 @@ export class PaymentsAdminController {
     return this.payments.buildStatus(await this.payments.requirePayment(id));
   }
 
+  @RequireFeature("studentPayments")
   @Post(API_ROUTES.adminPayments.refund())
   async refund(
     @Param("id") id: string,

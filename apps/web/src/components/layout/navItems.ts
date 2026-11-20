@@ -102,7 +102,7 @@ export const studentNavItems: NavItem[] = [
   { href: "/games", label: "Game library", icon: Library, feature: "gameLibrary" },
   { href: "/tournaments", label: "Tournaments", icon: Trophy, feature: "tournaments" },
   { href: "/student/attendance", label: "Attendance", icon: UserCheck },
-  { href: "/student/billing", label: "Billing", icon: CreditCard, feature: "studentPayments" },
+  { href: "/student/billing", label: "Billing", icon: CreditCard, feature: "feeTracking" },
   { href: "/student/referrals", label: "Refer & earn", icon: Gift, feature: "referralProgram" },
   { href: "/help", label: "Help centre", icon: LifeBuoy },
   { href: "/chess-board", label: "Chess board", icon: Palette },
@@ -125,7 +125,7 @@ export const coachNavItems: NavItem[] = [
   { href: "/coach/presets", label: "Class presets", icon: SlidersHorizontal },
   { href: "/coach/requests", label: "My requests", icon: Inbox },
   { href: "/coach/earnings", label: "Earnings", icon: Wallet, feature: "coachPayroll" },
-  { href: "/coach/payments", label: "Payments", icon: CreditCard, feature: "studentPayments" },
+  { href: "/coach/payments", label: "Payments", icon: CreditCard, feature: "feeTracking" },
   { href: "/coach/referrals", label: "Refer & earn", icon: Gift, feature: "referralProgram" },
   { href: "/help", label: "Help centre", icon: LifeBuoy },
   { href: "/chess-board", label: "Chess board", icon: Palette },
@@ -181,8 +181,8 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/content-packs", label: "Content packs", icon: Package, group: "Learning" },
   { href: "/admin/knowledge", label: "Knowledge base", icon: LibraryBig, group: "Learning" },
   // Finance
-  { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Finance", feature: "studentPayments" },
-  { href: "/admin/finance/invoices", label: "Invoices", icon: ReceiptText, group: "Finance", feature: "studentPayments" },
+  { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Finance", feature: "feeTracking" },
+  { href: "/admin/finance/invoices", label: "Invoices", icon: ReceiptText, group: "Finance", feature: "feeTracking" },
   { href: "/admin/finance/coach-payroll", label: "Coach payroll", icon: Wallet, group: "Finance", feature: "coachPayroll" },
   // Platform settings
   { href: "/admin/live-class", label: "Live class settings", icon: SlidersHorizontal, group: "Settings" },

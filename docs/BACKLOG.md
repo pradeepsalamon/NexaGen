@@ -144,6 +144,18 @@ code on 2026-10-31.
   is still an admin move, and free days given by a voucher can't be taken back
   from the referral board (adjust the access in Payments).
 
+- **Mini plan + fee tracking on every plan (built 2026-11-20, branch
+  `feat/mini-plan-fee-tracking`, PR into `dev`).** Manual (cash / UPI / bank)
+  payments, fee plans, invoices and billing moved to a new `feeTracking`
+  feature on every plan; online payments (`studentPayments`) stay Growth up and
+  imply it ([SAAS_PLANS.md](SAAS_PLANS.md) "Fee tracking and online payments").
+  New **Mini** plan: 25 students, 1 coach, 5 batches, 1 live class, ₹999/month,
+  ₹9,990/year, 14-day trial. **Owner to confirm:** Mini's price and limits
+  (editable in the platform console); whether Mini/Starter should get the
+  in-class activities (`interactiveClassroom`: simuls, polls, puzzle rush,
+  activity queue), today Growth up; whether a solo coach should manage the
+  academy from a single account (today one admin + one coach account).
+
 ### Needs someone with `vps_dev` / production access
 
 - ~~Confirm `LiveKit webhook: event=…` lines in the API logs during a real class

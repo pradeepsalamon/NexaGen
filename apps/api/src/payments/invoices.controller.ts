@@ -35,7 +35,7 @@ import { RequireFeature } from "../platform/require-feature.decorator";
  * else's invoice only if you are an admin. Auth is the token-string pattern
  * (CLAUDE.md §3.2): the controller lifts the raw cookie, the service verifies.
  */
-@RequireFeature("studentPayments")
+@RequireFeature("feeTracking")
 @Controller()
 export class InvoicesController {
   constructor(
