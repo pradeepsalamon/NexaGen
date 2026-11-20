@@ -13,6 +13,7 @@ import {
   parsePgnToMoveTree,
   promoteToMainline,
   setMoveComment,
+  toggleMoveNag,
   type MoveTree,
   type MoveTreePath,
 } from "@nexa-chess/types";
@@ -175,6 +176,8 @@ export interface BoardActions {
   /** Removes the move at `path` and everything after it. */
   deleteVariation: (path: MoveTreePath) => void;
   setMoveComment: (path: MoveTreePath, comment: string) => void;
+  /** Coach only (callers enforce it): turns an annotation glyph (`MOVE_GLYPHS`) on or off. */
+  toggleMoveNag: (path: MoveTreePath, nag: number) => void;
   /** Replaces the whole tree (Game Library open, import). */
   loadTree: (tree: MoveTree, linePath?: MoveTreePath, historyIndex?: number) => void;
   
@@ -589,6 +592,13 @@ export const createBoardStore = () => {
     setMoveComment: (path, comment) => {
       const state = get();
       const tree = setMoveComment(state.tree, path, comment);
+      if (tree === state.tree) return;
+      set({ tree });
+    },
+
+    toggleMoveNag: (path, nag) => {
+      const state = get();
+      const tree = toggleMoveNag(state.tree, path, nag);
       if (tree === state.tree) return;
       set({ tree });
     },
