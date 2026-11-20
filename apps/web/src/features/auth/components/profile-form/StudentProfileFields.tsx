@@ -72,6 +72,7 @@ export const StudentProfileFields = memo(function StudentProfileFields({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <FormField id="profile-date-of-birth" label="Date of Birth">
           <DatePicker
+            id="profile-date-of-birth"
             onChange={(date) => {
               onFieldChange("dateOfBirth", date ? format(date, "yyyy-MM-dd") : "");
             }}
