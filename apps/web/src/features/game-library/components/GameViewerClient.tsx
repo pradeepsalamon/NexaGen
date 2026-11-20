@@ -14,6 +14,7 @@ import {
   parsePgnToMoveTree,
   promoteToMainline,
   setMoveComment,
+  toggleMoveNag,
   type GameLibraryDetail,
   type MoveTree,
   type MoveTreePath,
@@ -233,6 +234,11 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
     setTree(setMoveComment(tree, path, text));
   };
 
+  const onToggleNag = (path: MoveTreePath, nag: number) => {
+    if (!tree) return;
+    setTree(toggleMoveNag(tree, path, nag));
+  };
+
   const discard = () => {
     writeDraft(game.id, null);
     if (saved) {
@@ -350,6 +356,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
               onPromote={onPromote}
               onDelete={onDeleteVariation}
               onComment={onComment}
+              onToggleNag={onToggleNag}
             />
           </Card>
 
