@@ -522,7 +522,10 @@ export class AuthService {
     )}s` as JwtDuration;
     // The successor keeps the device's active role while the account still
     // holds it (docs/MULTI_ROLE_ACCOUNTS.md); a removed role falls back here.
-    const acting = applyActiveRole(session.user, session.activeRole);
+    // Read after the rotation claim: a switch that landed between the first
+    // read and the claim is kept, and none can land later (it needs rotatedAt null).
+    const latest = await this.prisma.authSession.findUnique({ select: { activeRole: true }, where: { id: session.id } });
+    const acting = applyActiveRole(session.user, latest ? latest.activeRole : session.activeRole);
     const tokenPair = await this.createSession(
       acting,
       context,
@@ -1084,7 +1087,9 @@ export class AuthService {
     const from = user.role;
     const claimed = await this.prisma.authSession.updateMany({
       data: { activeRole: role === user.primaryRole ? null : role },
-      where: { id: payload.sessionId, revokedAt: null, userId: user.id }
+      // Only a live, current session: an expired or already-rotated one must
+      // not mint fresh access tokens (the web refreshes on the 401 and retries).
+      where: { expiresAt: { gt: new Date() }, id: payload.sessionId, revokedAt: null, rotatedAt: null, userId: user.id }
     });
     if (claimed.count === 0) {
       throw new UnauthorizedException("Invalid session.");

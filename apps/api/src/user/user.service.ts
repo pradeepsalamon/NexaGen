@@ -471,7 +471,15 @@ export class UserService {
           // Claim on the roles we read, so two concurrent edits can't both apply.
           const claimed = await tx.user.updateMany({
             data: { extraRoles: wanted },
-            where: { extraRoles: { equals: current }, id, isDeleted: false }
+            // Also pin the role (and, for a grant, the status) we validated, so a
+            // concurrent edit of the account makes this a conflict, not a bad grant.
+            where: {
+              extraRoles: { equals: current },
+              id,
+              isDeleted: false,
+              role: target.role,
+              ...(granted.length > 0 ? { status: UserStatus.ACTIVE } : {})
+            }
           });
           if (claimed.count !== 1) {
             throw new ConflictException("This account changed meanwhile. Reload and try again.");
@@ -668,6 +676,11 @@ export class UserService {
 function rethrowUniqueAsConflict(error: unknown): never {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
     throw new ConflictException("User with this email already exists.");
+  }
+  // A "Can also teach" grant landed between this edit's read and its write, and
+  // the new role can't hold it (docs/MULTI_ROLE_ACCOUNTS.md): the database refused.
+  if (error instanceof Error && error.message.includes("users_extra_roles_v1_check")) {
+    throw new ConflictException("This account changed meanwhile. Reload and try again.");
   }
   throw error;
 }

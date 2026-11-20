@@ -449,7 +449,7 @@ describe("UserService", () => {
       });
       expect(extra.user.updateMany).toHaveBeenCalledWith({
         data: { extraRoles: [UserRole.COACH] },
-        where: { extraRoles: { equals: [] }, id: "admin-1", isDeleted: false }
+        where: { extraRoles: { equals: [] }, id: "admin-1", isDeleted: false, role: UserRole.ADMIN, status: UserStatus.ACTIVE }
       });
       expect(extra.userRoleChange.create).toHaveBeenCalledWith({
         data: { action: "GRANTED", actorId: "auth-123", role: UserRole.COACH, userId: "admin-1" }
@@ -532,6 +532,17 @@ describe("UserService", () => {
         data: { action: "REMOVED", actorId: "auth-123", role: UserRole.COACH, userId: "admin-1" }
       });
       expect(result.coachedBatches).toEqual([{ id: "b1", name: "Juniors" }]);
+    });
+
+    it("turns a grant that raced a role change into a conflict, not a 500", async () => {
+      mockAuthContext(UserRole.SUPER_ADMIN);
+      prismaService.user.findUnique.mockResolvedValueOnce(adminRow());
+      prismaService.user.update.mockRejectedValueOnce(
+        new Error('new row for relation "users" violates check constraint "users_extra_roles_v1_check"')
+      );
+      await expect(service.update("token", "admin-1", { role: UserRole.STUDENT } as UpdateUserRequest)).rejects.toBeInstanceOf(
+        ConflictException
+      );
     });
 
     it("drops the extra role when the account stops being staff", async () => {

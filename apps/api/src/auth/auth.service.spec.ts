@@ -1015,7 +1015,13 @@ describe("AuthService", () => {
 
         expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
           data: { activeRole: UserRole.COACH },
-          where: { id: "sess-1", revokedAt: null, userId: "usr-123" }
+          where: {
+            expiresAt: { gt: expect.any(Date) },
+            id: "sess-1",
+            revokedAt: null,
+            rotatedAt: null,
+            userId: "usr-123"
+          }
         });
         expect(jwtService.signAsync.mock.calls[0][0]).toMatchObject({ role: UserRole.COACH, sessionId: "sess-1" });
         expect(result.accessToken).toBe("new-access-token");
@@ -1073,6 +1079,15 @@ describe("AuthService", () => {
 
         expect(prismaService.authSession.create.mock.calls[0][0].data.activeRole).toBe(UserRole.COACH);
         expect(jwtService.signAsync.mock.calls[0][0]).toMatchObject({ role: UserRole.COACH, type: "access" });
+        expect(result.user.role).toBe(UserRole.COACH);
+      });
+
+      it("keeps a switch that landed between the first read and the rotation claim", async () => {
+        prismaService.authSession.findFirst.mockResolvedValueOnce(session(null));
+        prismaService.authSession.findUnique.mockResolvedValueOnce({ activeRole: UserRole.COACH });
+        const result = await service.refresh(REFRESH_TOKEN, {});
+
+        expect(prismaService.authSession.create.mock.calls[0][0].data.activeRole).toBe(UserRole.COACH);
         expect(result.user.role).toBe(UserRole.COACH);
       });
 
