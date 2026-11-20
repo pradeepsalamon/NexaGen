@@ -473,7 +473,7 @@ function AnnotateEditor({ node, open, onOpenChange, onComment, onToggleNag }: An
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="neutral" size="sm" className="h-7 min-h-7 px-2 text-xs" aria-label="Annotate this move">
+        <Button variant="neutral" size="sm" className="h-7 min-h-7 px-2 text-xs">
           <Highlighter className="size-3.5" strokeWidth={2.5} aria-hidden />
           {annotated ? "Edit annotation" : "Annotate"}
         </Button>
