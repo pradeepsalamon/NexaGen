@@ -4,6 +4,7 @@ import {
   APPROVAL_ACTIONS,
   formatMoney,
   maskProspectName,
+  MESSAGING_EVENT_DEFINITIONS,
   parseTournamentEligibility,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -37,8 +38,9 @@ function referralBoardPath(role: UserRole): string {
 
 /** One resolved addressee plus the values its templates bind. */
 interface Recipient {
-  userId: string;
-  role: UserRole;
+  /** Null for a WhatsApp number with no account (Puzzle of the Day keyword sign-ups): WhatsApp only. */
+  userId: string | null;
+  role: UserRole | null;
   phoneNumber: string | null;
   isEmailVerified: boolean;
   timezone: string;
@@ -90,6 +92,13 @@ export type DispatchRequest =
   | { event: "ASSIGNMENT_OVERDUE_COACH"; assignmentBatchId: string }
   /** Students with a revision item due; each hears at most once per send day. */
   | { event: "REVISION_DUE"; studentIds: string[] }
+  /**
+   * Puzzle of the Day on WhatsApp (docs/PUZZLE_OF_THE_DAY.md step 2): the
+   * students who turned it on in the app and the numbers that sent PUZZLE, for
+   * the academy day `day` (YYYY-MM-DD) whose send time is near. One message per
+   * number per day, and nothing about the student in it.
+   */
+  | { event: "DAILY_PUZZLE"; day: string; timeZone: string; studentIds: string[]; contactIds: string[] }
   | { event: "ANNOUNCEMENT"; announcementId: string }
   | { event: "ACCOUNT_WELCOME" | "ACCOUNT_APPROVED" | "ACCOUNT_DECLINED"; userId: string }
   /** The admins who can review a self-registration (coaches: super admins only), told it is waiting. */
@@ -230,8 +239,11 @@ export class MessagingDispatchService {
 
     const now = new Date();
     let earliest: Date | null = null;
+    // Recipients without an account, or an event that is WhatsApp only, get no in-app or email copy.
+    const whatsappOnly = MESSAGING_EVENT_DEFINITIONS[rule.event].whatsappOnly === true;
 
     for (const recipient of recipients) {
+      const accountChannels = !whatsappOnly && recipient.userId !== null;
       // A lead-time rule is already being dispatched at the right moment by the
       // scheduler; only IMMEDIATE/DAILY/WEEKLY rules get a future due time.
       const scheduledFor = this.rules.usesLeadTime(rule.event)
@@ -248,7 +260,7 @@ export class MessagingDispatchService {
         if (queued === "no-phone") summary.missingPhone += 1;
       }
 
-      if (rule.inAppEnabled) {
+      if (rule.inAppEnabled && accountChannels) {
         const queued = await this.queue({
           rule,
           recipient,
@@ -260,7 +272,7 @@ export class MessagingDispatchService {
         if (queued) summary.queuedInApp += 1;
       }
 
-      if (rule.emailEnabled) {
+      if (rule.emailEnabled && accountChannels) {
         const unverified = verifiedOnly && !recipient.isEmailVerified;
         const queued = await this.queue({
           rule,
@@ -413,6 +425,8 @@ export class MessagingDispatchService {
         return this.overdueCoachRecipients(request.assignmentBatchId);
       case "REVISION_DUE":
         return this.revisionDueRecipients(request.studentIds, rule);
+      case "DAILY_PUZZLE":
+        return this.dailyPuzzleRecipients(request);
       case "ANNOUNCEMENT":
         return this.announcementRecipients(request.announcementId);
       case "ACCOUNT_WELCOME":
@@ -652,6 +666,70 @@ export class MessagingDispatchService {
         })
       ];
     });
+  }
+
+  /**
+   * One recipient per WhatsApp number: a student's account phone, or a number
+   * that sent PUZZLE (still asking for it, and not STOPped). A number reached
+   * both ways is sent to once; the dedupe key is the number and the day, so an
+   * hourly re-run never sends twice. The message carries no student data.
+   */
+  private async dailyPuzzleRecipients(
+    request: Extract<DispatchRequest, { event: "DAILY_PUZZLE" }>
+  ): Promise<Recipient[]> {
+    const [students, contacts] = await Promise.all([
+      request.studentIds.length
+        ? this.prisma.user.findMany({
+            select: { id: true, phoneNumber: true, role: true },
+            where: {
+              id: { in: request.studentIds },
+              isDeleted: false,
+              role: UserRole.STUDENT,
+              status: UserStatus.ACTIVE,
+              studentProfile: { dailyPuzzleWhatsAppAt: { not: null } }
+            }
+          })
+        : [],
+      request.contactIds.length
+        ? this.prisma.whatsAppContact.findMany({
+            select: { id: true, waId: true },
+            where: { dailyPuzzleAt: { not: null }, id: { in: request.contactIds }, optedOutAt: null }
+          })
+        : []
+    ]);
+
+    const frontendUrl = getFrontendUrl(this.env);
+    const linkPath = "/student/daily-puzzle";
+    const variables = (): MessageVariables => ({
+      "academy.name": ACADEMY_NAME,
+      // A calendar day, not an instant: formatted as written.
+      "dailyPuzzle.date": formatInZone(new Date(`${request.day}T12:00:00Z`), "UTC", "date"),
+      "links.dailyPuzzle": `${frontendUrl}${linkPath}`
+    });
+    const base = (key: string) => ({
+      dedupeKey: `DAILY_PUZZLE:${key}:${request.day}`,
+      isEmailVerified: false,
+      linkPath,
+      timezone: request.timeZone,
+      variables: variables()
+    });
+
+    const byNumber = new Map<string, Recipient>();
+    const recipients: Recipient[] = [];
+    for (const student of students) {
+      const phone = this.whatsapp.normalizeRecipient(student.phoneNumber);
+      if (!phone) {
+        // Recorded as skipped ("no phone number"), once a day per student.
+        recipients.push({ ...base(`user:${student.id}`), phoneNumber: student.phoneNumber, role: student.role, userId: student.id });
+        continue;
+      }
+      if (!byNumber.has(phone)) byNumber.set(phone, { ...base(phone), phoneNumber: phone, role: student.role, userId: student.id });
+    }
+    for (const contact of contacts) {
+      const phone = this.whatsapp.normalizeRecipient(contact.waId);
+      if (phone && !byNumber.has(phone)) byNumber.set(phone, { ...base(phone), phoneNumber: phone, role: null, userId: null });
+    }
+    return [...recipients, ...byNumber.values()];
   }
 
   private async gradedRecipients(

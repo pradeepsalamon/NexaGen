@@ -147,7 +147,7 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   deletes its conversations, messages, requests with their history, and its
   webhook items, in one transaction under the contact's lock. A number that
   replied STOP keeps a bare row (number + opt-out) so automatic messages stay
-  off. A lead made from it stays (a CRM record; delete it from Leads). Each
+  off; its Puzzle of the Day sign-up is cleared either way. A lead made from it stays (a CRM record; delete it from Leads). Each
   erasure is logged in `support_contact_erasures` (who, when, counts; no personal data).
 - *Files* (Phase C, D13): an image or PDF a customer sends shows in the
   transcript as "[Image] caption" / "[PDF: name]" with a link, and the bot
@@ -270,6 +270,16 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
 **Consent.** `STOP` sets `WhatsAppContact.optedOutAt`; messaging rules and
 system messages then skip that number (`SKIPPED`, checked at send time, so
 queued ones stop too). Support replies to the customer's own messages still go.
+
+**Puzzle of the Day keywords** (2026-11-21, [PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md)
+step 2). Only while the academy sends Puzzle of the Day on WhatsApp (its
+`DAILY_PUZZLE` rule on with WhatsApp, Puzzle of the Day not off): `PUZZLE` (also
+"daily puzzle", "puzzle of the day", "puzzle on") sets
+`WhatsAppContact.dailyPuzzleAt`; `PUZZLE OFF` ("puzzle stop", "stop puzzle", "no
+puzzle") clears it and drops that number's queued message. The whole message must
+be the keyword; like STOP it works in any state, even while staff own the
+conversation, and the form stays where it was. A STOPped number is told to send
+START: STOP still wins. Otherwise the words are ordinary text.
 
 **Course enquiries, demo bookings and follow-ups (built 2026-11-14, flow
 version 2).** Owner's priority: answer leads at once and follow up quickly.

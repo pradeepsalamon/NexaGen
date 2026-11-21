@@ -90,6 +90,11 @@ the editors; a new placeholder needs an entry (a spec checks).
   whose `dueDate` passed in the last 48h with someone unfinished and dispatches
   one notice per deployment to the coach who deployed it (falling back to the
   batch's current coaches). Dedupe key = deployment + due date + coach.
+- `DAILY_PUZZLE` ships **off, WhatsApp only** (`whatsappOnly`: in-app and email are
+  refused) and is the one event whose recipients may have **no account**: numbers
+  that sent PUZZLE to the support bot, plus students who turned it on in the app.
+  `DailyPuzzleWhatsAppService`'s hourly cron dispatches it per academy day; one row
+  per number, no student data in the message. [PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md) step 2.
 - `ASSIGNMENT_DUE_SOON` + `ASSIGNMENT_GRADED` ship **enabled, in-app only** —
   they absorbed the old unconditional notifications (`NotificationScheduler` is
   deleted; `assignment-attempt.service` now dispatches instead of notifying).
@@ -214,8 +219,14 @@ Things worth knowing before you touch it:
   which is not a student's message with a different address. Each sweeps its own
   window every 5 minutes.
 - **Send times are per recipient.** A "daily at 9am" rule reaches everyone at
-  *their own* 9am (`computeScheduledFor` reads `User.timezone`), with DST and a
-  weekdays-only option handled in `messaging.schedule.ts`.
+  *their own* 9am (`computeScheduledFor` reads `User.timezone`), with DST
+  handled in `messaging.schedule.ts`. An event marked `academyTimeZone`
+  (Puzzle of the Day) passes the academy's zone instead.
+- **Send days** (2026-11-21). A DAILY rule sends only on the days the admin picks
+  (`MessagingRule.scheduleDays`, 0 = Sunday; empty = every day). Older rules with
+  the "weekdays only" switch read as Monday–Friday until saved; saving writes the
+  days and clears that switch. `messagingSendDays` (`@nexa-chess/types`) is the
+  one rule for the scheduler, the editor's day picker and `describeSchedule`.
 - **Dispatch never fails its caller.** Feature services call
   `MessagingDispatchService.dispatchInBackground(...)`, which swallows and logs.
   A WhatsApp outage cannot fail class creation.

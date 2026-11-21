@@ -7,6 +7,7 @@ import {
   getDailyPuzzleSchedule,
   getDailyPuzzleToday,
   setDailyPuzzleOverride,
+  setDailyPuzzleWhatsApp,
   startDailyPuzzle,
   updateBatchDailyPuzzle,
   updateDailyPuzzleSettings
@@ -26,6 +27,20 @@ export function useStartDailyPuzzle() {
   return useMutation({
     mutationFn: (level: DailyPuzzleLevel) => startDailyPuzzle(level),
     onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't open the puzzle" })
+  });
+}
+
+// undo: intentionally excluded — a switch whose correction is switching it back.
+export function useSetDailyPuzzleWhatsApp() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (on: boolean) => setDailyPuzzleWhatsApp(on),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't change it" }),
+    onSuccess: (status) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.dailyPuzzle.today });
+      toast.success({ title: status.on ? "Puzzle of the Day will come on WhatsApp" : "No more WhatsApp puzzles" });
+    }
   });
 }
 

@@ -1049,6 +1049,8 @@ export const API_ROUTES = {
     schedule: "/daily-puzzle/schedule",
     overrides: "/daily-puzzle/overrides",
     settings: "/daily-puzzle/settings",
+    // The student's own WhatsApp switch (step 2).
+    whatsapp: "/daily-puzzle/whatsapp",
     batch: (id: string = ":id") => `/daily-puzzle/batches/${id}`
   },
   // Smart Revision (spaced repetition, docs/SMART_REVISION.md). `mine*` are the

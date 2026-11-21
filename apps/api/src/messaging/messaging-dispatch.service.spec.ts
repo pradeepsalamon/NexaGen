@@ -34,6 +34,7 @@ function makeRule(overrides: Record<string, unknown> = {}) {
     scheduleHour: null,
     scheduleMinute: null,
     scheduleDayOfWeek: null,
+    scheduleDays: [],
     weekdaysOnly: false,
     title: "New class",
     body: "Hi {{recipient.firstName}}, {{class.title}} on {{class.dateTime}}.",
@@ -336,6 +337,61 @@ describe("MessagingDispatchService", () => {
     expect(rows[0]).toMatchObject({ recipientId: "near", linkPath: "/student/revision" });
     expect(rows[0].dedupeKey).toMatch(/^REVISION_DUE:near:\d+-\d+-\d+$/);
     expect(rows[0].body).toContain("/student/revision");
+  });
+
+  it("DAILY_PUZZLE sends WhatsApp once per number, with no student data, even with in-app on", async () => {
+    await setup(
+      makeRule({
+        event: "DAILY_PUZZLE",
+        inAppEnabled: true,
+        emailEnabled: true,
+        scheduleMode: "DAILY",
+        scheduleHour: 7,
+        scheduleMinute: 0,
+        body: "{{recipient.firstName}}Puzzle of the Day for {{dailyPuzzle.date}}: {{links.dailyPuzzle}}"
+      })
+    );
+    const findStudents = jest.fn().mockResolvedValue([
+      { id: "s1", phoneNumber: "+91 98765 43210", role: "STUDENT" },
+      { id: "s2", phoneNumber: null, role: "STUDENT" }
+    ]);
+    const findContacts = jest.fn().mockResolvedValue([
+      // The same number as s1: one message, kept on the student.
+      { id: "c1", waId: "919876543210" },
+      { id: "c2", waId: "919111111111" }
+    ]);
+    Object.assign(prisma, { user: { findMany: findStudents }, whatsAppContact: { findMany: findContacts } });
+
+    await service.dispatch({
+      contactIds: ["c1", "c2"],
+      day: "2026-11-21",
+      event: "DAILY_PUZZLE",
+      studentIds: ["s1", "s2"],
+      timeZone: "Asia/Kolkata"
+    });
+
+    const rows = queuedRows(prisma.messageDelivery.create);
+    expect(rows.every((row) => row.channel === "WHATSAPP")).toBe(true);
+    expect(rows).toHaveLength(3);
+    expect(rows.find((row) => row.recipientId === "s2")).toMatchObject({
+      dedupeKey: "DAILY_PUZZLE:user:s2:2026-11-21",
+      status: "SKIPPED"
+    });
+    expect(rows.find((row) => row.recipientId === "s1")).toMatchObject({
+      dedupeKey: "DAILY_PUZZLE:919876543210:2026-11-21",
+      recipientPhone: "919876543210",
+      status: "PENDING"
+    });
+    const keywordRow = rows.find((row) => row.recipientPhone === "919111111111");
+    expect(keywordRow).toMatchObject({ dedupeKey: "DAILY_PUZZLE:919111111111:2026-11-21", recipientId: null });
+    // No name (recipient.* is not bound), the academy's date, a link to the page.
+    expect(keywordRow.body).toMatch(/^Puzzle of the Day for Sat, 21 Nov 2026: \S+\/student\/daily-puzzle$/);
+    // Only numbers that still asked for it, students only.
+    expect(findContacts.mock.calls[0][0].where).toMatchObject({ dailyPuzzleAt: { not: null }, optedOutAt: null });
+    expect(findStudents.mock.calls[0][0].where).toMatchObject({
+      role: "STUDENT",
+      studentProfile: { dailyPuzzleWhatsAppAt: { not: null } }
+    });
   });
 
   describe("ASSIGNMENT_OVERDUE_COACH", () => {
@@ -662,6 +718,7 @@ describe("messaging templates", () => {
       scheduleHour: 9,
       scheduleMinute: 0,
       scheduleDayOfWeek: 1,
+      scheduleDays: [],
       weekdaysOnly: false,
       leadTimeMinutes: null
     };
@@ -680,6 +737,12 @@ describe("messaging templates", () => {
         weekdaysOnly: true
       })
     ).toBe("Weekdays at 9:00 am");
+    expect(
+      describeSchedule({ ...base, event: "CLASS_SCHEDULED", scheduleMode: "DAILY", scheduleDays: [1, 3, 5] })
+    ).toBe("Mon, Wed, Fri at 9:00 am");
+    expect(
+      describeSchedule({ ...base, event: "CLASS_SCHEDULED", scheduleMode: "DAILY", scheduleDays: [6, 0] })
+    ).toBe("Weekends at 9:00 am");
     expect(
       describeSchedule({ ...base, event: "CLASS_SCHEDULED", scheduleMode: "WEEKLY" })
     ).toBe("Mondays at 9:00 am");

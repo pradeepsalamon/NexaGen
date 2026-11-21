@@ -19,6 +19,7 @@ export const messagingEventSchema = z.enum([
   "ASSIGNMENT_GRADED",
   "ASSIGNMENT_OVERDUE_COACH",
   "REVISION_DUE",
+  "DAILY_PUZZLE",
   "ANNOUNCEMENT",
   "ACCOUNT_WELCOME",
   "ACCOUNT_APPROVED",
@@ -62,6 +63,7 @@ export const MESSAGING_EVENT_EMAIL_CATEGORY: Record<MessagingEvent, EmailCategor
   CLASS_REMINDER_COACH: "CLASSES",
   CLASS_SCHEDULED: "CLASSES",
   CLASS_SUBSTITUTE_ASSIGNED: "CLASSES",
+  DAILY_PUZZLE: "HOMEWORK",
   INVOICE_ISSUED: "ACCOUNT",
   PAYMENT_FAILED: "ACCOUNT",
   PAYMENT_RECEIVED: "ACCOUNT",
@@ -142,6 +144,15 @@ export interface MessagingEventDefinition {
   defaultLeadTimeMinutes?: number;
   /** False when another email already covers this moment. Omitted = true. */
   supportsEmail?: boolean;
+  /**
+   * WhatsApp is the only channel: the recipients are numbers that asked for
+   * it, some with no account (Puzzle of the Day, docs/PUZZLE_OF_THE_DAY.md).
+   */
+  whatsappOnly?: boolean;
+  /** A DAILY/WEEKLY time is read in the academy's time zone, not each recipient's. */
+  academyTimeZone?: boolean;
+  /** Only DAILY or WEEKLY: an IMMEDIATE send would go out whenever the hourly sweep first ran. */
+  scheduledOnly?: boolean;
 }
 
 const RECIPIENT_VARIABLES = [
@@ -358,6 +369,20 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     variables: [...RECIPIENT_VARIABLES, "links.revision"],
     audiences: ["STUDENTS"],
     supportsLeadTime: false
+  },
+  DAILY_PUZZLE: {
+    event: "DAILY_PUZZLE",
+    label: "Puzzle of the Day (WhatsApp)",
+    description:
+      "Tells the numbers that asked for it that today's puzzles are ready: students who turned it on in the app, and anyone who sent PUZZLE to the academy's WhatsApp. At most one a day per number, on the days chosen here, at the time in the academy's time zone. It never names the student or shows results. Needs an approved template, because it goes outside WhatsApp's 24-hour window.",
+    // No student data: a keyword number is not proven to be the student's family.
+    variables: ["academy.name", "dailyPuzzle.date", "links.dailyPuzzle"],
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false,
+    supportsEmail: false,
+    whatsappOnly: true,
+    academyTimeZone: true,
+    scheduledOnly: true
   },
   ANNOUNCEMENT: {
     event: "ANNOUNCEMENT",
@@ -637,6 +662,8 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "announcement.body": { label: "Announcement text", sample: "No classes from 20-24 September." },
   "links.login": { label: "Sign-in link", sample: "https://nexa.test/login" },
   "links.revision": { label: "Link to revision", sample: "https://nexa.test/student/revision" },
+  "links.dailyPuzzle": { label: "Link to Puzzle of the Day", sample: "https://nexa.test/student/daily-puzzle" },
+  "dailyPuzzle.date": { label: "The puzzle's date (academy time)", sample: "Sat, 21 Nov 2026" },
   "payment.amount": { label: "Amount", sample: "₹999.00" },
   "payment.currency": { label: "Currency", sample: "INR" },
   "payment.method": { label: "Payment method", sample: "UPI" },
@@ -777,6 +804,33 @@ export function formatClock(hour: number, minute: number): string {
   return `${h}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
+const SHORT_DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
+/**
+ * The days (0 = Sunday … 6 = Saturday, ascending) a DAILY rule sends on: its
+ * chosen days, else Monday–Friday for an older "weekdays only" rule, else every
+ * day. The one rule for both the scheduler and the editor.
+ */
+export function messagingSendDays(rule: { scheduleDays: readonly number[]; weekdaysOnly: boolean }): number[] {
+  const chosen = [...new Set(rule.scheduleDays.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b);
+  if (chosen.length > 0) return chosen;
+  return rule.weekdaysOnly ? [1, 2, 3, 4, 5] : [...ALL_DAYS];
+}
+
+/** Stored form of a set of send days: sorted, unique, and empty for "every day". */
+export function normalizeMessagingSendDays(days: readonly number[]): number[] {
+  const chosen = [...new Set(days)].sort((a, b) => a - b);
+  return chosen.length === 7 ? [] : chosen;
+}
+
+function describeDays(days: number[]): string {
+  if (days.length === 7) return "Daily";
+  if (days.join() === "1,2,3,4,5") return "Weekdays";
+  if (days.join() === "0,6") return "Weekends";
+  return days.map((d) => SHORT_DAY_LABELS[d]).join(", ");
+}
+
 /** Plain-language timing for a rule, for the rules list and the editor. */
 export function describeSchedule(rule: {
   event: MessagingEvent;
@@ -785,6 +839,7 @@ export function describeSchedule(rule: {
   scheduleHour: number | null;
   scheduleMinute: number | null;
   scheduleDayOfWeek: number | null;
+  scheduleDays: readonly number[];
   weekdaysOnly: boolean;
 }): string {
   if (MESSAGING_EVENT_DEFINITIONS[rule.event].supportsLeadTime) {
@@ -807,7 +862,7 @@ export function describeSchedule(rule: {
   if (rule.scheduleMode === "WEEKLY") {
     return `${DAY_LABELS[rule.scheduleDayOfWeek ?? 1]}s at ${at}`;
   }
-  return rule.weekdaysOnly ? `Weekdays at ${at}` : `Daily at ${at}`;
+  return `${describeDays(messagingSendDays(rule))} at ${at}`;
 }
 
 export interface MessagingRuleDefaults {
@@ -930,6 +985,19 @@ export const DEFAULT_MESSAGING_RULES: Record<
     scheduleHour: 17,
     title: "Time to revise",
     body: "Hi {{recipient.firstName}}, you have puzzles ready to revise. A few minutes today keeps them fresh: {{links.revision}}"
+  },
+  // Off: costs the academy per message and needs a template approved by Meta.
+  // 7am academy time, before school.
+  DAILY_PUZZLE: {
+    enabled: false,
+    whatsappEnabled: true,
+    inAppEnabled: false,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    scheduleMode: "DAILY",
+    scheduleHour: 7,
+    title: "Puzzle of the Day",
+    body: "Today's Puzzle of the Day from {{academy.name}} is ready: Easy, Medium and Hard. Can you solve it? {{links.dailyPuzzle}} Reply PUZZLE OFF to stop."
   },
   ANNOUNCEMENT: {
     enabled: false,
@@ -1162,7 +1230,12 @@ export interface MessagingRuleItem {
   scheduleMinute: number | null;
   /** 0 = Sunday … 6 = Saturday. WEEKLY only. */
   scheduleDayOfWeek: number | null;
-  /** DAILY only: push a Saturday/Sunday send to the following Monday. */
+  /**
+   * DAILY only: the days it sends on (0 = Sunday … 6 = Saturday); empty = every
+   * day. Read through `messagingSendDays`.
+   */
+  scheduleDays: number[];
+  /** DAILY only, older rules: Monday–Friday. Superseded by `scheduleDays` once that is set. */
   weekdaysOnly: boolean;
   /** In-app heading and email subject. Unused by WhatsApp, which has no subject. */
   title: string;
@@ -1198,6 +1271,8 @@ export const updateMessagingRuleRequestSchema = z.object({
   scheduleHour: z.number().int().min(0).max(23).nullable().optional(),
   scheduleMinute: z.number().int().min(0).max(59).nullable().optional(),
   scheduleDayOfWeek: z.number().int().min(0).max(6).nullable().optional(),
+  /** Empty = every day. */
+  scheduleDays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   weekdaysOnly: z.boolean().optional(),
   title: z.string().trim().min(1).max(200).optional(),
   body: z.string().trim().min(1).max(4096).optional(),

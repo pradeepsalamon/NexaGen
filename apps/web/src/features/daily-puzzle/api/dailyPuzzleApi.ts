@@ -5,6 +5,7 @@ import {
   type DailyPuzzleScheduleSlot,
   type DailyPuzzleSettingsResponse,
   type DailyPuzzleTodayResponse,
+  type DailyPuzzleWhatsAppStatus,
   type SetDailyPuzzleOverrideRequest,
   type StartDailyPuzzleResponse
 } from "@nexa-chess/types";
@@ -15,6 +16,9 @@ export const getDailyPuzzleToday = (): Promise<DailyPuzzleTodayResponse> =>
 
 export const startDailyPuzzle = (level: DailyPuzzleLevel): Promise<StartDailyPuzzleResponse & { finished: boolean }> =>
   apiFetch(API_ROUTES.dailyPuzzle.start, { body: { level }, method: "POST" });
+
+export const setDailyPuzzleWhatsApp = (on: boolean): Promise<DailyPuzzleWhatsAppStatus> =>
+  apiFetch<DailyPuzzleWhatsAppStatus>(API_ROUTES.dailyPuzzle.whatsapp, { body: { on }, method: "PUT" });
 
 export const getDailyPuzzleSchedule = (batchId: string | null): Promise<DailyPuzzleScheduleResponse> => {
   const sp = new URLSearchParams(batchId ? { batchId } : {});

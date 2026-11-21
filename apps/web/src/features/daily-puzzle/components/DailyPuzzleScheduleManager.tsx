@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, RotateCcw, Search } from "lucide-react";
+import Link from "next/link";
+import { MessageCircle, Pencil, RotateCcw, Search } from "lucide-react";
 import {
   DAILY_PUZZLE_BANDS,
   DAILY_PUZZLE_LEVEL_LABELS,
   DAILY_PUZZLE_LEVELS,
   type DailyPuzzleScheduleSlot,
-  type DailyPuzzleSource
+  type DailyPuzzleSource,
+  type DailyPuzzleWhatsAppSummary
 } from "@nexa-chess/types";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/Badge";
@@ -84,6 +86,8 @@ export function DailyPuzzleScheduleManager({ scopes }: { scopes: Scope[] }) {
           />
         ) : null}
       </Card>
+
+      {data?.whatsapp ? <WhatsAppSummary summary={data.whatsapp} /> : null}
 
       {data && data.batchId && !data.academyEnabled ? (
         <p className="text-sm text-app-muted">The academy has Puzzle of the Day off, so no batch gets it right now.</p>
@@ -259,5 +263,34 @@ function PickPuzzleDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Step 2 at a glance: whether the WhatsApp send is on and how many numbers it
+ * reaches (each message costs the academy). Settings live with the other
+ * messaging rules.
+ */
+function WhatsAppSummary({ summary }: { summary: DailyPuzzleWhatsAppSummary }) {
+  const numbers = summary.appStudents + summary.keywordNumbers;
+  return (
+    <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
+      <div className="flex min-w-0 items-start gap-3">
+        <MessageCircle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-app-muted" strokeWidth={2.5} />
+        <div className="min-w-0">
+          <p className="font-bold text-app-text">
+            On WhatsApp: {summary.sending ? summary.schedule : "off"}
+          </p>
+          <p className="text-sm text-app-muted">
+            {summary.appStudents} {summary.appStudents === 1 ? "student" : "students"} turned it on in the app,{" "}
+            {summary.keywordNumbers} {summary.keywordNumbers === 1 ? "number" : "numbers"} sent PUZZLE.
+            {summary.sending ? ` Up to ${numbers} ${numbers === 1 ? "message" : "messages"} a send day.` : ""}
+          </p>
+        </div>
+      </div>
+      <Button asChild size="sm" variant="outline">
+        <Link href="/admin/messaging">WhatsApp settings</Link>
+      </Button>
+    </Card>
   );
 }

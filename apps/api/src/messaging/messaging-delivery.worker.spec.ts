@@ -415,6 +415,7 @@ describe("messaging schedule math", () => {
       scheduleHour: 9,
       scheduleMinute: 0,
       scheduleDayOfWeek: null,
+      scheduleDays: [],
       weekdaysOnly: false
     };
 
@@ -430,6 +431,7 @@ describe("messaging schedule math", () => {
         scheduleHour: 9,
         scheduleMinute: 0,
         scheduleDayOfWeek: null,
+        scheduleDays: [],
         weekdaysOnly: false
       },
       "Asia/Kolkata",
@@ -448,6 +450,7 @@ describe("messaging schedule math", () => {
         scheduleHour: 9,
         scheduleMinute: 0,
         scheduleDayOfWeek: null,
+        scheduleDays: [],
         weekdaysOnly: true
       },
       "Asia/Kolkata",
@@ -455,6 +458,43 @@ describe("messaging schedule math", () => {
     );
 
     expect(due.toISOString()).toBe("2026-09-21T03:30:00.000Z"); // Monday
+  });
+
+  it("sends only on the chosen days of a daily rule", () => {
+    // Monday 2026-09-14, after 09:00 local; the rule sends Wednesday and Saturday.
+    const now = new Date("2026-09-14T10:00:00.000Z");
+    const rule = {
+      scheduleMode: "DAILY" as const,
+      scheduleHour: 9,
+      scheduleMinute: 0,
+      scheduleDayOfWeek: null,
+      scheduleDays: [6, 3],
+      weekdaysOnly: false
+    };
+
+    expect(computeScheduledFor(rule, "Asia/Kolkata", now).toISOString()).toBe("2026-09-16T03:30:00.000Z");
+    // Wednesday after the send: next is Saturday.
+    expect(computeScheduledFor(rule, "Asia/Kolkata", new Date("2026-09-16T04:00:00.000Z")).toISOString()).toBe(
+      "2026-09-19T03:30:00.000Z"
+    );
+  });
+
+  it("lets chosen days win over the older weekdays-only switch", () => {
+    // Saturday 2026-09-19 before 09:00 local; weekdaysOnly would skip to Monday.
+    const due = computeScheduledFor(
+      {
+        scheduleMode: "DAILY",
+        scheduleHour: 9,
+        scheduleMinute: 0,
+        scheduleDayOfWeek: null,
+        scheduleDays: [0, 6],
+        weekdaysOnly: true
+      },
+      "Asia/Kolkata",
+      new Date("2026-09-19T01:00:00.000Z")
+    );
+
+    expect(due.toISOString()).toBe("2026-09-19T03:30:00.000Z");
   });
 
   it("waits for the chosen weekday on a weekly rule", () => {
@@ -465,6 +505,7 @@ describe("messaging schedule math", () => {
         scheduleHour: 8,
         scheduleMinute: 30,
         scheduleDayOfWeek: 3, // Wednesday
+        scheduleDays: [],
         weekdaysOnly: false
       },
       "Asia/Kolkata",

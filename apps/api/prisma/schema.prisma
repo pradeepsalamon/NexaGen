@@ -590,6 +590,9 @@ model StudentProfile {
 
   parentRelationship String?
 
+  /// The student turned on Puzzle of the Day on WhatsApp, to the account's own phone (docs/PUZZLE_OF_THE_DAY.md step 2).
+  dailyPuzzleWhatsAppAt DateTime?
+
   /// A coach's or admin's rule for automatic game sync; null = the student's own choice.
   gameAutoSyncRule        GameAutoSyncRule?
   /// Set by an admin, so a coach can't change it.
@@ -2483,6 +2486,7 @@ enum NotificationType {
   ASSIGNMENT_GRADED
   ASSIGNMENT_OVERDUE_COACH
   REVISION_DUE
+  DAILY_PUZZLE
   CLASS_SCHEDULED
   CLASS_REMINDER
   CLASS_REMINDER_COACH
@@ -3446,6 +3450,7 @@ enum MessagingEvent {
   ASSIGNMENT_GRADED
   ASSIGNMENT_OVERDUE_COACH
   REVISION_DUE
+  DAILY_PUZZLE
   ANNOUNCEMENT
   ACCOUNT_WELCOME
   ACCOUNT_APPROVED
@@ -3528,6 +3533,9 @@ model MessagingRule {
   scheduleDayOfWeek Int?
   /// DAILY only: a weekend send rolls forward to Monday.
   weekdaysOnly      Boolean               @default(false)
+  /// DAILY only: the days it sends on (0 = Sunday .. 6 = Saturday); empty = every day,
+  /// or Monday–Friday while `weekdaysOnly` (@nexa-chess/types `messagingSendDays`).
+  scheduleDays      Int[]                 @default([])
 
   /// In-app heading and email subject. WhatsApp has no subject line and ignores it.
   title String
@@ -8904,6 +8912,8 @@ model WhatsAppContact {
   lastInboundAt    DateTime?
   /// "STOP": no proactive WhatsApp (rules, system messages). Support replies still go.
   optedOutAt       DateTime?
+  /// "PUZZLE": asked for Puzzle of the Day on WhatsApp (docs/PUZZLE_OF_THE_DAY.md step 2); "PUZZLE OFF" clears it.
+  dailyPuzzleAt    DateTime?
   /// Wrong LINK codes since `linkFailuresFrom` (a rate limit: docs/WHATSAPP_SUPPORT.md §0 "Existing students").
   linkFailures     Int       @default(0)
   linkFailuresFrom DateTime?

@@ -101,6 +101,35 @@ export type SetDailyPuzzleOverrideRequest = z.infer<typeof setDailyPuzzleOverrid
 export const updateDailyPuzzleSettingsRequestSchema = z.object({ enabled: z.boolean() }).strict();
 export type UpdateDailyPuzzleSettingsRequest = z.infer<typeof updateDailyPuzzleSettingsRequestSchema>;
 
+/** The student's own WhatsApp switch (step 2). */
+export const updateDailyPuzzleWhatsAppRequestSchema = z.object({ on: z.boolean() }).strict();
+export type UpdateDailyPuzzleWhatsAppRequest = z.infer<typeof updateDailyPuzzleWhatsAppRequestSchema>;
+
+/**
+ * Puzzle of the Day on WhatsApp for the signed-in student (step 2): it goes to
+ * the account's own phone, only once they turn it on.
+ */
+export type DailyPuzzleWhatsAppStatus = {
+  /** The academy sends it (messaging rule on, WhatsApp connected). */
+  available: boolean;
+  on: boolean;
+  /** The account phone it goes to, masked ("••••3210"); null = no usable number. */
+  phoneMasked: string | null;
+  /** When it goes out, e.g. "Weekdays at 7:00 am"; null while not available. */
+  schedule: string | null;
+};
+
+/** Academy view of the WhatsApp send, for the admin schedule page (cost visibility). */
+export type DailyPuzzleWhatsAppSummary = {
+  /** The messaging rule is on with WhatsApp, and the academy's WhatsApp is connected. */
+  sending: boolean;
+  schedule: string;
+  /** Students who turned it on in the app. */
+  appStudents: number;
+  /** Numbers that sent PUZZLE (and haven't sent PUZZLE OFF or STOP). */
+  keywordNumbers: number;
+};
+
 export const updateBatchDailyPuzzleRequestSchema = z.object({ enabled: z.boolean() }).strict();
 export type UpdateBatchDailyPuzzleRequest = z.infer<typeof updateBatchDailyPuzzleRequestSchema>;
 
@@ -127,6 +156,7 @@ export type DailyPuzzleTodayResponse = {
   doneToday: boolean;
   streak: number;
   bestStreak: number;
+  whatsapp: DailyPuzzleWhatsAppStatus;
 };
 
 export type StartDailyPuzzleResponse = {
@@ -152,6 +182,8 @@ export type DailyPuzzleScheduleResponse = {
   batchEnabled: boolean | null;
   today: string;
   slots: DailyPuzzleScheduleSlot[];
+  /** Academy scope for admins only; null for a batch. */
+  whatsapp: DailyPuzzleWhatsAppSummary | null;
 };
 
 export type DailyPuzzleSettingsResponse = { enabled: boolean };

@@ -1,3 +1,4 @@
+import { messagingSendDays } from "@nexa-chess/types";
 import type { MessagingRule } from "@prisma/client";
 import { DEFAULT_TIME_ZONE, zonedDateToUtc, zonedYmd } from "../common/time";
 
@@ -56,6 +57,7 @@ type ScheduleFields = Pick<
   | "scheduleHour"
   | "scheduleMinute"
   | "scheduleDayOfWeek"
+  | "scheduleDays"
   | "weekdaysOnly"
 >;
 
@@ -74,6 +76,7 @@ export function computeScheduledFor(
   const hour = rule.scheduleHour ?? 9;
   const minute = rule.scheduleMinute ?? 0;
   const tz = timeZone || DEFAULT_TIME_ZONE;
+  const sendDays = messagingSendDays(rule);
 
   // Walk forward from today until a day satisfies the rule and is still ahead.
   for (let offset = 0; offset <= 8; offset += 1) {
@@ -87,7 +90,7 @@ export function computeScheduledFor(
     if (rule.scheduleMode === "WEEKLY" && dow !== (rule.scheduleDayOfWeek ?? 1)) {
       continue;
     }
-    if (rule.scheduleMode === "DAILY" && rule.weekdaysOnly && (dow === 0 || dow === 6)) {
+    if (rule.scheduleMode === "DAILY" && !sendDays.includes(dow)) {
       continue;
     }
 

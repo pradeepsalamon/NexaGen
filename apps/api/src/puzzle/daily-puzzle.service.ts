@@ -40,6 +40,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { dateToDay, dayToDate, localDay } from "../progress/progress-recorder.service";
 import { requireTenantId, singletonRowId } from "../tenancy/tenant-sql";
+import { DailyPuzzleWhatsAppService } from "./daily-puzzle-whatsapp.service";
 import { PuzzleCatalogService } from "./puzzle-catalog.service";
 import { assertStudent, authenticateUser, isAdminRole } from "./puzzle-auth.helper";
 
@@ -71,7 +72,8 @@ export class DailyPuzzleService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly catalog: PuzzleCatalogService
+    private readonly catalog: PuzzleCatalogService,
+    private readonly whatsapp: DailyPuzzleWhatsAppService
   ) {}
 
   // ── Student ──
@@ -118,7 +120,8 @@ export class DailyPuzzleService {
       enabled: on,
       myLevel: dailyPuzzleLevelFor(progress?.puzzleRating ?? INITIAL_PUZZLE_RATING),
       puzzles,
-      streak: computeDailyStreak(finishedDays, day)
+      streak: computeDailyStreak(finishedDays, day),
+      whatsapp: await this.whatsapp.statusFor(student)
     };
   }
 
@@ -221,7 +224,9 @@ export class DailyPuzzleService {
       batchEnabled: batch ? batch.dailyPuzzleEnabled : null,
       batchId: batch?.id ?? null,
       slots,
-      today
+      today,
+      // How many numbers the WhatsApp send reaches: the academy's figure, for admins.
+      whatsapp: batch === null ? await this.whatsapp.summary() : null
     };
   }
 

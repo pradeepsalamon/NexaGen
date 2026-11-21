@@ -6,6 +6,8 @@ import {
   MESSAGING_EVENT_DEFINITIONS,
   describeSchedule,
   findUnknownTemplateVariables,
+  messagingSendDays,
+  normalizeMessagingSendDays,
   parseWhatsAppTemplateParams,
   renderFormattedTemplate,
   sampleVariablesFor,
@@ -38,6 +40,7 @@ import {
 } from "./WhatsAppTemplateFields";
 import { TimePicker } from "@/components/ui/TimePicker";
 import { Switch } from "@/components/ui/Switch";
+import { cn } from "@/lib/utils";
 
 const DAY_OPTIONS = [
   { label: "Sunday", value: "0" },
@@ -48,6 +51,8 @@ const DAY_OPTIONS = [
   { label: "Friday", value: "5" },
   { label: "Saturday", value: "6" }
 ];
+
+const DAY_CHIPS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const MODE_OPTIONS: { label: string; value: MessagingScheduleMode }[] = [
   { label: "Immediately", value: "IMMEDIATE" },
@@ -84,6 +89,8 @@ export function MessagingRuleEditor({
 }: Props) {
   const definition = MESSAGING_EVENT_DEFINITIONS[rule.event];
   const supportsEmail = definition.supportsEmail !== false;
+  const whatsappOnly = definition.whatsappOnly === true;
+  const zoneHint = definition.academyTimeZone ? "In the academy's time zone." : "In each recipient's own timezone.";
   const update = useUpdateMessagingRule();
   const test = useTestMessagingRule();
 
@@ -165,7 +172,8 @@ export function MessagingRuleEditor({
           scheduleHour: draft.scheduleHour,
           scheduleMinute: draft.scheduleMinute,
           scheduleDayOfWeek: draft.scheduleDayOfWeek,
-          weekdaysOnly: draft.weekdaysOnly,
+          // The days as shown (an older weekdays-only rule shows Mon–Fri), so saving never changes them unasked.
+          scheduleDays: normalizeMessagingSendDays(messagingSendDays(draft)),
           title: draft.title,
           body: draft.body,
           ...templateFieldsFrom(template)
@@ -206,18 +214,20 @@ export function MessagingRuleEditor({
                   }))
                 }
               />
-              <Switch
-                checked={draft.inAppEnabled}
-                disabled={!draft.enabled}
-                id={`${rule.event}-inapp`}
-                label="In-app notification"
-                onCheckedChange={(checked) =>
-                  setDraft((current) => ({
-                    ...current,
-                    inAppEnabled: checked === true
-                  }))
-                }
-              />
+              {whatsappOnly ? null : (
+                <Switch
+                  checked={draft.inAppEnabled}
+                  disabled={!draft.enabled}
+                  id={`${rule.event}-inapp`}
+                  label="In-app notification"
+                  onCheckedChange={(checked) =>
+                    setDraft((current) => ({
+                      ...current,
+                      inAppEnabled: checked === true
+                    }))
+                  }
+                />
+              )}
               {supportsEmail ? (
                 <Switch
                   checked={draft.emailEnabled}
@@ -233,7 +243,12 @@ export function MessagingRuleEditor({
                 />
               ) : null}
             </div>
-            {supportsEmail ? null : (
+            {whatsappOnly ? (
+              <p className="pl-6 text-xs text-app-muted">
+                WhatsApp only: it goes to the numbers that asked for it, and some have no account. Pick an approved
+                template below, because these messages go out without the person writing first.
+              </p>
+            ) : supportsEmail ? null : (
               <p className="pl-6 text-xs text-app-muted">
                 The invoice email has its own wording under System messages, so it isn&apos;t a channel here.
               </p>
@@ -318,7 +333,9 @@ export function MessagingRuleEditor({
                       scheduleDayOfWeek: current.scheduleDayOfWeek ?? 1
                     }))
                   }
-                  options={MODE_OPTIONS}
+                  options={
+                    definition.scheduledOnly ? MODE_OPTIONS.filter((option) => option.value !== "IMMEDIATE") : MODE_OPTIONS
+                  }
                   value={draft.scheduleMode}
                 />
               </FormField>
@@ -328,7 +345,7 @@ export function MessagingRuleEditor({
                   <FormField
                     id={`${rule.event}-time`}
                     label="Time"
-                    hint="In each recipient's own timezone."
+                    hint={zoneHint}
                   >
                     <TimePicker
                       id={`${rule.event}-time`}
@@ -360,19 +377,13 @@ export function MessagingRuleEditor({
                       />
                     </FormField>
                   ) : (
-                    <div className="flex items-end pb-2">
-                      <Switch
-                        checked={draft.weekdaysOnly}
-                        id={`${rule.event}-weekdays`}
-                        label="Weekdays only"
-                        onCheckedChange={(checked) =>
-                          setDraft((current) => ({
-                            ...current,
-                            weekdaysOnly: checked === true
-                          }))
-                        }
-                      />
-                    </div>
+                    <SendDaysPicker
+                      days={messagingSendDays(draft)}
+                      id={`${rule.event}-days`}
+                      onChange={(days) =>
+                        setDraft((current) => ({ ...current, scheduleDays: days, weekdaysOnly: false }))
+                      }
+                    />
                   )}
                 </div>
               ) : null}
@@ -380,7 +391,9 @@ export function MessagingRuleEditor({
               <p className="text-xs text-app-muted">
                 {draft.scheduleMode === "IMMEDIATE"
                   ? "Queued the moment it happens and sent within a minute."
-                  : `Held until ${describeSchedule(draft).toLowerCase()}, in each person's own timezone.`}
+                  : `Held until ${describeSchedule(draft).toLowerCase()}, ${
+                      definition.academyTimeZone ? "in the academy's time zone" : "in each person's own timezone"
+                    }.`}
               </p>
             </div>
           ) : null}
@@ -494,4 +507,39 @@ export function MessagingRuleEditor({
 
 function savedTemplate(rule: MessagingRuleItem) {
   return { language: rule.whatsappTemplateLanguage, name: rule.whatsappTemplateName, params: rule.whatsappTemplateParams };
+}
+
+/** The days a daily rule sends on. At least one stays chosen. */
+function SendDaysPicker({ days, id, onChange }: { days: number[]; id: string; onChange: (days: number[]) => void }) {
+  return (
+    <div className="grid gap-1 sm:col-span-2">
+      <span className="text-xs font-medium text-app-muted" id={`${id}-label`}>
+        Days
+      </span>
+      <div aria-describedby={`${id}-hint`} aria-labelledby={`${id}-label`} className="flex flex-wrap gap-2" role="group">
+        {DAY_CHIPS.map((label, day) => {
+          const on = days.includes(day);
+          return (
+            <button
+              aria-pressed={on}
+              className={cn(
+                "min-h-[var(--control-h)] min-w-12 rounded-control border px-3 text-sm font-bold disabled:cursor-not-allowed",
+                on ? "border-primary bg-primary text-on-primary" : "border-app-border bg-app-surface text-app-text hover:bg-app-soft"
+              )}
+              // The last chosen day stays: a daily rule with no days would never send.
+              disabled={on && days.length === 1}
+              key={day}
+              onClick={() => onChange(on ? days.filter((d) => d !== day) : [...days, day].sort((a, b) => a - b))}
+              type="button"
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="m-0 text-xs leading-5 text-app-muted" id={`${id}-hint`}>
+        Messages go out only on the days picked here.
+      </p>
+    </div>
+  );
 }

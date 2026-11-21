@@ -12,6 +12,7 @@ import {
   MESSAGING_EVENTS,
   MESSAGING_EVENT_DEFINITIONS,
   markdownToWhatsApp,
+  normalizeMessagingSendDays,
   normalizeWhatsAppTemplate,
   renderFormattedTemplate,
   renderMessageTemplate,
@@ -97,6 +98,12 @@ export class MessagingRuleService {
         `"${definition.label}" already has its own email under System messages.`
       );
     }
+    if (definition.scheduledOnly && dto.scheduleMode === "IMMEDIATE") {
+      throw new BadRequestException(`"${definition.label}" goes out at a set time: choose daily or weekly.`);
+    }
+    if (definition.whatsappOnly && (dto.emailEnabled || dto.inAppEnabled)) {
+      throw new BadRequestException(`"${definition.label}" is sent on WhatsApp only.`);
+    }
     // Only when the template is part of this save; an omitted field keeps the saved value.
     const touchesTemplate =
       dto.whatsappTemplateName !== undefined ||
@@ -142,6 +149,10 @@ export class MessagingRuleService {
           ? {}
           : { scheduleDayOfWeek: dto.scheduleDayOfWeek }),
         ...(dto.weekdaysOnly === undefined ? {} : { weekdaysOnly: dto.weekdaysOnly }),
+        // Chosen days replace the older weekdays-only switch.
+        ...(dto.scheduleDays === undefined
+          ? {}
+          : { scheduleDays: normalizeMessagingSendDays(dto.scheduleDays), weekdaysOnly: false }),
         ...(dto.title === undefined ? {} : { title: dto.title }),
         ...(dto.body === undefined ? {} : { body: dto.body }),
         ...(template
@@ -435,6 +446,7 @@ export class MessagingRuleService {
       scheduleHour: row.scheduleHour,
       scheduleMinute: row.scheduleMinute,
       scheduleDayOfWeek: row.scheduleDayOfWeek,
+      scheduleDays: row.scheduleDays,
       weekdaysOnly: row.weekdaysOnly,
       title: row.title,
       body: row.body,

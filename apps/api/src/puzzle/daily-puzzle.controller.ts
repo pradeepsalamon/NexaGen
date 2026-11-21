@@ -7,15 +7,18 @@ import {
   startDailyPuzzleRequestSchema,
   updateBatchDailyPuzzleRequestSchema,
   updateDailyPuzzleSettingsRequestSchema,
+  updateDailyPuzzleWhatsAppRequestSchema,
   type SetDailyPuzzleOverrideRequest,
   type StartDailyPuzzleRequest,
   type UpdateBatchDailyPuzzleRequest,
-  type UpdateDailyPuzzleSettingsRequest
+  type UpdateDailyPuzzleSettingsRequest,
+  type UpdateDailyPuzzleWhatsAppRequest
 } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { queryString } from "../common/query-params";
 import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
 import { DailyPuzzleService } from "./daily-puzzle.service";
+import { DailyPuzzleWhatsAppService } from "./daily-puzzle-whatsapp.service";
 
 const scheduleQuerySchema = z.object({
   batchId: z.string().min(1).optional(),
@@ -29,7 +32,10 @@ const scheduleQuerySchema = z.object({
  */
 @Controller()
 export class DailyPuzzleController {
-  constructor(private readonly service: DailyPuzzleService) {}
+  constructor(
+    private readonly service: DailyPuzzleService,
+    private readonly whatsapp: DailyPuzzleWhatsAppService
+  ) {}
 
   @Get(API_ROUTES.dailyPuzzle.today)
   today(@Req() request: Request) {
@@ -39,6 +45,15 @@ export class DailyPuzzleController {
   @Post(API_ROUTES.dailyPuzzle.start)
   start(@Body(new ZodBodyPipe(startDailyPuzzleRequestSchema)) body: StartDailyPuzzleRequest, @Req() request: Request) {
     return this.service.start(this.getAccessToken(request), body.level);
+  }
+
+  /** The student's own switch: today's puzzles on WhatsApp, to their account phone. */
+  @Put(API_ROUTES.dailyPuzzle.whatsapp)
+  setWhatsApp(
+    @Body(new ZodBodyPipe(updateDailyPuzzleWhatsAppRequestSchema)) body: UpdateDailyPuzzleWhatsAppRequest,
+    @Req() request: Request
+  ) {
+    return this.whatsapp.setForStudent(this.getAccessToken(request), body.on);
   }
 
   @Get(API_ROUTES.dailyPuzzle.schedule)
