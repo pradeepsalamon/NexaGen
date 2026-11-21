@@ -160,6 +160,8 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 **Roster import** (`user/roster-import.service.ts`, Users → Import): CSV rows checked by the shared `checkRosterRows`, one transaction per row with `assertSeatAvailable`; invite = `ACCOUNT_INVITE`; no-email rows get a `@no-email.invalid` stand-in that mail never goes to (`isPlaceholderEmail`). [ROSTER_IMPORT.md](docs/ROSTER_IMPORT.md)
 
+**Closing an academy** (`academy-closure/`): only on the academy's request, it chooses keep or delete; an operator approves (academy → DEACTIVATED, sessions revoked); delete = 7-day undo, then the hourly purge removes every row nothing points at, never `RETAINED_MODELS` (financial records), and anonymises the users they name. Exports leave out `isSecretColumn` columns. [ACADEMY_CLOSURE.md](docs/ACADEMY_CLOSURE.md)
+
 **Tenant integrity monitoring** (`tenancy/integrity/`): nightly read-only check of every FK between academy tables; reports, never blocks (no FKs/triggers; RLS is future). A link that may legitimately cross academies goes in `PLATFORM_OPERATOR_LINKS` (security review). [SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Tenant integrity monitoring"
 
 ### 3.6m2 Multi-tenancy (Phases 2–3)

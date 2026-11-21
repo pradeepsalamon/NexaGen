@@ -5,6 +5,7 @@ import { forEachTenant } from "../tenancy/for-each-tenant";
 
 /** Every cron's lock name lives here, so two jobs can never share one. */
 export const JOB_LOCKS = {
+  academyPurge: "platform.academy-purge",
   analyticsStorageSnapshot: "analytics.storage-snapshot",
   approvalExpiry: "approvals.expiry",
   attendanceHeartbeatSweep: "attendance.heartbeat-sweep",

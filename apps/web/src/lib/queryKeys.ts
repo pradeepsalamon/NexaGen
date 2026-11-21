@@ -271,6 +271,7 @@ export const queryKeys = {
   platform: {
     all: ["platform"] as const,
     audit: (tenantId?: string) => ["platform", "audit", tenantId ?? "all"] as const,
+    closures: (params: { page?: number; status?: string; tenantId?: string }) => ["platform", "closures", params] as const,
     contentPacks: ["platform", "content-packs"] as const,
     plans: ["platform", "plans"] as const,
     invoice: (id: string) => ["platform", "invoices", id] as const,
@@ -284,6 +285,7 @@ export const queryKeys = {
     tenantSubscription: (tenantId: string) => ["platform", "tenants", tenantId, "subscription"] as const,
     tenants: ["platform", "tenants"] as const,
   },
+  academyClosure: ["academy-closure"] as const,
   presence: {
     heartbeat: ["presence", "heartbeat"] as const,
   },

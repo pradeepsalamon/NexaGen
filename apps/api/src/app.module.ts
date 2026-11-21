@@ -68,6 +68,7 @@ import { BrandingModule } from "./branding/branding.module";
 import { PlatformModule } from "./platform/platform.module";
 import { PlatformBillingModule } from "./platform-billing/platform-billing.module";
 import { TenantIntegrityModule } from "./tenancy/integrity/tenant-integrity.module";
+import { AcademyClosureModule } from "./academy-closure/academy-closure.module";
 import { FeatureGateGuard } from "./platform/feature-gate.guard";
 import { TenancyModule } from "./tenancy/tenancy.module";
 
@@ -92,6 +93,7 @@ import { TenancyModule } from "./tenancy/tenancy.module";
     BrandingModule,
     PlatformBillingModule,
     TenantIntegrityModule,
+    AcademyClosureModule,
     AuthModule, 
     BatchModule,
     BatchScheduleModule,

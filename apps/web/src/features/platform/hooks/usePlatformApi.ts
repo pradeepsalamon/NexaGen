@@ -5,6 +5,9 @@ import { getErrorMessage } from "@/lib/errors";
 import type {
   AddContentPackItemRequest,
   AddPlatformTenantDomainRequest,
+  ApproveClosureRequest,
+  ClosureNoteRequest,
+  OperatorCloseAcademyRequest,
   ChangeTenantPlanRequest,
   ContentPackRequest,
   CreatePlatformPayLinkRequest,
@@ -66,7 +69,13 @@ import {
   updatePlatformContentPack,
   updatePlatformPlan,
   updatePlatformSellerDetails,
-  updatePlatformTenant
+  updatePlatformTenant,
+  approveClosure,
+  cancelClosurePurge,
+  closeAcademy,
+  declineClosure,
+  listClosures,
+  reopenClosedAcademy
 } from "../api/platformApi";
 
 // ── Queries ──
@@ -275,3 +284,23 @@ export const useCreatePlatformPayLink = (tenantId: string) =>
 
 export const useUpdatePlatformSellerDetails = () =>
   usePlatformMutation((body: UpdatePlatformSellerDetailsRequest) => updatePlatformSellerDetails(body), "Seller details saved");
+
+// ── Academy closures (docs/ACADEMY_CLOSURE.md) ──
+
+export const useClosures = (params: { page?: number; status?: string; tenantId?: string }) =>
+  useQuery({ queryFn: () => listClosures(params), queryKey: queryKeys.platform.closures(params) });
+
+export const useApproveClosure = () =>
+  usePlatformMutation(({ body, id }: { id: string; body: ApproveClosureRequest }) => approveClosure(id, body), "Academy closed");
+
+export const useDeclineClosure = () =>
+  usePlatformMutation(({ body, id }: { id: string; body: ClosureNoteRequest }) => declineClosure(id, body), "Request declined");
+
+export const useCancelClosurePurge = () =>
+  usePlatformMutation(({ body, id }: { id: string; body: ClosureNoteRequest }) => cancelClosurePurge(id, body), "Deletion cancelled");
+
+export const useReopenClosedAcademy = () =>
+  usePlatformMutation(({ body, id }: { id: string; body: ClosureNoteRequest }) => reopenClosedAcademy(id, body), "Academy reopened");
+
+export const useCloseAcademy = (tenantId: string) =>
+  usePlatformMutation((body: OperatorCloseAcademyRequest) => closeAcademy(tenantId, body), "Academy closed");

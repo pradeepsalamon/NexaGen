@@ -28,6 +28,8 @@ export const systemMessageKeySchema = z.enum([
   "LEADS_AWAITING_DEMO_ADMIN",
   "ACCOUNT_DELETION_REQUESTED_ADMIN",
   "TENANT_INTEGRITY_ALERT",
+  "ACADEMY_CLOSURE_REQUESTED",
+  "ACADEMY_CLOSURE_DECIDED",
   "TOURNAMENT_REGISTERED",
   "TOURNAMENT_INVITED",
   "TOURNAMENT_STARTING_SOON",
@@ -639,6 +641,44 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
       subject: "Tenant integrity check: {{integrity.violationCount}} cross-academy rows",
       body: "The nightly tenant integrity check went through {{integrity.linksChecked}} relationships and found {{integrity.violationCount}} rows that point at another academy's rows.\n\n{{integrity.summary}}\n\nThis is monitoring only: nothing was blocked or changed. Open the platform console to see every table, row id and academy.",
       actionLabel: "Open the integrity report",
+      whatsappBody: null
+    }
+  },
+  ACADEMY_CLOSURE_REQUESTED: {
+    key: "ACADEMY_CLOSURE_REQUESTED",
+    group: "PLATFORM",
+    label: "An academy asked to close",
+    description:
+      "Sent when an academy's super admin asks to close the academy, keeping its data or deleting it (docs/ACADEMY_CLOSURE.md). Nothing changes until an operator approves it in the platform console.",
+    sentTo: "Nexa's platform operators (super admins)",
+    platformOnly: true,
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    variables: ["closure.academy", "closure.choice", "closure.reason", "links.closures"],
+    requiredVariables: ["closure.academy"],
+    actionVariable: "links.closures",
+    defaults: {
+      subject: "{{closure.academy}} asked to close",
+      body: "{{closure.academy}} asked to close the academy.\n\nWhat they want for their data: {{closure.choice}}\n\nReason: {{closure.reason}}\n\nNothing has changed yet. Open the platform console to approve or decline it.",
+      actionLabel: "Open closure requests",
+      whatsappBody: null
+    }
+  },
+  ACADEMY_CLOSURE_DECIDED: {
+    key: "ACADEMY_CLOSURE_DECIDED",
+    group: "ACCOUNT",
+    label: "Academy closure decided",
+    description:
+      "Sent to the super admin who asked to close the academy when the platform approves or declines it. The academy can't be signed in to once it is closed, so this has no in-app copy.",
+    sentTo: "The super admin who asked",
+    channels: EMAIL_AND_WHATSAPP,
+    defaultChannels: ["EMAIL"],
+    variables: ["academy.name", "recipient.firstName", "closure.outcome"],
+    requiredVariables: ["closure.outcome"],
+    defaults: {
+      subject: "Your request to close {{academy.name}}",
+      body: "Hi {{recipient.firstName}},\n\n{{closure.outcome}}",
+      actionLabel: null,
       whatsappBody: null
     }
   }

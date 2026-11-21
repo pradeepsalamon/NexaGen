@@ -363,6 +363,11 @@ export function rushReport(rushId: string) {
 }
 
 export const WRONG_ROLE: Case[] = [
+  // Closing an academy (docs/ACADEMY_CLOSURE.md): the academy's own super admin, and operators.
+  { name: "ADMIN asks to close the academy (super admin only)", as: (w) => w.admin, method: "POST", path: () => API_ROUTES.academyClosure.current, body: { choice: "KEEP_DATA", confirmName: "x", reason: "x" } },
+  { name: "coach downloads the academy's data", as: (w) => w.a.coach, path: () => API_ROUTES.academyClosure.export },
+  { name: "ADMIN lists closure requests (platform operators only)", as: (w) => w.admin, path: () => API_ROUTES.platform.closures },
+  { name: "student closes an academy from the console", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.platform.tenantClose("tenant_nexa"), body: { choice: "KEEP_DATA", confirmName: "x", reason: "x" } },
   { name: "coach previews a roster import", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.users.importPreview, body: { rows: [{ firstName: "X" }] } },
   { name: "student imports a roster", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.users.import, body: { rows: [{ firstName: "X" }] } },
   { name: "coach re-sends a student's account invite", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.users.invite(w.b.student.id) },

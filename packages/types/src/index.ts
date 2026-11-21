@@ -87,6 +87,7 @@ export * from "./assignment-reminders";
 export * from "./referrals";
 export * from "./multi-role";
 export * from "./roster-import";
+export * from "./academy-closure";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)

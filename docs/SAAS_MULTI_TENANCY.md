@@ -893,7 +893,7 @@ real data.
 | 6 | **Money**: `platform-billing` (checkout, payment links, webhooks, reconcile, GST invoices); per-academy student gateways and webhooks; usage counters | 4 | Forged callbacks are no-ops; duplicate webhooks are safe; a student payment can only land in its academy's account |
 | 7 | **D5 contract + rehearsal** on a restored production backup | 3–6 | Row counts, FK integrity and financial totals match; rollback drill done |
 | 8 | **Pilot**: one pilot academy, monitoring, then general availability | 7 | The pilot runs a month with no isolation incident |
-| Later | RLS under `nexa_app`; academy deletion workflow; sending from an academy's own email domain; card auto-debit; CSV student import | — | — |
+| Later | RLS under `nexa_app`; sending from an academy's own email domain; card auto-debit. **Built 2026-11-21:** the academy closure/deletion workflow ([ACADEMY_CLOSURE.md](ACADEMY_CLOSURE.md)) and CSV roster import ([ROSTER_IMPORT.md](ROSTER_IMPORT.md)) | — | — |
 
 ### Phase 2 as built
 
@@ -1411,6 +1411,6 @@ reading older commits or comments:
 | Editing a plan re-scopes everyone | Subscriptions keep what they signed up on; explicit "apply to existing" |
 | Fixed grace policy (READ_ONLY = view and export) | Lapse policy per plan, overridable per academy |
 | RLS in Phase 3b | Follow-up hardening after Phase 3 |
-| Academy deletion workflow in scope | Later; suspend/reactivate only |
+| Academy deletion workflow in scope | Later; suspend/reactivate only. Built 2026-11-21 as [ACADEMY_CLOSURE.md](ACADEMY_CLOSURE.md) |
 | Interim option: separate deployment per early customer | Rejected by the owner |
 | 10 phases with onboarding and console at 6–7 | 8 phases: foundation, isolation, console, domains + branding, money, contract, pilot |
