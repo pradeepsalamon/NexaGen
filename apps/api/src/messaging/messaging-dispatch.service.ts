@@ -24,6 +24,7 @@ import { BrandingService } from "../branding/branding.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AcademyLinksService } from "../tenancy/academy-links.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import { dailyPuzzleDedupeKey, loadDailyPuzzleAudience } from "./daily-puzzle-deliveries";
 import { MessagingRuleService } from "./messaging-rule.service";
 import { ACADEMY_NAME, formatInZone } from "./messaging.format";
 import { computeScheduledFor } from "./messaging.schedule";
@@ -38,9 +39,8 @@ function referralBoardPath(role: UserRole): string {
 
 /** One resolved addressee plus the values its templates bind. */
 interface Recipient {
-  /** Null for a WhatsApp number with no account (Puzzle of the Day keyword sign-ups): WhatsApp only. */
-  userId: string | null;
-  role: UserRole | null;
+  userId: string;
+  role: UserRole;
   phoneNumber: string | null;
   isEmailVerified: boolean;
   timezone: string;
@@ -93,12 +93,12 @@ export type DispatchRequest =
   /** Students with a revision item due; each hears at most once per send day. */
   | { event: "REVISION_DUE"; studentIds: string[] }
   /**
-   * Puzzle of the Day on WhatsApp (docs/PUZZLE_OF_THE_DAY.md step 2): the
-   * students who turned it on in the app and the numbers that sent PUZZLE, for
-   * the academy day `day` (YYYY-MM-DD) whose send time is near. One message per
+   * Puzzle of the Day on WhatsApp (docs/PUZZLE_OF_THE_DAY.md step 2): every
+   * student account phone it goes to (`loadDailyPuzzleAudience`), for the
+   * academy day `day` (YYYY-MM-DD) whose send time is near. One message per
    * number per day, and nothing about the student in it.
    */
-  | { event: "DAILY_PUZZLE"; day: string; timeZone: string; studentIds: string[]; contactIds: string[] }
+  | { event: "DAILY_PUZZLE"; day: string; timeZone: string }
   | { event: "ANNOUNCEMENT"; announcementId: string }
   | { event: "ACCOUNT_WELCOME" | "ACCOUNT_APPROVED" | "ACCOUNT_DECLINED"; userId: string }
   /** The admins who can review a self-registration (coaches: super admins only), told it is waiting. */
@@ -239,11 +239,10 @@ export class MessagingDispatchService {
 
     const now = new Date();
     let earliest: Date | null = null;
-    // Recipients without an account, or an event that is WhatsApp only, get no in-app or email copy.
+    // An event that is WhatsApp only gets no in-app or email copy.
     const whatsappOnly = MESSAGING_EVENT_DEFINITIONS[rule.event].whatsappOnly === true;
 
     for (const recipient of recipients) {
-      const accountChannels = !whatsappOnly && recipient.userId !== null;
       // A lead-time rule is already being dispatched at the right moment by the
       // scheduler; only IMMEDIATE/DAILY/WEEKLY rules get a future due time.
       const scheduledFor = this.rules.usesLeadTime(rule.event)
@@ -260,7 +259,7 @@ export class MessagingDispatchService {
         if (queued === "no-phone") summary.missingPhone += 1;
       }
 
-      if (rule.inAppEnabled && accountChannels) {
+      if (rule.inAppEnabled && !whatsappOnly) {
         const queued = await this.queue({
           rule,
           recipient,
@@ -272,7 +271,7 @@ export class MessagingDispatchService {
         if (queued) summary.queuedInApp += 1;
       }
 
-      if (rule.emailEnabled && accountChannels) {
+      if (rule.emailEnabled && !whatsappOnly) {
         const unverified = verifiedOnly && !recipient.isEmailVerified;
         const queued = await this.queue({
           rule,
@@ -669,67 +668,33 @@ export class MessagingDispatchService {
   }
 
   /**
-   * One recipient per WhatsApp number: a student's account phone, or a number
-   * that sent PUZZLE (still asking for it, and not STOPped). A number reached
-   * both ways is sent to once; the dedupe key is the number and the day, so an
-   * hourly re-run never sends twice. The message carries no student data.
+   * One recipient per WhatsApp number (`loadDailyPuzzleAudience`, the one rule):
+   * every student account phone whose student hasn't switched it off. A number
+   * on 2+ student accounts is sent once. The dedupe key is the number and the
+   * day, so an hourly re-run never sends twice. Students without a usable
+   * phone are skipped quietly (the admin page counts them). No student data.
    */
   private async dailyPuzzleRecipients(
     request: Extract<DispatchRequest, { event: "DAILY_PUZZLE" }>
   ): Promise<Recipient[]> {
-    const [students, contacts] = await Promise.all([
-      request.studentIds.length
-        ? this.prisma.user.findMany({
-            select: { id: true, phoneNumber: true, role: true },
-            where: {
-              id: { in: request.studentIds },
-              isDeleted: false,
-              role: UserRole.STUDENT,
-              status: UserStatus.ACTIVE,
-              studentProfile: { dailyPuzzleWhatsAppAt: { not: null } }
-            }
-          })
-        : [],
-      request.contactIds.length
-        ? this.prisma.whatsAppContact.findMany({
-            select: { id: true, waId: true },
-            where: { dailyPuzzleAt: { not: null }, id: { in: request.contactIds }, optedOutAt: null }
-          })
-        : []
-    ]);
-
+    const audience = await loadDailyPuzzleAudience(this.prisma, (raw) => this.whatsapp.normalizeRecipient(raw));
     const frontendUrl = getFrontendUrl(this.env);
     const linkPath = "/student/daily-puzzle";
-    const variables = (): MessageVariables => ({
-      "academy.name": ACADEMY_NAME,
-      // A calendar day, not an instant: formatted as written.
-      "dailyPuzzle.date": formatInZone(new Date(`${request.day}T12:00:00Z`), "UTC", "date"),
-      "links.dailyPuzzle": `${frontendUrl}${linkPath}`
-    });
-    const base = (key: string) => ({
-      dedupeKey: `DAILY_PUZZLE:${key}:${request.day}`,
+    return audience.numbers.map((number) => ({
+      dedupeKey: dailyPuzzleDedupeKey(number.phone, request.day),
       isEmailVerified: false,
       linkPath,
+      phoneNumber: number.phone,
+      role: UserRole.STUDENT,
       timezone: request.timeZone,
-      variables: variables()
-    });
-
-    const byNumber = new Map<string, Recipient>();
-    const recipients: Recipient[] = [];
-    for (const student of students) {
-      const phone = this.whatsapp.normalizeRecipient(student.phoneNumber);
-      if (!phone) {
-        // Recorded as skipped ("no phone number"), once a day per student.
-        recipients.push({ ...base(`user:${student.id}`), phoneNumber: student.phoneNumber, role: student.role, userId: student.id });
-        continue;
+      userId: number.studentIds[0],
+      variables: {
+        "academy.name": ACADEMY_NAME,
+        // A calendar day, not an instant: formatted as written.
+        "dailyPuzzle.date": formatInZone(new Date(`${request.day}T12:00:00Z`), "UTC", "date"),
+        "links.dailyPuzzle": `${frontendUrl}${linkPath}`
       }
-      if (!byNumber.has(phone)) byNumber.set(phone, { ...base(phone), phoneNumber: phone, role: student.role, userId: student.id });
-    }
-    for (const contact of contacts) {
-      const phone = this.whatsapp.normalizeRecipient(contact.waId);
-      if (phone && !byNumber.has(phone)) byNumber.set(phone, { ...base(phone), phoneNumber: phone, role: null, userId: null });
-    }
-    return [...recipients, ...byNumber.values()];
+    }));
   }
 
   private async gradedRecipients(

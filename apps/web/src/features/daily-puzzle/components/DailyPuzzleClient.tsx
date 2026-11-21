@@ -90,12 +90,15 @@ export function DailyPuzzleClient() {
         </>
       )}
 
-      {data.enabled && (data.whatsapp.available || data.whatsapp.on) ? <WhatsAppCard status={data.whatsapp} /> : null}
+      {data.enabled && data.whatsapp.available ? <WhatsAppCard status={data.whatsapp} /> : null}
     </div>
   );
 }
 
-/** Step 2: the student's own switch. It goes to the account's phone and never names them. */
+/**
+ * Step 2: the student's own switch, on by default and the only on/off. It goes
+ * to the account's phone and never names them.
+ */
 function WhatsAppCard({ status }: { status: DailyPuzzleWhatsAppStatus }) {
   const toggle = useSetDailyPuzzleWhatsApp();
   const noPhone = status.phoneMasked === null;
@@ -104,13 +107,17 @@ function WhatsAppCard({ status }: { status: DailyPuzzleWhatsAppStatus }) {
       <div className="flex min-w-0 items-start gap-3">
         <MessageCircle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-app-muted" strokeWidth={2.5} />
         <div className="min-w-0">
-          <p className="font-extrabold text-app-text">Get it on WhatsApp</p>
+          <p className="font-extrabold text-app-text">Puzzle of the Day on WhatsApp</p>
           <p className="text-sm text-app-muted">
             {!status.available
               ? "Your academy has paused WhatsApp puzzles for now."
               : noPhone
-                ? "Add your WhatsApp number to your profile to turn this on."
-                : `A short message with the link, ${status.schedule?.toLowerCase() ?? "each day"}, to ${status.phoneMasked}.`}
+                ? "Add your WhatsApp number to your profile to get it there."
+                : !status.on
+                  ? "Turned off. Switch it on to get the puzzle on WhatsApp again."
+                  : status.sharedPhone
+                    ? `A short message with the link, ${status.schedule?.toLowerCase() ?? "each day"}, to ${status.phoneMasked}. Another student uses this number too, so answer in the app.`
+                    : `Today's puzzle, ${status.schedule?.toLowerCase() ?? "each day"}, to ${status.phoneMasked}.`}
           </p>
           {noPhone && status.available ? (
             <Link className="text-sm font-semibold text-primary-ink underline-offset-2 hover:underline" href="/profile">
@@ -122,7 +129,7 @@ function WhatsAppCard({ status }: { status: DailyPuzzleWhatsAppStatus }) {
       <Switch
         aria-label="Puzzle of the Day on WhatsApp"
         checked={status.on}
-        disabled={toggle.isPending || (!status.on && (noPhone || !status.available))}
+        disabled={toggle.isPending}
         onCheckedChange={(on) => toggle.mutate(on)}
       />
     </Card>

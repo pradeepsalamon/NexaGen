@@ -339,7 +339,7 @@ describe("MessagingDispatchService", () => {
     expect(rows[0].body).toContain("/student/revision");
   });
 
-  it("DAILY_PUZZLE sends WhatsApp once per number, with no student data, even with in-app on", async () => {
+  it("DAILY_PUZZLE sends WhatsApp once per student account number, with no student data, even with in-app on", async () => {
     await setup(
       makeRule({
         event: "DAILY_PUZZLE",
@@ -351,47 +351,41 @@ describe("MessagingDispatchService", () => {
         body: "{{recipient.firstName}}Puzzle of the Day for {{dailyPuzzle.date}}: {{links.dailyPuzzle}}"
       })
     );
-    const findStudents = jest.fn().mockResolvedValue([
-      { id: "s1", phoneNumber: "+91 98765 43210", role: "STUDENT" },
-      { id: "s2", phoneNumber: null, role: "STUDENT" }
-    ]);
-    const findContacts = jest.fn().mockResolvedValue([
-      // The same number as s1: one message, kept on the student.
-      { id: "c1", waId: "919876543210" },
-      { id: "c2", waId: "919111111111" }
-    ]);
-    Object.assign(prisma, { user: { findMany: findStudents }, whatsAppContact: { findMany: findContacts } });
+    const on = { dailyPuzzleWhatsAppOffAt: null };
+    const findMany = jest
+      .fn()
+      // Students whose Puzzle of the Day is on.
+      .mockResolvedValueOnce([
+        { id: "s1", phoneNumber: "+91 98765 43210", studentProfile: on },
+        { id: "s2", phoneNumber: null, studentProfile: on },
+        { id: "s3", phoneNumber: "919111111111", studentProfile: { dailyPuzzleWhatsAppOffAt: new Date() } },
+        { id: "s4", phoneNumber: "919122222222", studentProfile: null },
+        { id: "s5", phoneNumber: "+91 91222 22222", studentProfile: on }
+      ])
+      // Every active student account with a phone (who shares a number).
+      .mockResolvedValueOnce([
+        { phoneNumber: "+91 98765 43210" },
+        { phoneNumber: "919111111111" },
+        { phoneNumber: "919122222222" },
+        { phoneNumber: "+91 91222 22222" }
+      ]);
+    Object.assign(prisma, { user: { findMany } });
 
-    await service.dispatch({
-      contactIds: ["c1", "c2"],
-      day: "2026-11-21",
-      event: "DAILY_PUZZLE",
-      studentIds: ["s1", "s2"],
-      timeZone: "Asia/Kolkata"
-    });
+    await service.dispatch({ day: "2026-11-21", event: "DAILY_PUZZLE", timeZone: "Asia/Kolkata" });
 
     const rows = queuedRows(prisma.messageDelivery.create);
-    expect(rows.every((row) => row.channel === "WHATSAPP")).toBe(true);
-    expect(rows).toHaveLength(3);
-    expect(rows.find((row) => row.recipientId === "s2")).toMatchObject({
-      dedupeKey: "DAILY_PUZZLE:user:s2:2026-11-21",
-      status: "SKIPPED"
+    // s2 (no phone) is skipped quietly, s3 switched it off, s4 + s5 share one number.
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => row.channel === "WHATSAPP" && row.status === "PENDING")).toBe(true);
+    const own = rows.find((row) => row.recipientId === "s1");
+    expect(own).toMatchObject({ dedupeKey: "DAILY_PUZZLE:919876543210:2026-11-21", recipientPhone: "919876543210" });
+    expect(rows.find((row) => row.recipientPhone === "919122222222")).toMatchObject({
+      dedupeKey: "DAILY_PUZZLE:919122222222:2026-11-21",
+      recipientId: "s4"
     });
-    expect(rows.find((row) => row.recipientId === "s1")).toMatchObject({
-      dedupeKey: "DAILY_PUZZLE:919876543210:2026-11-21",
-      recipientPhone: "919876543210",
-      status: "PENDING"
-    });
-    const keywordRow = rows.find((row) => row.recipientPhone === "919111111111");
-    expect(keywordRow).toMatchObject({ dedupeKey: "DAILY_PUZZLE:919111111111:2026-11-21", recipientId: null });
     // No name (recipient.* is not bound), the academy's date, a link to the page.
-    expect(keywordRow.body).toMatch(/^Puzzle of the Day for Sat, 21 Nov 2026: \S+\/student\/daily-puzzle$/);
-    // Only numbers that still asked for it, students only.
-    expect(findContacts.mock.calls[0][0].where).toMatchObject({ dailyPuzzleAt: { not: null }, optedOutAt: null });
-    expect(findStudents.mock.calls[0][0].where).toMatchObject({
-      role: "STUDENT",
-      studentProfile: { dailyPuzzleWhatsAppAt: { not: null } }
-    });
+    expect(own.body).toMatch(/^Puzzle of the Day for Sat, 21 Nov 2026: \S+\/student\/daily-puzzle$/);
+    expect(findMany.mock.calls[0][0].where).toMatchObject({ role: "STUDENT", status: "ACTIVE" });
   });
 
   describe("ASSIGNMENT_OVERDUE_COACH", () => {

@@ -22,7 +22,6 @@ import { authenticateUser } from "../auth/authenticate";
 import { CREATED_AT_DESC_ORDER, createdAtCursorWhere, toCursorPage } from "../common/cursor-pagination";
 import { paginationMeta, resolvePagination } from "../common/pagination";
 import { parseOrBadRequest } from "../common/zod-body.pipe";
-import { cancelQueuedDailyPuzzle } from "../messaging/daily-puzzle-deliveries";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { replyWindowEndsAt } from "./support-conversation.service";
 import type { SupportOutboundPayload } from "./support-outbox.service";
@@ -376,8 +375,6 @@ export class SupportAdminService {
       await tx.supportConversation.deleteMany({ where: { contactId } });
       await tx.whatsAppWebhookEvent.deleteMany({ where: { waId: contact.waId } });
       await tx.supportContactLink.deleteMany({ where: { contactId } });
-      // An erased number stops getting Puzzle of the Day too (step 2).
-      await cancelQueuedDailyPuzzle(tx, { recipientPhone: contact.waId });
       const keptOptOut = contact.optedOutAt !== null;
       if (keptOptOut) {
         await tx.whatsAppContact.update({

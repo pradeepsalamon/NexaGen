@@ -107,16 +107,19 @@ export type UpdateDailyPuzzleWhatsAppRequest = z.infer<typeof updateDailyPuzzleW
 
 /**
  * Puzzle of the Day on WhatsApp for the signed-in student (step 2): it goes to
- * the account's own phone, only once they turn it on.
+ * the account's own phone, on by default; this switch is the only on/off.
  */
 export type DailyPuzzleWhatsAppStatus = {
   /** The academy sends it (messaging rule on, WhatsApp connected). */
   available: boolean;
+  /** The student's switch (on unless they turned it off). */
   on: boolean;
   /** The account phone it goes to, masked ("••••3210"); null = no usable number. */
   phoneMasked: string | null;
   /** When it goes out, e.g. "Weekdays at 7:00 am"; null while not available. */
   schedule: string | null;
+  /** Another student account has the same phone: the message is the link only. */
+  sharedPhone: boolean;
 };
 
 /** Academy view of the WhatsApp send, for the admin schedule page (cost visibility). */
@@ -124,10 +127,16 @@ export type DailyPuzzleWhatsAppSummary = {
   /** The messaging rule is on with WhatsApp, and the academy's WhatsApp is connected. */
   sending: boolean;
   schedule: string;
-  /** Students who turned it on in the app. */
-  appStudents: number;
-  /** Numbers that sent PUZZLE (and haven't sent PUZZLE OFF or STOP). */
-  keywordNumbers: number;
+  /** Students it reaches (Puzzle of the Day on, switch on, usable phone). */
+  students: number;
+  /** Numbers it goes to (one message each per send day). */
+  numbers: number;
+  /** Of those, numbers on 2+ student accounts (link only). */
+  sharedNumbers: number;
+  /** Students who switched it off. */
+  turnedOff: number;
+  /** Students with no, or no usable, phone on their account. */
+  noPhone: number;
 };
 
 export const updateBatchDailyPuzzleRequestSchema = z.object({ enabled: z.boolean() }).strict();

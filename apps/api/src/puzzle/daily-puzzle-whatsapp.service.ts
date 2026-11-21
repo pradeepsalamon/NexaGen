@@ -6,9 +6,9 @@ import {
   type DailyPuzzleWhatsAppStatus,
   type DailyPuzzleWhatsAppSummary
 } from "@nexa-chess/types";
-import { Prisma, UserRole, UserStatus, type MessagingRule, type User } from "@prisma/client";
+import type { MessagingRule, User } from "@prisma/client";
 import { zonedYmd } from "../common/time";
-import { cancelQueuedDailyPuzzle } from "../messaging/daily-puzzle-deliveries";
+import { ACTIVE_STUDENT_ACCOUNT, cancelQueuedDailyPuzzle, loadDailyPuzzleAudience } from "../messaging/daily-puzzle-deliveries";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { MessagingRuleService } from "../messaging/messaging-rule.service";
 import { computeScheduledFor } from "../messaging/messaging.schedule";
@@ -21,24 +21,14 @@ import { assertStudent, authenticateUser } from "./puzzle-auth.helper";
 
 const HOUR_MS = 60 * 60 * 1000;
 
-/** A student whose Puzzle of the Day is on: a batch with training and the daily puzzle on. */
-const DAILY_PUZZLE_STUDENT: Prisma.UserWhereInput = {
-  isDeleted: false,
-  role: UserRole.STUDENT,
-  status: UserStatus.ACTIVE,
-  studentBatches: {
-    some: { batch: { dailyPuzzleEnabled: true, isDeleted: false, puzzleTrainingEnabled: true }, isDeleted: false }
-  }
-};
-
 /**
  * Puzzle of the Day on WhatsApp (docs/PUZZLE_OF_THE_DAY.md step 2).
  *
- * Who gets it: a student who turned it on in the app (to the account's own
- * phone), and any number that sent PUZZLE to the academy's WhatsApp (the bot
- * records that on `WhatsAppContact.dailyPuzzleAt`). Nobody else, and never a
- * typed-in parent phone. The message names no student (a keyword number is not
- * proven to be the student's family), so it is only a nudge with a link.
+ * Who gets it: every student account's own phone, on by default; the
+ * student's switch in the app is the only on/off (STOP still blocks every
+ * proactive message). The one rule is `loadDailyPuzzleAudience`. Never a bare
+ * WhatsApp contact, never a typed-in parent phone. A number on 2+ student
+ * accounts gets it once, link only.
  *
  * When: the DAILY_PUZZLE messaging rule (admin: on/off, days, time, template),
  * read in the academy's time zone, the day being the academy's puzzle day.
@@ -59,57 +49,72 @@ export class DailyPuzzleWhatsAppService {
 
   // ── Student ──
 
-  /** The switch on the student's Puzzle of the Day page. */
+  /** The switch on the student's Puzzle of the Day page (on unless they turned it off). */
   async statusFor(student: Pick<User, "id" | "phoneNumber">): Promise<DailyPuzzleWhatsAppStatus> {
-    const [rule, profile] = await Promise.all([
+    const phone = this.whatsapp.normalizeRecipient(student.phoneNumber);
+    const [rule, profile, sharing] = await Promise.all([
       this.rules.getRule("DAILY_PUZZLE"),
-      this.prisma.studentProfile.findUnique({ select: { dailyPuzzleWhatsAppAt: true }, where: { userId: student.id } })
+      this.prisma.studentProfile.findUnique({ select: { dailyPuzzleWhatsAppOffAt: true }, where: { userId: student.id } }),
+      phone ? this.otherAccountsOn(student.id, phone) : Promise.resolve(0)
     ]);
     const available = this.sending(rule);
-    const phone = this.whatsapp.normalizeRecipient(student.phoneNumber);
     return {
       available,
-      on: profile?.dailyPuzzleWhatsAppAt != null,
+      on: profile?.dailyPuzzleWhatsAppOffAt == null,
       phoneMasked: maskPhoneNumber(phone),
-      schedule: available ? describeSchedule(rule) : null
+      schedule: available ? describeSchedule(rule) : null,
+      sharedPhone: sharing > 0
     };
   }
 
   async setForStudent(accessToken: string | undefined, on: boolean): Promise<DailyPuzzleWhatsAppStatus> {
     const student = assertStudent(await authenticateUser(this.jwtService, this.prisma, accessToken));
+    const profile = await this.prisma.studentProfile.findUnique({ select: { id: true }, where: { userId: student.id } });
+    if (!profile) throw new BadRequestException("Your student profile isn't set up yet. Please ask your academy.");
     if (on) {
-      if (!this.sending(await this.rules.getRule("DAILY_PUZZLE"))) {
-        throw new BadRequestException("Your academy doesn't send Puzzle of the Day on WhatsApp.");
-      }
-      if (!this.whatsapp.normalizeRecipient(student.phoneNumber)) {
-        throw new BadRequestException("Add your WhatsApp number to your profile first.");
-      }
-      const profile = await this.prisma.studentProfile.findUnique({ select: { id: true }, where: { userId: student.id } });
-      if (!profile) throw new BadRequestException("Your student profile isn't set up yet. Please ask your academy.");
-      // Keeps the first time it was turned on.
-      await this.prisma.studentProfile.updateMany({
-        data: { dailyPuzzleWhatsAppAt: new Date() },
-        where: { dailyPuzzleWhatsAppAt: null, userId: student.id }
-      });
+      await this.prisma.studentProfile.update({ data: { dailyPuzzleWhatsAppOffAt: null }, where: { userId: student.id } });
     } else {
-      await this.prisma.studentProfile.updateMany({ data: { dailyPuzzleWhatsAppAt: null }, where: { userId: student.id } });
-      await cancelQueuedDailyPuzzle(this.prisma, { recipientId: student.id });
+      // Keeps the first time it was turned off.
+      await this.prisma.studentProfile.updateMany({
+        data: { dailyPuzzleWhatsAppOffAt: new Date() },
+        where: { dailyPuzzleWhatsAppOffAt: null, userId: student.id }
+      });
+      // Today's queued message stays when another student on the same number still wants it.
+      const phone = this.whatsapp.normalizeRecipient(student.phoneNumber);
+      if (phone) {
+        const audience = await loadDailyPuzzleAudience(this.prisma, (raw) => this.whatsapp.normalizeRecipient(raw));
+        if (!audience.numbers.some((n) => n.phone === phone)) await cancelQueuedDailyPuzzle(this.prisma, phone);
+      }
     }
     return this.statusFor(student);
   }
 
+  /** Other active student accounts on the same number (siblings): link only, no answering. */
+  private async otherAccountsOn(studentId: string, phone: string): Promise<number> {
+    const accounts = await this.prisma.user.findMany({
+      select: { id: true, phoneNumber: true },
+      where: { ...ACTIVE_STUDENT_ACCOUNT, id: { not: studentId }, phoneNumber: { not: null } }
+    });
+    return accounts.filter((a) => this.whatsapp.normalizeRecipient(a.phoneNumber) === phone).length;
+  }
+
   // ── Admin ──
 
-  /** Academy figures for the admin schedule page: how many numbers it would reach. */
+  /** Academy figures for the admin schedule page: whom it reaches, who turned it off, who has no usable phone. */
   async summary(): Promise<DailyPuzzleWhatsAppSummary> {
-    const [rule, appStudents, keywordNumbers] = await Promise.all([
+    const [rule, audience] = await Promise.all([
       this.rules.getRule("DAILY_PUZZLE"),
-      this.prisma.user.count({
-        where: { ...DAILY_PUZZLE_STUDENT, studentProfile: { dailyPuzzleWhatsAppAt: { not: null } } }
-      }),
-      this.prisma.whatsAppContact.count({ where: { dailyPuzzleAt: { not: null }, optedOutAt: null } })
+      loadDailyPuzzleAudience(this.prisma, (raw) => this.whatsapp.normalizeRecipient(raw))
     ]);
-    return { appStudents, keywordNumbers, schedule: describeSchedule(rule), sending: this.sending(rule) };
+    return {
+      noPhone: audience.noPhone,
+      numbers: audience.numbers.length,
+      schedule: describeSchedule(rule),
+      sending: this.sending(rule),
+      sharedNumbers: audience.numbers.filter((n) => n.studentId === null).length,
+      students: audience.students,
+      turnedOff: audience.turnedOff
+    };
   }
 
   // ── Sending ──
@@ -145,25 +150,7 @@ export class DailyPuzzleWhatsAppService {
     const { year, month, day } = zonedYmd(timeZone, sendAt);
     const puzzleDay = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
-    const [students, contacts] = await Promise.all([
-      this.prisma.user.findMany({
-        select: { id: true },
-        where: { ...DAILY_PUZZLE_STUDENT, studentProfile: { dailyPuzzleWhatsAppAt: { not: null } } }
-      }),
-      this.prisma.whatsAppContact.findMany({
-        select: { id: true },
-        where: { dailyPuzzleAt: { not: null }, optedOutAt: null }
-      })
-    ]);
-    if (students.length === 0 && contacts.length === 0) return 0;
-
-    const summary = await this.dispatch.dispatch({
-      contactIds: contacts.map((c) => c.id),
-      day: puzzleDay,
-      event: "DAILY_PUZZLE",
-      studentIds: students.map((s) => s.id),
-      timeZone
-    });
+    const summary = await this.dispatch.dispatch({ day: puzzleDay, event: "DAILY_PUZZLE", timeZone });
     if (summary.queuedWhatsApp > 0) {
       this.logger.log(`Puzzle of the Day ${puzzleDay}: ${summary.queuedWhatsApp} WhatsApp message(s) queued.`);
     }

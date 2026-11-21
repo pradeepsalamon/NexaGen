@@ -5,7 +5,7 @@ in the app; step 2 sends it on WhatsApp to every student account's phone
 (the student can switch it off in the app); step 3 adds a board picture and
 answering by reply. Feature 6 of [UNIQUE_FEATURES_PROPOSAL.md](UNIQUE_FEATURES_PROPOSAL.md).
 
-**Status:** step 1 built 2026-11-21 on `dev` (API, student page and card, admin and coach schedule). Step 2 (WhatsApp) built 2026-11-21 on `dev`, off by default; not yet tried against Meta with a real approved template.
+**Status:** step 1 built 2026-11-21 on `dev` (API, student page and card, admin and coach schedule). Step 2 (WhatsApp) built 2026-11-21 on `dev`, off by default, changed to the owner's final calls by step 3 phase 0 (`feat/daily-puzzle-whatsapp-step3`); not yet tried against Meta with a real approved template.
 
 ## Owner's calls (2026-11-21)
 
@@ -83,10 +83,12 @@ answering by reply. Feature 6 of [UNIQUE_FEATURES_PROPOSAL.md](UNIQUE_FEATURES_P
 / COACH, who set it), `DailyPuzzleEntry` (student, day, level, attempt,
 finished, solved), `DailyPuzzleSettings` (one row per academy),
 `Batch.dailyPuzzleEnabled`. Entries are the student's data: privacy export
-section `dailyPuzzleEntries`. Step 2: `StudentProfile.dailyPuzzleWhatsAppAt`
-(the student's switch; exported with `studentProfile`),
-`WhatsAppContact.dailyPuzzleAt` (a number's PUZZLE; cleared when staff erase the
-contact), `MessagingRule.scheduleDays`.
+section `dailyPuzzleEntries`. Step 2: `StudentProfile.dailyPuzzleWhatsAppOffAt`
+(the student switched it off; exported with `studentProfile`),
+`MessagingRule.scheduleDays`. No longer read, kept because migrations stay
+additive: `StudentProfile.dailyPuzzleWhatsAppAt` (the first version's opt-in) and
+`WhatsAppContact.dailyPuzzleAt` (its PUZZLE keyword; cleared when staff erase the
+contact).
 
 ## Step 2 — WhatsApp
 
@@ -102,12 +104,10 @@ contact), `MessagingRule.scheduleDays`.
 | Streak | **Per account**: the student's one streak, never a streak per phone number |
 | Student data in the message | None in step 2 (puzzle + link that needs sign-in) |
 
-> **Code on `dev` is the first version (35ed3273)**, decided earlier the same
-> day: opt-in instead of on-by-default, plus PUZZLE / PUZZLE OFF keywords that let
-> any number sign up. The section below describes that code. Step 3 phase 0
-> (below) changes it to the calls above; until then the calls above win.
+The first version (35ed3273, same day) was opt-in and let any number sign up
+with PUZZLE / PUZZLE OFF; step 3 phase 0 changed it to the calls above.
 
-### How it works (first version, being changed)
+### How it works
 
 - **The rule**: messaging event `DAILY_PUZZLE` ("Puzzle of the Day (WhatsApp)",
   `/admin/messaging`), WhatsApp only (`whatsappOnly`: the rule service refuses
@@ -116,45 +116,49 @@ contact), `MessagingRule.scheduleDays`.
   see [MESSAGING.md](MESSAGING.md) "Send days"). Placeholders: `{{academy.name}}`,
   `{{dailyPuzzle.date}}`, `{{links.dailyPuzzle}}`, nothing about the student.
   "Sending" = rule on + WhatsApp channel on + the academy's WhatsApp connected.
-- **Who gets it** (`DailyPuzzleWhatsAppService`, `puzzle/daily-puzzle-whatsapp.service.ts`):
-  - a student who turned it on (`StudentProfile.dailyPuzzleWhatsAppAt`), to
-    `User.phoneNumber`, while Puzzle of the Day is on for one of their batches;
-  - a number that sent PUZZLE (`WhatsAppContact.dailyPuzzleAt`), not STOPped.
-    Needs the academy's support bot on, because the bot reads the keyword
-    ([WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) "Puzzle of the Day keywords").
-  Both only while the academy has Puzzle of the Day on.
+- **Who gets it** (`loadDailyPuzzleAudience`, `messaging/daily-puzzle-deliveries.ts`,
+  the one rule, used by the send and the admin summary): every active student
+  whose Puzzle of the Day is on (a batch with training and the daily puzzle on,
+  academy not off), on `User.phoneNumber` normalized like a send, unless they
+  switched it off (`StudentProfile.dailyPuzzleWhatsAppOffAt`). Never a bare
+  WhatsApp contact, never `parentPhone`. A student with no or an unusable phone
+  is skipped quietly (no row per student per day; the admin page counts them).
+  A number on **2+ active student accounts** (any of them, on or off) is sent
+  once, link only (`studentId: null` in the audience).
 - **Sending**: hourly cron per academy (`JOB_LOCKS.dailyPuzzleWhatsApp`); within
   the hour before the rule's next send time it dispatches `DAILY_PUZZLE` for the
   academy day of that send. `MessagingDispatchService` makes one WhatsApp outbox
-  row per number (a number reached both ways is sent once, kept on the student);
-  dedupe key `DAILY_PUZZLE:<number>:<day>`, so re-runs never send twice. A
-  student without a usable phone is logged SKIPPED. The outbox worker sends it
-  like any rule and still checks STOP at send time.
-- **Turning it off** (switch off, PUZZLE OFF, or erasing the contact) also marks
-  that number's still-queued row SKIPPED (`cancelQueuedDailyPuzzle`).
+  row per number (the first student on it is the row's recipient); dedupe key
+  `DAILY_PUZZLE:<number>:<day>`, so re-runs never send twice. The outbox worker
+  sends it like any rule and checks STOP at send time.
+- **Switching off** also marks that number's still-queued row SKIPPED
+  (`cancelQueuedDailyPuzzle`), unless another student on the same number still
+  has it on.
 - **Admin view**: the academy schedule (`/admin/daily-puzzle`, "Whole academy")
-  shows whether it is sending, when, and how many students and keyword numbers
-  it reaches, with a link to the rule.
+  shows whether it is sending, when, students and numbers it reaches (shared
+  numbers among them), students who turned it off, students with no usable
+  phone, a consent reminder, and a link to the rule.
 
 | Route | Who |
 |---|---|
-| `GET /daily-puzzle` → `whatsapp` | student: available, on, masked phone, schedule |
-| `PUT /daily-puzzle/whatsapp` `{ on }` | student: their own switch; 400 when the academy doesn't send it or the account has no usable phone |
-| `GET /daily-puzzle/schedule` → `whatsapp` | admin, academy scope: `{ sending, schedule, appStudents, keywordNumbers }` (null for a batch) |
+| `GET /daily-puzzle` → `whatsapp` | student: available, on, masked phone, schedule, `sharedPhone` |
+| `PUT /daily-puzzle/whatsapp` `{ on }` | student: their own switch (400 without a student profile) |
+| `GET /daily-puzzle/schedule` → `whatsapp` | admin, academy scope: `{ sending, schedule, students, numbers, sharedNumbers, turnedOff, noPhone }` (null for a batch) |
 
 ### Setting it up (an academy admin)
 
 1. Create a template in WhatsApp Manager and wait for Meta to approve it. Meta
    will likely class it as **Marketing**. Suggested body, with one value:
-   > Today's Puzzle of the Day from {{1}} is ready: Easy, Medium and Hard. Can you solve it? Reply PUZZLE OFF to stop.
+   > Today's Puzzle of the Day from {{1}} is ready: Easy, Medium and Hard. Can you solve it? You can turn these off on the Puzzle of the Day page.
 
    with a **URL button** to the academy's `/student/daily-puzzle` (a static URL
    button needs no value). If the template puts the link in the body instead, add a
    second value `{{links.dailyPuzzle}}`.
 2. Messaging → "Puzzle of the Day (WhatsApp)": pick the template, set the value(s)
    (`{{academy.name}}`…), the days and the time, turn it on, and Send test.
-3. Tell families: turn it on from the Puzzle of the Day page, or send PUZZLE to
-   the academy's WhatsApp (needs the support bot on).
+3. **Consent:** Meta expects people to have agreed to business messages. Tell
+   families at registration or in the welcome message ("a daily chess puzzle on
+   WhatsApp; reply STOP anytime"). Nothing in the app asks for it.
 
 ## Step 3 — board picture and answering by reply (plan, 2026-11-21)
 

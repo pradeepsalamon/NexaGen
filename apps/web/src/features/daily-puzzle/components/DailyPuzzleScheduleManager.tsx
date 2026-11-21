@@ -272,19 +272,26 @@ function PickPuzzleDialog({
  * messaging rules.
  */
 function WhatsAppSummary({ summary }: { summary: DailyPuzzleWhatsAppSummary }) {
-  const numbers = summary.appStudents + summary.keywordNumbers;
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   return (
     <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
       <div className="flex min-w-0 items-start gap-3">
         <MessageCircle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-app-muted" strokeWidth={2.5} />
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-1">
           <p className="font-bold text-app-text">
             On WhatsApp: {summary.sending ? summary.schedule : "off"}
           </p>
           <p className="text-sm text-app-muted">
-            {summary.appStudents} {summary.appStudents === 1 ? "student" : "students"} turned it on in the app,{" "}
-            {summary.keywordNumbers} {summary.keywordNumbers === 1 ? "number" : "numbers"} sent PUZZLE.
-            {summary.sending ? ` Up to ${numbers} ${numbers === 1 ? "message" : "messages"} a send day.` : ""}
+            Goes to every student&apos;s own phone unless they switch it off on their Puzzle of the Day page.{" "}
+            Reaches {plural(summary.students, "student", "students")} on {plural(summary.numbers, "number", "numbers")}
+            {summary.sharedNumbers > 0 ? ` (${summary.sharedNumbers} shared by more than one student get the link only)` : ""};{" "}
+            {plural(summary.turnedOff, "student", "students")} turned it off,{" "}
+            {plural(summary.noPhone, "student has", "students have")} no WhatsApp number on their account.
+            {summary.sending ? ` Up to ${plural(summary.numbers, "message", "messages")} a send day.` : ""}
+          </p>
+          <p className="text-xs text-app-muted">
+            WhatsApp expects families to have agreed to messages from the academy: mention the daily puzzle at
+            registration or in your welcome message (they can reply STOP anytime).
           </p>
         </div>
       </div>

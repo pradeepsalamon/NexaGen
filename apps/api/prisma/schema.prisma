@@ -590,8 +590,10 @@ model StudentProfile {
 
   parentRelationship String?
 
-  /// The student turned on Puzzle of the Day on WhatsApp, to the account's own phone (docs/PUZZLE_OF_THE_DAY.md step 2).
-  dailyPuzzleWhatsAppAt DateTime?
+  /// No longer read: the first step 2 opt-in time (docs/PUZZLE_OF_THE_DAY.md). Kept; migrations stay additive.
+  dailyPuzzleWhatsAppAt    DateTime?
+  /// The student switched Puzzle of the Day on WhatsApp off (it is on by default; docs/PUZZLE_OF_THE_DAY.md step 2).
+  dailyPuzzleWhatsAppOffAt DateTime?
 
   /// A coach's or admin's rule for automatic game sync; null = the student's own choice.
   gameAutoSyncRule        GameAutoSyncRule?
@@ -8912,7 +8914,7 @@ model WhatsAppContact {
   lastInboundAt    DateTime?
   /// "STOP": no proactive WhatsApp (rules, system messages). Support replies still go.
   optedOutAt       DateTime?
-  /// "PUZZLE": asked for Puzzle of the Day on WhatsApp (docs/PUZZLE_OF_THE_DAY.md step 2); "PUZZLE OFF" clears it.
+  /// No longer read: the first step 2 "PUZZLE" keyword sign-up (removed; docs/PUZZLE_OF_THE_DAY.md). Kept; migrations stay additive.
   dailyPuzzleAt    DateTime?
   /// Wrong LINK codes since `linkFailuresFrom` (a rate limit: docs/WHATSAPP_SUPPORT.md §0 "Existing students").
   linkFailures     Int       @default(0)

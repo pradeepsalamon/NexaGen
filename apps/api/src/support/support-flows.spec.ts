@@ -168,27 +168,6 @@ describe("transitionSupport", () => {
     expect(transitionSupport(waiting, text("Menu"), ctx)).toMatchObject({ state: "MAIN_MENU", status: "BOT" });
   });
 
-  it("signs a number up for Puzzle of the Day and off again, only where the academy sends it", () => {
-    const puzzleCtx: SupportTransitionContext = { ...ctx, dailyPuzzle: { optedOut: false, schedule: "Weekdays at 7:00 am" } };
-    const on = transitionSupport(at("ASK_DETAILS", { category: "CLASS" }), text("Puzzle"), puzzleCtx);
-    expect(on.actions).toEqual([{ kind: "DAILY_PUZZLE_ON" }]);
-    // Mid-form, the form stays where it was.
-    expect(on).toMatchObject({ draft: { category: "CLASS" }, state: "ASK_DETAILS" });
-    expect(supportReplyText(on.replies[0])).toContain("weekdays at 7:00 am");
-    expect(transitionSupport(at("MAIN_MENU"), text("puzzle off"), puzzleCtx).actions).toEqual([{ kind: "DAILY_PUZZLE_OFF" }]);
-    // Works while staff own the conversation, like STOP.
-    expect(transitionSupport(at("DONE", {}, "AGENT"), text("PUZZLE"), puzzleCtx).actions).toEqual([{ kind: "DAILY_PUZZLE_ON" }]);
-    // A STOPped number is told STOP still wins.
-    const stopped = transitionSupport(at("MAIN_MENU"), text("puzzle"), { ...ctx, dailyPuzzle: { optedOut: true, schedule: "Daily at 7:00 am" } });
-    expect(supportReplyText(stopped.replies[0])).toContain("reply START");
-    // Not offered: ordinary text, no sign-up.
-    expect(transitionSupport(at("MAIN_MENU"), text("puzzle"), ctx).actions).not.toContainEqual({ kind: "DAILY_PUZZLE_ON" });
-    // Only the word itself, not a sentence that mentions it.
-    expect(transitionSupport(at("MAIN_MENU"), text("my puzzle page is blank"), puzzleCtx).actions).not.toContainEqual({
-      kind: "DAILY_PUZZLE_ON"
-    });
-  });
-
   it("opts out and back in", () => {
     expect(transitionSupport(at("MAIN_MENU"), text("stop"), ctx).actions).toEqual([{ kind: "OPT_OUT" }]);
     expect(transitionSupport(at("MAIN_MENU"), text("START"), ctx).actions).toEqual([{ kind: "OPT_IN" }]);

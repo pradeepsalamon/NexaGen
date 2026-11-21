@@ -2,7 +2,6 @@ import { Injectable, Logger } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
   DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE,
-  describeSchedule,
   SUPPORT_DEMO_LEVELS,
   SUPPORT_DEMO_MOVE_PREFIX,
   SUPPORT_FLOW_STATES,
@@ -20,7 +19,6 @@ import {
 } from "@nexa-chess/types";
 import { ClassStatus, MessageChannel, MessageDeliveryStatus, Prisma, type Lead, type SupportConversation, type SupportTicket, type WhatsAppContact, type WhatsAppWebhookEvent } from "@prisma/client";
 import { DEFAULT_TIME_ZONE } from "../common/time";
-import { cancelQueuedDailyPuzzle } from "../messaging/daily-puzzle-deliveries";
 import { DemoInviteService, demoInvitePath } from "../demo-class/demo-invite.service";
 import { FrappeCrmPushService, phoneTail } from "../lead/frappe-crm-push.service";
 import { LeadStageService } from "../lead/lead-stage.service";
@@ -116,20 +114,6 @@ export class SupportConversationService {
     });
   }
 
-  /**
-   * The Puzzle of the Day rule's timing when the academy sends it on WhatsApp
-   * (rule on with WhatsApp, Puzzle of the Day not switched off); null = the bot
-   * treats "PUZZLE" as ordinary text. A missing rule row is the default: off.
-   */
-  private async dailyPuzzleSchedule(tenantId: string): Promise<string | null> {
-    const [rule, settings] = await Promise.all([
-      this.prisma.messagingRule.findUnique({ where: { tenantId_event: { event: "DAILY_PUZZLE", tenantId } } }),
-      this.prisma.dailyPuzzleSettings.findUnique({ select: { enabled: true }, where: { tenantId } })
-    ]);
-    if (!rule?.enabled || !rule.whatsappEnabled || settings?.enabled === false) return null;
-    return describeSchedule(rule);
-  }
-
   /** Call inside the event's academy. Throws on a database error so the event is retried. */
   async handleMessage(event: WhatsAppWebhookEvent): Promise<void> {
     const now = new Date();
@@ -138,7 +122,6 @@ export class SupportConversationService {
     const answers = await this.botAnswers();
     const settings = await this.settings.current();
     const origin = await this.demoSlots.academyOrigin();
-    const dailyPuzzleSchedule = await this.dailyPuzzleSchedule(tenantId);
     const contact = await this.prisma.whatsAppContact.upsert({
       create: { lastInboundAt: event.occurredAt, profileName: event.profileName, waId: event.waId },
       update: {
@@ -204,7 +187,6 @@ export class SupportConversationService {
           accountAnswers: settings.accountAnswers,
           menu: supportMenuEntries(settings.menu),
           privacyUrl: `${origin ?? getFrontendUrl(this.env)}/privacy`,
-          ...(dailyPuzzleSchedule ? { dailyPuzzle: { optedOut: contact.optedOutAt !== null, schedule: dailyPuzzleSchedule } } : {}),
           redacted: wasRedacted(event.text),
           ...(moving
             ? {
@@ -265,12 +247,6 @@ export class SupportConversationService {
           await tx.whatsAppContact.update({ data: { optedOutAt: now }, where: { id: contact.id } });
         } else if (action.kind === "OPT_IN") {
           await tx.whatsAppContact.update({ data: { optedOutAt: null }, where: { id: contact.id } });
-        } else if (action.kind === "DAILY_PUZZLE_ON") {
-          // Keeps the first sign-up time.
-          await tx.whatsAppContact.updateMany({ data: { dailyPuzzleAt: now }, where: { dailyPuzzleAt: null, id: contact.id } });
-        } else if (action.kind === "DAILY_PUZZLE_OFF") {
-          await tx.whatsAppContact.update({ data: { dailyPuzzleAt: null }, where: { id: contact.id } });
-          await cancelQueuedDailyPuzzle(tx, { recipientPhone: contact.waId });
         } else if (action.kind === "LINK_ACCOUNT") {
           accountReplies.push(await this.account.linkFromWhatsApp(tx, contact.id, action.code, now));
         } else if (action.kind === "ACCOUNT_QUERY") {

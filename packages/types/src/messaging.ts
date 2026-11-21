@@ -374,8 +374,8 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     event: "DAILY_PUZZLE",
     label: "Puzzle of the Day (WhatsApp)",
     description:
-      "Tells the numbers that asked for it that today's puzzles are ready: students who turned it on in the app, and anyone who sent PUZZLE to the academy's WhatsApp. At most one a day per number, on the days chosen here, at the time in the academy's time zone. It never names the student or shows results. Needs an approved template, because it goes outside WhatsApp's 24-hour window.",
-    // No student data: a keyword number is not proven to be the student's family.
+      "Tells every student, on their account's own phone, that today's puzzles are ready (students can switch it off on their Puzzle of the Day page; STOP blocks it too). At most one a day per number, on the days chosen here, at the time in the academy's time zone. It never names the student or shows results. Needs an approved template, because it goes outside WhatsApp's 24-hour window.",
+    // No student data: a phone may be shared by brothers and sisters.
     variables: ["academy.name", "dailyPuzzle.date", "links.dailyPuzzle"],
     audiences: ["STUDENTS"],
     supportsLeadTime: false,
@@ -997,7 +997,7 @@ export const DEFAULT_MESSAGING_RULES: Record<
     scheduleMode: "DAILY",
     scheduleHour: 7,
     title: "Puzzle of the Day",
-    body: "Today's Puzzle of the Day from {{academy.name}} is ready: Easy, Medium and Hard. Can you solve it? {{links.dailyPuzzle}} Reply PUZZLE OFF to stop."
+    body: "Today's Puzzle of the Day from {{academy.name}} is ready: Easy, Medium and Hard. Can you solve it? {{links.dailyPuzzle}} (You can turn these off on the Puzzle of the Day page.)"
   },
   ANNOUNCEMENT: {
     enabled: false,

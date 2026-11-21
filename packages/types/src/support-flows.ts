@@ -179,9 +179,6 @@ export type SupportAction =
     }
   | { kind: "OPT_OUT" }
   | { kind: "OPT_IN" }
-  /** "PUZZLE" / "PUZZLE OFF": Puzzle of the Day on WhatsApp for this number (docs/PUZZLE_OF_THE_DAY.md step 2). */
-  | { kind: "DAILY_PUZZLE_ON" }
-  | { kind: "DAILY_PUZZLE_OFF" }
   /** A question no saved answer matched (or the customer said No to a guess): listed for admins. */
   | { kind: "UNANSWERED"; text: string }
   /** "LINK <code>": the API checks the code and links this number to its student (Phase D). */
@@ -219,30 +216,6 @@ export interface SupportTransitionContext {
    * number's and not over yet. Absent = an unknown or stale button (a fresh booking starts).
    */
   reschedule?: { level: SupportDemoLevel; parentName: string; registrationId: string; studentAge: number; studentName: string };
-  /**
-   * The academy sends Puzzle of the Day on WhatsApp: "PUZZLE" / "PUZZLE OFF"
-   * sign this number up or off. Absent = those words are ordinary text.
-   * `schedule` is the rule's timing ("Weekdays at 7:00 am"); `optedOut` = this
-   * number sent STOP, which still wins.
-   */
-  dailyPuzzle?: { schedule: string; optedOut: boolean };
-}
-
-const DAILY_PUZZLE_WORDS: Record<string, "ON" | "OFF"> = {
-  "daily puzzle": "ON",
-  "no puzzle": "OFF",
-  puzzle: "ON",
-  "puzzle of the day": "ON",
-  "puzzle off": "OFF",
-  "puzzle on": "ON",
-  "puzzle stop": "OFF",
-  "stop puzzle": "OFF"
-};
-
-/** "PUZZLE" / "PUZZLE OFF" (and close variants), typed exactly; null otherwise. */
-export function supportDailyPuzzleCommand(input: SupportInput): "ON" | "OFF" | null {
-  if (input.kind !== "text") return null;
-  return DAILY_PUZZLE_WORDS[normalizeSupportText(input.text)] ?? null;
 }
 
 /** Characters of a link code: no 0/O, 1/I/L, so it can be read out on the phone. */
@@ -1046,24 +1019,6 @@ export function transitionSupport(
         kind: "text"
       }
     ], [{ kind: "OPT_OUT" }]);
-  }
-  // Puzzle of the Day sign-up works in every state too, and only where the academy sends it.
-  const puzzleCommand = ctx.dailyPuzzle ? supportDailyPuzzleCommand(input) : null;
-  if (puzzleCommand === "ON" && ctx.dailyPuzzle) {
-    const stopped = ctx.dailyPuzzle.optedOut
-      ? " You turned off our WhatsApp messages with STOP, so reply START to receive it."
-      : "";
-    return result(current, [
-      {
-        body: `Done: you'll get ${ctx.academyName}'s Puzzle of the Day here (${ctx.dailyPuzzle.schedule.toLowerCase()}). Reply PUZZLE OFF to stop it.${stopped}`,
-        kind: "text"
-      }
-    ], [{ kind: "DAILY_PUZZLE_ON" }]);
-  }
-  if (puzzleCommand === "OFF") {
-    return result(current, [
-      { body: "Done: no more Puzzle of the Day messages. Reply PUZZLE to turn them back on.", kind: "text" }
-    ], [{ kind: "DAILY_PUZZLE_OFF" }]);
   }
   if (command === "START" && current.status !== "BOT") {
     return result(current, [{ body: "WhatsApp reminders and updates are back on.", kind: "text" }], [{ kind: "OPT_IN" }]);
