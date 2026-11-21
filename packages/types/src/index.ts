@@ -84,6 +84,7 @@ export * from "./knowledge";
 export * from "./assistant-tools";
 export * from "./assignment-reminders";
 export * from "./referrals";
+export * from "./multi-role";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -386,7 +387,17 @@ export type AuthUser = {
   isPlatformOperator?: boolean;
   lastName?: string | null;
   phoneNumber?: string | null;
+  /**
+   * The role this login session acts in (docs/MULTI_ROLE_ACCOUNTS.md). For a
+   * one-role account it is simply that role. Every role check uses it.
+   */
   role: UserRole;
+  /** Every role the account can switch to, primary first. Absent = only `role`. */
+  roles?: UserRole[];
+  /** The account's stored role (`User.role`); differs from `role` in a switched view. */
+  primaryRole?: UserRole;
+  /** Extra roles the account holds besides its primary role (v1: [] or ["COACH"]). */
+  extraRoles?: UserRole[];
   status: UserStatus;
   studentProfile?: AuthStudentProfile | null;
   timezone?: string;

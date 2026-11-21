@@ -234,6 +234,12 @@ its precondition, the student training surface, now exists).
 
 ## Questions for the owner (unattended runs)
 
+- **2026-11-20, branch `feat/multi-role-accounts` (multi-role accounts, [MULTI_ROLE_ACCOUNTS.md](MULTI_ROLE_ACCOUNTS.md)).** The run's hook stopped questions, so I took these defaults; each is easy to change.
+  1. **Where it went.** Pushed `feat/multi-role-accounts` and opened a PR into `dev`. Nothing was merged. Options I saw: a PR into `dev` (taken), push the branch only (saves Actions minutes), or commit straight to `dev` (the /goal rule forbids it).
+  2. **Testing.** Unit and integration tests ran on a private `_int` database (`nexa_gen_multirole_int`; drop it when done). The staging e2e in the design doc §6 was **not** run: staging serves the `dev` checkout, so it would mean merging into `dev` first. Option: merge the PR into `dev`, rebuild staging, then sign in as an admin who can teach, record a cash fee in admin view, switch, and start a class in coach view.
+  3. **A super admin may tick "Can also teach" on their own account.** Taken, because a solo academy owner has only one login (it is still recorded in `user_role_changes`). The other option is to require a second super admin, which would leave a solo owner needing Nexa support.
+  4. **Removing the role keeps the account as coach of its batches.** As the design says, the admin is shown the list; nothing is reassigned automatically.
+
 - **2026-11-17 night run (its plan file is removed by this PR; it is in git history as `docs/NIGHT_RUN_2026-11-17.md`): results, and what I assumed.** PRs, all into `dev`, none merged: **#156** app shell overlay nav (`feat/app-shell-overlay-nav`), **#157** form validation (`fix/form-validation-ux`), and this docs PR.
   1. **Results as they came out.**
      - **#156:** typecheck ✓, lint 0 errors (1 existing `<img>` warning), worktree `next build` ✓. `e2e/app-shell-nav.spec.ts`: Chromium 14/14. WebKit 12/14 on the first run: the two phone drawer guards (light and dark) tapped the backdrop mid-slide in WebKit's slow Linux build. Both passed once the test waited for the slide; a full WebKit re-run afterwards passed 14/14.

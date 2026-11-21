@@ -1,3 +1,4 @@
+import { isCoachAccount } from "../../common/coach-accounts";
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   LOCKABLE_LIVE_SETTING_LABELS,
@@ -16,7 +17,7 @@ import {
   type LiveSettingExceptionField,
   type LiveSettingExceptionPayload
 } from "@nexa-chess/types";
-import { ClassStatus, UserRole, UserStatus, type ApprovalRequest } from "@prisma/client";
+import { ClassStatus, UserStatus, type ApprovalRequest } from "@prisma/client";
 import type { PrismaTransactionClient } from "../../prisma/prisma.service";
 import type { ApprovalActor, ApprovalHandler, PreparedApproval } from "../approval-handler";
 import { tenantFilter } from "../../tenancy/tenant-sql";
@@ -38,7 +39,7 @@ async function loadLayers(tx: PrismaTransactionClient, classId: string) {
       select: {
         batch: { select: { liveClassSettings: true } },
         batchId: true,
-        coach: { select: { isDeleted: true, role: true, status: true } },
+        coach: { select: { extraRoles: true, isDeleted: true, role: true, status: true } },
         coachId: true,
         id: true,
         liveClassSettings: true,
@@ -154,7 +155,7 @@ export class LiveSettingExceptionHandler implements ApprovalHandler<LiveSettingE
     if (
       cls.coachId !== request.requesterId ||
       cls.coach.isDeleted ||
-      cls.coach.role !== UserRole.COACH ||
+      !isCoachAccount(cls.coach) ||
       cls.coach.status !== UserStatus.ACTIVE
     ) {
       throw new ConflictException("The class is no longer this coach's (or the coach is inactive). Reject this request.");

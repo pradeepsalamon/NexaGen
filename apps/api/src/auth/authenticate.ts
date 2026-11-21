@@ -3,6 +3,7 @@ import type { JwtService } from "@nestjs/jwt";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { setTag, setUser } from "@sentry/nestjs";
 import { type Prisma, UserRole, UserStatus } from "@prisma/client";
+import { accountRoles, resolveActiveRole } from "@nexa-chess/types";
 import type { PrismaService } from "../prisma/prisma.service";
 import { bindAuthenticatedUser } from "../tenancy/bind-authenticated-user";
 import { asPlatform } from "../tenancy/tenant-context";
@@ -41,19 +42,53 @@ export async function verifyAccessToken(
  */
 export type AuthenticateOptions = { allowSales?: boolean };
 
+/**
+ * Multi-role accounts (docs/MULTI_ROLE_ACCOUNTS.md): what `authenticateUser`
+ * adds to the user it returns. `role` itself is replaced by the session's
+ * active role, so every existing role check judges the role the account is
+ * acting in; these two keep the account's own facts for the few places that
+ * need them (MFA, the role switch, `/auth/me`). Non-enumerable, so a spread of
+ * the user into a Prisma write or a JSON body never carries them.
+ */
+export type ActiveRoleInfo = { primaryRole: UserRole; roles: UserRole[] };
+
+/**
+ * Sets `role` to the session's active role (the primary role unless the
+ * session switched to an extra role the account still holds) and attaches
+ * `primaryRole` / `roles`. Mutates and returns the same object.
+ */
+export function applyActiveRole<T extends { role: UserRole; extraRoles: UserRole[] }>(
+  user: T,
+  activeRole: UserRole | null | undefined
+): T & ActiveRoleInfo {
+  const primaryRole = primaryRoleOf(user);
+  const roles = accountRoles(primaryRole, user.extraRoles) as UserRole[];
+  Object.defineProperties(user, {
+    primaryRole: { configurable: true, enumerable: false, value: primaryRole, writable: true },
+    roles: { configurable: true, enumerable: false, value: roles, writable: true }
+  });
+  user.role = resolveActiveRole(primaryRole, user.extraRoles, activeRole) as UserRole;
+  return user as T & ActiveRoleInfo;
+}
+
+/** The account's stored role, even when `user.role` is a switched view's role. */
+export function primaryRoleOf(user: { role: UserRole }): UserRole {
+  return (user as Partial<ActiveRoleInfo>).primaryRole ?? user.role;
+}
+
 /** Verifies the token and loads the user, who must still be ACTIVE. */
 export function authenticateUser(
   jwtService: JwtService,
   prisma: PrismaService,
   accessToken: string | undefined,
   args?: AuthenticateOptions
-): Promise<Prisma.UserGetPayload<object>>;
+): Promise<Prisma.UserGetPayload<object> & ActiveRoleInfo>;
 export function authenticateUser<I extends Prisma.UserInclude>(
   jwtService: JwtService,
   prisma: PrismaService,
   accessToken: string | undefined,
   args: { include: I } & AuthenticateOptions
-): Promise<Prisma.UserGetPayload<{ include: I }>>;
+): Promise<Prisma.UserGetPayload<{ include: I }> & ActiveRoleInfo>;
 export async function authenticateUser(
   jwtService: JwtService,
   prisma: PrismaService,
@@ -77,7 +112,7 @@ export async function authenticateUser(
     payload.sessionId
       ? prisma.authSession.findUnique({
           where: { id: payload.sessionId },
-          select: { revokedAt: true, tenantId: true, userId: true }
+          select: { activeRole: true, revokedAt: true, tenantId: true, userId: true }
         })
       : null
   ]));
@@ -92,10 +127,13 @@ export async function authenticateUser(
   if (user.role === UserRole.SALES && !args?.allowSales) {
     throw new ForbiddenException("Sales accounts can only use the referral board.");
   }
+  // From here on the account acts in the session's active role, so the
+  // service's own role checks judge that role and nothing else.
+  const acting = applyActiveRole(user, session?.activeRole);
   // Request-scoped; id and role only, never contact details.
-  setUser({ id: user.id });
-  setTag("role", user.role);
-  return user;
+  setUser({ id: acting.id });
+  setTag("role", acting.role);
+  return acting;
 }
 
 export function isAdminRole(role: UserRole): boolean {

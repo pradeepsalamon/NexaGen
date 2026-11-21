@@ -204,6 +204,8 @@ export const CROSS_USER: Case[] = [
 ];
 
 export const OWN_CASES: Case[] = [
+  // Multi-role accounts (docs/MULTI_ROLE_ACCOUNTS.md): "Can also teach" is a super admin's call.
+  { name: "SUPER_ADMIN lets an admin also teach", as: (w) => w.superAdmin, method: "PUT", path: (w) => API_ROUTES.users.extraRoles(w.admin.id), body: { extraRoles: ["COACH"] } },
   { name: "ADMIN makes a WhatsApp link code for a student", as: (w) => w.admin, method: "POST", path: () => API_ROUTES.adminSupport.linkCodes, body: (w: World) => ({ studentId: w.a.student.id }) },
   { name: "student reads own private tournament", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.get(w.a.tournament.id) },
   { name: "student lists own tournament's players", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.players(w.a.tournament.id) },
@@ -349,6 +351,8 @@ export function rushReport(rushId: string) {
 }
 
 export const WRONG_ROLE: Case[] = [
+  { name: "ADMIN lets an admin also teach (super-admin only)", as: (w) => w.admin, method: "PUT", path: (w) => API_ROUTES.users.extraRoles(w.admin.id), body: { extraRoles: ["COACH"] } },
+  { name: "coach switches to an admin view it does not hold", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.auth.switchRole, body: { role: "ADMIN" } },
   { name: "coach starts a solo Puzzle Storm run", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.puzzleRushSolo.runs, body: { mode: "STORM" } },
   { name: "coach reads the solo Puzzle Storm overview", as: (w) => w.a.coach, path: () => API_ROUTES.puzzleRushSolo.overview },
   { name: "student monitors own class's activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.a.liveClass.id, w.a.playoutRun.id) },

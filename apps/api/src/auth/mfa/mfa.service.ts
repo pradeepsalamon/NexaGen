@@ -18,7 +18,7 @@ import type {
 import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
 import { UserRole, UserStatus, type User } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import { authenticateUser } from "../authenticate";
+import { authenticateUser, primaryRoleOf } from "../authenticate";
 import {
   decryptSecret,
   deriveMfaKey,
@@ -112,7 +112,8 @@ export class MfaService {
       available: this.isAvailable(),
       enabled: Boolean(row?.enabledAt),
       recoveryCodesRemaining: row?.enabledAt ? row.recoveryCodeHashes.length : 0,
-      required: this.isRequired(user.role)
+      // The account's own role: a switched view never makes MFA optional.
+      required: this.isRequired(primaryRoleOf(user))
     };
   }
 
@@ -239,7 +240,7 @@ export class MfaService {
    */
   async disable(user: User, code: string): Promise<{ signedOut: boolean }> {
     await this.verifyCode(user.id, code);
-    const signedOut = this.isRequired(user.role);
+    const signedOut = this.isRequired(primaryRoleOf(user));
     await this.prisma.$transaction([
       this.prisma.userMfa.delete({ where: { userId: user.id } }),
       ...(signedOut

@@ -68,7 +68,7 @@ describe("authenticateUser", () => {
       await expect(run("token")).resolves.toMatchObject({ id: "user_1" });
       expect(authSession.findUnique).toHaveBeenCalledWith({
         where: { id: "s1" },
-        select: { revokedAt: true, tenantId: true, userId: true }
+        select: { activeRole: true, revokedAt: true, tenantId: true, userId: true }
       });
     });
 
@@ -90,6 +90,57 @@ describe("authenticateUser", () => {
       withSession();
       authSession.findUnique.mockResolvedValue({ revokedAt: null, userId: "user_2" });
       await expect(run("token")).rejects.toThrow("Invalid session.");
+    });
+  });
+
+  // docs/MULTI_ROLE_ACCOUNTS.md §5.3: services judge the session's active role.
+  describe("active role", () => {
+    const teachingAdmin = { extraRoles: ["COACH"], id: "user_1", role: "ADMIN", status: "ACTIVE" };
+    const sessionIn = (activeRole: string | null) => {
+      (prisma as unknown as { authSession: { findUnique: jest.Mock } }).authSession = {
+        findUnique: jest.fn().mockResolvedValue({ activeRole, revokedAt: null, userId: "user_1" })
+      };
+      jwt.verifyAsync.mockResolvedValue({ type: "access", sub: "user_1", sessionId: "s1" });
+    };
+
+    it("acts in the primary role by default", async () => {
+      sessionIn(null);
+      prisma.user.findUnique.mockResolvedValue({ ...teachingAdmin });
+      const user = await run("token");
+      expect(user.role).toBe("ADMIN");
+      expect(user.primaryRole).toBe("ADMIN");
+      expect(user.roles).toEqual(["ADMIN", "COACH"]);
+    });
+
+    it("acts in the extra role the session switched to", async () => {
+      sessionIn("COACH");
+      prisma.user.findUnique.mockResolvedValue({ ...teachingAdmin });
+      const user = await run("token");
+      expect(user.role).toBe("COACH");
+      expect(user.primaryRole).toBe("ADMIN");
+    });
+
+    it("falls back to the primary role once the extra role is removed", async () => {
+      sessionIn("COACH");
+      prisma.user.findUnique.mockResolvedValue({ ...teachingAdmin, extraRoles: [] });
+      await expect(run("token")).resolves.toMatchObject({ role: "ADMIN" });
+    });
+
+    it("never acts in a role the account cannot hold, whatever the session says", async () => {
+      sessionIn("SUPER_ADMIN");
+      prisma.user.findUnique.mockResolvedValue({ ...teachingAdmin });
+      await expect(run("token")).resolves.toMatchObject({ role: "ADMIN" });
+      sessionIn("COACH");
+      prisma.user.findUnique.mockResolvedValue({ extraRoles: ["COACH"], id: "user_1", role: "STUDENT", status: "ACTIVE" });
+      await expect(run("token")).resolves.toMatchObject({ role: "STUDENT" });
+    });
+
+    it("keeps primaryRole and roles out of spreads and JSON", async () => {
+      sessionIn("COACH");
+      prisma.user.findUnique.mockResolvedValue({ ...teachingAdmin });
+      const user = await run("token");
+      expect(Object.keys({ ...user })).not.toEqual(expect.arrayContaining(["primaryRole", "roles"]));
+      expect(JSON.parse(JSON.stringify(user))).not.toHaveProperty("primaryRole");
     });
   });
 

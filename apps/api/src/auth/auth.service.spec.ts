@@ -996,6 +996,112 @@ describe("AuthService", () => {
     });
   });
 
+  // docs/MULTI_ROLE_ACCOUNTS.md: one login, one active role per session.
+  describe("multi-role accounts", () => {
+    const teachingAdmin = { ...activeUser, extraRoles: [UserRole.COACH], role: UserRole.ADMIN, studentProfile: null };
+
+    describe("switchRole", () => {
+      beforeEach(() => {
+        jwtService.verifyAsync.mockResolvedValue({ sessionId: "sess-1", sub: "usr-123", type: "access" });
+        jwtService.decode.mockReturnValue({ sessionId: "sess-1", sub: "usr-123", type: "access" });
+        jwtService.signAsync.mockResolvedValue("new-access-token");
+        prismaService.authSession.findUnique.mockResolvedValue({ activeRole: null, revokedAt: null, userId: "usr-123" });
+        prismaService.authSession.updateMany.mockResolvedValue({ count: 1 });
+        prismaService.user.findUnique.mockResolvedValue({ ...teachingAdmin });
+      });
+
+      it("moves this session to coach view and mints a token in that role", async () => {
+        const result = await service.switchRole("access-token", UserRole.COACH);
+
+        expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
+          data: { activeRole: UserRole.COACH },
+          where: {
+            expiresAt: { gt: expect.any(Date) },
+            id: "sess-1",
+            revokedAt: null,
+            rotatedAt: null,
+            userId: "usr-123"
+          }
+        });
+        expect(jwtService.signAsync.mock.calls[0][0]).toMatchObject({ role: UserRole.COACH, sessionId: "sess-1" });
+        expect(result.accessToken).toBe("new-access-token");
+        expect(result.user).toMatchObject({ primaryRole: UserRole.ADMIN, role: UserRole.COACH, roles: [UserRole.ADMIN, UserRole.COACH] });
+      });
+
+      it("stores null when switching back to the primary role", async () => {
+        prismaService.authSession.findUnique.mockResolvedValue({ activeRole: UserRole.COACH, revokedAt: null, userId: "usr-123" });
+        await service.switchRole("access-token", UserRole.ADMIN);
+        expect(prismaService.authSession.updateMany.mock.calls[0][0].data).toEqual({ activeRole: null });
+      });
+
+      it("refuses a role the account does not hold", async () => {
+        await expect(service.switchRole("access-token", UserRole.SUPER_ADMIN)).rejects.toThrow("cannot act in that role");
+        prismaService.user.findUnique.mockResolvedValue({ ...activeUser });
+        await expect(service.switchRole("access-token", UserRole.COACH)).rejects.toThrow("cannot act in that role");
+        expect(prismaService.authSession.updateMany).not.toHaveBeenCalled();
+      });
+
+      it("refuses during a platform support visit", async () => {
+        jwtService.decode.mockReturnValue({ sessionId: "sess-1", sub: "usr-123", support: "visit-1", type: "access" });
+        await expect(service.switchRole("access-token", UserRole.COACH)).rejects.toThrow("support visit");
+      });
+
+      it("refuses when the session was revoked meanwhile", async () => {
+        prismaService.authSession.updateMany.mockResolvedValue({ count: 0 });
+        await expect(service.switchRole("access-token", UserRole.COACH)).rejects.toBeInstanceOf(UnauthorizedException);
+      });
+    });
+
+    describe("refresh", () => {
+      const REFRESH_TOKEN = "refresh-token";
+      const session = (activeRole: UserRole | null, user = teachingAdmin) => ({
+        activeRole,
+        expiresAt: new Date(Date.now() + 86_400_000),
+        familyId: "fam-1",
+        id: "sess-1",
+        refreshTokenHash: hashRefreshToken(REFRESH_TOKEN),
+        revokedAt: null,
+        rotatedAt: null,
+        user: { ...user }
+      });
+
+      beforeEach(() => {
+        jwtService.verifyAsync.mockResolvedValue({ sessionId: "sess-1", sub: "usr-123", type: "refresh" });
+        jwtService.signAsync.mockResolvedValue("mocked-token");
+        prismaService.authSession.create.mockResolvedValue({ id: "sess-2" });
+        prismaService.authSession.update.mockResolvedValue({ id: "sess-2" });
+        prismaService.authSession.updateMany.mockResolvedValue({ count: 1 });
+      });
+
+      it("carries the active role into the successor session and token", async () => {
+        prismaService.authSession.findFirst.mockResolvedValueOnce(session(UserRole.COACH));
+        const result = await service.refresh(REFRESH_TOKEN, {});
+
+        expect(prismaService.authSession.create.mock.calls[0][0].data.activeRole).toBe(UserRole.COACH);
+        expect(jwtService.signAsync.mock.calls[0][0]).toMatchObject({ role: UserRole.COACH, type: "access" });
+        expect(result.user.role).toBe(UserRole.COACH);
+      });
+
+      it("keeps a switch that landed between the first read and the rotation claim", async () => {
+        prismaService.authSession.findFirst.mockResolvedValueOnce(session(null));
+        prismaService.authSession.findUnique.mockResolvedValueOnce({ activeRole: UserRole.COACH });
+        const result = await service.refresh(REFRESH_TOKEN, {});
+
+        expect(prismaService.authSession.create.mock.calls[0][0].data.activeRole).toBe(UserRole.COACH);
+        expect(result.user.role).toBe(UserRole.COACH);
+      });
+
+      it("falls back to the primary role once the extra role was removed", async () => {
+        prismaService.authSession.findFirst.mockResolvedValueOnce(session(UserRole.COACH, { ...teachingAdmin, extraRoles: [] }));
+        const result = await service.refresh(REFRESH_TOKEN, {});
+
+        expect(prismaService.authSession.create.mock.calls[0][0].data.activeRole).toBeNull();
+        expect(jwtService.signAsync.mock.calls[0][0]).toMatchObject({ role: UserRole.ADMIN });
+        expect(result.user.role).toBe(UserRole.ADMIN);
+      });
+    });
+  });
+
   describe("me", () => {
     it("returns the authenticated user", async () => {
       jwtService.verifyAsync.mockResolvedValueOnce({

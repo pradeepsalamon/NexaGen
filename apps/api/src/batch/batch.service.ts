@@ -34,6 +34,7 @@ import { authenticateUser } from "../auth/authenticate";
 import { batchClassWindow } from "../common/batch-dates";
 import { queryEnum } from "../common/query-params";
 import { EntitlementService } from "../platform/entitlement.service";
+import { coachWhere } from "../common/coach-accounts";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 /** The client handed to a `prisma.$transaction(async (tx) => …)` callback. */
@@ -128,8 +129,8 @@ export class BatchService {
       this.prisma.user.findMany({
         orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
         where: {
-          role: UserRole.COACH,
-          status: UserStatus.ACTIVE
+          status: UserStatus.ACTIVE,
+          ...coachWhere()
         }
       }),
       this.prisma.user.findMany({
@@ -440,8 +441,8 @@ export class BatchService {
         ? this.prisma.user.count({
           where: {
             id: { in: uniqueCoachIds },
-            role: UserRole.COACH,
-            status: UserStatus.ACTIVE
+            status: UserStatus.ACTIVE,
+            ...coachWhere()
           }
         })
         : 0,

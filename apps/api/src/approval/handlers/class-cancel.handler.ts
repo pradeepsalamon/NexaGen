@@ -1,6 +1,7 @@
+import { isCoachAccount } from "../../common/coach-accounts";
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { resolveCancellationPath, type ApprovalActionType } from "@nexa-chess/types";
-import { ClassStatus, UserRole, UserStatus, type ApprovalRequest } from "@prisma/client";
+import { ClassStatus, UserStatus, type ApprovalRequest } from "@prisma/client";
 import { z } from "zod";
 import { MessagingDispatchService } from "../../messaging/messaging-dispatch.service";
 import type { PrismaTransactionClient } from "../../prisma/prisma.service";
@@ -54,7 +55,7 @@ abstract class ClassCancelHandlerBase implements ApprovalHandler<Payload> {
     await tx.$queryRaw`SELECT "id" FROM "classes" WHERE "id" = ${classId} FOR UPDATE`;
     const cls = await tx.coachClass.findUnique({
       select: {
-        coach: { select: { isDeleted: true, role: true, status: true } },
+        coach: { select: { extraRoles: true, isDeleted: true, role: true, status: true } },
         coachId: true,
         startsAt: true,
         status: true
@@ -65,7 +66,7 @@ abstract class ClassCancelHandlerBase implements ApprovalHandler<Payload> {
     if (
       cls.coachId !== request.requesterId ||
       cls.coach.isDeleted ||
-      cls.coach.role !== UserRole.COACH ||
+      !isCoachAccount(cls.coach) ||
       cls.coach.status !== UserStatus.ACTIVE
     ) {
       throw new ConflictException("The class is no longer this coach's (or the coach is inactive). Reject this request.");

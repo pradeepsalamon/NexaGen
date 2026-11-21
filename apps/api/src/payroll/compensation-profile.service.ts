@@ -9,6 +9,7 @@ import type { CoachCompensationProfile, CoachCompensationRate, Prisma } from "@p
 import { PrismaService } from "../prisma/prisma.service";
 import { fullName } from "../payments/payments-auth.helper";
 import { PayrollAuditService } from "./payroll-audit.service";
+import { coachWhere } from "../common/coach-accounts";
 
 type CoachIdentity = { name: string; email: string };
 
@@ -32,7 +33,7 @@ export class CompensationProfileService {
   /** Every coach's compensation profile (a lazy default for one that was never configured). */
   async listProfiles(): Promise<CompensationProfileItem[]> {
     const coaches = await this.prisma.user.findMany({
-      where: { role: "COACH" },
+      where: coachWhere(),
       select: { id: true }
     });
     return Promise.all(coaches.map((c) => this.getProfile(c.id)));
@@ -84,7 +85,7 @@ export class CompensationProfileService {
   ): Promise<CompensationProfileItem> {
     const existing = await this.prisma.coachCompensationProfile.findUnique({ where: { coachId } });
     if (!existing) {
-      const coach = await this.prisma.user.findFirst({ select: { id: true }, where: { id: coachId, role: "COACH" } });
+      const coach = await this.prisma.user.findFirst({ select: { id: true }, where: { id: coachId, ...coachWhere() } });
       if (!coach) throw new NotFoundException("Coach not found.");
     }
 

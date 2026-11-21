@@ -20,6 +20,7 @@ import {
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { currentTenantId as contextTenantId } from "../tenancy/tenant-context";
 import { PlanRestrictionException } from "./plan-restriction.exception";
+import { coachWhere } from "../common/coach-accounts";
 
 /** Every request reads this; plan changes are rare and call `invalidate()`. */
 const CACHE_TTL_MS = 30_000;
@@ -208,7 +209,12 @@ export class EntitlementService {
     await this.lockLimit(tx, limit);
     await this.assertRoom(limit, () =>
       tx.user.count({
-        where: { role, status: UserStatus.ACTIVE, ...(userId ? { id: { not: userId } } : {}) }
+        where: {
+          status: UserStatus.ACTIVE,
+          // A staff account that can also teach takes a coach seat (docs/MULTI_ROLE_ACCOUNTS.md §3.6).
+          ...(role === UserRole.COACH ? coachWhere() : { role }),
+          ...(userId ? { id: { not: userId } } : {})
+        }
       })
     );
   }
@@ -232,7 +238,7 @@ export class EntitlementService {
   async getUsage(): Promise<PlanUsage> {
     const [maxStudents, maxCoaches, maxBatches, maxConcurrentLiveClasses] = await Promise.all([
       this.prisma.user.count({ where: { role: UserRole.STUDENT, status: UserStatus.ACTIVE } }),
-      this.prisma.user.count({ where: { role: UserRole.COACH, status: UserStatus.ACTIVE } }),
+      this.prisma.user.count({ where: { status: UserStatus.ACTIVE, ...coachWhere() } }),
       this.prisma.batch.count(),
       this.prisma.liveSession.count({ where: { status: LiveSessionStatus.LIVE } })
     ]);

@@ -19,6 +19,7 @@ import { queryEnum, queryString } from "../common/query-params";
 import { classRunSeconds, parseDateFilter, tallyAttendance, toCsvCell } from "./attendance-calc.util";
 import { zonedDateToUtc, zonedMonthBounds, zonedYmd } from "../common/time";
 import { AttendanceService } from "./attendance.service";
+import { coachWhere } from "../common/coach-accounts";
 
 const CLASS_DETAIL_INCLUDE = {
   coach: true,
@@ -588,15 +589,15 @@ export class AttendanceReportService {
       throw new ForbiddenException("Admin access required.");
     }
 
-    const coachWhere: Prisma.UserWhereInput = {
-      role: UserRole.COACH,
+    const coachFilter: Prisma.UserWhereInput = {
       status: UserStatus.ACTIVE,
       isDeleted: false,
+      ...coachWhere(),
     };
-    if (filters.coachId) coachWhere.id = filters.coachId;
+    if (filters.coachId) coachFilter.id = filters.coachId;
 
     const coaches = await this.prisma.user.findMany({
-      where: coachWhere,
+      where: coachFilter,
       include: { coachProfile: true },
     });
     const coachIds = coaches.map((c) => c.id);

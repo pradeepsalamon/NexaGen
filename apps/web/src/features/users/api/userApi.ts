@@ -1,6 +1,8 @@
 import type {
   CreateUserRequest,
   TrashActionResponse,
+  UpdateExtraRolesRequest,
+  UpdateExtraRolesResponse,
   UpdateUserRequest,
   UserListResponse,
   UserResponse
@@ -46,5 +48,13 @@ export function restoreUser(userId: string) {
 export function deleteUser(userId: string) {
   return apiFetch<TrashActionResponse>(API_ROUTES.users.delete(userId), {
     method: "DELETE"
+  });
+}
+
+/** "Can also teach" (super admin only, docs/MULTI_ROLE_ACCOUNTS.md). */
+export function setExtraRoles(userId: string, payload: UpdateExtraRolesRequest) {
+  return apiFetch<UpdateExtraRolesResponse>(API_ROUTES.users.extraRoles(userId), {
+    body: payload,
+    method: "PUT"
   });
 }
