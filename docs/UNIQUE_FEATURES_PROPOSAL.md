@@ -45,6 +45,7 @@ To transform NexaGen from an operational platform into an industry-leading chess
   * Pulls from `GameAnalysisService` (`docs/GAME_ANALYSIS.md`) and Puzzle activity logs (`docs/PUZZLE_ACTIVITIES.md`).
   * Dispatched via `MessagingDispatchService` (`docs/MESSAGING.md`) to the verified guardian link (`docs/PARENT_REPORTS.md`).
 * **Competitive Advantage:** Zero manual writing required from coaches; provides non-chess parents with tangible proof of value every week.
+* **Status (2026-11-21):** blocked on a parent identity. There is no verified guardian link yet; parent reports were deferred on purpose ([PARENT_REPORTS.md](PARENT_REPORTS.md)), so a parent account and a verified parent–child link come first.
 
 ---
 
@@ -106,6 +107,7 @@ To transform NexaGen from an operational platform into an industry-leading chess
 * **Architectural Fit:**
   * Integrates with `apps/api/src/support/` WhatsApp webhook receiver and the Puzzle Library (`docs/PUZZLES.md`).
 * **Competitive Advantage:** Zero-friction daily engagement directly in the family's primary messaging app.
+* **Status (2026-11-21):** step 1 (in the app) being built — [PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md); WhatsApp delivery is step 2.
 
 ---
 

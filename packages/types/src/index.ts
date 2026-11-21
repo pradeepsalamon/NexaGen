@@ -2863,3 +2863,4 @@ export * from "./email-admin";
 // Tournaments (docs/TOURNAMENTS.md).
 // ──────────────────────────────────────────────
 export * from "./tournaments";
+export * from "./daily-puzzle";

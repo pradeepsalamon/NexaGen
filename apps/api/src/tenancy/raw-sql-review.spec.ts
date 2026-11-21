@@ -60,6 +60,7 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "puzzle-activity/library-activity.service.ts": { calls: 2, kind: "tenant-filtered", why: "GLOBAL means academy-wide" },
   "puzzle-rush/puzzle-rush-run.ts": { calls: 4, kind: "platform", why: "lichess_puzzles + SET LOCAL" },
   "puzzle-rush/solo-puzzle-rush.service.ts": { calls: 2, kind: "tenant-filtered", why: "solo_puzzle_rush_runs r + batch battles" },
+  "puzzle/daily-puzzle.service.ts": { calls: 3, kind: "platform", why: "lichess_puzzles + SET LOCAL" },
   "puzzle/live-class-puzzle.service.ts": { calls: 1, kind: "id-keyed", why: "locks one assignment" },
   "puzzle/puzzle-catalog.service.ts": { calls: 3, kind: "platform", why: "lichess_puzzles + SET LOCAL" },
   "puzzle/puzzle-training.service.ts": { calls: 4, kind: "platform", why: "lichess_puzzles + SET LOCAL" },

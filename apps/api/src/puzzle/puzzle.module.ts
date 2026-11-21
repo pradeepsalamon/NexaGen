@@ -7,6 +7,8 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { ProgressModule } from "../progress/progress.module";
 import { TrashModule } from "../trash/trash.module";
 import { AssignmentPuzzleController } from "./assignment-puzzle.controller";
+import { DailyPuzzleController } from "./daily-puzzle.controller";
+import { DailyPuzzleService } from "./daily-puzzle.service";
 import { LiveClassPuzzleController } from "./live-class-puzzle.controller";
 import { LiveClassPuzzleService } from "./live-class-puzzle.service";
 import { PuzzleAttemptService } from "./puzzle-attempt.service";
@@ -18,7 +20,7 @@ import { PuzzleController } from "./puzzle.controller";
 import { PuzzleService } from "./puzzle.service";
 
 @Module({
-  controllers: [PuzzleController, LiveClassPuzzleController, AssignmentPuzzleController],
+  controllers: [PuzzleController, LiveClassPuzzleController, AssignmentPuzzleController, DailyPuzzleController],
   imports: [
     AnalyticsEventModule,
     AssignmentModule,
@@ -35,6 +37,7 @@ import { PuzzleService } from "./puzzle.service";
     PuzzleCatalogService,
     PuzzleScoringSettingsService,
     PuzzleTrainingService,
+    DailyPuzzleService,
     LiveClassPuzzleService
   ],
   // The activity queue shares its puzzle items through the ordinary live puzzle.

@@ -491,6 +491,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.soloPuzzleRushRun;
   }
 
+  get dailyPuzzle() {
+    return this.client.dailyPuzzle;
+  }
+
+  get dailyPuzzleEntry() {
+    return this.client.dailyPuzzleEntry;
+  }
+
+  get dailyPuzzleSettings() {
+    return this.client.dailyPuzzleSettings;
+  }
+
   get liveClassPuzzleRushEntry() {
     return this.client.liveClassPuzzleRushEntry;
   }

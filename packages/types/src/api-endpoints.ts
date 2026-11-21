@@ -1041,6 +1041,16 @@ export const API_ROUTES = {
     history: (id: string = ":id") => `/progress/students/${id}/history`,
     summary: (id: string = ":id") => `/progress/students/${id}/summary`
   },
+  // Puzzle of the Day (docs/PUZZLE_OF_THE_DAY.md): student today/start; admin
+  // (academy or any batch) and coach (own batch) schedule, overrides, switches.
+  dailyPuzzle: {
+    today: "/daily-puzzle",
+    start: "/daily-puzzle/start",
+    schedule: "/daily-puzzle/schedule",
+    overrides: "/daily-puzzle/overrides",
+    settings: "/daily-puzzle/settings",
+    batch: (id: string = ":id") => `/daily-puzzle/batches/${id}`
+  },
   // Smart Revision (spaced repetition, docs/SMART_REVISION.md). `mine*` are the
   // student's own; `student*` are coach (batch scope) / admin views + recommendations.
   revision: {

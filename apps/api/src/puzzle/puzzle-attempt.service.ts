@@ -43,6 +43,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { puzzleTopicWhere } from "./puzzle-topic-filter";
 import { ProgressRecorderService } from "../progress/progress-recorder.service";
+import { DailyPuzzleService } from "./daily-puzzle.service";
 import { assertStudent, authenticateUser, puzzleAuthorName } from "./puzzle-auth.helper";
 
 const MAX_STORED_MISTAKES = 50;
@@ -63,7 +64,8 @@ export class PuzzleAttemptService {
     private readonly evaluation: AssignmentEvaluationService,
     private readonly analyticsEvents: AnalyticsEventService,
     private readonly progress: ProgressRecorderService,
-    private readonly puzzleSets: AssignmentPuzzleSetService
+    private readonly puzzleSets: AssignmentPuzzleSetService,
+    private readonly daily: DailyPuzzleService
   ) {}
 
   async listForStudent(
@@ -431,6 +433,11 @@ export class PuzzleAttemptService {
       revealSolution =
         evalResult.solved ||
         (await this.puzzleSets.triesLeft(attempt.studentAssignmentId, puzzle.id)) === 0;
+    }
+
+    // Puzzle of the Day: the finished attempt keeps the student's daily streak.
+    if (attempt.context === PuzzleAttemptContext.DAILY) {
+      await this.daily.recordFinish(attempt.id, evalResult.solved);
     }
 
     void this.analyticsEvents.record(
