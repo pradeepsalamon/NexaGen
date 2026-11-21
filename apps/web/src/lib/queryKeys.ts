@@ -333,6 +333,8 @@ export const queryKeys = {
   },
   soloRush: {
     all: ["solo-rush"] as const,
+    battles: (mode: string, period: string) =>
+      ["solo-rush", "battles", mode, period] as const,
     leaderboard: (batchId: string, mode: string, period: string) =>
       ["solo-rush", "leaderboard", batchId, mode, period] as const,
     overview: ["solo-rush", "overview"] as const,

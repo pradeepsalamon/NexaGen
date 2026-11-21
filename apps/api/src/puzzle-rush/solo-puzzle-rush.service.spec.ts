@@ -247,6 +247,111 @@ describe("SoloPuzzleRushService", () => {
       ]);
     });
   });
+
+  describe("batchBattles", () => {
+    it("returns ranked batches, identifies student's batches, and calculates personal contribution", async () => {
+      const mockRawRows = [
+        {
+          activeStudents: 3,
+          avgScore: 16.7,
+          batchId: "b-1",
+          batchName: "Beginners",
+          topFirstName: "Arjun",
+          topLastName: "Kumar",
+          topStudentScore: 24,
+          totalScore: 50
+        },
+        {
+          activeStudents: 2,
+          avgScore: 15.0,
+          batchId: "b-2",
+          batchName: "Challengers",
+          topFirstName: "Priya",
+          topLastName: null,
+          topStudentScore: 18,
+          totalScore: 30
+        },
+        {
+          activeStudents: 2,
+          avgScore: 15.0,
+          batchId: "b-3",
+          batchName: "Rookies",
+          topFirstName: null,
+          topLastName: null,
+          topStudentScore: null,
+          totalScore: 30
+        }
+      ];
+
+      const { service, solo } = build({
+        root: {
+          $queryRaw: jest.fn(async () => mockRawRows)
+        }
+      });
+
+      solo.groupBy.mockResolvedValue([{ _max: { score: 15 }, mode: "STORM" }]);
+      solo.findFirstOrThrow.mockResolvedValue({
+        finishedAt: new Date("2026-11-20T10:00:00Z"),
+        score: 15
+      });
+
+      const res = await service.batchBattles("t", { mode: "STORM", period: "WEEK" });
+
+      expect(res.mode).toBe("STORM");
+      expect(res.period).toBe("WEEK");
+      expect(res.rows).toHaveLength(3);
+
+      // Batch 1 (Student's batch)
+      expect(res.rows[0]).toEqual({
+        activeStudents: 3,
+        avgScore: 16.7,
+        batchId: "b-1",
+        batchName: "Beginners",
+        isMyBatch: true,
+        rank: 1,
+        topStudentName: "Arjun K.",
+        topStudentScore: 24,
+        totalScore: 50
+      });
+
+      // Batch 2 (Tied with Batch 3)
+      expect(res.rows[1]).toEqual({
+        activeStudents: 2,
+        avgScore: 15.0,
+        batchId: "b-2",
+        batchName: "Challengers",
+        isMyBatch: false,
+        rank: 2,
+        topStudentName: "Priya",
+        topStudentScore: 18,
+        totalScore: 30
+      });
+
+      // Batch 3 (Tied with Batch 2, rank 2)
+      expect(res.rows[2]).toEqual({
+        activeStudents: 2,
+        avgScore: 15.0,
+        batchId: "b-3",
+        batchName: "Rookies",
+        isMyBatch: false,
+        rank: 2,
+        topStudentName: null,
+        topStudentScore: null,
+        totalScore: 30
+      });
+
+      // My batches standing
+      expect(res.myBatches).toEqual([
+        {
+          batchId: "b-1",
+          batchName: "Beginners",
+          myContribution: 15,
+          rank: 1,
+          totalScore: 50
+        }
+      ]);
+    });
+  });
 });
 
 describe("leaderboardName", () => {

@@ -10,8 +10,13 @@ leaderboard per batch. Added 2026-11-16 (night run, item 10 of
 `/student/puzzle-rush` ("Storm and Racer" in the student menu):
 
 - one card per mode with the rules, the student's best score and a Play button;
-- a **leaderboard** for a batch the student is in (a batch picker when there is
-  more than one), per mode, for **this week** or **all time**.
+- a view toggle between **Individual Leaderboard** and **Batch Battles ⚔️**;
+- an **individual leaderboard** for a batch the student is in (a batch picker when there is
+  more than one), per mode, for **this week** or **all time**;
+- a **Batch Battles / Clan Cup** academy leaderboard ranking all active batches by aggregate
+  team score, active student solvers, average score per solver, and the batch's MVP contributor;
+- a **My Batch Standing banner** showing the student's batch rank, total score, personal points
+  contribution (and percentage of batch score), and gap to the #1 leader.
 
 A run is the same board and rules as in class: the player's own screen checks
 the moves (`features/live-class/lib/puzzleRushRun.ts`), the components
@@ -37,6 +42,7 @@ Routes in `API_ROUTES.puzzleRushSolo`, contract in `packages/types/src/puzzle-ru
 | `POST /puzzle-rush/solo/runs` `{ mode }` | closes the student's unfinished run, freezes a new one |
 | `PUT /puzzle-rush/solo/runs/:id/progress` | the running totals; the server clamps them |
 | `GET /puzzle-rush/solo/leaderboard?batchId&mode&period` | `period` is `WEEK` or `ALL` |
+| `GET /puzzle-rush/solo/battles?mode&period` | academy-wide batch / clan battles leaderboard (`period` is `WEEK` or `ALL`) |
 
 Rules that must stay true:
 
@@ -56,6 +62,11 @@ Rules that must stay true:
   `tenancy/raw-sql-review.spec.ts`. Names are **first name and last initial**
   ("Arjun K.", `leaderboardName`), because students are minors (owner's call
   left to the builder, 2026-11-16); at most 50 rows.
+- **Batch battles aggregate each student's top run per batch.** Active batches with
+  `puzzleTrainingEnabled: true` compete across the academy. The raw query applies
+  `tenantFilter("b")` and `tenantFilter("r")` across CTEs, ranks ties together on
+  `totalScore` and `activeStudents`, determines the batch MVP (anonymized via
+  `leaderboardName`), and calculates the student's own batch standing and contribution.
 - **A run is read through the student's own id**: another student's run id is a
   404 (`cross-user-access` rows "student reports into another student's solo
   Puzzle Storm run" and "…a batch leaderboard they are not in").

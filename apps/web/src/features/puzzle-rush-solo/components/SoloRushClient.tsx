@@ -18,6 +18,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useRefreshSoloRush, useSoloRushLeaderboard, useSoloRushOverview, useStartSoloRush } from "../hooks/useSoloRush";
+import { BatchBattlesLeaderboard } from "./BatchBattlesLeaderboard";
 import { SoloRushPlayer } from "./SoloRushPlayer";
 
 const MODES: PuzzleRushMode[] = ["STORM", "RACER"];
@@ -36,6 +37,7 @@ export function SoloRushClient() {
   const refresh = useRefreshSoloRush();
   const [run, setRun] = useState<SoloRushRun | null>(null);
   const [mode, setMode] = useState<PuzzleRushMode>("STORM");
+  const [view, setView] = useState<"individual" | "battles">("individual");
 
   if (run) {
     return (
@@ -90,11 +92,30 @@ export function SoloRushClient() {
             })}
           </div>
 
-          <Leaderboard
-            batches={data.batches}
-            mode={mode}
-            onModeChange={setMode}
-          />
+          <div className="flex items-center justify-between">
+            <Segmented
+              label="Leaderboard View"
+              onChange={setView}
+              options={[
+                { label: "Individual Leaderboard", value: "individual" },
+                { label: "Batch Battles ⚔️", value: "battles" }
+              ]}
+              value={view}
+            />
+          </div>
+
+          {view === "individual" ? (
+            <Leaderboard
+              batches={data.batches}
+              mode={mode}
+              onModeChange={setMode}
+            />
+          ) : (
+            <BatchBattlesLeaderboard
+              mode={mode}
+              onModeChange={setMode}
+            />
+          )}
         </>
       )}
     </div>
