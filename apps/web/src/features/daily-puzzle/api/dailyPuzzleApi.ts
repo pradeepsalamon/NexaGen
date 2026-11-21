@@ -4,6 +4,7 @@ import {
   type DailyPuzzleScheduleResponse,
   type DailyPuzzleScheduleSlot,
   type DailyPuzzleSettingsResponse,
+  type UpdateDailyPuzzleSettingsRequest,
   type DailyPuzzleTodayResponse,
   type DailyPuzzleWhatsAppStatus,
   type SetDailyPuzzleOverrideRequest,
@@ -29,8 +30,8 @@ export const getDailyPuzzleSchedule = (batchId: string | null): Promise<DailyPuz
 export const setDailyPuzzleOverride = (body: SetDailyPuzzleOverrideRequest): Promise<DailyPuzzleScheduleSlot> =>
   apiFetch<DailyPuzzleScheduleSlot>(API_ROUTES.dailyPuzzle.overrides, { body, method: "PUT" });
 
-export const updateDailyPuzzleSettings = (enabled: boolean): Promise<DailyPuzzleSettingsResponse> =>
-  apiFetch<DailyPuzzleSettingsResponse>(API_ROUTES.dailyPuzzle.settings, { body: { enabled }, method: "PUT" });
+export const updateDailyPuzzleSettings = (body: UpdateDailyPuzzleSettingsRequest): Promise<DailyPuzzleSettingsResponse> =>
+  apiFetch<DailyPuzzleSettingsResponse>(API_ROUTES.dailyPuzzle.settings, { body, method: "PUT" });
 
 export const updateBatchDailyPuzzle = (batchId: string, enabled: boolean): Promise<{ batchId: string; enabled: boolean }> =>
   apiFetch(API_ROUTES.dailyPuzzle.batch(batchId), { body: { enabled }, method: "PATCH" });

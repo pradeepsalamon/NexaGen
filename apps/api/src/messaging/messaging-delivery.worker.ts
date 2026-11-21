@@ -171,6 +171,8 @@ export class MessagingDeliveryWorker {
       // template must be approved with one or Meta rejects the payload.
       const outcome = await this.whatsapp.trySendMessage({
         document,
+        // Puzzle of the Day's board: the template's IMAGE header, or sent with the text as its caption.
+        image: delivery.imageLink,
         template: delivery.templateName
           ? {
               bodyParams: delivery.templateParams,

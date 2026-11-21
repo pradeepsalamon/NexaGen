@@ -5,7 +5,7 @@ in the app; step 2 sends it on WhatsApp to every student account's phone
 (the student can switch it off in the app); step 3 adds a board picture and
 answering by reply. Feature 6 of [UNIQUE_FEATURES_PROPOSAL.md](UNIQUE_FEATURES_PROPOSAL.md).
 
-**Status:** step 1 built 2026-11-21 on `dev` (API, student page and card, admin and coach schedule). Step 2 (WhatsApp) built 2026-11-21 on `dev`, off by default, changed to the owner's final calls by step 3 phase 0 (`feat/daily-puzzle-whatsapp-step3`); not yet tried against Meta with a real approved template.
+**Status:** step 1 built 2026-11-21 on `dev` (API, student page and card, admin and coach schedule). Step 2 (WhatsApp) built 2026-11-21 on `dev`, off by default. Step 3 (board picture, answering by reply) and step 2's change to the owner's final calls built 2026-11-21 night run on `feat/daily-puzzle-whatsapp-step3` (PR into `dev`). None of it tried against Meta with a real approved template yet.
 
 ## Owner's calls (2026-11-21)
 
@@ -57,7 +57,8 @@ answering by reply. Feature 6 of [UNIQUE_FEATURES_PROPOSAL.md](UNIQUE_FEATURES_P
 | `POST /daily-puzzle/start` `{ level }` | student: opens or resumes today's `DAILY` attempt at that level |
 | `GET /daily-puzzle/schedule?batchId=&from=` | admin (academy, or a batch) / coach (own batch): 14 days × 3 levels, what each resolves to and from where |
 | `PUT /daily-puzzle/overrides` `{ batchId?, day, level, puzzleId \| null }` | admin (academy or any batch) / coach (own batch): set or clear one |
-| `PUT /daily-puzzle/settings` `{ enabled }` | admin: academy on/off |
+| `PUT /daily-puzzle/settings` `{ enabled?, whatsapp? }` | admin: academy on/off; step 3's picture level and reply limits |
+| `GET /daily-puzzle/picture/:token` | **public**: the WhatsApp picture's position (step 3); the signed token is the credential |
 | `PATCH /daily-puzzle/batches/:id` `{ enabled }` | admin / coach of the batch: batch on/off |
 
 ## Web
@@ -85,8 +86,11 @@ finished, solved), `DailyPuzzleSettings` (one row per academy),
 `Batch.dailyPuzzleEnabled`. Entries are the student's data: privacy export
 section `dailyPuzzleEntries`. Step 2: `StudentProfile.dailyPuzzleWhatsAppOffAt`
 (the student switched it off; exported with `studentProfile`),
-`MessagingRule.scheduleDays`. No longer read, kept because migrations stay
-additive: `StudentProfile.dailyPuzzleWhatsAppAt` (the first version's opt-in) and
+`MessagingRule.scheduleDays`. Step 3: `DailyPuzzleSettings.whatsappLevel`,
+`whatsappMaxTries`, `whatsappHintAfter`, `whatsappAnswerAfter`;
+`DailyPuzzleEntry.whatsappTries`, `whatsappHintAt` (exported with the entries);
+`MessageDelivery.imageLink`; `MessagingRule.whatsappTemplateImageHeader`. No
+longer read, kept because migrations stay additive: `StudentProfile.dailyPuzzleWhatsAppAt` (the first version's opt-in) and
 `WhatsAppContact.dailyPuzzleAt` (its PUZZLE keyword; cleared when staff erase the
 contact).
 
@@ -160,9 +164,10 @@ with PUZZLE / PUZZLE OFF; step 3 phase 0 changed it to the calls above.
    families at registration or in the welcome message ("a daily chess puzzle on
    WhatsApp; reply STOP anytime"). Nothing in the app asks for it.
 
-## Step 3 — board picture and answering by reply (plan, 2026-11-21)
+## Step 3 — board picture and answering by reply
 
-Planned for the 2026-11-21 night run, on its own branch off `dev`.
+Built 2026-11-21 night run (`feat/daily-puzzle-whatsapp-step3`), with step 2's
+change to the final calls (phase 0) first.
 
 ### Owner's calls (2026-11-21)
 
@@ -178,64 +183,85 @@ Planned for the 2026-11-21 night run, on its own branch off `dev`.
 | What must be right | **The first move only** (the key move). Then "Correct!" and the link to play out the rest in the app |
 | Tries | **Admin-set per academy**: maximum tries, wrong tries before a hint can be asked for, wrong tries before the answer can be asked for. Defaults taken: max 3, hint after 1, answer after 3 (hint ≤ answer ≤ max) |
 
-### Build
+### How it works
 
-0. **Step 2 change first: every student account, on by default.** The send goes
-   to every active student whose Puzzle of the Day is on and whose account phone
-   is a usable WhatsApp number, unless they turned it off: a new additive column
-   (e.g. `StudentProfile.dailyPuzzleWhatsAppOffAt`); the opt-in columns
-   `dailyPuzzleWhatsAppAt` and `WhatsAppContact.dailyPuzzleAt` stop being used
-   (kept; migrations stay additive). Never to a bare `WhatsAppContact`. The app
-   switch shows on by default and is the **only** on/off: **remove** the step 2
-   PUZZLE / PUZZLE OFF bot keywords (`supportDailyPuzzleCommand`, the
-   `DAILY_PUZZLE_ON/OFF` actions, the `dailyPuzzle` bot context) and their docs.
-   STOP (WhatsApp-wide) still wins at send time. Turning the switch off still
-   drops that student's queued message. The default rule body and the suggested template
-   wording drop "Reply PUZZLE OFF to stop" (say it can be turned off on the Puzzle
-   of the Day page). The step 2 sections above get rewritten to match.
-   Students with no or an unusable phone are skipped quietly (no SKIPPED row per
-   student per day — that would flood the log; the admin summary counts them). The admin summary counts students only. Number matching goes
-   through `normalizeWhatsAppNumber`, the same as sending. Admin summary: students
-   it will reach, students who turned it off, students with no usable phone.
-   **Consent note for the admin page / doc:** Meta expects people to have agreed
-   to business messages; tell families at registration or in the welcome message
-   ("a daily chess puzzle on WhatsApp, reply STOP anytime"). Nothing is built for it.
-1. **Picture.** A public image route on the web app draws the board PNG from the
-   FEN (`next/og`, the academy's board appearance, flipped when Black is to move;
-   no solution, no student data). Its link is signed and unguessable (HMAC over
-   academy, day, level and puzzle id, with a secret that is not a JWT secret) and
-   expires after a few days, so other days can't be listed. A new CSP/host entry
-   only if needed. The API gives the signed link; the web route asks the API for
-   the FEN with it (a `PUBLIC_ROUTES` entry; refuses a bad or expired signature).
-2. **Pick before sending.** The send sweep resolves (and if needed picks) the
-   academy's puzzle for the pictured level before it queues, so the picture exists
-   at send time.
-3. **Image header.** `WhatsAppService.trySendMessage` and the rule's template
-   fields learn an IMAGE header (a link), next to the existing DOCUMENT header;
-   `message_deliveries` keeps the image link. A rule with no template sends the
-   picture with the text as its caption.
-4. **Answering.** In the support bot, only for a number that got today's message
-   and only while the academy sends it: a reply that reads as a chess move (SAN or
-   UCI, `+`/`#` optional, any case for pieces as written) is checked against the
-   pictured puzzle's first move with the game engine (`common/chess`, never a raw
-   string match). Words: `HINT`, `ANSWER`, after the admin's thresholds. Replies are
-   free-form text inside the 24-hour window the customer just opened (no template).
-   Right → "Correct! 🔥" + the student's streak + link.
-   Wrong → "Not quite" + tries left. Out of tries → the answer, streak kept (finishing
-   keeps it, as in the app).
-5. **Student path.** For the student's own account phone: write their
-   `DailyPuzzleEntry` + `DAILY` attempt for the pictured level through the existing
-   engine (`PuzzleAttemptService`, the only attempt engine); if they already
-   finished that level in the app, say so and change nothing. The entry keeps the
-   pictured puzzle even where their batch picked another one for that level (the
-   app already shows an entry's own puzzle).
-6. **Shared phone.** A phone on 2+ student accounts gets the message once with
-   the link only (no picture prompt to answer); a move from it gets "solve it in
-   the app, this number is shared by more than one student".
-7. **Try counts.** The tries used today are kept per student and day (on
-   their `DailyPuzzleEntry` / attempt, not a new streak table).
-8. **Settings.** The three try numbers on `DailyPuzzleSettings`, edited on the
-   admin Puzzle of the Day page; the pictured level on the same page.
+- **Picture.** When the hourly sweep queues the day's messages it first
+  resolves (and if needed picks) the **academy-wide** puzzle at the pictured
+  level (`DailyPuzzleService.academyPuzzle`, never a batch's own pick), then
+  signs a link to it (`puzzle/daily-puzzle-picture.ts`: HMAC-SHA256 over
+  academy, day, level and puzzle id; valid for the day and 3 days after). The
+  key is `DAILY_PUZZLE_PICTURE_SECRET`, else one derived from
+  `CREDENTIALS_ENCRYPTION_KEY` / `MFA_ENCRYPTION_KEY` (never a JWT secret);
+  none = no picture, the message goes as in step 2.
+- **Drawing it.** The web route `/daily-puzzle-picture/<token>.png`
+  (`app/daily-puzzle-picture/[token]/route.ts`, public, outside the middleware)
+  asks the API `GET /daily-puzzle/picture/:token` (public, `PUBLIC_ROUTES`;
+  it re-checks the signature and that the puzzle is still one of the academy's
+  picks for that day and level) for the position and the academy's board look,
+  and draws an 824×888 PNG with `next/og`
+  (`features/chess-appearance/lib/boardPicture.tsx`: square colours copied from
+  `boards.css`, the vendored piece SVGs, coordinates, flipped when Black is to
+  move, "White/Black to move" under it). No solution, no student data. Cached
+  a day (same picture for every number).
+- **Sending it.** The rule's `pictureVariable` is `links.dailyPuzzlePicture`.
+  `MessagingDispatchService` stores the link on the outbox row
+  (`MessageDelivery.imageLink`): with an approved template only when the rule
+  says the template has an IMAGE header (`whatsappTemplateImageHeader`, a
+  switch in the rule editor; then every number gets it, a shared one too,
+  because the template can't go without; no picture that day = SKIPPED); with
+  free text, the student's own number gets the picture with the text as its
+  caption and a shared number the text only. `WhatsAppService.trySendMessage`
+  sends it as the template's image header or an `image` message.
+- **Answering** (`DailyPuzzleAnswerService.reply`, called by the support bot
+  first for every typed text, inside its transaction under the contact's lock,
+  not while staff own the conversation; null = the bot goes on as before, its
+  state untouched). It answers only when the academy sends the rule, Puzzle of
+  the Day is on, and the number's message for **today** was SENT with a picture
+  link (the link's signed claims name the day, level and puzzle). So the
+  academy's **support bot must be on** for replies to arrive.
+  - `parseDailyPuzzleReply` (`@nexa-chess/types`): `HINT`, `ANSWER`, or text
+    shaped like a move (SAN or UCI; `+ # ! ?` optional; castling with O or 0);
+    anything else goes to the bot.
+  - The number must be the account phone of **exactly one** active student
+    (any active student account counts): else "more than one student uses this
+    number, solve it in the app".
+  - The student's `DailyPuzzleEntry` for the pictured level is opened with the
+    pictured puzzle (a `DAILY` attempt through `PuzzleAttemptService`), unless
+    they started that level in the app (then: finish it there) or already
+    finished it (then: their result and streak).
+  - The move is read by the game engine in the puzzle position (SAN as
+    written, then with a lower-case piece letter capitalised, then UCI);
+    illegal = "isn't possible", not a try. Right or wrong is
+    `solveLineFeedback` on the first move (any mate counts where the line ends
+    in mate).
+  - Right → the attempt is finished SOLVED (100%) and the reply says "Correct!",
+    the streak and the link (play out the rest in the app when the line is
+    longer). Wrong → `whatsappTries` + the attempt's `wrongMoves` go up; at the
+    limit the attempt is finished FAILED with the answer, and the streak still
+    counts (finishing keeps it). HINT after `hintAfter` wrong tries: the
+    puzzle's own first hint, else which piece moves (never the square);
+    counted once in `hintsUsed`. ANSWER after `answerAfter` wrong tries:
+    finishes it FAILED with the answer.
+  - Rating and analytics run after the bot's transaction commits, like a
+    finished attempt in the app.
+- **Settings** (admin, `/admin/daily-puzzle` → Whole academy → "Picture and
+  answering by reply"): pictured level (Medium), wrong tries allowed (3), hint
+  after (1), answer after (3); hint ≤ answer ≤ max, max 10.
+- **Rule editor**: "The template has an image header" switch (only on rules with
+  a `pictureVariable`). The test send of such a rule uses the site's share image
+  (`/opengraph-image`) as the picture.
+
+### Setting it up (on top of step 2)
+
+1. Make the WhatsApp template with an **Image** header (a sample picture is
+   enough for approval), e.g. body "Today's Puzzle of the Day from {{1}}: can you
+   solve it? Reply with your move, like Nf3." and the URL button to
+   `/student/daily-puzzle`. Turn on "The template has an image header" on the
+   rule. Without an image header the message goes without the picture and
+   replies aren't checked.
+2. Turn on the academy's WhatsApp support bot, so replies reach the academy.
+3. Optionally set the pictured level and the reply limits on the Puzzle of the
+   Day page.
 
 ### Still not planned
 

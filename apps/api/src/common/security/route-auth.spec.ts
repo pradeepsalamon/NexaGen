@@ -22,6 +22,9 @@ const PUBLIC_ROUTES = new Set([
   "health/health.controller.ts#live",
   "health/health.controller.ts#ready",
   "live-class/live-class.controller.ts#getDemoInfo",
+  // Puzzle of the Day's WhatsApp board picture (docs/PUZZLE_OF_THE_DAY.md step 3):
+  // the signed, expiring link is the credential; a position, no student data.
+  "puzzle/daily-puzzle.controller.ts#picture",
   "live-class/live-class.controller.ts#joinDemoClass",
   // Anonymous tournament spectating (docs/TOURNAMENTS.md §4.1): a 404 unless the
   // academy allows it; only the public projection (no user ids or personal data).

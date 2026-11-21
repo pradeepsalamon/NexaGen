@@ -4,6 +4,7 @@ import { DemoClassModule } from "../demo-class/demo-class.module";
 import { LeadModule } from "../lead/lead.module";
 import { MailModule } from "../mail/mail.module";
 import { PrismaModule } from "../prisma/prisma.module";
+import { PuzzleModule } from "../puzzle/puzzle.module";
 import { WhatsAppModule } from "../whatsapp/whatsapp.module";
 import { SupportAdminController } from "./support-admin.controller";
 import { SupportAccountService } from "./support-account.service";
@@ -25,7 +26,7 @@ import { WhatsAppWebhookService } from "./whatsapp-webhook.service";
 /** WhatsApp support bot and staff inbox (docs/WHATSAPP_SUPPORT.md). */
 @Module({
   controllers: [SupportAdminController, WhatsAppWebhookController],
-  imports: [DemoClassModule, JwtModule.register({}), LeadModule, MailModule, PrismaModule, WhatsAppModule],
+  imports: [DemoClassModule, JwtModule.register({}), LeadModule, MailModule, PrismaModule, PuzzleModule, WhatsAppModule],
   providers: [
     SupportAccountService,
     SupportAdminService,

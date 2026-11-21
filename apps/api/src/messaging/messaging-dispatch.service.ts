@@ -51,6 +51,11 @@ interface Recipient {
   dedupeKey: string | null;
   /** Attached to the WhatsApp message, when the event carries a document. */
   document?: DispatchDocument;
+  /**
+   * Gets the rule's picture (its `pictureVariable` link) on WhatsApp. False =
+   * only when the approved template has an IMAGE header and so can't go without it.
+   */
+  picture?: boolean;
 }
 
 /**
@@ -98,7 +103,13 @@ export type DispatchRequest =
    * academy day `day` (YYYY-MM-DD) whose send time is near. One message per
    * number per day, and nothing about the student in it.
    */
-  | { event: "DAILY_PUZZLE"; day: string; timeZone: string }
+  | {
+      event: "DAILY_PUZZLE";
+      day: string;
+      timeZone: string;
+      /** The board picture's path on the academy's address (step 3); null = no picture. */
+      picturePath: string | null;
+    }
   | { event: "ANNOUNCEMENT"; announcementId: string }
   | { event: "ACCOUNT_WELCOME" | "ACCOUNT_APPROVED" | "ACCOUNT_DECLINED"; userId: string }
   /** The admins who can review a self-registration (coaches: super admins only), told it is waiting. */
@@ -300,7 +311,7 @@ export class MessagingDispatchService {
     recipient: Recipient,
     body: string,
     scheduledFor: Date
-  ): Promise<"queued" | "no-phone" | "duplicate"> {
+  ): Promise<"queued" | "no-phone" | "skipped" | "duplicate"> {
     const to = this.whatsapp.normalizeRecipient(recipient.phoneNumber);
     if (!to) {
       // Recorded rather than dropped: "who did we fail to reach" is the first
@@ -328,6 +339,25 @@ export class MessagingDispatchService {
       },
       recipient.variables
     );
+    // The rule's picture (Puzzle of the Day's board): a template takes it only in an IMAGE header.
+    const pictureVariable = MESSAGING_EVENT_DEFINITIONS[rule.event].pictureVariable;
+    const pictureLink = pictureVariable ? recipient.variables[pictureVariable] || null : null;
+    const needsPicture = template !== null && rule.whatsappTemplateImageHeader && pictureVariable !== undefined;
+    if (needsPicture && !pictureLink) {
+      await this.queue({
+        rule,
+        recipient,
+        channel: "WHATSAPP",
+        body,
+        phone: to,
+        status: "SKIPPED",
+        scheduledFor,
+        error: "The template needs a picture and there is none today."
+      });
+      return "skipped";
+    }
+    const image =
+      pictureLink && (needsPicture || (template === null && recipient.picture === true)) ? pictureLink : null;
     const queued = await this.queue({
       rule,
       recipient,
@@ -336,6 +366,7 @@ export class MessagingDispatchService {
       phone: to,
       scheduledFor,
       document: recipient.document,
+      imageLink: image,
       ...(template
         ? {
             // The saved language (null = Meta's default), exactly as before this was shared.
@@ -364,6 +395,7 @@ export class MessagingDispatchService {
     templateLanguage?: string | null;
     templateParams?: string[];
     document?: DispatchDocument;
+    imageLink?: string | null;
   }): Promise<boolean> {
     try {
       await this.prisma.messageDelivery.create({
@@ -382,6 +414,7 @@ export class MessagingDispatchService {
           documentMediaId: input.document?.mediaId ?? null,
           documentLink: input.document?.link ?? null,
           documentFilename: input.document?.filename ?? null,
+          imageLink: input.imageLink ?? null,
           scheduledFor: input.scheduledFor,
           error: input.error ?? null,
           dedupeKey: input.recipient.dedupeKey
@@ -684,6 +717,8 @@ export class MessagingDispatchService {
       dedupeKey: dailyPuzzleDedupeKey(number.phone, request.day),
       isEmailVerified: false,
       linkPath,
+      // A shared number can't answer (we can't tell who did): no picture to answer, unless the template needs one.
+      picture: number.studentId !== null,
       phoneNumber: number.phone,
       role: UserRole.STUDENT,
       timezone: request.timeZone,
@@ -692,7 +727,8 @@ export class MessagingDispatchService {
         "academy.name": ACADEMY_NAME,
         // A calendar day, not an instant: formatted as written.
         "dailyPuzzle.date": formatInZone(new Date(`${request.day}T12:00:00Z`), "UTC", "date"),
-        "links.dailyPuzzle": `${frontendUrl}${linkPath}`
+        "links.dailyPuzzle": `${frontendUrl}${linkPath}`,
+        "links.dailyPuzzlePicture": request.picturePath ? `${frontendUrl}${request.picturePath}` : ""
       }
     }));
   }

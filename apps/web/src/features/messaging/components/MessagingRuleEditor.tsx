@@ -176,7 +176,8 @@ export function MessagingRuleEditor({
           scheduleDays: normalizeMessagingSendDays(messagingSendDays(draft)),
           title: draft.title,
           body: draft.body,
-          ...templateFieldsFrom(template)
+          ...templateFieldsFrom(template),
+          ...(definition.pictureVariable ? { whatsappTemplateImageHeader: draft.whatsappTemplateImageHeader } : {})
         }
       },
       { onSuccess: () => onOpenChange(false) }
@@ -450,6 +451,21 @@ export function MessagingRuleEditor({
             onChange={setTemplate}
             samples={sampleVariablesFor(rule.event)}
           />
+
+          {definition.pictureVariable ? (
+            <div className="rounded-app border border-app-border p-4">
+              <Switch
+                checked={draft.whatsappTemplateImageHeader}
+                id={`${rule.event}-image-header`}
+                label="The template has an image header: put the board picture there"
+                onCheckedChange={(on) => setDraft((current) => ({ ...current, whatsappTemplateImageHeader: on }))}
+              />
+              <p className="mt-2 text-xs text-app-muted">
+                Turn this on only if the approved template was made with an Image header, or WhatsApp refuses it.
+                Without a template the picture is sent with the text above as its caption.
+              </p>
+            </div>
+          ) : null}
 
           <div className="rounded-app border border-app-border p-4">
             <p className="text-sm font-semibold text-app-text">Send a test</p>

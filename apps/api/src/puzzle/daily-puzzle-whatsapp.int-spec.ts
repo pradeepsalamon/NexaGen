@@ -133,6 +133,7 @@ describe("Puzzle of the Day on WhatsApp (real Postgres)", () => {
       numbers: 2,
       schedule: "Mon, Wed at 7:00 am",
       sending: true,
+      settings: { answerAfter: 3, hintAfter: 1, level: "MEDIUM", maxTries: 3 },
       sharedNumbers: 1,
       students: 3,
       turnedOff: 0

@@ -1051,7 +1051,10 @@ export const API_ROUTES = {
     settings: "/daily-puzzle/settings",
     // The student's own WhatsApp switch (step 2).
     whatsapp: "/daily-puzzle/whatsapp",
-    batch: (id: string = ":id") => `/daily-puzzle/batches/${id}`
+    batch: (id: string = ":id") => `/daily-puzzle/batches/${id}`,
+    // Public, signed: what the WhatsApp board picture draws (step 3). The web
+    // app's image route reads it; the token is the credential.
+    picture: (token: string = ":token") => `/daily-puzzle/picture/${token}`
   },
   // Smart Revision (spaced repetition, docs/SMART_REVISION.md). `mine*` are the
   // student's own; `student*` are coach (batch scope) / admin views + recommendations.

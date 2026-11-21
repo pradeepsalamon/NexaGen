@@ -96,6 +96,10 @@ the editors; a new placeholder needs an entry (a spec checks).
   is the one rule); a phone on 2+ accounts gets the link only.
   `DailyPuzzleWhatsAppService`'s hourly cron dispatches it per academy day; one row
   per number. [PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md) step 2.
+  Step 3: its `pictureVariable` (`links.dailyPuzzlePicture`, the board picture)
+  rides on the outbox row as `imageLink`: an approved template's IMAGE header when
+  the rule's `whatsappTemplateImageHeader` is on, else free text goes as the
+  picture with the text as caption (`WhatsAppService.trySendMessage`).
 - `ASSIGNMENT_DUE_SOON` + `ASSIGNMENT_GRADED` ship **enabled, in-app only** —
   they absorbed the old unconditional notifications (`NotificationScheduler` is
   deleted; `assignment-attempt.service` now dispatches instead of notifying).

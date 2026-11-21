@@ -117,7 +117,7 @@ function WhatsAppCard({ status }: { status: DailyPuzzleWhatsAppStatus }) {
                   ? "Turned off. Switch it on to get the puzzle on WhatsApp again."
                   : status.sharedPhone
                     ? `A short message with the link, ${status.schedule?.toLowerCase() ?? "each day"}, to ${status.phoneMasked}. Another student uses this number too, so answer in the app.`
-                    : `Today's puzzle, ${status.schedule?.toLowerCase() ?? "each day"}, to ${status.phoneMasked}.`}
+                    : `Today's puzzle, ${status.schedule?.toLowerCase() ?? "each day"}, to ${status.phoneMasked}. Reply there with your move to answer it.`}
           </p>
           {noPhone && status.available ? (
             <Link className="text-sm font-semibold text-primary-ink underline-offset-2 hover:underline" href="/profile">

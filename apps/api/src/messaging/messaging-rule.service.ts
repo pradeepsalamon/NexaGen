@@ -7,6 +7,7 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
   DEFAULT_MESSAGING_RULES,
   MESSAGING_EVENTS,
@@ -101,6 +102,9 @@ export class MessagingRuleService {
     if (definition.scheduledOnly && dto.scheduleMode === "IMMEDIATE") {
       throw new BadRequestException(`"${definition.label}" goes out at a set time: choose daily or weekly.`);
     }
+    if (dto.whatsappTemplateImageHeader && !definition.pictureVariable) {
+      throw new BadRequestException(`"${definition.label}" has no picture to put in a template's image header.`);
+    }
     if (definition.whatsappOnly && (dto.emailEnabled || dto.inAppEnabled)) {
       throw new BadRequestException(`"${definition.label}" is sent on WhatsApp only.`);
     }
@@ -162,6 +166,9 @@ export class MessagingRuleService {
               whatsappTemplateParams: [...template.params]
             }
           : {}),
+        ...(dto.whatsappTemplateImageHeader === undefined
+          ? {}
+          : { whatsappTemplateImageHeader: dto.whatsappTemplateImageHeader }),
         updatedById: admin.id
       },
       include: { updatedBy: { select: { firstName: true, lastName: true } } }
@@ -212,7 +219,10 @@ export class MessagingRuleService {
       { language: rule.whatsappTemplateLanguage, name: rule.whatsappTemplateName, params: rule.whatsappTemplateParams },
       sampleVariablesFor(event)
     );
-    const outcome = await this.whatsapp.trySendMessage({ template, text: markdownToWhatsApp(preview), to });
+    // A template with an IMAGE header can't go without a picture: the test uses the site's share image.
+    const image =
+      template && rule.whatsappTemplateImageHeader ? `${getFrontendUrl(getApiEnv())}/opengraph-image` : null;
+    const outcome = await this.whatsapp.trySendMessage({ image, template, text: markdownToWhatsApp(preview), to });
     if (!outcome.ok && template) {
       this.logger.warn(`Test of ${event} with WhatsApp template "${template.name}" failed: ${outcome.error.message}`);
     }
@@ -453,6 +463,7 @@ export class MessagingRuleService {
       whatsappTemplateName: row.whatsappTemplateName,
       whatsappTemplateLanguage: row.whatsappTemplateLanguage,
       whatsappTemplateParams: row.whatsappTemplateParams,
+      whatsappTemplateImageHeader: row.whatsappTemplateImageHeader,
       updatedAt: row.updatedAt.toISOString(),
       updatedByName: row.updatedBy
         ? `${row.updatedBy.firstName} ${row.updatedBy.lastName ?? ""}`.trim()

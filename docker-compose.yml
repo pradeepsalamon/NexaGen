@@ -206,6 +206,8 @@ services:
       # Two-factor sign-in. Unset key = MFA unavailable; roles listed must use it.
       MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
       MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES:-SUPER_ADMIN,ADMIN}
+      # Signs Puzzle of the Day's WhatsApp board-picture links; unset = derived from the keys above.
+      DAILY_PUZZLE_PICTURE_SECRET: ${DAILY_PUZZLE_PICTURE_SECRET:-}
 
       # Constant-time-ish auth responses so a client can't tell "wrong password"
       # from "no such account" apart by response latency.

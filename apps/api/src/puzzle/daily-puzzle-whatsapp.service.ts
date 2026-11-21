@@ -1,12 +1,19 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { ModuleRef } from "@nestjs/core";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { JwtService } from "@nestjs/jwt";
 import {
   describeSchedule,
+  type DailyPuzzleLevel,
+  type DailyPuzzlePictureResponse,
   type DailyPuzzleWhatsAppStatus,
   type DailyPuzzleWhatsAppSummary
 } from "@nexa-chess/types";
 import type { MessagingRule, User } from "@prisma/client";
+import { ChessAppearanceService } from "../chess-appearance/chess-appearance.service";
+import { assertValidFen } from "../assignment/assignment-evaluation.service";
+import { dayToDate } from "../progress/progress-recorder.service";
+import { runInTenant } from "../tenancy/tenant-context";
 import { zonedYmd } from "../common/time";
 import { ACTIVE_STUDENT_ACCOUNT, cancelQueuedDailyPuzzle, loadDailyPuzzleAudience } from "../messaging/daily-puzzle-deliveries";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
@@ -17,6 +24,13 @@ import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import { DailyPuzzleService } from "./daily-puzzle.service";
+import {
+  dailyPuzzlePictureKey,
+  dailyPuzzlePicturePath,
+  readDailyPuzzlePicture,
+  signDailyPuzzlePicture
+} from "./daily-puzzle-picture";
 import { assertStudent, authenticateUser } from "./puzzle-auth.helper";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -38,10 +52,14 @@ const HOUR_MS = 60 * 60 * 1000;
 export class DailyPuzzleWhatsAppService {
   private readonly logger = new Logger(DailyPuzzleWhatsAppService.name);
 
+  private readonly pictureKey = dailyPuzzlePictureKey();
+
   constructor(
+    private readonly appearance: ChessAppearanceService,
     private readonly dispatch: MessagingDispatchService,
     private readonly jobLocks: JobLockService,
     private readonly jwtService: JwtService,
+    private readonly moduleRef: ModuleRef,
     private readonly prisma: PrismaService,
     private readonly rules: MessagingRuleService,
     private readonly whatsapp: WhatsAppService
@@ -102,11 +120,13 @@ export class DailyPuzzleWhatsAppService {
 
   /** Academy figures for the admin schedule page: whom it reaches, who turned it off, who has no usable phone. */
   async summary(): Promise<DailyPuzzleWhatsAppSummary> {
-    const [rule, audience] = await Promise.all([
+    const [rule, audience, settings] = await Promise.all([
       this.rules.getRule("DAILY_PUZZLE"),
-      loadDailyPuzzleAudience(this.prisma, (raw) => this.whatsapp.normalizeRecipient(raw))
+      loadDailyPuzzleAudience(this.prisma, (raw) => this.whatsapp.normalizeRecipient(raw)),
+      this.daily().whatsappSettings()
     ]);
     return {
+      settings,
       noPhone: audience.noPhone,
       numbers: audience.numbers.length,
       schedule: describeSchedule(rule),
@@ -150,11 +170,63 @@ export class DailyPuzzleWhatsAppService {
     const { year, month, day } = zonedYmd(timeZone, sendAt);
     const puzzleDay = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
-    const summary = await this.dispatch.dispatch({ day: puzzleDay, event: "DAILY_PUZZLE", timeZone });
+    const audience = await loadDailyPuzzleAudience(this.prisma, (raw) => this.whatsapp.normalizeRecipient(raw));
+    if (audience.numbers.length === 0) return 0;
+    // Picked before queueing, so the picture exists when Meta fetches it.
+    const picturePath = await this.picturePathFor(tenantId, puzzleDay, audience.numbers[0].studentIds[0]);
+
+    const summary = await this.dispatch.dispatch({ day: puzzleDay, event: "DAILY_PUZZLE", picturePath, timeZone });
     if (summary.queuedWhatsApp > 0) {
       this.logger.log(`Puzzle of the Day ${puzzleDay}: ${summary.queuedWhatsApp} WhatsApp message(s) queued.`);
     }
     return summary.queuedWhatsApp;
+  }
+
+  // ── The board picture (step 3) ──
+
+  /**
+   * The signed picture path of the academy-wide puzzle at the pictured level
+   * (never a batch's own pick), picking it now if needed. Null = no signing key
+   * or no puzzle at that level today: the message goes without a picture.
+   */
+  async picturePathFor(tenantId: string, day: string, actorId: string): Promise<string | null> {
+    if (!this.pictureKey) return null;
+    const { level } = await this.daily().whatsappSettings();
+    const puzzleId = await this.daily().academyPuzzle(day, level, actorId);
+    if (!puzzleId) return null;
+    return dailyPuzzlePicturePath(signDailyPuzzlePicture({ day, level, puzzleId, tenantId }, this.pictureKey));
+  }
+
+  /** The day, level and puzzle of a picture link this service signed; null for anything else. */
+  readPicture(token: string): { day: string; level: DailyPuzzleLevel; puzzleId: string; tenantId: string } | null {
+    return this.pictureKey ? readDailyPuzzlePicture(token, this.pictureKey) : null;
+  }
+
+  /**
+   * Public (the link is the credential): what the web app's image route draws.
+   * Only a genuine, unexpired link to the academy's own puzzle of that day and
+   * level; the position the student solves from, drawn from their side, in the
+   * academy's board look. No solution, no student data.
+   */
+  async picture(token: string): Promise<DailyPuzzlePictureResponse> {
+    const claims = this.readPicture(token);
+    if (!claims) throw new NotFoundException("Picture not found.");
+    return runInTenant(claims.tenantId, "dailyPuzzlePicture", async () => {
+      const row = await this.prisma.dailyPuzzle.findFirst({
+        select: { puzzle: { select: { fen: true } } },
+        where: { day: dayToDate(claims.day), level: claims.level, puzzleId: claims.puzzleId, scopeKey: "academy" }
+      });
+      // Still one of the academy's own picks for that day and level (automatic or an admin's).
+      if (!row) throw new NotFoundException("Picture not found.");
+      const fen = assertValidFen(row.puzzle.fen);
+      const look = await this.appearance.academyAppearance();
+      return { boardTheme: look.boardThemeId, fen, flip: fen.split(" ")[1] === "b", pieceSet: look.pieceSetId };
+    });
+  }
+
+  private daily(): DailyPuzzleService {
+    // Resolved lazily: DailyPuzzleService also reads this service (the student's switch).
+    return this.moduleRef.get(DailyPuzzleService, { strict: false });
   }
 
   /** The academy sends it: rule on, WhatsApp channel on, the academy's WhatsApp connected. */

@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import Link from "next/link";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { MessageCircle, Pencil, RotateCcw, Search } from "lucide-react";
 import {
   DAILY_PUZZLE_BANDS,
   DAILY_PUZZLE_LEVEL_LABELS,
   DAILY_PUZZLE_LEVELS,
+  DAILY_PUZZLE_MAX_WHATSAPP_TRIES,
+  dailyPuzzleWhatsAppSettingsSchema,
+  type DailyPuzzleWhatsAppSettings,
   type DailyPuzzleScheduleSlot,
   type DailyPuzzleSource,
   type DailyPuzzleWhatsAppSummary
@@ -29,7 +34,12 @@ import { formatLongDate } from "@/lib/datetime";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
 import { titleWithoutRating } from "../lib/puzzleTitle";
-import { useDailyPuzzleSchedule, useSetDailyPuzzleOverride, useUpdateDailyPuzzleSwitch } from "../hooks/useDailyPuzzle";
+import {
+  useDailyPuzzleSchedule,
+  useSaveDailyPuzzleWhatsAppSettings,
+  useSetDailyPuzzleOverride,
+  useUpdateDailyPuzzleSwitch
+} from "../hooks/useDailyPuzzle";
 
 const SOURCE_LABELS: Record<DailyPuzzleSource, string> = {
   ACADEMY: "Academy pick",
@@ -267,37 +277,96 @@ function PickPuzzleDialog({
 }
 
 /**
- * Step 2 at a glance: whether the WhatsApp send is on and how many numbers it
- * reaches (each message costs the academy). Settings live with the other
- * messaging rules.
+ * The WhatsApp send at a glance: whether it is on and whom it reaches (each
+ * message costs the academy), plus step 3's picture level and reply limits.
+ * Timing and the template live with the other messaging rules.
  */
 function WhatsAppSummary({ summary }: { summary: DailyPuzzleWhatsAppSummary }) {
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   return (
-    <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
-      <div className="flex min-w-0 items-start gap-3">
-        <MessageCircle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-app-muted" strokeWidth={2.5} />
-        <div className="min-w-0 space-y-1">
-          <p className="font-bold text-app-text">
-            On WhatsApp: {summary.sending ? summary.schedule : "off"}
-          </p>
-          <p className="text-sm text-app-muted">
-            Goes to every student&apos;s own phone unless they switch it off on their Puzzle of the Day page.{" "}
-            Reaches {plural(summary.students, "student", "students")} on {plural(summary.numbers, "number", "numbers")}
-            {summary.sharedNumbers > 0 ? ` (${summary.sharedNumbers} shared by more than one student get the link only)` : ""};{" "}
-            {plural(summary.turnedOff, "student", "students")} turned it off,{" "}
-            {plural(summary.noPhone, "student has", "students have")} no WhatsApp number on their account.
-            {summary.sending ? ` Up to ${plural(summary.numbers, "message", "messages")} a send day.` : ""}
-          </p>
-          <p className="text-xs text-app-muted">
-            WhatsApp expects families to have agreed to messages from the academy: mention the daily puzzle at
-            registration or in your welcome message (they can reply STOP anytime).
-          </p>
+    <Card className="space-y-4 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <MessageCircle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-app-muted" strokeWidth={2.5} />
+          <div className="min-w-0 space-y-1">
+            <p className="font-bold text-app-text">
+              On WhatsApp: {summary.sending ? summary.schedule : "off"}
+            </p>
+            <p className="text-sm text-app-muted">
+              Goes to every student&apos;s own phone unless they switch it off on their Puzzle of the Day page.{" "}
+              Reaches {plural(summary.students, "student", "students")} on {plural(summary.numbers, "number", "numbers")}
+              {summary.sharedNumbers > 0 ? ` (${summary.sharedNumbers} shared by more than one student get the link only)` : ""};{" "}
+              {plural(summary.turnedOff, "student", "students")} turned it off,{" "}
+              {plural(summary.noPhone, "student has", "students have")} no WhatsApp number on their account.
+              {summary.sending ? ` Up to ${plural(summary.numbers, "message", "messages")} a send day.` : ""}
+            </p>
+            <p className="text-xs text-app-muted">
+              WhatsApp expects families to have agreed to messages from the academy: mention the daily puzzle at
+              registration or in your welcome message (they can reply STOP anytime).
+            </p>
+          </div>
         </div>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/admin/messaging">WhatsApp settings</Link>
+        </Button>
       </div>
-      <Button asChild size="sm" variant="outline">
-        <Link href="/admin/messaging">WhatsApp settings</Link>
-      </Button>
+      <WhatsAppAnswerSettings initial={summary.settings} />
     </Card>
+  );
+}
+
+/**
+ * Step 3: which level's academy puzzle is pictured, and how answering by reply
+ * works (wrong tries allowed; after how many a hint or the answer may be asked for).
+ */
+function WhatsAppAnswerSettings({ initial }: { initial: DailyPuzzleWhatsAppSettings }) {
+  const save = useSaveDailyPuzzleWhatsAppSettings();
+  const form = useForm<DailyPuzzleWhatsAppSettings>({
+    defaultValues: initial,
+    resolver: zodResolver(dailyPuzzleWhatsAppSettingsSchema)
+  });
+  const { errors, isDirty } = form.formState;
+  const numberField = (name: "maxTries" | "hintAfter" | "answerAfter", label: string, hint: string, min: number) => (
+    <FormField error={errors[name]?.message} hint={hint} id={`dailyPuzzleWa-${name}`} label={label}>
+      <Input
+        id={`dailyPuzzleWa-${name}`}
+        inputMode="numeric"
+        max={DAILY_PUZZLE_MAX_WHATSAPP_TRIES}
+        min={min}
+        type="number"
+        {...form.register(name, { valueAsNumber: true })}
+      />
+    </FormField>
+  );
+
+  return (
+    <form
+      className="space-y-3 border-t border-app-border pt-4"
+      noValidate
+      onSubmit={form.handleSubmit((values) => save.mutate(values, { onSuccess: () => form.reset(values) }))}
+    >
+      <div>
+        <p className="font-semibold text-app-text">Picture and answering by reply</p>
+        <p className="text-xs text-app-muted">
+          The message shows the academy&apos;s puzzle of one level as a board picture; a student answers by
+          replying with the first move. Needs the WhatsApp support bot on, so replies reach the academy.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <FormField error={errors.level?.message} id="dailyPuzzleWa-level" label="Pictured level">
+          <Select
+            id="dailyPuzzleWa-level"
+            options={DAILY_PUZZLE_LEVELS.map((level) => ({ label: DAILY_PUZZLE_LEVEL_LABELS[level], value: level }))}
+            {...form.register("level")}
+          />
+        </FormField>
+        {numberField("maxTries", "Wrong tries allowed", "Then the answer is sent.", 1)}
+        {numberField("hintAfter", "Hint after", "Wrong tries before HINT works.", 0)}
+        {numberField("answerAfter", "Answer after", "Wrong tries before ANSWER works.", 0)}
+      </div>
+      <Button disabled={!isDirty || save.isPending} size="sm" type="submit">
+        Save
+      </Button>
+    </form>
   );
 }

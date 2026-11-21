@@ -271,10 +271,14 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
 system messages then skip that number (`SKIPPED`, checked at send time, so
 queued ones stop too). Support replies to the customer's own messages still go.
 
-**Puzzle of the Day** ([PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md)): the bot has
-no keywords for it (owner, 2026-11-21: the student's app switch is the only
+**Puzzle of the Day** ([PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md)): no keywords
+turn it on or off (owner, 2026-11-21: the student's app switch is the only
 on/off; the first version's `PUZZLE` / `PUZZLE OFF` were removed). STOP still
-blocks it like every proactive message.
+blocks it like every proactive message. Step 3: before the flow, every typed
+text goes to `DailyPuzzleAnswerService.reply` (inside the same transaction and
+contact lock, not while staff own the conversation). A move, `HINT` or `ANSWER`
+from a number whose picture went out today is answered there and the flow's
+state stays as it was; anything else (null) runs the flow as before.
 
 **Course enquiries, demo bookings and follow-ups (built 2026-11-14, flow
 version 2).** Owner's priority: answer leads at once and follow up quickly.

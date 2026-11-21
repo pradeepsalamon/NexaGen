@@ -3547,6 +3547,8 @@ model MessagingRule {
   whatsappTemplateName     String?
   whatsappTemplateLanguage String?
   whatsappTemplateParams   String[]
+  /// The template has an IMAGE header the rule fills (only rules that make a picture: Puzzle of the Day's board).
+  whatsappTemplateImageHeader Boolean @default(false)
 
   updatedById String?
   updatedBy   User?   @relation("MessagingRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
@@ -3592,6 +3594,8 @@ model MessageDelivery {
   documentMediaId  String?
   documentLink     String?
   documentFilename String?
+  /// A picture link (Puzzle of the Day's board): the template's IMAGE header, or sent with the text as its caption.
+  imageLink        String?
 
   /// When the outbox may send it. Future for a DAILY/WEEKLY rule or a backoff.
   scheduledFor  DateTime  @default(now())
@@ -9273,6 +9277,10 @@ model DailyPuzzleEntry {
 
   finishedAt DateTime?
   solved     Boolean?
+  /// Wrong moves sent by WhatsApp reply (docs/PUZZLE_OF_THE_DAY.md step 3); the academy's limits apply.
+  whatsappTries  Int       @default(0)
+  /// A hint was sent by WhatsApp.
+  whatsappHintAt DateTime?
   createdAt  DateTime  @default(now())
 
   @@unique([studentId, day, level])
@@ -9287,6 +9295,12 @@ model DailyPuzzleSettings {
   /// Owning academy (Tenant.id).
   tenantId    String   @unique @default("tenant_nexa")
   enabled     Boolean  @default(true)
+  /// Step 3 (WhatsApp picture + answering by reply): the level whose academy puzzle is pictured.
+  whatsappLevel       DailyPuzzleLevel @default(MEDIUM)
+  /// Wrong replies allowed; after `whatsappHintAfter` wrong ones a HINT, after `whatsappAnswerAfter` the ANSWER.
+  whatsappMaxTries    Int              @default(3)
+  whatsappHintAfter   Int              @default(1)
+  whatsappAnswerAfter Int              @default(3)
   updatedById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { DailyPuzzleLevel, SetDailyPuzzleOverrideRequest } from "@nexa-chess/types";
+import type { DailyPuzzleLevel, DailyPuzzleWhatsAppSettings, SetDailyPuzzleOverrideRequest } from "@nexa-chess/types";
 import { getErrorMessage } from "@/lib/errors";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
@@ -77,12 +77,28 @@ export function useUpdateDailyPuzzleSwitch() {
   const toast = useToast();
   const invalidate = useInvalidateDailyPuzzle();
   return useMutation({
-    mutationFn: ({ batchId, enabled }: { batchId: string | null; enabled: boolean }) =>
-      batchId ? updateBatchDailyPuzzle(batchId, enabled) : updateDailyPuzzleSettings(enabled),
+    mutationFn: async ({ batchId, enabled }: { batchId: string | null; enabled: boolean }) => {
+      if (batchId) await updateBatchDailyPuzzle(batchId, enabled);
+      else await updateDailyPuzzleSettings({ enabled });
+    },
     onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't save" }),
     onSuccess: (_res, { enabled }) => {
       invalidate();
       toast.success({ title: enabled ? "Puzzle of the Day is on" : "Puzzle of the Day is off" });
+    }
+  });
+}
+
+// undo: intentionally excluded — a settings Save; saving the old numbers again is the correction.
+export function useSaveDailyPuzzleWhatsAppSettings() {
+  const toast = useToast();
+  const invalidate = useInvalidateDailyPuzzle();
+  return useMutation({
+    mutationFn: (whatsapp: DailyPuzzleWhatsAppSettings) => updateDailyPuzzleSettings({ whatsapp }),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't save" }),
+    onSuccess: () => {
+      invalidate();
+      toast.success({ title: "WhatsApp puzzle settings saved" });
     }
   });
 }

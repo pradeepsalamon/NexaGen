@@ -19,6 +19,7 @@ import type {
   WhatsAppApiSuccess,
   WhatsAppDocumentMessage,
   WhatsAppFailure,
+  WhatsAppImageMessage,
   WhatsAppInteractiveMessage,
   WhatsAppMediaUploadResult,
   WhatsAppOutboundMessage,
@@ -30,6 +31,7 @@ import type {
 import {
   WHATSAPP_TEXT_BODY_LIMIT,
   buildDocumentPayload,
+  buildImagePayload,
   buildInteractivePayload,
   buildTemplatePayload,
   buildTextPayload,
@@ -145,18 +147,31 @@ export class WhatsAppService {
    * the messaging outbox, system messages and the admins' test sends all go through here.
    */
   async trySendMessage(message: WhatsAppOutboundMessage): Promise<WhatsAppSendOutcome> {
-    const { document, template, text, to } = message;
+    const { document, image, template, text, to } = message;
     if (template) {
       return this.trySendTemplate({
         bodyParams: template.bodyParams,
         headerDocument: document ?? undefined,
+        headerImage: !document && image ? { link: image } : undefined,
         language: template.language,
         name: template.name,
         to
       });
     }
     if (document) return this.trySendDocument({ ...document, caption: text, to });
+    if (image) return this.attempt(() => this.sendImage({ caption: text, link: image, to }));
     return this.trySendText({ body: text, to });
+  }
+
+  /** A picture by link with a caption. Only deliverable inside the 24h window, like text. */
+  async sendImage(message: WhatsAppImageMessage): Promise<WhatsAppSendResult> {
+    if (!/^https:\/\//.test(message.link)) throw new BadRequestException("A WhatsApp image needs an https link.");
+    // Meta's limit for a media caption.
+    if ((message.caption?.length ?? 0) > 1024) {
+      throw new BadRequestException("A WhatsApp picture's caption can be at most 1024 characters.");
+    }
+    const to = this.resolveRecipient(message.to);
+    return this.send(buildImagePayload(message, to), to);
   }
 
   /** Best-effort template send. See {@link trySendText}. */

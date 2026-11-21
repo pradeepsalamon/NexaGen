@@ -43,6 +43,13 @@ const apiEnvSchema = z.object({
     .min(32, "CREDENTIALS_ENCRYPTION_KEY must be at least 32 characters.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  // Signs Puzzle of the Day's WhatsApp board-picture links (docs/PUZZLE_OF_THE_DAY.md step 3). Never a JWT secret.
+  // Unset = a key derived from CREDENTIALS_ENCRYPTION_KEY, else MFA_ENCRYPTION_KEY; none of them = no picture.
+  DAILY_PUZZLE_PICTURE_SECRET: z
+    .string()
+    .min(32, "DAILY_PUZZLE_PICTURE_SECRET must be at least 32 characters.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   // Roles that must sign in with two-factor (comma-separated; empty = none).
   MFA_REQUIRED_ROLES: z.string().default("SUPER_ADMIN,ADMIN"),
   NODE_ENV: z.string().default("development"),

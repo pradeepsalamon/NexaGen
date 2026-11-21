@@ -20,6 +20,7 @@ import {
 import { ClassStatus, MessageChannel, MessageDeliveryStatus, Prisma, type Lead, type SupportConversation, type SupportTicket, type WhatsAppContact, type WhatsAppWebhookEvent } from "@prisma/client";
 import { DEFAULT_TIME_ZONE } from "../common/time";
 import { DemoInviteService, demoInvitePath } from "../demo-class/demo-invite.service";
+import { DailyPuzzleAnswerService } from "../puzzle/daily-puzzle-answer.service";
 import { FrappeCrmPushService, phoneTail } from "../lead/frappe-crm-push.service";
 import { LeadStageService } from "../lead/lead-stage.service";
 import { LeadService } from "../lead/lead.service";
@@ -99,6 +100,7 @@ export class SupportConversationService {
     private readonly leads: LeadService,
     private readonly outbox: SupportOutboxService,
     private readonly prisma: PrismaService,
+    private readonly dailyPuzzle: DailyPuzzleAnswerService,
     private readonly settings: SupportSettingsService,
     private readonly tickets: SupportTicketsService,
     private readonly unanswered: SupportUnansweredService
@@ -163,6 +165,41 @@ export class SupportConversationService {
               select: { id: true }
             })
           : null;
+
+      // Puzzle of the Day (docs/PUZZLE_OF_THE_DAY.md step 3): a move, HINT or
+      // ANSWER from a number that got today's picture is answered here, and the
+      // bot's own flow stays where it was. Not while staff own the conversation.
+      const puzzleReply =
+        conversation.status === "BOT" && event.text && !event.replyId
+          ? await this.dailyPuzzle.reply(tx, contact.waId, event.text, `${origin ?? getFrontendUrl(this.env)}/student/daily-puzzle`)
+          : null;
+      if (puzzleReply) {
+        await tx.supportConversation.update({ data: { lastInboundAt: now }, where: { id: conversation.id } });
+        for (const [index, body] of puzzleReply.replies.entries()) {
+          await tx.supportMessage.create({
+            data: {
+              author: "BOT",
+              body,
+              clientKey: `bot:${event.providerMessageId}:${index}`,
+              conversationId: conversation.id,
+              direction: "OUTBOUND",
+              payload: Prisma.JsonNull,
+              status: "PENDING"
+            }
+          });
+        }
+        return {
+          afterCommit: puzzleReply.afterCommit,
+          announce: false,
+          attachmentId: attachment?.id ?? null,
+          booking: null,
+          confirmations: [],
+          conversationId: conversation.id,
+          newLead: null,
+          ticket: null,
+          unansweredTexts: []
+        };
+      }
 
       // "Reschedule" on a demo reminder: only a booking of this number's that isn't over yet.
       const moving = event.replyId?.startsWith(SUPPORT_DEMO_MOVE_PREFIX)
@@ -301,10 +338,11 @@ export class SupportConversationService {
         });
       }
 
-      return { announce, attachmentId: attachment?.id ?? null, booking, confirmations, conversationId: conversation.id, newLead, ticket, unansweredTexts };
+      return { afterCommit: [], announce, attachmentId: attachment?.id ?? null, booking, confirmations, conversationId: conversation.id, newLead, ticket, unansweredTexts };
     });
 
     if (!outcome) return;
+    for (const work of outcome.afterCommit) work();
     await this.outbox.sendPending(outcome.conversationId);
     if (outcome.attachmentId) await this.attachments.store(outcome.attachmentId);
     if (outcome.booking) await this.bookDemoSlot(outcome.booking, contact.id, origin);

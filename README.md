@@ -477,6 +477,9 @@ JWT_REFRESH_SECRET=...
 # Production refuses to boot without the key while MFA_REQUIRED_ROLES names a role (NONE opts out).
 MFA_ENCRYPTION_KEY=...
 MFA_REQUIRED_ROLES=SUPER_ADMIN,ADMIN
+# Signs Puzzle of the Day's WhatsApp board-picture links (never a JWT secret). Optional:
+# unset = derived from CREDENTIALS_ENCRYPTION_KEY, else MFA_ENCRYPTION_KEY; none = no picture.
+DAILY_PUZZLE_PICTURE_SECRET=
 # JSON logs (nestjs-pino); default info in production, debug (pretty) locally.
 LOG_LEVEL=info
 JWT_ACCESS_TTL=15m

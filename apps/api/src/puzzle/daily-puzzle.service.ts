@@ -3,6 +3,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException
 } from "@nestjs/common";
@@ -13,6 +15,7 @@ import {
   DAILY_PUZZLE_BANDS,
   DAILY_PUZZLE_LEVELS,
   DAILY_PUZZLE_SCHEDULE_DAYS,
+  DEFAULT_DAILY_PUZZLE_WHATSAPP_SETTINGS,
   dailyPuzzleLevelFor,
   INITIAL_PUZZLE_RATING,
   longestDailyStreak,
@@ -24,7 +27,9 @@ import {
   type DailyPuzzleScheduleSlot,
   type DailyPuzzleSettingsResponse,
   type DailyPuzzleTodayResponse,
+  type DailyPuzzleWhatsAppSettings,
   type SetDailyPuzzleOverrideRequest,
+  type UpdateDailyPuzzleSettingsRequest,
   type StartDailyPuzzleResponse
 } from "@nexa-chess/types";
 import {
@@ -73,6 +78,8 @@ export class DailyPuzzleService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly catalog: PuzzleCatalogService,
+    // The two files import each other (the WhatsApp service reads this one lazily).
+    @Inject(forwardRef(() => DailyPuzzleWhatsAppService))
     private readonly whatsapp: DailyPuzzleWhatsAppService
   ) {}
 
@@ -257,16 +264,64 @@ export class DailyPuzzleService {
     return schedule.slots.find((s) => s.day === dto.day && s.level === dto.level)!;
   }
 
-  async updateSettings(accessToken: string | undefined, enabled: boolean): Promise<DailyPuzzleSettingsResponse> {
+  async updateSettings(accessToken: string | undefined, dto: UpdateDailyPuzzleSettingsRequest): Promise<DailyPuzzleSettingsResponse> {
     const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
-    if (!isAdminRole(user.role)) throw new ForbiddenException("Only admins can turn Puzzle of the Day on or off.");
+    if (!isAdminRole(user.role)) throw new ForbiddenException("Only admins can change Puzzle of the Day settings.");
     const tenantId = requireTenantId("dailyPuzzleSettings");
+    const data = {
+      ...(dto.enabled === undefined ? {} : { enabled: dto.enabled }),
+      ...(dto.whatsapp
+        ? {
+            whatsappAnswerAfter: dto.whatsapp.answerAfter,
+            whatsappHintAfter: dto.whatsapp.hintAfter,
+            whatsappLevel: dto.whatsapp.level,
+            whatsappMaxTries: dto.whatsapp.maxTries
+          }
+        : {}),
+      updatedById: user.id
+    };
     const row = await this.prisma.dailyPuzzleSettings.upsert({
-      create: { enabled, id: singletonRowId(tenantId), tenantId, updatedById: user.id },
-      update: { enabled, updatedById: user.id },
+      create: { ...data, id: singletonRowId(tenantId), tenantId },
+      update: data,
       where: { tenantId }
     });
-    return { enabled: row.enabled };
+    return { enabled: row.enabled, whatsapp: whatsappSettingsOf(row) };
+  }
+
+  // ── Step 3 (WhatsApp picture + answering), for DailyPuzzleWhatsAppService ──
+
+  /** The academy's picture level and reply limits (defaults until an admin saves them). */
+  async whatsappSettings(): Promise<DailyPuzzleWhatsAppSettings> {
+    const row = await this.prisma.dailyPuzzleSettings.findUnique({ where: { tenantId: requireTenantId("dailyPuzzleSettings") } });
+    return row ? whatsappSettingsOf(row) : { ...DEFAULT_DAILY_PUZZLE_WHATSAPP_SETTINGS };
+  }
+
+  /** The academy-wide puzzle of a day and level (never a batch's), picked now if needed. */
+  academyPuzzle(day: string, level: DailyPuzzleLevel, actorId: string): Promise<string | null> {
+    return this.resolveToday(day, level, null, actorId);
+  }
+
+  /** Today in the academy, and whether Puzzle of the Day is on there. */
+  async academyDay(): Promise<{ day: string; enabled: boolean }> {
+    const [day, enabled] = await Promise.all([this.academyToday(), this.academyEnabled()]);
+    return { day, enabled };
+  }
+
+  /** The student's streak as of `today` (the app's own rule). */
+  async streakFor(studentId: string, today: string, client: Pick<PrismaService, "dailyPuzzleEntry"> = this.prisma): Promise<number> {
+    const rows = await client.dailyPuzzleEntry.findMany({
+      select: { day: true },
+      where: { finishedAt: { not: null }, studentId }
+    });
+    return computeDailyStreak(
+      rows.map((r) => dateToDay(r.day)!),
+      today
+    );
+  }
+
+  /** The student's first-enrolled batch with the daily puzzle on; null = it is off for them. */
+  studentHomeBatch(studentId: string): Promise<string | null> {
+    return this.homeBatchId(studentId);
   }
 
   async updateBatch(accessToken: string | undefined, batchId: string, enabled: boolean): Promise<{ batchId: string; enabled: boolean }> {
@@ -533,4 +588,18 @@ export class DailyPuzzleService {
     });
     return new Map(rows.map((r) => [r.id, r]));
   }
+}
+
+function whatsappSettingsOf(row: {
+  whatsappAnswerAfter: number;
+  whatsappHintAfter: number;
+  whatsappLevel: DailyPuzzleLevel;
+  whatsappMaxTries: number;
+}): DailyPuzzleWhatsAppSettings {
+  return {
+    answerAfter: row.whatsappAnswerAfter,
+    hintAfter: row.whatsappHintAfter,
+    level: row.whatsappLevel,
+    maxTries: row.whatsappMaxTries
+  };
 }

@@ -98,8 +98,71 @@ export const setDailyPuzzleOverrideRequestSchema = z
   .strict();
 export type SetDailyPuzzleOverrideRequest = z.infer<typeof setDailyPuzzleOverrideRequestSchema>;
 
-export const updateDailyPuzzleSettingsRequestSchema = z.object({ enabled: z.boolean() }).strict();
+/** The most wrong replies an academy may allow on WhatsApp. */
+export const DAILY_PUZZLE_MAX_WHATSAPP_TRIES = 10;
+
+/**
+ * Step 3 (picture + answering by WhatsApp reply), set by an academy admin: the
+ * pictured level, the wrong replies allowed, and after how many wrong ones a
+ * HINT and the ANSWER may be asked for (hint ≤ answer ≤ max).
+ */
+export const dailyPuzzleWhatsAppSettingsSchema = z
+  .object({
+    level: dailyPuzzleLevelSchema,
+    maxTries: z.number().int().min(1).max(DAILY_PUZZLE_MAX_WHATSAPP_TRIES),
+    hintAfter: z.number().int().min(0).max(DAILY_PUZZLE_MAX_WHATSAPP_TRIES),
+    answerAfter: z.number().int().min(0).max(DAILY_PUZZLE_MAX_WHATSAPP_TRIES)
+  })
+  .strict()
+  .refine((v) => v.hintAfter <= v.answerAfter && v.answerAfter <= v.maxTries, {
+    message: "A hint can't come after the answer, and the answer can't need more wrong tries than allowed.",
+    path: ["answerAfter"]
+  });
+export type DailyPuzzleWhatsAppSettings = z.infer<typeof dailyPuzzleWhatsAppSettingsSchema>;
+
+export const DEFAULT_DAILY_PUZZLE_WHATSAPP_SETTINGS: DailyPuzzleWhatsAppSettings = {
+  answerAfter: 3,
+  hintAfter: 1,
+  level: "MEDIUM",
+  maxTries: 3
+};
+
+export const updateDailyPuzzleSettingsRequestSchema = z
+  .object({ enabled: z.boolean().optional(), whatsapp: dailyPuzzleWhatsAppSettingsSchema.optional() })
+  .strict();
 export type UpdateDailyPuzzleSettingsRequest = z.infer<typeof updateDailyPuzzleSettingsRequestSchema>;
+
+/**
+ * A WhatsApp reply to the day's picture (step 3): HINT, ANSWER, or something
+ * shaped like a chess move (SAN or UCI, `+`/`#`/`!`/`?` optional, castling with
+ * O or 0). Only the shape: whether it is legal, or right, is the game engine's
+ * call. Null = not about the puzzle (the support bot takes it).
+ */
+export type DailyPuzzleReply = { kind: "HINT" } | { kind: "ANSWER" } | { kind: "MOVE"; text: string };
+
+const SAN_MOVE = /^(?:[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=?[QRBN])?|O-O(?:-O)?)$/i;
+const UCI_MOVE = /^[a-h][1-8][a-h][1-8][qrbn]?$/i;
+
+export function parseDailyPuzzleReply(text: string): DailyPuzzleReply | null {
+  const word = text.trim().replace(/[.!]+$/, "").toLowerCase();
+  if (word === "hint") return { kind: "HINT" };
+  if (word === "answer" || word === "solution") return { kind: "ANSWER" };
+  const move = text
+    .trim()
+    .replace(/0/g, "O")
+    .replace(/[+#!?.]+$/, "");
+  if (move.length < 2 || move.length > 8) return null;
+  return SAN_MOVE.test(move) || UCI_MOVE.test(move) ? { kind: "MOVE", text: move } : null;
+}
+
+/** What the board picture route draws (a public, signed link; no solution, no student data). */
+export type DailyPuzzlePictureResponse = {
+  fen: string;
+  /** Black to move: drawn from Black's side. */
+  flip: boolean;
+  boardTheme: string;
+  pieceSet: string;
+};
 
 /** The student's own WhatsApp switch (step 2). */
 export const updateDailyPuzzleWhatsAppRequestSchema = z.object({ on: z.boolean() }).strict();
@@ -137,6 +200,8 @@ export type DailyPuzzleWhatsAppSummary = {
   turnedOff: number;
   /** Students with no, or no usable, phone on their account. */
   noPhone: number;
+  /** Step 3: pictured level and the reply limits. */
+  settings: DailyPuzzleWhatsAppSettings;
 };
 
 export const updateBatchDailyPuzzleRequestSchema = z.object({ enabled: z.boolean() }).strict();
@@ -195,4 +260,4 @@ export type DailyPuzzleScheduleResponse = {
   whatsapp: DailyPuzzleWhatsAppSummary | null;
 };
 
-export type DailyPuzzleSettingsResponse = { enabled: boolean };
+export type DailyPuzzleSettingsResponse = { enabled: boolean; whatsapp: DailyPuzzleWhatsAppSettings };

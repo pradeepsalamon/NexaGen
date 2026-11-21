@@ -144,11 +144,14 @@ export interface MessagingEventDefinition {
   defaultLeadTimeMinutes?: number;
   /** False when another email already covers this moment. Omitted = true. */
   supportsEmail?: boolean;
-  /**
-   * WhatsApp is the only channel: the recipients are numbers that asked for
-   * it, some with no account (Puzzle of the Day, docs/PUZZLE_OF_THE_DAY.md).
-   */
+  /** WhatsApp is the only channel (Puzzle of the Day, docs/PUZZLE_OF_THE_DAY.md). */
   whatsappOnly?: boolean;
+  /**
+   * The rule makes a picture and this variable holds its link: an approved
+   * template with an IMAGE header gets it there (`whatsappTemplateImageHeader`),
+   * free text is sent as the picture with the text as its caption.
+   */
+  pictureVariable?: string;
   /** A DAILY/WEEKLY time is read in the academy's time zone, not each recipient's. */
   academyTimeZone?: boolean;
   /** Only DAILY or WEEKLY: an IMMEDIATE send would go out whenever the hourly sweep first ran. */
@@ -374,9 +377,10 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     event: "DAILY_PUZZLE",
     label: "Puzzle of the Day (WhatsApp)",
     description:
-      "Tells every student, on their account's own phone, that today's puzzles are ready (students can switch it off on their Puzzle of the Day page; STOP blocks it too). At most one a day per number, on the days chosen here, at the time in the academy's time zone. It never names the student or shows results. Needs an approved template, because it goes outside WhatsApp's 24-hour window.",
+      "Tells every student, on their account's own phone, that today's puzzles are ready, with a picture of one of them they can answer by replying with the move (students can switch it off on their Puzzle of the Day page; STOP blocks it too). At most one a day per number, on the days chosen here, at the time in the academy's time zone. It never names the student or shows results. Needs an approved template, because it goes outside WhatsApp's 24-hour window.",
     // No student data: a phone may be shared by brothers and sisters.
-    variables: ["academy.name", "dailyPuzzle.date", "links.dailyPuzzle"],
+    variables: ["academy.name", "dailyPuzzle.date", "links.dailyPuzzle", "links.dailyPuzzlePicture"],
+    pictureVariable: "links.dailyPuzzlePicture",
     audiences: ["STUDENTS"],
     supportsLeadTime: false,
     supportsEmail: false,
@@ -664,6 +668,10 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "links.revision": { label: "Link to revision", sample: "https://nexa.test/student/revision" },
   "links.dailyPuzzle": { label: "Link to Puzzle of the Day", sample: "https://nexa.test/student/daily-puzzle" },
   "dailyPuzzle.date": { label: "The puzzle's date (academy time)", sample: "Sat, 21 Nov 2026" },
+  "links.dailyPuzzlePicture": {
+    label: "Link to the board picture",
+    sample: "https://nexa.test/opengraph-image"
+  },
   "payment.amount": { label: "Amount", sample: "₹999.00" },
   "payment.currency": { label: "Currency", sample: "INR" },
   "payment.method": { label: "Payment method", sample: "UPI" },
@@ -997,7 +1005,7 @@ export const DEFAULT_MESSAGING_RULES: Record<
     scheduleMode: "DAILY",
     scheduleHour: 7,
     title: "Puzzle of the Day",
-    body: "Today's Puzzle of the Day from {{academy.name}} is ready: Easy, Medium and Hard. Can you solve it? {{links.dailyPuzzle}} (You can turn these off on the Puzzle of the Day page.)"
+    body: "Today's Puzzle of the Day from {{academy.name}} is ready. Can you solve it? Reply with your move (like Nf3), or open all three levels: {{links.dailyPuzzle}} You can turn these off on the Puzzle of the Day page."
   },
   ANNOUNCEMENT: {
     enabled: false,
@@ -1248,6 +1256,8 @@ export interface MessagingRuleItem {
   whatsappTemplateLanguage: string | null;
   /** Positional {{1}},{{2}}… values for the template, each its own mini-template. */
   whatsappTemplateParams: string[];
+  /** The template has an IMAGE header the rule fills (rules with a `pictureVariable` only). */
+  whatsappTemplateImageHeader: boolean;
   updatedAt: string;
   updatedByName: string | null;
 }
@@ -1280,7 +1290,8 @@ export const updateMessagingRuleRequestSchema = z.object({
   // or the parsed type would stop matching what a form actually sends.
   whatsappTemplateName: z.string().trim().max(200).nullable().optional(),
   whatsappTemplateLanguage: z.string().trim().max(20).nullable().optional(),
-  whatsappTemplateParams: z.array(z.string().max(500)).max(10).optional()
+  whatsappTemplateParams: z.array(z.string().max(500)).max(10).optional(),
+  whatsappTemplateImageHeader: z.boolean().optional()
 });
 export type UpdateMessagingRuleRequest = z.infer<
   typeof updateMessagingRuleRequestSchema
