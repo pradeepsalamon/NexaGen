@@ -159,12 +159,23 @@ Planned for the 2026-11-21 night run, on its own branch off `dev`.
 | Which level is pictured | Default taken: **the admin picks one level** on the Puzzle of the Day page, starting at **Medium** |
 | A batch's own (coach's private) puzzle | Default taken: the picture is always the **academy-wide** puzzle for that level, never a batch's private one |
 | Answering by reply | **Yes** |
-| Whose streak a reply counts for | **The student's, when the number is their account phone**: the number equals `User.phoneNumber` of **exactly one** active student who turned WhatsApp on in the app → the answer is that student's daily puzzle (entry, attempt, app streak and rating). **Any other number gets its own WhatsApp streak**, stored on the number, never shown with a student's name |
+| Who gets it at all (owner, later on 2026-11-21; **changes step 2**) | **Only existing student accounts**: the puzzle goes only to a phone that is `User.phoneNumber` of an active student who switched it on. A number on **no** student account gets nothing, and PUZZLE from it is refused ("only for numbers registered on a student account") |
+| Whose streak a reply counts for | **The student's one streak** (the same as the app): the phone is on **exactly one** such student account → the answer is that student's daily puzzle (entry, attempt, streak and rating). **No separate WhatsApp streak** |
+| A phone on 2+ student accounts (siblings) | Sent **once, link only**: no picture answering, replies not checked, no streak (we can't tell who answered) |
 | What must be right | **The first move only** (the key move). Then "Correct!" and the link to play out the rest in the app |
 | Tries | **Admin-set per academy**: maximum tries, wrong tries before a hint can be asked for, wrong tries before the answer can be asked for. Defaults taken: max 3, hint after 1, answer after 3 (hint ≤ answer ≤ max) |
 
 ### Build
 
+0. **Step 2 change first: accounts only.** The send goes only to students who
+   switched it on (`StudentProfile.dailyPuzzleWhatsAppAt`), never to a bare
+   `WhatsAppContact`. `PUZZLE` from a number turns the switch on for every active
+   student whose account phone is that number (siblings: each of them); from a
+   number on no student account it changes nothing and the bot says it is only for
+   numbers registered on a student account. `PUZZLE OFF` turns it off for those
+   students. Stop using `WhatsAppContact.dailyPuzzleAt` (keep the column; migrations
+   stay additive). The admin summary counts students only. Number matching goes
+   through `normalizeWhatsAppNumber`, the same as sending.
 1. **Picture.** A public image route on the web app draws the board PNG from the
    FEN (`next/og`, the academy's board appearance, flipped when Black is to move;
    no solution, no student data). Its link is signed and unguessable (HMAC over
@@ -185,7 +196,7 @@ Planned for the 2026-11-21 night run, on its own branch off `dev`.
    pictured puzzle's first move with the game engine (`common/chess`, never a raw
    string match). Words: `HINT`, `ANSWER`, after the admin's thresholds. Replies are
    free-form text inside the 24-hour window the customer just opened (no template).
-   Right → "Correct! 🔥" + the streak (the student's, or the number's own) + link.
+   Right → "Correct! 🔥" + the student's streak + link.
    Wrong → "Not quite" + tries left. Out of tries → the answer, streak kept (finishing
    keeps it, as in the app).
 5. **Student path.** For the student's own account phone: write their
@@ -194,10 +205,12 @@ Planned for the 2026-11-21 night run, on its own branch off `dev`.
    finished that level in the app, say so and change nothing. The entry keeps the
    pictured puzzle even where their batch picked another one for that level (the
    app already shows an entry's own puzzle).
-6. **Number's streak.** A new table (one row per number and day, `tenantId`,
-   tries, solved), the streak computed from it like the app's, never stored.
-   Erasing the contact deletes its rows.
-7. **Settings.** The three try numbers on `DailyPuzzleSettings`, edited on the
+6. **Shared phone.** A phone on 2+ student accounts gets the message once with
+   the link only (no picture prompt to answer); a move from it gets "solve it in
+   the app, this number is shared by more than one student".
+7. **Try counts.** The tries used today are kept per student and day (on
+   their `DailyPuzzleEntry` / attempt, not a new streak table).
+8. **Settings.** The three try numbers on `DailyPuzzleSettings`, edited on the
    admin Puzzle of the Day page; the pictured level on the same page.
 
 ### Still not planned
