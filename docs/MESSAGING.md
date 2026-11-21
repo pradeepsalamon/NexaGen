@@ -269,6 +269,13 @@ sent as before. Saved as `whatsappTemplateName` / `whatsappTemplateLanguage` /
   Rejected beside every template-name field, or says the name or language isn't
   there (`checkWhatsAppTemplate`). Read-only: templates are still created in
   WhatsApp Manager, and a send never waits on this list.
+- **All templates on the page** (2026-11-21): the list also carries each template's
+  body, header kind, buttons and `paramCount` (highest `{{n}}`, `whatsappTemplateParamCount`;
+  Meta `components`). Messaging → **WhatsApp templates** tab (`WhatsAppTemplatesPanel`) shows
+  every template with status, category, language, text and buttons, searchable, with
+  Refresh (`?refresh=1`). The editors pick a template from the account (`Combobox`, which fills
+  name + language; `findWhatsAppTemplate`) and show its text and how many values it needs;
+  with no readable account the name is typed as before.
 
 ## Email channel
 

@@ -122,6 +122,31 @@ export interface WhatsAppTemplateInfo {
   status: string;
   /** MARKETING, UTILITY, AUTHENTICATION. */
   category: string;
+  /** The body text with its {{1}}, {{2}}… slots, as approved (null when Meta sent none). */
+  body: string | null;
+  /** How many values the body needs: the highest {{n}} in it. */
+  paramCount: number;
+  /** Header kind when there is one: TEXT, IMAGE, DOCUMENT, VIDEO, LOCATION. */
+  header: string | null;
+  /** Its buttons: the kind (QUICK_REPLY, URL, PHONE_NUMBER, …) and the label. */
+  buttons: { text: string; type: string }[];
+}
+
+/** The number of values a template body needs: its highest {{n}} (0 = none). */
+export function whatsappTemplateParamCount(body: string | null | undefined): number {
+  let highest = 0;
+  for (const match of (body ?? "").matchAll(/\{\{\s*(\d+)\s*\}\}/g)) highest = Math.max(highest, Number(match[1]));
+  return highest;
+}
+
+/** The template a name + language picks (the default language when none is given). */
+export function findWhatsAppTemplate(
+  templates: readonly WhatsAppTemplateInfo[],
+  name: string,
+  language: string | null | undefined
+): WhatsAppTemplateInfo | null {
+  const wanted = (language || DEFAULT_WHATSAPP_TEMPLATE_LANGUAGE).trim();
+  return templates.find((template) => template.name === name.trim() && template.language === wanted) ?? null;
 }
 
 export interface WhatsAppTemplateListResponse {

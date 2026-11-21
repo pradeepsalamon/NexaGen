@@ -17,7 +17,7 @@ export function useWhatsAppTemplates(enabled = true) {
   });
 }
 
-const STATUS_VARIANT: Record<string, "destructive" | "success" | "warning"> = {
+export const WHATSAPP_TEMPLATE_STATUS_VARIANT: Record<string, "destructive" | "success" | "warning"> = {
   APPROVED: "success",
   DISABLED: "destructive",
   PAUSED: "warning",
@@ -42,7 +42,7 @@ export function WhatsAppTemplateStatus({ language, name }: { language: string; n
   if (check.kind === "found") {
     return (
       <div className="flex flex-wrap items-center gap-2 text-xs text-app-muted">
-        <Badge variant={STATUS_VARIANT[check.status] ?? "secondary"}>{enumLabel(check.status)}</Badge>
+        <Badge variant={WHATSAPP_TEMPLATE_STATUS_VARIANT[check.status] ?? "secondary"}>{enumLabel(check.status)}</Badge>
         <span>in WhatsApp Manager{check.category ? ` · ${enumLabel(check.category)}` : ""}</span>
       </div>
     );
