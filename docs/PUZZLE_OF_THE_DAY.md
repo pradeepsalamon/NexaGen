@@ -159,8 +159,8 @@ Planned for the 2026-11-21 night run, on its own branch off `dev`.
 | Which level is pictured | Default taken: **the admin picks one level** on the Puzzle of the Day page, starting at **Medium** |
 | A batch's own (coach's private) puzzle | Default taken: the picture is always the **academy-wide** puzzle for that level, never a batch's private one |
 | Answering by reply | **Yes** |
-| Who gets it at all (owner, later on 2026-11-21; **changes step 2**) | **Every student account's phone, automatically** (no opt-in): each active student whose Puzzle of the Day is on gets it on `User.phoneNumber`, once the admin turns the rule on. A student can **turn it off** (app switch, `PUZZLE OFF`, `STOP`); `PUZZLE` turns it back on. A number on **no** student account gets nothing, and PUZZLE from it is refused ("only for numbers registered on a student account") |
-| Whose streak a reply counts for | **The student's one streak** (the same as the app): the phone is on **exactly one** such student account → the answer is that student's daily puzzle (entry, attempt, streak and rating). **No separate WhatsApp streak** |
+| Who gets it at all (owner, later on 2026-11-21; **changes step 2**) | **Every student account's phone, automatically** (no opt-in): each active student whose Puzzle of the Day is on gets it on `User.phoneNumber`, once the admin turns the rule on. **The student's app switch is the only on/off** (on by default); no PUZZLE / PUZZLE OFF keywords. `STOP` (WhatsApp-wide, existing) still blocks it. A number on **no** student account gets nothing |
+| Whose streak a reply counts for | **Per account**: the student's one streak (the same as the app); the phone is on **exactly one** such student account → the answer is that student's daily puzzle (entry, attempt, streak and rating). **Never a streak per phone number** |
 | A phone on 2+ student accounts (siblings) | Sent **once, link only**: no picture answering, replies not checked, no streak (we can't tell who answered) |
 | What must be right | **The first move only** (the key move). Then "Correct!" and the link to play out the rest in the app |
 | Tries | **Admin-set per academy**: maximum tries, wrong tries before a hint can be asked for, wrong tries before the answer can be asked for. Defaults taken: max 3, hint after 1, answer after 3 (hint ≤ answer ≤ max) |
@@ -173,10 +173,13 @@ Planned for the 2026-11-21 night run, on its own branch off `dev`.
    (e.g. `StudentProfile.dailyPuzzleWhatsAppOffAt`); the opt-in columns
    `dailyPuzzleWhatsAppAt` and `WhatsAppContact.dailyPuzzleAt` stop being used
    (kept; migrations stay additive). Never to a bare `WhatsAppContact`. The app
-   switch shows on by default and turns it off/on. `PUZZLE OFF` turns it off for
-   every student whose account phone is that number (siblings: each), `PUZZLE`
-   back on; from a number on no student account the bot says it is only for
-   numbers registered on a student account. STOP still wins at send time.
+   switch shows on by default and is the **only** on/off: **remove** the step 2
+   PUZZLE / PUZZLE OFF bot keywords (`supportDailyPuzzleCommand`, the
+   `DAILY_PUZZLE_ON/OFF` actions, the `dailyPuzzle` bot context) and their docs.
+   STOP (WhatsApp-wide) still wins at send time. Turning the switch off still
+   drops that student's queued message. The default rule body and the suggested template
+   wording drop "Reply PUZZLE OFF to stop" (say it can be turned off on the Puzzle
+   of the Day page). The step 2 sections above get rewritten to match.
    Students with no or an unusable phone are skipped quietly (no SKIPPED row per
    student per day — that would flood the log; the admin summary counts them). The admin summary counts students only. Number matching goes
    through `normalizeWhatsAppNumber`, the same as sending. Admin summary: students
