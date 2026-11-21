@@ -7,6 +7,9 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
+  BATCH_BATTLE_MIN_PLAYERS,
+  batchTakesPartInBattles,
+  type BatchBattleSettings,
   maxComboBonus,
   PUZZLE_RACER_CONFIG,
   PUZZLE_RUSH_GRACE_SECONDS,
@@ -18,15 +21,17 @@ import {
   type ReportSoloRushProgressResponse,
   type SoloRushBatchBattleRow,
   type SoloRushBatchBattlesLeaderboard,
+  type SoloRushMyBattleBatch,
   type SoloRushLeaderboard,
   type SoloRushOverview,
   type SoloRushPeriod,
-  type SoloRushRun
+  type SoloRushRun,
+  type UpdateBatchBattleSettingsRequest
 } from "@nexa-chess/types";
-import { Prisma, PuzzleRushMode as DbMode } from "@prisma/client";
+import { BatchType, Prisma, PuzzleRushMode as DbMode, UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { tenantFilter } from "../tenancy/tenant-sql";
-import { assertStudent, authenticateUser } from "../puzzle/puzzle-auth.helper";
+import { assertStudent, authenticateUser, isAdminRole } from "../puzzle/puzzle-auth.helper";
 import { MIN_RUN_SIZE, selectPuzzleRushRun } from "./puzzle-rush-run";
 
 const GRACE_MS = PUZZLE_RUSH_GRACE_SECONDS * 1000;
@@ -45,15 +50,19 @@ type LeaderboardSqlRow = {
   achievedAt: Date;
 };
 
-type BatchBattleSqlRow = {
+/** One ACTIVE training batch of the academy and its players' best runs in the period. */
+export type BatchBattleSqlRow = {
   batchId: string;
   batchName: string;
-  totalScore: number;
-  activeStudents: number;
-  avgScore: number;
+  batchType: BatchType | null;
+  battlesEnabled: boolean | null;
+  battlesShowNames: boolean;
+  rosterSize: number;
+  players: number;
+  avgScore: number | null;
   topFirstName: string | null;
   topLastName: string | null;
-  topStudentScore: number | null;
+  topScore: number | null;
 };
 
 /**
@@ -227,9 +236,11 @@ export class SoloPuzzleRushService {
   }
 
   /**
-   * Academy-wide Batch Battles / Clan Cup: aggregates all active batches' team
-   * scores for the selected mode and period, showing batch ranks, MVPs, and the
-   * student's own batch standing and contribution.
+   * Batch Battles: the academy's ACTIVE training batches that take part
+   * (`batchTakesPartInBattles`), ranked by the average of their players' best
+   * finished runs in the period. A batch needs `BATCH_BATTLE_MIN_PLAYERS`
+   * players to get a rank. A top player's name is shown only for the viewer's
+   * own batch or a batch whose admin/coach turned names on (students are minors).
    */
   async batchBattles(
     accessToken: string | undefined,
@@ -237,106 +248,121 @@ export class SoloPuzzleRushService {
   ): Promise<SoloRushBatchBattlesLeaderboard> {
     const student = await this.getStudent(accessToken);
     const myBatches = await this.trainingBatches(student.id);
+    if (myBatches.length === 0) {
+      throw new ForbiddenException("Puzzle training isn't switched on for your batch yet — ask your coach.");
+    }
 
     const since = query.period === "WEEK" ? new Date(Date.now() - WEEK_MS) : new Date(0);
-    const myContribution =
-      (await this.bestsSince(student.id, since)).find((b) => b.mode === query.mode)?.score ?? 0;
-
-    const rawRows = await this.prisma.$queryRaw<BatchBattleSqlRow[]>`
-      WITH student_best AS (
-        SELECT DISTINCT ON (bs."batchId", r."studentId")
-          bs."batchId",
-          r."studentId",
-          u."firstName",
-          u."lastName",
-          r."score",
-          r."errors",
-          r."finishedAt"
-        FROM solo_puzzle_rush_runs r
-        JOIN users u ON u."id" = r."studentId" AND u."isDeleted" = false
-        JOIN batch_students bs ON bs."studentId" = r."studentId" AND bs."isDeleted" = false
-        JOIN batches b ON b."id" = bs."batchId" AND b."isDeleted" = false AND b."puzzleTrainingEnabled" = true
-        WHERE r."mode" = ${query.mode}::"PuzzleRushMode"
-          AND r."finishedAt" IS NOT NULL
-          AND r."finishedAt" >= ${since.toISOString()}::timestamp
-          AND ${tenantFilter("b")}
-          AND ${tenantFilter("r")}
-        ORDER BY bs."batchId", r."studentId", r."score" DESC, r."errors" ASC, r."finishedAt" ASC
-      ),
-      batch_mvp AS (
-        SELECT DISTINCT ON (sb."batchId")
-          sb."batchId",
-          sb."firstName" AS "topFirstName",
-          sb."lastName" AS "topLastName",
-          sb."score" AS "topStudentScore"
-        FROM student_best sb
-        ORDER BY sb."batchId", sb."score" DESC, sb."errors" ASC, sb."finishedAt" ASC
-      ),
-      batch_totals AS (
+    const [rows, myBest] = await Promise.all([
+      // `roster` is every enrolled student of a candidate batch; `best` is each
+      // of those students' best finished run (highest score, then fewer errors,
+      // then the earliest) — one run counts for every batch the student is in.
+      // `tenantFilter` is the academy guard on both driving tables.
+      this.prisma.$queryRaw<BatchBattleSqlRow[]>`
+        WITH candidate AS (
+          SELECT b."id", b."name", b."batchType", b."battlesEnabled", b."battlesShowNames"
+          FROM batches b
+          WHERE b."isDeleted" = false
+            AND b."status" = 'ACTIVE'
+            AND b."puzzleTrainingEnabled" = true
+            AND ${tenantFilter("b")}
+        ),
+        roster AS (
+          SELECT bs."batchId", bs."studentId"
+          FROM batch_students bs
+          JOIN candidate c ON c."id" = bs."batchId"
+          WHERE bs."isDeleted" = false
+        ),
+        best AS (
+          SELECT DISTINCT ON (r."studentId") r."studentId", r."score", r."errors", r."finishedAt"
+          FROM solo_puzzle_rush_runs r
+          JOIN users u ON u."id" = r."studentId" AND u."isDeleted" = false
+          WHERE r."mode" = ${query.mode}::"PuzzleRushMode"
+            AND r."finishedAt" IS NOT NULL
+            AND r."finishedAt" >= ${since.toISOString()}::timestamp
+            AND r."studentId" IN (SELECT "studentId" FROM roster)
+            AND ${tenantFilter("r")}
+          ORDER BY r."studentId", r."score" DESC, r."errors" ASC, r."finishedAt" ASC
+        ),
+        scored AS (
+          SELECT ro."batchId", be."studentId", be."score", be."errors", be."finishedAt"
+          FROM roster ro
+          JOIN best be ON be."studentId" = ro."studentId"
+        ),
+        top_player AS (
+          SELECT DISTINCT ON (s."batchId") s."batchId", u."firstName", u."lastName", s."score"
+          FROM scored s
+          JOIN users u ON u."id" = s."studentId"
+          ORDER BY s."batchId", s."score" DESC, s."errors" ASC, s."finishedAt" ASC
+        )
         SELECT
-          b."id" AS "batchId",
-          b."name" AS "batchName",
-          COALESCE(SUM(sb."score"), 0)::int AS "totalScore",
-          COUNT(sb."studentId")::int AS "activeStudents",
-          COALESCE(ROUND(AVG(sb."score")::numeric, 1), 0)::float AS "avgScore"
-        FROM batches b
-        LEFT JOIN student_best sb ON sb."batchId" = b."id"
-        WHERE b."isDeleted" = false
-          AND b."puzzleTrainingEnabled" = true
-          AND ${tenantFilter("b")}
-        GROUP BY b."id", b."name"
-      )
-      SELECT
-        bt."batchId",
-        bt."batchName",
-        bt."totalScore",
-        bt."activeStudents",
-        bt."avgScore",
-        bm."topFirstName",
-        bm."topLastName",
-        bm."topStudentScore"
-      FROM batch_totals bt
-      LEFT JOIN batch_mvp bm ON bm."batchId" = bt."batchId"
-      ORDER BY bt."totalScore" DESC, bt."activeStudents" DESC, bt."batchName" ASC
-      LIMIT ${LEADERBOARD_LIMIT}`;
-
-    const myBatchIds = new Set(myBatches.map((b) => b.id));
-    let rank = 0;
-    const rows: SoloRushBatchBattleRow[] = rawRows.map((row, index) => {
-      const prev = rawRows[index - 1];
-      if (!prev || prev.totalScore !== row.totalScore || prev.activeStudents !== row.activeStudents) {
-        rank = index + 1;
-      }
-      return {
-        activeStudents: row.activeStudents,
-        avgScore: row.avgScore,
-        batchId: row.batchId,
-        batchName: row.batchName,
-        isMyBatch: myBatchIds.has(row.batchId),
-        rank,
-        topStudentName: row.topFirstName
-          ? leaderboardName({ firstName: row.topFirstName, lastName: row.topLastName })
-          : null,
-        topStudentScore: row.topStudentScore,
-        totalScore: row.totalScore
-      };
-    });
-
-    const myBatchesInBattle = rows
-      .filter((r) => r.isMyBatch)
-      .map((r) => ({
-        batchId: r.batchId,
-        batchName: r.batchName,
-        myContribution,
-        rank: r.rank,
-        totalScore: r.totalScore
-      }));
+          c."id" AS "batchId",
+          c."name" AS "batchName",
+          c."batchType"::text AS "batchType",
+          c."battlesEnabled",
+          c."battlesShowNames",
+          (SELECT COUNT(*) FROM roster ro WHERE ro."batchId" = c."id")::int AS "rosterSize",
+          (SELECT COUNT(*) FROM scored s WHERE s."batchId" = c."id")::int AS "players",
+          (SELECT ROUND(AVG(s."score")::numeric, 1)::float FROM scored s WHERE s."batchId" = c."id") AS "avgScore",
+          tp."firstName" AS "topFirstName",
+          tp."lastName" AS "topLastName",
+          tp."score" AS "topScore"
+        FROM candidate c
+        LEFT JOIN top_player tp ON tp."batchId" = c."id"`,
+      this.prisma.soloPuzzleRushRun.aggregate({
+        _max: { score: true },
+        where: { finishedAt: { gte: since }, mode: query.mode as DbMode, studentId: student.id }
+      })
+    ]);
 
     return {
+      ...rankBatchBattles(rows, new Set(myBatches.map((b) => b.id))),
       mode: query.mode,
-      myBatches: myBatchesInBattle,
-      period: query.period,
-      rows
+      myBest: myBest._max.score,
+      period: query.period
+    };
+  }
+
+  /**
+   * A batch's Batch Battles settings: an admin for any batch of the academy, a
+   * coach only for a batch they are assigned to (anything else is not found).
+   */
+  async updateBattleSettings(
+    accessToken: string | undefined,
+    batchId: string,
+    dto: UpdateBatchBattleSettingsRequest
+  ): Promise<BatchBattleSettings> {
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    const admin = isAdminRole(user.role);
+    if (!admin && user.role !== UserRole.COACH) {
+      throw new ForbiddenException("Only admins and the batch's coaches can change Batch Battles.");
+    }
+    const where: Prisma.BatchWhereInput = admin
+      ? { id: batchId, isDeleted: false }
+      : { coaches: { some: { coachId: user.id, isDeleted: false } }, id: batchId, isDeleted: false };
+    const batch = await this.prisma.batch.findFirst({ select: { id: true }, where });
+    if (!batch) throw new NotFoundException("Batch not found.");
+
+    const updated = await this.prisma.batch.update({
+      data: { battlesEnabled: dto.battlesEnabled, battlesShowNames: dto.battlesShowNames },
+      select: {
+        _count: { select: { students: { where: { isDeleted: false } } } },
+        batchType: true,
+        battlesEnabled: true,
+        battlesShowNames: true,
+        id: true
+      },
+      where: { id: batch.id }
+    });
+    return {
+      batchId: updated.id,
+      battlesEnabled: updated.battlesEnabled,
+      battlesShowNames: updated.battlesShowNames,
+      takesPart: batchTakesPartInBattles({
+        batchType: updated.batchType,
+        battlesEnabled: updated.battlesEnabled,
+        studentCount: updated._count.students
+      })
     };
   }
 
@@ -462,4 +488,62 @@ export function leaderboardName(user: { firstName: string; lastName: string | nu
   const initial = user.lastName?.trim().charAt(0).toUpperCase();
   const name = [first, initial ? `${initial}.` : ""].filter(Boolean).join(" ");
   return name || "Student";
+}
+
+/**
+ * Ranks Batch Battles rows: batches that take part and have at least
+ * `BATCH_BATTLE_MIN_PLAYERS` players, by average (ties share a rank), then the
+ * ones still short of players (unranked). Batches nobody played in are left
+ * off the board; the viewer's own batches always come back in `myBatches`.
+ */
+export function rankBatchBattles(
+  rows: BatchBattleSqlRow[],
+  myBatchIds: Set<string>
+): { minPlayers: number; myBatches: SoloRushMyBattleBatch[]; rows: SoloRushBatchBattleRow[] } {
+  const competing = rows.filter((row) =>
+    batchTakesPartInBattles({ batchType: row.batchType, battlesEnabled: row.battlesEnabled, studentCount: row.rosterSize })
+  );
+  const competingIds = new Set(competing.map((row) => row.batchId));
+  const byName = (a: BatchBattleSqlRow, b: BatchBattleSqlRow) => a.batchName.localeCompare(b.batchName);
+  const ranked = competing
+    .filter((row) => row.players >= BATCH_BATTLE_MIN_PLAYERS)
+    .sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0) || b.players - a.players || byName(a, b));
+  const unranked = competing
+    .filter((row) => row.players > 0 && row.players < BATCH_BATTLE_MIN_PLAYERS)
+    .sort((a, b) => b.players - a.players || byName(a, b));
+
+  const rankOf = new Map<string, number>();
+  ranked.forEach((row, index) => {
+    const prev = ranked[index - 1];
+    rankOf.set(row.batchId, prev && prev.avgScore === row.avgScore ? rankOf.get(prev.batchId)! : index + 1);
+  });
+
+  const board = [...ranked, ...unranked].map((row): SoloRushBatchBattleRow => {
+    const isMyBatch = myBatchIds.has(row.batchId);
+    const showName = (isMyBatch || row.battlesShowNames) && row.topFirstName !== null;
+    return {
+      avgScore: row.avgScore ?? 0,
+      batchId: row.batchId,
+      batchName: row.batchName,
+      isMyBatch,
+      players: row.players,
+      rank: rankOf.get(row.batchId) ?? null,
+      topPlayerName: showName ? leaderboardName({ firstName: row.topFirstName!, lastName: row.topLastName }) : null,
+      topPlayerScore: row.topScore
+    };
+  });
+
+  const myBatches = rows
+    .filter((row) => myBatchIds.has(row.batchId))
+    .sort(byName)
+    .map((row) => ({
+      avgScore: row.players > 0 ? row.avgScore : null,
+      batchId: row.batchId,
+      batchName: row.batchName,
+      players: row.players,
+      rank: rankOf.get(row.batchId) ?? null,
+      takesPart: competingIds.has(row.batchId)
+    }));
+
+  return { minPlayers: BATCH_BATTLE_MIN_PLAYERS, myBatches, rows: board.slice(0, LEADERBOARD_LIMIT) };
 }

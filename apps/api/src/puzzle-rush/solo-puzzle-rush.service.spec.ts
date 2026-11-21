@@ -2,7 +2,7 @@
 import { ConflictException, ForbiddenException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { UserRole, UserStatus } from "@prisma/client";
 import { PUZZLE_STORM_CONFIG } from "@nexa-chess/types";
-import { leaderboardName, SoloPuzzleRushService } from "./solo-puzzle-rush.service";
+import { type BatchBattleSqlRow, leaderboardName, rankBatchBattles, SoloPuzzleRushService } from "./solo-puzzle-rush.service";
 
 const mockSelectRun = jest.fn();
 let mockUser: Record<string, unknown> = { id: "s-1", role: UserRole.STUDENT, status: UserStatus.ACTIVE };
@@ -249,108 +249,131 @@ describe("SoloPuzzleRushService", () => {
   });
 
   describe("batchBattles", () => {
-    it("returns ranked batches, identifies student's batches, and calculates personal contribution", async () => {
-      const mockRawRows = [
-        {
-          activeStudents: 3,
-          avgScore: 16.7,
-          batchId: "b-1",
-          batchName: "Beginners",
-          topFirstName: "Arjun",
-          topLastName: "Kumar",
-          topStudentScore: 24,
-          totalScore: 50
-        },
-        {
-          activeStudents: 2,
-          avgScore: 15.0,
-          batchId: "b-2",
-          batchName: "Challengers",
-          topFirstName: "Priya",
-          topLastName: null,
-          topStudentScore: 18,
-          totalScore: 30
-        },
-        {
-          activeStudents: 2,
-          avgScore: 15.0,
-          batchId: "b-3",
-          batchName: "Rookies",
-          topFirstName: null,
-          topLastName: null,
-          topStudentScore: null,
-          totalScore: 30
-        }
-      ];
-
-      const { service, solo } = build({
-        root: {
-          $queryRaw: jest.fn(async () => mockRawRows)
-        }
-      });
-
-      solo.groupBy.mockResolvedValue([{ _max: { score: 15 }, mode: "STORM" }]);
-      solo.findFirstOrThrow.mockResolvedValue({
-        finishedAt: new Date("2026-11-20T10:00:00Z"),
-        score: 15
-      });
-
-      const res = await service.batchBattles("t", { mode: "STORM", period: "WEEK" });
-
-      expect(res.mode).toBe("STORM");
-      expect(res.period).toBe("WEEK");
-      expect(res.rows).toHaveLength(3);
-
-      // Batch 1 (Student's batch)
-      expect(res.rows[0]).toEqual({
-        activeStudents: 3,
-        avgScore: 16.7,
-        batchId: "b-1",
-        batchName: "Beginners",
-        isMyBatch: true,
-        rank: 1,
-        topStudentName: "Arjun K.",
-        topStudentScore: 24,
-        totalScore: 50
-      });
-
-      // Batch 2 (Tied with Batch 3)
-      expect(res.rows[1]).toEqual({
-        activeStudents: 2,
-        avgScore: 15.0,
-        batchId: "b-2",
-        batchName: "Challengers",
-        isMyBatch: false,
-        rank: 2,
-        topStudentName: "Priya",
-        topStudentScore: 18,
-        totalScore: 30
-      });
-
-      // Batch 3 (Tied with Batch 2, rank 2)
-      expect(res.rows[2]).toEqual({
-        activeStudents: 2,
-        avgScore: 15.0,
-        batchId: "b-3",
-        batchName: "Rookies",
-        isMyBatch: false,
-        rank: 2,
-        topStudentName: null,
-        topStudentScore: null,
-        totalScore: 30
-      });
-
-      // My batches standing
-      expect(res.myBatches).toEqual([
-        {
-          batchId: "b-1",
-          batchName: "Beginners",
-          myContribution: 15,
-          rank: 1,
-          totalScore: 50
-        }
-      ]);
+    it("refuses a student with no training batch", async () => {
+      const { service } = build({ batchStudent: { findMany: jest.fn(async () => []) } });
+      await expect(service.batchBattles("t", { mode: "STORM", period: "WEEK" })).rejects.toBeInstanceOf(ForbiddenException);
     });
+
+    it("returns the ranked board with the student's best score", async () => {
+      const { service } = build({
+        root: { $queryRaw: jest.fn(async () => [battleRow({ batchId: "b-1", batchName: "Beginners", players: 3 })]) },
+        soloPuzzleRushRun: { aggregate: jest.fn(async () => ({ _max: { score: 15 } })) }
+      });
+      const res = await service.batchBattles("t", { mode: "STORM", period: "WEEK" });
+      expect(res).toMatchObject({ minPlayers: 3, mode: "STORM", myBest: 15, period: "WEEK" });
+      expect(res.rows.map((r) => [r.batchId, r.rank, r.isMyBatch])).toEqual([["b-1", 1, true]]);
+    });
+  });
+
+  describe("updateBattleSettings", () => {
+    const updated = { _count: { students: 8 }, batchType: null, battlesEnabled: false, battlesShowNames: true, id: "b-1" };
+
+    it("lets a coach change only a batch they are assigned to", async () => {
+      mockUser = { id: "c-1", role: UserRole.COACH, status: UserStatus.ACTIVE };
+      const batch = { findFirst: jest.fn(async (_args: any) => null), update: jest.fn() };
+      const { service } = build({ root: { batch } });
+      await expect(service.updateBattleSettings("t", "b-9", { battlesEnabled: true })).rejects.toBeInstanceOf(NotFoundException);
+      expect(batch.findFirst.mock.calls[0][0].where).toEqual({
+        coaches: { some: { coachId: "c-1", isDeleted: false } },
+        id: "b-9",
+        isDeleted: false
+      });
+      expect(batch.update).not.toHaveBeenCalled();
+    });
+
+    it("saves for an admin and resolves whether the batch takes part", async () => {
+      mockUser = { id: "a-1", role: UserRole.ADMIN, status: UserStatus.ACTIVE };
+      const batch = { findFirst: jest.fn(async (_args: any) => ({ id: "b-1" })), update: jest.fn(async (_args: any) => updated) };
+      const { service } = build({ root: { batch } });
+      const res = await service.updateBattleSettings("t", "b-1", { battlesEnabled: false, battlesShowNames: true });
+      expect(batch.findFirst.mock.calls[0][0].where).toEqual({ id: "b-1", isDeleted: false });
+      expect(batch.update.mock.calls[0][0].data).toEqual({ battlesEnabled: false, battlesShowNames: true });
+      expect(res).toEqual({ batchId: "b-1", battlesEnabled: false, battlesShowNames: true, takesPart: false });
+    });
+
+    it("refuses a student", async () => {
+      mockUser = { id: "s-1", role: UserRole.STUDENT, status: UserStatus.ACTIVE };
+      const { service } = build({ root: { batch: { findFirst: jest.fn(), update: jest.fn() } } });
+      await expect(service.updateBattleSettings("t", "b-1", { battlesEnabled: true })).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+});
+
+function battleRow(over: Partial<BatchBattleSqlRow> = {}): BatchBattleSqlRow {
+  return {
+    avgScore: 10,
+    batchId: "b",
+    batchName: "Batch",
+    batchType: null,
+    battlesEnabled: null,
+    battlesShowNames: false,
+    players: 3,
+    rosterSize: 8,
+    topFirstName: "Arjun",
+    topLastName: "Kumar",
+    topScore: 20,
+    ...over
+  };
+}
+
+describe("rankBatchBattles", () => {
+  it("ranks by average, ties share a rank, short batches come after unranked", () => {
+    const res = rankBatchBattles(
+      [
+        battleRow({ avgScore: 12, batchId: "small", batchName: "Small", players: 2 }),
+        battleRow({ avgScore: 15, batchId: "a", batchName: "Alpha", players: 3 }),
+        battleRow({ avgScore: 15, batchId: "b", batchName: "Bravo", players: 5 }),
+        battleRow({ avgScore: 18, batchId: "top", batchName: "Top", players: 4 }),
+        battleRow({ avgScore: null, batchId: "idle", batchName: "Idle", players: 0 })
+      ],
+      new Set()
+    );
+    expect(res.rows.map((r) => [r.batchId, r.rank])).toEqual([
+      ["top", 1],
+      ["b", 2],
+      ["a", 2],
+      ["small", null]
+    ]);
+  });
+
+  it("leaves out 1:1 and buddy batches unless turned on, and batches turned off", () => {
+    const res = rankBatchBattles(
+      [
+        battleRow({ batchId: "solo", rosterSize: 1 }),
+        battleRow({ batchId: "buddy", batchType: "BUDDY" }),
+        battleRow({ batchId: "opted-in", battlesEnabled: true, rosterSize: 2 }),
+        battleRow({ batchId: "opted-out", battlesEnabled: false }),
+        battleRow({ batchId: "group" })
+      ],
+      new Set(["solo"])
+    );
+    expect(res.rows.map((r) => r.batchId).sort()).toEqual(["group", "opted-in"]);
+    expect(res.myBatches).toEqual([
+      { avgScore: 10, batchId: "solo", batchName: "Batch", players: 3, rank: null, takesPart: false }
+    ]);
+  });
+
+  it("names another batch's top player only when that batch shows names", () => {
+    const res = rankBatchBattles(
+      [
+        battleRow({ batchId: "mine" }),
+        battleRow({ batchId: "hidden" }),
+        battleRow({ batchId: "shown", battlesShowNames: true, topLastName: null })
+      ],
+      new Set(["mine"])
+    );
+    const names = Object.fromEntries(res.rows.map((r) => [r.batchId, r.topPlayerName]));
+    expect(names).toEqual({ hidden: null, mine: "Arjun K.", shown: "Arjun" });
+    expect(res.rows.find((r) => r.batchId === "hidden")?.topPlayerScore).toBe(20);
+  });
+
+  it("reports the viewer's batch even when it is past the 50-row board", () => {
+    const rows = Array.from({ length: 60 }, (_, i) =>
+      battleRow({ avgScore: 100 - i, batchId: `b${i}`, batchName: `B${String(i).padStart(2, "0")}` })
+    );
+    const res = rankBatchBattles(rows, new Set(["b59"]));
+    expect(res.rows).toHaveLength(50);
+    expect(res.myBatches).toEqual([expect.objectContaining({ batchId: "b59", rank: 60, takesPart: true })]);
   });
 });
 

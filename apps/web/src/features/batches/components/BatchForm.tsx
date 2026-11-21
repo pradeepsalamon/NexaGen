@@ -29,6 +29,11 @@ import { useAssignableUsersQuery } from "../hooks/useBatchesApi";
 import { createBatch, updateBatch, deleteBatch } from "../api/batchApi";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { queryKeys } from "@/lib/queryKeys";
+import {
+  BATTLES_ENABLED_OPTIONS,
+  fromBattlesEnabledValue,
+  toBattlesEnabledValue
+} from "@/features/puzzle-rush-solo/components/BatchBattleSettingsDialog";
 
 const batchFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -40,6 +45,9 @@ const batchFormSchema = z.object({
   // "" = no default: each class's type comes from the roster size.
   batchType: z.enum(["", "GROUP", "INDIVIDUAL", "BUDDY"]),
   puzzleTrainingEnabled: z.boolean(),
+  // Batch Battles: "" = automatic (group batches take part), "on", "off".
+  battlesEnabled: z.enum(["", "on", "off"]),
+  battlesShowNames: z.boolean(),
   coachIds: z.array(z.string()).optional(),
   studentIds: z.array(z.string()).optional(),
 });
@@ -73,6 +81,8 @@ function toUpdatePayload(batch: Batch): UpdateBatchRequest {
     status: batch.status,
     batchType: batch.batchType,
     puzzleTrainingEnabled: batch.puzzleTrainingEnabled,
+    battlesEnabled: batch.battlesEnabled,
+    battlesShowNames: batch.battlesShowNames,
     coachIds: batch.coaches.map(c => c.id),
     studentIds: batch.students.map(s => s.id),
   };
@@ -122,6 +132,8 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
       status: selectedBatch?.status || "ACTIVE",
       batchType: selectedBatch?.batchType ?? "",
       puzzleTrainingEnabled: selectedBatch?.puzzleTrainingEnabled ?? true,
+      battlesEnabled: toBattlesEnabledValue(selectedBatch?.battlesEnabled ?? null),
+      battlesShowNames: selectedBatch?.battlesShowNames ?? false,
       coachIds: selectedBatch?.coaches.map(c => c.id) || [],
       studentIds: selectedBatch?.students.map(s => s.id) || [],
     },
@@ -139,6 +151,8 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
       status: values.status,
       batchType: values.batchType || null,
       puzzleTrainingEnabled: values.puzzleTrainingEnabled,
+      battlesEnabled: fromBattlesEnabledValue(values.battlesEnabled),
+      battlesShowNames: values.battlesShowNames,
       coachIds: values.coachIds,
       studentIds: values.studentIds,
     };
@@ -202,6 +216,32 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                   checked={field.value}
                   id="puzzleTrainingEnabled"
                   label={field.value ? "On for this batch" : "Off for this batch"}
+                  onCheckedChange={field.onChange}
+                />
+              )}
+            />
+          </BaseFormField>
+
+          <FormSelect
+            hint="Storm and Racer batch board. One-to-one and buddy batches stay out unless turned on; the batch's coach can change this."
+            label="Batch Battles"
+            name="battlesEnabled"
+            options={BATTLES_ENABLED_OPTIONS}
+          />
+
+          <BaseFormField
+            id="battlesShowNames"
+            label="Batch Battles: top player's name"
+            hint="Students are minors: off by default, other batches see scores without names."
+          >
+            <Controller
+              control={form.control}
+              name="battlesShowNames"
+              render={({ field }) => (
+                <Switch
+                  checked={field.value}
+                  id="battlesShowNames"
+                  label={field.value ? "Shown to other batches" : "Hidden from other batches"}
                   onCheckedChange={field.onChange}
                 />
               )}

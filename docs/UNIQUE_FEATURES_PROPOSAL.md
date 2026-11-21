@@ -81,6 +81,7 @@ To transform NexaGen from an operational platform into an industry-leading chess
 * **Architectural Fit:**
   * Extends `PuzzleRushSolo` models and Redis batch leaderboard cache (`docs/PUZZLE_RUSH_SOLO.md`).
 * **Competitive Advantage:** Creates an esport-like academy community where students encourage each other to practice daily.
+* **Status (2026-11-21):** a first slice is built — **Batch Battles**, batches ranked on their players' average Solo Storm/Racer score, per-batch opt-in and name settings ([PUZZLE_RUSH_SOLO.md](PUZZLE_RUSH_SOLO.md) § "Batch Battles"). Houses, Clan XP from homework/attendance, inter-batch blitz and badges are not built. There is no Redis leaderboard cache; the board is one query.
 
 ---
 

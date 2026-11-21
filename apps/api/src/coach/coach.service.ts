@@ -18,7 +18,7 @@ import type {
   CoachClassStudent,
   PaginatedQuery
 } from "@nexa-chess/types";
-import { resolveBatchType, resolveCancellationPath } from "@nexa-chess/types";
+import { batchTakesPartInBattles, resolveBatchType, resolveCancellationPath } from "@nexa-chess/types";
 import { ClassStatus, Prisma, UserRole } from "@prisma/client";
 import { paginationMeta, resolvePagination } from "../common/pagination";
 import { zonedDayBounds } from "../common/time";
@@ -135,6 +135,16 @@ export class CoachService {
 
     return {
       batches: batches.map(b => ({
+        battles: {
+          batchId: b.id,
+          battlesEnabled: b.battlesEnabled,
+          battlesShowNames: b.battlesShowNames,
+          takesPart: batchTakesPartInBattles({
+            batchType: b.batchType,
+            battlesEnabled: b.battlesEnabled,
+            studentCount: b.students.length
+          })
+        },
         id: b.id,
         name: b.name,
         status: b.status,

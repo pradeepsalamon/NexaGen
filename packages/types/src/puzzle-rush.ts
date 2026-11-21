@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveBatchType, type BatchType } from "./batch-type";
 
 // ──────────────────────────────────────────────────────────────
 // Puzzle Storm & Puzzle Racer — the Lichess timed puzzle modes, as two
@@ -342,28 +343,80 @@ export type SoloRushLeaderboard = {
   rows: SoloRushLeaderboardRow[];
 };
 
+// ── Batch Battles (docs/PUZZLE_RUSH_SOLO.md § "Batch Battles") ──
+// Batches of one academy compete on the average of their players' best
+// finished runs. Which batches take part, and whether other batches see a
+// batch's top player's name, is set per batch by an admin or its coach.
+
+/** A batch needs this many players in the period before it gets a rank. */
+export const BATCH_BATTLE_MIN_PLAYERS = 3;
+
+/**
+ * Whether a batch competes in Batch Battles: the batch's own setting, else
+ * automatic — group batches only (a 1:1 or buddy batch is often named after
+ * its students, and one or two players can't make a fair average).
+ */
+export function batchTakesPartInBattles(input: {
+  battlesEnabled: boolean | null;
+  batchType: BatchType | null;
+  studentCount: number;
+}): boolean {
+  if (input.battlesEnabled !== null) return input.battlesEnabled;
+  return resolveBatchType({ batchDefault: input.batchType, studentCount: input.studentCount }).type === "GROUP";
+}
+
+export const updateBatchBattleSettingsSchema = z
+  .object({
+    /** null = automatic (group batches take part). */
+    battlesEnabled: z.boolean().nullable().optional(),
+    battlesShowNames: z.boolean().optional()
+  })
+  .strict()
+  .refine((value) => value.battlesEnabled !== undefined || value.battlesShowNames !== undefined, {
+    message: "Nothing to change."
+  });
+export type UpdateBatchBattleSettingsRequest = z.infer<typeof updateBatchBattleSettingsSchema>;
+
+export type BatchBattleSettings = {
+  batchId: string;
+  battlesEnabled: boolean | null;
+  battlesShowNames: boolean;
+  /** `battlesEnabled` resolved (automatic → group batches). */
+  takesPart: boolean;
+};
+
 export type SoloRushBatchBattleRow = {
-  rank: number;
+  /** null = not ranked yet (fewer than `minPlayers` players in the period). */
+  rank: number | null;
   batchId: string;
   batchName: string;
-  totalScore: number;
-  activeStudents: number;
+  /** Students of the batch with a finished run in the period. */
+  players: number;
+  /** Average of those players' best scores, one decimal. */
   avgScore: number;
-  topStudentName: string | null;
-  topStudentScore: number | null;
+  /** "Arjun K." — only for the viewer's own batch or a batch that shows names. */
+  topPlayerName: string | null;
+  topPlayerScore: number | null;
   isMyBatch: boolean;
+};
+
+export type SoloRushMyBattleBatch = {
+  batchId: string;
+  batchName: string;
+  /** false: the batch isn't in Batch Battles (its coach or an admin can turn it on). */
+  takesPart: boolean;
+  rank: number | null;
+  players: number;
+  avgScore: number | null;
 };
 
 export type SoloRushBatchBattlesLeaderboard = {
   mode: PuzzleRushMode;
   period: SoloRushPeriod;
-  myBatches: {
-    batchId: string;
-    batchName: string;
-    rank: number;
-    totalScore: number;
-    myContribution: number;
-  }[];
+  minPlayers: number;
+  /** The viewer's best finished score in the period (what they add to each batch). */
+  myBest: number | null;
+  myBatches: SoloRushMyBattleBatch[];
+  /** Ranked batches first, then batches still short of `minPlayers`; at most 50. */
   rows: SoloRushBatchBattleRow[];
 };
-

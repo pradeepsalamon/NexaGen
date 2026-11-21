@@ -968,6 +968,14 @@ model Batch {
   /// 2026-10-12; an admin turns it off per batch in the BatchForm.
   puzzleTrainingEnabled Boolean @default(true)
 
+  /// Batch Battles (docs/PUZZLE_RUSH_SOLO.md): the batch competes on the
+  /// academy's Storm/Racer batch board. null = automatic (group batches only,
+  /// via `batchTakesPartInBattles`). Admin, or a coach of the batch, sets it.
+  battlesEnabled   Boolean?
+  /// Other batches see this batch's top player's name ("Arjun K."). Off by
+  /// default: students are minors.
+  battlesShowNames Boolean @default(false)
+
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 

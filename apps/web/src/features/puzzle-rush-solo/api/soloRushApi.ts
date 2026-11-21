@@ -1,5 +1,6 @@
 import {
   API_ROUTES,
+  type BatchBattleSettings,
   type PuzzleRushMode,
   type ReportSoloRushProgressRequest,
   type ReportSoloRushProgressResponse,
@@ -7,7 +8,8 @@ import {
   type SoloRushLeaderboard,
   type SoloRushOverview,
   type SoloRushPeriod,
-  type SoloRushRun
+  type SoloRushRun,
+  type UpdateBatchBattleSettingsRequest
 } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
 
@@ -39,3 +41,10 @@ export const getSoloRushBattles = (params: {
   const sp = new URLSearchParams(params);
   return apiFetch<SoloRushBatchBattlesLeaderboard>(`${API_ROUTES.puzzleRushSolo.battles}?${sp.toString()}`);
 };
+
+/** A batch's Batch Battles settings (an admin, or a coach of the batch). */
+export const updateBatchBattleSettings = (
+  batchId: string,
+  body: UpdateBatchBattleSettingsRequest
+): Promise<BatchBattleSettings> =>
+  apiFetch<BatchBattleSettings>(API_ROUTES.puzzleRushSolo.battleSettings(batchId), { method: "PATCH", body });
