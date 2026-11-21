@@ -107,7 +107,7 @@ To transform NexaGen from an operational platform into an industry-leading chess
 * **Architectural Fit:**
   * Integrates with `apps/api/src/support/` WhatsApp webhook receiver and the Puzzle Library (`docs/PUZZLES.md`).
 * **Competitive Advantage:** Zero-friction daily engagement directly in the family's primary messaging app.
-* **Status (2026-11-21):** step 1 (in the app) being built — [PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md); WhatsApp delivery is step 2.
+* **Status (2026-11-21):** step 1 (in the app) and step 2 (WhatsApp nudge with a link, opt-in only) built — [PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md); a board picture and answering by reply are not built.
 
 ---
 
