@@ -116,7 +116,9 @@ export class PresenceService {
     };
   }
 
+  // SALES too: every signed-in page sends the heartbeat; it only stamps the
+  // caller's own lastSeenAt (live-class nudges are for coaches and students).
   private getAuthenticatedUser(accessToken: string | undefined) {
-    return authenticateUser(this.jwtService, this.prisma, accessToken);
+    return authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
   }
 }

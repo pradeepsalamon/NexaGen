@@ -191,8 +191,10 @@ export class AccountDeletionService {
     })().catch((error: unknown) => this.logger.warn(`Account-deletion outcome not sent: ${String(error)}`));
   }
 
+  // SALES too: asking to delete your own account is everyone's right; the
+  // admin routes below still demand an admin role.
   private authenticate(accessToken: string | undefined) {
-    return authenticateUser(this.jwtService, this.prisma, accessToken);
+    return authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
   }
 
   private async authenticateAdmin(accessToken: string | undefined) {
