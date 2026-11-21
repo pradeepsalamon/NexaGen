@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -15,12 +17,34 @@ import { API_ROUTES, updateExtraRolesRequestSchema } from "@nexa-chess/types";
 import type { PaginatedQuery, UpdateExtraRolesRequest } from "@nexa-chess/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { RosterImportService } from "./roster-import.service";
 import { UserService } from "./user.service";
 import { CreateUserDto, UpdateUserDto } from "./dto/user.dto";
 
 @Controller()
 export class UserController {
-  constructor(private readonly userService: UserService) { }
+  constructor(
+    private readonly rosterImport: RosterImportService,
+    private readonly userService: UserService
+  ) { }
+
+  /** Roster import: checks every row and creates nothing (docs/ROSTER_IMPORT.md). */
+  @Post(API_ROUTES.users.importPreview)
+  @HttpCode(HttpStatus.OK)
+  previewImport(@Body() body: unknown, @Req() request: Request) {
+    return this.rosterImport.preview(this.getAccessToken(request), body);
+  }
+
+  @Post(API_ROUTES.users.import)
+  import(@Body() body: unknown, @Req() request: Request) {
+    return this.rosterImport.import(this.getAccessToken(request), body);
+  }
+
+  @Post(API_ROUTES.users.invite())
+  @HttpCode(HttpStatus.OK)
+  resendInvite(@Param("id") id: string, @Req() request: Request) {
+    return this.rosterImport.resendInvite(this.getAccessToken(request), id);
+  }
 
   @Get(API_ROUTES.users.list)
   list(

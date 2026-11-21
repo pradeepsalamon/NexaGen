@@ -8,14 +8,16 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  Send,
   Settings2,
   SlidersHorizontal,
   Trash2,
   TrendingUp,
+  Upload,
   UsersRound
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { AuthUser, UserStatus } from "@nexa-chess/types";
+import { isPlaceholderEmail, type AuthUser, type UserStatus } from "@nexa-chess/types";
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -46,19 +48,21 @@ import { useAuthStore } from "@/stores/authStore";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useServerTable } from "@/hooks/useServerTable";
 
+import { RosterImportPanel } from "./RosterImportPanel";
 import { UserForm } from "./UserForm";
 import { CanAlsoTeachSwitch } from "./CanAlsoTeachSwitch";
 import { UserSettings } from "./UserSettings";
 import {
   useUsersQuery
 } from "../hooks/useUsersApi";
-import { archiveUser, restoreUser, deleteUser } from "../api/userApi";
+import { archiveUser, resendAccountInvite, restoreUser, deleteUser } from "../api/userApi";
+import { useToast } from "@/providers/ToastProvider";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { restoreTrashItem } from "@/features/trash/api/trashApi";
 import { queryKeys } from "@/lib/queryKeys";
 import { enumLabel } from "@/lib/utils";
 
-type UserManagementTab = "all" | "create" | "settings";
+type UserManagementTab = "all" | "create" | "import" | "settings";
 
 function toEmailRecipient(user: AuthUser): EmailRecipient {
   return {
@@ -77,7 +81,25 @@ const statusOptions = [
 ];
 
 export function UserManagementClient() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<UserManagementTab>("all");
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+  // undo: intentionally excluded — sends a message; a link that was sent can't be unsent.
+  const resendInvite = useCallback(
+    async (user: AuthUser) => {
+      setInvitingId(user.id);
+      try {
+        const { sent } = await resendAccountInvite(user.id);
+        if (sent) toast.success({ title: `Invite sent to ${user.email}` });
+        else toast.error({ message: "Check the academy's email settings and try again.", title: "The invite couldn't be sent" });
+      } catch (error) {
+        toast.error({ message: error instanceof Error ? error.message : undefined, title: "The invite couldn't be sent" });
+      } finally {
+        setInvitingId(null);
+      }
+    },
+    [toast]
+  );
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
   // Server-side pagination / search / sort / status filter (AUDIT H26).
@@ -203,8 +225,14 @@ export function UserManagementClient() {
         ),
         cell: ({ row }) => (
           <div className="flex flex-wrap items-center gap-2">
-            <span>{row.original.email}</span>
-            {!row.original.isEmailVerified && <Badge variant="warning">Not verified</Badge>}
+            {isPlaceholderEmail(row.original.email) ? (
+              <Badge variant="secondary">No email</Badge>
+            ) : (
+              <>
+                <span>{row.original.email}</span>
+                {!row.original.isEmailVerified && <Badge variant="warning">Not verified</Badge>}
+              </>
+            )}
           </div>
         )
       },
@@ -269,6 +297,19 @@ export function UserManagementClient() {
                   label: "Edit user",
                   onSelect: () => editUser(row.original)
                 },
+                ...(row.original.hasSignedIn === false &&
+                row.original.status === "ACTIVE" &&
+                !isPlaceholderEmail(row.original.email)
+                  ? [
+                      {
+                        ariaLabel: `Re-send ${name}'s invite to set a password`,
+                        disabled: invitingId === row.original.id,
+                        icon: Send,
+                        label: "Re-send invite",
+                        onSelect: () => void resendInvite(row.original)
+                      }
+                    ]
+                  : []),
                 {
                   ariaLabel: `Email ${name} or manage their verification`,
                   icon: Mail,
@@ -305,7 +346,9 @@ export function UserManagementClient() {
       handleArchive,
       handleDelete,
       handleRestore,
-      isRestoring
+      invitingId,
+      isRestoring,
+      resendInvite
     ]
   );
 
@@ -373,6 +416,10 @@ export function UserManagementClient() {
                   <Plus aria-hidden="true" className="size-4" />
                 )}
                 {editingUserId ? "Edit" : "Create"}
+              </TabsTrigger>
+              <TabsTrigger value="import">
+                <Upload aria-hidden="true" className="size-4" />
+                Import
               </TabsTrigger>
               <TabsTrigger value="settings">
                 <Settings2 aria-hidden="true" className="size-4" />
@@ -467,6 +514,10 @@ export function UserManagementClient() {
               />
               {selectedUser && <CanAlsoTeachSwitch key={selectedUser.id} user={selectedUser} />}
             </div>
+          </TabsContent>
+
+          <TabsContent value="import" className="outline-none">
+            <RosterImportPanel />
           </TabsContent>
 
           <TabsContent value="settings" className="outline-none">

@@ -46,6 +46,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [APPEARANCE.md](APPEARANCE.md) | Board appearance and typography resolvers |
 | [PAYMENTS.md](PAYMENTS.md) | Payments, invoices, credit notes — read before touching `payments/` |
 | [REFERRALS.md](REFERRALS.md) | Referral links, pipeline stages and their rewards, milestone bonuses, points and the vouchers students buy with them, staff payouts and the SALES role |
+| [ROSTER_IMPORT.md](ROSTER_IMPORT.md) | CSV import of students and coaches, invites to set a password, accounts without an email |
 | [MESSAGING.md](MESSAGING.md) | Admin messaging rules and outbound WhatsApp |
 | [EMAIL_ADMIN.md](EMAIL_ADMIN.md) | Email verification policy and staff direct email |
 | [SAAS_PLANS.md](SAAS_PLANS.md) | Subscription tiers, feature gates, limits |

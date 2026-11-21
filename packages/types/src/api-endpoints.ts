@@ -28,6 +28,11 @@ export const API_ROUTES = {
     archive: (id: string = ":id") => `/users/${id}/archive`,
     restore: (id: string = ":id") => `/users/${id}/restore`,
     extraRoles: (id: string = ":id") => `/users/${id}/extra-roles`,
+    // Roster import (docs/ROSTER_IMPORT.md): POST rows; `preview` checks them without creating anything.
+    import: "/users/import",
+    importPreview: "/users/import/preview",
+    // (Re)send the set-your-password invite to an account that has never signed in.
+    invite: (id: string = ":id") => `/users/${id}/invite`,
     delete: (id: string = ":id") => `/users/${id}`
   },
   emailPreferences: {

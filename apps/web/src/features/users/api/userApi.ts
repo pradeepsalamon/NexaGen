@@ -1,5 +1,8 @@
 import type {
   CreateUserRequest,
+  ResendInviteResponse,
+  RosterImportRequest,
+  RosterImportResponse,
   TrashActionResponse,
   UpdateExtraRolesRequest,
   UpdateExtraRolesResponse,
@@ -57,4 +60,18 @@ export function setExtraRoles(userId: string, payload: UpdateExtraRolesRequest) 
     body: payload,
     method: "PUT"
   });
+}
+
+/** Roster import (docs/ROSTER_IMPORT.md): checks every row, creates nothing. */
+export function previewRosterImport(payload: RosterImportRequest) {
+  return apiFetch<RosterImportResponse>(API_ROUTES.users.importPreview, { body: payload, method: "POST" });
+}
+
+export function importRoster(payload: RosterImportRequest) {
+  return apiFetch<RosterImportResponse>(API_ROUTES.users.import, { body: payload, method: "POST" });
+}
+
+/** A fresh set-your-password link for an account that has never signed in. */
+export function resendAccountInvite(userId: string) {
+  return apiFetch<ResendInviteResponse>(API_ROUTES.users.invite(userId), { method: "POST" });
 }

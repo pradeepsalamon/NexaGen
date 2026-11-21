@@ -12,6 +12,7 @@ export const systemMessageKeySchema = z.enum([
   "PASSWORD_RESET",
   "ACCOUNT_ACCESS",
   "ACADEMY_ADMIN_INVITE",
+  "ACCOUNT_INVITE",
   "EMAIL_VERIFICATION",
   "EMAIL_CHANGED",
   "PARENT_CONTACT_CHANGED",
@@ -289,6 +290,27 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
       body: "Hi {{recipient.firstName}},\n\nUse the button below to set your password and sign in to your referral board. This link works once and expires in 24 hours.",
       actionLabel: "Set password and sign in",
       whatsappBody: "Hi {{recipient.firstName}}, set your password and sign in to your {{academy.name}} referral board here (works once, expires in 24 hours): {{links.reset}}"
+    }
+  },
+  ACCOUNT_INVITE: {
+    key: "ACCOUNT_INVITE",
+    group: "ACCOUNT",
+    label: "Invite to a new account",
+    description:
+      "Sent to a student or coach whose account an admin imported from a spreadsheet, or when an admin re-sends the invite. The link sets their password.",
+    sentTo: "The new student or coach",
+    channels: EMAIL_AND_WHATSAPP,
+    channelNote: ONE_TIME_LINK,
+    defaultChannels: ["EMAIL"],
+    variables: ["academy.name", "recipient.firstName", "links.reset"],
+    requiredVariables: ["links.reset"],
+    actionVariable: "links.reset",
+    defaults: {
+      subject: "Your {{academy.name}} account is ready",
+      body: "Hi {{recipient.firstName}},\n\n{{academy.name}} has made an account for you. Use the button below to choose your password and sign in. This link works once and expires in 7 days.",
+      actionLabel: "Set password and sign in",
+      whatsappBody:
+        "Hi {{recipient.firstName}}, {{academy.name}} has made an account for you. Choose your password and sign in here (works once, expires in 7 days): {{links.reset}}"
     }
   },
   ACADEMY_ADMIN_INVITE: {

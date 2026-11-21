@@ -158,6 +158,8 @@ Same 3-layer resolver (system → admin → user) in `@nexa-chess/types` (`chess
 
 `platform/` + `features/subscription/`, catalogue `@nexa-chess/types` `platform-plans.ts`. The API enforces every feature/limit: global `FeatureGateGuard` + `@RequireFeature("key")`, and `EntitlementService.assert*` inside the creating transaction; refusals are **402**. A new catalogued feature must be required by a route (a spec checks) and added to the Enterprise row by migration. Plan and academy changes are platform operators only (Nexa's `SUPER_ADMIN`s, `assertPlatformOperator`; every write in `PlatformAuditLog`); status changes go through `applySubscriptionTransition`. **Usage history** (`TenantUsageService`, `TenantUsageDay`, console Usage tab) is analytics only, never an enforcement or billing source; a file stored in Cloudinary records its size (`UploadService` → `UploadedFile`, or a `…Bytes` column). [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md)
 
+**Roster import** (`user/roster-import.service.ts`, Users → Import): CSV rows checked by the shared `checkRosterRows`, one transaction per row with `assertSeatAvailable`; invite = `ACCOUNT_INVITE`; no-email rows get a `@no-email.invalid` stand-in that mail never goes to (`isPlaceholderEmail`). [ROSTER_IMPORT.md](docs/ROSTER_IMPORT.md)
+
 **Tenant integrity monitoring** (`tenancy/integrity/`): nightly read-only check of every FK between academy tables; reports, never blocks (no FKs/triggers; RLS is future). A link that may legitimately cross academies goes in `PLATFORM_OPERATOR_LINKS` (security review). [SAAS_MULTI_TENANCY.md](docs/SAAS_MULTI_TENANCY.md) § "Tenant integrity monitoring"
 
 ### 3.6m2 Multi-tenancy (Phases 2–3)

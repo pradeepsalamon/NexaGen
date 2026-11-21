@@ -647,6 +647,7 @@ export class UserService {
       email: user.email,
       extraRoles: [...(user.extraRoles ?? [])],
       firstName: user.firstName,
+      hasSignedIn: user.lastLoginAt !== null,
       id: user.id,
       isEmailVerified: user.isEmailVerified,
       lastName: user.lastName,
