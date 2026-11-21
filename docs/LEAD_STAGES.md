@@ -2,7 +2,8 @@
 
 Status: **built 2026-11-21**: stages, automatic moves, missed-demo job, daily waiting-for-a-time
 alert, WhatsApp reminders with confirm/reschedule, stage copy to Frappe (off by default; on
-for staging). Still open: Enrolled on payment, templates in Meta, moving the number to the bot. (branch `feat/lead-stage-sync`): stages, automatic
+for staging). Also built: leads linked to the account they register and enrolled on approval/payment.
+Still open: Meta approving the templates, moving the number to the bot (owner: later). (branch `feat/lead-stage-sync`): stages, automatic
 moves, missed-demo job, stage copy to Frappe (off by default). Phase 2 (reminders with
 confirm/reschedule buttons, missed-demo message, "waiting for a demo time" alert, Enrolled
 on payment) is planned below and needs the WhatsApp bot to receive the number's messages.
@@ -52,6 +53,20 @@ on payment) is planned below and needs the WhatsApp bot to receive the number's 
   exist as a `CRM Lead Status` in Frappe, or Frappe refuses new leads.
 - A NexaGen manual move backwards is not copied (Frappe keeps the further stage).
 
+## Registration and enrolment (built 2026-11-21)
+
+Owner 2026-11-21: no "create student" action; a lead follows the normal registration flow.
+`LeadAccountsService` (every 10 min, `JOB_LOCKS.leadAccounts`):
+
+- **Link**: a student account registered in the last 2 days with no lead gets the newest
+  lead of the 90 days before it, not Lost and not linked yet, with the same email (any case),
+  else the same mobile (last ten digits of the account's number or the parent's phone).
+  `Lead.userId` is set by a claim; the lead moves to Payment pending (`REGISTERED`).
+- **Enrol**: a linked lead whose account is approved (ACTIVE) or has a PAID order →
+  Converted (`ENROLLED`; Frappe "Enrolled").
+- Only a CRM stage: nothing about the lead is shown to the account. Referral rewards are not
+  triggered by these moves (the referral keeps its own sign-up/payment rules).
+
 ## WhatsApp reminders (built 2026-11-21)
 
 `support/support-demo-reminders.service.ts` (every 5 min, `JOB_LOCKS.demoReminders`), for a lead's
@@ -77,16 +92,17 @@ phone booking in a scheduled demo class, only for numbers the bot answers and ne
   demo times with the child's details filled in (not the same class); the new booking replaces
   the old registration if the guest never joined it.
 
-**Templates to create in WhatsApp Manager** (category Utility, English):
-
-- `demo_reminder`: "Hi {{1}}, a reminder: {{2}}'s free demo class with Nexa Chess Academy is
-  on {{3}}. Will you attend?" — quick replies "Yes, I'll attend", "Reschedule".
-- `demo_missed`: "Hi {{1}}, we missed {{2}} at the free demo class ({{3}}). Would you like
-  to pick a new time?" — quick reply "Pick a new time".
+**Templates** (created by the owner 2026-11-21, pending Meta approval; staging has
+`SUPPORT_DEMO_REMINDER_TEMPLATE=demo_reminder`, `SUPPORT_DEMO_MISSED_TEMPLATE=demo_missed`):
+body {{1}} parent, {{2}} student, {{3}} time. `demo_reminder` (Utility) has quick replies
+"Yes, I'll attend", "Reschedule" and a URL button "Join demo" `https://nexachess.in/demo/{{1}}`;
+`demo_missed` (Meta classed it **Marketing**, ~₹0.80 a send) has "Book another time". The send
+builds its buttons from the template's own (`demoTemplateButtons`: quick replies take the
+payloads in order, a `{{1}}` URL takes `<classId>?invite=<token>`) and skips a template that
+isn't APPROVED in the account's list.
 
 ## Still to do (owner decisions 2026-11-21)
 
-- **Enrolled automatically** on a captured payment or a student account for the lead.
 - **Tidy Frappe's stage list** to the names above (create the missing ones, move leads from
   the old duplicates), then switch on `FRAPPE_CRM_STAGE_SYNC`.
 - Test on staging first; the number moves to the NexaGen bot only after that (owner).

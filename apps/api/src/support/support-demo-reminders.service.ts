@@ -1,13 +1,22 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { getApiEnv } from "@nexa-chess/config/api";
-import { SUPPORT_DEMO_ATTEND_PREFIX, SUPPORT_DEMO_MOVE_PREFIX, supportReplyText, type SupportReply } from "@nexa-chess/types";
+import {
+  SUPPORT_DEMO_ATTEND_PREFIX,
+  SUPPORT_DEMO_MOVE_PREFIX,
+  findWhatsAppTemplate,
+  supportReplyText,
+  type SupportReply,
+  type WhatsAppTemplateInfo
+} from "@nexa-chess/types";
 import { ClassStatus, LeadStatus, Prisma } from "@prisma/client";
 import { DEFAULT_TIME_ZONE, zonedDateToUtc, zonedYmd } from "../common/time";
 import { demoInvitePath } from "../demo-class/demo-invite.service";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { WhatsAppTemplatesService } from "../whatsapp/whatsapp-templates.controller";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import type { WhatsAppTemplateComponent } from "../whatsapp/whatsapp.types";
 import { WHATSAPP_REPLY_WINDOW_MS } from "./support-conversation.service";
 import { SupportDemoSlotsService, supportSlotTitle } from "./support-demo-slots.service";
 import { SupportOutboxService } from "./support-outbox.service";
@@ -49,6 +58,38 @@ export function demoReminderDue(
   return inWindow && booking.createdAt.getTime() < eveningAt.getTime() ? "EVENING" : null;
 }
 
+/**
+ * The button parts of a reminder template send, from the template's own buttons: each quick
+ * reply takes the next payload, a URL button with a `{{1}}` takes `joinSuffix` (the class id and
+ * invite, after `/demo/`). Unknown template (list unreadable): quick replies in order. Null when
+ * the template needs a join link this booking hasn't got.
+ */
+export function demoTemplateButtons(
+  template: Pick<WhatsAppTemplateInfo, "buttons"> | null,
+  payloads: string[],
+  joinSuffix: string | null
+): WhatsAppTemplateComponent[] | null {
+  const quick = (payload: string, index: number): WhatsAppTemplateComponent => ({
+    index: String(index),
+    parameters: [{ payload, type: "payload" }],
+    sub_type: "quick_reply",
+    type: "button"
+  });
+  if (!template) return payloads.map(quick);
+  const queue = [...payloads];
+  const parts: WhatsAppTemplateComponent[] = [];
+  for (const [index, button] of template.buttons.entries()) {
+    if (button.type === "QUICK_REPLY") {
+      const payload = queue.shift();
+      if (payload) parts.push(quick(payload, index));
+    } else if (button.type === "URL" && button.url?.includes("{{")) {
+      if (!joinSuffix) return null;
+      parts.push({ index: String(index), parameters: [{ text: joinSuffix, type: "text" }], sub_type: "url", type: "button" });
+    }
+  }
+  return parts;
+}
+
 type Booking = Prisma.DemoClassRegistrationGetPayload<{
   include: { class: { include: { demoSchedule: { select: { timezone: true } } } }; lead: true };
 }>;
@@ -71,6 +112,7 @@ export class SupportDemoRemindersService {
     private readonly outbox: SupportOutboxService,
     private readonly prisma: PrismaService,
     private readonly settings: SupportSettingsService,
+    private readonly templates: WhatsAppTemplatesService,
     private readonly whatsapp: WhatsAppService
   ) {}
 
@@ -171,16 +213,19 @@ export class SupportDemoRemindersService {
       } else {
         const template = kind === "MISSED" ? this.env.SUPPORT_DEMO_MISSED_TEMPLATE : this.env.SUPPORT_DEMO_REMINDER_TEMPLATE;
         if (!template) return false;
-        const buttons = kind === "MISSED" ? [`${SUPPORT_DEMO_MOVE_PREFIX}${booking.id}`] : [`${SUPPORT_DEMO_ATTEND_PREFIX}${booking.id}`, `${SUPPORT_DEMO_MOVE_PREFIX}${booking.id}`];
+        const payloads = kind === "MISSED" ? [`${SUPPORT_DEMO_MOVE_PREFIX}${booking.id}`] : [`${SUPPORT_DEMO_ATTEND_PREFIX}${booking.id}`, `${SUPPORT_DEMO_MOVE_PREFIX}${booking.id}`];
+        const list = await this.templates.forAcademy();
+        const info = list.available ? findWhatsAppTemplate(list.templates, template, this.env.SUPPORT_DEMO_TEMPLATE_LANGUAGE) : null;
+        if (list.available && (!info || info.status !== "APPROVED")) {
+          this.logger.warn(`Demo ${kind.toLowerCase()} template "${template}" is not approved in WhatsApp Manager; booking ${booking.id} not reminded.`);
+          return false;
+        }
+        const buttons = demoTemplateButtons(info, payloads, booking.inviteToken ? `${booking.classId}?invite=${booking.inviteToken}` : null);
+        if (!buttons) return false;
         await this.whatsapp.sendTemplate({
           components: [
             { parameters: [lead.parentName, lead.studentName, when].map((text) => ({ text, type: "text" as const })), type: "body" },
-            ...buttons.map((payload, index) => ({
-              index: String(index),
-              parameters: [{ payload, type: "payload" as const }],
-              sub_type: "quick_reply" as const,
-              type: "button" as const
-            }))
+            ...buttons
           ],
           language: this.env.SUPPORT_DEMO_TEMPLATE_LANGUAGE,
           name: template,

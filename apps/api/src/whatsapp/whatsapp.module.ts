@@ -10,6 +10,6 @@ import { WhatsAppService } from "./whatsapp.service";
   controllers: [WhatsAppSettingsController, WhatsAppTemplatesController],
   imports: [JwtModule.register({})],
   providers: [WhatsAppCredentialsService, WhatsAppOptOutService, WhatsAppService, WhatsAppSettingsService, WhatsAppTemplatesService],
-  exports: [WhatsAppCredentialsService, WhatsAppOptOutService, WhatsAppService]
+  exports: [WhatsAppCredentialsService, WhatsAppOptOutService, WhatsAppService, WhatsAppTemplatesService]
 })
 export class WhatsAppModule {}

@@ -42,7 +42,7 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
  * What happened to a lead that may move its stage on its own (docs/LEAD_STAGES.md).
  * A person can still set any stage by hand.
  */
-export type LeadStageEvent = "DEMO_BOOKED" | "DEMO_CONFIRMED" | "DEMO_ATTENDED" | "DEMO_MISSED";
+export type LeadStageEvent = "DEMO_BOOKED" | "DEMO_CONFIRMED" | "DEMO_ATTENDED" | "DEMO_MISSED" | "REGISTERED" | "ENROLLED";
 
 /** Stages a person decided; nothing automatic moves a lead out of them. */
 export const LEAD_FINAL_STATUSES: readonly LeadStatus[] = ["CONVERTED", "ACTIVE_STUDENT", "LOST"];
@@ -55,10 +55,15 @@ const BEFORE_DEMO: readonly LeadStatus[] = ["NEW", "CONTACTED", "INTERESTED", "D
  * `current` to, or null when it stays. Only forward, with one exception: a
  * lead who missed a demo can be booked again. Never out of a final stage, and
  * never back from Demo attended / Follow up / Payment pending (a second demo
- * keeps the further stage).
+ * keeps the further stage). Registering an account → Payment pending; an
+ * approved account or a paid order → Converted (Frappe "Enrolled").
  */
 export function nextLeadStatus(current: LeadStatus, event: LeadStageEvent): LeadStatus | null {
   if (LEAD_FINAL_STATUSES.includes(current)) return null;
+  if (event === "ENROLLED") return "CONVERTED";
+  if (event === "REGISTERED") {
+    return current === "PAYMENT_PENDING" ? null : "PAYMENT_PENDING";
+  }
   const target: LeadStatus | null =
     event === "DEMO_BOOKED"
       ? BEFORE_DEMO.includes(current) ? "DEMO_SCHEDULED" : null

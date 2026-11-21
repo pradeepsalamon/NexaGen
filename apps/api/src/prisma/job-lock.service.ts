@@ -17,6 +17,7 @@ export const JOB_LOCKS = {
   gameAnalysisStaleSweep: "game-analysis.stale-sweep",
   invoiceEmailSweep: "invoice.email-sweep",
   invoicePdfSweep: "invoice.pdf-sweep",
+  leadAccounts: "lead.accounts",
   leadAwaitingDemo: "lead.awaiting-demo",
   leadDemoMissed: "lead.demo-missed",
   liveClassStaleSweep: "live-class.stale-sweep",

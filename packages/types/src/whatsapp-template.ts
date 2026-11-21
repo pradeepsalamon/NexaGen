@@ -128,8 +128,8 @@ export interface WhatsAppTemplateInfo {
   paramCount: number;
   /** Header kind when there is one: TEXT, IMAGE, DOCUMENT, VIDEO, LOCATION. */
   header: string | null;
-  /** Its buttons: the kind (QUICK_REPLY, URL, PHONE_NUMBER, …) and the label. */
-  buttons: { text: string; type: string }[];
+  /** Its buttons: the kind (QUICK_REPLY, URL, PHONE_NUMBER, …), the label, and a URL button's address (with `{{1}}` when the end is filled per message). */
+  buttons: { text: string; type: string; url?: string }[];
 }
 
 /** The number of values a template body needs: its highest {{n}} (0 = none). */

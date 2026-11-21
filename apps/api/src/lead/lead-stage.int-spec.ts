@@ -1,9 +1,10 @@
 import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
-import { UserRole } from "@prisma/client";
+import { UserRole, UserStatus } from "@prisma/client";
 import { createTestApp, type TestApp } from "../test/integration/app";
 import { createUser, resetDatabase } from "../test/integration/db";
 import { runInTenant } from "../tenancy/tenant-context";
 import { SystemNotifier } from "../mail/system-notifier.service";
+import { LeadAccountsService } from "./lead-accounts.service";
 import { LeadAwaitingDemoService } from "./lead-awaiting-demo.service";
 import { LeadDemoMissedService } from "./lead-demo-missed.service";
 import { LeadStageService } from "./lead-stage.service";
@@ -121,5 +122,36 @@ describe("lead stages (real Postgres)", () => {
     expect(variables?.["leads.awaitingList"]).toContain("9000000301: no demo time yet");
     expect(variables?.["leads.awaitingList"]).toContain("9000000304: missed their demo");
     send.mockRestore();
+  });
+
+  it("links a registration to its lead by email or mobile, then enrols it once approved", async () => {
+    const byEmail = await lead("9000000401");
+    await db(() => t.prisma.lead.update({ data: { email: "asha.parent@example.test" }, where: { id: byEmail.id } }));
+    const byPhone = await lead("9000000402", "DEMO_CONFIRMED");
+    const lost = await lead("9000000403", "LOST");
+    const student = async (email: string, phone: string) => {
+      const user = await db(() => createUser(t.prisma, UserRole.STUDENT, { email }));
+      return db(() => t.prisma.user.update({ data: { phoneNumber: phone }, where: { id: user.id } }));
+    };
+    const first = await student("ASHA.parent@example.test", "+91 99999 00000");
+    const second = await student("other@example.test", "+91 90000 00402");
+    await student("third@example.test", "9000000403");
+
+    const accounts = t.app.get(LeadAccountsService);
+    await expect(db(() => accounts.linkNewAccountsNow())).resolves.toBe(2);
+    await expect(db(() => accounts.linkNewAccountsNow())).resolves.toBe(0);
+
+    const read = (id: string) => db(() => t.prisma.lead.findUniqueOrThrow({ where: { id } }));
+    expect(await read(byEmail.id)).toMatchObject({ status: "PAYMENT_PENDING", userId: first.id });
+    expect(await read(byPhone.id)).toMatchObject({ status: "PAYMENT_PENDING", userId: second.id });
+    expect(await read(lost.id)).toMatchObject({ status: "LOST", userId: null });
+
+    // Still pending approval: no enrolment. Approved: enrolled.
+    await db(() => t.prisma.user.updateMany({ data: { status: UserStatus.PENDING }, where: { id: { in: [first.id, second.id] } } }));
+    await expect(db(() => accounts.enrolNow())).resolves.toBe(0);
+    await db(() => t.prisma.user.update({ data: { status: UserStatus.ACTIVE }, where: { id: first.id } }));
+    await expect(db(() => accounts.enrolNow())).resolves.toBe(1);
+    expect((await read(byEmail.id)).status).toBe("CONVERTED");
+    expect((await read(byPhone.id)).status).toBe("PAYMENT_PENDING");
   });
 });

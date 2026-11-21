@@ -28,7 +28,9 @@ export function templateParts(components: unknown): Pick<WhatsAppTemplateInfo, "
     body,
     buttons: Array.isArray(buttons)
       ? (buttons as Record<string, unknown>[]).flatMap((button) =>
-          text(button?.text) ? [{ text: String(button.text), type: text(button.type) ?? "BUTTON" }] : []
+          text(button?.text)
+            ? [{ text: String(button.text), type: text(button.type) ?? "BUTTON", ...(text(button.url) ? { url: String(button.url) } : {}) }]
+            : []
         )
       : [],
     header: header ? (text(header.format) ?? "TEXT") : null,
@@ -82,6 +84,11 @@ export class WhatsAppTemplatesService {
     if (user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN) {
       throw new ForbiddenException("Only admins can see WhatsApp templates.");
     }
+    return this.forAcademy(refresh);
+  }
+
+  /** For a send that must match a template's buttons (demo reminders); the same 5-minute cache. */
+  async forAcademy(refresh = false): Promise<WhatsAppTemplateListResponse> {
     const tenantId = requireTenantId("whatsappTemplates");
     const cached = this.cache.get(tenantId);
     if (!refresh && cached && Date.now() - cached.at < WHATSAPP_TEMPLATES_CACHE_MS) return cached.response;

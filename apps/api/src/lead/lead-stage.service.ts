@@ -9,10 +9,15 @@ const ACTIVITY_TYPES: Record<LeadStageEvent, string> = {
   DEMO_ATTENDED: "DEMO_ATTENDED",
   DEMO_BOOKED: "DEMO_STAGE",
   DEMO_CONFIRMED: "DEMO_CONFIRMED",
-  DEMO_MISSED: "DEMO_MISSED"
+  DEMO_MISSED: "DEMO_MISSED",
+  ENROLLED: "ENROLLED",
+  REGISTERED: "REGISTERED"
 };
 
-/** What referral progress an event is, when it is one. */
+/**
+ * What referral progress an event is, when it is one. Registration and enrolment are left
+ * out on purpose: referral rewards follow the referral's own sign-up and payment rules.
+ */
 const REFERRAL_TRIGGERS: Partial<Record<LeadStageEvent, "DEMO_ATTENDED" | "DEMO_BOOKED">> = {
   DEMO_ATTENDED: "DEMO_ATTENDED",
   DEMO_BOOKED: "DEMO_BOOKED"

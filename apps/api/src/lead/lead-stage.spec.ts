@@ -30,4 +30,14 @@ describe("nextLeadStatus (automatic stage moves)", () => {
       }
     }
   });
+
+  it("registering moves an open lead to Payment pending, and enrolment converts it", () => {
+    expect(nextLeadStatus("NEW", "REGISTERED")).toBe("PAYMENT_PENDING");
+    expect(nextLeadStatus("DEMO_ATTENDED", "REGISTERED")).toBe("PAYMENT_PENDING");
+    expect(nextLeadStatus("PAYMENT_PENDING", "REGISTERED")).toBeNull();
+    expect(nextLeadStatus("PAYMENT_PENDING", "ENROLLED")).toBe("CONVERTED");
+    expect(nextLeadStatus("NEW", "ENROLLED")).toBe("CONVERTED");
+    expect(nextLeadStatus("LOST", "REGISTERED")).toBeNull();
+    expect(nextLeadStatus("ACTIVE_STUDENT", "ENROLLED")).toBeNull();
+  });
 });
