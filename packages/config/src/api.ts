@@ -190,6 +190,14 @@ const apiEnvSchema = z.object({
   FRAPPE_CRM_WEBSITE_LEAD_SOURCE: z.string().default("Website Form"),
   /** A `CRM Lead Status` name that exists in Frappe. */
   FRAPPE_CRM_LEAD_STATUS: z.string().default("New Inquiry"),
+  /**
+   * Copy every stage change to Frappe, not only the first (docs/LEAD_STAGES.md). Off until
+   * Frappe has the stage names in `FRAPPE_LEAD_STAGES`: a missing one makes Frappe refuse the lead.
+   */
+  FRAPPE_CRM_STAGE_SYNC: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   // Nexa's WhatsApp Business Account id: reads template status (other academies save theirs under Branding).
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   // Incoming WhatsApp: the support bot (docs/WHATSAPP_SUPPORT.md). The webhook

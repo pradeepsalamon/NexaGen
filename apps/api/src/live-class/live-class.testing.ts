@@ -1,3 +1,4 @@
+import { NOOP_LEAD_STAGES } from "../lead/lead-stage.testing";
 import { LiveClassAccessService } from "./live-class-access.service";
 import { LiveClassBoardStateService } from "./live-class-board-state.service";
 import { LiveClassChatService } from "./live-class-chat.service";
@@ -30,5 +31,6 @@ export const LIVE_CLASS_SERVICES = [
   LiveClassWaitingRoomService,
   GameRecorderService,
   UNLIMITED_ENTITLEMENTS,
+  NOOP_LEAD_STAGES,
   NOOP_REFERRAL_TRACKER,
 ];

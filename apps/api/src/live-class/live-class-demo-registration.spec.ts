@@ -1,3 +1,4 @@
+import { NOOP_LEAD_STAGES } from "../lead/lead-stage.testing";
 import { Test, TestingModule } from "@nestjs/testing";
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -316,9 +317,7 @@ describe("LiveClassDemoService.joinDemoClass", () => {
       expect(generateAccessToken).toHaveBeenCalledWith(expect.objectContaining({ participantName: "Meera" }));
       // A booked lead who actually joins moves to DEMO_ATTENDED.
       await Promise.resolve();
-      expect(leadUpdateMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ id: "lead-1" }), data: expect.objectContaining({ status: "DEMO_ATTENDED" }) })
-      );
+      expect(NOOP_LEAD_STAGES.useValue.applyQuietly).toHaveBeenCalledWith("lead-1", "DEMO_ATTENDED", expect.anything());
     });
 
     it("rejects a token that belongs to a different class", async () => {

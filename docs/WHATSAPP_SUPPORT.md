@@ -198,6 +198,9 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
     "Not sent to Frappe CRM" (with the reason). A repeat WhatsApp booking from
     the same number only adds to the NexaGen lead; nothing is sent again, and
     nothing comes back from Frappe.
+  - *Stage changes* (2026-11-21, behind `FRAPPE_CRM_STAGE_SYNC`, off by default):
+    each later stage change re-queues the same row and moves the Frappe lead
+    forward only; see [LEAD_STAGES.md](LEAD_STAGES.md).
   - Off unless `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY` and
     `FRAPPE_CRM_API_SECRET` are set; other academies never push. The key
     belongs to the Frappe user `nexagen-push@nexachess.in` (made 2026-11-15;

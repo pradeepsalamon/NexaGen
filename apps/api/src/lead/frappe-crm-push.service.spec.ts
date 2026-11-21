@@ -6,6 +6,7 @@ import {
   frappeLeadDocument,
   frappeLeadNote,
   frappePhone,
+  frappeStageMayMove,
   phoneTail,
   type FrappeCrmConfig
 } from "./frappe-crm-push.service";
@@ -16,6 +17,7 @@ const CONFIG: FrappeCrmConfig = {
   countryCode: "91",
   leadSource: "Direct WhatsApp",
   leadStatus: "New Inquiry",
+  stageSync: false,
   url: "https://crm.example.test",
   websiteLeadSource: "Website Form"
 };
@@ -29,6 +31,7 @@ const LEAD = {
   parentName: "Asha <b>K</b>",
   phone: "9876543210",
   source: "WhatsApp" as string | null,
+  status: "NEW" as const,
   studentAge: 8,
   studentName: "Ravi"
 };
@@ -79,7 +82,15 @@ describe("Frappe CRM documents", () => {
   });
 });
 
-type Row = { attempts: number; createdAt: Date; id: string; lead: typeof LEAD; leadId: string };
+type Row = {
+  attempts: number;
+  createdAt: Date;
+  externalId?: string | null;
+  id: string;
+  lead: typeof LEAD | (Omit<typeof LEAD, "status"> & { status: string });
+  leadId: string;
+  sentStatus?: string | null;
+};
 
 type Call = { body: unknown; method: string; url: string };
 
@@ -115,6 +126,7 @@ function fakePrisma(row: Row) {
         return { count: 1 };
       }
     },
+    lead: { findUnique: async () => ({ status: row.lead.status }) },
     leadActivity: {
       create: async ({ data }: { data: Record<string, unknown> }) => {
         activities.push(data);
@@ -125,9 +137,12 @@ function fakePrisma(row: Row) {
   return { activities, prisma, updates };
 }
 
-function service(prisma: unknown) {
+/** Every field the push row was given, in order. */
+const written = (updates: Record<string, unknown>[]) => Object.assign({}, ...updates) as Record<string, unknown>;
+
+function service(prisma: unknown, config: FrappeCrmConfig = CONFIG) {
   const push = new FrappeCrmPushService({} as never, prisma as never);
-  jest.spyOn(push, "config").mockReturnValue(CONFIG);
+  jest.spyOn(push, "config").mockReturnValue(config);
   return push;
 }
 
@@ -151,7 +166,7 @@ describe("FrappeCrmPushService.send", () => {
     expect(calls[0].url).toContain('["mobile_no","like","%9876543210"]');
     expect(calls[0].headers.Authorization).toBe("token key:secret");
     expect(calls[2].body).toMatchObject({ reference_docname: "CRM-LEAD-2026-00042", reference_doctype: "CRM Lead" });
-    expect(updates[0]).toMatchObject({ externalId: "CRM-LEAD-2026-00042", status: "SENT" });
+    expect(written(updates)).toMatchObject({ externalId: "CRM-LEAD-2026-00042", status: "SENT" });
     expect(activities[0]).toMatchObject({ activityType: "CRM_PUSHED", leadId: "lead_1", title: "Sent to Frappe CRM" });
   });
 
@@ -164,7 +179,7 @@ describe("FrappeCrmPushService.send", () => {
     expect(calls.map(step)).toEqual(["GET CRM Lead", "GET FCRM Note", "POST FCRM Note"]);
     expect(calls[1].url).toContain("%NexaGen lead: lead_2%");
     expect(calls[2].body).toMatchObject({ reference_docname: "CRM-LEAD-2026-00007", title: "From NexaGen (website form)" });
-    expect(updates[0]).toMatchObject({ externalId: "CRM-LEAD-2026-00007", status: "SENT" });
+    expect(written(updates)).toMatchObject({ externalId: "CRM-LEAD-2026-00007", status: "SENT" });
     expect(activities[0]).toMatchObject({ activityType: "CRM_PUSHED", title: "Added to a Frappe CRM lead" });
   });
 
@@ -175,7 +190,7 @@ describe("FrappeCrmPushService.send", () => {
     await service(prisma).send("p1");
 
     expect(calls.map(step)).toEqual(["GET CRM Lead", "GET FCRM Note"]);
-    expect(updates[0]).toMatchObject({ externalId: "CRM-LEAD-2026-00041", status: "SENT" });
+    expect(written(updates)).toMatchObject({ externalId: "CRM-LEAD-2026-00041", status: "SENT" });
   });
 
   it("tries again when the note for an existing Frappe lead doesn't arrive", async () => {
@@ -206,7 +221,7 @@ describe("FrappeCrmPushService.send", () => {
     await service(prisma).send("p1");
 
     expect(leadPosts.map((body) => "email" in body)).toEqual([true, false]);
-    expect(updates[0]).toMatchObject({ externalId: "CRM-LEAD-2026-00044", status: "SENT" });
+    expect(written(updates)).toMatchObject({ externalId: "CRM-LEAD-2026-00044", status: "SENT" });
   });
 
   it("doesn't look a too-short number up, it just creates the lead", async () => {
@@ -261,5 +276,91 @@ describe("FrappeCrmPushService.enqueue", () => {
 
     (push.config as jest.Mock).mockReturnValue(null);
     expect(await runInTenant(DEFAULT_TENANT_ID, "test", () => push.enqueue(tx as never, "lead_2"))).toBe(false);
+  });
+});
+
+describe("Frappe stage sync", () => {
+  const realFetch = global.fetch;
+  const SYNC: FrappeCrmConfig = { ...CONFIG, stageSync: true };
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  it("moves Frappe forward only, and never out of a stage a salesperson closed", () => {
+    expect(frappeStageMayMove("Demo Requested", "Demo Booked")).toBe(true);
+    expect(frappeStageMayMove("New Inquiry", "Demo Booked")).toBe(true);
+    expect(frappeStageMayMove("Demo Attended", "Demo Booked")).toBe(false);
+    expect(frappeStageMayMove("Demo Booked", "Demo Booked")).toBe(false);
+    // Booked again after a missed demo.
+    expect(frappeStageMayMove("Missed Demo", "Demo Booked")).toBe(true);
+    // Closed or picked by a person: theirs.
+    expect(frappeStageMayMove("Lost", "Demo Attended")).toBe(false);
+    expect(frappeStageMayMove("Enrolled", "Demo Booked")).toBe(false);
+    expect(frappeStageMayMove("Junk", "Demo Booked")).toBe(false);
+    // Enrolled and Lost always pass from an open stage.
+    expect(frappeStageMayMove("Demo Attended", "Lost")).toBe(true);
+    expect(frappeStageMayMove("Payment Pending", "Enrolled")).toBe(true);
+  });
+
+  it("creates a new Frappe lead in the lead's own stage", async () => {
+    const { prisma, updates } = fakePrisma({ attempts: 0, createdAt: LEAD.createdAt, id: "p1", lead: LEAD, leadId: "lead_1" });
+    const calls = fakeFrappe((call) => (isLeadSearch(call) ? [] : { name: call.url.includes("CRM Lead") ? "CRM-LEAD-2026-00042" : "note1" }));
+
+    await service(prisma, SYNC).send("p1");
+
+    expect(calls.map(step)).toEqual(["GET CRM Lead", "POST CRM Lead", "POST FCRM Note"]);
+    expect(calls[1].body).toMatchObject({ status: "Demo Requested" });
+    expect(written(updates)).toMatchObject({ externalId: "CRM-LEAD-2026-00042", sentStatus: "NEW", status: "SENT" });
+  });
+
+  it("copies a later stage to the lead it already sent", async () => {
+    const lead = { ...LEAD, status: "DEMO_SCHEDULED" };
+    const { activities, prisma, updates } = fakePrisma({
+      attempts: 0,
+      createdAt: LEAD.createdAt,
+      externalId: "CRM-LEAD-2026-00042",
+      id: "p1",
+      lead,
+      leadId: "lead_1",
+      sentStatus: "NEW"
+    });
+    const calls = fakeFrappe((call) => (call.method === "GET" ? { status: "Demo Requested" } : { name: "CRM-LEAD-2026-00042" }));
+
+    await service(prisma, SYNC).send("p1");
+
+    expect(calls.map(step)).toEqual(["GET CRM Lead/CRM-LEAD-2026-00042", "PUT CRM Lead/CRM-LEAD-2026-00042"]);
+    expect(calls[1].body).toEqual({ status: "Demo Booked" });
+    expect(written(updates)).toMatchObject({ sentStatus: "DEMO_SCHEDULED", status: "SENT" });
+    expect(activities).toEqual([]);
+  });
+
+  it("leaves a Frappe lead a salesperson marked Lost", async () => {
+    const lead = { ...LEAD, status: "DEMO_ATTENDED" };
+    const { prisma, updates } = fakePrisma({
+      attempts: 0,
+      createdAt: LEAD.createdAt,
+      externalId: "CRM-LEAD-2026-00042",
+      id: "p1",
+      lead,
+      leadId: "lead_1",
+      sentStatus: "DEMO_SCHEDULED"
+    });
+    const calls = fakeFrappe(() => ({ status: "Lost" }));
+
+    await service(prisma, SYNC).send("p1");
+
+    expect(calls.map(step)).toEqual(["GET CRM Lead/CRM-LEAD-2026-00042"]);
+    expect(written(updates)).toMatchObject({ sentStatus: "DEMO_ATTENDED", status: "SENT" });
+  });
+
+  it("with stage sync off, sends the first copy only, in the configured stage", async () => {
+    const lead = { ...LEAD, status: "DEMO_SCHEDULED" };
+    const { prisma } = fakePrisma({ attempts: 0, createdAt: LEAD.createdAt, externalId: "CRM-LEAD-2026-00042", id: "p1", lead, leadId: "lead_1" });
+    const calls = fakeFrappe(() => ({}));
+
+    await service(prisma).send("p1");
+
+    expect(calls).toEqual([]);
+    expect(frappeLeadDocument(lead as typeof LEAD, CONFIG).status).toBe("New Inquiry");
   });
 });

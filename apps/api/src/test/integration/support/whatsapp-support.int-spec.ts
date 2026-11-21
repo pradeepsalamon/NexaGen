@@ -633,6 +633,7 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
         countryCode: "91",
         leadSource: "Direct WhatsApp",
         leadStatus: "New Inquiry",
+        stageSync: false,
         url: "https://crm.int.test",
         websiteLeadSource: "Website Form"
       });
@@ -680,6 +681,7 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
         countryCode: "91",
         leadSource: "Direct WhatsApp",
         leadStatus: "New Inquiry",
+        stageSync: false,
         url: "https://crm.int.test",
         websiteLeadSource: "Website Form"
       });

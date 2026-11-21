@@ -1292,7 +1292,9 @@ enum LeadStatus {
   CONTACTED
   INTERESTED
   DEMO_SCHEDULED
+  DEMO_CONFIRMED
   DEMO_ATTENDED
+  NO_SHOW
   FOLLOW_UP
   PAYMENT_PENDING
   CONVERTED
@@ -9077,6 +9079,8 @@ model CrmLeadPush {
   claimedAt     DateTime?
   /// The Frappe document name (e.g. CRM-LEAD-2026-00042).
   externalId    String?
+  /// The lead's stage last copied to Frappe (stage sync, docs/LEAD_STAGES.md); null = none yet.
+  sentStatus    LeadStatus?
   error         String?
   sentAt        DateTime?
   createdAt     DateTime          @default(now())

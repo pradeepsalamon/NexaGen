@@ -9,6 +9,7 @@ import { JwtService } from "@nestjs/jwt";
 import { createLeadRequestSchema } from "@nexa-chess/types";
 import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
 import { FrappeCrmPushService } from "./frappe-crm-push.service";
+import { LeadStageService } from "./lead-stage.service";
 import { LeadService } from "./lead.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { SystemNotifier } from "../mail/system-notifier.service";
@@ -26,7 +27,7 @@ describe("LeadService", () => {
   let notifierSend: jest.Mock;
   let adminAlertRecipients: jest.Mock;
   let normalizeRecipient: jest.Mock;
-  let crmPush: { enqueue: jest.Mock; pushLead: jest.Mock };
+  let crmPush: { enqueue: jest.Mock; markStageChanged: jest.Mock; pushLead: jest.Mock };
   let prisma: {
     visitorSession: { findUnique: jest.Mock; update: jest.Mock; create: jest.Mock; count: jest.Mock };
     lead: {
@@ -35,6 +36,7 @@ describe("LeadService", () => {
       findUnique: jest.Mock;
       findUniqueOrThrow: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
       delete: jest.Mock;
       count: jest.Mock;
       groupBy: jest.Mock;
@@ -52,7 +54,11 @@ describe("LeadService", () => {
     notifierSend = jest.fn().mockResolvedValue(undefined);
     adminAlertRecipients = jest.fn().mockResolvedValue([{ email: "admins@nexa.test" }, { phone: "+91 90000 00000", userId: "admin-1" }]);
     normalizeRecipient = jest.fn((phone: string) => phone);
-    crmPush = { enqueue: jest.fn().mockResolvedValue(false), pushLead: jest.fn().mockResolvedValue(undefined) };
+    crmPush = {
+      enqueue: jest.fn().mockResolvedValue(false),
+      markStageChanged: jest.fn().mockResolvedValue(undefined),
+      pushLead: jest.fn().mockResolvedValue(undefined)
+    };
 
     prisma = {
       visitorSession: {
@@ -81,6 +87,7 @@ describe("LeadService", () => {
           createdAt: new Date()
         }),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         delete: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
         groupBy: jest.fn().mockResolvedValue([])
@@ -106,6 +113,7 @@ describe("LeadService", () => {
       providers: [
         LeadService,
         DemoInviteService,
+        LeadStageService,
         NOOP_REFERRAL_TRACKER,
         { provide: FrappeCrmPushService, useValue: crmPush },
         { provide: JwtService, useValue: jwtService },
@@ -433,9 +441,11 @@ describe("LeadService", () => {
           })
         })
       );
-      expect(prisma.lead.update).toHaveBeenCalledWith(
+      expect(prisma.lead.update).toHaveBeenCalledWith(expect.objectContaining({ data: { assignedClassId: "class-1" } }));
+      expect(prisma.lead.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ assignedClassId: "class-1", status: "DEMO_SCHEDULED" })
+          data: expect.objectContaining({ status: "DEMO_SCHEDULED" }),
+          where: { id: "lead-1", status: "NEW" }
         })
       );
       expect(result.lead.assignedClass?.topic).toBe("board");
@@ -498,9 +508,8 @@ describe("LeadService", () => {
 
       await service.assignDemoClass(ACCESS_TOKEN, "lead-1", { classId: "class-1" });
 
-      expect(prisma.lead.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: "CONVERTED" }) })
-      );
+      expect(prisma.lead.updateMany).not.toHaveBeenCalled();
+      expect(prisma.lead.update).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: expect.anything() }) }));
     });
 
     it("rejects a class that isn't a demo class", async () => {

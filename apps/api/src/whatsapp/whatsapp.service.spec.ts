@@ -110,6 +110,7 @@ describe("WhatsAppService", () => {
       CASHFREE_API_VERSION: "2023-08-01",
       FRAPPE_CRM_LEAD_SOURCE: "Direct WhatsApp",
       FRAPPE_CRM_LEAD_STATUS: "New Inquiry",
+      FRAPPE_CRM_STAGE_SYNC: false,
       FRAPPE_CRM_WEBSITE_LEAD_SOURCE: "Website Form",
       STRIPE_API_VERSION: "2024-06-20",
       ...envMocks

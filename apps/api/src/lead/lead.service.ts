@@ -413,6 +413,10 @@ export class LeadService {
     });
 
     await this.referrals.onLeadStatus(id, body.status, user.id);
+    if (lead.status !== body.status) {
+      await this.crmPush.markStageChanged(this.prisma, id);
+      void this.crmPush.pushLead(id);
+    }
     return { lead: this.toLeadListItem(updated) };
   }
 

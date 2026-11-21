@@ -74,6 +74,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) | Lichess catalogue + adaptive training audit |
 | [PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md](PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md) | Lichess catalogue implementation spec |
 | [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) | Multi-tenant white-label SaaS plan: assessment, owner decisions, roadmap |
+| [LEAD_STAGES.md](LEAD_STAGES.md) | Lead stages (demo booked/confirmed/attended/missed), automatic moves and their copy to Frappe CRM |
 | [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) | WhatsApp support bot and `/admin/support` inbox: as built (Phases 1–2) and the plan |
 | [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md) | Proposal: multi-academy WhatsApp, conversation ownership, Native / External helpdesk / Hybrid support modes; decisions first |
 | [PARENT_REPORTS.md](PARENT_REPORTS.md) | Parent reports — deferred, and why |
