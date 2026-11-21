@@ -109,3 +109,6 @@ also a tenant integrity finding (console → Integrity).
   schedule, [DATABASE_RESTORE.md](DATABASE_RESTORE.md)).
 - Deleting the `tenants` row itself (it anchors the kept records).
 - An academy closing itself without an operator (by design).
+- A "this academy is closed" page: while closed, its address answers nothing
+  useful (the API refuses its origin), so an open tab shows "Session expired"
+  and failing widgets. After reopening, such a tab goes back to `/login`.

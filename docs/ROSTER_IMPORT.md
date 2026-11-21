@@ -34,8 +34,11 @@ The browser reads the file (`readRosterCsv`, RFC 4180 quoting, BOM, CRLF); the
 API checks every row again with the same `checkRosterRows`, then:
 
 - **EXISTS**: the email already has an account in the academy (deleted
-  accounts count, the unique index covers them). Left untouched, so a re-run of
-  the same file is a no-op.
+  accounts count, the unique index covers them), or, for a row without an
+  email, the academy already has a no-email account with the same name and
+  role. Left untouched, so a re-run of the same file is a no-op. (Two different
+  people with the same name and no email: give one an email, or add the second
+  by hand.)
 - **INVALID**: bad email, unknown role word, an email twice in the file, no
   batch by that name, or two batches with that name.
 - **NO_SEAT**: the plan's `maxStudents` / `maxCoaches` would be exceeded.

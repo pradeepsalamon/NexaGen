@@ -423,9 +423,13 @@ tenant step.
    - `prisma.asPlatform(reason)` is the only bypass. It's grep-able and limited
      to an allow-list of call sites (Platform section, global sweeps).
    - Known Prisma limit: nested writes don't run the extension for the child
-     model. The `NOT NULL` column (and, after D5, the raising default) catches a
-     missing `tenantId`, and the extension requires an explicit `tenantId` in
-     nested `create` payloads. Composite FKs were **not** built (see "Tenant
+     model. *(As built, 2026-11-21: the plan said the extension would require
+     an explicit `tenantId` in nested payloads; it didn't, and nested rows fell
+     back to the `'tenant_nexa'` default, so another academy's chat members
+     were labelled Nexa's. The extension now walks the write and stamps every
+     nested `create`, `createMany`, `connectOrCreate` and `upsert` row
+     (`stampNested`), held by `tenancy/nested-writes.int-spec.ts`; after D5 the
+     raising default catches anything it misses.)* Composite FKs were **not** built (see "Tenant
      integrity monitoring" below); a row linked to another academy's row is
      found by the nightly check instead.
 3. **Raw SQL** (80 calls in 24 files): each gets an explicit
@@ -1279,8 +1283,12 @@ enforces everything; the console is a "Platform" area at `/admin/platform/*`.
 - **Rehearsed 2026-11-05** on a dump of `vps_dev` (the backup script's flags,
   so no Lichess puzzle rows): PASS, the contract itself under 1 s, `migrate
   deploy` of the 9 SaaS migrations 4 s, rollback drill matching. The log and
-  the release-day steps are in the contract's README. Still owed: the same run
-  on a real production backup.
+  the release-day steps are in the contract's README. Re-run on real production
+  dumps 2026-11-15, -16 and -21 (PASS each time after refreshing the contract).
+  Since 2026-11-21 a unit spec (`tenancy/d5-contract.spec.ts`) keeps the contract
+  in step with the schema, and `npm run test:integration:d5` runs the
+  integration suite on a contracted database. The production order (release,
+  enforce, contract, first academy) is [SAAS_CUTOVER_RUNBOOK.md](SAAS_CUTOVER_RUNBOOK.md).
 - The API type-checks against the patched schema (only the seed needed the
   compound keys, changed now).
 

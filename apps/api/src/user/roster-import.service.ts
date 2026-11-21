@@ -127,6 +127,19 @@ export class RosterImportService {
       ? await this.prisma.withDeleted.user.findMany({ select: { email: true }, where: { email: { in: emails } } })
       : [];
     const existingEmails = new Set(existing.map((user) => user.email.toLowerCase()));
+    // A row without an email can't be matched by email, so re-importing the same
+    // file would add the person again: match it to a no-email account with the
+    // same name and role instead.
+    const nameKey = (role: string, firstName: string, lastName: string | null | undefined) =>
+      `${role}|${firstName.trim().toLowerCase()}|${(lastName ?? "").trim().toLowerCase()}`;
+    const noEmailRows = valid.filter((row) => !row.email);
+    const existingNoEmail = noEmailRows.length
+      ? await this.prisma.user.findMany({
+          select: { firstName: true, lastName: true, role: true },
+          where: { email: { endsWith: `@${NO_EMAIL_DOMAIN}` }, isDeleted: false }
+        })
+      : [];
+    const existingNames = new Set(existingNoEmail.map((user) => nameKey(user.role, user.firstName, user.lastName)));
 
     const batchNames = [...new Set(valid.flatMap((row) => (row.batch ? [row.batch.toLowerCase()] : [])))];
     const batches = batchNames.length
@@ -168,6 +181,10 @@ export class RosterImportService {
       };
       if (row.email && existingEmails.has(row.email)) {
         return { base, batchId: null, index, messages: ["An account with this email already exists."], outcome: "EXISTS" as const, row };
+      }
+      if (!row.email && existingNames.has(nameKey(row.role, row.firstName, row.lastName))) {
+        const message = "Someone with this name and no email is already here. Add an email to tell them apart, or add them by hand.";
+        return { base, batchId: null, index, messages: [message], outcome: "EXISTS" as const, row };
       }
       let batchId: string | null = null;
       if (row.batch) {

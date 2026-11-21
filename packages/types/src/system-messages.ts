@@ -669,9 +669,10 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
     group: "ACCOUNT",
     label: "Academy closure decided",
     description:
-      "Sent to the super admin who asked to close the academy when the platform approves or declines it. The academy can't be signed in to once it is closed, so this has no in-app copy.",
+      "Sent to the super admin who asked to close the academy when the platform approves or declines it.",
     sentTo: "The super admin who asked",
     channels: EMAIL_AND_WHATSAPP,
+    channelNote: "No in-app copy: once the academy is closed nobody can sign in to read it.",
     defaultChannels: ["EMAIL"],
     variables: ["academy.name", "recipient.firstName", "closure.outcome"],
     requiredVariables: ["closure.outcome"],

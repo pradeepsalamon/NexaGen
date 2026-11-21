@@ -113,8 +113,10 @@ Lost,Batch,lost@example.com,Student,,,,Nowhere,
     expect(sends.every((send) => send.key === "ACCOUNT_INVITE")).toBe(true);
     expect(await t.prisma.passwordResetToken.count({ where: { userId: asha.id, usedAt: null } })).toBe(1);
 
-    const again = (await t.call(admin, "POST", API_ROUTES.users.import, { rows: rows().slice(0, 2) })).body as RosterImportResponse;
-    expect(again.counts).toMatchObject({ CREATE: 0, EXISTS: 2 });
+    // The whole file again: nobody is added twice, Meera (no email) included.
+    const again = (await t.call(admin, "POST", API_ROUTES.users.import, { rows: rows() })).body as RosterImportResponse;
+    expect(again.counts).toEqual({ CREATE: 0, EXISTS: 3, INVALID: 3, NO_SEAT: 0 });
+    expect(await t.prisma.user.count({ where: { firstName: "Meera" } })).toBe(1);
   });
 
   it("sendInvites: false creates the accounts without sending", async () => {

@@ -218,6 +218,8 @@ services:
       COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
       # Nexa's own session cookies host-only; on together with the web's NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API (docs/DEPLOYMENT.md).
       PLATFORM_HOST_ONLY_COOKIES: ${PLATFORM_HOST_ONLY_COOKIES:-false}
+      # Academy isolation: audit logs gaps, enforce refuses them (docs/SAAS_CUTOVER_RUNBOOK.md).
+      TENANT_SCOPE_MODE: ${TENANT_SCOPE_MODE:-audit}
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
 
       LIVEKIT_URL: ${LIVEKIT_URL}

@@ -2,8 +2,8 @@
 
 Status: **implemented** (2026-10-19) — the first slice of
 [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) §G (entitlements). Online
-SaaS billing, the host → tenant resolver and the platform console are **not**
-built yet; see "Not yet" below.
+SaaS billing, the host → tenant resolver and the platform console came later
+(Phases 2–6); see "Not yet" below.
 
 An academy (tenant) is on one **platform plan**. The plan decides which
 **features** the academy can use and how many of some things it may have
@@ -250,10 +250,13 @@ Prices and tiers are placeholders for the owner to set.
 
 ## Not yet
 
-- Online SaaS billing (provider checkout, webhooks, `PlatformInvoice`) —
-  SAAS_MULTI_TENANCY.md §G. Plans are assigned by platform staff for now.
-- Self-serve upgrade from `/admin/subscription` (it says "contact NexaChess").
-- A platform console UI for `/platform/*` (API only).
-- Multi-tenancy itself (tenantId on data, host resolver) — §D/§E.
+Built since this list was first written (2026-10-19): online SaaS billing
+(`platform-billing/`, Phase 6: checkout from `/admin/subscription`, pay links,
+the owner's Razorpay webhook, GST invoices), the platform console (`/platform`),
+and multi-tenancy itself (Phases 2–5). See
+[SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) "Phase 6 as built" and
+[SAAS_CUTOVER_RUNBOOK.md](SAAS_CUTOVER_RUNBOOK.md) for production.
+
+- Card auto-debit (a renewal is a new checkout or a pay link, not a mandate).
 - Frozen plan versions per subscription: editing a plan re-prices/re-scopes
-  everyone on it.
+  everyone on it (a per-academy deal can override it).
