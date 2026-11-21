@@ -7,13 +7,14 @@ import { ReferralModule } from "../referral/referral.module";
 import { WhatsAppModule } from "../whatsapp/whatsapp.module";
 import { LeadController } from "./lead.controller";
 import { LeadStageModule } from "./lead-stage.module";
+import { LeadAwaitingDemoService } from "./lead-awaiting-demo.service";
 import { LeadService } from "./lead.service";
 import { TrashModule } from "../trash/trash.module";
 
 @Module({
   imports: [DemoClassModule, JwtModule.register({}), LeadStageModule, PrismaModule, MailModule, ReferralModule, TrashModule, WhatsAppModule],
   controllers: [LeadController],
-  providers: [LeadService],
+  providers: [LeadAwaitingDemoService, LeadService],
   exports: [LeadStageModule, LeadService]
 })
 export class LeadModule {}

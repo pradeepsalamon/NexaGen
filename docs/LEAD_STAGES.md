@@ -1,6 +1,6 @@
 # Lead stages and the Frappe CRM pipeline
 
-Status: **Phase 1 built 2026-11-21** (branch `feat/lead-stage-sync`): stages, automatic
+Status: **Phase 1 built 2026-11-21** (+ the daily waiting-for-a-time staff alert) (branch `feat/lead-stage-sync`): stages, automatic
 moves, missed-demo job, stage copy to Frappe (off by default). Phase 2 (reminders with
 confirm/reschedule buttons, missed-demo message, "waiting for a demo time" alert, Enrolled
 on payment) is planned below and needs the WhatsApp bot to receive the number's messages.
@@ -31,6 +31,10 @@ on payment) is planned below and needs the WhatsApp bot to receive the number's 
 - Automatic moves go through **`LeadStageService.apply`** (status-filtered claim, timeline
   activity, referral progress, Frappe copy). A person's change (`LeadService.updateStatus`)
   sets any stage and is copied too.
+- **Waiting for a demo time** (`LeadAwaitingDemoService`, daily 10:15 IST,
+  `JOB_LOCKS.leadAwaitingDemo`): one `LEADS_AWAITING_DEMO_ADMIN` message to admins listing
+  leads of the last 30 days (older than 2 h) with no demo class in New / Contacted /
+  Interested, plus every Missed demo; nothing when the list is empty. Up to 20 lines.
 - **Missed demo** (`LeadDemoMissedService`, every 10 min, `JOB_LOCKS.leadDemoMissed`): only
   classes that ended in the last 7 days; a class that was never held changes nothing.
 
@@ -52,8 +56,6 @@ on payment) is planned below and needs the WhatsApp bot to receive the number's 
   Free inside the parent's 24-hour window, otherwise a utility template (~₹0.12, approved by
   the owner). "Yes" → `DEMO_CONFIRMED`; "Reschedule" → the bot's demo-time list.
 - **Missed demo**: the bot offers new times (same window/template rule).
-- **Waiting for a demo time**: a lead in `NEW` with no class gets a staff alert; WhatsApp
-  leads already get the bot's one nudge.
 - **Enrolled automatically** on a captured payment or a student account for the lead.
 - **Tidy Frappe's stage list** to the names above (create the missing ones, move leads from
   the old duplicates), then switch on `FRAPPE_CRM_STAGE_SYNC`.

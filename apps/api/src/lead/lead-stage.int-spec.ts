@@ -3,6 +3,8 @@ import { UserRole } from "@prisma/client";
 import { createTestApp, type TestApp } from "../test/integration/app";
 import { createUser, resetDatabase } from "../test/integration/db";
 import { runInTenant } from "../tenancy/tenant-context";
+import { SystemNotifier } from "../mail/system-notifier.service";
+import { LeadAwaitingDemoService } from "./lead-awaiting-demo.service";
 import { LeadDemoMissedService } from "./lead-demo-missed.service";
 import { LeadStageService } from "./lead-stage.service";
 
@@ -95,5 +97,29 @@ describe("lead stages (real Postgres)", () => {
     expect(await statusOf(came.id)).toBe("DEMO_SCHEDULED");
     expect(await statusOf(classNeverHeld.id)).toBe("DEMO_SCHEDULED");
     expect(await statusOf(old.id)).toBe("DEMO_SCHEDULED");
+  });
+
+  it("tells staff once about leads with no demo time, or who missed theirs", async () => {
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 60 * 60_000);
+    const waiting = await lead("9000000301");
+    const tooNew = await lead("9000000302");
+    const booked = await lead("9000000303", "DEMO_SCHEDULED");
+    const missed = await lead("9000000304");
+    await db(() => t.prisma.lead.update({ data: { createdAt: hoursAgo(5) }, where: { id: waiting.id } }));
+    await db(() => t.prisma.lead.update({ data: { createdAt: hoursAgo(1) }, where: { id: tooNew.id } }));
+    await db(() => t.prisma.lead.update({ data: { createdAt: hoursAgo(5) }, where: { id: booked.id } }));
+    await db(() => t.prisma.lead.update({ data: { createdAt: hoursAgo(30), status: "NO_SHOW" }, where: { id: missed.id } }));
+    await book(booked.id, (await demo("SCHEDULED", -24 * 60 * 60_000)).id);
+
+    const send = jest.spyOn(t.app.get(SystemNotifier), "send").mockResolvedValue(undefined as never);
+    await expect(db(() => t.app.get(LeadAwaitingDemoService).announceNow())).resolves.toBe(2);
+
+    expect(send).toHaveBeenCalledTimes(1);
+    const [key, , variables] = send.mock.calls[0];
+    expect(key).toBe("LEADS_AWAITING_DEMO_ADMIN");
+    expect(variables).toMatchObject({ "leads.awaitingCount": "2" });
+    expect(variables?.["leads.awaitingList"]).toContain("9000000301: no demo time yet");
+    expect(variables?.["leads.awaitingList"]).toContain("9000000304: missed their demo");
+    send.mockRestore();
   });
 });

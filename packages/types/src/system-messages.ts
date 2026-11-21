@@ -24,6 +24,7 @@ export const systemMessageKeySchema = z.enum([
   "NEW_LEAD_ADMIN",
   "SUPPORT_TICKET_ADMIN",
   "SUPPORT_REPLY_REMINDER_ADMIN",
+  "LEADS_AWAITING_DEMO_ADMIN",
   "ACCOUNT_DELETION_REQUESTED_ADMIN",
   "TENANT_INTEGRITY_ALERT",
   "TOURNAMENT_REGISTERED",
@@ -533,6 +534,25 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
       subject: "WhatsApp support {{support.reference}}: {{support.category}}",
       body: "A new WhatsApp support request came in.\n\nReference: {{support.reference}}\nRequest: {{support.category}}\nFrom: {{support.contactName}}\nStudent: {{support.studentName}}\n\n{{support.summary}}",
       actionLabel: "Open the ticket",
+      whatsappBody: null
+    }
+  },
+  LEADS_AWAITING_DEMO_ADMIN: {
+    key: "LEADS_AWAITING_DEMO_ADMIN",
+    group: "ADMIN",
+    label: "Leads waiting for a demo time",
+    description:
+      "Sent once a day when some leads asked for a demo but have no demo class yet, or missed the one they were booked into (docs/LEAD_STAGES.md).",
+    sentTo: "Email: the addresses in ADMIN_EMAILS. WhatsApp and in-app: the academy's admins and super admins",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    inAppLink: "/admin/leads",
+    variables: ["academy.name", "leads.awaitingCount", "leads.awaitingList"],
+    requiredVariables: ["leads.awaitingCount"],
+    defaults: {
+      subject: "{{leads.awaitingCount}} leads waiting for a demo time",
+      body: "These leads asked for a demo but have no demo class yet, or missed theirs. Book each one a time from the Leads page.\n\n{{leads.awaitingList}}",
+      actionLabel: null,
       whatsappBody: null
     }
   },

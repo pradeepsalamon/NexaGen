@@ -686,6 +686,8 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "lead.email": { label: "Email address", sample: "priya@example.com" },
   "lead.source": { label: "Where the lead came from", sample: "Website" },
   "lead.campaign": { label: "Campaign", sample: "-" },
+  "leads.awaitingCount": { label: "How many leads are waiting for a demo time", sample: "3" },
+  "leads.awaitingList": { label: "The waiting leads, one per line", sample: "Asha Menon (9, beginner), parent Priya Menon, 9876543210: no demo time yet" },
   "requester.name": { label: "Requester's name", sample: "Asha Menon" },
   "requester.email": { label: "Requester's email address", sample: "asha@example.com" },
   "requester.role": { label: "Requester's role", sample: "STUDENT" },
