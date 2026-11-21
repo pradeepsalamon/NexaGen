@@ -1,9 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getErrorMessage } from "@/lib/errors";
-import type { PuzzleRushMode, SoloRushPeriod } from "@nexa-chess/types";
+import type { PuzzleRushMode, SoloRushPeriod, UpdateBatchBattleSettingsRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
-import { getSoloRushLeaderboard, getSoloRushOverview, startSoloRush } from "../api/soloRushApi";
+import {
+  getSoloRushBattles,
+  getSoloRushLeaderboard,
+  getSoloRushOverview,
+  startSoloRush,
+  updateBatchBattleSettings
+} from "../api/soloRushApi";
 
 export function useSoloRushOverview() {
   return useQuery({ queryFn: getSoloRushOverview, queryKey: queryKeys.soloRush.overview });
@@ -23,6 +29,15 @@ export function useSoloRushLeaderboard(batchId: string | null, mode: PuzzleRushM
   });
 }
 
+export function useSoloRushBattles(mode: PuzzleRushMode, period: SoloRushPeriod) {
+  return useQuery({
+    refetchInterval: LEADERBOARD_POLL_MS,
+    refetchIntervalInBackground: false,
+    queryFn: () => getSoloRushBattles({ mode, period }),
+    queryKey: queryKeys.soloRush.battles(mode, period)
+  });
+}
+
 // undo: intentionally excluded — starting a run is not a reversible edit, it opens a timed game.
 export function useStartSoloRush() {
   const toast = useToast();
@@ -36,4 +51,20 @@ export function useStartSoloRush() {
 export function useRefreshSoloRush() {
   const qc = useQueryClient();
   return () => void qc.invalidateQueries({ queryKey: queryKeys.soloRush.all });
+}
+
+// undo: intentionally excluded — a settings Save in a dialog; reopening it and saving again is the correction.
+export function useUpdateBatchBattleSettings() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: ({ batchId, body }: { batchId: string; body: UpdateBatchBattleSettingsRequest }) =>
+      updateBatchBattleSettings(batchId, body),
+    onError: (error: Error) => toast.error({ message: getErrorMessage(error), title: "Couldn't save" }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.coach.batches });
+      void qc.invalidateQueries({ queryKey: queryKeys.batches.all });
+      toast.success({ title: "Batch Battles settings saved" });
+    }
+  });
 }

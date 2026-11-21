@@ -8,6 +8,7 @@ import {
 } from "./core-schemas";
 import { acceptedTermsSchema } from "./legal";
 import { batchTypeSchema, type BatchType, type BatchTypeSource } from "./batch-type";
+import type { BatchBattleSettings } from "./puzzle-rush";
 import {
   MAX_ASSIGNMENT_PUZZLES,
   type AssignmentPuzzleSetResults,
@@ -318,6 +319,10 @@ const createBatchRequestBaseSchema = z.object({
   name: z.string().min(1, "Batch name is required.").max(120),
   /** Students of this batch may use rated puzzle training. Omitted on create = on. */
   puzzleTrainingEnabled: z.boolean().optional(),
+  /** Batch Battles: null = automatic (group batches take part). */
+  battlesEnabled: z.boolean().nullable().optional(),
+  /** Other batches see this batch's top player's name. Omitted on create = off. */
+  battlesShowNames: z.boolean().optional(),
   scheduleNotes: z.string().max(1000).optional(),
   startsAt: z.string().optional(),
   status: batchStatusSchema.optional().default("ACTIVE"),
@@ -457,6 +462,9 @@ export type Batch = {
   id: string;
   name: string;
   puzzleTrainingEnabled: boolean;
+  /** Batch Battles: null = automatic (group batches take part). */
+  battlesEnabled: boolean | null;
+  battlesShowNames: boolean;
   scheduleNotes?: string | null;
   startsAt?: string | null;
   status: BatchStatus;
@@ -785,6 +793,8 @@ export type CoachBatch = {
   scheduleNotes: string | null;
   studentCount: number;
   nextClass: string | null;
+  /** Batch Battles settings (the coach may change them for their batch). */
+  battles: BatchBattleSettings;
 };
 
 export type CoachBatchesResponse = {

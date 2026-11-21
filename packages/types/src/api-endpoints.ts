@@ -468,7 +468,11 @@ export const API_ROUTES = {
     // PUT: running totals of one run.
     progress: (id: string = ":id") => `/puzzle-rush/solo/runs/${id}/progress`,
     // GET ?batchId=&mode=&period=: the batch leaderboard.
-    leaderboard: "/puzzle-rush/solo/leaderboard"
+    leaderboard: "/puzzle-rush/solo/leaderboard",
+    // GET ?mode=&period=: academy-wide Batch Battles board (student).
+    battles: "/puzzle-rush/solo/battles",
+    // PATCH: a batch's Batch Battles settings (admin, or a coach of the batch).
+    battleSettings: (id: string = ":id") => `/puzzle-rush/solo/battles/batches/${id}`
   },
   puzzles: {
     // ── Topics (admin authors; staff + coach read) ──
