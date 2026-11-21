@@ -49,6 +49,8 @@ stay as written; the living doc for that area wins where they disagree.
 | [EMAIL_ADMIN.md](EMAIL_ADMIN.md) | Email verification policy and staff direct email |
 | [SAAS_PLANS.md](SAAS_PLANS.md) | Subscription tiers, feature gates, limits |
 | [MULTI_ROLE_ACCOUNTS.md](MULTI_ROLE_ACCOUNTS.md) | One login with Admin + Coach and a role switch (solo coach): built 2026-11-20 (PR into dev) |
+| [UNIQUE_FEATURES_PROPOSAL.md](UNIQUE_FEATURES_PROPOSAL.md) | 6 unique differentiator features: AI Growth Card, Coach Co-Pilot, Repertoire Bot, Clan Battles, Highlights, WhatsApp Puzzle Streak |
+| [BUSINESS_GROWTH_PLAYBOOK.md](BUSINESS_GROWTH_PLAYBOOK.md) | Marketing & lead velocity: 3-tap WhatsApp booking, Meta ad angles, landing page quiz, no-show reduction, referral loops |
 | [ai/architecture/ROADMAP.md](ai/architecture/ROADMAP.md) | AI runtime plan; ADRs and phase specs live beside it |
 
 ## Operations

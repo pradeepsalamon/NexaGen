@@ -341,3 +341,29 @@ export type SoloRushLeaderboard = {
   period: SoloRushPeriod;
   rows: SoloRushLeaderboardRow[];
 };
+
+export type SoloRushBatchBattleRow = {
+  rank: number;
+  batchId: string;
+  batchName: string;
+  totalScore: number;
+  activeStudents: number;
+  avgScore: number;
+  topStudentName: string | null;
+  topStudentScore: number | null;
+  isMyBatch: boolean;
+};
+
+export type SoloRushBatchBattlesLeaderboard = {
+  mode: PuzzleRushMode;
+  period: SoloRushPeriod;
+  myBatches: {
+    batchId: string;
+    batchName: string;
+    rank: number;
+    totalScore: number;
+    myContribution: number;
+  }[];
+  rows: SoloRushBatchBattleRow[];
+};
+

@@ -3,7 +3,12 @@ import { getErrorMessage } from "@/lib/errors";
 import type { PuzzleRushMode, SoloRushPeriod } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
-import { getSoloRushLeaderboard, getSoloRushOverview, startSoloRush } from "../api/soloRushApi";
+import {
+  getSoloRushBattles,
+  getSoloRushLeaderboard,
+  getSoloRushOverview,
+  startSoloRush
+} from "../api/soloRushApi";
 
 export function useSoloRushOverview() {
   return useQuery({ queryFn: getSoloRushOverview, queryKey: queryKeys.soloRush.overview });
@@ -20,6 +25,15 @@ export function useSoloRushLeaderboard(batchId: string | null, mode: PuzzleRushM
     refetchIntervalInBackground: false,
     queryFn: () => getSoloRushLeaderboard({ batchId: batchId ?? "", mode, period }),
     queryKey: queryKeys.soloRush.leaderboard(batchId ?? "", mode, period)
+  });
+}
+
+export function useSoloRushBattles(mode: PuzzleRushMode, period: SoloRushPeriod) {
+  return useQuery({
+    refetchInterval: LEADERBOARD_POLL_MS,
+    refetchIntervalInBackground: false,
+    queryFn: () => getSoloRushBattles({ mode, period }),
+    queryKey: queryKeys.soloRush.battles(mode, period)
   });
 }
 

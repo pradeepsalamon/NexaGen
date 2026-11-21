@@ -3,6 +3,7 @@ import {
   type PuzzleRushMode,
   type ReportSoloRushProgressRequest,
   type ReportSoloRushProgressResponse,
+  type SoloRushBatchBattlesLeaderboard,
   type SoloRushLeaderboard,
   type SoloRushOverview,
   type SoloRushPeriod,
@@ -29,4 +30,12 @@ export const getSoloRushLeaderboard = (params: {
 }): Promise<SoloRushLeaderboard> => {
   const sp = new URLSearchParams(params);
   return apiFetch<SoloRushLeaderboard>(`${API_ROUTES.puzzleRushSolo.leaderboard}?${sp.toString()}`);
+};
+
+export const getSoloRushBattles = (params: {
+  mode: PuzzleRushMode;
+  period: SoloRushPeriod;
+}): Promise<SoloRushBatchBattlesLeaderboard> => {
+  const sp = new URLSearchParams(params);
+  return apiFetch<SoloRushBatchBattlesLeaderboard>(`${API_ROUTES.puzzleRushSolo.battles}?${sp.toString()}`);
 };

@@ -63,6 +63,26 @@ export class SoloPuzzleRushController {
     return this.service.leaderboard(this.getAccessToken(request), query);
   }
 
+  @Get(API_ROUTES.puzzleRushSolo.battles)
+  batchBattles(
+    @Query("mode") mode: unknown,
+    @Query("period") period: unknown,
+    @Req() request: Request
+  ) {
+    const query = parseOrBadRequest(
+      z.object({
+        mode: puzzleRushModeSchema.default("STORM"),
+        period: soloRushPeriodSchema.default("WEEK")
+      }),
+      {
+        mode: queryString(mode, "mode"),
+        period: queryString(period, "period")
+      },
+      "query"
+    );
+    return this.service.batchBattles(this.getAccessToken(request), query);
+  }
+
   private getAccessToken(request: Request) {
     return request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
   }

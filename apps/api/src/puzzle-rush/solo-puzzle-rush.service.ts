@@ -16,6 +16,8 @@ import {
   type PuzzleRushPuzzle,
   type ReportSoloRushProgressRequest,
   type ReportSoloRushProgressResponse,
+  type SoloRushBatchBattleRow,
+  type SoloRushBatchBattlesLeaderboard,
   type SoloRushLeaderboard,
   type SoloRushOverview,
   type SoloRushPeriod,
@@ -41,6 +43,17 @@ type LeaderboardSqlRow = {
   errors: number;
   bestCombo: number;
   achievedAt: Date;
+};
+
+type BatchBattleSqlRow = {
+  batchId: string;
+  batchName: string;
+  totalScore: number;
+  activeStudents: number;
+  avgScore: number;
+  topFirstName: string | null;
+  topLastName: string | null;
+  topStudentScore: number | null;
 };
 
 /**
@@ -210,6 +223,120 @@ export class SoloPuzzleRushService {
           studentId: row.studentId
         };
       })
+    };
+  }
+
+  /**
+   * Academy-wide Batch Battles / Clan Cup: aggregates all active batches' team
+   * scores for the selected mode and period, showing batch ranks, MVPs, and the
+   * student's own batch standing and contribution.
+   */
+  async batchBattles(
+    accessToken: string | undefined,
+    query: { mode: PuzzleRushMode; period: SoloRushPeriod }
+  ): Promise<SoloRushBatchBattlesLeaderboard> {
+    const student = await this.getStudent(accessToken);
+    const myBatches = await this.trainingBatches(student.id);
+
+    const since = query.period === "WEEK" ? new Date(Date.now() - WEEK_MS) : new Date(0);
+    const myContribution =
+      (await this.bestsSince(student.id, since)).find((b) => b.mode === query.mode)?.score ?? 0;
+
+    const rawRows = await this.prisma.$queryRaw<BatchBattleSqlRow[]>`
+      WITH student_best AS (
+        SELECT DISTINCT ON (bs."batchId", r."studentId")
+          bs."batchId",
+          r."studentId",
+          u."firstName",
+          u."lastName",
+          r."score",
+          r."errors",
+          r."finishedAt"
+        FROM solo_puzzle_rush_runs r
+        JOIN users u ON u."id" = r."studentId" AND u."isDeleted" = false
+        JOIN batch_students bs ON bs."studentId" = r."studentId" AND bs."isDeleted" = false
+        JOIN batches b ON b."id" = bs."batchId" AND b."isDeleted" = false AND b."puzzleTrainingEnabled" = true
+        WHERE r."mode" = ${query.mode}::"PuzzleRushMode"
+          AND r."finishedAt" IS NOT NULL
+          AND r."finishedAt" >= ${since.toISOString()}::timestamp
+          AND ${tenantFilter("b")}
+          AND ${tenantFilter("r")}
+        ORDER BY bs."batchId", r."studentId", r."score" DESC, r."errors" ASC, r."finishedAt" ASC
+      ),
+      batch_mvp AS (
+        SELECT DISTINCT ON (sb."batchId")
+          sb."batchId",
+          sb."firstName" AS "topFirstName",
+          sb."lastName" AS "topLastName",
+          sb."score" AS "topStudentScore"
+        FROM student_best sb
+        ORDER BY sb."batchId", sb."score" DESC, sb."errors" ASC, sb."finishedAt" ASC
+      ),
+      batch_totals AS (
+        SELECT
+          b."id" AS "batchId",
+          b."name" AS "batchName",
+          COALESCE(SUM(sb."score"), 0)::int AS "totalScore",
+          COUNT(sb."studentId")::int AS "activeStudents",
+          COALESCE(ROUND(AVG(sb."score")::numeric, 1), 0)::float AS "avgScore"
+        FROM batches b
+        LEFT JOIN student_best sb ON sb."batchId" = b."id"
+        WHERE b."isDeleted" = false
+          AND b."puzzleTrainingEnabled" = true
+          AND ${tenantFilter("b")}
+        GROUP BY b."id", b."name"
+      )
+      SELECT
+        bt."batchId",
+        bt."batchName",
+        bt."totalScore",
+        bt."activeStudents",
+        bt."avgScore",
+        bm."topFirstName",
+        bm."topLastName",
+        bm."topStudentScore"
+      FROM batch_totals bt
+      LEFT JOIN batch_mvp bm ON bm."batchId" = bt."batchId"
+      ORDER BY bt."totalScore" DESC, bt."activeStudents" DESC, bt."batchName" ASC
+      LIMIT ${LEADERBOARD_LIMIT}`;
+
+    const myBatchIds = new Set(myBatches.map((b) => b.id));
+    let rank = 0;
+    const rows: SoloRushBatchBattleRow[] = rawRows.map((row, index) => {
+      const prev = rawRows[index - 1];
+      if (!prev || prev.totalScore !== row.totalScore || prev.activeStudents !== row.activeStudents) {
+        rank = index + 1;
+      }
+      return {
+        activeStudents: row.activeStudents,
+        avgScore: row.avgScore,
+        batchId: row.batchId,
+        batchName: row.batchName,
+        isMyBatch: myBatchIds.has(row.batchId),
+        rank,
+        topStudentName: row.topFirstName
+          ? leaderboardName({ firstName: row.topFirstName, lastName: row.topLastName })
+          : null,
+        topStudentScore: row.topStudentScore,
+        totalScore: row.totalScore
+      };
+    });
+
+    const myBatchesInBattle = rows
+      .filter((r) => r.isMyBatch)
+      .map((r) => ({
+        batchId: r.batchId,
+        batchName: r.batchName,
+        myContribution,
+        rank: r.rank,
+        totalScore: r.totalScore
+      }));
+
+    return {
+      mode: query.mode,
+      myBatches: myBatchesInBattle,
+      period: query.period,
+      rows
     };
   }
 
