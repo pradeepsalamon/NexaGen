@@ -11,6 +11,7 @@ import { SupportAdminService } from "./support-admin.service";
 import { SupportAnalyticsService } from "./support-analytics.service";
 import { SupportAttachmentsService } from "./support-attachments.service";
 import { SupportConversationService } from "./support-conversation.service";
+import { SupportDemoRemindersService } from "./support-demo-reminders.service";
 import { SupportDemoSlotsService } from "./support-demo-slots.service";
 import { SupportFollowUpService } from "./support-follow-up.service";
 import { SupportOutboxService } from "./support-outbox.service";
@@ -31,6 +32,7 @@ import { WhatsAppWebhookService } from "./whatsapp-webhook.service";
     SupportAnalyticsService,
     SupportAttachmentsService,
     SupportConversationService,
+    SupportDemoRemindersService,
     SupportDemoSlotsService,
     SupportFollowUpService,
     SupportOutboxService,

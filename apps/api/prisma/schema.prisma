@@ -1275,6 +1275,10 @@ model DemoClassRegistration {
   approval      DemoGuestApproval             @default(APPROVED)
   approvalAt    DateTime?
   joinedAt      DateTime?
+  /// WhatsApp demo reminders and the missed-demo message, each sent once (docs/LEAD_STAGES.md).
+  eveningReminderAt DateTime?
+  hourReminderAt    DateTime?
+  missedMessageAt   DateTime?
   createdAt     DateTime                      @default(now())
 
   @@unique([classId, contactMethod, contactValue])

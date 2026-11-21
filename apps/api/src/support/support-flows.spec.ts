@@ -526,3 +526,40 @@ describe("existing students (LINK and NEXT CLASS)", () => {
     expect(transitionSupport({ ...menu, status: "AGENT" }, text("next class"), on)).toMatchObject({ actions: [], replies: [] });
   });
 });
+
+describe("demo reminder buttons (docs/LEAD_STAGES.md)", () => {
+  const slots: SupportTransitionContext = {
+    ...ctx,
+    demoSlots: [{ id: "class_sat", title: "Sat 22 Nov, 10:00 am" }]
+  };
+  const booking = { level: "beginner" as const, parentName: "Priya", registrationId: "reg_1", studentAge: 9, studentName: "Asha" };
+
+  it("records Yes, I'll attend in any state, and only the bot says thank you", () => {
+    const yes = transitionSupport(at("MAIN_MENU"), tap("demo.attend.reg_1"), ctx);
+    expect(yes.actions).toEqual([{ kind: "DEMO_ATTEND", registrationId: "reg_1" }]);
+    expect(yes.state).toBe("MAIN_MENU");
+    expect(yes.replies[0].body).toContain("you'll attend");
+
+    const withStaff = transitionSupport(at("DONE", {}, "AGENT"), tap("demo.attend.reg_1"), ctx);
+    expect(withStaff).toMatchObject({ actions: [{ kind: "DEMO_ATTEND", registrationId: "reg_1" }], replies: [], status: "AGENT" });
+  });
+
+  it("Reschedule reopens the demo times with the child's details, and the new booking replaces the old one", () => {
+    const move = transitionSupport(at("MAIN_MENU"), tap("demo.move.reg_1"), { ...slots, reschedule: booking });
+    expect(move).toMatchObject({ draft: { replacesRegistrationId: "reg_1", studentName: "Asha" }, state: "DEMO_TIME" });
+    expect(move.replies[1]).toMatchObject({ kind: "list" });
+
+    const confirm = transitionSupport(at("DEMO_TIME", move.draft), tap("demo.slot.class_sat"), slots);
+    const sent = transitionSupport(at("DEMO_CONFIRM", confirm.draft), tap("confirm.send"), slots);
+    expect(sent.actions[0]).toMatchObject({ demo: { replacesRegistrationId: "reg_1", slotClassId: "class_sat" }, kind: "TICKET" });
+  });
+
+  it("an old Reschedule button starts a fresh booking, and staff conversations are left alone", () => {
+    expect(transitionSupport(at("MAIN_MENU"), tap("demo.move.reg_9"), { ...slots, reschedule: booking }).state).toBe("DEMO_STUDENT");
+    expect(transitionSupport(at("MAIN_MENU"), tap("demo.move.reg_1"), slots).state).toBe("DEMO_STUDENT");
+    expect(transitionSupport(at("DONE", {}, "AGENT"), tap("demo.move.reg_1"), { ...slots, reschedule: booking })).toMatchObject({
+      replies: [],
+      status: "AGENT"
+    });
+  });
+});

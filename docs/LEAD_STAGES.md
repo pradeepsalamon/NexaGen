@@ -1,6 +1,8 @@
 # Lead stages and the Frappe CRM pipeline
 
-Status: **Phase 1 built 2026-11-21** (+ the daily waiting-for-a-time staff alert) (branch `feat/lead-stage-sync`): stages, automatic
+Status: **built 2026-11-21**: stages, automatic moves, missed-demo job, daily waiting-for-a-time
+alert, WhatsApp reminders with confirm/reschedule, stage copy to Frappe (off by default; on
+for staging). Still open: Enrolled on payment, templates in Meta, moving the number to the bot. (branch `feat/lead-stage-sync`): stages, automatic
 moves, missed-demo job, stage copy to Frappe (off by default). Phase 2 (reminders with
 confirm/reschedule buttons, missed-demo message, "waiting for a demo time" alert, Enrolled
 on payment) is planned below and needs the WhatsApp bot to receive the number's messages.
@@ -50,12 +52,40 @@ on payment) is planned below and needs the WhatsApp bot to receive the number's 
   exist as a `CRM Lead Status` in Frappe, or Frappe refuses new leads.
 - A NexaGen manual move backwards is not copied (Frappe keeps the further stage).
 
-## Phase 2 plan (owner decisions 2026-11-21)
+## WhatsApp reminders (built 2026-11-21)
 
-- **Reminders** the evening before and 1 hour before, with [Yes, I'll attend] [Reschedule].
-  Free inside the parent's 24-hour window, otherwise a utility template (~₹0.12, approved by
-  the owner). "Yes" → `DEMO_CONFIRMED`; "Reschedule" → the bot's demo-time list.
-- **Missed demo**: the bot offers new times (same window/template rule).
+`support/support-demo-reminders.service.ts` (every 5 min, `JOB_LOCKS.demoReminders`), for a lead's
+phone booking in a scheduled demo class, only for numbers the bot answers and never after STOP:
+
+| Message | When | Buttons |
+|---|---|---|
+| Evening before | from 19:00 local the day before (4 h window); booking made before then; class > 3 h away; lead still Demo booked | Yes, I'll attend · Reschedule |
+| 1 hour before | 60 to 10 min before, with the personal join link | the same, unless already confirmed |
+| Missed demo | within 24 h after a held demo the lead missed (`NO_SHOW`) | Pick a new time |
+
+- Each is claimed once on the registration (`eveningReminderAt`, `hourReminderAt`,
+  `missedMessageAt`) before sending: never twice, also when skipped.
+- **Inside the parent's 24-hour window** it is a free bot message in their conversation (outbox).
+  **Outside it** only with an approved template: `SUPPORT_DEMO_REMINDER_TEMPLATE` /
+  `SUPPORT_DEMO_MISSED_TEMPLATE` (language `SUPPORT_DEMO_TEMPLATE_LANGUAGE`, default `en_US`);
+  unset = skipped. The buttons' payloads are `demo.attend.<registrationId>` /
+  `demo.move.<registrationId>`.
+- **Taps** (`transitionSupport` + `SupportConversationService`): the booking must be this
+  number's (same last ten digits) and not over (to reschedule: or a demo the lead missed in
+  the last 7 days); anything else is ignored (an old Reschedule starts a fresh booking).
+  "Yes" → `DEMO_CONFIRMED` (recorded even while staff own the chat). "Reschedule" reopens the
+  demo times with the child's details filled in (not the same class); the new booking replaces
+  the old registration if the guest never joined it.
+
+**Templates to create in WhatsApp Manager** (category Utility, English):
+
+- `demo_reminder`: "Hi {{1}}, a reminder: {{2}}'s free demo class with Nexa Chess Academy is
+  on {{3}}. Will you attend?" — quick replies "Yes, I'll attend", "Reschedule".
+- `demo_missed`: "Hi {{1}}, we missed {{2}} at the free demo class ({{3}}). Would you like
+  to pick a new time?" — quick reply "Pick a new time".
+
+## Still to do (owner decisions 2026-11-21)
+
 - **Enrolled automatically** on a captured payment or a student account for the lead.
 - **Tidy Frappe's stage list** to the names above (create the missing ones, move leads from
   the old duplicates), then switch on `FRAPPE_CRM_STAGE_SYNC`.

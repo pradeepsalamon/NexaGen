@@ -210,6 +210,14 @@ const apiEnvSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  /**
+   * Approved WhatsApp templates for demo reminders outside the 24-hour window (docs/LEAD_STAGES.md):
+   * body {{1}} parent, {{2}} student, {{3}} class time; quick replies "Yes, I'll attend" + "Reschedule"
+   * (the missed-demo one: one "Pick a new time"). Empty = only inside the free window.
+   */
+  SUPPORT_DEMO_REMINDER_TEMPLATE: z.string().optional(),
+  SUPPORT_DEMO_MISSED_TEMPLATE: z.string().optional(),
+  SUPPORT_DEMO_TEMPLATE_LANGUAGE: z.string().default("en_US"),
   /** Idle minutes before the bot asks "continue or start again?". */
   SUPPORT_SESSION_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(30),
   /** Comma-separated numbers. Set = the bot answers only these (dev, staff-only rollout). */

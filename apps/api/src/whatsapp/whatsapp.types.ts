@@ -13,9 +13,16 @@ export interface WhatsAppDocumentParameter {
   document: { id?: string; link?: string; filename?: string };
 }
 
+/** A quick-reply button's payload on a template: comes back as the tap's id. */
+export interface WhatsAppPayloadParameter {
+  type: "payload";
+  payload: string;
+}
+
 export type WhatsAppParameter =
   | WhatsAppTextParameter
-  | WhatsAppDocumentParameter;
+  | WhatsAppDocumentParameter
+  | WhatsAppPayloadParameter;
 
 export interface WhatsAppTemplateComponent {
   type: WhatsAppComponentType;

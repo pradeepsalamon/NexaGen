@@ -201,6 +201,9 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   - *Stage changes* (2026-11-21, behind `FRAPPE_CRM_STAGE_SYNC`, off by default):
     each later stage change re-queues the same row and moves the Frappe lead
     forward only; see [LEAD_STAGES.md](LEAD_STAGES.md).
+- *Demo reminders* (2026-11-21): evening-before and 1-hour reminders with
+  [Yes, I'll attend] [Reschedule], and a missed-demo message; see
+  [LEAD_STAGES.md](LEAD_STAGES.md) § "WhatsApp reminders".
   - Off unless `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY` and
     `FRAPPE_CRM_API_SECRET` are set; other academies never push. The key
     belongs to the Frappe user `nexagen-push@nexachess.in` (made 2026-11-15;
