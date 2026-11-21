@@ -272,7 +272,9 @@ system messages then skip that number (`SKIPPED`, checked at send time, so
 queued ones stop too). Support replies to the customer's own messages still go.
 
 **Puzzle of the Day keywords** (2026-11-21, [PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md)
-step 2). Only while the academy sends Puzzle of the Day on WhatsApp (its
+step 2). **Being removed** (owner, 2026-11-21): the student's app switch is the
+only on/off and the puzzle goes only to student accounts; step 3 phase 0 deletes
+these keywords. Until then, as built: Only while the academy sends Puzzle of the Day on WhatsApp (its
 `DAILY_PUZZLE` rule on with WhatsApp, Puzzle of the Day not off): `PUZZLE` (also
 "daily puzzle", "puzzle of the day", "puzzle on") sets
 `WhatsAppContact.dailyPuzzleAt`; `PUZZLE OFF` ("puzzle stop", "stop puzzle", "no

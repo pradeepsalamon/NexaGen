@@ -1,8 +1,9 @@
 # Puzzle of the Day
 
 A daily puzzle for every student, at three levels, with a streak. Step 1 is
-in the app; step 2 tells the numbers that asked for it on WhatsApp that the
-day's puzzles are ready. Feature 6 of [UNIQUE_FEATURES_PROPOSAL.md](UNIQUE_FEATURES_PROPOSAL.md).
+in the app; step 2 sends it on WhatsApp to every student account's phone
+(the student can switch it off in the app); step 3 adds a board picture and
+answering by reply. Feature 6 of [UNIQUE_FEATURES_PROPOSAL.md](UNIQUE_FEATURES_PROPOSAL.md).
 
 **Status:** step 1 built 2026-11-21 on `dev` (API, student page and card, admin and coach schedule). Step 2 (WhatsApp) built 2026-11-21 on `dev`, off by default; not yet tried against Meta with a real approved template.
 
@@ -89,16 +90,24 @@ contact), `MessagingRule.scheduleDays`.
 
 ## Step 2 — WhatsApp
 
-### Owner's calls (2026-11-21)
+### Owner's calls (2026-11-21, final)
 
 | Question | Answer |
 |---|---|
 | Meta template | Each academy's **admin picks** an approved template on the rule (the existing template picker). The rule ships off |
 | Cost | Meta charges the academy per message. **The admin chooses the days** it sends (and the time); at most one message per number per day |
-| Opt-in | **In-app switch** (the student's own account phone) **or** the keyword **PUZZLE** sent to the academy's WhatsApp; PUZZLE OFF or STOP ends it |
-| Unverified parent numbers | **Only numbers that opted in**, and the message carries **no student data** (no name, streak or result), just the puzzle and a link that needs sign-in. The typed-in `StudentProfile.parentPhone` is never used ([PARENT_REPORTS.md](PARENT_REPORTS.md)) |
+| Who gets it | **Every student account's phone, automatically** (`User.phoneNumber`), while the admin has the rule on and the student's Puzzle of the Day is on. Only student accounts: the typed-in `StudentProfile.parentPhone` is never used ([PARENT_REPORTS.md](PARENT_REPORTS.md)) |
+| On/off | **The student's switch in the app is the only on/off** (on by default). No WhatsApp keywords. STOP (WhatsApp-wide) still blocks every proactive message |
+| A phone on 2+ student accounts | Sent **once, link only** (we can't tell which student) |
+| Streak | **Per account**: the student's one streak, never a streak per phone number |
+| Student data in the message | None in step 2 (puzzle + link that needs sign-in) |
 
-### How it works
+> **Code on `dev` is the first version (35ed3273)**, decided earlier the same
+> day: opt-in instead of on-by-default, plus PUZZLE / PUZZLE OFF keywords that let
+> any number sign up. The section below describes that code. Step 3 phase 0
+> (below) changes it to the calls above; until then the calls above win.
+
+### How it works (first version, being changed)
 
 - **The rule**: messaging event `DAILY_PUZZLE` ("Puzzle of the Day (WhatsApp)",
   `/admin/messaging`), WhatsApp only (`whatsappOnly`: the rule service refuses
