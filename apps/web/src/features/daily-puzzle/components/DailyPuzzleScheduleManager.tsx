@@ -26,6 +26,7 @@ import { getPuzzles } from "@/features/puzzles/api/puzzleApi";
 import { formatLongDate } from "@/lib/datetime";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
+import { titleWithoutRating } from "../lib/puzzleTitle";
 import { useDailyPuzzleSchedule, useSetDailyPuzzleOverride, useUpdateDailyPuzzleSwitch } from "../hooks/useDailyPuzzle";
 
 const SOURCE_LABELS: Record<DailyPuzzleSource, string> = {
@@ -159,7 +160,7 @@ function SlotCell({
         <p className="text-xs font-semibold text-app-muted">{label}</p>
         {slot.puzzle ? (
           <p className="truncate text-sm font-medium text-app-text">
-            {slot.puzzle.title}
+            {titleWithoutRating(slot.puzzle.title, slot.puzzle.rating)}
             {slot.puzzle.rating ? <span className="text-app-muted"> · {slot.puzzle.rating}</span> : null}
           </p>
         ) : (
@@ -242,7 +243,7 @@ function PickPuzzleDialog({
               return (
                 <li className="flex items-center justify-between gap-3 py-2" key={p.id}>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-app-text">{p.title}</p>
+                    <p className="truncate text-sm font-medium text-app-text">{titleWithoutRating(p.title, p.rating)}</p>
                     <p className={cn("text-xs", inBand ? "text-success-ink" : "text-app-muted")}>
                       {p.rating ? `Rated ${p.rating}` : "No rating"} · {p.topicName}
                       {p.visibility === "PRIVATE" ? " · private" : ""}

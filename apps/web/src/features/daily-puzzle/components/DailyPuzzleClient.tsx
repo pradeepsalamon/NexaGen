@@ -24,6 +24,7 @@ import { usePuzzleAttempt } from "@/features/puzzles/hooks/usePuzzleAttempt";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
 import { useDailyPuzzleToday, useStartDailyPuzzle } from "../hooks/useDailyPuzzle";
+import { titleWithoutRating } from "../lib/puzzleTitle";
 
 /**
  * Puzzle of the Day (docs/PUZZLE_OF_THE_DAY.md): three puzzles a day, one per
@@ -176,7 +177,7 @@ function DailyBoard({ card }: { card: DailyPuzzleCard }) {
     return (
       <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
         <div>
-          <p className="font-extrabold text-app-text">{card.title}</p>
+          <p className="font-extrabold text-app-text">{titleWithoutRating(card.title, card.rating)}</p>
           <p className="text-sm text-app-muted">
             {DAILY_PUZZLE_LEVEL_LABELS[card.level]}
             {card.rating ? ` · rated ${card.rating}` : ""}

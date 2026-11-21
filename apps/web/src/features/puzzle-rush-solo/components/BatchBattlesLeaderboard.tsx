@@ -59,20 +59,32 @@ export function BatchBattlesLeaderboard({
         <Skeleton className="h-48 w-full" />
       ) : (
         <>
-          {data.myBatches.length > 0 ? (
+          {data.myBatches.some((mine) => mine.takesPart) ? (
             <div className="space-y-2">
-              {data.myBatches.map((mine) => (
-                <MyBatchBanner
-                  key={mine.batchId}
-                  leader={leader}
-                  mine={mine}
-                  minPlayers={data.minPlayers}
-                  myBest={data.myBest}
-                  sharedLead={leaders > 1}
-                  when={when}
-                />
-              ))}
+              {data.myBatches
+                .filter((mine) => mine.takesPart)
+                .map((mine) => (
+                  <MyBatchBanner
+                    key={mine.batchId}
+                    leader={leader}
+                    mine={mine}
+                    minPlayers={data.minPlayers}
+                    myBest={data.myBest}
+                    sharedLead={leaders > 1}
+                    when={when}
+                  />
+                ))}
             </div>
+          ) : null}
+          {data.myBatches.some((mine) => !mine.takesPart) ? (
+            <p className="text-xs text-app-muted">
+              Not in Batch Battles:{" "}
+              {data.myBatches
+                .filter((mine) => !mine.takesPart)
+                .map((mine) => mine.batchName)
+                .join(", ")}
+              . One-to-one and small batches stay out unless your coach turns them on.
+            </p>
           ) : null}
 
           {data.rows.length === 0 ? (
@@ -118,9 +130,7 @@ function MyBatchBanner({
 }) {
   const leading = mine.rank === 1;
   let status: string;
-  if (!mine.takesPart) {
-    status = "Not in Batch Battles. Your coach can turn it on.";
-  } else if (mine.rank === null) {
+  if (mine.rank === null) {
     const short = minPlayers - mine.players;
     status = `Needs ${short} more ${short === 1 ? "player" : "players"}${when} to get a rank.`;
   } else if (leading) {
@@ -157,15 +167,13 @@ function MyBatchBanner({
         </div>
       </div>
 
-      {mine.takesPart ? (
-        <div className="flex items-center gap-4 text-sm sm:text-right">
-          <Stat label="Batch average" value={mine.avgScore === null ? "–" : mine.avgScore.toFixed(1)} />
-          <div className="h-8 w-px bg-app-border" />
-          <Stat label="Players" value={String(mine.players)} />
-          <div className="h-8 w-px bg-app-border" />
-          <Stat label="Your best" value={myBest === null ? "–" : String(myBest)} />
-        </div>
-      ) : null}
+      <div className="flex items-center gap-4 text-sm sm:text-right">
+        <Stat label="Batch average" value={mine.avgScore === null ? "–" : mine.avgScore.toFixed(1)} />
+        <div className="h-8 w-px bg-app-border" />
+        <Stat label="Players" value={String(mine.players)} />
+        <div className="h-8 w-px bg-app-border" />
+        <Stat label="Your best" value={myBest === null ? "–" : String(myBest)} />
+      </div>
     </div>
   );
 }
