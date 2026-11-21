@@ -283,3 +283,11 @@ contact.
   the SALES fence; stage edits.
 - `cross-user-access.int-spec.ts`: cancelling another user's withdrawal or
   voucher redemption is a 404.
+- `e2e/referrals.spec.ts` (browser, opt-in `RUN_REFERRAL_E2E=1`, writes rows on
+  the target): an admin creates a SALES account from Admin → Users; it signs in
+  to `/sales` and `/profile` with no refused request; a visitor opens `/r/<code>`
+  and signs up (tracked to the sales account); a paying stage credits its
+  wallet; it withdraws from the Wallet tab; the admin pays; the three notices
+  reach its bell (in-app notices go through the delivery outbox, about a
+  minute). It restores the stage value and withdrawal settings and trashes the
+  accounts it made. Passed on staging 2026-11-21.
