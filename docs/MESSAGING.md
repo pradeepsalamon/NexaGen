@@ -91,10 +91,11 @@ the editors; a new placeholder needs an entry (a spec checks).
   one notice per deployment to the coach who deployed it (falling back to the
   batch's current coaches). Dedupe key = deployment + due date + coach.
 - `DAILY_PUZZLE` ships **off, WhatsApp only** (`whatsappOnly`: in-app and email are
-  refused) and is the one event whose recipients may have **no account**: numbers
-  that sent PUZZLE to the support bot, plus students who turned it on in the app.
+  refused). Owner's final rule: every **student account's** phone, on by default,
+  the student's app switch the only off; a phone on 2+ accounts gets the link only.
   `DailyPuzzleWhatsAppService`'s hourly cron dispatches it per academy day; one row
-  per number, no student data in the message. [PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md) step 2.
+  per number. (The first version on `dev` is opt-in and also takes numbers that sent
+  PUZZLE; step 3 phase 0 changes it.) [PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md) step 2.
 - `ASSIGNMENT_DUE_SOON` + `ASSIGNMENT_GRADED` ship **enabled, in-app only** —
   they absorbed the old unconditional notifications (`NotificationScheduler` is
   deleted; `assignment-attempt.service` now dispatches instead of notifying).
