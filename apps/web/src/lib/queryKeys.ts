@@ -331,6 +331,12 @@ export const queryKeys = {
   puzzleRush: {
     state: (classId: string) => ["puzzle-rush", "state", classId] as const,
   },
+  dailyPuzzle: {
+    all: ["daily-puzzle"] as const,
+    pick: (search: string) => ["daily-puzzle", "pick", search] as const,
+    schedule: (batchId: string | null) => ["daily-puzzle", "schedule", batchId ?? "academy"] as const,
+    today: ["daily-puzzle", "today"] as const
+  },
   soloRush: {
     all: ["solo-rush"] as const,
     battles: (mode: string, period: string) =>

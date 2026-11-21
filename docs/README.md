@@ -35,6 +35,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [CLASSES.md](CLASSES.md) | Class scheduling, timing rules, batch types, demo classes |
 | [PUZZLES.md](PUZZLES.md) | Puzzle Library, puzzle-set homework, student progress |
 | [PUZZLE_ACTIVITIES.md](PUZZLE_ACTIVITIES.md) | MCQs and Playouts in the Puzzle Library and the live class |
+| [PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md) | Daily puzzle at three levels with a streak; automatic, admin/coach overrides and switches |
 | [PUZZLE_RUSH_SOLO.md](PUZZLE_RUSH_SOLO.md) | Puzzle Storm / Racer played alone, with a batch leaderboard |
 | [SMART_REVISION.md](SMART_REVISION.md) | Spaced-repetition revision |
 | [STUDENT_ACTIVITY_HISTORY.md](STUDENT_ACTIVITY_HISTORY.md) | Student activity history and progress summary |

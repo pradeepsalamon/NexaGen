@@ -4,7 +4,7 @@ A daily puzzle for every student, at three levels, with a streak. Step 1 is
 in the app; step 2 (later, needs Meta template approval and an opt-in) sends
 it on WhatsApp. Feature 6 of [UNIQUE_FEATURES_PROPOSAL.md](UNIQUE_FEATURES_PROPOSAL.md).
 
-**Status:** planned 2026-11-21, being built on `dev`.
+**Status:** step 1 built 2026-11-21 on `dev` (API, student page and card, admin and coach schedule). Step 2 (WhatsApp) not started.
 
 ## Owner's calls (2026-11-21)
 
@@ -61,12 +61,20 @@ it on WhatsApp. Feature 6 of [UNIQUE_FEATURES_PROPOSAL.md](UNIQUE_FEATURES_PROPO
 
 ## Web
 
-- Student: a dashboard side-rail card ("Puzzle of the Day", streak, solved or
-  not today) and `/student/daily-puzzle` (three level tabs, the solver, the
-  result and the streak).
-- Admin: `/admin/daily-puzzle` (on/off, the 14-day schedule, override from the
-  library). Coach: the same schedule for one of their batches from
-  `/coach/batches`.
+`features/daily-puzzle/`.
+
+- **Student**: `/student/daily-puzzle` ("Puzzle of the Day" in the menu;
+  `DailyPuzzleClient`): streak tiles, the three levels (their own marked),
+  "Solve today's puzzle" opens the DAILY attempt and the ordinary solver
+  (`usePuzzleAttempt`, which resumes it). A level finished earlier shows its
+  result; one finished just now keeps the board with the solution. Dashboard
+  side-rail card `DailyPuzzleDashboardCard` (hidden when off or empty).
+- **Admin**: `/admin/daily-puzzle` (Learning): "Whole academy" or any active
+  batch, the on/off switch, 14 days × 3 levels with their source (Automatic /
+  Academy pick / Batch pick), Change (search the published library) and Reset.
+- **Coach**: `/coach/daily-puzzle`, the same for each active batch they teach.
+- A day that hasn't come yet with no override shows "Picked automatically on
+  the day": the automatic pick happens on the first read of that day.
 
 ## Data
 
