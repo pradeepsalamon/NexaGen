@@ -159,7 +159,7 @@ Planned for the 2026-11-21 night run, on its own branch off `dev`.
 | Which level is pictured | Default taken: **the admin picks one level** on the Puzzle of the Day page, starting at **Medium** |
 | A batch's own (coach's private) puzzle | Default taken: the picture is always the **academy-wide** puzzle for that level, never a batch's private one |
 | Answering by reply | **Yes** |
-| Who gets it at all (owner, later on 2026-11-21; **changes step 2**) | **Only existing student accounts**: the puzzle goes only to a phone that is `User.phoneNumber` of an active student who switched it on. A number on **no** student account gets nothing, and PUZZLE from it is refused ("only for numbers registered on a student account") |
+| Who gets it at all (owner, later on 2026-11-21; **changes step 2**) | **Every student account's phone, automatically** (no opt-in): each active student whose Puzzle of the Day is on gets it on `User.phoneNumber`, once the admin turns the rule on. A student can **turn it off** (app switch, `PUZZLE OFF`, `STOP`); `PUZZLE` turns it back on. A number on **no** student account gets nothing, and PUZZLE from it is refused ("only for numbers registered on a student account") |
 | Whose streak a reply counts for | **The student's one streak** (the same as the app): the phone is on **exactly one** such student account → the answer is that student's daily puzzle (entry, attempt, streak and rating). **No separate WhatsApp streak** |
 | A phone on 2+ student accounts (siblings) | Sent **once, link only**: no picture answering, replies not checked, no streak (we can't tell who answered) |
 | What must be right | **The first move only** (the key move). Then "Correct!" and the link to play out the rest in the app |
@@ -167,15 +167,23 @@ Planned for the 2026-11-21 night run, on its own branch off `dev`.
 
 ### Build
 
-0. **Step 2 change first: accounts only.** The send goes only to students who
-   switched it on (`StudentProfile.dailyPuzzleWhatsAppAt`), never to a bare
-   `WhatsAppContact`. `PUZZLE` from a number turns the switch on for every active
-   student whose account phone is that number (siblings: each of them); from a
-   number on no student account it changes nothing and the bot says it is only for
-   numbers registered on a student account. `PUZZLE OFF` turns it off for those
-   students. Stop using `WhatsAppContact.dailyPuzzleAt` (keep the column; migrations
-   stay additive). The admin summary counts students only. Number matching goes
-   through `normalizeWhatsAppNumber`, the same as sending.
+0. **Step 2 change first: every student account, on by default.** The send goes
+   to every active student whose Puzzle of the Day is on and whose account phone
+   is a usable WhatsApp number, unless they turned it off: a new additive column
+   (e.g. `StudentProfile.dailyPuzzleWhatsAppOffAt`); the opt-in columns
+   `dailyPuzzleWhatsAppAt` and `WhatsAppContact.dailyPuzzleAt` stop being used
+   (kept; migrations stay additive). Never to a bare `WhatsAppContact`. The app
+   switch shows on by default and turns it off/on. `PUZZLE OFF` turns it off for
+   every student whose account phone is that number (siblings: each), `PUZZLE`
+   back on; from a number on no student account the bot says it is only for
+   numbers registered on a student account. STOP still wins at send time.
+   Students with no or an unusable phone are skipped quietly (no SKIPPED row per
+   student per day — that would flood the log; the admin summary counts them). The admin summary counts students only. Number matching goes
+   through `normalizeWhatsAppNumber`, the same as sending. Admin summary: students
+   it will reach, students who turned it off, students with no usable phone.
+   **Consent note for the admin page / doc:** Meta expects people to have agreed
+   to business messages; tell families at registration or in the welcome message
+   ("a daily chess puzzle on WhatsApp, reply STOP anytime"). Nothing is built for it.
 1. **Picture.** A public image route on the web app draws the board PNG from the
    FEN (`next/og`, the academy's board appearance, flipped when Black is to move;
    no solution, no student data). Its link is signed and unguessable (HMAC over
