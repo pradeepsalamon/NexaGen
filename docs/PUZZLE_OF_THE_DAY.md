@@ -147,9 +147,59 @@ contact), `MessagingRule.scheduleDays`.
 3. Tell families: turn it on from the Puzzle of the Day page, or send PUZZLE to
    the academy's WhatsApp (needs the support bot on).
 
-### Not built yet
+## Step 3 — board picture and answering by reply (plan, 2026-11-21)
 
-- A **board picture** in the message (an image header). Needs a public,
-  unguessable image link per day and level that Meta can fetch, rendered from
-  the FEN; the message would then be the puzzle itself, not only a link.
-- Answering the puzzle **by replying** on WhatsApp.
+Planned for the 2026-11-21 night run, on its own branch off `dev`.
+
+### Owner's calls (2026-11-21)
+
+| Question | Answer |
+|---|---|
+| Picture in the message | **Yes**: the puzzle's position as an image at the top of the WhatsApp message |
+| Which level is pictured | Default taken: **the admin picks one level** on the Puzzle of the Day page, starting at **Medium** |
+| A batch's own (coach's private) puzzle | Default taken: the picture is always the **academy-wide** puzzle for that level, never a batch's private one |
+| Answering by reply | **Yes** |
+| Whose streak a reply counts for | **The student's, when the number is their account phone**: the number equals `User.phoneNumber` of **exactly one** active student who turned WhatsApp on in the app → the answer is that student's daily puzzle (entry, attempt, app streak and rating). **Any other number gets its own WhatsApp streak**, stored on the number, never shown with a student's name |
+| What must be right | **The first move only** (the key move). Then "Correct!" and the link to play out the rest in the app |
+| Tries | **Admin-set per academy**: maximum tries, wrong tries before a hint can be asked for, wrong tries before the answer can be asked for. Defaults taken: max 3, hint after 1, answer after 3 (hint ≤ answer ≤ max) |
+
+### Build
+
+1. **Picture.** A public image route on the web app draws the board PNG from the
+   FEN (`next/og`, the academy's board appearance, flipped when Black is to move;
+   no solution, no student data). Its link is signed and unguessable (HMAC over
+   academy, day, level and puzzle id, with a secret that is not a JWT secret) and
+   expires after a few days, so other days can't be listed. A new CSP/host entry
+   only if needed. The API gives the signed link; the web route asks the API for
+   the FEN with it (a `PUBLIC_ROUTES` entry; refuses a bad or expired signature).
+2. **Pick before sending.** The send sweep resolves (and if needed picks) the
+   academy's puzzle for the pictured level before it queues, so the picture exists
+   at send time.
+3. **Image header.** `WhatsAppService.trySendMessage` and the rule's template
+   fields learn an IMAGE header (a link), next to the existing DOCUMENT header;
+   `message_deliveries` keeps the image link. A rule with no template sends the
+   picture with the text as its caption.
+4. **Answering.** In the support bot, only for a number that got today's message
+   and only while the academy sends it: a reply that reads as a chess move (SAN or
+   UCI, `+`/`#` optional, any case for pieces as written) is checked against the
+   pictured puzzle's first move with the game engine (`common/chess`, never a raw
+   string match). Words: `HINT`, `ANSWER`, after the admin's thresholds. Replies are
+   free-form text inside the 24-hour window the customer just opened (no template).
+   Right → "Correct! 🔥" + the streak (the student's, or the number's own) + link.
+   Wrong → "Not quite" + tries left. Out of tries → the answer, streak kept (finishing
+   keeps it, as in the app).
+5. **Student path.** For the student's own account phone: write their
+   `DailyPuzzleEntry` + `DAILY` attempt for the pictured level through the existing
+   engine (`PuzzleAttemptService`, the only attempt engine); if they already
+   finished that level in the app, say so and change nothing. The entry keeps the
+   pictured puzzle even where their batch picked another one for that level (the
+   app already shows an entry's own puzzle).
+6. **Number's streak.** A new table (one row per number and day, `tenantId`,
+   tries, solved), the streak computed from it like the app's, never stored.
+   Erasing the contact deletes its rows.
+7. **Settings.** The three try numbers on `DailyPuzzleSettings`, edited on the
+   admin Puzzle of the Day page; the pictured level on the same page.
+
+### Still not planned
+
+- Playing out the whole line on WhatsApp move by move.
