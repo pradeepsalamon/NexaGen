@@ -181,6 +181,8 @@ export const KEPT_USER_FIELDS = [
 ] as const;
 
 /** `$2` = now as an ISO string (timestamp WITHOUT time zone, CLAUDE.md §3.4). */
+// Not a credential: this SQL blanks "username" and sets an unusable password.
+// nosemgrep: ajinabraham.njsscan.generic.hardcoded_secrets.node_username
 export const ANONYMISE_USERS_SQL = `
 UPDATE "users" SET
   "acquisitionDetail" = NULL,
