@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { LoginPageV2 } from "@/features/auth/login-v2/LoginPageV2";
+import { AuthSplitShell } from "@/features/auth/components/AuthSplitShell";
+import { LoginCard } from "@/features/auth/login-v2/LoginCard";
 import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  return <LoginPageV2 />;
+  return (
+    <AuthSplitShell variant="login">
+      <LoginCard />
+    </AuthSplitShell>
+  );
 }

@@ -11,11 +11,25 @@ import { cn } from "@/lib/utils";
 
 type Highlight = { Icon: LucideIcon; lines: [string, string] };
 
-const FEATURES: Highlight[] = [
-  { Icon: TrendingUp, lines: ["Progress", "you can see"] },
-  { Icon: Users, lines: ["Practice between", "classes"] },
-  { Icon: Trophy, lines: ["Learn from", "expert coaches"] }
-];
+/** One auth page's hero text: the headline (its `emphasis` in gold italic), tagline and chips. */
+export type AuthHeroCopy = {
+  emphasis: string;
+  features: Highlight[];
+  lead: string;
+  subtitle: string;
+};
+
+/** Login, password reset and the other account pages. */
+export const SIGN_IN_HERO: AuthHeroCopy = {
+  emphasis: "expert coaches.",
+  features: [
+    { Icon: TrendingUp, lines: ["Progress", "you can see"] },
+    { Icon: Users, lines: ["Practice between", "classes"] },
+    { Icon: Trophy, lines: ["Learn from", "expert coaches"] }
+  ],
+  lead: "Master the board with",
+  subtitle: "Premium chess learning for focused students, ambitious juniors and supportive families."
+};
 
 const TRUST: Highlight[] = [
   { Icon: ShieldCheck, lines: ["Your data is secure", "and protected"] },
@@ -42,7 +56,17 @@ function AcademyBadge() {
  * Top of the hero: logo, badge, theme switch, the headline and the three feature chips.
  * The panel tagline is a `<p>`: the auth card holds the page's only `h1`.
  */
-export function LoginHeroTop({ className }: { className?: string }) {
+export function LoginHeroTop({
+  className,
+  compact = false,
+  copy
+}: {
+  className?: string;
+  /** Smaller headline and tagline, and no feature chips, from `lg`: beside the wide
+   * registration card the page has to fit a laptop screen. */
+  compact?: boolean;
+  copy: AuthHeroCopy;
+}) {
   const brandName = useBrandName();
 
   return (
@@ -72,7 +96,7 @@ export function LoginHeroTop({ className }: { className?: string }) {
           >
             <Logo mobileSize={36} size={48} />
           </Link>
-          <div className="hidden md:block">
+          <div className={cn("hidden md:block", compact && "lg:hidden 2xl:block")}>
             <AcademyBadge />
           </div>
         </div>
@@ -83,7 +107,7 @@ export function LoginHeroTop({ className }: { className?: string }) {
 
       <motion.div
         animate="animate"
-        className="relative mt-7 lg:mt-12"
+        className={cn("relative mt-7", compact ? "lg:mt-8" : "lg:mt-12")}
         initial="initial"
         transition={{ duration: 0.6, ease: "easeOut" }}
         variants={rise}
@@ -91,27 +115,37 @@ export function LoginHeroTop({ className }: { className?: string }) {
         <div className="mb-4 md:hidden">
           <AcademyBadge />
         </div>
-        <p className="login-v2-serif text-[2.125rem] font-semibold leading-[1.08] tracking-[-0.01em] sm:text-5xl lg:text-[3.25rem] xl:text-[4rem]">
-          Master the board with{" "}
+        <p
+          className={cn(
+            "login-v2-serif text-[2.125rem] font-semibold leading-[1.08] tracking-[-0.01em] sm:text-5xl",
+            compact ? "lg:text-[2.5rem] xl:text-[3rem]" : "lg:text-[3.25rem] xl:text-[4rem]"
+          )}
+        >
+          {copy.lead}{" "}
           <span className="relative inline-block pb-2">
-            <em className="login-v2-gold-text pr-1 font-bold italic">expert coaches.</em>
+            <em className="login-v2-gold-text pr-1 font-bold italic">{copy.emphasis}</em>
             <span aria-hidden="true" className="login-v2-swash absolute -left-2 bottom-0 right-[8%]" />
           </span>
         </p>
-        <p className="mt-4 max-w-xl text-[0.9375rem] leading-relaxed text-login-on-hero-muted sm:text-lg lg:mt-5 xl:text-xl">
-          Premium chess learning for focused students, ambitious juniors and supportive families.
+        <p
+          className={cn(
+            "mt-4 max-w-xl text-[0.9375rem] leading-relaxed text-login-on-hero-muted sm:text-lg",
+            compact ? "lg:mt-4 lg:text-base xl:text-lg" : "lg:mt-5 xl:text-xl"
+          )}
+        >
+          {copy.subtitle}
         </p>
       </motion.div>
 
       <motion.ul
         animate="animate"
-        aria-label="Why students learn with us"
-        className="relative mt-6 hidden flex-wrap gap-3 sm:flex lg:mt-8"
+        aria-label="Highlights"
+        className={cn("relative mt-6 hidden flex-wrap gap-3 sm:flex lg:mt-8", compact && "lg:hidden")}
         initial="initial"
         transition={{ delay: 0.15, duration: 0.6, ease: "easeOut" }}
         variants={rise}
       >
-        {FEATURES.map(({ Icon, lines }) => (
+        {copy.features.map(({ Icon, lines }) => (
           <li
             className="login-v2-glass flex items-center gap-3 rounded-control py-2 pl-2 pr-4 shadow-card transition-[transform,box-shadow] motion-safe:hover:-translate-y-0.5 hover:shadow-lift"
             key={lines.join(" ")}

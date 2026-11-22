@@ -1,38 +1,23 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Lock, Mail } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import { AuthHeader } from "../components/AuthHeader";
 import { useLoginFlow } from "../hooks/useLoginFlow";
 import { MfaCodeStep } from "../components/mfa/MfaCodeStep";
 import { MfaEnrollment } from "../components/mfa/MfaEnrollment";
-
-/**
- * The card's heading: the page's only `h1`. `AuthHeader`'s layout in the login v2 serif.
- */
-function CardHeading({ description, title }: { description: ReactNode; title: string }) {
-  return (
-    <div className="mb-6 grid gap-1.5">
-      <h1 className="login-v2-serif text-3xl font-bold leading-tight tracking-tight text-app-text sm:text-4xl">
-        {title}
-      </h1>
-      <p className="text-sm text-app-muted">{description}</p>
-    </div>
-  );
-}
 
 function LoginFields({ flow }: { flow: ReturnType<typeof useLoginFlow> }) {
   const { errors, handleSubmit, isPending, lockout, touchField, updateField, values } = flow;
 
   return (
     <>
-      <CardHeading
+      <AuthHeader
         description="Continue your chess journey with expert coaching and a global community."
         title="Welcome back"
       />
@@ -85,9 +70,8 @@ function LoginFields({ flow }: { flow: ReturnType<typeof useLoginFlow> }) {
           </Link>
         </div>
 
-        {/* The standard primary button; only its fill is login v2's gold. */}
+        {/* The standard primary button; the auth card's tokens make it gold (login-v2.css). */}
         <Button
-          className="login-v2-cta border-transparent text-login-on-gold"
           fullWidth
           isLoading={isPending}
           size="lg"
@@ -107,52 +91,15 @@ function LoginFields({ flow }: { flow: ReturnType<typeof useLoginFlow> }) {
   );
 }
 
-function FooterLinks() {
-  const links = [
-    { href: "/privacy", label: "Privacy" },
-    { href: "/terms", label: "Terms" },
-    // /help needs a session; signed-out visitors reach the team from the academy page.
-    { href: "/#contact", label: "Help" }
-  ];
-
-  return (
-    <footer className="flex justify-center text-sm text-app-muted lg:justify-end">
-      <nav aria-label="Legal and help">
-        <ul className="flex items-center">
-          {links.map((link, index) => (
-            <li className={index > 0 ? "border-l border-app-border pl-4 ml-4" : undefined} key={link.href}>
-              <Link className="font-medium text-app-muted transition-colors hover:text-app-text hover:underline" href={link.href}>
-                {link.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    </footer>
-  );
-}
-
-/**
- * The form side: an ivory (dark: deep navy) panel holding the sign-in card, which
- * swaps to the MFA step when the account needs one, and the legal links.
- */
-export function LoginAuthPanel() {
+/** The login card: the sign-in form, swapped for the MFA step when the account needs one. */
+export function LoginCard() {
   const flow = useLoginFlow();
   const { challenge, finishLogin, resetChallenge } = flow;
   const enrolling = challenge?.mfaRequired === "SETUP";
 
-  return (
-    <div className="relative z-10 flex flex-1 flex-col px-4 pb-6 pt-8 sm:px-8 lg:px-10 lg:pb-8 lg:pt-12 xl:px-16">
-      <div className="flex flex-1 items-center justify-center">
-        <motion.div
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="w-full max-w-md rounded-panel border border-app-border bg-login-card p-5 shadow-card sm:p-8"
-          initial={{ opacity: 0, scale: 0.98, y: 18 }}
-          transition={{ delay: 0.1, duration: 0.55, ease: "easeOut" }}
-        >
-          {challenge ? (
+  return challenge ? (
             <>
-              <CardHeading
+              <AuthHeader
                 description={
                   enrolling
                     ? "Your account needs a second step at sign-in. This takes a minute."
@@ -174,14 +121,7 @@ export function LoginAuthPanel() {
                 />
               )}
             </>
-          ) : (
-            <LoginFields flow={flow} />
-          )}
-        </motion.div>
-      </div>
-      <div className="mx-auto mt-8 w-full max-w-md lg:max-w-none">
-        <FooterLinks />
-      </div>
-    </div>
+  ) : (
+    <LoginFields flow={flow} />
   );
 }

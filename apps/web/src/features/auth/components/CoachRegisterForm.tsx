@@ -143,7 +143,7 @@ export function CoachRegisterForm() {
   }
 
   return (
-    <form className="grid gap-6" noValidate onSubmit={handleSubmit}>
+    <form className="grid gap-6 lg:gap-3" noValidate onSubmit={handleSubmit}>
       <RegistrationFieldset legend="About you">
         <FormField error={errors.coachName} id="coach-name" label="Full name" required>
           <Input
@@ -322,7 +322,7 @@ export function CoachRegisterForm() {
         ref={termsRef}
       />
 
-      <div className="grid gap-3">
+      <div className="grid gap-3 lg:gap-2">
         <Button fullWidth isLoading={registerMutation.isPending} size="lg" type="submit">
           {registerMutation.isPending ? "Submitting…" : "Submit application"}
         </Button>
@@ -334,7 +334,8 @@ export function CoachRegisterForm() {
           />
           Our team reviews every application. You will be notified by email.
         </p>
-        <LoginPrompt />
+        {/* From `lg` it sits under the page heading instead (RegisterPageClient). */}
+        <LoginPrompt className="lg:hidden" />
       </div>
     </form>
   );

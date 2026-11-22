@@ -298,6 +298,12 @@
   --rgb-text-subtle: var(--rgb-login-subtle);
   --rgb-primary: var(--rgb-login-gold-deep);
   --rgb-on-primary: 255 255 255;
+  /* Primary buttons and the active tab: the login gold with navy text (login-v2.css adds
+     the gradient), on every auth page's card. */
+  --rgb-button: var(--rgb-login-gold);
+  --rgb-button-hover: var(--rgb-login-gold);
+  --rgb-button-dark: var(--rgb-login-gold-deep);
+  --rgb-on-button: var(--rgb-login-on-gold);
   --rgb-primary-soft: var(--rgb-login-page);
   --color-primary-ink: var(--color-login-gold-ink);
   --color-focus: rgb(var(--rgb-login-gold-deep));

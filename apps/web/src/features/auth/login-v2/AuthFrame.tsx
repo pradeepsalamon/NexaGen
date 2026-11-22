@@ -1,14 +1,16 @@
 "use client";
 
 import "./login-v2.css";
-import { MotionConfig } from "framer-motion";
+import { MotionConfig, motion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
+import type { CSSProperties, ReactNode } from "react";
 import { declareFontVariables } from "@/app/fonts";
 import { ACADEMY_FONT_FACES } from "@/features/academy/fonts.generated";
-import { LoginAuthPanel } from "./LoginAuthPanel";
-import { LoginHeroBottom, LoginHeroTop } from "./LoginHero";
+import { cn } from "@/lib/utils";
+import { type AuthHeroCopy, LoginHeroBottom, LoginHeroTop } from "./LoginHero";
 
-// Playfair for the headings, loaded only on this page (as on the academy page).
+// Playfair for the headings, loaded only on the auth pages (as on the academy page).
 const loginFontVariablesCss = declareFontVariables(".login-v2", ACADEMY_FONT_FACES);
 
 /**
@@ -19,7 +21,7 @@ const loginFontVariablesCss = declareFontVariables(".login-v2", ACADEMY_FONT_FAC
  */
 function HeroBackdrop() {
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 hidden w-[58%] lg:block">
+    <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 hidden w-[var(--auth-hero-w)] lg:block">
       <div className="login-v2-hero-shape login-v2-hero-glow absolute inset-0 overflow-hidden">
         <span className="login-v2-ring absolute -left-[18%] -top-[30%] aspect-square w-[78%]" />
         <span className="login-v2-ring absolute -left-[8%] -top-[22%] aspect-square w-[62%]" />
@@ -94,28 +96,98 @@ function FormSideDecor() {
   );
 }
 
+function FooterLinks() {
+  const links = [
+    { href: "/privacy", label: "Privacy" },
+    { href: "/terms", label: "Terms" },
+    // /help needs a session; signed-out visitors reach the team from the academy page.
+    { href: "/#contact", label: "Help" }
+  ];
+
+  return (
+    <footer className="flex justify-center text-sm text-app-muted lg:justify-end">
+      <nav aria-label="Legal and help">
+        <ul className="flex items-center">
+          {links.map((link, index) => (
+            <li className={index > 0 ? "ml-4 border-l border-app-border pl-4" : undefined} key={link.href}>
+              <Link className="font-medium text-app-muted transition-colors hover:text-app-text hover:underline" href={link.href}>
+                {link.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </footer>
+  );
+}
+
+type AuthFrameProps = {
+  children: ReactNode;
+  copy: AuthHeroCopy;
+  /** A wider card (the two-column registration form); the hero gives up some width for it. */
+  wide?: boolean;
+};
+
 /**
- * The login page (`/login`): a hero (headline, feature chips, the gold-knight scene)
- * beside the sign-in card, champagne and ivory in light, navy in dark. Every academy's
- * address gets this same page (its own logo and name, Nexa's gold). Below `lg` the hero's top stacks over the
- * card and the trust row follows it, so the form stays first on a phone. Sign-in itself is `useLoginFlow`.
+ * Every auth page (`/login`, `/register`, password reset, email verification, unsubscribe):
+ * a hero (headline, feature chips, the gold-knight scene) beside the page's card, champagne
+ * and ivory in light, navy in dark. Below `lg` the hero's top stacks over the card and the
+ * trust row follows it, so the form stays first on a phone. Every academy's address gets
+ * this same frame (its own logo and name, Nexa's gold). Pages use it through `AuthSplitShell`.
  */
-export function LoginPageV2() {
+export function AuthFrame({ children, copy, wide = false }: AuthFrameProps) {
+  const frameVars = { "--auth-hero-w": wide ? "42%" : "58%" } as CSSProperties;
+
   return (
     <MotionConfig reducedMotion="user">
-      <div className="login-v2 relative min-h-dvh bg-login-page text-login-text">
+      <div className="login-v2 relative min-h-dvh bg-login-page text-login-text" style={frameVars}>
         <style dangerouslySetInnerHTML={{ __html: loginFontVariablesCss }} />
         <HeroBackdrop />
 
-        <div className="relative flex min-h-dvh flex-col lg:grid lg:grid-cols-[minmax(0,58fr)_minmax(0,42fr)] lg:grid-rows-[auto_minmax(0,1fr)]">
-          <LoginHeroTop className="login-v2-hero-mobile relative z-10 px-4 pb-10 pt-4 sm:px-8 sm:pt-6 lg:col-start-1 lg:row-start-1 lg:px-12 lg:pb-0 lg:pr-[7%] lg:pt-10 xl:px-16" />
+        <div className="relative flex min-h-dvh flex-col lg:grid lg:grid-cols-[minmax(0,var(--auth-hero-w))_minmax(0,1fr)] lg:grid-rows-[auto_minmax(0,1fr)]">
+          <LoginHeroTop
+            className="login-v2-hero-mobile relative z-10 px-4 pb-10 pt-4 sm:px-8 sm:pt-6 lg:col-start-1 lg:row-start-1 lg:px-12 lg:pb-0 lg:pr-[7%] lg:pt-10 xl:px-16"
+            compact={wide}
+            copy={copy}
+          />
 
           <div className="login-v2-form-side relative flex flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1">
             <FormSideDecor />
-            <LoginAuthPanel />
+            <div
+              className={cn(
+                "relative z-10 flex flex-1 flex-col px-4 pb-6 pt-8 sm:px-8 lg:px-10 xl:px-16",
+                // The wide card (registration) is tall: tighter frame so it fits a 768px-high screen.
+                wide ? "lg:pb-3 lg:pt-4" : "lg:pb-8 lg:pt-12"
+              )}
+            >
+              <div className="flex flex-1 items-center justify-center">
+                <motion.div
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className={cn(
+                    "w-full rounded-panel border border-app-border bg-login-card p-5 shadow-card sm:p-8",
+                    wide ? "max-w-2xl lg:py-5" : "max-w-md"
+                  )}
+                  initial={{ opacity: 0, scale: 0.98, y: 18 }}
+                  transition={{ delay: 0.1, duration: 0.55, ease: "easeOut" }}
+                >
+                  {children}
+                </motion.div>
+              </div>
+              <div className={cn("mx-auto mt-8 w-full lg:max-w-none", wide ? "max-w-2xl lg:mt-2" : "max-w-md")}>
+                <FooterLinks />
+              </div>
+            </div>
           </div>
 
-          <LoginHeroBottom className="login-v2-hero-mobile-bottom relative z-10 px-4 pb-8 pt-10 sm:px-8 lg:col-start-1 lg:row-start-2 lg:px-12 lg:pb-8 lg:pr-[24%] lg:pt-12 xl:px-16" />
+          <LoginHeroBottom
+            className={cn(
+              "login-v2-hero-mobile-bottom relative z-10 px-4 pb-8 pt-10 sm:px-8 lg:col-start-1 lg:row-start-2 lg:px-12 lg:pb-8 lg:pt-12 xl:px-16",
+              // The curve leaves the trust row less room at the foot; the narrower wide-card hero needs it all.
+              wide ? "lg:pr-[14%]" : "lg:pr-[24%]",
+              // A short desktop screen has no room under the knight: the row would sit on it.
+              "[@media(min-width:1024px)_and_(max-height:760px)]:hidden"
+            )}
+          />
         </div>
       </div>
     </MotionConfig>

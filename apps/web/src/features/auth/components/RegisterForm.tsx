@@ -119,7 +119,7 @@ export function RegisterForm() {
   }
 
   return (
-    <form className="grid gap-6" noValidate onSubmit={handleSubmit}>
+    <form className="grid gap-6 lg:gap-3" noValidate onSubmit={handleSubmit}>
       <RegistrationFieldset legend="Student">
         <FormField error={errors.studentName} id="student-name" label="Student's full name" required>
           <Input
@@ -263,7 +263,7 @@ export function RegisterForm() {
         ref={termsRef}
       />
 
-      <div className="grid gap-3">
+      <div className="grid gap-3 lg:gap-2">
         <Button fullWidth isLoading={registerMutation.isPending} size="lg" type="submit">
           {registerMutation.isPending ? "Submitting…" : "Complete registration"}
         </Button>
@@ -275,7 +275,8 @@ export function RegisterForm() {
           />
           Our team reviews every registration. You can sign in once it is approved.
         </p>
-        <LoginPrompt />
+        {/* From `lg` it sits under the page heading instead (RegisterPageClient). */}
+        <LoginPrompt className="lg:hidden" />
       </div>
     </form>
   );
