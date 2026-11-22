@@ -37,18 +37,25 @@ and are mapped in `tailwind.config.ts`.
   `primary-ink` (coloured text, kept readable) switch with the theme.
 - **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
   scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
-- **Scrollbars** are one global style (globals.css): a thin 8 px pill in brand
+- **Scrollbars** are one global style (globals.css): a thin 8 px pill in solid brand
   navy (`--color-scroll-thumb`; a light navy-grey in dark mode and on the navy
   nav), no arrows, the same in every scroller. A scrolling body inside a dialog
   (fields between a fixed title and buttons) takes `dialog-scroll-body`, which
   puts its bar in the dialog's padding so the fields stay centred; not
   `overflow-y-auto pr-1`. Never set `scrollbar-width` / `scrollbar-color` on an element to
   restyle a bar: Chrome then drops the webkit rules and draws its default bar
-  with arrows (`[scrollbar-width:none]` to hide one is fine). While a menu or
-  dialog locks scrolling, Radix pads the body by the bar's width; a fixed
-  element pinned to the right edge takes `right-scroll-bar-position` (the
-  header does) so it keeps its width. No `scrollbar-gutter: stable` on `html`:
-  a dialog's overlay can't cover the reserved strip, which stays white.
+  with arrows (`[scrollbar-width:none]` to hide one is fine). Signed-in pages
+  (`html[data-nav]`) keep the page bar's room (`scrollbar-gutter: stable`), so
+  nothing shifts sideways when a page grows or shrinks or a menu/dialog locks
+  scrolling; Radix's body padding is cancelled there, and the reserved strip is
+  tinted like the overlay while a dialog is open (`data-dialog-overlay`).
+  Pages without the nav use Radix's padding, and a fixed element pinned to the
+  right edge takes `right-scroll-bar-position` (the header does).
+- **Focus rings are for the keyboard.** After a mouse or touch press
+  (`html[data-input="pointer"]`, `lib/inputModality.ts`) buttons, links, tabs,
+  menu items, switches and checkboxes show no `:focus-visible` ring, even
+  when a dialog or Radix moves focus itself; any key press brings rings back.
+  Text fields keep their focus style. Don't add per-component ring hacks.
 - **Role nav** (`components/layout/Sidebar.tsx`): from `xl` a full-height navy
   64 px icon rail with the expand button on top and the user at the foot; the
   header starts beside it. **The page is offset by the rail only

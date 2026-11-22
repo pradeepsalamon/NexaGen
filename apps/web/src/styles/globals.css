@@ -93,9 +93,9 @@
   --rgb-nav-drawer: var(--rgb-brand-900);
   --rgb-nav-drawer-border: var(--rgb-brand-700);
 
-  /* Scrollbar thumb: brand navy on light pages (owner, 2026-11-22). */
-  --color-scroll-thumb: rgb(var(--rgb-brand-800) / 0.7);
-  --color-scroll-thumb-hover: rgb(var(--rgb-brand-800));
+  /* Scrollbar thumb: solid brand navy on light pages (owner, 2026-11-22). */
+  --color-scroll-thumb: rgb(var(--rgb-brand-800));
+  --color-scroll-thumb-hover: rgb(var(--rgb-brand-700));
 
   --color-primary: rgb(var(--rgb-primary));
   --color-accent: rgb(var(--rgb-accent));
@@ -257,6 +257,34 @@
 /* Its bar stops short of the rounded corners instead of being cut by them. */
 .scroll-clip-panel::-webkit-scrollbar-track {
   margin-block: calc(var(--radius-panel) / 2 + 4px);
+}
+
+/* Signed-in pages (`data-nav`, set before paint) keep the page scrollbar's room at all times, so the
+   header and content never shift sideways when a page grows past the screen or shrinks back (a
+   tab switch, a filter). Phones' overlay bars take no room. */
+html[data-nav] {
+  scrollbar-gutter: stable;
+  transition: background-color 220ms ease;
+}
+/* With that room kept, Radix's scroll lock (menus, dialogs) must not pad the body or pull the
+   header in by the bar's width: nothing moves at all. */
+html[data-nav] body[data-scroll-locked] {
+  margin-right: 0 !important;
+}
+html[data-nav] .right-scroll-bar-position {
+  right: 0 !important;
+}
+/* A dialog's overlay can't paint the reserved strip, which shows the page canvas: tint it to the
+   overlay's colour (brand-900 at 60%, Dialog/AlertDialog) while one is open. */
+html[data-nav]:has(body > [data-dialog-overlay][data-state="open"]) {
+  background-color: color-mix(in srgb, rgb(var(--rgb-brand-900)) 60%, rgb(var(--rgb-background)));
+}
+
+/* Pointer use: no focus ring on controls that a click focused (lib/inputModality.ts). A key press
+   brings rings back at once; text fields keep their own focus style. */
+html[data-input="pointer"]
+  :is(a, button, summary, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"]):focus-visible {
+  outline: none !important;
 }
 
 /* Selected rows and cards: a stronger blue than hover, opaque so a pinned

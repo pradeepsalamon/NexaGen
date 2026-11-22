@@ -20,6 +20,8 @@ const AlertDialogOverlay = React.forwardRef<
       "fixed inset-0 z-50 bg-brand-900/60 data-[state=closed]:animate-overlay-out data-[state=open]:animate-overlay-in",
       className
     )}
+    // Lets globals.css tint the page's reserved scrollbar strip to match while it is open.
+    data-dialog-overlay=""
     ref={ref}
     {...props}
   />

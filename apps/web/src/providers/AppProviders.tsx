@@ -24,6 +24,8 @@ import { ToastProvider } from "./ToastProvider";
 // Starts remembering where each press lands, so a dialog opened from a lazily loaded
 // chunk still grows out of the control that opened it (lib/motion/launchOrigin.ts).
 import "@/lib/motion/launchOrigin";
+// Focus rings only for keyboard use on buttons, tabs and menu items (lib/inputModality.ts).
+import "@/lib/inputModality";
 
 // The full chessboard visual system (board themes + piece sets), imported
 // exactly once here instead of once per board component.
