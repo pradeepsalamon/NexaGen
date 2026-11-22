@@ -27,6 +27,7 @@ import {
 import { UserRole, type User } from "@prisma/client";
 import { FrappeCrmPushService } from "../../../lead/frappe-crm-push.service";
 import { LeadService } from "../../../lead/lead.service";
+import { DailyPuzzleWhatsAppService } from "../../../puzzle/daily-puzzle-whatsapp.service";
 import { setTenantScopeModeForTesting } from "../../../prisma/tenant-scope.extension";
 import { SupportAttachmentsService } from "../../../support/support-attachments.service";
 import { SupportDemoRemindersService } from "../../../support/support-demo-reminders.service";
@@ -212,6 +213,57 @@ describe("WhatsApp support bot (real app, real Postgres)", () => {
     expect(await db(() => t.prisma.whatsAppWebhookEvent.count())).toBe(1);
     expect(await db(() => t.prisma.supportMessage.count({ where: { direction: "INBOUND" } }))).toBe(1);
     expect(sent).toHaveLength(1);
+  });
+
+  it("answers a Puzzle of the Day move from a student who got today's picture, and leaves the bot where it was", async () => {
+    await db(async () => {
+      await t.prisma.user.update({ data: { phoneNumber: ALLOWED_NUMBER }, where: { id: student.id } });
+      await t.prisma.studentProfile.create({ data: { parentName: "Parent", userId: student.id } });
+      const batch = await t.prisma.batch.create({ data: { name: "A" } });
+      await t.prisma.batchStudent.create({ data: { batchId: batch.id, studentId: student.id } });
+      const topic = await t.prisma.puzzleTopic.create({ data: { name: "Mates", slug: "mates" } });
+      await t.prisma.puzzle.create({
+        data: {
+          createdByRole: UserRole.ADMIN,
+          difficulty: "INTERMEDIATE",
+          fen: "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+          puzzleType: "CHECKMATE",
+          rating: 1300,
+          solutionMovesJson: [{ san: "Ra8#", uci: "a1a8" }],
+          status: "PUBLISHED",
+          title: "Medium",
+          topicId: topic.id,
+          visibility: "GLOBAL"
+        }
+      });
+    });
+    expect((await t.call(admin, "PUT", API_ROUTES.messaging.rule("DAILY_PUZZLE"), { enabled: true, scheduleHour: 7, scheduleMode: "DAILY" })).status).toBe(200);
+    const day = ((await t.call(student, "GET", API_ROUTES.dailyPuzzle.today)).body as { day: string }).day;
+    const picture = await db(() => t.app.get(DailyPuzzleWhatsAppService).picturePathFor(DEFAULT_TENANT_ID, day, student.id));
+    await db(() =>
+      t.prisma.messageDelivery.create({
+        data: {
+          body: "Puzzle of the Day",
+          channel: "WHATSAPP",
+          dedupeKey: `DAILY_PUZZLE:${ALLOWED_NUMBER}:${day}`,
+          event: "DAILY_PUZZLE",
+          imageLink: `https://academy.test${picture}`,
+          recipientPhone: ALLOWED_NUMBER,
+          scheduledFor: new Date(),
+          status: "SENT"
+        }
+      })
+    );
+
+    await say(textFrom(ALLOWED_NUMBER, "Hello"));
+    expect(sent.at(-1)).toMatchObject({ type: "list" });
+    sent = [];
+    await say(textFrom(ALLOWED_NUMBER, "Ra8"));
+    expect(sent).toEqual([expect.objectContaining({ to: ALLOWED_NUMBER, type: "text" })]);
+    expect(sent[0].body).toMatch(/^Correct! 🔥 Ra8# is the move\. Your streak: 1 day\./);
+    const conversation = await db(() => t.prisma.supportConversation.findFirstOrThrow());
+    expect(conversation).toMatchObject({ state: "MAIN_MENU", status: "BOT" });
+    expect(await db(() => t.prisma.dailyPuzzleEntry.findFirstOrThrow({ where: { studentId: student.id } }))).toMatchObject({ solved: true });
   });
 
   it("keeps one conversation when two messages from one number arrive together", async () => {

@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarCheck, CheckCircle2, Eye, Flame, Lightbulb, Trophy, XCircle } from "lucide-react";
+import Link from "next/link";
+import { CalendarCheck, CheckCircle2, Eye, Flame, Lightbulb, MessageCircle, Trophy, XCircle } from "lucide-react";
 import {
   DAILY_PUZZLE_LEVEL_LABELS,
   type DailyPuzzleCard,
   type DailyPuzzleLevel,
-  type DailyPuzzleTodayResponse
+  type DailyPuzzleTodayResponse,
+  type DailyPuzzleWhatsAppStatus
 } from "@nexa-chess/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -15,6 +17,7 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatTile } from "@/components/ui/StatTile";
+import { Switch } from "@/components/ui/Switch";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { hintSquaresFor, hintText } from "@/features/assignments/lib/solveLineHint";
@@ -23,7 +26,7 @@ import { startPuzzleAttempt } from "@/features/puzzles/api/puzzleApi";
 import { usePuzzleAttempt } from "@/features/puzzles/hooks/usePuzzleAttempt";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
-import { useDailyPuzzleToday, useStartDailyPuzzle } from "../hooks/useDailyPuzzle";
+import { useDailyPuzzleToday, useSetDailyPuzzleWhatsApp, useStartDailyPuzzle } from "../hooks/useDailyPuzzle";
 import { titleWithoutRating } from "../lib/puzzleTitle";
 
 /**
@@ -86,7 +89,50 @@ export function DailyPuzzleClient() {
           {card ? <DailyBoard card={card} key={`${data.day}-${card.level}`} /> : null}
         </>
       )}
+
+      {data.enabled && data.whatsapp.available ? <WhatsAppCard status={data.whatsapp} /> : null}
     </div>
+  );
+}
+
+/**
+ * Step 2: the student's own switch, on by default and the only on/off. It goes
+ * to the account's phone and never names them.
+ */
+function WhatsAppCard({ status }: { status: DailyPuzzleWhatsAppStatus }) {
+  const toggle = useSetDailyPuzzleWhatsApp();
+  const noPhone = status.phoneMasked === null;
+  return (
+    <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
+      <div className="flex min-w-0 items-start gap-3">
+        <MessageCircle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-app-muted" strokeWidth={2.5} />
+        <div className="min-w-0">
+          <p className="font-extrabold text-app-text">Puzzle of the Day on WhatsApp</p>
+          <p className="text-sm text-app-muted">
+            {!status.available
+              ? "Your academy has paused WhatsApp puzzles for now."
+              : noPhone
+                ? "Add your WhatsApp number to your profile to get it there."
+                : !status.on
+                  ? "Turned off. Switch it on to get the puzzle on WhatsApp again."
+                  : status.sharedPhone
+                    ? `A short message with the link, ${status.schedule?.toLowerCase() ?? "each day"}, to ${status.phoneMasked}. Another student uses this number too, so answer in the app.`
+                    : `Today's puzzle, ${status.schedule?.toLowerCase() ?? "each day"}, to ${status.phoneMasked}. Reply there with your move to answer it.`}
+          </p>
+          {noPhone && status.available ? (
+            <Link className="text-sm font-semibold text-primary-ink underline-offset-2 hover:underline" href="/profile">
+              Open my profile
+            </Link>
+          ) : null}
+        </div>
+      </div>
+      <Switch
+        aria-label="Puzzle of the Day on WhatsApp"
+        checked={status.on}
+        disabled={toggle.isPending}
+        onCheckedChange={(on) => toggle.mutate(on)}
+      />
+    </Card>
   );
 }
 

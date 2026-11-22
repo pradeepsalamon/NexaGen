@@ -2,6 +2,7 @@ import type {
   WhatsAppApiErrorBody,
   WhatsAppApiSuccess,
   WhatsAppDocumentMessage,
+  WhatsAppImageMessage,
   WhatsAppFailure,
   WhatsAppInteractiveMessage,
   WhatsAppSendResult,
@@ -156,6 +157,16 @@ export function buildDocumentPayload(
   };
 }
 
+export function buildImagePayload(message: WhatsAppImageMessage, to: string) {
+  return {
+    messaging_product: "whatsapp" as const,
+    recipient_type: "individual" as const,
+    to,
+    type: "image" as const,
+    image: { link: message.link, ...(message.caption ? { caption: message.caption } : {}) }
+  };
+}
+
 export function buildTemplatePayload(message: WhatsAppTemplateMessage, to: string) {
   const components = message.components ?? buildTemplateComponents(message);
 
@@ -196,6 +207,8 @@ function buildTemplateComponents(
         }
       ]
     });
+  } else if (message.headerImage) {
+    components.push({ type: "header", parameters: [{ type: "image", image: { link: message.headerImage.link } }] });
   } else if (message.headerParams?.length) {
     components.push({ type: "header", parameters: toTextParameters(message.headerParams) });
   }

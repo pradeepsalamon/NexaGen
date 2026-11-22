@@ -7,11 +7,13 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
   DEFAULT_MESSAGING_RULES,
   MESSAGING_EVENTS,
   MESSAGING_EVENT_DEFINITIONS,
   markdownToWhatsApp,
+  normalizeMessagingSendDays,
   normalizeWhatsAppTemplate,
   renderFormattedTemplate,
   renderMessageTemplate,
@@ -97,6 +99,15 @@ export class MessagingRuleService {
         `"${definition.label}" already has its own email under System messages.`
       );
     }
+    if (definition.scheduledOnly && dto.scheduleMode === "IMMEDIATE") {
+      throw new BadRequestException(`"${definition.label}" goes out at a set time: choose daily or weekly.`);
+    }
+    if (dto.whatsappTemplateImageHeader && !definition.pictureVariable) {
+      throw new BadRequestException(`"${definition.label}" has no picture to put in a template's image header.`);
+    }
+    if (definition.whatsappOnly && (dto.emailEnabled || dto.inAppEnabled)) {
+      throw new BadRequestException(`"${definition.label}" is sent on WhatsApp only.`);
+    }
     // Only when the template is part of this save; an omitted field keeps the saved value.
     const touchesTemplate =
       dto.whatsappTemplateName !== undefined ||
@@ -142,6 +153,10 @@ export class MessagingRuleService {
           ? {}
           : { scheduleDayOfWeek: dto.scheduleDayOfWeek }),
         ...(dto.weekdaysOnly === undefined ? {} : { weekdaysOnly: dto.weekdaysOnly }),
+        // Chosen days replace the older weekdays-only switch.
+        ...(dto.scheduleDays === undefined
+          ? {}
+          : { scheduleDays: normalizeMessagingSendDays(dto.scheduleDays), weekdaysOnly: false }),
         ...(dto.title === undefined ? {} : { title: dto.title }),
         ...(dto.body === undefined ? {} : { body: dto.body }),
         ...(template
@@ -151,6 +166,9 @@ export class MessagingRuleService {
               whatsappTemplateParams: [...template.params]
             }
           : {}),
+        ...(dto.whatsappTemplateImageHeader === undefined
+          ? {}
+          : { whatsappTemplateImageHeader: dto.whatsappTemplateImageHeader }),
         updatedById: admin.id
       },
       include: { updatedBy: { select: { firstName: true, lastName: true } } }
@@ -201,7 +219,10 @@ export class MessagingRuleService {
       { language: rule.whatsappTemplateLanguage, name: rule.whatsappTemplateName, params: rule.whatsappTemplateParams },
       sampleVariablesFor(event)
     );
-    const outcome = await this.whatsapp.trySendMessage({ template, text: markdownToWhatsApp(preview), to });
+    // A template with an IMAGE header can't go without a picture: the test uses the site's share image.
+    const image =
+      template && rule.whatsappTemplateImageHeader ? `${getFrontendUrl(getApiEnv())}/opengraph-image` : null;
+    const outcome = await this.whatsapp.trySendMessage({ image, template, text: markdownToWhatsApp(preview), to });
     if (!outcome.ok && template) {
       this.logger.warn(`Test of ${event} with WhatsApp template "${template.name}" failed: ${outcome.error.message}`);
     }
@@ -435,12 +456,14 @@ export class MessagingRuleService {
       scheduleHour: row.scheduleHour,
       scheduleMinute: row.scheduleMinute,
       scheduleDayOfWeek: row.scheduleDayOfWeek,
+      scheduleDays: row.scheduleDays,
       weekdaysOnly: row.weekdaysOnly,
       title: row.title,
       body: row.body,
       whatsappTemplateName: row.whatsappTemplateName,
       whatsappTemplateLanguage: row.whatsappTemplateLanguage,
       whatsappTemplateParams: row.whatsappTemplateParams,
+      whatsappTemplateImageHeader: row.whatsappTemplateImageHeader,
       updatedAt: row.updatedAt.toISOString(),
       updatedByName: row.updatedBy
         ? `${row.updatedBy.firstName} ${row.updatedBy.lastName ?? ""}`.trim()

@@ -7,15 +7,19 @@ import {
   startDailyPuzzleRequestSchema,
   updateBatchDailyPuzzleRequestSchema,
   updateDailyPuzzleSettingsRequestSchema,
+  updateDailyPuzzleWhatsAppRequestSchema,
   type SetDailyPuzzleOverrideRequest,
   type StartDailyPuzzleRequest,
   type UpdateBatchDailyPuzzleRequest,
-  type UpdateDailyPuzzleSettingsRequest
+  type UpdateDailyPuzzleSettingsRequest,
+  type UpdateDailyPuzzleWhatsAppRequest
 } from "@nexa-chess/types";
+import { Throttle } from "@nestjs/throttler";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { queryString } from "../common/query-params";
 import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
 import { DailyPuzzleService } from "./daily-puzzle.service";
+import { DailyPuzzleWhatsAppService } from "./daily-puzzle-whatsapp.service";
 
 const scheduleQuerySchema = z.object({
   batchId: z.string().min(1).optional(),
@@ -29,7 +33,21 @@ const scheduleQuerySchema = z.object({
  */
 @Controller()
 export class DailyPuzzleController {
-  constructor(private readonly service: DailyPuzzleService) {}
+  constructor(
+    private readonly service: DailyPuzzleService,
+    private readonly whatsapp: DailyPuzzleWhatsAppService
+  ) {}
+
+  /**
+   * Public: the WhatsApp board picture's position (step 3). The signed,
+   * expiring token is the credential; the web app's image route is the caller.
+   * Listed in route-auth.spec.ts PUBLIC_ROUTES.
+   */
+  @Get(API_ROUTES.dailyPuzzle.picture())
+  @Throttle({ default: { limit: 600, ttl: 60_000 } })
+  picture(@Param("token") token: string) {
+    return this.whatsapp.picture(token);
+  }
 
   @Get(API_ROUTES.dailyPuzzle.today)
   today(@Req() request: Request) {
@@ -39,6 +57,15 @@ export class DailyPuzzleController {
   @Post(API_ROUTES.dailyPuzzle.start)
   start(@Body(new ZodBodyPipe(startDailyPuzzleRequestSchema)) body: StartDailyPuzzleRequest, @Req() request: Request) {
     return this.service.start(this.getAccessToken(request), body.level);
+  }
+
+  /** The student's own switch: today's puzzles on WhatsApp, to their account phone. */
+  @Put(API_ROUTES.dailyPuzzle.whatsapp)
+  setWhatsApp(
+    @Body(new ZodBodyPipe(updateDailyPuzzleWhatsAppRequestSchema)) body: UpdateDailyPuzzleWhatsAppRequest,
+    @Req() request: Request
+  ) {
+    return this.whatsapp.setForStudent(this.getAccessToken(request), body.on);
   }
 
   @Get(API_ROUTES.dailyPuzzle.schedule)
@@ -64,7 +91,7 @@ export class DailyPuzzleController {
     @Body(new ZodBodyPipe(updateDailyPuzzleSettingsRequestSchema)) body: UpdateDailyPuzzleSettingsRequest,
     @Req() request: Request
   ) {
-    return this.service.updateSettings(this.getAccessToken(request), body.enabled);
+    return this.service.updateSettings(this.getAccessToken(request), body);
   }
 
   @Patch(API_ROUTES.dailyPuzzle.batch())

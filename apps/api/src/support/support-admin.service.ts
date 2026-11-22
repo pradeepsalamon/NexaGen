@@ -378,7 +378,7 @@ export class SupportAdminService {
       const keptOptOut = contact.optedOutAt !== null;
       if (keptOptOut) {
         await tx.whatsAppContact.update({
-          data: { lastInboundAt: null, linkFailures: 0, linkFailuresFrom: null, profileName: null },
+          data: { dailyPuzzleAt: null, lastInboundAt: null, linkFailures: 0, linkFailuresFrom: null, profileName: null },
           where: { id: contact.id }
         });
       } else {
