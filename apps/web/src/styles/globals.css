@@ -93,9 +93,10 @@
   --rgb-nav-drawer: var(--rgb-brand-900);
   --rgb-nav-drawer-border: var(--rgb-brand-700);
 
-  /* Scrollbar thumb: solid brand navy on light pages (owner, 2026-11-22). */
-  --color-scroll-thumb: rgb(var(--rgb-brand-800));
-  --color-scroll-thumb-hover: rgb(var(--rgb-brand-700));
+  /* Scrollbar thumb: solid royal blue, as on the public site (owner, 2026-11-22). The same in
+     both themes and on navy: `--rgb-primary` isn't redefined under dark. */
+  --color-scroll-thumb: rgb(var(--rgb-primary));
+  --color-scroll-thumb-hover: rgb(var(--rgb-primary-hover));
 
   --color-primary: rgb(var(--rgb-primary));
   --color-accent: rgb(var(--rgb-accent));
@@ -179,9 +180,6 @@
 
 :root[data-theme="dark"],
 .surface-brand {
-  /* Navy would vanish on a dark or navy ground: a light navy-grey instead. */
-  --color-scroll-thumb: rgb(var(--rgb-on-brand-muted) / 0.45);
-  --color-scroll-thumb-hover: rgb(var(--rgb-on-brand-muted) / 0.75);
   /* Primary fills keep the light theme's royal blue (owner, 2026-11-08): only the
      soft tint and the `-ink` text colour change, so text stays readable on dark. */
   --rgb-primary-soft: 23 42 85;
@@ -355,7 +353,7 @@ html[data-theme-reveal]::view-transition-new(root) {
     @apply box-border;
   }
 
-  /* Scrollbars: a slim navy pill (--color-scroll-thumb) on a clear track, no arrow buttons, in every scroller.
+  /* Scrollbars: a slim royal-blue pill (--color-scroll-thumb) on a clear track, no arrow buttons, in every scroller.
      Chrome 121+ ignores the ::-webkit-scrollbar rules on any element that sets
      `scrollbar-width` or `scrollbar-color`, so those two are set only where the
      webkit rules don't exist (Firefox). Setting them on `*` gave Chrome its default

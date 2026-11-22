@@ -66,7 +66,9 @@ export function Header({
       className={cn(
         // `right-scroll-bar-position`: while a menu or dialog locks scrolling, Radix hides the page's
         // scrollbar and gives this class `right: <bar width>`, so the header keeps its width.
-        "right-scroll-bar-position fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-app-surface px-3 text-app-text sm:px-4 md:px-6 lg:px-8",
+        // Navy in both themes, like the public site's header (owner, 2026-11-22): `surface-brand`
+        // switches everything inside (icons, menus' triggers, badges) to the on-navy palette.
+        "surface-brand right-scroll-bar-position fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-brand-800 px-3 text-app-text sm:px-4 md:px-6 lg:px-8",
         // From xl the rail runs full height on the left and the header starts beside it. Fixed:
         // the expanded nav slides over the header's left end, it never pushes it.
         hasSidebar && navDocked && "left-[var(--app-rail-w,0px)]"
@@ -119,7 +121,7 @@ export function Header({
               ? { target: "_blank", rel: "noopener noreferrer" }
               : {})}
           >
-            <Logo mobileSize={28} size={36} />
+            <Logo mobileSize={28} onDark size={36} />
           </Link>
 
           {leftSlot}
