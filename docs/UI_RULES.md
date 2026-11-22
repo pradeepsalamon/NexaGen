@@ -38,9 +38,9 @@ and are mapped in `tailwind.config.ts`.
   `primary-ink` (coloured text, kept readable) switch with the theme.
 - **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
   scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
-- **Scrollbars** are one global style (globals.css): a thin 8 px neutral grey
-  pill (`--color-scroll-thumb`, `text-subtle` at 60%, so it never adds a third
-  blue next to the navy header/nav and the blue buttons), no arrows, the same in every scroller. A scrolling body inside a dialog
+- **Scrollbars** are one global style (globals.css): a thin 8 px solid navy
+  pill (`--color-scroll-thumb`: `brand-800`; slate navy in dark and on the
+  navy header/nav, owner 2026-11-22), no arrows, the same in every scroller. A scrolling body inside a dialog
   (fields between a fixed title and buttons) takes `dialog-scroll-body`, which
   puts its bar in the dialog's padding so the fields stay centred; not
   `overflow-y-auto pr-1`. Never set `scrollbar-width` / `scrollbar-color` on an element to
@@ -49,7 +49,8 @@ and are mapped in `tailwind.config.ts`.
   (`html[data-nav]`) keep the page bar's room (`scrollbar-gutter: stable`), so
   nothing shifts sideways when a page grows or shrinks or a menu/dialog locks
   scrolling; Radix's body padding is cancelled there, and the reserved strip is
-  tinted like the overlay while a dialog is open (`data-dialog-overlay`).
+  tinted like the overlay while a dialog is open (`data-dialog-overlay`); its
+  top 4rem is painted the header's navy so the header reaches the window edge.
   Pages without the nav use Radix's padding, and a fixed element pinned to the
   right edge takes `right-scroll-bar-position` (the header does).
 - **Focus rings are for the keyboard.** After a mouse or touch press
@@ -64,8 +65,9 @@ and are mapped in `tailwind.config.ts`.
   expanded 256 px panel (logo, labels, sections) slides *over* the page like a
   popover and closes on any navigation, Escape, its toggle or a click outside
   it and the header. Every load starts on the rail (nothing is saved). A rail
-  link shows its label as a tooltip; a rail section (admin) opens a flyout of
-  its links on click, on hover after 150 ms (closing 250 ms after the pointer
+  link shows its label as a tooltip; a rail section (admin) opens the rail's
+  one shared flyout of its links (hovering another section while it is open
+  glides it there and swaps the links, `RailFlyoutHost`) on click, on hover after 150 ms (closing 250 ms after the pointer
   leaves icon and flyout) and from the keyboard (Enter / Space / ArrowRight,
   Escape returns to the icon). Never add page padding or width that follows
   the nav's state. The column is flat navy, flush with the left edge: no

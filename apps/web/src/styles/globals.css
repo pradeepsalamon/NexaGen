@@ -93,11 +93,10 @@
   --rgb-nav-drawer: var(--rgb-brand-900);
   --rgb-nav-drawer-border: var(--rgb-brand-700);
 
-  /* Scrollbar thumb: a clear neutral grey, so it never competes with the navy header and nav or
-     the blue buttons (2026-11-22). Follows the theme through --rgb-text-subtle (lighter in dark
-     and on navy). */
-  --color-scroll-thumb: rgb(var(--rgb-text-subtle) / 0.6);
-  --color-scroll-thumb-hover: rgb(var(--rgb-text-subtle) / 0.9);
+  /* Scrollbar thumb: solid brand navy (owner, 2026-11-22). A lighter slate navy in dark and on
+     the navy header/nav, where full navy would vanish. */
+  --color-scroll-thumb: rgb(var(--rgb-brand-800));
+  --color-scroll-thumb-hover: rgb(var(--rgb-brand-700));
 
   --color-primary: rgb(var(--rgb-primary));
   --color-accent: rgb(var(--rgb-accent));
@@ -181,6 +180,9 @@
 
 :root[data-theme="dark"],
 .surface-brand {
+  /* Full navy would vanish on a dark or navy ground: slate navy instead. */
+  --color-scroll-thumb: rgb(95 111 144);
+  --color-scroll-thumb-hover: rgb(var(--rgb-on-brand-muted));
   /* Primary fills keep the light theme's royal blue (owner, 2026-11-08): only the
      soft tint and the `-ink` text colour change, so text stays readable on dark. */
   --rgb-primary-soft: 23 42 85;
@@ -220,9 +222,6 @@
   --rgb-text-subtle: var(--rgb-on-brand-muted);
   --rgb-emphasis: var(--rgb-on-brand);
   --color-focus: rgb(var(--rgb-primary));
-  /* Re-derived here: a custom property built from another resolves where it is declared. */
-  --color-scroll-thumb: rgb(var(--rgb-text-subtle) / 0.6);
-  --color-scroll-thumb-hover: rgb(var(--rgb-text-subtle) / 0.9);
 }
 
 /* Solid status fills that look the same in both themes (BulkActionsBar):
@@ -266,7 +265,9 @@
    tab switch, a filter). Phones' overlay bars take no room. */
 html[data-nav] {
   scrollbar-gutter: stable;
-  transition: background-color 220ms ease;
+  /* The reserved strip shows this canvas, not the header: its top (the header's 4rem) is painted
+     the header's navy so the header runs to the window's edge; the rest is the page. */
+  background: linear-gradient(rgb(var(--rgb-nav-drawer)) 0 4rem, rgb(var(--rgb-background)) 4rem) fixed;
 }
 /* With that room kept, Radix's scroll lock (menus, dialogs) must not pad the body or pull the
    header in by the bar's width: nothing moves at all. */
@@ -279,7 +280,11 @@ html[data-nav] .right-scroll-bar-position {
 /* A dialog's overlay can't paint the reserved strip, which shows the page canvas: tint it to the
    overlay's colour (brand-900 at 60%, Dialog/AlertDialog) while one is open. */
 html[data-nav]:has(body > [data-dialog-overlay][data-state="open"]) {
-  background-color: color-mix(in srgb, rgb(var(--rgb-brand-900)) 60%, rgb(var(--rgb-background)));
+  background: linear-gradient(
+      rgb(var(--rgb-nav-drawer)) 0 4rem,
+      color-mix(in srgb, rgb(var(--rgb-brand-900)) 60%, rgb(var(--rgb-background))) 4rem
+    )
+    fixed;
 }
 
 /* Pointer use: no focus ring on controls that a click focused (lib/inputModality.ts). A key press
@@ -287,6 +292,18 @@ html[data-nav]:has(body > [data-dialog-overlay][data-state="open"]) {
 html[data-input="pointer"]
   :is(a, button, summary, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"]):focus-visible {
   outline: none !important;
+}
+
+/* The rail's shared section flyout (Sidebar.tsx RailFlyoutHost) glides to the newly hovered icon
+   instead of jumping. Only on a move (`data-moved`): on first open Radix places the wrapper off
+   screen before measuring, which a transition would turn into a fly-in. */
+[data-radix-popper-content-wrapper]:has(> [data-rail-flyout][data-moved]) {
+  transition: transform 240ms cubic-bezier(0.2, 0.9, 0.1, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-radix-popper-content-wrapper]:has(> [data-rail-flyout][data-moved]) {
+    transition: none;
+  }
 }
 
 /* Selected rows and cards: a stronger blue than hover, opaque so a pinned
@@ -357,7 +374,7 @@ html[data-theme-reveal]::view-transition-new(root) {
     @apply box-border;
   }
 
-  /* Scrollbars: a slim grey pill (--color-scroll-thumb) on a clear track, no arrow buttons, in every scroller.
+  /* Scrollbars: a slim navy pill (--color-scroll-thumb) on a clear track, no arrow buttons, in every scroller.
      Chrome 121+ ignores the ::-webkit-scrollbar rules on any element that sets
      `scrollbar-width` or `scrollbar-color`, so those two are set only where the
      webkit rules don't exist (Firefox). Setting them on `*` gave Chrome its default

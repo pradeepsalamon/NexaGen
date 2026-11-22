@@ -17,7 +17,7 @@ import {
 import { Logo } from "@/components/Logo";
 import type { NavItem } from "@/components/layout/navItems";
 import { Avatar } from "@/components/ui/Avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/Popover";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useAuthStore } from "@/stores/authStore";
@@ -304,6 +304,7 @@ export function NavDrawer({
     return (
       <NavMotionContext.Provider value={{ folded: rail, sectionsOpen: sectionsOpen && !rail }}>
       <NavRailContext.Provider value={railView}>
+      <RailFlyoutHost enabled={railView}>
         {/* Full-height flat navy column, flush with the left edge: the expand control (and, out, the
             logo) on top, user at the foot. Resting, it is the rail the page is offset by; expanded,
             the same column widens over the page (above the header's left end, under its menus), so
@@ -364,6 +365,7 @@ export function NavDrawer({
             </div>
           </aside>
         </div>
+      </RailFlyoutHost>
       </NavRailContext.Provider>
       </NavMotionContext.Provider>
     );
@@ -606,13 +608,247 @@ const FLYOUT_CLOSE_DELAY_MS = 250;
 
 type FlyoutOpener = "click" | "hover" | "keyboard";
 
+type FlyoutSection = {
+  id: string;
+  isItemActive: (href: string) => boolean;
+  items: NavItem[];
+  label: string;
+};
+
+type RailFlyoutApi = {
+  activeId: string | null;
+  onTriggerClick: (section: FlyoutSection, anchor: HTMLElement, keyboard: boolean) => void;
+  onTriggerEnter: (section: FlyoutSection, anchor: HTMLElement) => void;
+  onTriggerKeyRight: (section: FlyoutSection, anchor: HTMLElement) => void;
+  onTriggerLeave: () => void;
+};
+
+const RailFlyoutContext = createContext<RailFlyoutApi | null>(null);
+
 /**
- * A nav section in the rail: its icon opens a flyout to the right (portalled, so the rail's
- * overflow can't clip it) listing the section's links. Opens on click, on hover after a short
- * delay (closing once the pointer has left both icon and flyout for a moment), and from the
- * keyboard (Enter, Space or ArrowRight, focusing the first link; Escape returns to the icon).
- * A hover-opened flyout stays open once clicked.
+ * The rail's one section flyout. Every section icon shares it: hovering another icon while it is
+ * open moves it there (it glides to the new icon and swaps in that section's links) instead of
+ * closing one popup and opening another. Opens on click, on hover after a short delay (closing
+ * once the pointer has left both icon and flyout for a moment), and from the keyboard (Enter,
+ * Space or ArrowRight, focusing the first link; Escape returns to the icon). A hover-opened
+ * flyout stays open once its icon is clicked. Portalled, so the rail's overflow can't clip it.
  */
+function RailFlyoutHost({ children, enabled }: { children: ReactNode; enabled: boolean }) {
+  const pathname = usePathname();
+  const done = useNavDone();
+  type FlyoutState = { anchor: HTMLElement; moved: boolean; opener: FlyoutOpener; section: FlyoutSection };
+  const [state, setOpenState] = useState<FlyoutState | null>(null);
+  // What the flyout shows: the open state, kept after a close so the exit animation has content.
+  const [view, setView] = useState<FlyoutState | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const setState = (next: FlyoutState | null) => {
+    setOpenState(next);
+    if (next) setView(next);
+  };
+  // How the last flyout was opened, and whether it was closed by a press elsewhere: decides where
+  // focus goes once it has closed.
+  const lastOpener = useRef<FlyoutOpener>("click");
+  const pressedOutside = useRef(false);
+  useEffect(() => {
+    if (state) {
+      lastOpener.current = state.opener;
+      pressedOutside.current = false;
+    }
+  }, [state]);
+  const anchorRef = useRef<HTMLElement | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const timer = useRef<number | undefined>(undefined);
+
+  const clearTimer = () => {
+    window.clearTimeout(timer.current);
+    timer.current = undefined;
+  };
+  const after = (ms: number, action: () => void) => {
+    clearTimer();
+    timer.current = window.setTimeout(action, ms);
+  };
+  const show = (section: FlyoutSection, anchor: HTMLElement, opener: FlyoutOpener) => {
+    anchorRef.current = anchor;
+    const current = stateRef.current;
+    setState({ anchor, moved: current !== null && current.section.id !== section.id, opener, section });
+  };
+  const close = () => {
+    clearTimer();
+    setState(null);
+  };
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  // Any navigation, or the panel expanding (no rail), puts the flyout away.
+  useEffect(() => {
+    window.clearTimeout(timer.current);
+    setOpenState(null);
+  }, [pathname]);
+  useEffect(() => {
+    if (enabled) return;
+    window.clearTimeout(timer.current);
+    setOpenState(null);
+  }, [enabled]);
+
+  const links = () => Array.from(contentRef.current?.querySelectorAll<HTMLElement>("a[href]") ?? []);
+
+  // Opened (or moved) from the keyboard: the first link takes focus once the new links are in.
+  useEffect(() => {
+    if (state?.opener !== "keyboard") return;
+    const frame = window.requestAnimationFrame(() => links()[0]?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [state]);
+
+  const api: RailFlyoutApi = {
+    activeId: state?.section.id ?? null,
+    onTriggerClick: (section, anchor, keyboard) => {
+      clearTimer();
+      const current = stateRef.current;
+      if (current?.section.id === section.id) {
+        if (current.opener === "hover" && !keyboard) {
+          setState({ ...current, moved: false, opener: "click" });
+          return;
+        }
+        close();
+        return;
+      }
+      show(section, anchor, keyboard ? "keyboard" : "click");
+    },
+    onTriggerEnter: (section, anchor) => {
+      const current = stateRef.current;
+      if (current) {
+        clearTimer();
+        // Already out: move straight to the new section, no delay.
+        if (current.section.id !== section.id) show(section, anchor, "hover");
+        return;
+      }
+      after(FLYOUT_OPEN_DELAY_MS, () => show(section, anchor, "hover"));
+    },
+    onTriggerKeyRight: (section, anchor) => {
+      clearTimer();
+      if (stateRef.current?.section.id === section.id) links()[0]?.focus();
+      else show(section, anchor, "keyboard");
+    },
+    onTriggerLeave: () => {
+      const current = stateRef.current;
+      if (!current) {
+        clearTimer();
+        return;
+      }
+      if (current.opener === "hover") after(FLYOUT_CLOSE_DELAY_MS, close);
+    }
+  };
+
+  const onContentEnter = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType === "mouse") clearTimer();
+  };
+  const onContentLeave = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType === "mouse" && stateRef.current?.opener === "hover") {
+      after(FLYOUT_CLOSE_DELAY_MS, close);
+    }
+  };
+
+  const section = view?.section;
+
+  return (
+    <RailFlyoutContext.Provider value={api}>
+      {children}
+      <Popover
+        onOpenChange={(next) => {
+          if (!next) close();
+        }}
+        open={state !== null}
+      >
+        <PopoverAnchor virtualRef={anchorRef as React.RefObject<HTMLElement>} />
+        {section ? (
+          <PopoverContent
+            align="start"
+            aria-label={section.label}
+            className="surface-brand w-60 rounded-panel border border-app-drawer-border bg-app-drawer p-2 text-on-brand shadow-lift"
+            collisionPadding={12}
+            data-moved={view?.moved ? "" : undefined}
+            data-rail-flyout=""
+            id={`sidebar-flyout-${section.id}`}
+            onCloseAutoFocus={(event) => {
+              // Back to the icon after Escape or a second click on it; a hover that wandered off, or a
+              // press somewhere else, leaves focus where it is.
+              event.preventDefault();
+              const last = anchorRef.current;
+              if (last && stateRef.current === null && lastOpener.current !== "hover" && !pressedOutside.current) {
+                last.focus();
+              }
+            }}
+            onInteractOutside={(event) => {
+              // A press on another section's icon moves the flyout (its click handler) rather than
+              // closing it first.
+              const target = event.target;
+              if (target instanceof Element && target.closest("[data-nav-flyout-trigger]")) {
+                event.preventDefault();
+                return;
+              }
+              pressedOutside.current = true;
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+              const all = links();
+              if (all.length === 0) return;
+              event.preventDefault();
+              const at = all.indexOf(document.activeElement as HTMLElement);
+              const step = event.key === "ArrowDown" ? 1 : -1;
+              all[(at + step + all.length) % all.length]?.focus();
+            }}
+            onOpenAutoFocus={(event) => {
+              // Focus is ours: the first link for the keyboard (effect above), nothing for a hover.
+              event.preventDefault();
+            }}
+            onPointerEnter={onContentEnter}
+            onPointerLeave={onContentLeave}
+            ref={contentRef}
+            side="right"
+            sideOffset={14}
+          >
+            {/* Keyed by section: a move cross-fades the links while the panel glides. */}
+            <div className="motion-safe:animate-stage-in" key={section.id}>
+              <p className="px-2.5 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide text-on-brand-muted">
+                {section.label}
+              </p>
+              <ul className="flex flex-col gap-1">
+                {section.items.map((item) => {
+                  const ItemIcon = item.icon;
+                  const active = section.isItemActive(item.href);
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        aria-current={active ? "page" : undefined}
+                        className={cn(
+                          "flex h-9 items-center gap-2 rounded-control px-2.5 text-sm transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-focus",
+                          active
+                            ? "bg-primary font-semibold text-on-primary"
+                            : "font-medium text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
+                        )}
+                        href={item.href}
+                        onClick={() => {
+                          close();
+                          done();
+                        }}
+                      >
+                        <ItemIcon aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+                        <span className="flex-1 truncate">{item.label}</span>
+                        {item.badge ? <NavBadge badge={item.badge} /> : null}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </PopoverContent>
+        ) : null}
+      </Popover>
+    </RailFlyoutContext.Provider>
+  );
+}
+
+/** A nav section's icon in the rail: opens (or moves) the shared flyout to its links. */
 function RailFlyout({
   icon: Icon,
   id,
@@ -626,161 +862,43 @@ function RailFlyout({
   items: NavItem[];
   label: string;
 }) {
-  const pathname = usePathname();
-  const done = useNavDone();
-  const [open, setOpen] = useState(false);
-  const opener = useRef<FlyoutOpener>("click");
-  const timer = useRef<number | undefined>(undefined);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const flyout = useContext(RailFlyoutContext);
+  const open = flyout?.activeId === id;
   const holdsRoute = items.some((item) => isItemActive(item.href));
-
-  const clearTimer = () => {
-    window.clearTimeout(timer.current);
-    timer.current = undefined;
-  };
-  const after = (ms: number, action: () => void) => {
-    clearTimer();
-    timer.current = window.setTimeout(action, ms);
-  };
-
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
-
-  const links = () => Array.from(contentRef.current?.querySelectorAll<HTMLElement>("a[href]") ?? []);
-
-  const onPointerEnter = (event: PointerEvent<HTMLElement>) => {
-    if (event.pointerType !== "mouse") return;
-    if (open) {
-      clearTimer();
-      return;
-    }
-    after(FLYOUT_OPEN_DELAY_MS, () => {
-      opener.current = "hover";
-      setOpen(true);
-    });
-  };
-
-  const onPointerLeave = (event: PointerEvent<HTMLElement>) => {
-    if (event.pointerType !== "mouse") return;
-    if (!open) {
-      clearTimer();
-      return;
-    }
-    if (opener.current === "hover") after(FLYOUT_CLOSE_DELAY_MS, () => setOpen(false));
-  };
+  const section: FlyoutSection = { id, isItemActive, items, label };
 
   return (
-    <Popover
-      onOpenChange={(next) => {
-        clearTimer();
-        setOpen(next);
+    <button
+      aria-controls={open ? `sidebar-flyout-${id}` : undefined}
+      aria-expanded={open}
+      aria-haspopup="dialog"
+      aria-label={label}
+      className={cn(
+        // Same spot as the expanded section's icon (10px in), so swapping the two moves nothing.
+        "flex h-10 w-10 items-center rounded-control px-2.5 transition-colors duration-150",
+        holdsRoute
+          ? "bg-primary text-on-primary"
+          : open
+            ? "bg-brand-800 text-on-brand"
+            : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
+      )}
+      data-nav-flyout-trigger={id}
+      onClick={(event) => flyout?.onTriggerClick(section, event.currentTarget, event.detail === 0)}
+      onKeyDown={(event) => {
+        if (event.key !== "ArrowRight") return;
+        event.preventDefault();
+        flyout?.onTriggerKeyRight(section, event.currentTarget);
       }}
-      open={open}
+      onPointerEnter={(event) => {
+        if (event.pointerType === "mouse") flyout?.onTriggerEnter(section, event.currentTarget);
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType === "mouse") flyout?.onTriggerLeave();
+      }}
+      type="button"
     >
-      <PopoverTrigger asChild>
-        <button
-          aria-label={label}
-          className={cn(
-            // Same spot as the expanded section's icon (10px in), so swapping the two moves nothing.
-            "flex h-10 w-10 items-center rounded-control px-2.5 transition-colors duration-150",
-            holdsRoute
-              ? "bg-primary text-on-primary"
-              : open
-                ? "bg-brand-800 text-on-brand"
-                : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
-          )}
-          data-nav-flyout-trigger={id}
-          onClick={(event) => {
-            // Ours, not Radix's toggle: a click on a flyout that hover just opened keeps it open.
-            event.preventDefault();
-            clearTimer();
-            if (open && opener.current === "hover") {
-              opener.current = "click";
-              return;
-            }
-            opener.current = event.detail === 0 ? "keyboard" : "click";
-            setOpen(!open);
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "ArrowRight") return;
-            event.preventDefault();
-            clearTimer();
-            opener.current = "keyboard";
-            if (open) links()[0]?.focus();
-            else setOpen(true);
-          }}
-          onPointerEnter={onPointerEnter}
-          onPointerLeave={onPointerLeave}
-          type="button"
-        >
-          <Icon aria-hidden="true" className="size-5" strokeWidth={holdsRoute ? 2.3 : 2} />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        aria-label={label}
-        className="surface-brand w-60 rounded-panel border border-app-drawer-border bg-app-drawer p-2 text-on-brand shadow-lift"
-        collisionPadding={12}
-        id={`sidebar-flyout-${id}`}
-        onCloseAutoFocus={(event) => {
-          // Back to the icon after a keyboard close; a pointer that wandered off keeps focus where it is.
-          if (opener.current === "hover") event.preventDefault();
-        }}
-        onKeyDown={(event) => {
-          if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-          const all = links();
-          if (all.length === 0) return;
-          event.preventDefault();
-          const at = all.indexOf(document.activeElement as HTMLElement);
-          const step = event.key === "ArrowDown" ? 1 : -1;
-          all[(at + step + all.length) % all.length]?.focus();
-        }}
-        onOpenAutoFocus={(event) => {
-          // Radix skips links when it picks what to focus; a hover never moves focus at all.
-          event.preventDefault();
-          if (opener.current !== "hover") links()[0]?.focus();
-        }}
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-        ref={contentRef}
-        side="right"
-        sideOffset={14}
-      >
-        <p className="px-2.5 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide text-on-brand-muted">
-          {label}
-        </p>
-        <ul className="flex flex-col gap-1">
-          {items.map((item) => {
-            const ItemIcon = item.icon;
-            const active = isItemActive(item.href);
-            return (
-              <li key={item.href}>
-                <Link
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex h-9 items-center gap-2 rounded-control px-2.5 text-sm transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-focus",
-                    active
-                      ? "bg-primary font-semibold text-on-primary"
-                      : "font-medium text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
-                  )}
-                  href={item.href}
-                  onClick={() => {
-                    setOpen(false);
-                    done();
-                  }}
-                >
-                  <ItemIcon aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {item.badge ? <NavBadge badge={item.badge} /> : null}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </PopoverContent>
-    </Popover>
+      <Icon aria-hidden="true" className="size-5" strokeWidth={holdsRoute ? 2.3 : 2} />
+    </button>
   );
 }
 
