@@ -28,8 +28,9 @@ and are mapped in `tailwind.config.ts`.
 - **Page body is plain neutral** in both themes (owner, 2026-11-08): white
   page and cards in light; `#0A0A0A` page and `#171717` cards in dark; grey
   borders and text with no blue tint. Navy stays on the role nav and the
-  app header (`surface-brand`; the header is `bg-brand-800` like the public
-  site's, owner 2026-11-22, replacing the 2026-11-08 white header).
+  app header (`surface-brand`, owner 2026-11-22, replacing the 2026-11-08
+  white header): one shade (`bg-app-drawer`) and no rule between them, so
+  header and nav read as one frame around the page.
 - **Every blue fill is the light theme's royal blue in both themes**
   (owner, 2026-11-08): `primary` / `button` fills and `on-primary` text are
   not redefined under dark, so buttons, active tabs, switches, chips and the
@@ -37,9 +38,9 @@ and are mapped in `tailwind.config.ts`.
   `primary-ink` (coloured text, kept readable) switch with the theme.
 - **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
   scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
-- **Scrollbars** are one global style (globals.css): a thin 8 px pill in solid
-  royal blue (`--color-scroll-thumb` = `primary`, as on the public site; same in
-  both themes), no arrows, the same in every scroller. A scrolling body inside a dialog
+- **Scrollbars** are one global style (globals.css): a thin 8 px neutral grey
+  pill (`--color-scroll-thumb`, `text-subtle` at 60%, so it never adds a third
+  blue next to the navy header/nav and the blue buttons), no arrows, the same in every scroller. A scrolling body inside a dialog
   (fields between a fixed title and buttons) takes `dialog-scroll-body`, which
   puts its bar in the dialog's padding so the fields stay centred; not
   `overflow-y-auto pr-1`. Never set `scrollbar-width` / `scrollbar-color` on an element to

@@ -93,10 +93,11 @@
   --rgb-nav-drawer: var(--rgb-brand-900);
   --rgb-nav-drawer-border: var(--rgb-brand-700);
 
-  /* Scrollbar thumb: solid royal blue, as on the public site (owner, 2026-11-22). The same in
-     both themes and on navy: `--rgb-primary` isn't redefined under dark. */
-  --color-scroll-thumb: rgb(var(--rgb-primary));
-  --color-scroll-thumb-hover: rgb(var(--rgb-primary-hover));
+  /* Scrollbar thumb: a clear neutral grey, so it never competes with the navy header and nav or
+     the blue buttons (2026-11-22). Follows the theme through --rgb-text-subtle (lighter in dark
+     and on navy). */
+  --color-scroll-thumb: rgb(var(--rgb-text-subtle) / 0.6);
+  --color-scroll-thumb-hover: rgb(var(--rgb-text-subtle) / 0.9);
 
   --color-primary: rgb(var(--rgb-primary));
   --color-accent: rgb(var(--rgb-accent));
@@ -219,6 +220,9 @@
   --rgb-text-subtle: var(--rgb-on-brand-muted);
   --rgb-emphasis: var(--rgb-on-brand);
   --color-focus: rgb(var(--rgb-primary));
+  /* Re-derived here: a custom property built from another resolves where it is declared. */
+  --color-scroll-thumb: rgb(var(--rgb-text-subtle) / 0.6);
+  --color-scroll-thumb-hover: rgb(var(--rgb-text-subtle) / 0.9);
 }
 
 /* Solid status fills that look the same in both themes (BulkActionsBar):
@@ -353,7 +357,7 @@ html[data-theme-reveal]::view-transition-new(root) {
     @apply box-border;
   }
 
-  /* Scrollbars: a slim royal-blue pill (--color-scroll-thumb) on a clear track, no arrow buttons, in every scroller.
+  /* Scrollbars: a slim grey pill (--color-scroll-thumb) on a clear track, no arrow buttons, in every scroller.
      Chrome 121+ ignores the ::-webkit-scrollbar rules on any element that sets
      `scrollbar-width` or `scrollbar-color`, so those two are set only where the
      webkit rules don't exist (Firefox). Setting them on `*` gave Chrome its default
