@@ -18,6 +18,7 @@
  */
 
 import { useCallback, useRef, type ForwardedRef } from "react";
+import { trackDialogScrollbar, untrackDialogScrollbar } from "@/lib/dialogScrollbar";
 
 type LaunchSource = { at: number; height: number; width: number; x: number; y: number };
 
@@ -142,7 +143,8 @@ const launched = new WeakSet<HTMLElement>();
 
 /**
  * A ref for a dialog panel, merged with the caller's own: points the panel at its control once on
- * mount, and plays the exit on a copy if the panel is unmounted without Radix closing it first.
+ * mount, plays the exit on a copy if the panel is unmounted without Radix closing it first, and
+ * keeps a scrolling panel's fields centred (`trackDialogScrollbar`).
  */
 export function useLaunchRef<T extends HTMLElement>(forwarded: ForwardedRef<T>) {
   const mounted = useRef<{ node: T; overlay: Element | null } | null>(null);
@@ -153,6 +155,7 @@ export function useLaunchRef<T extends HTMLElement>(forwarded: ForwardedRef<T>) 
           launched.add(node);
           launchFrom(node);
         }
+        trackDialogScrollbar(node);
         const prev = node.previousElementSibling;
         mounted.current = {
           node,
@@ -164,13 +167,14 @@ export function useLaunchRef<T extends HTMLElement>(forwarded: ForwardedRef<T>) 
         // Radix's own close leaves the panel marked closed after its exit ran. Still "open" here
         // means the dialog was unmounted as a whole. A check after this commit tells that apart
         // from React re-attaching the ref (Strict Mode, a new ref function): then it is still in
-        // the page.
-        if (gone.getAttribute("data-state") === "open") {
-          const overlayState = overlay?.getAttribute("data-state");
-          queueMicrotask(() => {
-            if (!gone.isConnected) playExitOnCopy(gone, overlayState === "open" ? overlay : null);
-          });
-        }
+        // the page and keeps everything. The copy is taken before the padding trim is undone.
+        const wasOpen = gone.getAttribute("data-state") === "open";
+        const overlayState = overlay?.getAttribute("data-state");
+        queueMicrotask(() => {
+          if (gone.isConnected) return;
+          if (wasOpen) playExitOnCopy(gone, overlayState === "open" ? overlay : null);
+          untrackDialogScrollbar(gone);
+        });
       }
       if (typeof forwarded === "function") forwarded(node);
       else if (forwarded) forwarded.current = node;
