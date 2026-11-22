@@ -93,6 +93,10 @@
   --rgb-nav-drawer: var(--rgb-brand-900);
   --rgb-nav-drawer-border: var(--rgb-brand-700);
 
+  /* Scrollbar thumb: brand navy on light pages (owner, 2026-11-22). */
+  --color-scroll-thumb: rgb(var(--rgb-brand-800) / 0.7);
+  --color-scroll-thumb-hover: rgb(var(--rgb-brand-800));
+
   --color-primary: rgb(var(--rgb-primary));
   --color-accent: rgb(var(--rgb-accent));
   --color-background: rgb(var(--rgb-background));
@@ -175,6 +179,9 @@
 
 :root[data-theme="dark"],
 .surface-brand {
+  /* Navy would vanish on a dark or navy ground: a light navy-grey instead. */
+  --color-scroll-thumb: rgb(var(--rgb-on-brand-muted) / 0.45);
+  --color-scroll-thumb-hover: rgb(var(--rgb-on-brand-muted) / 0.75);
   /* Primary fills keep the light theme's royal blue (owner, 2026-11-08): only the
      soft tint and the `-ink` text colour change, so text stays readable on dark. */
   --rgb-primary-soft: 23 42 85;
@@ -233,6 +240,20 @@
 .scroll-clip-panel {
   clip-path: inset(0 round var(--radius-panel));
 }
+/* A scrolling body inside a dialog (fields between a fixed title and buttons). The bar sits in
+   the dialog's right padding, so the fields line up with the title and buttons on both sides;
+   the gutter is kept even when nothing scrolls, so the width never changes. The left inset lets
+   a field's focus ring show instead of being clipped. Keep 1rem = padding + bar (8px). */
+.dialog-scroll-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  margin-left: -4px;
+  margin-right: -1rem;
+  padding-left: 4px;
+  padding-right: calc(1rem - 8px);
+}
+
 /* Its bar stops short of the rounded corners instead of being cut by them. */
 .scroll-clip-panel::-webkit-scrollbar-track {
   margin-block: calc(var(--radius-panel) / 2 + 4px);
@@ -306,14 +327,14 @@ html[data-theme-reveal]::view-transition-new(root) {
     @apply box-border;
   }
 
-  /* Scrollbars: a slim pill in a soft brand blue on a clear track, no arrow buttons, in every scroller.
+  /* Scrollbars: a slim navy pill (--color-scroll-thumb) on a clear track, no arrow buttons, in every scroller.
      Chrome 121+ ignores the ::-webkit-scrollbar rules on any element that sets
      `scrollbar-width` or `scrollbar-color`, so those two are set only where the
      webkit rules don't exist (Firefox). Setting them on `*` gave Chrome its default
      bar with arrows, in blue. */
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track,
   ::-webkit-scrollbar-corner {
@@ -324,21 +345,19 @@ html[data-theme-reveal]::view-transition-new(root) {
   }
   /* The transparent border insets the pill from the edges (background-clip keeps it clear). */
   ::-webkit-scrollbar-thumb {
-    background-color: rgb(var(--rgb-primary) / 0.35);
+    background-color: var(--color-scroll-thumb);
     background-clip: padding-box;
-    border: 3px solid transparent;
+    border: 2px solid transparent;
     border-radius: 9999px;
   }
-  ::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(var(--rgb-primary) / 0.6);
-  }
+  ::-webkit-scrollbar-thumb:hover,
   ::-webkit-scrollbar-thumb:active {
-    background-color: rgb(var(--rgb-primary) / 0.8);
+    background-color: var(--color-scroll-thumb-hover);
   }
   @supports not selector(::-webkit-scrollbar) {
     * {
       scrollbar-width: thin;
-      scrollbar-color: rgb(var(--rgb-primary) / 0.45) transparent;
+      scrollbar-color: var(--color-scroll-thumb) transparent;
     }
   }
 

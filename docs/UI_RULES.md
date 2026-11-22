@@ -37,9 +37,12 @@ and are mapped in `tailwind.config.ts`.
   `primary-ink` (coloured text, kept readable) switch with the theme.
 - **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
   scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
-- **Scrollbars** are one global style (globals.css): a thin pill in soft
-  brand blue (`primary` at 35%, stronger on hover), no arrows, the same in every
-  scroller. Never set `scrollbar-width` / `scrollbar-color` on an element to
+- **Scrollbars** are one global style (globals.css): a thin 8 px pill in brand
+  navy (`--color-scroll-thumb`; a light navy-grey in dark mode and on the navy
+  nav), no arrows, the same in every scroller. A scrolling body inside a dialog
+  (fields between a fixed title and buttons) takes `dialog-scroll-body`, which
+  puts its bar in the dialog's padding so the fields stay centred; not
+  `overflow-y-auto pr-1`. Never set `scrollbar-width` / `scrollbar-color` on an element to
   restyle a bar: Chrome then drops the webkit rules and draws its default bar
   with arrows (`[scrollbar-width:none]` to hide one is fine). While a menu or
   dialog locks scrolling, Radix pads the body by the bar's width; a fixed
@@ -152,7 +155,7 @@ disagree.
 | Formatted text (messages, announcements, help articles) | `TextEditor`; show the result with `FormattedText` | Toolbar over a `Textarea`, stores readable text, never HTML. Only where the output is displayed through `FormattedText`, `markdownToPlainText`/`markdownToWhatsApp` or the email renderer, or readers see raw `**`. Everything else stays `Textarea`. |
 | Showing text someone typed | `LinkedText` (`components/ui/FormattedText.tsx`) | Chat, feedback, notes: addresses become underlined links and nothing else changes. `onColour` on a coloured surface like your own chat bubble. Never `dangerouslySetInnerHTML` or a local URL regex. |
 | Dates and times | `DatePicker`, `DateStringPicker` (for `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` state), `TimePicker`, `DateRangePicker` | Never `type="date|time|datetime-local"`. |
-| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: sunken `bg-app-soft` track, active tab is a solid primary chip that slides between tabs (`useSlidingIndicator`); `TabsContent` fades up (`animate-tab-panel-in`). A two-way switch may slide its content sideways instead (`animate-tab-in-left`/`-right`, register page). |
+| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: clear track with a thin `border-app-border` outline (like the Storm/Racer leaderboard toggles), active tab is a solid primary chip that slides between tabs (`useSlidingIndicator`); `TabsContent` fades up (`animate-tab-panel-in`). A two-way switch may slide its content sideways instead (`animate-tab-in-left`/`-right`, register page). |
 | Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Soft fill + `-ink` text. Correct `role`/`aria-live` built in. Toasts are solid fills instead (see Bulk actions). |
 | Confirm before acting | `ConfirmationModal` (+ optional `icon`) | Never `window.confirm`. Undo policy: `lib/undo/README.md`. |
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |

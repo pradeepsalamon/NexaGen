@@ -261,7 +261,7 @@ function VoucherDialog({ currency, onClose, voucher }: { voucher: ReferralVouche
           <DialogTitle>{voucher ? "Edit voucher" : "New voucher"}</DialogTitle>
           <DialogDescription>Changes apply to redemptions from now on; what students already got keeps its terms.</DialogDescription>
         </DialogHeader>
-        <form className="grid max-h-[65dvh] gap-4 overflow-y-auto pr-1" id="voucher-form" noValidate onSubmit={form.handleSubmit(submit)}>
+        <form className="grid max-h-[65dvh] gap-4 dialog-scroll-body" id="voucher-form" noValidate onSubmit={form.handleSubmit(submit)}>
           <FormField error={errors.name?.message} id="voucher-name" label="Name" required>
             <Input id="voucher-name" placeholder="A free month" {...form.register("name")} />
           </FormField>

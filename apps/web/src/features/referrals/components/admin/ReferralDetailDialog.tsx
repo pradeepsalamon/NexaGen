@@ -72,7 +72,7 @@ export function ReferralDetailDialog({ onClose, referralId, stages }: Props) {
         {isLoading || !data ? (
           <Skeleton className="h-64 rounded-app" />
         ) : (
-          <div className="grid max-h-[70dvh] gap-5 overflow-y-auto pr-1">
+          <div className="grid max-h-[70dvh] gap-5 dialog-scroll-body">
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
                 <p className="text-xs text-app-muted">Stage</p>

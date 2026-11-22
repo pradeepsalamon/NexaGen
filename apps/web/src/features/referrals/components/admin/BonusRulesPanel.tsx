@@ -196,7 +196,7 @@ function BonusDialog({
           <DialogDescription>Changes apply to bonuses earned from now on.</DialogDescription>
         </DialogHeader>
         <form
-          className="grid max-h-[65dvh] gap-4 overflow-y-auto pr-1"
+          className="grid max-h-[65dvh] gap-4 dialog-scroll-body"
           id="bonus-form"
           noValidate
           onSubmit={form.handleSubmit((values) => save.mutate(values, { onSuccess: onClose }))}

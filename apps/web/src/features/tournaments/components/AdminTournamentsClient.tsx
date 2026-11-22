@@ -348,7 +348,7 @@ function TemplateDialog({ template, onClose }: { template: CertificateTemplateDt
           <DialogTitle>{template === "new" ? "New certificate template" : `Edit ${template.name}`}</DialogTitle>
           <DialogDescription>Placeholders: {CERTIFICATE_PLACEHOLDERS.map((p) => `{{${p}}}`).join(" ")}</DialogDescription>
         </DialogHeader>
-        <div className="grid max-h-[65dvh] gap-4 overflow-y-auto pr-1">
+        <div className="grid max-h-[65dvh] gap-4 dialog-scroll-body">
           <div className="grid gap-4 sm:grid-cols-2">
             {field("name", "Template name")}
             {field("title", "Certificate title")}

@@ -211,7 +211,7 @@ function StageDialog({ currency, onClose, stage }: { stage: ReferralStageItem | 
               : "A new stage is added at the end; move it into place afterwards. Admins move referrals into it."}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid max-h-[65dvh] gap-4 overflow-y-auto pr-1">
+        <div className="grid max-h-[65dvh] gap-4 dialog-scroll-body">
           <FormField error={errorFor("name")} id="stage-name" label="Name" required>
             <Input hasError={Boolean(errorFor("name"))} id="stage-name" maxLength={60} onChange={(event) => setName(event.target.value)} value={name} />
           </FormField>
