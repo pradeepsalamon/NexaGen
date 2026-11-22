@@ -93,8 +93,7 @@
   --rgb-nav-drawer: var(--rgb-brand-900);
   --rgb-nav-drawer-border: var(--rgb-brand-700);
 
-  /* Scrollbar thumb: solid brand navy, one colour in every theme and on the navy header/nav
-     (owner, 2026-11-22). */
+  /* Scrollbar thumb: solid brand navy (owner, 2026-11-22); royal blue in the dark theme (below). */
   --color-scroll-thumb: rgb(var(--rgb-brand-800));
   --color-scroll-thumb-hover: rgb(var(--rgb-brand-700));
 
@@ -176,6 +175,12 @@
   --shadow-lift: 0 6px 16px #000000B3;
   --shadow-soft: 0 16px 40px -4px #000000CC;
   --color-scroll-shade: rgb(var(--rgb-scrim) / 0.55);
+}
+
+/* Scrollbar thumb in the dark theme: royal blue (owner, 2026-11-22, final); navy everywhere else. */
+:root[data-theme="dark"] {
+  --color-scroll-thumb: rgb(var(--rgb-primary));
+  --color-scroll-thumb-hover: rgb(var(--rgb-primary-hover));
 }
 
 :root[data-theme="dark"],
