@@ -63,7 +63,13 @@ export interface SupportDemoRequest {
   preferredTime: string;
   /** A demo class the parent picked from the offered slots; the API books it after the ticket. */
   slotClassId?: string;
+  /** A reschedule from a demo reminder: the booking this one replaces (docs/LEAD_STAGES.md). */
+  replacesRegistrationId?: string;
 }
+
+/** Buttons on a demo reminder (docs/LEAD_STAGES.md); the registration id follows the prefix. */
+export const SUPPORT_DEMO_ATTEND_PREFIX = "demo.attend.";
+export const SUPPORT_DEMO_MOVE_PREFIX = "demo.move.";
 
 /**
  * An upcoming demo class the bot may offer (the academy's demo schedules,
@@ -123,6 +129,8 @@ export interface SupportDraft {
   invalidCount?: number;
   /** The question to go back to after "Continue" (RESUME_PROMPT). */
   resumeState?: SupportFlowState;
+  /** Rescheduling from a demo reminder: the booking the new time replaces. */
+  replacesRegistrationId?: string;
 }
 
 export type SupportInput =
@@ -176,7 +184,9 @@ export type SupportAction =
   /** "LINK <code>": the API checks the code and links this number to its student (Phase D). */
   | { kind: "LINK_ACCOUNT"; code: string }
   /** "NEXT CLASS" from a number: the API answers only if it is linked to a student. */
-  | { kind: "ACCOUNT_QUERY" };
+  | { kind: "ACCOUNT_QUERY" }
+  /** "Yes, I'll attend" on a demo reminder: the API checks the booking is this number's and confirms it. */
+  | { kind: "DEMO_ATTEND"; registrationId: string };
 
 export interface SupportConversationSnapshot {
   state: SupportFlowState;
@@ -201,6 +211,11 @@ export interface SupportTransitionContext {
   menu?: SupportMenuEntry[];
   /** The academy lets linked numbers ask for their next class (Phase D). */
   accountAnswers?: boolean;
+  /**
+   * "Reschedule" on a demo reminder: the booking it was for, when the API found it is this
+   * number's and not over yet. Absent = an unknown or stale button (a fresh booking starts).
+   */
+  reschedule?: { level: SupportDemoLevel; parentName: string; registrationId: string; studentAge: number; studentName: string };
 }
 
 /** Characters of a link code: no 0/O, 1/I/L, so it can be read out on the phone. */
@@ -901,6 +916,7 @@ function demoFromDraft(draft: SupportDraft): SupportDemoRequest | null {
     level: draft.level,
     parentName: draft.parentName,
     preferredTime: draft.preferredTime,
+    ...(draft.replacesRegistrationId ? { replacesRegistrationId: draft.replacesRegistrationId } : {}),
     ...(draft.slotId ? { slotClassId: draft.slotId } : {}),
     studentAge: draft.studentAge,
     studentName: draft.studentName
@@ -1006,6 +1022,35 @@ export function transitionSupport(
   }
   if (command === "START" && current.status !== "BOT") {
     return result(current, [{ body: "WhatsApp reminders and updates are back on.", kind: "text" }], [{ kind: "OPT_IN" }]);
+  }
+
+  // Demo reminder buttons (docs/LEAD_STAGES.md). A confirmation is recorded whoever is
+  // answering; the bot only says so, or reopens the times, while it has the conversation.
+  if (input.kind === "reply" && input.id.startsWith(SUPPORT_DEMO_ATTEND_PREFIX)) {
+    const registrationId = input.id.slice(SUPPORT_DEMO_ATTEND_PREFIX.length);
+    const thanks: SupportReply[] =
+      current.status === "BOT" ? [{ body: "Thank you! We've noted that you'll attend. See you at the class.", kind: "text" }] : [];
+    return result(current, thanks, registrationId ? [{ kind: "DEMO_ATTEND", registrationId }] : []);
+  }
+  if (input.kind === "reply" && input.id.startsWith(SUPPORT_DEMO_MOVE_PREFIX) && current.status === "BOT") {
+    const booking = ctx.reschedule;
+    if (!booking || `${SUPPORT_DEMO_MOVE_PREFIX}${booking.registrationId}` !== input.id) {
+      // An old reminder (that class is over or the booking is gone): book afresh.
+      const fresh: SupportDraft = { category: "COURSE" };
+      return result({ draft: fresh, state: "DEMO_STUDENT", status: "BOT" }, [questionFor("DEMO_STUDENT", fresh, ctx)]);
+    }
+    const nextDraft: SupportDraft = {
+      category: "COURSE",
+      level: booking.level,
+      parentName: booking.parentName,
+      replacesRegistrationId: booking.registrationId,
+      studentAge: booking.studentAge,
+      studentName: booking.studentName
+    };
+    return result({ draft: nextDraft, state: "DEMO_TIME", status: "BOT" }, [
+      { body: `No problem, let's find another time for ${booking.studentName}.`, kind: "text" },
+      questionFor("DEMO_TIME", nextDraft, ctx)
+    ]);
   }
 
   // A person is answering: record only, never talk over them.

@@ -4,6 +4,7 @@ import type { ApprovalCoachOptionsResponse, ApprovalStudentOptionsResponse } fro
 import { UserRole, UserStatus } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
 import { PrismaService } from "../prisma/prisma.service";
+import { coachWhere } from "../common/coach-accounts";
 
 const MIN_SEARCH_LENGTH = 2;
 const MAX_STUDENT_OPTIONS = 20;
@@ -63,7 +64,7 @@ export class ApprovalOptionsService {
       this.prisma.user.findMany({
         orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
         select: { firstName: true, id: true, lastName: true },
-        where: { id: { not: user.id }, isDeleted: false, role: UserRole.COACH, status: UserStatus.ACTIVE }
+        where: { id: { not: user.id }, isDeleted: false, status: UserStatus.ACTIVE, ...coachWhere() }
       }),
       cls.batchId
         ? this.prisma.batchCoach.findMany({

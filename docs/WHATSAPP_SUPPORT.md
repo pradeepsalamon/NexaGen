@@ -147,7 +147,7 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
   deletes its conversations, messages, requests with their history, and its
   webhook items, in one transaction under the contact's lock. A number that
   replied STOP keeps a bare row (number + opt-out) so automatic messages stay
-  off. A lead made from it stays (a CRM record; delete it from Leads). Each
+  off (its old Puzzle of the Day keyword sign-up, no longer read, is cleared either way). A lead made from it stays (a CRM record; delete it from Leads). Each
   erasure is logged in `support_contact_erasures` (who, when, counts; no personal data).
 - *Files* (Phase C, D13): an image or PDF a customer sends shows in the
   transcript as "[Image] caption" / "[PDF: name]" with a link, and the bot
@@ -198,6 +198,12 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
     "Not sent to Frappe CRM" (with the reason). A repeat WhatsApp booking from
     the same number only adds to the NexaGen lead; nothing is sent again, and
     nothing comes back from Frappe.
+  - *Stage changes* (2026-11-21, behind `FRAPPE_CRM_STAGE_SYNC`, off by default):
+    each later stage change re-queues the same row and moves the Frappe lead
+    forward only; see [LEAD_STAGES.md](LEAD_STAGES.md).
+- *Demo reminders* (2026-11-21): evening-before and 1-hour reminders with
+  [Yes, I'll attend] [Reschedule], and a missed-demo message; see
+  [LEAD_STAGES.md](LEAD_STAGES.md) § "WhatsApp reminders".
   - Off unless `FRAPPE_CRM_URL`, `FRAPPE_CRM_API_KEY` and
     `FRAPPE_CRM_API_SECRET` are set; other academies never push. The key
     belongs to the Frappe user `nexagen-push@nexachess.in` (made 2026-11-15;
@@ -264,6 +270,15 @@ built 2026-11-14, migration `20261114195631_whatsapp_multi_academy`).**
 **Consent.** `STOP` sets `WhatsAppContact.optedOutAt`; messaging rules and
 system messages then skip that number (`SKIPPED`, checked at send time, so
 queued ones stop too). Support replies to the customer's own messages still go.
+
+**Puzzle of the Day** ([PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md)): no keywords
+turn it on or off (owner, 2026-11-21: the student's app switch is the only
+on/off; the first version's `PUZZLE` / `PUZZLE OFF` were removed). STOP still
+blocks it like every proactive message. Step 3: before the flow, every typed
+text goes to `DailyPuzzleAnswerService.reply` (inside the same transaction and
+contact lock, not while staff own the conversation). A move, `HINT` or `ANSWER`
+from a number whose picture went out today is answered there and the flow's
+state stays as it was; anything else (null) runs the flow as before.
 
 **Course enquiries, demo bookings and follow-ups (built 2026-11-14, flow
 version 2).** Owner's priority: answer leads at once and follow up quickly.

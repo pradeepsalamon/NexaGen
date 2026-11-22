@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { PaginationMeta } from "./index";
+import type { PaginationMeta, UserRole } from "./index";
 
 export const emailVerificationPolicySchema = z.enum(["OFF", "OPTIONAL", "REQUIRED"]);
 export type EmailVerificationPolicy = z.infer<typeof emailVerificationPolicySchema>;
@@ -116,6 +116,15 @@ export const EMAIL_CATEGORY_DEFINITIONS: Record<EmailCategory, { description: st
     label: "Referrals"
   }
 };
+
+/**
+ * The kinds a person can be sent, so their settings list only those. A SALES
+ * account only refers people (docs/REFERRALS.md § "The SALES role"): no
+ * classes, homework or announcements reach it.
+ */
+export function emailCategoriesForRole(role: UserRole | undefined): readonly EmailCategory[] {
+  return role === "SALES" ? ["ACCOUNT", "REFERRALS", "ACADEMY_TEAM"] : EMAIL_CATEGORIES;
+}
 
 /** A person's own choice about non-essential email. System emails always send. */
 export type EmailPreferencesDto = {

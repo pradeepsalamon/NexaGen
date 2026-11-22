@@ -6,6 +6,7 @@ import { AnnouncementsPanel } from "./AnnouncementsPanel";
 import { DeliveryLogPanel } from "./DeliveryLogPanel";
 import { MessagingRulesPanel } from "./MessagingRulesPanel";
 import { SystemMessagesPanel } from "./SystemMessagesPanel";
+import { WhatsAppTemplatesPanel } from "./WhatsAppTemplatesPanel";
 
 export function MessagingClient() {
   return (
@@ -18,6 +19,7 @@ export function MessagingClient() {
               <TabsTrigger value="rules">Message rules</TabsTrigger>
               <TabsTrigger value="system">System messages</TabsTrigger>
               <TabsTrigger value="announcements">Announcements</TabsTrigger>
+              <TabsTrigger value="templates">WhatsApp templates</TabsTrigger>
               <TabsTrigger value="log">Delivery log</TabsTrigger>
             </TabsList>
           }
@@ -32,6 +34,9 @@ export function MessagingClient() {
         </TabsContent>
         <TabsContent value="announcements">
           <AnnouncementsPanel />
+        </TabsContent>
+        <TabsContent value="templates">
+          <WhatsAppTemplatesPanel />
         </TabsContent>
         <TabsContent value="log">
           <DeliveryLogPanel />

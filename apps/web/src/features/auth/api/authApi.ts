@@ -19,6 +19,7 @@ import type {
   RegisterCoachResponse,
   RegisterResponse,
   ResetPasswordRequest,
+  SwitchRoleRequest,
   UpdateProfileRequest,
   VerifyEmailRequest
 } from "@nexa-chess/types";
@@ -87,6 +88,14 @@ export function refreshSession() {
 
 export function logout() {
   return apiFetch<LogoutResponse>(API_ROUTES.auth.logout, {
+    method: "POST"
+  });
+}
+
+/** Multi-role accounts: this login session acts in another role it holds (docs/MULTI_ROLE_ACCOUNTS.md). */
+export function switchRole(payload: SwitchRoleRequest) {
+  return apiFetch<AuthResponse>(API_ROUTES.auth.switchRole, {
+    body: payload,
     method: "POST"
   });
 }

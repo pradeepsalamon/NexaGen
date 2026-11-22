@@ -43,6 +43,13 @@ const apiEnvSchema = z.object({
     .min(32, "CREDENTIALS_ENCRYPTION_KEY must be at least 32 characters.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  // Signs Puzzle of the Day's WhatsApp board-picture links (docs/PUZZLE_OF_THE_DAY.md step 3). Never a JWT secret.
+  // Unset = a key derived from CREDENTIALS_ENCRYPTION_KEY, else MFA_ENCRYPTION_KEY; none of them = no picture.
+  DAILY_PUZZLE_PICTURE_SECRET: z
+    .string()
+    .min(32, "DAILY_PUZZLE_PICTURE_SECRET must be at least 32 characters.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   // Roles that must sign in with two-factor (comma-separated; empty = none).
   MFA_REQUIRED_ROLES: z.string().default("SUPER_ADMIN,ADMIN"),
   NODE_ENV: z.string().default("development"),
@@ -190,6 +197,14 @@ const apiEnvSchema = z.object({
   FRAPPE_CRM_WEBSITE_LEAD_SOURCE: z.string().default("Website Form"),
   /** A `CRM Lead Status` name that exists in Frappe. */
   FRAPPE_CRM_LEAD_STATUS: z.string().default("New Inquiry"),
+  /**
+   * Copy every stage change to Frappe, not only the first (docs/LEAD_STAGES.md). Off until
+   * Frappe has the stage names in `FRAPPE_LEAD_STAGES`: a missing one makes Frappe refuse the lead.
+   */
+  FRAPPE_CRM_STAGE_SYNC: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   // Nexa's WhatsApp Business Account id: reads template status (other academies save theirs under Branding).
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   // Incoming WhatsApp: the support bot (docs/WHATSAPP_SUPPORT.md). The webhook
@@ -202,6 +217,14 @@ const apiEnvSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  /**
+   * Approved WhatsApp templates for demo reminders outside the 24-hour window (docs/LEAD_STAGES.md):
+   * body {{1}} parent, {{2}} student, {{3}} class time; quick replies "Yes, I'll attend" + "Reschedule"
+   * (the missed-demo one: one "Pick a new time"). Empty = only inside the free window.
+   */
+  SUPPORT_DEMO_REMINDER_TEMPLATE: z.string().optional(),
+  SUPPORT_DEMO_MISSED_TEMPLATE: z.string().optional(),
+  SUPPORT_DEMO_TEMPLATE_LANGUAGE: z.string().default("en_US"),
   /** Idle minutes before the bot asks "continue or start again?". */
   SUPPORT_SESSION_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(30),
   /** Comma-separated numbers. Set = the bot answers only these (dev, staff-only rollout). */

@@ -19,6 +19,7 @@ export const messagingEventSchema = z.enum([
   "ASSIGNMENT_GRADED",
   "ASSIGNMENT_OVERDUE_COACH",
   "REVISION_DUE",
+  "DAILY_PUZZLE",
   "ANNOUNCEMENT",
   "ACCOUNT_WELCOME",
   "ACCOUNT_APPROVED",
@@ -62,6 +63,7 @@ export const MESSAGING_EVENT_EMAIL_CATEGORY: Record<MessagingEvent, EmailCategor
   CLASS_REMINDER_COACH: "CLASSES",
   CLASS_SCHEDULED: "CLASSES",
   CLASS_SUBSTITUTE_ASSIGNED: "CLASSES",
+  DAILY_PUZZLE: "HOMEWORK",
   INVOICE_ISSUED: "ACCOUNT",
   PAYMENT_FAILED: "ACCOUNT",
   PAYMENT_RECEIVED: "ACCOUNT",
@@ -142,6 +144,18 @@ export interface MessagingEventDefinition {
   defaultLeadTimeMinutes?: number;
   /** False when another email already covers this moment. Omitted = true. */
   supportsEmail?: boolean;
+  /** WhatsApp is the only channel (Puzzle of the Day, docs/PUZZLE_OF_THE_DAY.md). */
+  whatsappOnly?: boolean;
+  /**
+   * The rule makes a picture and this variable holds its link: an approved
+   * template with an IMAGE header gets it there (`whatsappTemplateImageHeader`),
+   * free text is sent as the picture with the text as its caption.
+   */
+  pictureVariable?: string;
+  /** A DAILY/WEEKLY time is read in the academy's time zone, not each recipient's. */
+  academyTimeZone?: boolean;
+  /** Only DAILY or WEEKLY: an IMMEDIATE send would go out whenever the hourly sweep first ran. */
+  scheduledOnly?: boolean;
 }
 
 const RECIPIENT_VARIABLES = [
@@ -358,6 +372,21 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     variables: [...RECIPIENT_VARIABLES, "links.revision"],
     audiences: ["STUDENTS"],
     supportsLeadTime: false
+  },
+  DAILY_PUZZLE: {
+    event: "DAILY_PUZZLE",
+    label: "Puzzle of the Day (WhatsApp)",
+    description:
+      "Tells every student, on their account's own phone, that today's puzzles are ready, with a picture of one of them they can answer by replying with the move (students can switch it off on their Puzzle of the Day page; STOP blocks it too). At most one a day per number, on the days chosen here, at the time in the academy's time zone. It never names the student or shows results. Needs an approved template, because it goes outside WhatsApp's 24-hour window.",
+    // No student data: a phone may be shared by brothers and sisters.
+    variables: ["academy.name", "dailyPuzzle.date", "links.dailyPuzzle", "links.dailyPuzzlePicture"],
+    pictureVariable: "links.dailyPuzzlePicture",
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false,
+    supportsEmail: false,
+    whatsappOnly: true,
+    academyTimeZone: true,
+    scheduledOnly: true
   },
   ANNOUNCEMENT: {
     event: "ANNOUNCEMENT",
@@ -637,6 +666,12 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "announcement.body": { label: "Announcement text", sample: "No classes from 20-24 September." },
   "links.login": { label: "Sign-in link", sample: "https://nexa.test/login" },
   "links.revision": { label: "Link to revision", sample: "https://nexa.test/student/revision" },
+  "links.dailyPuzzle": { label: "Link to Puzzle of the Day", sample: "https://nexa.test/student/daily-puzzle" },
+  "dailyPuzzle.date": { label: "The puzzle's date (academy time)", sample: "Sat, 21 Nov 2026" },
+  "links.dailyPuzzlePicture": {
+    label: "Link to the board picture",
+    sample: "https://nexa.test/opengraph-image"
+  },
   "payment.amount": { label: "Amount", sample: "₹999.00" },
   "payment.currency": { label: "Currency", sample: "INR" },
   "payment.method": { label: "Payment method", sample: "UPI" },
@@ -686,6 +721,8 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "lead.email": { label: "Email address", sample: "priya@example.com" },
   "lead.source": { label: "Where the lead came from", sample: "Website" },
   "lead.campaign": { label: "Campaign", sample: "-" },
+  "leads.awaitingCount": { label: "How many leads are waiting for a demo time", sample: "3" },
+  "leads.awaitingList": { label: "The waiting leads, one per line", sample: "Asha Menon (9, beginner), parent Priya Menon, 9876543210: no demo time yet" },
   "requester.name": { label: "Requester's name", sample: "Asha Menon" },
   "requester.email": { label: "Requester's email address", sample: "asha@example.com" },
   "requester.role": { label: "Requester's role", sample: "STUDENT" },
@@ -705,6 +742,14 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "support.reason": { label: "Why staff are reminded", sample: "Nobody has replied to this WhatsApp request yet." },
   "links.supportTicket": { label: "Support ticket link", sample: "https://nexa.test/admin/support/tickets/abc123" },
   "links.integrity": { label: "Platform console link (integrity tab)", sample: "https://nexa.test/admin/platform?tab=integrity" },
+  "closure.academy": { label: "The academy asking to close", sample: "Rook & Knight Academy" },
+  "closure.choice": { label: "What the academy wants for its data", sample: "Delete everything (invoices and payments are kept as the law requires)" },
+  "closure.reason": { label: "Reason the academy gave", sample: "We are merging with another academy." },
+  "closure.outcome": {
+    label: "What was decided, in a sentence or two",
+    sample: "Your academy is now closed and its data will be deleted on 28 Nov 2026. Until then the platform can still undo it."
+  },
+  "links.closures": { label: "Platform console link (closures tab)", sample: "https://nexa.test/admin/platform?tab=closures" },
   "tournament.name": { label: "Tournament name", sample: "Winter Swiss" },
   "tournament.format": { label: "Tournament format", sample: "Swiss" },
   "tournament.timeControl": { label: "Time control (minutes + increment)", sample: "5+3" },
@@ -775,6 +820,33 @@ export function formatClock(hour: number, minute: number): string {
   return `${h}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
+const SHORT_DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
+/**
+ * The days (0 = Sunday … 6 = Saturday, ascending) a DAILY rule sends on: its
+ * chosen days, else Monday–Friday for an older "weekdays only" rule, else every
+ * day. The one rule for both the scheduler and the editor.
+ */
+export function messagingSendDays(rule: { scheduleDays: readonly number[]; weekdaysOnly: boolean }): number[] {
+  const chosen = [...new Set(rule.scheduleDays.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b);
+  if (chosen.length > 0) return chosen;
+  return rule.weekdaysOnly ? [1, 2, 3, 4, 5] : [...ALL_DAYS];
+}
+
+/** Stored form of a set of send days: sorted, unique, and empty for "every day". */
+export function normalizeMessagingSendDays(days: readonly number[]): number[] {
+  const chosen = [...new Set(days)].sort((a, b) => a - b);
+  return chosen.length === 7 ? [] : chosen;
+}
+
+function describeDays(days: number[]): string {
+  if (days.length === 7) return "Daily";
+  if (days.join() === "1,2,3,4,5") return "Weekdays";
+  if (days.join() === "0,6") return "Weekends";
+  return days.map((d) => SHORT_DAY_LABELS[d]).join(", ");
+}
+
 /** Plain-language timing for a rule, for the rules list and the editor. */
 export function describeSchedule(rule: {
   event: MessagingEvent;
@@ -783,6 +855,7 @@ export function describeSchedule(rule: {
   scheduleHour: number | null;
   scheduleMinute: number | null;
   scheduleDayOfWeek: number | null;
+  scheduleDays: readonly number[];
   weekdaysOnly: boolean;
 }): string {
   if (MESSAGING_EVENT_DEFINITIONS[rule.event].supportsLeadTime) {
@@ -805,7 +878,7 @@ export function describeSchedule(rule: {
   if (rule.scheduleMode === "WEEKLY") {
     return `${DAY_LABELS[rule.scheduleDayOfWeek ?? 1]}s at ${at}`;
   }
-  return rule.weekdaysOnly ? `Weekdays at ${at}` : `Daily at ${at}`;
+  return `${describeDays(messagingSendDays(rule))} at ${at}`;
 }
 
 export interface MessagingRuleDefaults {
@@ -928,6 +1001,19 @@ export const DEFAULT_MESSAGING_RULES: Record<
     scheduleHour: 17,
     title: "Time to revise",
     body: "Hi {{recipient.firstName}}, you have puzzles ready to revise. A few minutes today keeps them fresh: {{links.revision}}"
+  },
+  // Off: costs the academy per message and needs a template approved by Meta.
+  // 7am academy time, before school.
+  DAILY_PUZZLE: {
+    enabled: false,
+    whatsappEnabled: true,
+    inAppEnabled: false,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    scheduleMode: "DAILY",
+    scheduleHour: 7,
+    title: "Puzzle of the Day",
+    body: "Today's Puzzle of the Day from {{academy.name}} is ready. Can you solve it? Reply with your move (like Nf3), or open all three levels: {{links.dailyPuzzle}} You can turn these off on the Puzzle of the Day page."
   },
   ANNOUNCEMENT: {
     enabled: false,
@@ -1160,7 +1246,12 @@ export interface MessagingRuleItem {
   scheduleMinute: number | null;
   /** 0 = Sunday … 6 = Saturday. WEEKLY only. */
   scheduleDayOfWeek: number | null;
-  /** DAILY only: push a Saturday/Sunday send to the following Monday. */
+  /**
+   * DAILY only: the days it sends on (0 = Sunday … 6 = Saturday); empty = every
+   * day. Read through `messagingSendDays`.
+   */
+  scheduleDays: number[];
+  /** DAILY only, older rules: Monday–Friday. Superseded by `scheduleDays` once that is set. */
   weekdaysOnly: boolean;
   /** In-app heading and email subject. Unused by WhatsApp, which has no subject. */
   title: string;
@@ -1173,6 +1264,8 @@ export interface MessagingRuleItem {
   whatsappTemplateLanguage: string | null;
   /** Positional {{1}},{{2}}… values for the template, each its own mini-template. */
   whatsappTemplateParams: string[];
+  /** The template has an IMAGE header the rule fills (rules with a `pictureVariable` only). */
+  whatsappTemplateImageHeader: boolean;
   updatedAt: string;
   updatedByName: string | null;
 }
@@ -1196,6 +1289,8 @@ export const updateMessagingRuleRequestSchema = z.object({
   scheduleHour: z.number().int().min(0).max(23).nullable().optional(),
   scheduleMinute: z.number().int().min(0).max(59).nullable().optional(),
   scheduleDayOfWeek: z.number().int().min(0).max(6).nullable().optional(),
+  /** Empty = every day. */
+  scheduleDays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   weekdaysOnly: z.boolean().optional(),
   title: z.string().trim().min(1).max(200).optional(),
   body: z.string().trim().min(1).max(4096).optional(),
@@ -1203,7 +1298,8 @@ export const updateMessagingRuleRequestSchema = z.object({
   // or the parsed type would stop matching what a form actually sends.
   whatsappTemplateName: z.string().trim().max(200).nullable().optional(),
   whatsappTemplateLanguage: z.string().trim().max(20).nullable().optional(),
-  whatsappTemplateParams: z.array(z.string().max(500)).max(10).optional()
+  whatsappTemplateParams: z.array(z.string().max(500)).max(10).optional(),
+  whatsappTemplateImageHeader: z.boolean().optional()
 });
 export type UpdateMessagingRuleRequest = z.infer<
   typeof updateMessagingRuleRequestSchema

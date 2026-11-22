@@ -92,6 +92,7 @@ export class MailService {
 
   /** Email staff wrote at `/admin/email`; it carries the recipient's unsubscribe links like a rule email. */
   async sendDirectEmail(input: { to: string; subject: string; body: string; unsubscribe?: UnsubscribeLinks }) {
+    if (this.skipUndeliverable(input.to)) return;
     const text = markdownToPlainText(input.body);
     const html = `
         <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">${messageToEmailHtml(input.body)}</div>
@@ -115,6 +116,7 @@ export class MailService {
     body: string;
     unsubscribe?: UnsubscribeLinks;
   }): Promise<string | null> {
+    if (this.skipUndeliverable(input.to)) return null;
     const subject = input.subject.replace(/\s+/g, " ").trim();
     const text = markdownToPlainText(input.body);
     const html = toHtml({ action: null, body: input.body, subject });
@@ -147,6 +149,7 @@ export class MailService {
 
   /** A system message already rendered (SystemNotifier's email channel). Throws when SMTP fails. */
   async sendRenderedSystemEmail(to: string, message: RenderedSystemMessage, attachment: Attachment | null = null) {
+    if (this.skipUndeliverable(to)) return;
     const transporter = this.createTransporter();
 
     await transporter.sendMail({
@@ -167,6 +170,16 @@ export class MailService {
           }
         : {})
     });
+  }
+
+  /**
+   * `.invalid` addresses can never receive mail (RFC 2606): the stand-in email of an account
+   * imported without one (`isPlaceholderEmail`) and the platform support account. Skipped quietly.
+   */
+  private skipUndeliverable(to: string): boolean {
+    if (!/\.invalid>?\s*$/i.test(to.trim())) return false;
+    this.logger.debug("Skipped an email to a .invalid address");
+    return true;
   }
 
   private createTransporter() {

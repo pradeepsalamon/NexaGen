@@ -136,7 +136,9 @@ export class NotificationService {
     };
   }
 
+  // SALES too: it is sent in-app notices (a withdrawal paid or declined,
+  // docs/REFERRALS.md), and every query here is the caller's own rows.
   private getAuthenticatedUser(accessToken: string | undefined) {
-    return authenticateUser(this.jwtService, this.prisma, accessToken);
+    return authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
   }
 }

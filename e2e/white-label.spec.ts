@@ -16,6 +16,9 @@ const NEXA = /nexa/i;
 
 test.describe("white label", () => {
   test.skip(!RUN || !BASE, "RUN_WHITE_LABEL_E2E=1 and ACADEMY_BASE_URL are required");
+  // playwright.config.ts sends E2E_BASE_URL's Origin on every request, and the API
+  // picks the academy from Origin first: send the academy's own, as its pages do.
+  if (BASE) test.use({ extraHTTPHeaders: { Origin: new URL(BASE).origin } });
 
   for (const path of ["/", "/login", "/forgot-password", "/register"]) {
     test(`${path} shows no Nexa branding`, async ({ page }) => {

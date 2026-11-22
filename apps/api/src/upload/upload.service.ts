@@ -182,6 +182,30 @@ export class UploadService {
     }
   }
 
+  isConfigured(): boolean {
+    return Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+  }
+
+  /**
+   * Destroys one stored file whatever its kind (image, raw file or video), for
+   * an academy's purge (docs/ACADEMY_CLOSURE.md). True when it is gone (or was
+   * never there); false when Cloudinary refused or failed.
+   */
+  async destroyByPublicId(publicId: string): Promise<boolean> {
+    try {
+      for (const resourceType of ['image', 'raw', 'video'] as const) {
+        const result = (await cloudinary.uploader.destroy(publicId, { invalidate: true, resource_type: resourceType })) as {
+          result?: string;
+        };
+        if (result.result === 'ok') return true;
+      }
+      return true;
+    } catch (error) {
+      this.logger.warn(`Could not destroy an uploaded file: ${(error as Error).message}`);
+      return false;
+    }
+  }
+
   /** The deleted file no longer counts towards the academy's storage. */
   private async forget(publicId: string): Promise<void> {
     try {

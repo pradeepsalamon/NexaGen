@@ -23,7 +23,6 @@ import {
   DemoClassAccessMode,
   DemoGuestApproval,
   DemoRegistrationContactMethod,
-  LeadStatus,
   Prisma,
 } from "@prisma/client";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
@@ -31,7 +30,7 @@ import { SystemNotifier } from "../mail/system-notifier.service";
 import { formatDemoTime } from "../messaging/messaging.format";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { signDemoGuestToken } from "./demo-guest-token";
-import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { LeadStageService } from "../lead/lead-stage.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 
 /** Public demo classes: guest registration, access modes and the guest join token. */
@@ -47,7 +46,7 @@ export class LiveClassDemoService {
     private readonly notifier: SystemNotifier,
     private readonly waitingRoom: LiveClassWaitingRoomService,
     private readonly jwtService: JwtService,
-    private readonly referrals: ReferralTrackerService
+    private readonly leadStages: LeadStageService
   ) {}
 
   /**
@@ -323,23 +322,9 @@ export class LiveClassDemoService {
     return timingSafeEqual(digest(given), digest(expected));
   }
 
-  /** Best-effort: a booked lead who actually joined moves to DEMO_ATTENDED. */
+  /** Best-effort: a booked lead who actually joined moves to Demo attended. */
   private async markLeadAttended(leadId: string, topic: string) {
-    try {
-      await this.prisma.lead.updateMany({
-        where: {
-          id: leadId,
-          status: { in: [LeadStatus.NEW, LeadStatus.CONTACTED, LeadStatus.INTERESTED, LeadStatus.DEMO_SCHEDULED] }
-        },
-        data: { status: LeadStatus.DEMO_ATTENDED, lastActivityAt: new Date() }
-      });
-      await this.prisma.leadActivity.create({
-        data: { leadId, activityType: "DEMO_ATTENDED", title: `Joined demo class: ${topic}` }
-      });
-      await this.referrals.onLeadEvent(leadId, "DEMO_ATTENDED");
-    } catch (error) {
-      this.logger.warn(`Could not mark lead ${leadId} as attended: ${(error as Error).message}`);
-    }
+    await this.leadStages.applyQuietly(leadId, "DEMO_ATTENDED", { activity: { title: `Joined demo class: ${topic}` } });
   }
 
   /** Best-effort — a failed confirmation never blocks registration or join. */

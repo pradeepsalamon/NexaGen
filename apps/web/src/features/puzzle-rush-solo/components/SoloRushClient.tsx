@@ -18,6 +18,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useRefreshSoloRush, useSoloRushLeaderboard, useSoloRushOverview, useStartSoloRush } from "../hooks/useSoloRush";
+import { BatchBattlesLeaderboard } from "./BatchBattlesLeaderboard";
 import { SoloRushPlayer } from "./SoloRushPlayer";
 
 const MODES: PuzzleRushMode[] = ["STORM", "RACER"];
@@ -36,6 +37,8 @@ export function SoloRushClient() {
   const refresh = useRefreshSoloRush();
   const [run, setRun] = useState<SoloRushRun | null>(null);
   const [mode, setMode] = useState<PuzzleRushMode>("STORM");
+  const [period, setPeriod] = useState<SoloRushPeriod>("WEEK");
+  const [view, setView] = useState<"individual" | "battles">("individual");
 
   if (run) {
     return (
@@ -90,11 +93,31 @@ export function SoloRushClient() {
             })}
           </div>
 
-          <Leaderboard
-            batches={data.batches}
-            mode={mode}
-            onModeChange={setMode}
+          <Segmented
+            label="Leaderboard view"
+            onChange={setView}
+            options={[
+              { label: "My batch", value: "individual" },
+              { label: "Batch Battles", value: "battles" }
+            ]}
+            value={view}
           />
+
+          {view === "individual" ? (
+            <Leaderboard
+              batches={data.batches}
+              mode={mode}
+              onModeChange={setMode}
+              onPeriodChange={setPeriod}
+              period={period}
+            />
+          ) : (
+            <BatchBattlesLeaderboard
+              controls={<BoardControls mode={mode} onModeChange={setMode} onPeriodChange={setPeriod} period={period} />}
+              mode={mode}
+              period={period}
+            />
+          )}
         </>
       )}
     </div>
@@ -104,16 +127,19 @@ export function SoloRushClient() {
 function Leaderboard({
   batches,
   mode,
-  onModeChange
+  onModeChange,
+  onPeriodChange,
+  period
 }: {
   batches: { id: string; name: string }[];
   mode: PuzzleRushMode;
   onModeChange: (mode: PuzzleRushMode) => void;
+  onPeriodChange: (period: SoloRushPeriod) => void;
+  period: SoloRushPeriod;
 }) {
   const userId = useAuthStore((s) => s.user?.id);
   const timeZone = useUserTimeZone();
   const [batchId, setBatchId] = useState<string>(batches[0]?.id ?? "");
-  const [period, setPeriod] = useState<SoloRushPeriod>("WEEK");
   const board = useSoloRushLeaderboard(batchId || null, mode, period);
 
   return (
@@ -134,13 +160,7 @@ function Leaderboard({
               value={batchId}
             />
           ) : null}
-          <Segmented
-            label="Mode"
-            onChange={onModeChange}
-            options={MODES.map((m) => ({ label: RUSH_LABEL[m], value: m }))}
-            value={mode}
-          />
-          <Segmented label="Period" onChange={setPeriod} options={PERIODS} value={period} />
+          <BoardControls mode={mode} onModeChange={onModeChange} onPeriodChange={onPeriodChange} period={period} />
         </div>
       </div>
 
@@ -180,6 +200,31 @@ function Leaderboard({
         </Table>
       )}
     </Card>
+  );
+}
+
+/** Mode and period pickers, shared by both boards so a switch keeps them. */
+function BoardControls({
+  mode,
+  onModeChange,
+  onPeriodChange,
+  period
+}: {
+  mode: PuzzleRushMode;
+  onModeChange: (mode: PuzzleRushMode) => void;
+  onPeriodChange: (period: SoloRushPeriod) => void;
+  period: SoloRushPeriod;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Segmented
+        label="Mode"
+        onChange={onModeChange}
+        options={MODES.map((m) => ({ label: RUSH_LABEL[m], value: m }))}
+        value={mode}
+      />
+      <Segmented label="Period" onChange={onPeriodChange} options={PERIODS} value={period} />
+    </div>
   );
 }
 

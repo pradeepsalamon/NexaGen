@@ -17,10 +17,20 @@ import { join, relative } from "node:path";
  * - `infra`: not a query on academy data (client bindings, docs, advisory locks).
  * - `integrity`: reads across every academy on purpose to find rows linked to
  *   another academy (monitoring only, read-only, platform operators).
+ * - `closure`: one academy's rows by an explicit `"tenantId" = $1` (its id from a
+ *   closure row or the operator's route, never a filter from the request): the
+ *   academy export and, after an operator approved deleting it, the purge
+ *   (docs/ACADEMY_CLOSURE.md). Table/column names come from the schema catalogue.
  */
-type Kind = "global-claim" | "id-keyed" | "infra" | "integrity" | "platform" | "tenant-filtered";
+type Kind = "closure" | "global-claim" | "id-keyed" | "infra" | "integrity" | "platform" | "tenant-filtered";
 
 const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
+  "academy-closure/academy-export.service.ts": { calls: 3, kind: "closure", why: "column catalogue; one academy's rows per table (keyset or ctid pages)" },
+  "academy-closure/academy-purge.service.ts": {
+    calls: 6,
+    kind: "closure",
+    why: "FK catalogue; clear references, delete unreferenced rows, anonymise users, count kept rows and cross-academy links — one academy"
+  },
   "activity-queue/activity-queue.service.ts": { calls: 2, kind: "id-keyed", why: "FOR UPDATE on one queue by id" },
   "analytics/analytics-support.ts": { calls: 1, kind: "tenant-filtered", why: "bucketedCounts filters its table" },
   "analytics/analytics.service.ts": { calls: 2, kind: "tenant-filtered", why: "classes c" },
@@ -59,7 +69,8 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "progress/progress-recorder.service.ts": { calls: 1, kind: "id-keyed", why: "locks one student's progress row" },
   "puzzle-activity/library-activity.service.ts": { calls: 2, kind: "tenant-filtered", why: "GLOBAL means academy-wide" },
   "puzzle-rush/puzzle-rush-run.ts": { calls: 4, kind: "platform", why: "lichess_puzzles + SET LOCAL" },
-  "puzzle-rush/solo-puzzle-rush.service.ts": { calls: 1, kind: "tenant-filtered", why: "solo_puzzle_rush_runs r" },
+  "puzzle-rush/solo-puzzle-rush.service.ts": { calls: 2, kind: "tenant-filtered", why: "solo_puzzle_rush_runs r + batch battles" },
+  "puzzle/daily-puzzle.service.ts": { calls: 3, kind: "platform", why: "lichess_puzzles + SET LOCAL" },
   "puzzle/live-class-puzzle.service.ts": { calls: 1, kind: "id-keyed", why: "locks one assignment" },
   "puzzle/puzzle-catalog.service.ts": { calls: 3, kind: "platform", why: "lichess_puzzles + SET LOCAL" },
   "puzzle/puzzle-training.service.ts": { calls: 4, kind: "platform", why: "lichess_puzzles + SET LOCAL" },

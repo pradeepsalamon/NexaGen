@@ -7,12 +7,13 @@ import {
   type ClassReschedulePayload,
   type ClassTimeValue
 } from "@nexa-chess/types";
-import { BatchStatus, ClassStatus, UserRole, UserStatus, type ApprovalRequest } from "@prisma/client";
+import { BatchStatus, ClassStatus, UserStatus, type ApprovalRequest } from "@prisma/client";
 import { assertNoSchedulingConflict, assertNotInPast } from "../../coach/class-scheduling.util";
 import { assertWithinBatchDates } from "../../common/batch-dates";
 import { MessagingDispatchService } from "../../messaging/messaging-dispatch.service";
 import type { PrismaService, PrismaTransactionClient } from "../../prisma/prisma.service";
 import type { ApprovalActor, ApprovalHandler, PreparedApproval } from "../approval-handler";
+import { coachWhere } from "../../common/coach-accounts";
 
 type RescheduleSnapshot = ClassTimeValue & { status: ClassStatus };
 
@@ -55,7 +56,7 @@ export async function assertCoachStillInBatch(
     where: {
       batch: liveBatch,
       batchId,
-      coach: { isDeleted: false, role: UserRole.COACH, status: UserStatus.ACTIVE },
+      coach: { isDeleted: false, status: UserStatus.ACTIVE, ...coachWhere() },
       coachId,
       isDeleted: false
     }

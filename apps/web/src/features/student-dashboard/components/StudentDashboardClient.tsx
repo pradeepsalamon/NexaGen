@@ -9,6 +9,7 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { AssignmentReminderBanner } from "@/features/assignments/components/reminders/AssignmentReminderBanner";
 import { AssignmentReminderPopup } from "@/features/assignments/components/reminders/AssignmentReminderPopup";
 import { DashboardFeedback } from "@/features/feedback/components/DashboardFeedback";
+import { DailyPuzzleDashboardCard } from "@/features/daily-puzzle/components/DailyPuzzleDashboardCard";
 import { SoloRushDashboardCard } from "@/features/puzzle-rush-solo/components/SoloRushDashboardCard";
 import { RevisionDashboardCard } from "@/features/revision/components/RevisionDashboardCard";
 import { cn } from "@/lib/utils";
@@ -116,6 +117,7 @@ export function StudentDashboardClient() {
           </div>
 
           <div className={cn("min-w-0 space-y-5", hasPastClasses && "lg:row-span-2")}>
+            <DailyPuzzleDashboardCard />
             <RevisionDashboardCard />
             <SoloRushDashboardCard />
             {courses.length > 0 ? <ContinueLearning courses={courses} /> : null}

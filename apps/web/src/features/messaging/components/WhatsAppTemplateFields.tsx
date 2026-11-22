@@ -3,14 +3,21 @@
 import {
   DEFAULT_WHATSAPP_TEMPLATE_LANGUAGE,
   WHATSAPP_TEMPLATE_LIMITS,
+  findWhatsAppTemplate,
   parseWhatsAppTemplateParams,
   resolveWhatsAppTemplate,
   type MessageVariables
 } from "@nexa-chess/types";
+import { Combobox, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/Combobox";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
-import { WhatsAppTemplateStatus } from "./WhatsAppTemplateStatus";
+import { WhatsAppTemplateStatus, useWhatsAppTemplates } from "./WhatsAppTemplateStatus";
+
+/** How a template reads in the picker; also its search text. */
+function pickerLabel(template: { language: string; name: string; status: string }): string {
+  return `${template.name} (${template.language})${template.status === "APPROVED" ? "" : ` · ${template.status.toLowerCase()}`}`;
+}
 
 export interface WhatsAppTemplateDraft {
   name: string;
@@ -51,6 +58,11 @@ export function WhatsAppTemplateFields({
   /** Example values, for the preview of what fills each slot. */
   samples: MessageVariables;
 }) {
+  const templates = useWhatsAppTemplates();
+  const account = templates.data?.available ? templates.data.templates : null;
+  const byLabel = new Map((account ?? []).map((template) => [pickerLabel(template), template]));
+  const picked = account && draft.name.trim() ? findWhatsAppTemplate(account, draft.name, draft.language) : null;
+  const typedLines = parseWhatsAppTemplateParams(draft.paramsText).length;
   const resolved = resolveWhatsAppTemplate(
     { language: draft.language, name: draft.name, params: parseWhatsAppTemplateParams(draft.paramsText) },
     samples
@@ -68,13 +80,41 @@ export function WhatsAppTemplateFields({
         the text.
       </p>
       <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField id={`${idPrefix}-tpl`} label="Template name">
-          <Input
-            id={`${idPrefix}-tpl`}
-            onChange={(e) => onChange({ ...draft, name: e.target.value })}
-            placeholder="demo_booking_received"
-            value={draft.name}
-          />
+        <FormField
+          hint={account ? "From your connected WhatsApp account (Messaging → WhatsApp templates lists them all)." : undefined}
+          id={`${idPrefix}-tpl`}
+          label="Template"
+        >
+          {account && account.length > 0 ? (
+            <Combobox
+              id={`${idPrefix}-tpl`}
+              items={[...byLabel.keys()]}
+              onValueChange={(label) => {
+                const template = byLabel.get(label);
+                onChange(template ? { ...draft, language: template.language, name: template.name } : { ...draft, language: "", name: "" });
+              }}
+              value={picked ? pickerLabel(picked) : ""}
+            >
+              <ComboboxInput placeholder="Choose a template" />
+              <ComboboxContent>
+                <ComboboxEmpty>No template with that name.</ComboboxEmpty>
+                <ComboboxList>
+                  {(label) => (
+                    <ComboboxItem key={label} value={label}>
+                      {label}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          ) : (
+            <Input
+              id={`${idPrefix}-tpl`}
+              onChange={(e) => onChange({ ...draft, name: e.target.value })}
+              placeholder="demo_booking_received"
+              value={draft.name}
+            />
+          )}
         </FormField>
         <FormField
           hint={`Leave empty for ${DEFAULT_WHATSAPP_TEMPLATE_LANGUAGE}.`}
@@ -92,6 +132,17 @@ export function WhatsAppTemplateFields({
       <div className="mt-2">
         <WhatsAppTemplateStatus language={draft.language} name={draft.name} />
       </div>
+      {picked?.body ? (
+        <div className="mt-3 space-y-1 text-xs text-app-muted">
+          <p className="font-semibold">Template text</p>
+          <p className="whitespace-pre-wrap break-words rounded-app bg-app-soft p-3 text-sm text-app-text">{picked.body}</p>
+          <p className={picked.paramCount !== typedLines ? "text-warning-ink" : undefined}>
+            {picked.paramCount === 0
+              ? "This template has no values to fill; leave the values below empty."
+              : `Needs ${picked.paramCount} value${picked.paramCount === 1 ? "" : "s"} below, one per line (you have ${typedLines}).`}
+          </p>
+        </div>
+      ) : null}
       <FormField
         hint={`One per line, at most ${WHATSAPP_TEMPLATE_LIMITS.maxParams}; each may use this message's placeholders. The count must match the template's slots.`}
         id={`${idPrefix}-params`}

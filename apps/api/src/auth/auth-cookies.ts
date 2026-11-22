@@ -81,6 +81,24 @@ export function setAuthCookies(response: Response, tokens: SessionCookieTokens) 
   if (isPlatformHostOnly(store)) clearCookiePair(response, AUTH_COOKIE_NAMES, domainBase);
 }
 
+/**
+ * Replaces only the access cookie (a role switch, docs/MULTI_ROLE_ACCOUNTS.md):
+ * same session, same refresh cookie. Same name, domain and path rules as
+ * `setAuthCookies`.
+ */
+export function setAccessCookie(response: Response, accessToken: string, maxAge: number) {
+  const store = getTenantContext();
+  const hostOnly = usesHostOnlyCookies(store);
+  const domainBase = getCookieBaseOptions(getApiEnv());
+  const { domain: _domain, ...hostBase } = domainBase;
+  response.cookie(hostOnly ? HOST_ONLY_COOKIE_NAMES.accessToken : AUTH_COOKIE_NAMES.accessToken, accessToken, {
+    ...(hostOnly ? hostBase : domainBase),
+    httpOnly: true,
+    maxAge,
+    path: AUTH_COOKIE_PATHS.accessToken
+  });
+}
+
 export function clearAuthCookies(response: Response) {
   const store = getTenantContext();
   const hostOnly = usesHostOnlyCookies(store);

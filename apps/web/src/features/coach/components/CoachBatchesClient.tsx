@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, Clock, Layers, UserPlus, Users } from "lucide-react";
+import { CalendarDays, Clock, Layers, Swords, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import type { CoachBatch } from "@nexa-chess/types";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { AddStudentRequestDialog } from "@/features/approvals/components/BatchStudentRequestDialogs";
+import { BatchBattleSettingsDialog } from "@/features/puzzle-rush-solo/components/BatchBattleSettingsDialog";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatRelativeDay, formatTime } from "@/lib/datetime";
 import { BatchStatusBadge } from "../../batches/components/BatchStatusBadge";
@@ -21,7 +22,15 @@ function isClosed(status: string) {
   return status === "ARCHIVED" || status === "COMPLETED";
 }
 
-function BatchCard({ batch, onAddStudent }: { batch: CoachBatch; onAddStudent: (batch: CoachBatch) => void }) {
+function BatchCard({
+  batch,
+  onAddStudent,
+  onBattles
+}: {
+  batch: CoachBatch;
+  onAddStudent: (batch: CoachBatch) => void;
+  onBattles: (batch: CoachBatch) => void;
+}) {
   const timeZone = useUserTimeZone();
   const closed = isClosed(batch.status);
   const nextClass = batch.nextClass
@@ -43,6 +52,20 @@ function BatchCard({ batch, onAddStudent }: { batch: CoachBatch; onAddStudent: (
                 variant="neutral"
               >
                 <UserPlus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              </Button>
+            </SimpleTooltip>
+          )}
+          {closed ? null : (
+            <SimpleTooltip label={batch.battles.takesPart ? "Batch Battles: taking part" : "Batch Battles: not taking part"}>
+              <Button
+                aria-label={`Batch Battles settings for ${batch.name}`}
+                className="size-8"
+                onClick={() => onBattles(batch)}
+                size="icon"
+                type="button"
+                variant="neutral"
+              >
+                <Swords aria-hidden="true" className="size-4" strokeWidth={2.5} />
               </Button>
             </SimpleTooltip>
           )}
@@ -74,6 +97,7 @@ function BatchCard({ batch, onAddStudent }: { batch: CoachBatch; onAddStudent: (
 export function CoachBatchesClient() {
   const { data, error, isLoading, refetch } = useCoachBatches();
   const [addingTo, setAddingTo] = useState<CoachBatch | null>(null);
+  const [battlesFor, setBattlesFor] = useState<CoachBatch | null>(null);
   const batches = [...(data?.batches ?? [])].sort((a, b) => Number(isClosed(a.status)) - Number(isClosed(b.status)));
 
   return (
@@ -100,12 +124,17 @@ export function CoachBatchesClient() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {batches.map((batch) => (
-            <BatchCard batch={batch} key={batch.id} onAddStudent={setAddingTo} />
+            <BatchCard batch={batch} key={batch.id} onAddStudent={setAddingTo} onBattles={setBattlesFor} />
           ))}
         </div>
       )}
 
       <AddStudentRequestDialog batch={addingTo} onClose={() => setAddingTo(null)} />
+      <BatchBattleSettingsDialog
+        batchName={battlesFor?.name ?? ""}
+        onClose={() => setBattlesFor(null)}
+        settings={battlesFor?.battles ?? null}
+      />
     </div>
   );
 }

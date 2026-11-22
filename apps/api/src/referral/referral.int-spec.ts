@@ -330,9 +330,15 @@ describe("referral programme (real app, real Postgres)", () => {
     expect((await t.call(sales, "GET", API_ROUTES.auth.me)).status).toBe(200);
     expect((await t.call(sales, "GET", API_ROUTES.referrals.me)).status).toBe(200);
     expect((await t.call(sales, "GET", API_ROUTES.subscription.current)).status).toBe(200);
-    for (const path of [API_ROUTES.student.dashboard, API_ROUTES.users.list, API_ROUTES.notifications.list, API_ROUTES.adminReferrals.overview]) {
+    for (const path of [API_ROUTES.student.dashboard, API_ROUTES.users.list, API_ROUTES.adminReferrals.overview]) {
       expect({ path, status: (await t.call(sales, "GET", path)).status }).toEqual({ path, status: 403 });
     }
+    // Its own account chrome works: the referral notices are in-app by default
+    // (docs/REFERRALS.md § "Notifications"), every page sends the heartbeat, and
+    // anyone may ask to delete their own account.
+    expect((await t.call(sales, "GET", API_ROUTES.notifications.list)).status).toBe(200);
+    expect((await t.call(sales, "POST", API_ROUTES.presence.heartbeat)).body).toEqual({ liveClass: null, pull: null });
+    expect((await t.call(sales, "GET", API_ROUTES.privacy.deletionRequest)).status).toBe(200);
     // SALES sees its own prospects in full, contact included.
     const code = (await summary(sales)).code!;
     const visitor = browser();

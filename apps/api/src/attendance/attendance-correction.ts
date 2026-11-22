@@ -7,7 +7,7 @@ export async function loadClassForCorrection(tx: PrismaTransactionClient, classI
   const cls = await tx.coachClass.findUnique({
     select: {
       batchId: true,
-      coach: { select: { isDeleted: true, role: true, status: true } },
+      coach: { select: { extraRoles: true, isDeleted: true, role: true, status: true } },
       coachId: true,
       id: true,
       liveSession: { select: { status: true } },

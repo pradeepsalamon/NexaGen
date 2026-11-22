@@ -23,6 +23,7 @@ const rule = (overrides: Partial<MessagingRule> = {}): MessagingRule =>
     inAppEnabled: true,
     leadTimeMinutes: 60,
     scheduleDayOfWeek: null,
+    scheduleDays: [],
     scheduleHour: null,
     scheduleMinute: null,
     scheduleMode: "IMMEDIATE",
@@ -111,6 +112,23 @@ describe("MessagingRuleService: WhatsApp templates", () => {
     const data = prisma.messagingRule.update.mock.calls[0][0].data;
     expect(data).not.toHaveProperty("whatsappTemplateName");
     expect(data).not.toHaveProperty("whatsappTemplateParams");
+  });
+
+  it("saves chosen send days sorted, every day as none, and drops the older weekdays-only switch", async () => {
+    prisma.messagingRule.findUnique.mockResolvedValue(rule({ event: "REVISION_DUE", scheduleMode: "DAILY", weekdaysOnly: true }));
+    await inTenant(() => service.update("token", "REVISION_DUE", { scheduleDays: [5, 1, 3, 1] }));
+    expect(prisma.messagingRule.update.mock.calls[0][0].data).toMatchObject({ scheduleDays: [1, 3, 5], weekdaysOnly: false });
+
+    await inTenant(() => service.update("token", "REVISION_DUE", { scheduleDays: [0, 1, 2, 3, 4, 5, 6] }));
+    expect(prisma.messagingRule.update.mock.calls[1][0].data).toMatchObject({ scheduleDays: [] });
+  });
+
+  it("keeps a WhatsApp-only rule (Puzzle of the Day) off in-app and email", async () => {
+    prisma.messagingRule.findUnique.mockResolvedValue(rule({ event: "DAILY_PUZZLE", inAppEnabled: false }));
+    await expect(inTenant(() => service.update("token", "DAILY_PUZZLE", { inAppEnabled: true }))).rejects.toThrow(/WhatsApp only/);
+    await expect(inTenant(() => service.update("token", "DAILY_PUZZLE", { emailEnabled: true }))).rejects.toThrow();
+    await expect(inTenant(() => service.update("token", "DAILY_PUZZLE", { scheduleMode: "IMMEDIATE" }))).rejects.toThrow(/daily or weekly/);
+    expect(prisma.messagingRule.update).not.toHaveBeenCalled();
   });
 
   it("tests WhatsApp through the rule's template with sample values, and logs the template on the delivery", async () => {

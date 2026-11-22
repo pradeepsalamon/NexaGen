@@ -18,11 +18,10 @@ import {
 } from "@prisma/client";
 import { SystemNotifier } from "../mail/system-notifier.service";
 import { formatDemoTime } from "../messaging/messaging.format";
-import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { LeadStageService } from "../lead/lead-stage.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 
-const CONVERTING_STATUSES: LeadStatus[] = ["CONVERTED", "ACTIVE_STUDENT"];
 const INVITABLE_STATUSES: ClassStatus[] = [ClassStatus.SCHEDULED, ClassStatus.LIVE];
 
 type InvitableClass = {
@@ -64,7 +63,7 @@ export class DemoInviteService {
     private readonly prisma: PrismaService,
     private readonly notifier: SystemNotifier,
     private readonly whatsapp: WhatsAppService,
-    private readonly referrals: ReferralTrackerService
+    private readonly leadStages: LeadStageService
   ) {}
 
   /** Same normalization the public join page uses — the dedupe/match key. */
@@ -166,27 +165,16 @@ export class DemoInviteService {
 
     const topic = demoClass.topic ?? "Demo class";
     const coachName = `${demoClass.coach.firstName} ${demoClass.coach.lastName || ""}`.trim();
-    await this.prisma.lead.update({
-      where: { id: lead.id },
-      data: {
-        assignedClassId: demoClass.id,
-        status:
-          CONVERTING_STATUSES.includes(lead.status) || lead.status === "LOST"
-            ? lead.status
-            : "DEMO_SCHEDULED",
-        lastActivityAt: new Date(),
-        activities: {
-          create: {
-            activityType: "DEMO_CLASS_ASSIGNED",
-            title: `Assigned to demo class: ${topic}`,
-            description: `Scheduled for ${demoClass.startsAt.toISOString()} with ${coachName}`,
-            createdById: actorId
-          }
-        }
-      }
+    await this.prisma.lead.update({ data: { assignedClassId: demoClass.id }, where: { id: lead.id } });
+    await this.leadStages.apply(lead.id, "DEMO_BOOKED", {
+      activity: {
+        description: `Scheduled for ${demoClass.startsAt.toISOString()} with ${coachName}`,
+        title: `Assigned to demo class: ${topic}`,
+        type: "DEMO_CLASS_ASSIGNED"
+      },
+      actorId
     });
 
-    await this.referrals.onLeadEvent(lead.id, "DEMO_BOOKED", actorId);
     if (created && notify) void this.sendInvitation(demoClass, target, inviteToken);
     return { created, inviteToken };
   }

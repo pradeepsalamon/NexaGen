@@ -85,6 +85,7 @@ describe("WhatsAppService", () => {
       SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE: "en",
       SUPPORT_BOT_ENABLED: false,
       SUPPORT_LEAD_NUDGE_HOURS: 20,
+      SUPPORT_DEMO_TEMPLATE_LANGUAGE: "en_US",
       SUPPORT_SESSION_TIMEOUT_MINUTES: 30,
       SUPPORT_STAFF_REMINDER_MINUTES: 15,
       EXTERNAL_GAME_IMPORT_ENABLED: false,
@@ -110,6 +111,7 @@ describe("WhatsAppService", () => {
       CASHFREE_API_VERSION: "2023-08-01",
       FRAPPE_CRM_LEAD_SOURCE: "Direct WhatsApp",
       FRAPPE_CRM_LEAD_STATUS: "New Inquiry",
+      FRAPPE_CRM_STAGE_SYNC: false,
       FRAPPE_CRM_WEBSITE_LEAD_SOURCE: "Website Form",
       STRIPE_API_VERSION: "2024-06-20",
       ...envMocks

@@ -11,6 +11,10 @@ Object.assign(process.env, {
   CORS_ORIGIN: TEST_ORIGIN,
   // Encrypts academies' stored WhatsApp and gateway credentials.
   CREDENTIALS_ENCRYPTION_KEY: "integration-credentials-key-0123456789abcdef",
+  // Same reason: a box with Frappe keys would copy every test lead into the real CRM.
+  FRAPPE_CRM_API_KEY: "",
+  FRAPPE_CRM_API_SECRET: "",
+  FRAPPE_CRM_URL: "",
   // Analyses are only queued; specs drive GameAnalysisWorker.claim/run themselves.
   GAME_ANALYSIS_WORKER: "false",
   JWT_ACCESS_SECRET: TEST_ACCESS_SECRET,

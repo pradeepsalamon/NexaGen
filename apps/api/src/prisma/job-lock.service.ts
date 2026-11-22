@@ -5,10 +5,13 @@ import { forEachTenant } from "../tenancy/for-each-tenant";
 
 /** Every cron's lock name lives here, so two jobs can never share one. */
 export const JOB_LOCKS = {
+  academyPurge: "platform.academy-purge",
   analyticsStorageSnapshot: "analytics.storage-snapshot",
   approvalExpiry: "approvals.expiry",
   attendanceHeartbeatSweep: "attendance.heartbeat-sweep",
   attendanceRoomPresenceSweep: "attendance.room-presence-sweep",
+  dailyPuzzleWhatsApp: "daily-puzzle.whatsapp",
+  demoReminders: "demo.reminders",
   demoScheduleTopUp: "demo-schedule.top-up",
   entitlementExpiry: "payments.entitlement-expiry",
   externalGameSync: "game-sources.sync",
@@ -16,6 +19,9 @@ export const JOB_LOCKS = {
   gameAnalysisStaleSweep: "game-analysis.stale-sweep",
   invoiceEmailSweep: "invoice.email-sweep",
   invoicePdfSweep: "invoice.pdf-sweep",
+  leadAccounts: "lead.accounts",
+  leadAwaitingDemo: "lead.awaiting-demo",
+  leadDemoMissed: "lead.demo-missed",
   liveClassStaleSweep: "live-class.stale-sweep",
   crmLeadPush: "crm.lead-push",
   messagingClassReminders: "messaging.class-reminders",

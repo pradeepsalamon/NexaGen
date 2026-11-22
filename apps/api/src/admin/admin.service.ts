@@ -9,6 +9,7 @@ import { ClassStatus, Prisma, UserRole, UserStatus, type CoachClass, type DemoSc
 import { DemoInviteService, demoInvitePath } from '../demo-class/demo-invite.service';
 import { queryEnum } from '../common/query-params';
 import { EntitlementService } from '../platform/entitlement.service';
+import { isCoachAccount } from "../common/coach-accounts";
 
 type DemoClassRow = CoachClass & {
   coach: Pick<User, 'firstName' | 'lastName'>;
@@ -35,6 +36,7 @@ export class AdminService {
   async getPendingCoaches(): Promise<PendingCoachesResponse> {
     const users = await this.prisma.user.findMany({
       where: {
+        // coach-role-ok: an application is a primary COACH account; a staff account that teaches never applies.
         role: 'COACH',
         coachProfile: {
           approvalStatus: 'PENDING'
@@ -173,7 +175,7 @@ export class AdminService {
     });
 
     // An unapproved coach must not be schedulable (AUDIT H9).
-    if (!coach || coach.role !== 'COACH' || coach.status !== UserStatus.ACTIVE) {
+    if (!coach || !isCoachAccount(coach) || coach.status !== UserStatus.ACTIVE) {
       throw new NotFoundException("Coach not found");
     }
 
@@ -226,7 +228,7 @@ export class AdminService {
       const coach = await this.prisma.user.findUnique({
         where: { id: data.coachId }
       });
-      if (!coach || coach.role !== 'COACH' || coach.status !== UserStatus.ACTIVE) {
+      if (!coach || !isCoachAccount(coach) || coach.status !== UserStatus.ACTIVE) {
         throw new NotFoundException("Coach not found");
       }
     }

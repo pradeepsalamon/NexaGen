@@ -8,6 +8,7 @@ import {
 } from "./core-schemas";
 import { acceptedTermsSchema } from "./legal";
 import { batchTypeSchema, type BatchType, type BatchTypeSource } from "./batch-type";
+import type { BatchBattleSettings } from "./puzzle-rush";
 import {
   MAX_ASSIGNMENT_PUZZLES,
   type AssignmentPuzzleSetResults,
@@ -84,6 +85,9 @@ export * from "./knowledge";
 export * from "./assistant-tools";
 export * from "./assignment-reminders";
 export * from "./referrals";
+export * from "./multi-role";
+export * from "./roster-import";
+export * from "./academy-closure";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -317,6 +321,10 @@ const createBatchRequestBaseSchema = z.object({
   name: z.string().min(1, "Batch name is required.").max(120),
   /** Students of this batch may use rated puzzle training. Omitted on create = on. */
   puzzleTrainingEnabled: z.boolean().optional(),
+  /** Batch Battles: null = automatic (group batches take part). */
+  battlesEnabled: z.boolean().nullable().optional(),
+  /** Other batches see this batch's top player's name. Omitted on create = off. */
+  battlesShowNames: z.boolean().optional(),
   scheduleNotes: z.string().max(1000).optional(),
   startsAt: z.string().optional(),
   status: batchStatusSchema.optional().default("ACTIVE"),
@@ -380,13 +388,25 @@ export type AuthUser = {
   coachProfile?: AuthCoachProfile | null;
   email: string;
   firstName: string;
+  /** Admin user list only: the account has signed in at least once (an invite can be re-sent until then). */
+  hasSignedIn?: boolean;
   id: string;
   isEmailVerified: boolean;
   /** Nexa's own SUPER_ADMIN: may open the platform console (docs/SAAS_PLANS.md). The API still checks every call. */
   isPlatformOperator?: boolean;
   lastName?: string | null;
   phoneNumber?: string | null;
+  /**
+   * The role this login session acts in (docs/MULTI_ROLE_ACCOUNTS.md). For a
+   * one-role account it is simply that role. Every role check uses it.
+   */
   role: UserRole;
+  /** Every role the account can switch to, primary first. Absent = only `role`. */
+  roles?: UserRole[];
+  /** The account's stored role (`User.role`); differs from `role` in a switched view. */
+  primaryRole?: UserRole;
+  /** Extra roles the account holds besides its primary role (v1: [] or ["COACH"]). */
+  extraRoles?: UserRole[];
   status: UserStatus;
   studentProfile?: AuthStudentProfile | null;
   timezone?: string;
@@ -446,6 +466,9 @@ export type Batch = {
   id: string;
   name: string;
   puzzleTrainingEnabled: boolean;
+  /** Batch Battles: null = automatic (group batches take part). */
+  battlesEnabled: boolean | null;
+  battlesShowNames: boolean;
   scheduleNotes?: string | null;
   startsAt?: string | null;
   status: BatchStatus;
@@ -774,6 +797,8 @@ export type CoachBatch = {
   scheduleNotes: string | null;
   studentCount: number;
   nextClass: string | null;
+  /** Batch Battles settings (the coach may change them for their batch). */
+  battles: BatchBattleSettings;
 };
 
 export type CoachBatchesResponse = {
@@ -2842,3 +2867,4 @@ export * from "./email-admin";
 // Tournaments (docs/TOURNAMENTS.md).
 // ──────────────────────────────────────────────
 export * from "./tournaments";
+export * from "./daily-puzzle";

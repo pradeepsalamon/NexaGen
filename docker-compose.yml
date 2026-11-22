@@ -206,6 +206,8 @@ services:
       # Two-factor sign-in. Unset key = MFA unavailable; roles listed must use it.
       MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
       MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES:-SUPER_ADMIN,ADMIN}
+      # Signs Puzzle of the Day's WhatsApp board-picture links; unset = derived from the keys above.
+      DAILY_PUZZLE_PICTURE_SECRET: ${DAILY_PUZZLE_PICTURE_SECRET:-}
 
       # Constant-time-ish auth responses so a client can't tell "wrong password"
       # from "no such account" apart by response latency.
@@ -218,6 +220,8 @@ services:
       COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
       # Nexa's own session cookies host-only; on together with the web's NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API (docs/DEPLOYMENT.md).
       PLATFORM_HOST_ONLY_COOKIES: ${PLATFORM_HOST_ONLY_COOKIES:-false}
+      # Academy isolation: audit logs gaps, enforce refuses them (docs/SAAS_CUTOVER_RUNBOOK.md).
+      TENANT_SCOPE_MODE: ${TENANT_SCOPE_MODE:-audit}
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
 
       LIVEKIT_URL: ${LIVEKIT_URL}

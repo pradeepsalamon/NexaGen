@@ -1,7 +1,7 @@
 import { Controller, ForbiddenException, Get, Injectable, Logger, Query, Req } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { getApiEnv } from "@nexa-chess/config/api";
-import { API_ROUTES, DEFAULT_TENANT_ID, type WhatsAppTemplateInfo, type WhatsAppTemplateListResponse } from "@nexa-chess/types";
+import { API_ROUTES, DEFAULT_TENANT_ID, whatsappTemplateParamCount, type WhatsAppTemplateInfo, type WhatsAppTemplateListResponse } from "@nexa-chess/types";
 import { UserRole } from "@prisma/client";
 import type { Request } from "express";
 import { authenticateUser } from "../auth/authenticate";
@@ -15,6 +15,29 @@ import { WhatsAppCredentialsService } from "./whatsapp-credentials.service";
 export const WHATSAPP_TEMPLATES_CACHE_MS = 5 * 60_000;
 const MAX_PAGES = 5;
 
+const text = (value: unknown): string | null => (typeof value === "string" && value.trim() ? value : null);
+
+/** A template's `components` → its body, header kind and buttons; anything malformed is left out. */
+export function templateParts(components: unknown): Pick<WhatsAppTemplateInfo, "body" | "buttons" | "header" | "paramCount"> {
+  const list = Array.isArray(components) ? (components as Record<string, unknown>[]) : [];
+  const of = (type: string) => list.find((component) => typeof component?.type === "string" && component.type.toUpperCase() === type);
+  const body = text(of("BODY")?.text);
+  const header = of("HEADER");
+  const buttons = of("BUTTONS")?.buttons;
+  return {
+    body,
+    buttons: Array.isArray(buttons)
+      ? (buttons as Record<string, unknown>[]).flatMap((button) =>
+          text(button?.text)
+            ? [{ text: String(button.text), type: text(button.type) ?? "BUTTON", ...(text(button.url) ? { url: String(button.url) } : {}) }]
+            : []
+        )
+      : [],
+    header: header ? (text(header.format) ?? "TEXT") : null,
+    paramCount: whatsappTemplateParamCount(body)
+  };
+}
+
 /** Meta's `message_templates` page → our rows; anything malformed is skipped. */
 export function parseTemplatePage(body: unknown): { templates: WhatsAppTemplateInfo[]; next: string | null } {
   const data = (body as { data?: unknown })?.data;
@@ -27,7 +50,8 @@ export function parseTemplatePage(body: unknown): { templates: WhatsAppTemplateI
                 category: typeof item.category === "string" ? item.category : "",
                 language: item.language,
                 name: item.name,
-                status: typeof item.status === "string" ? item.status : "UNKNOWN"
+                status: typeof item.status === "string" ? item.status : "UNKNOWN",
+                ...templateParts(item.components)
               }
             ]
           : [];
@@ -38,9 +62,10 @@ export function parseTemplatePage(body: unknown): { templates: WhatsAppTemplateI
 }
 
 /**
- * The academy's message templates as WhatsApp Manager lists them, so editors
- * can show whether a template name they typed is approved (docs/MESSAGING.md
- * "WhatsApp templates"). Read-only: templates are created in WhatsApp Manager.
+ * The academy's message templates as WhatsApp Manager lists them, with their
+ * text and buttons: the Messaging page lists them all and the editors pick from
+ * them (docs/MESSAGING.md "WhatsApp templates"). Read-only: templates are
+ * created in WhatsApp Manager.
  */
 @Injectable()
 export class WhatsAppTemplatesService {
@@ -59,6 +84,11 @@ export class WhatsAppTemplatesService {
     if (user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN) {
       throw new ForbiddenException("Only admins can see WhatsApp templates.");
     }
+    return this.forAcademy(refresh);
+  }
+
+  /** For a send that must match a template's buttons (demo reminders); the same 5-minute cache. */
+  async forAcademy(refresh = false): Promise<WhatsAppTemplateListResponse> {
     const tenantId = requireTenantId("whatsappTemplates");
     const cached = this.cache.get(tenantId);
     if (!refresh && cached && Date.now() - cached.at < WHATSAPP_TEMPLATES_CACHE_MS) return cached.response;
@@ -93,7 +123,7 @@ export class WhatsAppTemplatesService {
     }
     const base = this.env.WHATSAPP_API_BASE_URL.replace(/\/+$/, "");
     let url: string | null =
-      `${base}/${this.env.WHATSAPP_API_VERSION}/${encodeURIComponent(account.wabaId)}/message_templates?fields=name,language,status,category&limit=100`;
+      `${base}/${this.env.WHATSAPP_API_VERSION}/${encodeURIComponent(account.wabaId)}/message_templates?fields=name,language,status,category,components&limit=100`;
     const templates: WhatsAppTemplateInfo[] = [];
     try {
       for (let page = 0; url && page < MAX_PAGES; page += 1) {

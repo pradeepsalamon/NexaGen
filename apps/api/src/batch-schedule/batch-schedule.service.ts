@@ -41,6 +41,7 @@ import {
 } from "./recurrence.util";
 import { authenticateUser } from "../auth/authenticate";
 import { describeBatchDates, isDayWithinBatchDates } from "../common/batch-dates";
+import { coachWhere } from "../common/coach-accounts";
 
 type AuthUser = { id: string; role: UserRole; status: UserStatus };
 
@@ -129,7 +130,7 @@ export class BatchScheduleService {
 
     const coachIds = [...new Set(body.rules.map((r) => r.coachId))];
     const coaches = await this.prisma.user.findMany({
-      where: { id: { in: coachIds }, role: UserRole.COACH, status: UserStatus.ACTIVE }
+      where: { id: { in: coachIds }, status: UserStatus.ACTIVE, ...coachWhere() }
     });
     if (coaches.length !== coachIds.length) {
       throw new BadRequestException("One or more selected coaches are invalid or inactive.");
@@ -530,7 +531,7 @@ export class BatchScheduleService {
     if (body.rules) {
       const coachIds = Array.from(new Set(body.rules.map((r) => r.coachId)));
       const coaches = await this.prisma.user.findMany({
-        where: { id: { in: coachIds }, role: UserRole.COACH, status: UserStatus.ACTIVE }
+        where: { id: { in: coachIds }, status: UserStatus.ACTIVE, ...coachWhere() }
       });
       if (coaches.length !== coachIds.length) {
         throw new BadRequestException("One or more selected coaches are invalid or inactive.");
@@ -901,8 +902,8 @@ export class BatchScheduleService {
         const coach = await this.prisma.user.findFirst({
           where: {
             id: body.coachId,
-            role: UserRole.COACH,
-            status: UserStatus.ACTIVE
+            status: UserStatus.ACTIVE,
+            ...coachWhere()
           }
         });
         if (!coach) {

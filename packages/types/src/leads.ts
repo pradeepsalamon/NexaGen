@@ -10,7 +10,9 @@ export const leadStatusSchema = z.enum([
   "CONTACTED",
   "INTERESTED",
   "DEMO_SCHEDULED",
+  "DEMO_CONFIRMED",
   "DEMO_ATTENDED",
+  "NO_SHOW",
   "FOLLOW_UP",
   "PAYMENT_PENDING",
   "CONVERTED",
@@ -25,14 +27,53 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   NEW: "New",
   CONTACTED: "Contacted",
   INTERESTED: "Interested",
-  DEMO_SCHEDULED: "Demo scheduled",
+  DEMO_SCHEDULED: "Demo booked",
+  DEMO_CONFIRMED: "Demo confirmed",
   DEMO_ATTENDED: "Demo attended",
+  NO_SHOW: "Missed demo",
   FOLLOW_UP: "Follow up",
   PAYMENT_PENDING: "Payment pending",
   CONVERTED: "Converted",
   ACTIVE_STUDENT: "Active student",
   LOST: "Lost"
 };
+
+/**
+ * What happened to a lead that may move its stage on its own (docs/LEAD_STAGES.md).
+ * A person can still set any stage by hand.
+ */
+export type LeadStageEvent = "DEMO_BOOKED" | "DEMO_CONFIRMED" | "DEMO_ATTENDED" | "DEMO_MISSED" | "REGISTERED" | "ENROLLED";
+
+/** Stages a person decided; nothing automatic moves a lead out of them. */
+export const LEAD_FINAL_STATUSES: readonly LeadStatus[] = ["CONVERTED", "ACTIVE_STUDENT", "LOST"];
+
+/** Before the demo: where a booking may still change. */
+const BEFORE_DEMO: readonly LeadStatus[] = ["NEW", "CONTACTED", "INTERESTED", "DEMO_SCHEDULED", "DEMO_CONFIRMED", "NO_SHOW"];
+
+/**
+ * The one rule for automatic stage moves: the stage `event` moves a lead in
+ * `current` to, or null when it stays. Only forward, with one exception: a
+ * lead who missed a demo can be booked again. Never out of a final stage, and
+ * never back from Demo attended / Follow up / Payment pending (a second demo
+ * keeps the further stage). Registering an account → Payment pending; an
+ * approved account or a paid order → Converted (Frappe "Enrolled").
+ */
+export function nextLeadStatus(current: LeadStatus, event: LeadStageEvent): LeadStatus | null {
+  if (LEAD_FINAL_STATUSES.includes(current)) return null;
+  if (event === "ENROLLED") return "CONVERTED";
+  if (event === "REGISTERED") {
+    return current === "PAYMENT_PENDING" ? null : "PAYMENT_PENDING";
+  }
+  const target: LeadStatus | null =
+    event === "DEMO_BOOKED"
+      ? BEFORE_DEMO.includes(current) ? "DEMO_SCHEDULED" : null
+      : event === "DEMO_CONFIRMED"
+        ? current === "DEMO_SCHEDULED" ? "DEMO_CONFIRMED" : null
+        : event === "DEMO_ATTENDED"
+          ? BEFORE_DEMO.includes(current) ? "DEMO_ATTENDED" : null
+          : current === "DEMO_SCHEDULED" || current === "DEMO_CONFIRMED" ? "NO_SHOW" : null;
+  return target === current ? null : target;
+}
 
 export const leadExperienceLevelSchema = z.enum([
   "beginner",

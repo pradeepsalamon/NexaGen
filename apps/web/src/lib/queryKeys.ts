@@ -271,6 +271,7 @@ export const queryKeys = {
   platform: {
     all: ["platform"] as const,
     audit: (tenantId?: string) => ["platform", "audit", tenantId ?? "all"] as const,
+    closures: (params: { page?: number; status?: string; tenantId?: string }) => ["platform", "closures", params] as const,
     contentPacks: ["platform", "content-packs"] as const,
     plans: ["platform", "plans"] as const,
     invoice: (id: string) => ["platform", "invoices", id] as const,
@@ -284,6 +285,7 @@ export const queryKeys = {
     tenantSubscription: (tenantId: string) => ["platform", "tenants", tenantId, "subscription"] as const,
     tenants: ["platform", "tenants"] as const,
   },
+  academyClosure: ["academy-closure"] as const,
   presence: {
     heartbeat: ["presence", "heartbeat"] as const,
   },
@@ -331,8 +333,16 @@ export const queryKeys = {
   puzzleRush: {
     state: (classId: string) => ["puzzle-rush", "state", classId] as const,
   },
+  dailyPuzzle: {
+    all: ["daily-puzzle"] as const,
+    pick: (search: string) => ["daily-puzzle", "pick", search] as const,
+    schedule: (batchId: string | null) => ["daily-puzzle", "schedule", batchId ?? "academy"] as const,
+    today: ["daily-puzzle", "today"] as const
+  },
   soloRush: {
     all: ["solo-rush"] as const,
+    battles: (mode: string, period: string) =>
+      ["solo-rush", "battles", mode, period] as const,
     leaderboard: (batchId: string, mode: string, period: string) =>
       ["solo-rush", "leaderboard", batchId, mode, period] as const,
     overview: ["solo-rush", "overview"] as const,

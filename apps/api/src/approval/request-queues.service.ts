@@ -106,6 +106,7 @@ export class RequestQueuesService {
 
   /** Same filter as `AdminService.getPendingCoaches`. */
   private async coachApplications(): Promise<OtherRequestQueue> {
+    // coach-role-ok: an application is a primary COACH account; a staff account that teaches never applies.
     const where = { coachProfile: { approvalStatus: "PENDING" as const }, isDeleted: false, role: UserRole.COACH };
     const [pendingCount, rows] = await Promise.all([
       this.prisma.user.count({ where }),

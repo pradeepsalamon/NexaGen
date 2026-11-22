@@ -6,6 +6,7 @@ export const API_ROUTES = {
     logout: "/auth/logout",
     me: "/auth/me",
     supportEnter: "/auth/support/enter",
+    switchRole: "/auth/switch-role",
     profile: "/auth/profile",
     forgotPassword: "/auth/forgot-password",
     resetPassword: "/auth/reset-password",
@@ -26,6 +27,12 @@ export const API_ROUTES = {
     update: (id: string = ":id") => `/users/${id}`,
     archive: (id: string = ":id") => `/users/${id}/archive`,
     restore: (id: string = ":id") => `/users/${id}/restore`,
+    extraRoles: (id: string = ":id") => `/users/${id}/extra-roles`,
+    // Roster import (docs/ROSTER_IMPORT.md): POST rows; `preview` checks them without creating anything.
+    import: "/users/import",
+    importPreview: "/users/import/preview",
+    // (Re)send the set-your-password invite to an account that has never signed in.
+    invite: (id: string = ":id") => `/users/${id}/invite`,
     delete: (id: string = ":id") => `/users/${id}`
   },
   emailPreferences: {
@@ -466,7 +473,11 @@ export const API_ROUTES = {
     // PUT: running totals of one run.
     progress: (id: string = ":id") => `/puzzle-rush/solo/runs/${id}/progress`,
     // GET ?batchId=&mode=&period=: the batch leaderboard.
-    leaderboard: "/puzzle-rush/solo/leaderboard"
+    leaderboard: "/puzzle-rush/solo/leaderboard",
+    // GET ?mode=&period=: academy-wide Batch Battles board (student).
+    battles: "/puzzle-rush/solo/battles",
+    // PATCH: a batch's Batch Battles settings (admin, or a coach of the batch).
+    battleSettings: (id: string = ":id") => `/puzzle-rush/solo/battles/batches/${id}`
   },
   puzzles: {
     // ── Topics (admin authors; staff + coach read) ──
@@ -1035,6 +1046,21 @@ export const API_ROUTES = {
     history: (id: string = ":id") => `/progress/students/${id}/history`,
     summary: (id: string = ":id") => `/progress/students/${id}/summary`
   },
+  // Puzzle of the Day (docs/PUZZLE_OF_THE_DAY.md): student today/start; admin
+  // (academy or any batch) and coach (own batch) schedule, overrides, switches.
+  dailyPuzzle: {
+    today: "/daily-puzzle",
+    start: "/daily-puzzle/start",
+    schedule: "/daily-puzzle/schedule",
+    overrides: "/daily-puzzle/overrides",
+    settings: "/daily-puzzle/settings",
+    // The student's own WhatsApp switch (step 2).
+    whatsapp: "/daily-puzzle/whatsapp",
+    batch: (id: string = ":id") => `/daily-puzzle/batches/${id}`,
+    // Public, signed: what the WhatsApp board picture draws (step 3). The web
+    // app's image route reads it; the token is the credential.
+    picture: (token: string = ":token") => `/daily-puzzle/picture/${token}`
+  },
   // Smart Revision (spaced repetition, docs/SMART_REVISION.md). `mine*` are the
   // student's own; `student*` are coach (batch scope) / admin views + recommendations.
   revision: {
@@ -1051,6 +1077,14 @@ export const API_ROUTES = {
   },
   // SaaS plan of the academy (docs/SAAS_PLANS.md). `current`: any signed-in
   // user (drives web feature gating); `admin`: academy admins, with usage.
+  // Closing an academy (docs/ACADEMY_CLOSURE.md): its own super admin's side.
+  academyClosure: {
+    /** GET the open (or latest) request, POST a new one. */
+    current: "/admin/academy/closure",
+    withdraw: "/admin/academy/closure/withdraw",
+    /** GET: the academy's data as gzip NDJSON (secrets left out). */
+    export: "/admin/academy/export"
+  },
   subscription: {
     current: "/subscription",
     admin: "/admin/subscription",
@@ -1129,7 +1163,16 @@ export const API_ROUTES = {
     // Daily usage history per academy (`?tenantId=&days=`), platform operators only.
     usageHistory: "/platform/usage/history",
     // GET the latest runs, POST to run the check now (platform operators only).
-    integrityRuns: "/platform/integrity/runs"
+    integrityRuns: "/platform/integrity/runs",
+    // Academy closures (docs/ACADEMY_CLOSURE.md), platform operators only.
+    closures: "/platform/closures",
+    closureApprove: (id: string = ":id") => `/platform/closures/${id}/approve`,
+    closureDecline: (id: string = ":id") => `/platform/closures/${id}/decline`,
+    closureCancelPurge: (id: string = ":id") => `/platform/closures/${id}/cancel-purge`,
+    closureReopen: (id: string = ":id") => `/platform/closures/${id}/reopen`,
+    /** POST: record a request made by email/phone and decide it at once. */
+    tenantClose: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/close`,
+    tenantExport: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/export`
   },
   // The owner's gateway account (SaaS Phase 6): public, signature-verified.
   platformBilling: {

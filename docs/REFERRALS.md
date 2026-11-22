@@ -249,7 +249,11 @@ never sees the password. A phone number given for WhatsApp is saved on the
 account. **`authenticateUser` refuses SALES (403) unless the caller passes
 `{ allowSales: true }`**, which only these do: the referral board, `/auth/*` and
 MFA, `GET /subscription`, the user's own typography/board-appearance
-preferences, and the privacy export. A new service that should serve SALES must
+preferences, the privacy export and the user's own account-deletion request,
+their in-app notifications (the referral notices below are in-app by default)
+and the presence heartbeat every signed-in page sends. Its email settings list
+only the kinds it can be sent (`emailCategoriesForRole`: account, referrals,
+messages from the academy team). A new service that should serve SALES must
 opt in the same way. On the web, `routeAccess.ts` sends SALES to `/sales` and
 lets it open only `/sales` and `/profile`. SALES sees its own prospects' full
 name and contact (to follow up); students and coaches see "Priya S." and no
@@ -279,3 +283,11 @@ contact.
   the SALES fence; stage edits.
 - `cross-user-access.int-spec.ts`: cancelling another user's withdrawal or
   voucher redemption is a 404.
+- `e2e/referrals.spec.ts` (browser, opt-in `RUN_REFERRAL_E2E=1`, writes rows on
+  the target): an admin creates a SALES account from Admin → Users; it signs in
+  to `/sales` and `/profile` with no refused request; a visitor opens `/r/<code>`
+  and signs up (tracked to the sales account); a paying stage credits its
+  wallet; it withdraws from the Wallet tab; the admin pays; the three notices
+  reach its bell (in-app notices go through the delivery outbox, about a
+  minute). It restores the stage value and withdrawal settings and trashes the
+  accounts it made. Passed on staging 2026-11-21.

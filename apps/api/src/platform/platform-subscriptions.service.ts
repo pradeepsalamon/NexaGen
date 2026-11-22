@@ -13,6 +13,7 @@ import {
 import {
   PlatformPaymentMethod,
   Prisma,
+  TenantStatus,
   TenantSubscriptionEventSource,
   TenantSubscriptionStatus,
   type TenantSubscription
@@ -351,7 +352,9 @@ export class PlatformSubscriptionsService {
           { graceEndsAt: { lte: now }, status: TenantSubscriptionStatus.GRACE },
           { currentPeriodEnd: { lte: now }, status: TenantSubscriptionStatus.CANCEL_SCHEDULED },
           { currentPeriodEnd: { lte: now }, pendingPlanId: { not: null } }
-        ]
+        ],
+        // A closed academy's subscription stays as it was (docs/ACADEMY_CLOSURE.md).
+        tenant: { status: { not: TenantStatus.DEACTIVATED } }
       }
     });
     let changed = 0;

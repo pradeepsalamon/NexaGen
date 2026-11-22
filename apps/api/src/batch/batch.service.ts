@@ -34,6 +34,7 @@ import { authenticateUser } from "../auth/authenticate";
 import { batchClassWindow } from "../common/batch-dates";
 import { queryEnum } from "../common/query-params";
 import { EntitlementService } from "../platform/entitlement.service";
+import { coachWhere } from "../common/coach-accounts";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 /** The client handed to a `prisma.$transaction(async (tx) => …)` callback. */
@@ -128,8 +129,8 @@ export class BatchService {
       this.prisma.user.findMany({
         orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
         where: {
-          role: UserRole.COACH,
-          status: UserStatus.ACTIVE
+          status: UserStatus.ACTIVE,
+          ...coachWhere()
         }
       }),
       this.prisma.user.findMany({
@@ -181,6 +182,8 @@ export class BatchService {
       return tx.batch.create({
         data: {
           batchType: payload.batchType ?? null,
+          battlesEnabled: payload.battlesEnabled ?? null,
+          battlesShowNames: payload.battlesShowNames ?? false,
           createdById: user.id,
           description: this.toNullableString(payload.description),
           endsAt: this.toNullableDate(payload.endsAt),
@@ -232,6 +235,9 @@ export class BatchService {
         data: {
           // null clears the default (derive from roster size); undefined leaves it.
           batchType: payload.batchType,
+          // Batch Battles: null = automatic; undefined leaves it.
+          battlesEnabled: payload.battlesEnabled,
+          battlesShowNames: payload.battlesShowNames,
           description:
             payload.description === undefined
               ? undefined
@@ -440,8 +446,8 @@ export class BatchService {
         ? this.prisma.user.count({
           where: {
             id: { in: uniqueCoachIds },
-            role: UserRole.COACH,
-            status: UserStatus.ACTIVE
+            status: UserStatus.ACTIVE,
+            ...coachWhere()
           }
         })
         : 0,
@@ -490,6 +496,8 @@ export class BatchService {
       endsAt: batch.endsAt?.toISOString() ?? null,
       id: batch.id,
       name: batch.name,
+      battlesEnabled: batch.battlesEnabled,
+      battlesShowNames: batch.battlesShowNames,
       puzzleTrainingEnabled: batch.puzzleTrainingEnabled,
       scheduleNotes: batch.scheduleNotes,
       startsAt: batch.startsAt?.toISOString() ?? null,

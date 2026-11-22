@@ -20,6 +20,7 @@ import {
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { currentTenantId as contextTenantId } from "../tenancy/tenant-context";
 import { PlanRestrictionException } from "./plan-restriction.exception";
+import { coachWhere } from "../common/coach-accounts";
 
 /** Every request reads this; plan changes are rare and call `invalidate()`. */
 const CACHE_TTL_MS = 30_000;
@@ -208,9 +209,30 @@ export class EntitlementService {
     await this.lockLimit(tx, limit);
     await this.assertRoom(limit, () =>
       tx.user.count({
-        where: { role, status: UserStatus.ACTIVE, ...(userId ? { id: { not: userId } } : {}) }
+        where: {
+          status: UserStatus.ACTIVE,
+          // A staff account that can also teach takes a coach seat (docs/MULTI_ROLE_ACCOUNTS.md §3.6).
+          ...(role === UserRole.COACH ? coachWhere() : { role }),
+          ...(userId ? { id: { not: userId } } : {})
+        }
       })
     );
+  }
+
+  /**
+   * Free seats for `role` right now; null = no limit (or a role that takes no seat).
+   * For previews only: creating an account still calls `assertSeatAvailable` in its transaction.
+   */
+  async seatsLeft(role: UserRole): Promise<number | null> {
+    const limit = this.seatLimitFor(role);
+    if (!limit) return null;
+    const { limits } = await this.getState();
+    const value = limits[limit];
+    if (value === null) return null;
+    const used = await this.prisma.user.count({
+      where: { status: UserStatus.ACTIVE, ...(role === UserRole.COACH ? coachWhere() : { role }) }
+    });
+    return Math.max(0, value - used);
   }
 
   /** Call inside the transaction that creates a batch. */
@@ -232,7 +254,7 @@ export class EntitlementService {
   async getUsage(): Promise<PlanUsage> {
     const [maxStudents, maxCoaches, maxBatches, maxConcurrentLiveClasses] = await Promise.all([
       this.prisma.user.count({ where: { role: UserRole.STUDENT, status: UserStatus.ACTIVE } }),
-      this.prisma.user.count({ where: { role: UserRole.COACH, status: UserStatus.ACTIVE } }),
+      this.prisma.user.count({ where: { status: UserStatus.ACTIVE, ...coachWhere() } }),
       this.prisma.batch.count(),
       this.prisma.liveSession.count({ where: { status: LiveSessionStatus.LIVE } })
     ]);

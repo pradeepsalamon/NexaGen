@@ -4,6 +4,7 @@ import { ClassStatus } from "@prisma/client";
 import { SystemNotifier } from "../mail/system-notifier.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import { NOOP_LEAD_STAGES } from "../lead/lead-stage.testing";
 import { NOOP_REFERRAL_TRACKER } from "../referral/referral.testing";
 import { DemoInviteService, demoInvitePath } from "./demo-invite.service";
 
@@ -46,6 +47,7 @@ describe("DemoInviteService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DemoInviteService,
+        NOOP_LEAD_STAGES,
         NOOP_REFERRAL_TRACKER,
         { provide: PrismaService, useValue: prisma },
         { provide: SystemNotifier, useValue: { send: notifierSend } },
@@ -124,8 +126,9 @@ describe("DemoInviteService", () => {
 
     const result = await service.addInvitees("class-1", "admin-1", { leadIds: ["lead-1"] });
     expect(result.added).toBe(1);
+    expect(NOOP_LEAD_STAGES.useValue.apply).toHaveBeenCalledWith("lead-1", "DEMO_BOOKED", expect.objectContaining({ actorId: "admin-1" }));
     expect(prisma.lead.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ assignedClassId: "class-1", status: "DEMO_SCHEDULED" }) })
+      expect.objectContaining({ data: { assignedClassId: "class-1" } })
     );
   });
 
