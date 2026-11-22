@@ -260,31 +260,17 @@
   margin-block: calc(var(--radius-panel) / 2 + 4px);
 }
 
-/* Signed-in pages (`data-nav`, set before paint) keep the page scrollbar's room at all times, so the
-   header and content never shift sideways when a page grows past the screen or shrinks back (a
-   tab switch, a filter). Phones' overlay bars take no room. */
+/* Signed-in pages (`data-nav`, set before paint): the browser's own page scrollbar is hidden, and
+   components/layout/PageScrollbar.tsx draws a thumb-only bar below the header instead (owner,
+   2026-11-22: the bar never runs beside the header and has no track). Nothing reserves width, so
+   the header spans the window and nothing shifts when a page grows past the screen or a menu or
+   dialog locks scrolling (Radix then measures no bar and adds no padding). Scroll areas inside the
+   page keep their own styled bars. */
 html[data-nav] {
-  scrollbar-gutter: stable;
-  /* The reserved strip shows this canvas, not the header: its top (the header's 4rem) is painted
-     the header's navy so the header runs to the window's edge; the rest is the page. */
-  background: linear-gradient(rgb(var(--rgb-nav-drawer)) 0 4rem, rgb(var(--rgb-background)) 4rem) fixed;
+  scrollbar-width: none;
 }
-/* With that room kept, Radix's scroll lock (menus, dialogs) must not pad the body or pull the
-   header in by the bar's width: nothing moves at all. */
-html[data-nav] body[data-scroll-locked] {
-  margin-right: 0 !important;
-}
-html[data-nav] .right-scroll-bar-position {
-  right: 0 !important;
-}
-/* A dialog's overlay can't paint the reserved strip, which shows the page canvas: tint it to the
-   overlay's colour (brand-900 at 60%, Dialog/AlertDialog) while one is open. */
-html[data-nav]:has(body > [data-dialog-overlay][data-state="open"]) {
-  background: linear-gradient(
-      rgb(var(--rgb-nav-drawer)) 0 4rem,
-      color-mix(in srgb, rgb(var(--rgb-brand-900)) 60%, rgb(var(--rgb-background))) 4rem
-    )
-    fixed;
+html[data-nav]::-webkit-scrollbar {
+  display: none;
 }
 
 /* Pointer use: no focus ring on controls that a click focused (lib/inputModality.ts). A key press

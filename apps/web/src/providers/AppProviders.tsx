@@ -10,6 +10,7 @@ import { ConnectionStatus } from "@/components/layout/ConnectionStatus";
 import { EmailVerificationBanner } from "@/components/layout/EmailVerificationBanner";
 import { Header } from "@/components/layout/Header";
 import { NavigationProgress } from "@/components/layout/NavigationProgress";
+import { PageScrollbar } from "@/components/layout/PageScrollbar";
 import { TooltipProvider } from "@/components/ui/Tooltip";
 import { TenantBrandProvider } from "@/features/branding/context/TenantBrandProvider";
 import { ChessAppearanceProvider } from "@/features/chess-appearance/context/ChessAppearanceProvider";
@@ -78,6 +79,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
               <NavigationProgress />
               <ConnectionStatus />
               {!isChromeless && <Header />}
+              {/* Signed in: the page's thumb-only scrollbar, below whichever header the page has
+                  (the app's, or the home page's own); none on auth and live-class pages. */}
+              <PageScrollbar headerRem={isMeetingRoute || isAuthRoute || isReferralLink ? 0 : 4} />
               <div className={!isChromeless ? "pt-16" : ""}>
                 {!isChromeless && <EmailVerificationBanner />}
                 {children}

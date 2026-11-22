@@ -45,14 +45,15 @@ and are mapped in `tailwind.config.ts`.
   puts its bar in the dialog's padding so the fields stay centred; not
   `overflow-y-auto pr-1`. Never set `scrollbar-width` / `scrollbar-color` on an element to
   restyle a bar: Chrome then drops the webkit rules and draws its default bar
-  with arrows (`[scrollbar-width:none]` to hide one is fine). Signed-in pages
-  (`html[data-nav]`) keep the page bar's room (`scrollbar-gutter: stable`), so
-  nothing shifts sideways when a page grows or shrinks or a menu/dialog locks
-  scrolling; Radix's body padding is cancelled there, and the reserved strip is
-  tinted like the overlay while a dialog is open (`data-dialog-overlay`); its
-  top 4rem is painted the header's navy so the header reaches the window edge.
-  Pages without the nav use Radix's padding, and a fixed element pinned to the
-  right edge takes `right-scroll-bar-position` (the header does).
+  with arrows (`[scrollbar-width:none]` to hide one is fine). **The page's own
+  bar on signed-in pages** (`html[data-nav]`) is not the browser's: that one is
+  hidden and `components/layout/PageScrollbar.tsx` draws a thumb only (no
+  track) from below the header to the window's bottom (owner, 2026-11-22: it
+  never runs beside the header). Nothing reserves width, so the header spans
+  the window and nothing shifts when a page grows or shrinks or a menu or
+  dialog locks scrolling. Signed-out pages keep the browser bar; a fixed
+  element pinned to the right edge there takes `right-scroll-bar-position`
+  (the header does).
 - **Focus rings are for the keyboard.** After a mouse or touch press
   (`html[data-input="pointer"]`, `lib/inputModality.ts`) buttons, links, tabs,
   menu items, switches and checkboxes show no `:focus-visible` ring, even
