@@ -106,3 +106,31 @@ isn't APPROVED in the account's list.
 - **Tidy Frappe's stage list** to the names above (create the missing ones, move leads from
   the old duplicates), then switch on `FRAPPE_CRM_STAGE_SYNC`.
 - Test on staging first; the number moves to the NexaGen bot only after that (owner).
+
+## Where things stand (2026-11-22)
+
+Built and on `dev` + staging (not `main`): stages and automatic moves, missed-demo job, daily
+waiting-for-a-time alert, WhatsApp reminders with confirm/reschedule, registration → enrolment
+linking, stage copy to Frappe (on for staging only), Messaging → WhatsApp templates tab and
+template picker.
+
+Open, in order:
+
+1. **WhatsApp Business account blocked for business-initiated messages** (Meta error 141006,
+   payment method). Blocks templates and reminders outside the 24-hour window. Owner fixes the
+   card in WhatsApp Manager → Payment settings; business verification also pending (250
+   new conversations a day until then).
+2. **Click-to-WhatsApp ads**: the old campaign's ad fails with Meta error 2446955 "Missing
+   WhatsApp number" (made before the number was re-registered on the Cloud API); its
+   destination must be re-picked in Ads Manager. Ad account spending limit and prepaid balance
+   are nearly used up. Details (IDs, timeline) are in the maintainer's private notes, not here
+   (public repository).
+3. **Templates** `demo_reminder` / `demo_missed` pending Meta approval.
+4. **Frappe "New Lead Welcome"** sends a paid marketing template to every new CRM lead
+   (including test leads) once billing works: owner to decide whether to keep it.
+5. **Staging can't list WhatsApp templates**: needs `WHATSAPP_ACCESS_TOKEN` +
+   `WHATSAPP_BUSINESS_ACCOUNT_ID` in its `apps/api/.env` (no phone number id = read-only).
+6. **Moving the WhatsApp number from Frappe to the NexaGen bot** (owner: later), then switching
+   on `FRAPPE_CRM_STAGE_SYNC` in production at the next dev → main release, after Frappe's
+   stage names exist there (they do on crm.nexachess.in).
+
