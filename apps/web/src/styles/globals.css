@@ -93,8 +93,8 @@
   --rgb-nav-drawer: var(--rgb-brand-900);
   --rgb-nav-drawer-border: var(--rgb-brand-700);
 
-  /* Scrollbar thumb: solid brand navy (owner, 2026-11-22). A lighter slate navy in dark and on
-     the navy header/nav, where full navy would vanish. */
+  /* Scrollbar thumb: solid brand navy, one colour in every theme and on the navy header/nav
+     (owner, 2026-11-22). */
   --color-scroll-thumb: rgb(var(--rgb-brand-800));
   --color-scroll-thumb-hover: rgb(var(--rgb-brand-700));
 
@@ -180,9 +180,6 @@
 
 :root[data-theme="dark"],
 .surface-brand {
-  /* Full navy would vanish on a dark or navy ground: slate navy instead. */
-  --color-scroll-thumb: rgb(95 111 144);
-  --color-scroll-thumb-hover: rgb(var(--rgb-on-brand-muted));
   /* Primary fills keep the light theme's royal blue (owner, 2026-11-08): only the
      soft tint and the `-ink` text colour change, so text stays readable on dark. */
   --rgb-primary-soft: 23 42 85;

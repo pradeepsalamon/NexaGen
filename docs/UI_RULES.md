@@ -39,8 +39,8 @@ and are mapped in `tailwind.config.ts`.
 - **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
   scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
 - **Scrollbars** are one global style (globals.css): a thin 8 px solid navy
-  pill (`--color-scroll-thumb`: `brand-800`; slate navy in dark and on the
-  navy header/nav, owner 2026-11-22), no arrows, the same in every scroller. A scrolling body inside a dialog
+  pill (`--color-scroll-thumb`: `brand-800`, one colour in every theme,
+  owner 2026-11-22), no arrows, the same in every scroller. A scrolling body inside a dialog
   (fields between a fixed title and buttons) takes `dialog-scroll-body`, which
   puts its bar in the dialog's padding so the fields stay centred; not
   `overflow-y-auto pr-1`. Never set `scrollbar-width` / `scrollbar-color` on an element to
