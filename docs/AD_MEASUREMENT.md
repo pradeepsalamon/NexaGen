@@ -1,8 +1,8 @@
 # Ad measurement: Meta Conversions API and Pixel
 
 Status: **built 2026-11-22 (night run), off by default.** Nexa's academy only
-(`DEFAULT_TENANT_ID`): another academy never gets Nexa's events, pixel or banner. Plan:
-`docs/NIGHT_RUN_2026-11-22.md` (removed by the run's PR); lead side: [LEAD_STAGES.md](LEAD_STAGES.md).
+(`DEFAULT_TENANT_ID`): another academy never gets Nexa's events, pixel or banner. Results, defaults
+and the switch-on order: [BACKLOG.md](BACKLOG.md) § "Questions for the owner" (2026-11-22 night run); lead side: [LEAD_STAGES.md](LEAD_STAGES.md).
 
 Goal: Meta learns which ads bring demo bookings and paying students, so campaigns can optimise
 for them, without sending anything about the children.

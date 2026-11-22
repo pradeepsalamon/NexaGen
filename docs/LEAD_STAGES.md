@@ -8,6 +8,23 @@ moves, missed-demo job, stage copy to Frappe (off by default). Phase 2 (reminder
 confirm/reschedule buttons, missed-demo message, "waiting for a demo time" alert, Enrolled
 on payment) is planned below and needs the WhatsApp bot to receive the number's messages.
 
+## One pipeline: who writes what (2026-11-22)
+
+NexaGen is the lead's record; Frappe (crm.nexachess.in) is the sales desk. Both show the same
+stage names and, once the return path is on, the same stage for each lead.
+
+| What | Written by | Copied |
+|---|---|---|
+| The lead (parent, phone, email, child, source, campaign) | NexaGen: website demo form, WhatsApp capture, the bot's booking, an admin | NexaGen → Frappe only (`CrmLeadPush`); edits in Frappe stay there |
+| Automatic stages (demo booked / attended / missed, enrolled) | NexaGen (`LeadStageService.apply`) | → Frappe, forward only (`frappeStageMayMove`) |
+| A person's stage change | either side; **the latest wins** | Leads page → Frappe as before; Frappe → NexaGen by the return path |
+| Owner, notes, calls, tasks | Frappe | not copied |
+| Ad click (`LeadAdClick`), registration, payment | NexaGen | ad name in the Frappe note only |
+| Ad conversions (Meta) | NexaGen's outbox (`MetaCapiEvent`) | → Meta ([AD_MEASUREMENT.md](AD_MEASUREMENT.md)); Frappe sends nothing |
+
+Existing Frappe-only leads and old Frappe stage names are left as they are (owner 2026-11-22):
+no import, no clean-up; the return path ignores names it doesn't know.
+
 ## Stages
 
 `LeadStatus` (Prisma) = `leadStatusSchema` (`@nexa-chess/types` `leads.ts`). Frappe names in
@@ -186,7 +203,9 @@ Open, in order:
    (including test leads) once billing works: owner to decide whether to keep it.
 5. **Staging can't list WhatsApp templates**: needs `WHATSAPP_ACCESS_TOKEN` +
    `WHATSAPP_BUSINESS_ACCOUNT_ID` in its `apps/api/.env` (no phone number id = read-only).
-6. **Moving the WhatsApp number from Frappe to the NexaGen bot** (owner: later), then switching
-   on `FRAPPE_CRM_STAGE_SYNC` in production at the next dev → main release, after Frappe's
-   stage names exist there (they do on crm.nexachess.in).
+6. **Moving the WhatsApp number from Frappe to NexaGen** (owner: after the release), then
+   switching on, in order: `FRAPPE_CRM_STAGE_SYNC` (production; Frappe's stage names exist on
+   crm.nexachess.in), `FRAPPE_CRM_STAGE_RETURN`, lead capture (bot stays off), the Conversions API
+   with a test event code, the Conversions API live, then the pixel. Owner checklist in
+   [BACKLOG.md](BACKLOG.md) § "Questions for the owner", 2026-11-22 night run.
 
