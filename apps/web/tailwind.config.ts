@@ -36,11 +36,12 @@ const config: Config = {
         "overlay-in": "fadeIn 220ms ease both",
         "overlay-out": "fadeOut 180ms ease both",
         // Centred dialogs grow out of the control that opened them and shrink back into it
-        // (`lib/motion/launchOrigin.ts` sets the transform-origin there). They animate the
+        // (`lib/motion/launchOrigin.ts` sets the transform-origin there and the start size). They animate the
         // standalone `scale` property, never `transform`: the panel is centred with a -50%
-        // transform, which a keyframe on `transform` would replace.
-        "dialog-in": "dialogIn 420ms cubic-bezier(0.2, 0.9, 0.1, 1) both",
-        "dialog-out": "dialogOut 240ms cubic-bezier(0.4, 0, 0.8, 0.4) both",
+        // transform, which a keyframe on `transform` would replace. `translate` (the standalone
+        // property) is free: Tailwind's -translate-* classes set `transform`.
+        "dialog-in": "dialogIn 440ms cubic-bezier(0.2, 0.9, 0.1, 1) both",
+        "dialog-out": "dialogOut 300ms cubic-bezier(0.5, 0, 0.75, 0.3) both",
         // Menus and popovers: the same grow-out, from the trigger side Radix reports as the origin.
         "menu-in": "menuIn 300ms cubic-bezier(0.2, 0.9, 0.1, 1) both",
         "menu-out": "menuOut 170ms cubic-bezier(0.4, 0, 0.8, 0.4) both",
@@ -190,15 +191,24 @@ const config: Config = {
         // `--launch-scale`: small when growing out of a control, near 1 when there is none.
         // Opacity is done early on the way in and late on the way out, so the panel reads as
         // moving, not fading.
+        // Visible from the first frames, at the control's size on top of it, so the eye can follow it.
         dialogIn: {
-          from: { opacity: "0", scale: "var(--launch-scale, 0.9)" },
-          "35%": { opacity: "1" },
-          to: { opacity: "1", scale: "1" }
+          from: {
+            opacity: "0",
+            scale: "var(--launch-scale, 0.9)",
+            translate: "var(--launch-dx, 0px) var(--launch-dy, 0px)"
+          },
+          "12%": { opacity: "1" },
+          to: { opacity: "1", scale: "1", translate: "0px 0px" }
         },
         dialogOut: {
-          from: { opacity: "1", scale: "1" },
-          "55%": { opacity: "1" },
-          to: { opacity: "0", scale: "var(--launch-scale, 0.9)" }
+          from: { opacity: "1", scale: "1", translate: "0px 0px" },
+          "75%": { opacity: "1" },
+          to: {
+            opacity: "0",
+            scale: "var(--launch-scale, 0.9)",
+            translate: "var(--launch-dx, 0px) var(--launch-dy, 0px)"
+          }
         },
         menuIn: {
           from: { opacity: "0", transform: "scale(0.6)" },

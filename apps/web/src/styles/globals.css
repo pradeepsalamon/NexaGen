@@ -238,13 +238,6 @@
   margin-block: calc(var(--radius-panel) / 2 + 4px);
 }
 
-/* Radix's scroll lock (react-remove-scroll-bar) pads the body by the scrollbar's width
-   when it hides the bar. `html { scrollbar-gutter: stable }` already keeps that room,
-   so the padding would shift the page instead: cancel it. */
-html body[data-scroll-locked] {
-  margin-right: 0 !important;
-}
-
 /* Selected rows and cards: a stronger blue than hover, opaque so a pinned
    actions cell stays covered, with a blue rule on the leading edge. A row is
    selected when marked `data-state="selected"` or when its own row checkbox
@@ -313,7 +306,7 @@ html[data-theme-reveal]::view-transition-new(root) {
     @apply box-border;
   }
 
-  /* Scrollbars: a quiet neutral pill on a clear track, no arrow buttons, in every scroller.
+  /* Scrollbars: a slim pill in a soft brand blue on a clear track, no arrow buttons, in every scroller.
      Chrome 121+ ignores the ::-webkit-scrollbar rules on any element that sets
      `scrollbar-width` or `scrollbar-color`, so those two are set only where the
      webkit rules don't exist (Firefox). Setting them on `*` gave Chrome its default
@@ -331,30 +324,26 @@ html[data-theme-reveal]::view-transition-new(root) {
   }
   /* The transparent border insets the pill from the edges (background-clip keeps it clear). */
   ::-webkit-scrollbar-thumb {
-    background-color: rgb(var(--rgb-text-subtle) / 0.35);
+    background-color: rgb(var(--rgb-primary) / 0.35);
     background-clip: padding-box;
     border: 3px solid transparent;
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(var(--rgb-text-subtle) / 0.6);
+    background-color: rgb(var(--rgb-primary) / 0.6);
   }
   ::-webkit-scrollbar-thumb:active {
-    background-color: rgb(var(--rgb-text-subtle) / 0.75);
+    background-color: rgb(var(--rgb-primary) / 0.8);
   }
   @supports not selector(::-webkit-scrollbar) {
     * {
       scrollbar-width: thin;
-      scrollbar-color: rgb(var(--rgb-text-subtle) / 0.45) transparent;
+      scrollbar-color: rgb(var(--rgb-primary) / 0.45) transparent;
     }
   }
 
   html {
     @apply min-h-full;
-    /* The page's scrollbar keeps its room even while a menu or dialog locks scrolling
-       (Radix hides the bar then): without it the fixed header widened and every page
-       shifted sideways when the profile menu opened. Phones' overlay bars take no room. */
-    scrollbar-gutter: stable;
     scroll-behavior: smooth;
     /* Every rem-based size follows the user's text size choice. */
     font-size: calc(100% * var(--text-scale));

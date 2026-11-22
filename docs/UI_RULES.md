@@ -37,13 +37,15 @@ and are mapped in `tailwind.config.ts`.
   `primary-ink` (coloured text, kept readable) switch with the theme.
 - **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
   scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
-- **Scrollbars** are one global style (globals.css): a thin neutral pill
-  (`text-subtle` at 35%), no arrows, the same in every scroller. Never set
-  `scrollbar-width` / `scrollbar-color` on an element to restyle a bar: Chrome
-  then drops the webkit rules and draws its default bar with arrows
-  (`[scrollbar-width:none]` to hide one is fine). `html` keeps a stable
-  scrollbar gutter, so a menu or dialog that locks scrolling never widens the
-  header or shifts the page.
+- **Scrollbars** are one global style (globals.css): a thin pill in soft
+  brand blue (`primary` at 35%, stronger on hover), no arrows, the same in every
+  scroller. Never set `scrollbar-width` / `scrollbar-color` on an element to
+  restyle a bar: Chrome then drops the webkit rules and draws its default bar
+  with arrows (`[scrollbar-width:none]` to hide one is fine). While a menu or
+  dialog locks scrolling, Radix pads the body by the bar's width; a fixed
+  element pinned to the right edge takes `right-scroll-bar-position` (the
+  header does) so it keeps its width. No `scrollbar-gutter: stable` on `html`:
+  a dialog's overlay can't cover the reserved strip, which stays white.
 - **Role nav** (`components/layout/Sidebar.tsx`): from `xl` a full-height navy
   64 px icon rail with the expand button on top and the user at the foot; the
   header starts beside it. **The page is offset by the rail only
@@ -212,8 +214,10 @@ disagree.
   `TabsTrigger`s as direct children (fragments and `.map` are fine).
 - **Motion is short and cheap.** Overlays grow out of what opened them, like
   an app opening from its icon: `Dialog` / `AlertDialog` point their
-  `transform-origin` at the last press (`lib/motion/launchOrigin.ts`,
-  `animate-dialog-in`/`-out` animate `scale` only, never `transform`); menus and
+  `transform-origin` at the control last pressed and start about its size
+  (`lib/motion/launchOrigin.ts`; `animate-dialog-in`/`-out` animate `scale`
+  only, never `transform`). A dialog unmounted while open (`{x ? <XDialog open
+  /> : null}`) still shrinks back: its exit plays on a copy. Menus and
   popovers use `animate-menu-in`/`-out` from Radix's trigger-side origin; tooltips
   keep the `tailwindcss-animate` classes;
   pages fade in with `animate-fade-in` (opacity only: a transform would trap
