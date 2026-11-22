@@ -30,6 +30,20 @@ export const NAV_DOCKED_QUERY = "(min-width: 1280px)";
 /** True while the nav is the icon rail (from `xl`, panel not out): labels become tooltips. */
 const NavRailContext = createContext(false);
 
+/**
+ * How the docked nav is moving between rail and panel. Icons never move: every row keeps its icon
+ * at the rail's spot, and the panel only widens over them.
+ * - `folded`: the target state, at once: pills narrow to the icon and labels fade.
+ * - `NavRailContext` (rail view): swaps rows to their rail form (tooltips, flyouts) only once the
+ *   panel has finished narrowing, so nothing jumps while it shrinks.
+ * - `sectionsOpen`: an open section unfolds only after the panel has widened, and folds first
+ *   when it narrows, so the icons below it slide instead of jumping.
+ */
+const NavMotionContext = createContext({ folded: false, sectionsOpen: true });
+
+/** Width and fade of the docked nav (ms); the rail view swaps in once it is done. */
+const NAV_MOTION_MS = 220;
+
 /** Closes whatever nav is out (the drawer below `xl`, the expanded panel from it): a link was chosen. */
 function useNavDone() {
   const close = useSidebarStore((state) => state.close);
@@ -55,7 +69,7 @@ function RailTooltip({ children, label }: { children: ReactElement; label: strin
 /** Signed-in user pinned to the drawer's foot; links to their profile. */
 function NavDrawerUser() {
   const user = useAuthStore((state) => state.user);
-  const rail = useContext(NavRailContext);
+  const { folded } = useContext(NavMotionContext);
 
   if (!user) return null;
 
@@ -66,13 +80,18 @@ function NavDrawerUser() {
     <RailTooltip label={name}>
     <Link
       className={cn(
-        "flex items-center gap-3 rounded-app border border-app-drawer-border bg-brand-800 p-2 text-on-brand transition-colors duration-150 hover:bg-brand-700",
-        rail && "justify-center border-transparent bg-transparent px-0"
+        "flex h-12 items-center gap-3 overflow-hidden rounded-control px-1 text-on-brand hover:bg-brand-800 motion-safe:transition-[width,background-color] motion-safe:duration-200 motion-safe:ease-out",
+        folded ? "w-10" : "w-full"
       )}
       href="/profile"
     >
       <Avatar className="font-bold" imageUrl={user.avatarUrl} name={name} size="sm" />
-      <span className={cn("min-w-0 flex-1", rail && "sr-only")}>
+      <span
+        className={cn(
+          "min-w-0 flex-1 whitespace-nowrap transition-opacity duration-150",
+          folded ? "opacity-0" : "opacity-100 delay-75"
+        )}
+      >
         <span className="block truncate text-sm font-semibold">{name}</span>
         <span className="block truncate text-xs text-on-brand-muted">
           {enumLabel(user.role)}
@@ -108,6 +127,19 @@ export function NavDrawer({
   const toggleExpanded = useSidebarStore((state) => state.toggleExpanded);
   const docked = useMediaQuery(NAV_DOCKED_QUERY);
   const rail = docked && !expanded;
+  // See NavMotionContext: the rail view lags a narrowing panel, open sections lag a widening one.
+  const [railView, setRailView] = useState(rail);
+  const [sectionsOpen, setSectionsOpen] = useState(!rail);
+  useEffect(() => {
+    if (rail) {
+      setSectionsOpen(false);
+      const timer = window.setTimeout(() => setRailView(true), NAV_MOTION_MS);
+      return () => window.clearTimeout(timer);
+    }
+    setRailView(false);
+    const timer = window.setTimeout(() => setSectionsOpen(true), NAV_MOTION_MS);
+    return () => window.clearTimeout(timer);
+  }, [rail]);
 
   const panelRef = useRef<HTMLElement>(null);
   const dockedRef = useRef<HTMLDivElement>(null);
@@ -270,14 +302,16 @@ export function NavDrawer({
 
   if (docked) {
     return (
-      <NavRailContext.Provider value={rail}>
-        {/* Full-height navy card left of the header: the expand control (and, out, the logo) on top,
-            user at the foot. Resting, it is the rail the page is offset by; expanded, the same card
-            widens over the page (above the header's left end, under its menus), so nothing behind
-            it moves. Only this element animates. */}
+      <NavMotionContext.Provider value={{ folded: rail, sectionsOpen: sectionsOpen && !rail }}>
+      <NavRailContext.Provider value={railView}>
+        {/* Full-height flat navy column, flush with the left edge: the expand control (and, out, the
+            logo) on top, user at the foot. Resting, it is the rail the page is offset by; expanded,
+            the same column widens over the page (above the header's left end, under its menus), so
+            nothing behind it moves. Every row is laid out at the panel's full width from the start
+            and only revealed by the widening, so no icon moves. */}
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-[45] py-2 pl-2 motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out",
+            "fixed inset-y-0 left-0 z-[45] motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out",
             expanded ? "w-64" : "w-[var(--app-rail-w,4rem)]"
           )}
           ref={dockedRef}
@@ -285,21 +319,21 @@ export function NavDrawer({
           <aside
             aria-label={`${title} navigation`}
             className={cn(
-              "surface-brand flex h-full flex-col overflow-hidden rounded-panel bg-app-drawer text-on-brand shadow-lift [contain:layout_paint]",
-              expanded && "shadow-card"
+              "surface-brand flex h-full flex-col overflow-hidden bg-app-drawer text-on-brand [contain:layout_paint] motion-safe:transition-shadow motion-safe:duration-200",
+              expanded && "shadow-lift"
             )}
             id="nav-drawer"
             ref={panelRef}
           >
-            {/* The toggle keeps the rail's spot (centred in the 56px card) in both states, so it
+            {/* The toggle keeps the rail's spot (centred in the 64px column) in both states, so it
                 never moves under the pointer; the logo appears to its right when expanded. */}
-            <div className="flex h-14 shrink-0 items-center gap-3 pl-3.5 pr-3">
+            <div className="flex h-16 w-64 shrink-0 items-center gap-3 pl-[18px] pr-3">
               <SimpleTooltip label={rail ? "Expand menu" : "Collapse menu"} side="right">
                 <button
                   aria-controls="nav-drawer"
                   aria-expanded={expanded}
                   aria-label={rail ? "Expand menu" : "Collapse menu"}
-                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-control border border-app-drawer-border text-on-brand-muted transition-colors hover:bg-brand-800 hover:text-on-brand"
+                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-control text-on-brand-muted transition-colors hover:bg-brand-800 hover:text-on-brand"
                   onClick={toggleExpanded}
                   ref={expandToggleRef}
                   type="button"
@@ -311,26 +345,27 @@ export function NavDrawer({
                   />
                 </button>
               </SimpleTooltip>
-              {rail ? null : (
-                <span className="min-w-0 overflow-hidden">
+              {railView ? null : (
+                <span
+                  className={cn(
+                    "min-w-0 overflow-hidden transition-opacity duration-150",
+                    rail ? "opacity-0" : "opacity-100"
+                  )}
+                >
                   <Logo compact onDark size={30} />
                 </span>
               )}
             </div>
-            <nav
-              className={cn(
-                "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain [contain:content] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0",
-                rail ? "p-2" : "px-3 py-2"
-              )}
-            >
+            <nav className="flex min-h-0 w-64 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-2 [contain:content] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
               {children}
             </nav>
-            <div className={cn("flex shrink-0 flex-col gap-2", rail ? "p-2" : "p-3")}>
+            <div className="flex w-64 shrink-0 flex-col gap-2 p-3">
               {footer ?? <NavDrawerUser />}
             </div>
           </aside>
         </div>
       </NavRailContext.Provider>
+      </NavMotionContext.Provider>
     );
   }
 
@@ -375,7 +410,7 @@ export function NavDrawer({
           aria-label={`${title} navigation`}
           id="nav-drawer"
           ref={panelRef}
-          className="surface-brand flex h-full flex-col overflow-hidden rounded-panel border border-app-drawer-border bg-app-drawer text-on-brand shadow-soft"
+          className="surface-brand flex h-full flex-col overflow-hidden rounded-panel bg-app-drawer text-on-brand shadow-soft"
         >
           {/* Drawer Header */}
           <div
@@ -528,17 +563,19 @@ export function NavDrawerLink({
   const Icon = item.icon;
   const done = useNavDone();
   const rail = useContext(NavRailContext);
+  const { folded } = useContext(NavMotionContext);
 
   return (
     <RailTooltip label={item.badge?.label ? `${item.label} (${item.badge.label})` : item.label}>
     <Link
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex h-10 w-full items-center gap-3 rounded-control px-3 text-sm font-medium transition-colors duration-150",
+        // The icon sits 10px in, at the rail's spot, in both states; only the pill's width changes.
+        "flex h-10 items-center gap-3 overflow-hidden whitespace-nowrap rounded-control px-2.5 text-sm font-medium transition-[width,background-color,color] duration-200 ease-out",
+        folded ? "w-10" : "w-full",
         active
-          ? "bg-primary font-semibold text-on-primary shadow-card"
-          : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand",
-        rail && "justify-center px-0"
+          ? "bg-primary font-semibold text-on-primary"
+          : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
       )}
       href={item.href}
       onClick={done}
@@ -547,7 +584,14 @@ export function NavDrawerLink({
         <Icon aria-hidden="true" className="size-5" strokeWidth={active ? 2.3 : 2} />
         {rail && item.badge ? <RailBadgeDot badge={item.badge} /> : null}
       </span>
-      <span className={cn("flex-1 truncate", rail && "sr-only")}>{item.label}</span>
+      <span
+        className={cn(
+          "flex-1 truncate transition-opacity duration-150",
+          folded ? "opacity-0" : "opacity-100 delay-75"
+        )}
+      >
+        {item.label}
+      </span>
       {item.badge && !rail ? <NavBadge badge={item.badge} /> : null}
       {item.badge?.label && rail ? <span className="sr-only">{item.badge.label}</span> : null}
     </Link>
@@ -639,9 +683,10 @@ function RailFlyout({
         <button
           aria-label={label}
           className={cn(
-            "flex h-10 w-full items-center justify-center rounded-control transition-colors duration-150",
+            // Same spot as the expanded section's icon (10px in), so swapping the two moves nothing.
+            "flex h-10 w-10 items-center rounded-control px-2.5 transition-colors duration-150",
             holdsRoute
-              ? "bg-primary text-on-primary shadow-card"
+              ? "bg-primary text-on-primary"
               : open
                 ? "bg-brand-800 text-on-brand"
                 : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
@@ -717,7 +762,7 @@ function RailFlyout({
                   className={cn(
                     "flex h-9 items-center gap-2 rounded-control px-2.5 text-sm transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-app-focus",
                     active
-                      ? "bg-primary font-semibold text-on-primary shadow-card"
+                      ? "bg-primary font-semibold text-on-primary"
                       : "font-medium text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
                   )}
                   href={item.href}
@@ -758,7 +803,10 @@ export function NavDrawerAccordion({
 }) {
   const done = useNavDone();
   const rail = useContext(NavRailContext);
+  const { folded, sectionsOpen } = useContext(NavMotionContext);
   const panelId = `sidebar-submenu-${id}`;
+  // Docked: unfolds once the panel is out, folds before it narrows (NavMotionContext).
+  const shown = open && sectionsOpen;
 
   // The rail has no room for a section's links: its icon opens them in a flyout beside it.
   if (rail) {
@@ -769,10 +817,11 @@ export function NavDrawerAccordion({
     <div className="flex flex-col">
       <button
         aria-controls={panelId}
-        aria-expanded={open}
+        aria-expanded={shown}
         className={cn(
-          "flex h-10 w-full items-center gap-3 rounded-control px-3 text-left text-sm font-medium transition-colors duration-150",
-          open
+          "flex h-10 items-center gap-3 overflow-hidden whitespace-nowrap rounded-control px-2.5 text-left text-sm font-medium transition-[width,background-color,color] duration-200 ease-out",
+          folded ? "w-10" : "w-full",
+          shown
             ? "text-on-brand"
             : "text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
         )}
@@ -782,12 +831,20 @@ export function NavDrawerAccordion({
         <span className="flex size-5 shrink-0 items-center justify-center">
           <Icon aria-hidden="true" className="size-5" strokeWidth={2} />
         </span>
-        <span className="flex-1 truncate">{label}</span>
+        <span
+          className={cn(
+            "flex-1 truncate transition-opacity duration-150",
+            folded ? "opacity-0" : "opacity-100 delay-75"
+          )}
+        >
+          {label}
+        </span>
         <ChevronDown
           aria-hidden="true"
           className={cn(
-            "size-4 shrink-0 transition-transform duration-300",
-            open && "rotate-180"
+            "size-4 shrink-0 transition-[transform,opacity] duration-300",
+            folded && "opacity-0",
+            shown && "rotate-180"
           )}
           strokeWidth={2}
         />
@@ -796,7 +853,7 @@ export function NavDrawerAccordion({
       <div
         className={cn(
           "overflow-hidden transition-[max-height,opacity,padding] duration-300 ease-in-out",
-          open ? "max-h-[800px] pt-1 opacity-100" : "max-h-0 opacity-0"
+          shown ? "max-h-[800px] pt-1 opacity-100" : "max-h-0 opacity-0"
         )}
         id={panelId}
       >
@@ -815,13 +872,13 @@ export function NavDrawerAccordion({
                 className={cn(
                   "flex h-9 items-center gap-2 rounded-control px-2.5 text-sm transition-colors duration-150",
                   active
-                    ? "bg-primary font-semibold text-on-primary shadow-card"
+                    ? "bg-primary font-semibold text-on-primary"
                     : "font-medium text-on-brand-muted hover:bg-brand-800 hover:text-on-brand"
                 )}
                 href={item.href}
                 key={item.href}
                 onClick={done}
-                tabIndex={open ? undefined : -1}
+                tabIndex={shown ? undefined : -1}
               >
                 <ItemIcon
                   aria-hidden="true"

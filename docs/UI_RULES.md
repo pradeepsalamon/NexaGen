@@ -37,6 +37,13 @@ and are mapped in `tailwind.config.ts`.
   `primary-ink` (coloured text, kept readable) switch with the theme.
 - **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
   scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
+- **Scrollbars** are one global style (globals.css): a thin neutral pill
+  (`text-subtle` at 35%), no arrows, the same in every scroller. Never set
+  `scrollbar-width` / `scrollbar-color` on an element to restyle a bar: Chrome
+  then drops the webkit rules and draws its default bar with arrows
+  (`[scrollbar-width:none]` to hide one is fine). `html` keeps a stable
+  scrollbar gutter, so a menu or dialog that locks scrolling never widens the
+  header or shifts the page.
 - **Role nav** (`components/layout/Sidebar.tsx`): from `xl` a full-height navy
   64 px icon rail with the expand button on top and the user at the foot; the
   header starts beside it. **The page is offset by the rail only
@@ -48,7 +55,11 @@ and are mapped in `tailwind.config.ts`.
   its links on click, on hover after 150 ms (closing 250 ms after the pointer
   leaves icon and flyout) and from the keyboard (Enter / Space / ArrowRight,
   Escape returns to the icon). Never add page padding or width that follows
-  the nav's state. The active link is a solid `bg-primary` fill. Below `xl` it
+  the nav's state. The column is flat navy, flush with the left edge: no
+  border, no rounding, no shadow except while expanded over the page. **Icons
+  never move**: every row keeps its icon at the rail's spot and the panel only
+  widens over it (labels fade, pills widen; sections unfold after the panel is
+  out and fold before it narrows, `NavMotionContext`). The active link is a solid `bg-primary` fill. Below `xl` it
   is the off-canvas drawer with main's gold edge tab.
 
 | Need | Use | Never |
@@ -199,8 +210,12 @@ disagree.
   opens a menu of every tab. Nothing to do per page; it needs `Tabs` from
   `components/ui/Tabs` (the menu reads the value from its context) and
   `TabsTrigger`s as direct children (fragments and `.map` are fine).
-- **Motion is short and cheap.** Overlays (dialog, popover, menu, tooltip)
-  use the `tailwindcss-animate` classes (`animate-in fade-in-0 zoom-in-95` …);
+- **Motion is short and cheap.** Overlays grow out of what opened them, like
+  an app opening from its icon: `Dialog` / `AlertDialog` point their
+  `transform-origin` at the last press (`lib/motion/launchOrigin.ts`,
+  `animate-dialog-in`/`-out` animate `scale` only, never `transform`); menus and
+  popovers use `animate-menu-in`/`-out` from Radix's trigger-side origin; tooltips
+  keep the `tailwindcss-animate` classes;
   pages fade in with `animate-fade-in` (opacity only: a transform would trap
   `position: fixed` children); buttons press to 97%. Animate `transform` and
   `opacity`, never a page-wide `padding`/`width` (the nav animates only its

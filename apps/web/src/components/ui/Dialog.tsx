@@ -3,6 +3,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import * as React from "react";
+import { useLaunchRef } from "@/lib/motion/launchOrigin";
 import { cn } from "@/lib/utils";
 
 const Dialog = DialogPrimitive.Root;
@@ -35,7 +36,10 @@ const DialogContent = React.forwardRef<
     hideCloseButton?: boolean;
     overlayClassName?: string;
   }
->(({ className, children, hideCloseButton, overlayClassName, onOpenAutoFocus, ...props }, ref) => (
+>(({ className, children, hideCloseButton, overlayClassName, onOpenAutoFocus, ...props }, ref) => {
+  // Grows out of the control that opened it, and back into it on close.
+  const launchRef = useLaunchRef(ref);
+  return (
   <DialogPortal>
     <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
@@ -53,7 +57,7 @@ const DialogContent = React.forwardRef<
         (e.currentTarget as HTMLElement | null)?.focus({ preventScroll: true });
       }}
       onPointerDownOutside={(e) => e.preventDefault()}
-      ref={ref}
+      ref={launchRef}
       {...props}
     >
       {children}
@@ -65,7 +69,8 @@ const DialogContent = React.forwardRef<
       )}
     </DialogPrimitive.Content>
   </DialogPortal>
-));
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({

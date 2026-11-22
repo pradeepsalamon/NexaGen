@@ -21,6 +21,10 @@ import { SessionBootstrap } from "./SessionBootstrap";
 import { ThemeProvider } from "./ThemeProvider";
 import { ToastProvider } from "./ToastProvider";
 
+// Starts remembering where each press lands, so a dialog opened from a lazily loaded
+// chunk still grows out of the control that opened it (lib/motion/launchOrigin.ts).
+import "@/lib/motion/launchOrigin";
+
 // The full chessboard visual system (board themes + piece sets), imported
 // exactly once here instead of once per board component.
 import "@/features/chess-appearance/styles/index.css";
