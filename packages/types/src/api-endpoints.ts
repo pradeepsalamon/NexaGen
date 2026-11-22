@@ -28,6 +28,11 @@ export const API_ROUTES = {
     archive: (id: string = ":id") => `/users/${id}/archive`,
     restore: (id: string = ":id") => `/users/${id}/restore`,
     extraRoles: (id: string = ":id") => `/users/${id}/extra-roles`,
+    // Roster import (docs/ROSTER_IMPORT.md): POST rows; `preview` checks them without creating anything.
+    import: "/users/import",
+    importPreview: "/users/import/preview",
+    // (Re)send the set-your-password invite to an account that has never signed in.
+    invite: (id: string = ":id") => `/users/${id}/invite`,
     delete: (id: string = ":id") => `/users/${id}`
   },
   emailPreferences: {
@@ -1067,6 +1072,14 @@ export const API_ROUTES = {
   },
   // SaaS plan of the academy (docs/SAAS_PLANS.md). `current`: any signed-in
   // user (drives web feature gating); `admin`: academy admins, with usage.
+  // Closing an academy (docs/ACADEMY_CLOSURE.md): its own super admin's side.
+  academyClosure: {
+    /** GET the open (or latest) request, POST a new one. */
+    current: "/admin/academy/closure",
+    withdraw: "/admin/academy/closure/withdraw",
+    /** GET: the academy's data as gzip NDJSON (secrets left out). */
+    export: "/admin/academy/export"
+  },
   subscription: {
     current: "/subscription",
     admin: "/admin/subscription",
@@ -1145,7 +1158,16 @@ export const API_ROUTES = {
     // Daily usage history per academy (`?tenantId=&days=`), platform operators only.
     usageHistory: "/platform/usage/history",
     // GET the latest runs, POST to run the check now (platform operators only).
-    integrityRuns: "/platform/integrity/runs"
+    integrityRuns: "/platform/integrity/runs",
+    // Academy closures (docs/ACADEMY_CLOSURE.md), platform operators only.
+    closures: "/platform/closures",
+    closureApprove: (id: string = ":id") => `/platform/closures/${id}/approve`,
+    closureDecline: (id: string = ":id") => `/platform/closures/${id}/decline`,
+    closureCancelPurge: (id: string = ":id") => `/platform/closures/${id}/cancel-purge`,
+    closureReopen: (id: string = ":id") => `/platform/closures/${id}/reopen`,
+    /** POST: record a request made by email/phone and decide it at once. */
+    tenantClose: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/close`,
+    tenantExport: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/export`
   },
   // The owner's gateway account (SaaS Phase 6): public, signature-verified.
   platformBilling: {

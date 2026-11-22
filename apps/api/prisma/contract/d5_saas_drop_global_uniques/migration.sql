@@ -693,3 +693,17 @@ DROP INDEX IF EXISTS "puzzle_topics_name_key";
 DROP INDEX IF EXISTS "puzzle_topics_slug_key";
 DROP INDEX IF EXISTS "referral_stages_trigger_automatic_key";
 DROP INDEX IF EXISTS "external_chess_accounts_verified_username_key";
+
+-- Added 2026-11-21 (academy tables since the 2026-11-16 refresh: multi-role accounts,
+-- Puzzle of the Day). Found by src/tenancy/d5-contract.spec.ts.
+-- AlterTable
+ALTER TABLE "daily_puzzle_entries" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- AlterTable
+ALTER TABLE "daily_puzzle_settings" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- AlterTable
+ALTER TABLE "daily_puzzles" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- AlterTable
+ALTER TABLE "user_role_changes" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();

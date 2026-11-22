@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import type { UpdateUserRequest, UserListResponse, UserResponse } from "@nexa-chess/types";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { RosterImportService } from "./roster-import.service";
 import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 import { CreateUserDto } from "./dto/user.dto";
@@ -51,7 +52,10 @@ describe("UserController", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UserController],
-      providers: [{ provide: UserService, useValue: userService }]
+      providers: [
+        { provide: RosterImportService, useValue: { import: jest.fn(), preview: jest.fn(), resendInvite: jest.fn() } },
+        { provide: UserService, useValue: userService }
+      ]
     }).compile();
 
     controller = module.get<UserController>(UserController);

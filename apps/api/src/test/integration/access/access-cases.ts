@@ -210,6 +210,8 @@ export const CROSS_USER: Case[] = [
 export const OWN_CASES: Case[] = [
   // Multi-role accounts (docs/MULTI_ROLE_ACCOUNTS.md): "Can also teach" is a super admin's call.
   { name: "SUPER_ADMIN lets an admin also teach", as: (w) => w.superAdmin, method: "PUT", path: (w) => API_ROUTES.users.extraRoles(w.admin.id), body: { extraRoles: ["COACH"] } },
+  // Roster import (docs/ROSTER_IMPORT.md): an admin re-sends an imported account's invite.
+  { name: "ADMIN re-sends a student's account invite", as: (w) => w.admin, method: "POST", path: (w) => API_ROUTES.users.invite(w.a.student.id) },
   { name: "ADMIN makes a WhatsApp link code for a student", as: (w) => w.admin, method: "POST", path: () => API_ROUTES.adminSupport.linkCodes, body: (w: World) => ({ studentId: w.a.student.id }) },
   { name: "student reads own private tournament", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.get(w.a.tournament.id) },
   { name: "student lists own tournament's players", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.players(w.a.tournament.id) },
@@ -361,6 +363,14 @@ export function rushReport(rushId: string) {
 }
 
 export const WRONG_ROLE: Case[] = [
+  // Closing an academy (docs/ACADEMY_CLOSURE.md): the academy's own super admin, and operators.
+  { name: "ADMIN asks to close the academy (super admin only)", as: (w) => w.admin, method: "POST", path: () => API_ROUTES.academyClosure.current, body: { choice: "KEEP_DATA", confirmName: "x", reason: "x" } },
+  { name: "coach downloads the academy's data", as: (w) => w.a.coach, path: () => API_ROUTES.academyClosure.export },
+  { name: "ADMIN lists closure requests (platform operators only)", as: (w) => w.admin, path: () => API_ROUTES.platform.closures },
+  { name: "student closes an academy from the console", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.platform.tenantClose("tenant_nexa"), body: { choice: "KEEP_DATA", confirmName: "x", reason: "x" } },
+  { name: "coach previews a roster import", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.users.importPreview, body: { rows: [{ firstName: "X" }] } },
+  { name: "student imports a roster", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.users.import, body: { rows: [{ firstName: "X" }] } },
+  { name: "coach re-sends a student's account invite", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.users.invite(w.b.student.id) },
   { name: "ADMIN lets an admin also teach (super-admin only)", as: (w) => w.admin, method: "PUT", path: (w) => API_ROUTES.users.extraRoles(w.admin.id), body: { extraRoles: ["COACH"] } },
   { name: "coach switches to an admin view it does not hold", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.auth.switchRole, body: { role: "ADMIN" } },
   { name: "coach starts a solo Puzzle Storm run", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.puzzleRushSolo.runs, body: { mode: "STORM" } },

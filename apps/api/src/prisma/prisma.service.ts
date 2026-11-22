@@ -111,6 +111,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.tenantIntegrityRun;
   }
 
+  get tenantClosure() {
+    return this.client.tenantClosure;
+  }
+
   get platformCheckout() {
     return this.client.platformCheckout;
   }

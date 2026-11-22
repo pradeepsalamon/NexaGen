@@ -66,6 +66,8 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
   // A multi-game PGN upload is bigger than the default 100kb JSON body; this
   // route alone may send up to 2mb (PGN_IMPORT_LIMITS.maxChars + JSON escaping).
   app.use(API_ROUTES.games.importPgn, express.json({ limit: "2mb" }));
+  // A roster import (and its preview, mounted below it) sends up to ROSTER_IMPORT_MAX_ROWS rows.
+  app.use(API_ROUTES.users.import, express.json({ limit: "2mb" }));
   // JSON only: the default set also parses urlencoded bodies, which is what
   // lets a cross-site <form> post fill a DTO.
   app.useBodyParser("json");

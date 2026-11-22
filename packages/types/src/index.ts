@@ -86,6 +86,8 @@ export * from "./assistant-tools";
 export * from "./assignment-reminders";
 export * from "./referrals";
 export * from "./multi-role";
+export * from "./roster-import";
+export * from "./academy-closure";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -386,6 +388,8 @@ export type AuthUser = {
   coachProfile?: AuthCoachProfile | null;
   email: string;
   firstName: string;
+  /** Admin user list only: the account has signed in at least once (an invite can be re-sent until then). */
+  hasSignedIn?: boolean;
   id: string;
   isEmailVerified: boolean;
   /** Nexa's own SUPER_ADMIN: may open the platform console (docs/SAAS_PLANS.md). The API still checks every call. */

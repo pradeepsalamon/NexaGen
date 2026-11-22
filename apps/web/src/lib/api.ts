@@ -79,14 +79,20 @@ apiClient.interceptors.response.use(
       } catch (err) {
         processQueue(err as Error);
         const wasAuthenticated = !!useAuthStore.getState().user;
+        // A refused refresh (401) has cleared the cookies, so /login won't bounce back:
+        // send the tab there even when the store was already empty (a tab left open
+        // while its session was revoked, e.g. across an academy closing and reopening).
+        const sessionGone = (err as { response?: { status?: number } }).response?.status === 401;
         useAuthStore.getState().clearSession();
-        
-        if (typeof window !== "undefined" && wasAuthenticated) {
+
+        if (typeof window !== "undefined" && (wasAuthenticated || sessionGone)) {
           if (!isPublicPath(window.location.pathname)) {
-            toast.error("Session Expired", {
-              description: "Your session has expired. Please log in again to continue.",
-              id: "session-expired"
-            });
+            if (wasAuthenticated) {
+              toast.error("Session Expired", {
+                description: "Your session has expired. Please log in again to continue.",
+                id: "session-expired"
+              });
+            }
             window.dispatchEvent(new CustomEvent("auth:logout"));
           }
         }

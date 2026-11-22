@@ -1,6 +1,12 @@
 import { resetTenantAuditForTesting, tenantAuditCountsForTesting } from "../tenancy/tenant-audit";
 import { asPlatform, runInTenant, runWithTenantContext, type TenantContextStore } from "../tenancy/tenant-context";
-import { AcademyNotResolved, applyTenantScope, setTenantScopeModeForTesting, TenantScopeViolation } from "./tenant-scope.extension";
+import {
+  AcademyNotResolved,
+  applyTenantScope,
+  setMissingContextWriteTenantForTesting,
+  setTenantScopeModeForTesting,
+  TenantScopeViolation
+} from "./tenant-scope.extension";
 
 const store = (tenantId: string | null): TenantContextStore => ({
   host: "nexachess.in",
@@ -45,6 +51,48 @@ describe("tenant-scope extension", () => {
       expect(
         inA(() => applyTenantScope("User", "upsert", { create: { email: "x" }, update: {}, where: { id: "u" } }))
       ).toEqual({ create: { email: "x", tenantId: "tenant_a" }, update: {}, where: { id: "u", tenantId: "tenant_a" } });
+    });
+
+    it("stamps nested creates of academy models (chat members, connectOrCreate, nested upsert)", () => {
+      const conversation = inA(() =>
+        applyTenantScope("Conversation", "create", {
+          data: { members: { create: [{ userId: "u1" }, { userId: "u2" }] }, type: "DIRECT" }
+        })
+      ) as { data: { members: { create: Array<Record<string, unknown>> }; tenantId: string } };
+      expect(conversation.data.tenantId).toBe("tenant_a");
+      expect(conversation.data.members.create).toEqual([
+        { tenantId: "tenant_a", userId: "u1" },
+        { tenantId: "tenant_a", userId: "u2" }
+      ]);
+
+      const batch = inA(() =>
+        applyTenantScope("Batch", "update", {
+          data: {
+            students: {
+              connectOrCreate: { create: { studentId: "s1" }, where: { id: "x" } },
+              createMany: { data: [{ studentId: "s2" }] },
+              upsert: [{ create: { studentId: "s3" }, update: {}, where: { id: "y" } }]
+            }
+          },
+          where: { id: "b1" }
+        })
+      ) as { data: { students: Record<string, unknown> } };
+      expect(batch.data.students).toEqual({
+        connectOrCreate: { create: { studentId: "s1", tenantId: "tenant_a" }, where: { id: "x" } },
+        createMany: { data: [{ studentId: "s2", tenantId: "tenant_a" }] },
+        upsert: [{ create: { studentId: "s3", tenantId: "tenant_a" }, update: {}, where: { id: "y" } }]
+      });
+    });
+
+    it("stamps a create nested two levels deep, and logs a nested row of another academy", () => {
+      const user = inA(() =>
+        applyTenantScope("User", "create", {
+          data: { email: "a@x", studentProfile: { create: { parentName: "P" } } }
+        })
+      ) as { data: { studentProfile: { create: Record<string, unknown> } } };
+      expect(user.data.studentProfile.create).toEqual({ parentName: "P", tenantId: "tenant_a" });
+      inA(() => applyTenantScope("Conversation", "create", { data: { members: { create: { tenantId: "tenant_b", userId: "u" } } } }));
+      expect(keys().some((key) => key.startsWith("cross_tenant|request|GET /batches|tenant_a|ConversationMember|tenant_b"))).toBe(true);
     });
 
     it("keeps a matching explicit tenantId and logs another academy's (audit)", () => {
@@ -137,6 +185,25 @@ describe("tenant-scope extension", () => {
       await expect(runInTenant("tenant_job", "cron:spec", () => applyTenantScope("Batch", "findMany", {}))).resolves.toEqual({
         where: { tenantId: "tenant_job" }
       });
+    });
+  });
+  describe("the D5 test fill (setMissingContextWriteTenantForTesting)", () => {
+    afterEach(() => setMissingContextWriteTenantForTesting(null));
+
+    it("stamps a no-context write like the old default, nested rows following their parent, reads unfiltered", () => {
+      setMissingContextWriteTenantForTesting("tenant_nexa");
+      expect(applyTenantScope("Batch", "create", { data: { name: "x" } })).toEqual({ data: { name: "x", tenantId: "tenant_nexa" } });
+      expect(applyTenantScope("User", "create", { data: { studentProfile: { create: { parentName: "p" } }, tenantId: "tenant_b" } })).toEqual({
+        data: { studentProfile: { create: { parentName: "p", tenantId: "tenant_b" } }, tenantId: "tenant_b" }
+      });
+      expect(applyTenantScope("Batch", "findMany", { where: { id: "1" } })).toEqual({ where: { id: "1" } });
+    });
+
+    it("leaves requests and asPlatform alone", async () => {
+      setMissingContextWriteTenantForTesting("tenant_nexa");
+      const args = { data: { name: "x" } };
+      expect(runWithTenantContext(store(null), () => applyTenantScope("Batch", "create", args))).toBe(args);
+      await asPlatform("spec", () => expect(applyTenantScope("Batch", "create", args)).toBe(args));
     });
   });
 });

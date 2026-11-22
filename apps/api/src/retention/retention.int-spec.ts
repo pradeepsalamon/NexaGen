@@ -46,10 +46,10 @@ describe("RetentionService (real Postgres)", () => {
 
   it("keeps an old visitor session that a lead links to", async () => {
     await prisma.$executeRaw`
-      INSERT INTO "visitor_sessions" ("id", "sessionId", "visitorId", "firstVisit", "lastVisit")
-      VALUES ('orphan', 's1', 'v1', ${ago(400).toISOString()}::timestamp, ${ago(200).toISOString()}::timestamp),
-             ('linked', 's2', 'v2', ${ago(400).toISOString()}::timestamp, ${ago(200).toISOString()}::timestamp),
-             ('recent', 's3', 'v3', ${ago(10).toISOString()}::timestamp, ${ago(10).toISOString()}::timestamp)`;
+      INSERT INTO "visitor_sessions" ("id", "tenantId", "sessionId", "visitorId", "firstVisit", "lastVisit")
+      VALUES ('orphan', 'tenant_nexa', 's1', 'v1', ${ago(400).toISOString()}::timestamp, ${ago(200).toISOString()}::timestamp),
+             ('linked', 'tenant_nexa', 's2', 'v2', ${ago(400).toISOString()}::timestamp, ${ago(200).toISOString()}::timestamp),
+             ('recent', 'tenant_nexa', 's3', 'v3', ${ago(10).toISOString()}::timestamp, ${ago(10).toISOString()}::timestamp)`;
     await prisma.lead.create({
       data: {
         experienceLevel: "BEGINNER",

@@ -219,6 +219,22 @@ export class EntitlementService {
     );
   }
 
+  /**
+   * Free seats for `role` right now; null = no limit (or a role that takes no seat).
+   * For previews only: creating an account still calls `assertSeatAvailable` in its transaction.
+   */
+  async seatsLeft(role: UserRole): Promise<number | null> {
+    const limit = this.seatLimitFor(role);
+    if (!limit) return null;
+    const { limits } = await this.getState();
+    const value = limits[limit];
+    if (value === null) return null;
+    const used = await this.prisma.user.count({
+      where: { status: UserStatus.ACTIVE, ...(role === UserRole.COACH ? coachWhere() : { role }) }
+    });
+    return Math.max(0, value - used);
+  }
+
   /** Call inside the transaction that creates a batch. */
   async assertCanCreateBatch(tx: PrismaTransactionClient) {
     await this.lockLimit(tx, "maxBatches");
