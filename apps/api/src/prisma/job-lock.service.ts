@@ -26,6 +26,7 @@ export const JOB_LOCKS = {
   crmLeadPush: "crm.lead-push",
   crmStageReturn: "crm.stage-return",
   messagingClassReminders: "messaging.class-reminders",
+  metaCapiSend: "meta-capi.send",
   messagingDueSoonReminders: "messaging.due-soon-reminders",
   messagingRevisionReminders: "messaging.revision-reminders",
   paymentProviderEventPrune: "payments.provider-event-prune",

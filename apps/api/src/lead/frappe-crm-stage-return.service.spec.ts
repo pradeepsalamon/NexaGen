@@ -129,7 +129,8 @@ function service(prisma: unknown, frappeStages: (names: string[]) => Record<stri
     return { data: names.filter((name) => stages[name]).map((name) => ({ name, status: stages[name] })) };
   });
   const referrals = { onLeadStatus: jest.fn(async () => undefined) };
-  const svc = new FrappeCrmStageReturnService({} as never, prisma as never, push, referrals as never);
+  const metaCapi = { onLeadStatus: jest.fn(async () => undefined) };
+  const svc = new FrappeCrmStageReturnService({} as never, metaCapi as never, prisma as never, push, referrals as never);
   svc.pauseMs = 0;
   return { referrals, requests, svc };
 }
@@ -194,7 +195,7 @@ describe("FrappeCrmStageReturnService.run", () => {
 
   it("is off unless the return switch, the push and stage sync are all on", () => {
     const push = new FrappeCrmPushService({} as never, {} as never);
-    const svc = new FrappeCrmStageReturnService({} as never, {} as never, push, {} as never);
+    const svc = new FrappeCrmStageReturnService({} as never, {} as never, {} as never, push, {} as never);
     // FRAPPE_CRM_STAGE_RETURN is unset in tests.
     jest.spyOn(push, "config").mockReturnValue(CONFIG);
     expect(svc.config()).toBeNull();

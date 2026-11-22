@@ -3,6 +3,7 @@ import { Cron } from "@nestjs/schedule";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { DEFAULT_TENANT_ID, LEAD_STATUS_LABELS } from "@nexa-chess/types";
 import type { LeadStatus } from "@prisma/client";
+import { MetaCapiService } from "../meta-capi/meta-capi.service";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
@@ -82,6 +83,7 @@ export class FrappeCrmStageReturnService {
 
   constructor(
     private readonly jobLocks: JobLockService,
+    private readonly metaCapi: MetaCapiService,
     private readonly prisma: PrismaService,
     private readonly push: FrappeCrmPushService,
     private readonly referrals: ReferralTrackerService
@@ -197,6 +199,7 @@ export class FrappeCrmStageReturnService {
             title: `Changed in Frappe: ${LEAD_STATUS_LABELS[from]} → ${LEAD_STATUS_LABELS[target]}`
           }
         });
+        await this.metaCapi.onLeadStatus(tx, row.lead.id, target, now);
       });
     } catch (error) {
       if (error instanceof LostRace) return false;

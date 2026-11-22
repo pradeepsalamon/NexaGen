@@ -3,6 +3,7 @@ import { DEFAULT_TENANT_ID, LEAD_DETAILS_NOT_GIVEN, WHATSAPP_AD_LEAD_SOURCE, WHA
 import { LeadStatus, type Prisma, type WhatsAppWebhookEvent } from "@prisma/client";
 import { FrappeCrmPushService, phoneTail } from "../lead/frappe-crm-push.service";
 import { WHATSAPP_LEAD_REUSE_DAYS } from "../lead/lead-constants";
+import { MetaCapiService } from "../meta-capi/meta-capi.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { currentTenantId } from "../tenancy/tenant-context";
 import type { EffectiveSupportSettings } from "./support-settings.service";
@@ -62,6 +63,7 @@ export class SupportLeadCaptureService {
 
   constructor(
     private readonly crmPush: FrappeCrmPushService,
+    private readonly metaCapi: MetaCapiService,
     private readonly prisma: PrismaService
   ) {}
 
@@ -117,6 +119,8 @@ export class SupportLeadCaptureService {
       });
       if (referral) await this.recordClick(tx, lead.id, referral, event);
       await this.crmPush.enqueue(tx, lead.id);
+      // A WhatsApp ad lead is Meta's LeadSubmitted (needs the click id; nothing for an organic chat).
+      await this.metaCapi.onLeadCreated(tx, lead.id, event.occurredAt);
       return { kind: "CREATED", leadId: lead.id };
     });
 

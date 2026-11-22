@@ -38,6 +38,7 @@ import { SystemNotifier } from "../mail/system-notifier.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { MetaCapiService } from "../meta-capi/meta-capi.service";
 import { FrappeCrmPushService } from "./frappe-crm-push.service";
 import { WHATSAPP_LEAD_REUSE_DAYS, WHATSAPP_LEAD_SOURCE } from "./lead-constants";
 import { parseUserAgent, parseVisitAttribution } from "./lead-tracking.util";
@@ -75,7 +76,8 @@ export class LeadService {
     private readonly referrals: ReferralTrackerService,
     private readonly notifier: SystemNotifier,
     private readonly trash: TrashRepository,
-    private readonly crmPush: FrappeCrmPushService
+    private readonly crmPush: FrappeCrmPushService,
+    private readonly metaCapi: MetaCapiService
   ) {}
 
   // ── Public ──
@@ -124,6 +126,8 @@ export class LeadService {
         }
       });
       await this.crmPush.enqueue(tx, created.id);
+      // Meta's website Lead, only with the visitor's banner consent (checked inside).
+      await this.metaCapi.onLeadCreated(tx, created.id, created.createdAt, body.metaEventId);
       return created;
     });
 
@@ -423,23 +427,28 @@ export class LeadService {
     }
 
     const now = new Date();
-    const updated = await this.prisma.lead.update({
-      where: { id },
-      data: {
-        status: body.status,
-        lastActivityAt: now,
-        convertedAt: CONVERTING_STATUSES.includes(body.status)
-          ? lead.convertedAt ?? now
-          : lead.convertedAt,
-        activities: {
-          create: {
-            activityType: "STATUS_CHANGED",
-            title: `Status changed to ${body.status}`,
-            description: body.description ?? null,
-            createdById: user.id
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.lead.update({
+        where: { id },
+        data: {
+          status: body.status,
+          lastActivityAt: now,
+          convertedAt: CONVERTING_STATUSES.includes(body.status)
+            ? lead.convertedAt ?? now
+            : lead.convertedAt,
+          activities: {
+            create: {
+              activityType: "STATUS_CHANGED",
+              title: `Status changed to ${body.status}`,
+              description: body.description ?? null,
+              createdById: user.id
+            }
           }
         }
-      }
+      });
+      // In the same transaction: Meta hears about a booked demo or a conversion (docs/AD_MEASUREMENT.md).
+      if (lead.status !== body.status) await this.metaCapi.onLeadStatus(tx, id, body.status, now);
+      return changed;
     });
 
     await this.referrals.onLeadStatus(id, body.status, user.id);

@@ -213,6 +213,17 @@ const apiEnvSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  // Meta Conversions API (docs/AD_MEASUREMENT.md), Nexa's academy only: lead events go to this
+  // dataset. Off unless both are set. The token belongs to a system user with access to the dataset.
+  META_DATASET_ID: z
+    .string()
+    .regex(/^\d{5,30}$/, "Expected the dataset (pixel) id, digits only.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  META_CAPI_ACCESS_TOKEN: z.string().optional(),
+  /** Set = every event is a test event (Events Manager → Test events), e.g. on staging. */
+  META_CAPI_TEST_EVENT_CODE: z.string().optional(),
+  META_GRAPH_API_VERSION: z.string().default("v21.0"),
   // Nexa's WhatsApp Business Account id: reads template status (other academies save theirs under Branding).
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   // Incoming WhatsApp: the support bot (docs/WHATSAPP_SUPPORT.md). The webhook

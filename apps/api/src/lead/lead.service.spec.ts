@@ -8,6 +8,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { createLeadRequestSchema } from "@nexa-chess/types";
 import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
+import { NOOP_META_CAPI } from "../meta-capi/meta-capi.testing";
 import { FrappeCrmPushService } from "./frappe-crm-push.service";
 import { LeadStageService } from "./lead-stage.service";
 import { LeadService } from "./lead.service";
@@ -114,6 +115,7 @@ describe("LeadService", () => {
         LeadService,
         DemoInviteService,
         LeadStageService,
+        NOOP_META_CAPI,
         NOOP_REFERRAL_TRACKER,
         { provide: FrappeCrmPushService, useValue: crmPush },
         { provide: JwtService, useValue: jwtService },

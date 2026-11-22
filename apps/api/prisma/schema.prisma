@@ -1358,6 +1358,13 @@ model VisitorSession {
   fbclid String?
   gclid  String?
 
+  /// The visitor's answer on the cookie banner (docs/AD_MEASUREMENT.md): true = accepted the Meta
+  /// Pixel, false = declined, null = never answered. No Conversions API event without true.
+  adConsent   Boolean?
+  adConsentAt DateTime?
+  /// Meta's `_fbp` browser id, stored only after consent.
+  fbp         String?
+
   firstVisit DateTime @default(now())
   lastVisit  DateTime @updatedAt
   pageViews  Int      @default(1)
@@ -1418,6 +1425,8 @@ model Lead {
   crmPush           CrmLeadPush?
   /// The Click-to-WhatsApp ad that brought this lead, when one did (first and latest click).
   adClick           LeadAdClick?
+  /// Its Conversions API events for Meta (docs/AD_MEASUREMENT.md), one per event name.
+  metaCapiEvents    MetaCapiEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -9210,6 +9219,48 @@ model LeadAdClick {
 
   @@index([latestAdId])
   @@map("lead_ad_clicks")
+}
+
+enum MetaCapiEventStatus {
+  PENDING
+  SENT
+  FAILED
+  /// Not sent on purpose (consent withdrawn, no WhatsApp account id); `error` says why.
+  SKIPPED
+}
+
+/// One Meta Conversions API event for a lead (docs/AD_MEASUREMENT.md): an outbox row written in
+/// the transaction that made the lead or moved its stage, sent by a sweep. Nexa's academy only.
+/// Holds no personal data: the hashed contact details are built from the lead at send time.
+model MetaCapiEvent {
+  id            String              @id @default(cuid())
+  tenantId      String              @default("tenant_nexa")
+  leadId        String
+  lead          Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  /// Meta's standard event: LeadSubmitted, Lead, QualifiedLead, Schedule or Purchase.
+  eventName     String
+  /// Meta's event_id; a website Lead shares it with the pixel's event so Meta counts one.
+  eventId       String
+  /// "whatsapp" (business_messaging, ctwa_clid) or "website".
+  channel       String
+  /// When it happened (Meta's event_time).
+  eventTime     DateTime
+  /// Purchase only: the linked paid order's amount in minor units, when there is one.
+  valueMinor    Int?
+  currency      String?
+  status        MetaCapiEventStatus @default(PENDING)
+  attempts      Int                 @default(0)
+  nextAttemptAt DateTime            @default(now())
+  claimedAt     DateTime?
+  sentAt        DateTime?
+  error         String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([leadId, eventName])
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+  @@map("meta_capi_events")
 }
 
 enum CrmLeadPushStatus {

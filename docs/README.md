@@ -80,7 +80,8 @@ stay as written; the living doc for that area wins where they disagree.
 | [PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md](PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md) | Lichess catalogue implementation spec |
 | [SAAS_CUTOVER_RUNBOOK.md](SAAS_CUTOVER_RUNBOOK.md) | Taking multi-academy to production: release in audit mode, enforce, the D5 contract, the first other academy |
 | [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) | Multi-tenant white-label SaaS plan: assessment, owner decisions, roadmap |
-| [LEAD_STAGES.md](LEAD_STAGES.md) | Lead stages (demo booked/confirmed/attended/missed), automatic moves and their copy to Frappe CRM |
+| [LEAD_STAGES.md](LEAD_STAGES.md) | Lead stages (demo booked/confirmed/attended/missed), automatic moves, their copy to Frappe CRM and back, WhatsApp lead capture |
+| [AD_MEASUREMENT.md](AD_MEASUREMENT.md) | Meta Conversions API (lead events), Meta Pixel + consent banner, funnel report |
 | [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) | WhatsApp support bot and `/admin/support` inbox: as built (Phases 1–2) and the plan |
 | [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md) | Proposal: multi-academy WhatsApp, conversation ownership, Native / External helpdesk / Hybrid support modes; decisions first |
 | [PARENT_REPORTS.md](PARENT_REPORTS.md) | Parent reports — deferred, and why |

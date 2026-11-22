@@ -134,7 +134,16 @@ export const createLeadRequestSchema = z.object({
    * The referral code remembered from a `/r/<code>` visit. Fallback only: the
    * API prefers its own attribution cookie, and an unknown code is ignored.
    */
-  referralCode: z.string().trim().max(32).optional()
+  referralCode: z.string().trim().max(32).optional(),
+  /**
+   * The Meta Pixel's event id for this form's Lead event, when the visitor accepted the pixel
+   * (docs/AD_MEASUREMENT.md): the server's Conversions API event reuses it so Meta counts one.
+   */
+  metaEventId: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9_.:-]{8,64}$/)
+    .optional()
 });
 export type CreateLeadRequest = z.infer<typeof createLeadRequestSchema>;
 
