@@ -28,6 +28,7 @@ import { Select, type SelectOption } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "@nexa-chess/types";
+import { leadChildLines } from "../lib/leadChild";
 import {
   useAddLeadNoteMutation,
   useAssignLeadDemoClassMutation,
@@ -98,10 +99,8 @@ export function LeadDetailsDialog({ leadId, isOpen, onOpenChange }: LeadDetailsD
             <>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-lg font-bold text-app-text">{lead.studentName}</h3>
-                  <p className="mt-1 text-sm text-app-muted">
-                    Age {lead.studentAge} · {lead.experienceLevel}
-                  </p>
+                  <h3 className="text-lg font-bold text-app-text">{leadChildLines(lead).name}</h3>
+                  <p className="mt-1 text-sm text-app-muted">{leadChildLines(lead).meta}</p>
                 </div>
                 <Badge variant={leadStatusBadgeVariant(lead.status)}>
                   {LEAD_STATUS_LABELS[lead.status]}
@@ -198,6 +197,26 @@ export function LeadDetailsDialog({ leadId, isOpen, onOpenChange }: LeadDetailsD
                 <h4 className="mb-2 flex items-center gap-2 text-sm font-bold text-app-text">
                   <Globe className="size-4" /> Attribution
                 </h4>
+                {lead.adClick ? (
+                  <div className="mb-2 grid gap-1.5 rounded-app border border-app-border bg-app-surface p-4 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-app-muted">WhatsApp ad</span>
+                      <span className="truncate text-app-text">{lead.adClick.firstHeadline ?? lead.adClick.firstAdId ?? "Unknown ad"}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-app-muted">First click</span>
+                      <span className="text-app-text">{formatDateTime(lead.adClick.firstSeenAt, timeZone)}</span>
+                    </div>
+                    {lead.adClick.clicks > 1 ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-app-muted">Latest ({lead.adClick.clicks} clicks)</span>
+                        <span className="truncate text-app-text">
+                          {lead.adClick.latestHeadline ?? lead.adClick.latestAdId ?? "Unknown ad"} · {formatDateTime(lead.adClick.latestSeenAt, timeZone)}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 {lead.visitorAttribution ? (
                   <div className="grid gap-1.5 rounded-app border border-app-border bg-app-surface p-4 text-sm">
                     <div className="flex items-center justify-between">
@@ -235,7 +254,7 @@ export function LeadDetailsDialog({ leadId, isOpen, onOpenChange }: LeadDetailsD
                       <span className="text-app-text">{lead.visitorAttribution.pageViews}</span>
                     </div>
                   </div>
-                ) : (
+                ) : lead.adClick ? null : (
                   <div className="rounded-app border border-app-border bg-app-soft p-4 text-center text-sm text-app-muted">
                     No attribution data captured for this lead.
                   </div>

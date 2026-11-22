@@ -1416,6 +1416,8 @@ model Lead {
   supportTickets    SupportTicket[]
   /// Its copy in Frappe CRM, when one is sent (docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM").
   crmPush           CrmLeadPush?
+  /// The Click-to-WhatsApp ad that brought this lead, when one did (first and latest click).
+  adClick           LeadAdClick?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8868,6 +8870,9 @@ model SupportSettings {
   menu                       Json?
   /// A number linked to a student (staff-issued code) may ask for its next class.
   accountAnswers             Boolean  @default(false)
+  /// Every new number that writes in (not an account, no open lead) becomes a Lead, bot on or off;
+  /// sends nothing (docs/LEAD_STAGES.md "WhatsApp lead capture"). Nexa's academy only for now.
+  captureLeads               Boolean  @default(false)
   updatedById                String?
   updatedBy                  User?    @relation("SupportSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt                  DateTime @default(now())
@@ -8958,6 +8963,9 @@ model WhatsAppWebhookEvent {
   mediaFilename     String?
   /// The media's caption, redacted. Not bot input.
   mediaCaption      String?
+  /// Meta's Click-to-WhatsApp `referral` on the message (AdReferral: sourceType, sourceId, sourceUrl,
+  /// headline, ctwaClid); read by lead capture (docs/LEAD_STAGES.md).
+  adReferral        Json?
   /// sent | delivered | read | failed (statuses only)
   status            String?
   statusError       String?
@@ -9171,6 +9179,37 @@ model SupportUnansweredQuestion {
   @@index([tenantId, dismissedAt, timesAsked])
   @@index([lastAskedAt])
   @@map("support_unanswered_questions")
+}
+
+/// The Click-to-WhatsApp ad click(s) behind a lead: Meta's `referral` on the parent's message
+/// (docs/LEAD_STAGES.md "WhatsApp lead capture"). One row per lead: the first click and the latest.
+/// `ctwaClid` is what the Conversions API sends back to Meta (docs/AD_MEASUREMENT.md).
+model LeadAdClick {
+  id               String   @id @default(cuid())
+  tenantId         String   @default("tenant_nexa")
+  leadId           String   @unique
+  lead             Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  /// "ad" or "post" (Meta's `source_type`).
+  firstSourceType  String?
+  firstAdId        String?
+  firstCtwaClid    String?
+  firstHeadline    String?
+  firstSourceUrl   String?
+  firstSeenAt      DateTime
+  latestSourceType String?
+  latestAdId       String?
+  latestCtwaClid   String?
+  latestHeadline   String?
+  latestSourceUrl  String?
+  latestSeenAt     DateTime
+  /// The WhatsApp message id of the latest click: a re-run of the same message changes nothing.
+  latestMessageId  String
+  clicks           Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([latestAdId])
+  @@map("lead_ad_clicks")
 }
 
 enum CrmLeadPushStatus {

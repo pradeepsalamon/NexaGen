@@ -7,6 +7,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { LEAD_STATUS_LABELS, type LeadListItem } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
+import { leadChildLines, NOT_GIVEN } from "../lib/leadChild";
 import { leadStatusBadgeVariant } from "../lib/leadStatus";
 import { LeadRowActions, type LeadRowActionsProps } from "./LeadRowActions";
 
@@ -30,10 +31,8 @@ export function useLeadColumns(handlers: RowActionHandlers) {
         ),
         cell: ({ row }) => (
           <div className="min-w-40">
-            <p className="font-semibold text-app-text">{row.original.studentName}</p>
-            <p className="mt-1 text-xs text-app-muted">
-              Age {row.original.studentAge} · {row.original.experienceLevel}
-            </p>
+            <p className="font-semibold text-app-text">{leadChildLines(row.original).name}</p>
+            <p className="mt-1 text-xs text-app-muted">{leadChildLines(row.original).meta}</p>
           </div>
         )
       },
@@ -42,7 +41,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
         header: "Parent",
         cell: ({ row }) => (
           <div>
-            <p className="text-app-text">{row.original.parentName}</p>
+            <p className="text-app-text">{row.original.parentName || NOT_GIVEN}</p>
             <p className="text-xs text-app-muted">{row.original.phone}</p>
             {row.original.email ? (
               <p className="break-all text-xs text-app-muted">{row.original.email}</p>

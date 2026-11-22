@@ -233,6 +233,15 @@ const apiEnvSchema = z.object({
   SUPPORT_DEMO_REMINDER_TEMPLATE: z.string().optional(),
   SUPPORT_DEMO_MISSED_TEMPLATE: z.string().optional(),
   SUPPORT_DEMO_TEMPLATE_LANGUAGE: z.string().default("en_US"),
+  /**
+   * Nexa's academy before its support settings page is first saved: every new WhatsApp number
+   * (not an account, no open lead) becomes a lead, bot on or off; nothing is sent
+   * (docs/LEAD_STAGES.md "WhatsApp lead capture").
+   */
+  SUPPORT_CAPTURE_LEADS: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   /** Idle minutes before the bot asks "continue or start again?". */
   SUPPORT_SESSION_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(30),
   /** Comma-separated numbers. Set = the bot answers only these (dev, staff-only rollout). */

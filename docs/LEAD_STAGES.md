@@ -79,6 +79,36 @@ on payment) is planned below and needs the WhatsApp bot to receive the number's 
   (`frappeStageMayMove`), the next return run brings that stage into NexaGen, so both sides agree.
 - Lead details (name, phone, child) still flow one way, NexaGen → Frappe.
 
+## WhatsApp lead capture (built 2026-11-22)
+
+`support/support-lead-capture.service.ts`, run by the WhatsApp webhook for every customer message
+of **Nexa's academy** when capture is on: **Admin → Support → Settings → "Make every new chat a
+lead"** (`SupportSettings.captureLeads`; before the page is first saved, `SUPPORT_CAPTURE_LEADS`).
+Default off. It works with the bot on or off and **sends nothing**: with the bot off, a message is
+stored only for capture (no transcript, no reply, no inbox).
+
+- **Which chats become leads:** a number that is not an account (any user's `phoneNumber`, or a
+  student's `parentPhone`; last ten digits) and has no open lead (created in the last 90 days, not
+  Lost / Converted / Active student). A Lost-only number gets a new lead.
+- **The lead:** source `WhatsApp ad` when the message carried Meta's Click-to-WhatsApp `referral`,
+  else `WhatsApp` (`WHATSAPP_LEAD_SOURCE(S)` in `@nexa-chess/types` `leads.ts`); campaign = the ad's
+  headline (else its id); parent = the WhatsApp profile name; the required child fields get
+  **`LEAD_DETAILS_NOT_GIVEN`** (`studentName ""`, `studentAge 0`, `experienceLevel "not_given"`),
+  shown as "—" on the Leads page and **never sent to Frappe** (`student_name` left out; the note says
+  "Student: not given yet"). The bot's later demo booking fills them in (`upsertFromWhatsApp`).
+  Copied to Frappe like the bot's leads (`CrmLeadPush`, Frappe source `FRAPPE_CRM_LEAD_SOURCE`).
+- **Ad clicks:** `LeadAdClick`, one row per lead, keeping the first click and the latest (ad id,
+  `ctwa_clid`, headline, source URL, when), plus a timeline entry per click. A number with an open
+  lead (a website lead too) gets the click attached, never a second lead. Read by the Conversions
+  API (docs/AD_MEASUREMENT.md). Removed with its lead.
+- **Once per message:** one transaction under a per-number xact lock (`lead-capture:<academy>:<last
+  ten digits>`), so two first messages make one lead; a re-run of the same message changes nothing
+  (event dedupe + `LeadAdClick.latestMessageId`). A capture failure fails the webhook event (retried
+  by the sweep) but never stops the bot's answer.
+- The parser reads `messages[].referral`; the WhatsApp Business app's coexistence fields
+  (`smb_message_echoes`, `smb_app_state_sync`, `history`) are skipped.
+- Support Insights' "New leads" still counts demo bookings only (child details given).
+
 ## Registration and enrolment (built 2026-11-21)
 
 Owner 2026-11-21: no "create student" action; a lead follows the normal registration flow.

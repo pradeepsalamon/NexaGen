@@ -75,6 +75,32 @@ export function nextLeadStatus(current: LeadStatus, event: LeadStageEvent): Lead
   return target === current ? null : target;
 }
 
+/** `Lead.source` of a lead from a WhatsApp chat (the bot's booking, or lead capture). */
+export const WHATSAPP_LEAD_SOURCE = "WhatsApp";
+/** `Lead.source` of a lead whose first message came from a Click-to-WhatsApp ad. */
+export const WHATSAPP_AD_LEAD_SOURCE = "WhatsApp ad";
+export const WHATSAPP_LEAD_SOURCES: readonly string[] = [WHATSAPP_LEAD_SOURCE, WHATSAPP_AD_LEAD_SOURCE];
+
+export function isWhatsAppLeadSource(source: string | null | undefined): boolean {
+  return source !== null && source !== undefined && WHATSAPP_LEAD_SOURCES.includes(source);
+}
+
+/**
+ * The child details a lead captured from a WhatsApp chat doesn't have yet (docs/LEAD_STAGES.md
+ * "WhatsApp lead capture"): the required columns get these. Shown as "—", never sent to Frappe
+ * as if real, and filled in when the bot (or staff) learns them.
+ */
+export const LEAD_DETAILS_NOT_GIVEN = {
+  experienceLevel: "not_given",
+  studentAge: 0,
+  studentName: ""
+} as const;
+
+/** Whether a lead has real child details (not the capture placeholders). */
+export function leadChildDetailsGiven(lead: { studentAge: number; studentName: string }): boolean {
+  return lead.studentAge !== LEAD_DETAILS_NOT_GIVEN.studentAge && lead.studentName.trim() !== "";
+}
+
 export const leadExperienceLevelSchema = z.enum([
   "beginner",
   "intermediate",
@@ -194,6 +220,17 @@ export interface LeadVisitorAttribution {
   pageViews: number;
 }
 
+/** The Click-to-WhatsApp ad click(s) behind a lead (first and latest). */
+export interface LeadAdClickDto {
+  clicks: number;
+  firstAdId: string | null;
+  firstHeadline: string | null;
+  firstSeenAt: string;
+  latestAdId: string | null;
+  latestHeadline: string | null;
+  latestSeenAt: string;
+}
+
 export interface LeadActivityDto {
   id: string;
   activityType: string;
@@ -212,6 +249,8 @@ export interface LeadNoteDto {
 
 export interface LeadDetail extends LeadListItem {
   visitorAttribution: LeadVisitorAttribution | null;
+  /** Set when a Click-to-WhatsApp ad brought this lead (WhatsApp lead capture). */
+  adClick: LeadAdClickDto | null;
   assignedClass: LeadAssignableDemoClass | null;
   activities: LeadActivityDto[];
   notes: LeadNoteDto[];

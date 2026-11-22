@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
+  leadChildDetailsGiven,
   supportDemoSummary,
   type SupportDemoRequest
 } from "@nexa-chess/types";
@@ -176,10 +177,27 @@ export class LeadService {
       }
     });
     if (existing) {
+      // A lead captured from the chat has no child details yet: the booking brings them.
+      const filling = !leadChildDetailsGiven(existing);
       await tx.leadActivity.create({
-        data: { activityType: "WHATSAPP_DEMO_REQUEST", description, leadId: existing.id, title: "Asked for a demo again on WhatsApp" }
+        data: filling
+          ? { activityType: "WHATSAPP_DEMO_REQUEST", description, leadId: existing.id, title: "Asked for a demo on WhatsApp" }
+          : { activityType: "WHATSAPP_DEMO_REQUEST", description, leadId: existing.id, title: "Asked for a demo again on WhatsApp" }
       });
-      const lead = await tx.lead.update({ data: { lastActivityAt: input.now }, where: { id: existing.id } });
+      const lead = await tx.lead.update({
+        data: {
+          lastActivityAt: input.now,
+          ...(filling
+            ? {
+                experienceLevel: input.level,
+                parentName: existing.parentName.trim() ? existing.parentName : input.parentName,
+                studentAge: input.studentAge,
+                studentName: input.studentName
+              }
+            : {})
+        },
+        where: { id: existing.id }
+      });
       return { created: false, lead };
     }
     const lead = await tx.lead.create({
@@ -318,6 +336,7 @@ export class LeadService {
       where: { id },
       include: {
         visitorSession: true,
+        adClick: true,
         assignedClass: { include: { coach: true } },
         activities: { orderBy: { createdAt: "desc" }, include: { createdBy: true } },
         notes: { orderBy: { createdAt: "desc" }, include: { createdBy: true } },
@@ -337,6 +356,17 @@ export class LeadService {
         ...this.toLeadListItem(lead),
         assignedClass: assignedClass
           ? this.toAssignableDemoClass(assignedClass)
+          : null,
+        adClick: lead.adClick
+          ? {
+              clicks: lead.adClick.clicks,
+              firstAdId: lead.adClick.firstAdId,
+              firstHeadline: lead.adClick.firstHeadline,
+              firstSeenAt: lead.adClick.firstSeenAt.toISOString(),
+              latestAdId: lead.adClick.latestAdId,
+              latestHeadline: lead.adClick.latestHeadline,
+              latestSeenAt: lead.adClick.latestSeenAt.toISOString()
+            }
           : null,
         visitorAttribution: visitorSession
           ? {
