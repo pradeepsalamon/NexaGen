@@ -6606,8 +6606,77 @@ model Tenant {
   platformInvoices   PlatformInvoice[]
   usage              TenantUsage?
   usageDays          TenantUsageDay[]
+  closures           TenantClosure[]
 
   @@map("tenants")
+}
+
+/// What an academy wants for its data when it closes (docs/ACADEMY_CLOSURE.md).
+enum TenantClosureChoice {
+  /// Close the academy and keep its data indefinitely (it can be reopened).
+  KEEP_DATA
+  /// Close the academy and erase its data after the undo window (financial records stay as the law requires).
+  DELETE_DATA
+}
+
+enum TenantClosureStatus {
+  /// The academy asked; nothing has changed yet.
+  REQUESTED
+  /// The academy took its request back before a decision.
+  WITHDRAWN
+  /// An operator said no; the academy carries on.
+  DECLINED
+  /// Closed with its data kept (KEEP_DATA). Can be reopened.
+  CLOSED
+  /// Closed; the purge runs once `purgeAfter` passes unless an operator cancels it.
+  PURGE_SCHEDULED
+  /// The purge job is erasing the data (lease in `purgeLeaseUntil`).
+  PURGING
+  /// The data is erased; only the financial records and the academy row remain.
+  PURGED
+  /// An operator stopped a scheduled purge; the academy stays closed with its data.
+  CANCELLED
+  /// Closed with its data kept (CLOSED or CANCELLED), then opened again by an operator.
+  REOPENED
+}
+
+/// One request to close an academy and its outcome (docs/ACADEMY_CLOSURE.md).
+/// Platform model: the console decides it across academies, and it outlives the academy's data.
+/// People are stored as plain ids + names (no FK): a purge anonymises the academy's users.
+model TenantClosure {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  choice TenantClosureChoice
+  status TenantClosureStatus @default(REQUESTED)
+  reason String?
+
+  /// The academy super admin who asked; null when an operator recorded a request made by email or phone.
+  requestedByUserId String?
+  requestedByName   String?
+  requestedByEmail  String?
+  requestedAt       DateTime @default(now())
+
+  /// The platform operator (a Nexa user) who approved, declined, cancelled or reopened it.
+  decidedByUserId String?
+  decidedAt       DateTime?
+  decisionNote    String?
+
+  /// DELETE_DATA: the purge may start after this (the undo window).
+  purgeAfter      DateTime?
+  purgeStartedAt  DateTime?
+  purgeLeaseUntil DateTime?
+  purgedAt        DateTime?
+  /// Rows deleted / kept per table and anonymised users, written by the purge.
+  purgeReport     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([status, purgeAfter])
+  @@map("tenant_closures")
 }
 
 enum TenantDomainKind {

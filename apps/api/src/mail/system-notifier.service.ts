@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { getAdminNotificationEmails, getApiEnv } from "@nexa-chess/config/api";
 import {
+  isPlaceholderEmail,
   markdownToWhatsApp,
   SYSTEM_MESSAGE_DEFINITIONS,
   type MessageVariables,
@@ -92,7 +93,8 @@ export class SystemNotifier {
     };
 
     for (const recipient of list) {
-      if (channels.includes("EMAIL") && recipient.email) {
+      // An account imported without an email has a stand-in address that can't receive mail.
+      if (channels.includes("EMAIL") && recipient.email && !isPlaceholderEmail(recipient.email)) {
         try {
           await this.mail.sendRenderedSystemEmail(recipient.email, message, options.attachment ?? null);
           record("EMAIL", true);

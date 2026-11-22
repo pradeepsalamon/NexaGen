@@ -12,13 +12,14 @@ import { useEndSupportSession, usePlatformSupportSessions, usePlatformTenants } 
 import { AcademiesTab } from "./AcademiesTab";
 import { AuditList } from "./AuditList";
 import { BillingTab } from "./BillingTab";
+import { ClosuresTab } from "./ClosuresTab";
 import { ContentPacksTab } from "./ContentPacksTab";
 import { IntegrityTab } from "./IntegrityTab";
 import { PlansTab } from "./PlansTab";
 import { SupportVisitsTable } from "./SupportVisitsTable";
 import { UsageTab } from "./UsageTab";
 
-const TABS = ["academies", "usage", "plans", "packs", "billing", "support", "audit", "integrity"] as const;
+const TABS = ["academies", "usage", "plans", "packs", "billing", "support", "closures", "audit", "integrity"] as const;
 type Tab = (typeof TABS)[number];
 
 /** The academy name for an id, from the (small) academy list the console already holds. */
@@ -82,6 +83,7 @@ export function PlatformConsoleClient() {
                 <TabsTrigger value="packs">Content packs</TabsTrigger>
                 <TabsTrigger value="billing">Billing</TabsTrigger>
                 <TabsTrigger value="support">Support visits</TabsTrigger>
+                <TabsTrigger value="closures">Closures</TabsTrigger>
                 <TabsTrigger value="audit">Audit log</TabsTrigger>
                 <TabsTrigger value="integrity">Integrity</TabsTrigger>
               </TabsList>
@@ -104,6 +106,9 @@ export function PlatformConsoleClient() {
           </TabsContent>
           <TabsContent value="support">
             <SupportTab />
+          </TabsContent>
+          <TabsContent value="closures">
+            <ClosuresTab />
           </TabsContent>
           <TabsContent value="audit">
             <AuditList academyName={academyName} />

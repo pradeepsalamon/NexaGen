@@ -46,6 +46,8 @@ stay as written; the living doc for that area wins where they disagree.
 | [APPEARANCE.md](APPEARANCE.md) | Board appearance and typography resolvers |
 | [PAYMENTS.md](PAYMENTS.md) | Payments, invoices, credit notes — read before touching `payments/` |
 | [REFERRALS.md](REFERRALS.md) | Referral links, pipeline stages and their rewards, milestone bonuses, points and the vouchers students buy with them, staff payouts and the SALES role |
+| [ACADEMY_CLOSURE.md](ACADEMY_CLOSURE.md) | Closing an academy on its request: keep or delete its data, the export, the purge and what the law makes us keep |
+| [ROSTER_IMPORT.md](ROSTER_IMPORT.md) | CSV import of students and coaches, invites to set a password, accounts without an email |
 | [MESSAGING.md](MESSAGING.md) | Admin messaging rules and outbound WhatsApp |
 | [EMAIL_ADMIN.md](EMAIL_ADMIN.md) | Email verification policy and staff direct email |
 | [SAAS_PLANS.md](SAAS_PLANS.md) | Subscription tiers, feature gates, limits |
@@ -76,6 +78,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [RELIABILITY_DESIGN.md](RELIABILITY_DESIGN.md) | P0 classroom reliability audit and design |
 | [PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) | Lichess catalogue + adaptive training audit |
 | [PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md](PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md) | Lichess catalogue implementation spec |
+| [SAAS_CUTOVER_RUNBOOK.md](SAAS_CUTOVER_RUNBOOK.md) | Taking multi-academy to production: release in audit mode, enforce, the D5 contract, the first other academy |
 | [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) | Multi-tenant white-label SaaS plan: assessment, owner decisions, roadmap |
 | [LEAD_STAGES.md](LEAD_STAGES.md) | Lead stages (demo booked/confirmed/attended/missed), automatic moves and their copy to Frappe CRM |
 | [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) | WhatsApp support bot and `/admin/support` inbox: as built (Phases 1–2) and the plan |

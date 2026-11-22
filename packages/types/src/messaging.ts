@@ -742,6 +742,14 @@ export const MESSAGE_VARIABLE_DOCS: Record<string, { label: string; sample: stri
   "support.reason": { label: "Why staff are reminded", sample: "Nobody has replied to this WhatsApp request yet." },
   "links.supportTicket": { label: "Support ticket link", sample: "https://nexa.test/admin/support/tickets/abc123" },
   "links.integrity": { label: "Platform console link (integrity tab)", sample: "https://nexa.test/admin/platform?tab=integrity" },
+  "closure.academy": { label: "The academy asking to close", sample: "Rook & Knight Academy" },
+  "closure.choice": { label: "What the academy wants for its data", sample: "Delete everything (invoices and payments are kept as the law requires)" },
+  "closure.reason": { label: "Reason the academy gave", sample: "We are merging with another academy." },
+  "closure.outcome": {
+    label: "What was decided, in a sentence or two",
+    sample: "Your academy is now closed and its data will be deleted on 28 Nov 2026. Until then the platform can still undo it."
+  },
+  "links.closures": { label: "Platform console link (closures tab)", sample: "https://nexa.test/admin/platform?tab=closures" },
   "tournament.name": { label: "Tournament name", sample: "Winter Swiss" },
   "tournament.format": { label: "Tournament format", sample: "Swiss" },
   "tournament.timeControl": { label: "Time control (minutes + increment)", sample: "5+3" },

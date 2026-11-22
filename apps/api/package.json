@@ -23,6 +23,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:integration": "node --max-old-space-size=6144 ../../node_modules/jest/bin/jest.js --config jest.integration.config.ts --runInBand",
+    "test:integration:d5": "node --max-old-space-size=6144 ../../node_modules/jest/bin/jest.js --config jest.integration-d5.config.ts --runInBand",
     "test:payments:integration": "node scripts/payments-integration-check.cjs",
     "test:payments:webhooks": "node scripts/payments-webhook-check.cjs",
     "test:payments:pricing": "node scripts/payments-pricing-check.cjs",

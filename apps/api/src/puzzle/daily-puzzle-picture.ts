@@ -22,6 +22,8 @@ export interface DailyPuzzlePictureClaims {
 
 /** The signing key: its own secret, else one derived from an encryption key. Null = no picture. */
 export function dailyPuzzlePictureKey(env: Pick<ApiEnv, "CREDENTIALS_ENCRYPTION_KEY" | "DAILY_PUZZLE_PICTURE_SECRET" | "MFA_ENCRYPTION_KEY"> = getApiEnv()): Buffer | null {
+  // Read from the environment, not hardcoded.
+  // nosemgrep: ajinabraham.njsscan.generic.hardcoded_secrets.node_secret
   if (env.DAILY_PUZZLE_PICTURE_SECRET) return Buffer.from(env.DAILY_PUZZLE_PICTURE_SECRET, "utf8");
   const base = env.CREDENTIALS_ENCRYPTION_KEY ?? env.MFA_ENCRYPTION_KEY;
   // Derived, never the encryption key itself.

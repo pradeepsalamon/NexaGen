@@ -2,6 +2,11 @@ import {
   API_ROUTES,
   type AddContentPackItemRequest,
   type AddPlatformTenantDomainRequest,
+  type ApproveClosureRequest,
+  type ClosureNoteRequest,
+  type OperatorCloseAcademyRequest,
+  type TenantClosureResponse,
+  type TenantClosuresResponse,
   type AuthResponse,
   type ChangeTenantPlanRequest,
   type ContentPackFolderResponse,
@@ -185,3 +190,31 @@ export const listPlatformUsageHistory = (days: number, tenantId?: string) =>
 export const listIntegrityRuns = () => apiFetch<TenantIntegrityRunsResponse>(API_ROUTES.platform.integrityRuns);
 
 export const runIntegrityCheck = () => apiFetch<TenantIntegrityRunSummary>(API_ROUTES.platform.integrityRuns, { method: "POST" });
+
+// ── Academy closures (docs/ACADEMY_CLOSURE.md) ──
+
+export const listClosures = (params: { page?: number; status?: string; tenantId?: string } = {}) => {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== "") query.set(key, String(value));
+  const search = query.toString();
+  return apiFetch<TenantClosuresResponse>(`${API_ROUTES.platform.closures}${search ? `?${search}` : ""}`);
+};
+
+export const approveClosure = (id: string, body: ApproveClosureRequest) =>
+  apiFetch<TenantClosureResponse>(API_ROUTES.platform.closureApprove(id), { body, method: "POST" });
+
+export const declineClosure = (id: string, body: ClosureNoteRequest) =>
+  apiFetch<TenantClosureResponse>(API_ROUTES.platform.closureDecline(id), { body, method: "POST" });
+
+export const cancelClosurePurge = (id: string, body: ClosureNoteRequest) =>
+  apiFetch<TenantClosureResponse>(API_ROUTES.platform.closureCancelPurge(id), { body, method: "POST" });
+
+export const reopenClosedAcademy = (id: string, body: ClosureNoteRequest) =>
+  apiFetch<TenantClosureResponse>(API_ROUTES.platform.closureReopen(id), { body, method: "POST" });
+
+export const closeAcademy = (tenantId: string, body: OperatorCloseAcademyRequest) =>
+  apiFetch<TenantClosureResponse>(API_ROUTES.platform.tenantClose(tenantId), { body, method: "POST" });
+
+/** The academy's data (gzip, one JSON object per line), as a file to save. */
+export const downloadAcademyExport = (tenantId: string) =>
+  apiFetch<Blob>(API_ROUTES.platform.tenantExport(tenantId), { responseType: "blob" });
