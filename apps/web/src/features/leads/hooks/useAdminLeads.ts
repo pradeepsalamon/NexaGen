@@ -13,6 +13,7 @@ import {
   assignLeadDemoClass,
   deleteLead,
   getLeadDetails,
+  getLeadFunnel,
   getLeadMetrics,
   getLeads,
   getUpcomingDemoClasses,
@@ -32,6 +33,16 @@ export function useLeadDetailsQuery(id: string, enabled: boolean = true) {
     queryKey: queryKeys.leads.detail(id),
     queryFn: () => getLeadDetails(id),
     enabled
+  });
+}
+
+/** Leads → demo booked → attended → enrolled between two days (both included). */
+export function useLeadFunnelQuery(from: string, to: string) {
+  return useQuery({
+    enabled: Boolean(from && to && from <= to),
+    placeholderData: keepPreviousData,
+    queryFn: () => getLeadFunnel(from, to),
+    queryKey: queryKeys.leads.funnel(from, to)
   });
 }
 

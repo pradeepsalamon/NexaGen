@@ -86,6 +86,7 @@ export const queryKeys = {
     list: (params?: Record<string, any>) => ["leads", "list", params ?? null] as const,
     detail: (id: string) => ["leads", "detail", id] as const,
     metrics: ["leads", "metrics"] as const,
+    funnel: (from: string, to: string) => ["leads", "funnel", from, to] as const,
     upcomingDemoClasses: ["leads", "upcoming-demo-classes"] as const,
   },
   referrals: {

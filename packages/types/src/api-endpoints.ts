@@ -974,11 +974,15 @@ export const API_ROUTES = {
   },
   leads: {
     create: "/leads",
-    tracking: "/leads/tracking"
+    tracking: "/leads/tracking",
+    /** The cookie banner's answer for this visit (docs/AD_MEASUREMENT.md). */
+    adConsent: "/leads/ad-consent"
   },
   adminLeads: {
     list: "/admin/leads",
     metrics: "/admin/leads/metrics",
+    /** Leads → demo booked → attended → enrolled by source and campaign (docs/AD_MEASUREMENT.md). */
+    funnel: "/admin/leads/funnel",
     get: (id: string = ":id") => `/admin/leads/${id}`,
     updateStatus: (id: string = ":id") => `/admin/leads/${id}/status`,
     notes: (id: string = ":id") => `/admin/leads/${id}/notes`,

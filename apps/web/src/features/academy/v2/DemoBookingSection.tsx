@@ -16,6 +16,8 @@ import {
   Users
 } from "lucide-react";
 import { createLeadRequestSchema, type LeadExperienceLevel } from "@nexa-chess/types";
+import { adMeasurementAllowed } from "@/features/ad-consent/lib/adConsent";
+import { newMetaEventId, trackMetaPixel } from "@/features/ad-consent/lib/metaPixel";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
@@ -113,6 +115,8 @@ export function DemoBookingSection() {
 
     setError(null);
 
+    // After the banner's Accept: the pixel's Lead and the server's share one id (docs/AD_MEASUREMENT.md).
+    const metaEventId = adMeasurementAllowed() ? newMetaEventId() : undefined;
     createLead.mutate(
       {
         studentName,
@@ -122,10 +126,12 @@ export function DemoBookingSection() {
         phone: cleanPhone,
         email,
         // From a /r/<code> visit; the API prefers its own attribution cookie.
-        referralCode: readReferralCode()
+        referralCode: readReferralCode(),
+        metaEventId
       },
       {
         onSuccess: () => {
+          if (metaEventId) trackMetaPixel("Lead", {}, metaEventId);
           setSubmitted(true);
           setTimeout(() => setSubmitted(false), 5000);
           setFormData({

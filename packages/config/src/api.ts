@@ -224,6 +224,14 @@ const apiEnvSchema = z.object({
   /** Set = every event is a test event (Events Manager → Test events), e.g. on staging. */
   META_CAPI_TEST_EVENT_CODE: z.string().optional(),
   META_GRAPH_API_VERSION: z.string().default("v21.0"),
+  // Ad spend on the Leads → Funnel report (read-only Marketing API Insights; docs/AD_MEASUREMENT.md).
+  // Both empty = no spend columns. The token needs ads_read on the ad account only.
+  META_ADS_ACCESS_TOKEN: z.string().optional(),
+  META_AD_ACCOUNT_ID: z
+    .string()
+    .regex(/^(act_)?\d{5,30}$/, "Expected the ad account id (digits, with or without act_).")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   // Nexa's WhatsApp Business Account id: reads template status (other academies save theirs under Branding).
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   // Incoming WhatsApp: the support bot (docs/WHATSAPP_SUPPORT.md). The webhook

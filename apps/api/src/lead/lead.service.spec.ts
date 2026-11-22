@@ -30,7 +30,7 @@ describe("LeadService", () => {
   let normalizeRecipient: jest.Mock;
   let crmPush: { enqueue: jest.Mock; markStageChanged: jest.Mock; pushLead: jest.Mock };
   let prisma: {
-    visitorSession: { findUnique: jest.Mock; update: jest.Mock; create: jest.Mock; count: jest.Mock };
+    visitorSession: { findUnique: jest.Mock; update: jest.Mock; updateMany: jest.Mock; create: jest.Mock; count: jest.Mock };
     lead: {
       create: jest.Mock;
       findMany: jest.Mock;
@@ -65,6 +65,7 @@ describe("LeadService", () => {
       visitorSession: {
         findUnique: jest.fn().mockResolvedValue(null),
         update: jest.fn(),
+        updateMany: jest.fn(),
         create: jest.fn(),
         count: jest.fn().mockResolvedValue(0)
       },
@@ -342,6 +343,49 @@ describe("LeadService", () => {
       expect(prisma.visitorSession.update).toHaveBeenCalledWith({
         where: { id: "existing-session-row" },
         data: { pageViews: { increment: 1 } }
+      });
+      expect(prisma.visitorSession.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("recordAdConsent", () => {
+    const visit = {
+      fbp: "fb.1.1700000000000.123456789",
+      ipAddress: "203.0.113.5",
+      referrer: undefined,
+      sessionId: "session-1",
+      url: "https://nexachess.in/",
+      userAgent: "Mozilla/5.0",
+      visitorId: "visitor-1"
+    };
+
+    it("starts the visit when tracking hasn't, and keeps the pixel's browser id on Accept", async () => {
+      prisma.visitorSession.findUnique.mockResolvedValue(null);
+      await service.recordAdConsent({ ...visit, consent: true });
+      expect(prisma.visitorSession.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ sessionId: "session-1" }) }));
+      expect(prisma.visitorSession.update).toHaveBeenCalledWith({
+        data: { adConsent: true, adConsentAt: expect.any(Date), fbp: "fb.1.1700000000000.123456789" },
+        where: { sessionId: "session-1" }
+      });
+      expect(prisma.visitorSession.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("drops a malformed browser id", async () => {
+      prisma.visitorSession.findUnique.mockResolvedValue({ id: "row" });
+      await service.recordAdConsent({ ...visit, consent: true, fbp: "<script>" });
+      expect(prisma.visitorSession.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ fbp: null }) }));
+    });
+
+    it("on Decline, marks every visit of this browser and forgets the browser id", async () => {
+      prisma.visitorSession.findUnique.mockResolvedValue({ id: "row" });
+      await service.recordAdConsent({ ...visit, consent: false });
+      expect(prisma.visitorSession.update).toHaveBeenCalledWith({
+        data: { adConsent: false, adConsentAt: expect.any(Date), fbp: null },
+        where: { sessionId: "session-1" }
+      });
+      expect(prisma.visitorSession.updateMany).toHaveBeenCalledWith({
+        data: { adConsent: false, adConsentAt: expect.any(Date), fbp: null },
+        where: { visitorId: "visitor-1" }
       });
       expect(prisma.visitorSession.create).not.toHaveBeenCalled();
     });

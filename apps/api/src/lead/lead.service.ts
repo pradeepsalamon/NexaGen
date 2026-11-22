@@ -49,6 +49,11 @@ type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 
 const CONVERTING_STATUSES: LeadStatus[] = ["CONVERTED", "ACTIVE_STUDENT"];
 
+/** Meta's `_fbp` cookie value: `fb.<subdomain index>.<creation ms>.<random>`. */
+function isMetaFbp(value: string | undefined): value is string {
+  return typeof value === "string" && /^fb\.\d\.\d{10,16}\.\d{1,30}$/.test(value);
+}
+
 type LeadRow = {
   id: string;
   studentName: string;
@@ -90,7 +95,7 @@ export class LeadService {
    */
   async createLead(
     body: CreateLeadRequest,
-    context: { sessionId: string | undefined; referralId?: string }
+    context: { fbp?: string; sessionId: string | undefined; referralId?: string }
   ): Promise<CreateLeadResponse> {
     const phone = body.phone.replace(/\D/g, "");
 
@@ -99,6 +104,11 @@ export class LeadService {
           where: { sessionId: context.sessionId }
         })
       : null;
+
+    // The pixel's browser id rides on a consented visit only (docs/AD_MEASUREMENT.md).
+    if (visitorSession?.adConsent === true && isMetaFbp(context.fbp) && visitorSession.fbp !== context.fbp) {
+      await this.prisma.visitorSession.update({ data: { fbp: context.fbp }, where: { id: visitorSession.id } });
+    }
 
     const source = visitorSession?.utmSource || visitorSession?.referrer || "Organic";
     const campaign = visitorSession?.utmCampaign ?? null;
@@ -288,6 +298,41 @@ export class LeadService {
         gclid: attribution.gclid
       }
     });
+  }
+
+  /**
+   * The cookie banner's answer (docs/AD_MEASUREMENT.md). Accept marks this visit and keeps the
+   * pixel's `_fbp`; Decline marks every visit of this browser, so an event queued for an earlier
+   * lead is skipped too. Starts the visit when the tracking call hasn't run yet.
+   */
+  async recordAdConsent(input: {
+    consent: boolean;
+    fbp: string | undefined;
+    ipAddress: string;
+    referrer: string | undefined;
+    sessionId: string;
+    url: string;
+    userAgent: string | undefined;
+    visitorId: string;
+  }): Promise<void> {
+    const now = new Date();
+    const answer = { adConsent: input.consent, adConsentAt: now, fbp: input.consent && isMetaFbp(input.fbp) ? input.fbp : null };
+    const existing = await this.prisma.visitorSession.findUnique({ select: { id: true }, where: { sessionId: input.sessionId } });
+    if (!existing) {
+      try {
+        await this.trackVisit(input);
+      } catch (error) {
+        // The page's own tracking call made it a moment earlier: fine, it exists now.
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) throw error;
+      }
+    }
+    await this.prisma.visitorSession.update({ data: answer, where: { sessionId: input.sessionId } });
+    if (!input.consent) {
+      await this.prisma.visitorSession.updateMany({
+        data: { adConsent: false, adConsentAt: now, fbp: null },
+        where: { visitorId: input.visitorId }
+      });
+    }
   }
 
   // ── Admin ──

@@ -153,6 +153,15 @@ export const trackVisitRequestSchema = z.object({
 });
 export type TrackVisitRequest = z.infer<typeof trackVisitRequestSchema>;
 
+/** The cookie banner's answer (docs/AD_MEASUREMENT.md): Accept = true, Decline = false. */
+export const adConsentRequestSchema = z.object({
+  consent: z.boolean(),
+  /** The page it was given on: starts the visit when the tracking call hasn't run yet. */
+  url: z.string().trim().min(1).max(2000),
+  referrer: z.string().trim().max(2000).optional()
+});
+export type AdConsentRequest = z.infer<typeof adConsentRequestSchema>;
+
 // ── Admin (authenticated) requests ──
 
 export const updateLeadStatusRequestSchema = z.object({
@@ -281,4 +290,60 @@ export interface LeadMetricsResponse {
   conversion: { rate: number; count: number };
   statusDistribution: Record<string, number>;
   sourceDistribution: Record<string, number>;
+}
+
+
+// ── Funnel report (admin Leads → Funnel; docs/AD_MEASUREMENT.md "Funnel report") ──
+
+/** Longest range the funnel report covers in one request. */
+export const LEAD_FUNNEL_MAX_DAYS = 366;
+
+const ymdSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD");
+
+/** `from` / `to`: calendar days in the academy's time zone, both included. */
+export const leadFunnelQuerySchema = z
+  .object({ from: ymdSchema, to: ymdSchema })
+  .refine((query) => query.from <= query.to, { message: "from must not be after to", path: ["from"] });
+export type LeadFunnelQuery = z.infer<typeof leadFunnelQuerySchema>;
+
+/** Stages a demo booking puts a lead in (or past, for a missed demo). */
+const BOOKED_STATUSES: readonly LeadStatus[] = ["DEMO_SCHEDULED", "DEMO_CONFIRMED", "DEMO_ATTENDED", "NO_SHOW"];
+
+/**
+ * The one rule for how far a lead got (funnel report): from facts first (a demo registration, a
+ * guest who joined, a conversion date), then the stage, so a lead later moved to Follow up or
+ * Lost still counts where it got to.
+ */
+export function leadFunnelReach(lead: {
+  attendedDemo: boolean;
+  bookedDemo: boolean;
+  convertedAt: Date | string | null;
+  status: LeadStatus;
+}): { attended: boolean; booked: boolean; enrolled: boolean } {
+  const enrolled = lead.convertedAt !== null || lead.status === "CONVERTED" || lead.status === "ACTIVE_STUDENT";
+  const attended = lead.attendedDemo || lead.status === "DEMO_ATTENDED";
+  const booked = attended || lead.bookedDemo || BOOKED_STATUSES.includes(lead.status);
+  return { attended, booked, enrolled };
+}
+
+/** One source + campaign in the funnel report. Spend is null when Meta's ad spend isn't known for it. */
+export interface LeadFunnelRow {
+  source: string;
+  campaign: string | null;
+  leads: number;
+  demoBooked: number;
+  demoAttended: number;
+  enrolled: number;
+  /** Matched Meta ad spend in minor units (ad ids for WhatsApp ad leads, campaign name for website leads). */
+  spendMinor: number | null;
+}
+
+export interface LeadFunnelResponse {
+  from: string;
+  to: string;
+  timeZone: string;
+  rows: LeadFunnelRow[];
+  totals: Omit<LeadFunnelRow, "campaign" | "source">;
+  /** Meta ad spend (read-only Insights), when META_ADS_* are set; null = not configured. */
+  spend: { currency: string; totalMinor: number; error: string | null } | null;
 }

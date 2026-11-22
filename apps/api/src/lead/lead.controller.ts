@@ -3,11 +3,13 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res } fr
 import { Throttle } from "@nestjs/throttler";
 import {
   API_ROUTES,
+  adConsentRequestSchema,
   assignLeadDemoClassRequestSchema,
   createLeadNoteRequestSchema,
   createLeadRequestSchema,
   trackVisitRequestSchema,
   updateLeadStatusRequestSchema,
+  type AdConsentRequest,
   type AssignLeadDemoClassRequest,
   type CreateLeadNoteRequest,
   type CreateLeadRequest,
@@ -19,14 +21,21 @@ import type { Request, Response } from "express";
 import { trackingCookieBase } from "../auth/auth-cookies";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
+import { LeadFunnelService } from "./lead-funnel.service";
 import { LeadService } from "./lead.service";
 import { TRACKING_COOKIE_NAMES, TRACKING_COOKIE_PATH, VISITOR_ID_MAX_AGE } from "./types/tracking-cookie.types";
 import { RequireFeature } from "../platform/require-feature.decorator";
 import { REFERRAL_COOKIE_NAME } from "../referral/referral.util";
 
+/** The Meta Pixel's first-party browser id cookie (set on the site's top domain). */
+const META_FBP_COOKIE = "_fbp";
+
 @Controller()
 export class LeadController {
-  constructor(private readonly leadService: LeadService) {}
+  constructor(
+    private readonly leadFunnel: LeadFunnelService,
+    private readonly leadService: LeadService
+  ) {}
 
   private getAccessToken(request: Request) {
     return request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
@@ -50,9 +59,40 @@ export class LeadController {
     @Req() request: Request
   ) {
     return this.leadService.createLead(body, {
+      fbp: request.cookies?.[META_FBP_COOKIE],
       referralId: request.cookies?.[REFERRAL_COOKIE_NAME],
       sessionId: request.cookies?.[TRACKING_COOKIE_NAMES.sessionId]
     });
+  }
+
+  /** The cookie banner's answer, on this visit (and, for Decline, every visit of this browser). */
+  @Post(API_ROUTES.leads.adConsent)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  async recordAdConsent(
+    @Body(new ZodBodyPipe(adConsentRequestSchema)) body: AdConsentRequest,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    const existingVisitorId = request.cookies?.[TRACKING_COOKIE_NAMES.visitorId];
+    const existingSessionId = request.cookies?.[TRACKING_COOKIE_NAMES.sessionId];
+    const visitorId = existingVisitorId ?? randomUUID();
+    const sessionId = existingSessionId ?? randomUUID();
+
+    await this.leadService.recordAdConsent({
+      consent: body.consent,
+      fbp: request.cookies?.[META_FBP_COOKIE],
+      ipAddress: this.getClientIp(request),
+      referrer: body.referrer,
+      sessionId,
+      url: body.url,
+      userAgent: request.headers["user-agent"],
+      visitorId
+    });
+
+    if (!existingVisitorId || !existingSessionId) {
+      this.setTrackingCookies(response, visitorId, sessionId);
+    }
+    return { ok: true };
   }
 
   @Post(API_ROUTES.leads.tracking)
@@ -112,6 +152,13 @@ export class LeadController {
   @Get(API_ROUTES.adminLeads.metrics)
   getMetrics(@Req() request: Request) {
     return this.leadService.getMetrics(this.getAccessToken(request));
+  }
+
+  // Before `adminLeads.get()`, or `:id` would take "funnel".
+  @RequireFeature("leadsCrm")
+  @Get(API_ROUTES.adminLeads.funnel)
+  getFunnel(@Req() request: Request, @Query() query: Record<string, unknown>) {
+    return this.leadFunnel.report(this.getAccessToken(request), query);
   }
 
   @RequireFeature("leadsCrm")

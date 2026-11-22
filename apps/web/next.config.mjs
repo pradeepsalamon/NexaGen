@@ -39,14 +39,18 @@ function reportOnlyCsp(isDev) {
     ...originsOf(process.env.NEXT_PUBLIC_LIVEKIT_URL)
   ];
   const gateways = ["https://*.razorpay.com", "https://*.cashfree.com"];
+  // Meta Pixel, loaded only after the cookie banner's Accept (docs/AD_MEASUREMENT.md); only when configured.
+  const metaPixel = process.env.NEXT_PUBLIC_META_PIXEL_ID
+    ? { connect: ["https://www.facebook.com", "https://connect.facebook.net"], script: ["https://connect.facebook.net"] }
+    : { connect: [], script: [] };
   return [
     "default-src 'self'",
     // wasm-unsafe-eval: pdf.js' image decoders (diagram import).
-    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""} https://checkout.razorpay.com https://sdk.cashfree.com`,
+    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""} https://checkout.razorpay.com https://sdk.cashfree.com${metaPixel.script.map((host) => ` ${host}`).join("")}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    `connect-src 'self' ${[...live, ...gateways, "https://explorer.lichess.ovh", "https://*.sentry.io"].join(" ")}${isDev ? " ws: http://localhost:*" : ""}`,
+    `connect-src 'self' ${[...live, ...gateways, ...metaPixel.connect, "https://explorer.lichess.ovh", "https://*.sentry.io"].join(" ")}${isDev ? " ws: http://localhost:*" : ""}`,
     `media-src 'self' blob: ${live.join(" ")}`,
     `frame-src ${gateways.join(" ")}`,
     "worker-src 'self' blob:",

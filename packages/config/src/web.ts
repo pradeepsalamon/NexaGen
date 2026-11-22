@@ -10,6 +10,13 @@ const webEnvSchema = z.object({
     .default("http://localhost:3001")
     .transform((url) => url.replace(/\/$/, "")),
   NEXT_PUBLIC_LIVEKIT_URL: z.string().url().default("ws://localhost:7880"),
+  // Meta Pixel on Nexa's public pages, after the cookie banner's Accept (docs/AD_MEASUREMENT.md).
+  // Empty = no pixel and no banner.
+  NEXT_PUBLIC_META_PIXEL_ID: z
+    .string()
+    .regex(/^\d{5,30}$/, "Expected the pixel (dataset) id, digits only.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   // Nexa's own hosts call the API same-origin under `/api` (like academies), so the API's
   // PLATFORM_HOST_ONLY_COOKIES can keep their session host-only. Needs the nginx `/api/` rule.
   NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API: z
@@ -31,6 +38,7 @@ export function getWebEnv(source: {
   NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?: string | undefined;
   NEXT_PUBLIC_API_URL?: string | undefined;
   NEXT_PUBLIC_LIVEKIT_URL?: string | undefined;
+  NEXT_PUBLIC_META_PIXEL_ID?: string | undefined;
   NEXT_PUBLIC_PLATFORM_SAME_ORIGIN_API?: string | undefined;
   NEXT_PUBLIC_SITE_URL?: string | undefined;
 }) {

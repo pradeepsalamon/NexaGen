@@ -50,6 +50,53 @@ unhashed contact detail. Only the lead's parent phone/email, hashed.
 the server's `Lead` reuses it so Meta keeps one of the two. A malformed id is replaced by
 `nexa.<EventName>.<leadId>` (also the id of every other event).
 
+## Meta Pixel and the cookie banner (web)
+
+`apps/web/src/features/ad-consent/` (`AdMeasurement`, `AdConsentSettingsButton`, `lib/adConsent.ts`,
+`lib/metaPixel.ts`).
+
+- **`NEXT_PUBLIC_META_PIXEL_ID`** (build-time; `Dockerfile` ARG + compose build arg). Empty = no
+  pixel **and no banner**.
+- **Where:** `AdMeasurement` is mounted on Nexa's public pages only: `/` (and its demo form),
+  `/academy`, `/privacy`, `/terms`. Not `/plans`: it needs a sign-in (`ROUTE_RULES`), so it is a
+  signed-in page; hence no `ViewContent` event either. It renders nothing on another academy's address
+  (`data-host="academy"`, and it sits inside `platform-brand-only`) and nothing for a signed-in
+  user; it is never mounted in role areas, the live class or demo guest pages.
+- **Banner:** Accept / Decline, the answer in the first-party cookie `nexa_ad_consent`
+  (`granted`/`denied`, six months, `SameSite=Lax`) and on the visit through
+  `POST /leads/ad-consent` (`VisitorSession.adConsent`, `adConsentAt`; starts the visit if the
+  tracking call hasn't yet). **Decline marks every visit of this browser** (same `visitorId`), so a
+  queued website event for an earlier lead is skipped. "Change cookie choices" on `/privacy`
+  reopens the banner.
+- **Pixel, after Accept only:** loaded without an inline script (`loadMetaPixel`: Meta's queue stub
+  + `connect.facebook.net/en_US/fbevents.js`), then `PageView` on each page and `Lead` when the demo form succeeds, with the `event_id` the form also sends as
+  `metaEventId` (the server's `Lead` reuses it). Meta's `_fbp` cookie (on the site's top domain)
+  is read by the API on the form and consent calls and kept only on a consented visit.
+- **CSP:** `connect.facebook.net` (script, connect) and `www.facebook.com` (connect) are added to
+  `next.config.mjs` `reportOnlyCsp()` only when the pixel id is set; images already allow `https:`.
+- **Privacy policy:** `features/legal/content.ts` section "Ad measurement" (what the pixel and the
+  server send, what never is, how to decline), "Meta (ads)" under sharing, retention.
+
+## Funnel report (admin)
+
+Admin → Leads → **Funnel** tab (`LeadFunnelPanel`), `GET /admin/leads/funnel?from=YYYY-MM-DD&to=YYYY-MM-DD`
+(`LeadFunnelService`, admins and super admins, `leadsCrm` feature).
+
+- Leads **created** between the two days (both included) **in the academy's time zone**
+  (`Tenant.timezone`, else Asia/Kolkata; `zonedDateToUtc`), at most 366 days, grouped by source and
+  campaign. Counted in batches of 1,000; the report lists groups, not leads.
+- How far each got is **`leadFunnelReach`** (`@nexa-chess/types` `leads.ts`), the one rule: booked =
+  a demo registration or a booked/missed/attended stage; attended = a guest who joined or Demo
+  attended; enrolled = `convertedAt` or Converted / Active student. A lead later moved to Follow up
+  or Lost still counts where it got to. Percentages are of the row's leads.
+- **Ad spend** (optional): `META_ADS_ACCESS_TOKEN` + `META_AD_ACCOUNT_ID` →
+  `MetaAdsInsightsService` reads ad-level spend for the range (read-only Marketing API Insights,
+  `ads_read`; Meta's days are the ad account's), cached six hours per range, Nexa's academy only.
+  Matched per row: WhatsApp ad leads by ad id (`LeadAdClick.firstAdId`), website leads by campaign
+  name (`utm_campaign` = the Meta campaign's name). Cost per lead / enrolment where matched; the
+  total is every ad's spend in the range. A Meta error leaves the funnel and shows why spend is
+  missing. Empty = no spend columns.
+
 ### Env (API)
 
 | Var | Meaning |
@@ -59,6 +106,9 @@ the server's `Lead` reuses it so Meta keeps one of the two. A malformed id is re
 | `META_CAPI_TEST_EVENT_CODE` | Set = every event is a test event (Events Manager → Test events). Staging. |
 | `META_GRAPH_API_VERSION` | Default `v21.0`. |
 | `WHATSAPP_BUSINESS_ACCOUNT_ID` | Needed for WhatsApp events (already used for templates). |
+| `META_ADS_ACCESS_TOKEN`, `META_AD_ACCOUNT_ID` | Funnel report ad spend (read-only). Both empty = no spend columns. |
+
+Web (build-time): `NEXT_PUBLIC_META_PIXEL_ID` (empty = no pixel, no banner).
 
 ### Testing safely
 
