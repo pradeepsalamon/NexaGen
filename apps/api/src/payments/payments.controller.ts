@@ -112,11 +112,13 @@ export class PaymentsController {
     return this.payments.retry(await this.user(request), id, method);
   }
 
+  @RequireFeature("feeTracking")
   @Get(API_ROUTES.payments.mine)
   async billing(@Req() request: Request) {
     return this.payments.getBilling(await this.user(request));
   }
 
+  @RequireFeature("feeTracking")
   @Get(API_ROUTES.payments.invoice())
   async invoice(@Param("id") id: string, @Req() request: Request) {
     return this.invoices.get(await this.user(request), id);
@@ -126,6 +128,7 @@ export class PaymentsController {
    * A printable receipt. Served as HTML rather than a PDF binary so it prints
    * from any browser without adding a renderer to the ARM build.
    */
+  @RequireFeature("feeTracking")
   @Get(API_ROUTES.payments.invoiceDownload())
   @Header("Content-Type", "text/html; charset=utf-8")
   async downloadInvoice(

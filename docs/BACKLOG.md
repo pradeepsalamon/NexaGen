@@ -144,6 +144,18 @@ code on 2026-10-31.
   is still an admin move, and free days given by a voucher can't be taken back
   from the referral board (adjust the access in Payments).
 
+- **Mini plan + fee tracking on every plan (built 2026-11-20, branch
+  `feat/mini-plan-fee-tracking`, PR into `dev`).** Manual (cash / UPI / bank)
+  payments, fee plans, invoices and billing moved to a new `feeTracking`
+  feature on every plan; online payments (`studentPayments`) stay Growth up and
+  imply it ([SAAS_PLANS.md](SAAS_PLANS.md) "Fee tracking and online payments").
+  New **Mini** plan: 25 students, 1 coach, 5 batches, 1 live class, ₹999/month,
+  ₹9,990/year, 14-day trial (placeholder: the owner sets prices live in the
+  platform console). **Owner 2026-11-20:** in-class activities
+  (`interactiveClassroom`) on every plan, so Mini and Starter have them. A solo
+  coach still needs one admin + one coach account until multi-role accounts
+  with a role switch are built (proposed 2026-11-20, not started).
+
 ### Needs someone with `vps_dev` / production access
 
 - ~~Confirm `LiveKit webhook: event=…` lines in the API logs during a real class

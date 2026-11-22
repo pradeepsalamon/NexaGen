@@ -73,6 +73,20 @@ describe("resolveEntitlements", () => {
     expect(resolved.features).toEqual(["directChat"]);
     expect(resolved.limits.maxStudents).toBe(40);
   });
+
+  it("online payments always bring fee tracking, also through a deal", () => {
+    expect(resolveEntitlements({ features: ["studentPayments"], limits: {} }).features).toEqual([
+      "feeTracking",
+      "studentPayments"
+    ]);
+    expect(resolveEntitlements(plan, { addFeatures: ["studentPayments"] }).features).toContain("feeTracking");
+    // Taking fee tracking away while keeping online payments would break their pages.
+    expect(
+      resolveEntitlements({ features: ["studentPayments"], limits: {} }, { removeFeatures: ["feeTracking"] }).features
+    ).toEqual(["feeTracking", "studentPayments"]);
+    // Fee tracking alone never grants online payments.
+    expect(resolveEntitlements({ features: ["feeTracking"], limits: {} }).features).toEqual(["feeTracking"]);
+  });
 });
 
 describe("limits and upgrade path", () => {
@@ -85,6 +99,10 @@ describe("limits and upgrade path", () => {
   it("names the cheapest plan with a feature", () => {
     expect(cheapestPlanWithFeature(DEFAULT_PLATFORM_PLANS, "courses")?.code).toBe("GROWTH");
     expect(cheapestPlanWithFeature(DEFAULT_PLATFORM_PLANS, "coachPayroll")?.code).toBe("BUSINESS");
+    expect(cheapestPlanWithFeature(DEFAULT_PLATFORM_PLANS, "feeTracking")?.code).toBe("MINI");
+    expect(cheapestPlanWithFeature(DEFAULT_PLATFORM_PLANS, "studentPayments")?.code).toBe("GROWTH");
+    // A custom plan listing only online payments still counts for fee tracking.
+    expect(cheapestPlanWithFeature([{ features: ["studentPayments"], sortOrder: 1 }], "feeTracking")).not.toBeNull();
   });
 
   it("each tier includes everything the cheaper tiers do", () => {
@@ -119,12 +137,15 @@ describe("the catalogue is enforced", () => {
     );
     // A feature added later is appended to existing plans by its own migration
     // (`array_append("features", 'x') WHERE "id" IN (...)`); seeds are never edited.
+    // A plan added later (Mini) is inserted by its own migration the same way.
     const migrationsDir = path.resolve(__dirname, "../../prisma/migrations");
     const appended = new Map<string, string[]>();
+    let seeds = sql;
     for (const folder of fs.readdirSync(migrationsDir).filter((name) => name > "20261020120000_saas_subscription_plans")) {
       const file = path.join(migrationsDir, folder, "migration.sql");
       if (!fs.existsSync(file)) continue;
       const later = fs.readFileSync(file, "utf8");
+      if (later.includes('INSERT INTO "platform_plans"')) seeds += `\n${later}`;
       for (const match of later.matchAll(/array_append\("features", '(\w+)'\)\s*WHERE "id" IN \(([^)]*)\)/g)) {
         for (const id of match[2].split(",").map((part) => part.trim().replace(/'/g, ""))) {
           appended.set(id, [...(appended.get(id) ?? []), match[1]]);
@@ -132,7 +153,7 @@ describe("the catalogue is enforced", () => {
       }
     }
     for (const plan of DEFAULT_PLATFORM_PLANS) {
-      const row = new RegExp(`\\('${plan.id}', '${plan.code}'[\\s\\S]*?ARRAY\\[([^\\]]*)\\],\\s*'([^']*)'`).exec(sql);
+      const row = new RegExp(`(?:\\(|SELECT )'${plan.id}', '${plan.code}'[\\s\\S]*?ARRAY\\[([^\\]]*)\\],\\s*'([^']*)'`).exec(seeds);
       expect(row).not.toBeNull();
       const features = [
         ...row![1].split(",").map((f) => f.trim().replace(/'/g, "")),

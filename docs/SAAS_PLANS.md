@@ -48,6 +48,7 @@ attendance, assignments, the puzzle library, announcements, notifications.
 | `customDomain` | `GET /admin/branding/domains`, and the console refuses to add an own domain (402) |
 | `demoClasses` | `DemoScheduleController`, the admin demo-class routes in `AdminController` |
 | `directChat` | `ChatController` |
+| `feeTracking` | manual (cash / UPI / bank) payments, offline methods, fee plans and batch pricing, the payments list and overview, invoices (`InvoicesController`, `InvoicesAdminController`), a student's billing page. `PaymentsAdminController` and `ManualPaymentController` at class level; on `PaymentsController` only `mine`, `invoice`, `invoiceDownload`. Every plan from Mini up. **Implied by `studentPayments`** (`IMPLIED_PLAN_FEATURES`) |
 | `gameAnalysis` | `GameAnalysisController`, `GameSourcesController` |
 | `gameLibrary` | `GameLibraryController` |
 | `interactiveClassroom` | simul, matches, move polls, puzzle rush, activity queue, chapters, classroom tools — **writes only** (`allowReads`), because the room reads their state on mount |
@@ -56,9 +57,39 @@ attendance, assignments, the puzzle library, announcements, notifications.
 | `messagingAutomation` | `MessagingController` |
 | `smartRevision` | `RevisionController` |
 | `tournaments` | `TournamentAdminController` (academy tournament settings); every tournament controller added by later phases (docs/TOURNAMENTS.md). Enterprise only for now |
-| `studentPayments` | payments, invoices, admin payments/invoices, manual payments (never the provider webhooks) |
+| `studentPayments` | **online** payments: checkout, verify, retry, discount preview, subscriptions (`PaymentsController` apart from the three fee-tracking reads), gateway keys (`TenantGatewaysController`), and on `PaymentsAdminController` the handlers for refunds, subscriptions, provider health, routing, discounts, reconcile and refund (never the provider webhooks). Always brings `feeTracking` |
 | `whatsappSupport` | `SupportAdminController` (the `/admin/support` inbox, saved answers, bot settings) — **writes only** (`allowReads`, old tickets stay readable); without it the bot doesn't answer (`SupportSettingsService.forBot`). Business + Enterprise |
 | `whiteLabel` | `PUT /admin/branding/white-label`; with it, "Powered by NexaChess" is hidden unless the academy shows it |
+
+### Fee tracking and online payments (2026-11-20)
+
+A small academy collects fees in cash or by GPay and only needs to record who
+paid, so `feeTracking` (records, fee plans, invoices, billing pages) is on every
+plan and `studentPayments` (the academy's own gateway) stays from Growth up.
+
+- **`studentPayments` implies `feeTracking`** (`IMPLIED_PLAN_FEATURES`, applied
+  by `resolveEntitlements` after a deal's removals and by
+  `cheapestPlanWithFeature`). So plan versions pinned before the split, and
+  deals that add `studentPayments`, keep every page without a data change, and
+  a deal can't remove the records online payments need.
+- A handler-level `@RequireFeature` replaces its controller's, which is how one
+  controller mixes the two (above).
+- Web: `/admin/payments`, `/admin/finance/invoices`, `/coach/payments` and
+  `/student/billing` belong to `feeTracking`; `/checkout` and `/plans` to
+  `studentPayments`. Without online payments the admin Payments page shows
+  Overview, Transactions, Manual payments and Plans only, the transactions table
+  has no reconcile/refund buttons, and a student's billing page has no "See the
+  available plans" link. A batch's **Pricing** tab needs `feeTracking`.
+
+### Per-academy deals
+
+Platform console → academy → **Edit deal**: a custom monthly price, limit
+overrides, **extra features** (`addFeatures`), **features taken away**
+(`removeFeatures`, a tick per feature the academy's plan includes; the screen
+since 2026-11-20, the API before) and extra content packs. Removal wins over an
+addition, but a feature another kept feature implies stays on (the dialog says
+so: "Stays on while Online student payments is on"). The academy's card lists
+its extra and taken-away features.
 
 **Rule:** a key exists in `PLAN_FEATURE_KEYS` only if some route enforces it.
 `platform/platform-plans.spec.ts` fails a catalogued feature that no
@@ -240,13 +271,19 @@ features, limits, visibility; it applies to every tenant on that plan at once.
 
 ## Default tiers (seed data — edit in the database)
 
-| | Starter | Growth | Business | Enterprise |
-|---|---|---|---|---|
-| Students / coaches / batches / live at once | 50 / 3 / 10 / 2 | 250 / 15 / 50 / 5 | 1000 / 50 / 200 / 15 | unlimited |
-| Features | direct chat, game library | + recording, feedback, courses, branding, demo classes, interactive classroom, leads, smart revision, student payments | + analytics, payroll, game analysis, messaging automation | everything |
-| Price (INR / month) | 2,499 | 6,999 | 14,999 | contact us |
+| | Mini | Starter | Growth | Business | Enterprise |
+|---|---|---|---|---|---|
+| Students / coaches / batches / live at once | 25 / 1 / 5 / 1 | 50 / 3 / 10 / 2 | 250 / 15 / 50 / 5 | 1000 / 50 / 200 / 15 | unlimited |
+| Features | direct chat, game library, fee tracking, interactive classroom | same as Mini | + recording, feedback, courses, logo and colours, board appearance, demo classes, leads, referrals, smart revision, online student payments | + analytics, payroll, own domain, game analysis, messaging automation, WhatsApp support | everything |
+| Price (INR / month) | 999 | 2,499 | 6,999 | 14,999 | contact us |
 
 Prices and tiers are placeholders for the owner to set.
+
+**Mini** (added 2026-11-20, migration `*_mini_plan_fee_tracking`): one coach
+teaching on their own on `<slug>.nexachess.in`, no own domain or logo; the
+academy's name shows with NexaChess's default look and a "Powered by NexaChess"
+footer. A solo coach still needs two accounts (one admin, one coach), since an
+account has one role; `maxCoaches` counts only coach accounts.
 
 ## Not yet
 

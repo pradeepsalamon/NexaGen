@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   formatMoney,
+  IMPLIED_PLAN_FEATURES,
   PLAN_FEATURE_KEYS,
   PLAN_FEATURES,
   PLAN_LIMIT_KEYS,
@@ -238,7 +239,12 @@ function DealDialog({ data, onClose, tenantId }: { data: Data; onClose: () => vo
     )
   );
   const [addPacks, setAddPacks] = useState<string[]>(overrides.addContentPacks ?? []);
+  const [removeFeatures, setRemoveFeatures] = useState<PlanFeatureKey[]>(overrides.removeFeatures ?? []);
   const missing = PLAN_FEATURE_KEYS.filter((key) => !plan?.features.includes(key));
+  const included = PLAN_FEATURE_KEYS.filter((key) => plan?.features.includes(key));
+  // A feature another kept feature needs stays on whatever is ticked (online payments keep fee tracking).
+  const kept = [...included, ...addFeatures].filter((key) => !removeFeatures.includes(key));
+  const neededBy = (key: PlanFeatureKey) => kept.find((other) => IMPLIED_PLAN_FEATURES[other]?.includes(key));
   const limitsOk = Object.values(limits).every((value) => value === "" || value === "unlimited" || /^\d+$/.test(value));
   const priceOk = price.trim() === "" || /^\d+(\.\d{1,2})?$/.test(price.trim());
 
@@ -248,7 +254,7 @@ function DealDialog({ data, onClose, tenantId }: { data: Data; onClose: () => vo
         <DialogHeader>
           <DialogTitle>Deal for {data.tenant.name}</DialogTitle>
           <DialogDescription>
-            What this academy gets beyond its plan. Never shown to the academy except as the features and limits it
+            What this academy gets beyond, or without, its plan. Never shown to the academy except as the features and limits it
             ends up with.
           </DialogDescription>
         </DialogHeader>
@@ -285,6 +291,36 @@ function DealDialog({ data, onClose, tenantId }: { data: Data; onClose: () => vo
                   }
                 />
               ))}
+            </div>
+          </fieldset>
+        ) : null}
+        {included.length > 0 ? (
+          <fieldset className="grid gap-2">
+            <legend className="mb-2 text-sm font-semibold text-app-text">Features taken away</legend>
+            <p className="text-sm text-app-muted">
+              Ticked features are switched off for this academy only, even though its plan includes them.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {included.map((key) => {
+                const needed = neededBy(key);
+                return (
+                  <div key={key}>
+                    <Checkbox
+                      checked={removeFeatures.includes(key)}
+                      id={`deal-remove-${key}`}
+                      label={PLAN_FEATURES[key].label}
+                      onCheckedChange={(checked) =>
+                        setRemoveFeatures((current) =>
+                          checked === true ? [...current, key] : current.filter((value) => value !== key)
+                        )
+                      }
+                    />
+                    {needed ? (
+                      <p className="ml-6 text-xs text-app-muted">Stays on while {PLAN_FEATURES[needed].label} is on.</p>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           </fieldset>
         ) : null}
@@ -334,7 +370,8 @@ function DealDialog({ data, onClose, tenantId }: { data: Data; onClose: () => vo
                     addFeatures,
                     limits: limitOverrides,
                     removeContentPacks: overrides.removeContentPacks,
-                    removeFeatures: overrides.removeFeatures ?? []
+                    // Only features the plan has: a removal of something it lacks would do nothing.
+                    removeFeatures: removeFeatures.filter((key) => included.includes(key))
                   }
                 })
                 .then(onClose, () => undefined);
@@ -368,7 +405,13 @@ export function AcademySubscriptionCard({ tenantId }: { tenantId: string }) {
     data.deal?.customPriceMinor !== null && data.deal?.customPriceMinor !== undefined
       ? ["Custom price", formatMoney(data.deal.customPriceMinor, data.plans.find((plan) => plan.code === data.plan?.code)?.currency ?? "INR")]
       : null,
-    data.deal ? ["Lapse", `${data.deal.lapse.pastDueDays} days past due, then ${data.deal.lapse.graceDays} days grace`] : null
+    data.deal ? ["Lapse", `${data.deal.lapse.pastDueDays} days past due, then ${data.deal.lapse.graceDays} days grace`] : null,
+    sub?.overrides.addFeatures?.length
+      ? ["Extra features", sub.overrides.addFeatures.map((key) => PLAN_FEATURES[key].label).join(", ")]
+      : null,
+    sub?.overrides.removeFeatures?.length
+      ? ["Features taken away", sub.overrides.removeFeatures.map((key) => PLAN_FEATURES[key].label).join(", ")]
+      : null
   ].filter((fact): fact is [string, string] => fact !== null);
 
   return (

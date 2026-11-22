@@ -29,6 +29,7 @@ import { useAssignableUsersQuery } from "../hooks/useBatchesApi";
 import { createBatch, updateBatch, deleteBatch } from "../api/batchApi";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { queryKeys } from "@/lib/queryKeys";
+import { usePlanFeature } from "@/features/subscription/hooks/useSubscription";
 import {
   BATTLES_ENABLED_OPTIONS,
   fromBattlesEnabledValue,
@@ -90,6 +91,8 @@ function toUpdatePayload(batch: Batch): UpdateBatchRequest {
 
 export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
   const { success, info } = useToast();
+  // Batch fee plans belong to fee tracking (plan feature `feeTracking`).
+  const feeTracking = usePlanFeature("feeTracking") === true;
   const { run: runCreate, isPending: isCreating } = useUndoableMutation({
     strategy: "immediate",
     mutationFn: async (payload: CreateBatchRequest) => {
@@ -183,7 +186,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                   <TabsTrigger value="details">Details</TabsTrigger>
                   <TabsTrigger value="members">Manage Members</TabsTrigger>
                   <TabsTrigger value="liveClass">Class Settings</TabsTrigger>
-                  <TabsTrigger value="pricing">Pricing</TabsTrigger>
+                  {feeTracking ? <TabsTrigger value="pricing">Pricing</TabsTrigger> : null}
                 </TabsList>
               )}
               <Button disabled={isSaving} isLoading={isSaving} type="submit">
@@ -499,7 +502,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
             </TabsContent>
           )}
 
-          {selectedBatch && (
+          {selectedBatch && feeTracking && (
             <TabsContent value="pricing">
               <BatchPricingTab batchId={selectedBatch.id} />
             </TabsContent>
