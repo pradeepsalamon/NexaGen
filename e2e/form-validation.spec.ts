@@ -26,8 +26,9 @@ async function useTheme(page: Page, theme: Theme) {
   }, theme);
 }
 
-const heightOf = (locator: Locator) =>
-  locator.evaluate((element) => Math.round(element.getBoundingClientRect().height * 10) / 10);
+// Layout height (`offsetHeight`), not the painted box: the login card grows in with a
+// transform (scale 0.98 → 1), which would read as the form moving.
+const heightOf = (locator: Locator) => locator.evaluate((element) => (element as HTMLElement).offsetHeight);
 
 /** Counts API calls whose URL ends with `path` (to prove a blocked submit sent nothing). */
 function countRequests(page: Page, path: string) {

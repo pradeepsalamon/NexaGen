@@ -1,0 +1,156 @@
+/* Login page (`/login`). Colours are the "Login page" tokens in styles/globals.css. */
+
+.login-v2 {
+  --login-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
+  overflow-x: clip;
+}
+
+.login-v2-serif {
+  font-family: var(--login-serif);
+}
+
+/* The hero's curved right edge (desktop). The same curve is drawn in gold by
+   LoginBackdrop's SVG, so keep the two in step (cubic 100,0 100,42 96,74 80,100). */
+.login-v2-hero-shape {
+  clip-path: polygon(
+    0% 0%, 100% 0%, 100% 7.8%, 99.8% 15.3%, 99.5% 22.6%, 99.1% 29.7%, 98.6% 36.6%,
+    97.9% 43.2%, 97% 49.7%, 96% 56%, 94.8% 62.1%, 93.4% 68%, 91.7% 73.7%, 89.9% 79.3%,
+    87.8% 84.7%, 85.5% 90%, 82.9% 95.1%, 80% 100%, 0% 100%
+  );
+}
+
+/* Phone and tablet: the hero top is a block ending in a soft curve above the
+   form, and the trust row sits in a matching block after it. */
+@media (max-width: 1023.98px) {
+  .login-v2-hero-mobile,
+  .login-v2-hero-mobile-bottom {
+    background:
+      radial-gradient(70% 60% at 100% 0%, rgb(var(--rgb-login-hero-line) / 0.5), transparent 70%),
+      rgb(var(--rgb-login-hero));
+  }
+
+  .login-v2-hero-mobile {
+    border-bottom-left-radius: 50% 1.75rem;
+    border-bottom-right-radius: 50% 1.75rem;
+  }
+
+  .login-v2-hero-mobile-bottom {
+    border-top-left-radius: 50% 1.75rem;
+    border-top-right-radius: 50% 1.75rem;
+  }
+}
+
+.login-v2-hero-glow {
+  background:
+    radial-gradient(60% 50% at 85% 35%, rgb(var(--rgb-login-hero-line) / 0.55), transparent 70%),
+    radial-gradient(70% 60% at 0% 0%, rgb(var(--rgb-login-hero-2)), transparent 70%),
+    rgb(var(--rgb-login-hero));
+}
+
+.login-v2-gold-text {
+  background-image: linear-gradient(
+    100deg,
+    rgb(var(--rgb-login-hero-gold-1)) 0%,
+    rgb(var(--rgb-login-hero-gold-2)) 45%,
+    rgb(var(--rgb-login-hero-gold-3)) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* The brush-stroke underline under "expert coaches." */
+.login-v2-swash {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(var(--rgb-login-hero-gold-2) / 0.9) 30%,
+    rgb(var(--rgb-login-hero-gold-1)) 70%,
+    transparent 100%
+  );
+  border-radius: 9999px;
+  height: 3px;
+  transform: rotate(-1.2deg);
+}
+
+.login-v2-cta {
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--rgb-login-gold-light)) 0%,
+    rgb(var(--rgb-login-gold)) 55%,
+    rgb(var(--rgb-login-gold-deep)) 100%
+  );
+}
+
+.login-v2-cta:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+/* The hero picture fades in from the hero colour above it (no seam on any height). */
+.login-v2-art-fade {
+  mask-image: linear-gradient(to bottom, transparent 0%, black 38%);
+}
+
+/* Glassy feature chips on the hero (cream in light, navy in dark). */
+.login-v2-glass {
+  background: linear-gradient(
+    160deg,
+    rgb(var(--rgb-login-chip-1) / 0.92),
+    rgb(var(--rgb-login-chip-2) / 0.86)
+  );
+  border: 1px solid rgb(var(--rgb-login-gold) / 0.28);
+}
+
+/* Oversized circular lines on the hero. */
+.login-v2-ring {
+  border: 1px solid rgb(var(--rgb-login-hero-gold) / 0.14);
+  border-radius: 9999px;
+}
+
+/* Light theme hero scene (the dark one is a picture): the gold rings around the knight,
+   a warm glow behind it and a checkerboard floor fading in under it. */
+.login-v2-knight-ring {
+  border: 1.5px solid rgb(var(--rgb-login-gold) / 0.55);
+  border-radius: 9999px;
+  box-shadow: 0 0 18px rgb(var(--rgb-login-gold) / 0.25);
+}
+
+.login-v2-knight-glow {
+  background: radial-gradient(closest-side, rgb(var(--rgb-login-gold-light) / 0.75), transparent);
+}
+
+.login-v2-floor {
+  background-image: conic-gradient(
+    rgb(var(--rgb-login-gold-deep) / 0.22) 25%,
+    transparent 0 50%,
+    rgb(var(--rgb-login-gold-deep) / 0.22) 0 75%,
+    transparent 0
+  );
+  background-position: center top;
+  background-size: 12.5% 50%;
+  mask-image: linear-gradient(to bottom, transparent, black 45%, black 70%, transparent);
+  transform: perspective(600px) rotateX(58deg);
+  transform-origin: bottom;
+}
+
+/* Faint checkerboard fading in from the bottom-right of the form side. */
+.login-v2-checker {
+  background-image: conic-gradient(
+    rgb(var(--rgb-login-gold) / 0.16) 25%,
+    transparent 0 50%,
+    rgb(var(--rgb-login-gold) / 0.16) 0 75%,
+    transparent 0
+  );
+  background-size: 96px 96px;
+  mask-image: radial-gradient(85% 75% at 100% 100%, black, transparent 72%);
+  transform: perspective(700px) rotateX(55deg);
+  transform-origin: bottom;
+}
+
+/* Soft champagne sweep across the form side. */
+.login-v2-sweep {
+  background:
+    radial-gradient(55% 40% at 80% 0%, rgb(var(--rgb-login-gold) / 0.14), transparent 70%),
+    radial-gradient(45% 45% at 100% 100%, rgb(var(--rgb-login-gold) / 0.1), transparent 70%);
+}
+

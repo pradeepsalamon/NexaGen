@@ -76,6 +76,31 @@ const config: Config = {
           800: "rgb(var(--rgb-brand-800) / <alpha-value>)",
           900: "rgb(var(--rgb-brand-900) / <alpha-value>)"
         },
+        // Login page only (globals.css "Login page", features/auth/login-v2).
+        login: {
+          card: "rgb(var(--rgb-login-card) / <alpha-value>)",
+          gold: {
+            DEFAULT: "rgb(var(--rgb-login-gold) / <alpha-value>)",
+            deep: "rgb(var(--rgb-login-gold-deep) / <alpha-value>)",
+            ink: "var(--color-login-gold-ink)",
+            light: "rgb(var(--rgb-login-gold-light) / <alpha-value>)"
+          },
+          hero: {
+            DEFAULT: "rgb(var(--rgb-login-hero) / <alpha-value>)",
+            2: "rgb(var(--rgb-login-hero-2) / <alpha-value>)",
+            gold: "rgb(var(--rgb-login-hero-gold) / <alpha-value>)",
+            line: "rgb(var(--rgb-login-hero-line) / <alpha-value>)"
+          },
+          line: "rgb(var(--rgb-login-line) / <alpha-value>)",
+          muted: "rgb(var(--rgb-login-muted) / <alpha-value>)",
+          "on-gold": "rgb(var(--rgb-login-on-gold) / <alpha-value>)",
+          "on-hero": {
+            DEFAULT: "rgb(var(--rgb-login-on-hero) / <alpha-value>)",
+            muted: "rgb(var(--rgb-login-on-hero-muted) / <alpha-value>)"
+          },
+          page: "rgb(var(--rgb-login-page) / <alpha-value>)",
+          text: "rgb(var(--rgb-login-text) / <alpha-value>)"
+        },
         "on-accent": "rgb(var(--rgb-on-accent) / <alpha-value>)",
         "on-danger": "rgb(var(--rgb-on-danger) / <alpha-value>)",
         "on-info": "rgb(var(--rgb-on-info) / <alpha-value>)",

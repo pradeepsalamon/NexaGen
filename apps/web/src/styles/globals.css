@@ -226,6 +226,83 @@
   --color-focus: rgb(var(--rgb-primary));
 }
 
+/* Login page (`/login`, features/auth/login-v2): a hero beside a warm form side, both
+   following the theme: a champagne hero beside an ivory form side in light, a navy hero
+   beside a deep-navy form side in dark. `.login-v2-form-side` re-points the app tokens, so
+   the shared fields, checkbox and focus halo take the warm look without per-component
+   styling. The gold sign-in button keeps the same gold in both themes.
+   The navy is the app's own `--rgb-brand-900`. The gold stays login-only on purpose: academy
+   branding overrides `--rgb-accent`, and every academy gets this same gold page (owner, 2026-11-22). */
+:root {
+  --rgb-login-gold: 233 173 67;
+  --rgb-login-gold-light: 248 220 160;
+  --rgb-login-gold-deep: 190 130 34;
+  --rgb-login-on-gold: var(--rgb-brand-900);
+  --rgb-login-page: 250 248 243;
+  --rgb-login-card: 255 254 251;
+  --rgb-login-field: 255 255 255;
+  --rgb-login-line: 231 224 212;
+  --rgb-login-line-strong: 214 203 184;
+  --rgb-login-text: 23 32 51;
+  --rgb-login-muted: 104 115 138;
+  --rgb-login-subtle: 128 136 152;
+  --color-login-gold-ink: #9A6510;
+
+  /* Hero. */
+  --rgb-login-hero: 242 233 215;
+  --rgb-login-hero-2: 251 246 236;
+  --rgb-login-hero-line: 233 205 150;
+  --rgb-login-on-hero: 15 26 52;
+  --rgb-login-on-hero-muted: 84 94 116;
+  --rgb-login-hero-gold: 176 118 28;
+  --rgb-login-hero-gold-1: 206 150 50;
+  --rgb-login-hero-gold-2: 168 108 22;
+  --rgb-login-hero-gold-3: 122 78 12;
+  --rgb-login-chip-1: 255 253 248;
+  --rgb-login-chip-2: 250 243 230;
+}
+
+:root[data-theme="dark"] {
+  --rgb-login-page: 8 12 26;
+  --rgb-login-card: 13 20 40;
+  --rgb-login-field: 10 16 33;
+  --rgb-login-line: 33 45 74;
+  --rgb-login-line-strong: 58 72 104;
+  --rgb-login-text: 238 240 245;
+  --rgb-login-muted: 160 170 190;
+  --rgb-login-subtle: 132 144 168;
+  --color-login-gold-ink: #F0C46E;
+
+  --rgb-login-hero: var(--rgb-brand-900);
+  --rgb-login-hero-2: 7 21 47;
+  --rgb-login-hero-line: 37 52 88;
+  --rgb-login-on-hero: 244 241 233;
+  --rgb-login-on-hero-muted: 170 180 200;
+  --rgb-login-hero-gold: 233 173 67;
+  --rgb-login-hero-gold-1: 248 220 160;
+  --rgb-login-hero-gold-2: 233 173 67;
+  --rgb-login-hero-gold-3: 190 130 34;
+  --rgb-login-chip-1: 7 21 47;
+  --rgb-login-chip-2: 7 13 32;
+}
+
+.login-v2-form-side {
+  --rgb-background: var(--rgb-login-page);
+  --rgb-surface: var(--rgb-login-field);
+  --rgb-surface-soft: var(--rgb-login-page);
+  --rgb-surface-hover: var(--rgb-login-page);
+  --rgb-border: var(--rgb-login-line);
+  --rgb-line-strong: var(--rgb-login-line-strong);
+  --rgb-text: var(--rgb-login-text);
+  --rgb-text-muted: var(--rgb-login-muted);
+  --rgb-text-subtle: var(--rgb-login-subtle);
+  --rgb-primary: var(--rgb-login-gold-deep);
+  --rgb-on-primary: 255 255 255;
+  --rgb-primary-soft: var(--rgb-login-page);
+  --color-primary-ink: var(--color-login-gold-ink);
+  --color-focus: rgb(var(--rgb-login-gold-deep));
+}
+
 /* Solid status fills that look the same in both themes (BulkActionsBar):
    the light theme's deep colours with white text. */
 .solid-status {

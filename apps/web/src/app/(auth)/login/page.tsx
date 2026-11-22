@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { LoginForm } from "@/features/auth/components/LoginForm";
+import { LoginPageV2 } from "@/features/auth/login-v2/LoginPageV2";
 import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata: Metadata = {
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  return <LoginForm />;
+  return <LoginPageV2 />;
 }

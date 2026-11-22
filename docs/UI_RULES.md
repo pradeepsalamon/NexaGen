@@ -5,7 +5,13 @@ to everything under `apps/web/src` except the recording template (`app/recorder`
 The academy marketing site at `/` is the Design System v2 page (`features/academy/v2`), which
 follows every rule here and reads `features/academy/content.ts`. The original page
 (`features/academy/components`, kept at `/academy` since 2026-11-16) follows the colour rules;
-its layout and type keep their own look.
+its layout and type keep their own look. **The login page** (`/login`,
+`features/auth/login-v2`, since 2026-11-22) is a bespoke gold page whose hero and form side both
+follow the theme (champagne and ivory in light, navy in dark): its colours are the `login-*`
+tokens in `globals.css` ("Login page"; hero colours are `login-hero*`, the navy is
+`--rgb-brand-900`), `.login-v2-form-side` re-points the app tokens so the shared fields take its
+warm look, and sign-in is `useLoginFlow`. Its gold is deliberately not `--rgb-accent`: every
+academy gets this same page, and academy branding would recolour the accent.
 
 **NexaChess Design System v2** is the colour, type and spacing specification
 (`docs/ui-redesign/`). Never branch on `useTheme()` to pick a
