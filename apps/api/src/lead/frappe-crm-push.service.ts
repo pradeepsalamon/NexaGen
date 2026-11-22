@@ -347,7 +347,8 @@ export class FrappeCrmPushService {
     if (frappeStageMayMove(current, target)) await this.request(config, "PUT", path, { status: target });
   }
 
-  private async request(config: FrappeCrmConfig, method: "GET" | "POST" | "PUT", path: string, body?: unknown): Promise<unknown> {
+  /** One call to Frappe's REST API; also used by the stage return path. */
+  async request(config: FrappeCrmConfig, method: "GET" | "POST" | "PUT", path: string, body?: unknown): Promise<unknown> {
     const res = await fetch(`${config.url}${path}`, {
       body: body === undefined ? undefined : JSON.stringify(body),
       headers: {

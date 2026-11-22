@@ -24,6 +24,7 @@ export const JOB_LOCKS = {
   leadDemoMissed: "lead.demo-missed",
   liveClassStaleSweep: "live-class.stale-sweep",
   crmLeadPush: "crm.lead-push",
+  crmStageReturn: "crm.stage-return",
   messagingClassReminders: "messaging.class-reminders",
   messagingDueSoonReminders: "messaging.due-soon-reminders",
   messagingRevisionReminders: "messaging.revision-reminders",

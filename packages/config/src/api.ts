@@ -205,6 +205,14 @@ const apiEnvSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  /**
+   * Read the stage a salesperson set in Frappe back into NexaGen every 15 minutes (docs/LEAD_STAGES.md
+   * "The return path"). Works only with FRAPPE_CRM_STAGE_SYNC on too (same stage names on both sides).
+   */
+  FRAPPE_CRM_STAGE_RETURN: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   // Nexa's WhatsApp Business Account id: reads template status (other academies save theirs under Branding).
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   // Incoming WhatsApp: the support bot (docs/WHATSAPP_SUPPORT.md). The webhook

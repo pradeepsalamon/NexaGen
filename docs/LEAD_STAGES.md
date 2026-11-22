@@ -47,11 +47,37 @@ on payment) is planned below and needs the WhatsApp bot to receive the number's 
   change sets the row back to `PENDING`; the sweep reads Frappe's current stage and writes
   the new one only when **`frappeStageMayMove`** allows: forward only; a stage a salesperson
   closed (Enrolled, Lost, Junk, …) or one the list doesn't know stays; Enrolled/Lost always
-  pass from an open stage. Changes made in Frappe never come back (one way).
+  pass from an open stage. A stage a salesperson sets in Frappe comes back through the return
+  path below (off by default).
 - **`FRAPPE_CRM_STAGE_SYNC`** (default `false`): off = the old behaviour (first copy only, in
   `FRAPPE_CRM_LEAD_STATUS`). Before switching it on, every name in `FRAPPE_LEAD_STAGES` must
   exist as a `CRM Lead Status` in Frappe, or Frappe refuses new leads.
 - A NexaGen manual move backwards is not copied (Frappe keeps the further stage).
+
+## The return path (Frappe → NexaGen, built 2026-11-22)
+
+`FrappeCrmStageReturnService` (`lead/frappe-crm-stage-return.service.ts`, every 15 min,
+`JOB_LOCKS.crmStageReturn`, Nexa's academy only). Off unless **`FRAPPE_CRM_STAGE_RETURN=true`**
+*and* `FRAPPE_CRM_STAGE_SYNC=true` (same stage names on both sides) *and* the push is configured.
+
+- Reads Frappe's stage for every copied lead (`CrmLeadPush` with `externalId`, status `SENT` or
+  `FAILED`) touched in the last 180 days, 50 per request (`name in [...]`), 0.5 s apart, at most
+  2,000 per run. A `PENDING` row is skipped: a NexaGen change is on its way and Frappe's older
+  stage must not undo it. Won leads (Converted / Active student) are never read.
+- **`stageFromFrappe`** is the one rule: the Frappe name maps back through
+  `LEAD_STATUS_FROM_FRAPPE` (built from `FRAPPE_LEAD_STAGES`; Enrolled → `CONVERTED`); unknown
+  names (New, New Inquiry, Offer Sent, Junk…) are ignored; it is a person's change only when it
+  differs from the stage NexaGen last copied (`sentStatus`, else the lead's own stage); a won lead
+  never moves (not even to Lost).
+- Applied like a change on the Leads page: status-filtered claim on the lead **and** on the push
+  row (`sentStatus` + not `PENDING`), timeline entry "Changed in Frappe: X → Y", `convertedAt` on
+  Enrolled, referral progress (`ReferralTrackerService.onLeadStatus`). Then `sentStatus` = the new
+  stage, so the push never sends it back (no loop). Either claim lost = nothing changes; the next
+  run looks again.
+- Latest change wins: a stage set on the Leads page is copied to Frappe as before, and a
+  later Frappe change comes back. When the push refused to overwrite a salesperson's further stage
+  (`frappeStageMayMove`), the next return run brings that stage into NexaGen, so both sides agree.
+- Lead details (name, phone, child) still flow one way, NexaGen → Frappe.
 
 ## Registration and enrolment (built 2026-11-21)
 
