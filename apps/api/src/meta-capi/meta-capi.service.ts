@@ -200,6 +200,7 @@ export class MetaCapiService {
           select: {
             adClick: { select: { firstCtwaClid: true, latestCtwaClid: true } },
             email: true,
+            isDeleted: true,
             phone: true,
             userId: true,
             visitorSession: { select: { adConsent: true, fbclid: true, fbp: true, firstVisit: true, ipAddress: true, landingPage: true, userAgent: true } }
@@ -212,6 +213,8 @@ export class MetaCapiService {
 
     const skip = (why: string) =>
       this.prisma.metaCapiEvent.update({ data: { claimedAt: null, error: why, status: "SKIPPED" }, where: { id } });
+    // A to-one include still returns a trashed lead: its details never go to Meta (review Part 1 #3).
+    if (row.lead.isDeleted) return void (await skip("The lead was deleted."));
     if (now.getTime() - row.eventTime.getTime() > MAX_EVENT_AGE_MS) return void (await skip("Older than Meta's 7-day limit."));
 
     // Meta requires a Purchase's value and currency: wait for the paid order (an enrolment marked

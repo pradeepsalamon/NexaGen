@@ -577,7 +577,14 @@ export class LeadService {
       throw new NotFoundException("Lead not found.");
     }
 
-    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "Lead", id, user.id));
+    await this.prisma.$transaction(async (tx) => {
+      await this.trash.softDelete(tx, "Lead", id, user.id);
+      // Its queued ad events never leave once the lead is trashed (review Part 1 #3).
+      await tx.metaCapiEvent.updateMany({
+        data: { claimedAt: null, error: "The lead was deleted.", status: "SKIPPED" },
+        where: { leadId: id, status: "PENDING" }
+      });
+    });
     return { ok: true };
   }
 

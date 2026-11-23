@@ -145,6 +145,7 @@ type Row = {
   lead: {
     adClick: { firstCtwaClid: string | null; latestCtwaClid: string | null } | null;
     email: string | null;
+    isDeleted?: boolean;
     phone: string;
     userId?: string | null;
     visitorSession: Record<string, unknown> | null;
@@ -260,6 +261,16 @@ describe("MetaCapiService.send", () => {
     await svc.send("m1");
     expect(calls).toEqual([]);
     expect(Object.assign({}, ...updates)).toMatchObject({ error: "WHATSAPP_BUSINESS_ACCOUNT_ID is not set.", status: "SKIPPED" });
+  });
+
+  // Review Part 1 #3: a trashed lead's details never go to Meta.
+  it("skips an event whose lead was trashed", async () => {
+    const base = whatsappRow();
+    const { prisma, updates } = fakePrisma({ ...base, lead: { ...base.lead, isDeleted: true } });
+    const { calls, svc } = service(prisma, () => ({ body: {}, status: 200 }));
+    await svc.send("m1");
+    expect(calls).toEqual([]);
+    expect(Object.assign({}, ...updates)).toMatchObject({ error: "The lead was deleted.", status: "SKIPPED" });
   });
 
   it("skips an event older than Meta's 7-day limit", async () => {

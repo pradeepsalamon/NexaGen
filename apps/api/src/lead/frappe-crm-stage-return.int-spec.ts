@@ -157,6 +157,16 @@ describe("Frappe stage return (real Postgres)", () => {
     expect((await leadOf(won.id)).status).toBe("CONVERTED");
   });
 
+  // Review Part 1 #3: the soft-delete filter doesn't reach the relation filter, so it's explicit.
+  it("never reads a trashed lead", async () => {
+    const trashed = await copied("CRM-LEAD-00009", "DEMO_ATTENDED");
+    await db(() => t.prisma.lead.update({ data: { deletedAt: new Date(), isDeleted: true }, where: { id: trashed.id } }));
+    frappe.set("CRM-LEAD-00009", "Follow Up");
+    await expect(run()).resolves.toEqual({ checked: 0, moved: 0 });
+    const after = await db(() => t.prisma.withDeleted.lead.findUniqueOrThrow({ where: { id: trashed.id } }));
+    expect(after.status).toBe("DEMO_ATTENDED");
+  });
+
   it("loses the race to a NexaGen change made after Frappe was read", async () => {
     const lead = await copied("CRM-LEAD-00006", "DEMO_SCHEDULED");
     const row = await db(() =>

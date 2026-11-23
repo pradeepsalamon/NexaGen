@@ -147,7 +147,8 @@ export class FrappeCrmStageReturnService {
           where: {
             externalId: { not: null },
             ...(Object.keys(idFilter).length > 0 ? { id: idFilter } : {}),
-            lead: { status: { notIn: [...WON_STATUSES] }, updatedAt: { gte: since } },
+            // The soft-delete filter doesn't reach a relation filter: a trashed lead is skipped here (review Part 1 #3).
+            lead: { isDeleted: false, status: { notIn: [...WON_STATUSES] }, updatedAt: { gte: since } },
             status: { in: ["SENT", "FAILED"] }
           }
         })

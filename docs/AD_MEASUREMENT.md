@@ -16,8 +16,9 @@ that made the lead or moved its stage**, and sent by a minute sweep (`JOB_LOCKS.
 lease claim like the Frappe push), with retries 1 min → 5 min → 30 min → 2 h → 12 h, then
 `FAILED`. A refusal from Meta (400/401/403/404) fails at once, unless Meta marks the error
 temporary (`is_transient`, or codes 1, 2, 4, 17, 32, 341, 613); 429/5xx retry. An event older than
-Meta's 7-day limit, a website event whose consent was withdrawn, or a WhatsApp event without
-`WHATSAPP_BUSINESS_ACCOUNT_ID` becomes `SKIPPED` with the reason in `error`. The row holds no
+Meta's 7-day limit, a website event whose consent was withdrawn, a WhatsApp event without
+`WHATSAPP_BUSINESS_ACCOUNT_ID`, or one whose lead was trashed (its pending events are skipped in the
+trash transaction, and `send` checks again: review Part 1 #3) becomes `SKIPPED` with the reason in `error`. The row holds no
 personal data (the hashed details are built at send time). Retention: 180 days
 (`RETENTION_RULES`).
 

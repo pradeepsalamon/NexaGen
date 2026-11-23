@@ -81,7 +81,9 @@ no import, no clean-up; the return path ignores names it doesn't know.
   `FAILED`) touched in the last 180 days, 50 per request (`name in [...]`), 0.5 s apart, at most
   2,000 per run; the next run carries on after the last one read and wraps round, so every lead
   is read in turn. A `PENDING` row is skipped: a NexaGen change is on its way and Frappe's older
-  stage must not undo it. Won leads (Converted / Active student) are never read.
+  stage must not undo it. Won leads (Converted / Active student) and trashed leads are never read
+  (the soft-delete filter doesn't reach a relation filter, so `isDeleted: false` is explicit; review
+  Part 1 #3).
 - **`stageFromFrappe`** is the one rule: the Frappe name maps back through
   `LEAD_STATUS_FROM_FRAPPE` (built from `FRAPPE_LEAD_STAGES`; Enrolled → `CONVERTED`); unknown
   names (New, New Inquiry, Offer Sent, Junk…) are ignored; it is a person's change only when it
