@@ -1,4 +1,4 @@
-# Backend code review — 2026-11-23 (Part 1: PR #170 + rule checks; Part 2: high-risk modules; Part 3: learning, chat, uploads, tournaments; Part 4: scores and fair play)
+# Backend code review — 2026-11-23 (Part 1: PR #170 + rule checks; Part 2: high-risk modules; Part 3: learning, chat, uploads, tournaments; Part 4: scores and fair play; Part 5: messages and support)
 
 Scope: `apps/api` and `packages/types` on `dev` at `8c0749d` (after PR #170, "one lead pipeline + ad
 measurement"). Two passes:
@@ -300,3 +300,47 @@ commentary and notifier; `puzzle/puzzle.service.ts`, `puzzle-topic.service.ts`,
 1. **F1**: tournament eligibility and age groups can be beaten from the profile page.
 2. **F2, F4**: small, contained fixes.
 3. **F3, F5**: decide whether to accept them; document the decision either way.
+
+---
+
+# Part 5 — messages, the support bot, email and demo guests (group 2)
+
+Read on `dev` at `378456d`, by one reviewer in this session, focused on three questions: does each
+message reach the right people (and only them), is STOP / unsubscribe always honoured, and can the
+support bot or the staff tools leak account data. Every finding was checked against the code.
+Nothing was changed.
+
+**Read:** `messaging/messaging-dispatch.service.ts` (dispatch and every recipient resolver up to
+invoices), the opt-out checks in `messaging-delivery.worker.ts` and `mail/system-notifier.service.ts`,
+`mail/mail.service.ts` (HTML building), `support/support-admin.service.ts` (inbox access, replies),
+`support/support-account.service.ts` (number linking, "NEXT CLASS"), `support/support-demo-reminders.service.ts`,
+`whatsapp/whatsapp-credentials.service.ts` and `whatsapp-settings.controller.ts`, `email-admin/email-admin.service.ts`,
+`demo-class/demo-invite.service.ts`, `announcement/`, `notification/`, and every place a class is
+cancelled or moved.
+
+**Checked and sound:** every proactive WhatsApp path skips a number that sent STOP (the delivery
+worker, `SystemNotifier`, demo reminders), and staff email honours the person's unsubscribe. Email
+HTML escapes both admin wording and member values. The support inbox is admin only. A WhatsApp
+number is linked to a student only by a one-time, hashed staff code (5 wrong codes per hour), and
+a linked number can only ask for the next class. Each academy's WhatsApp token, app secret and
+verify token are stored encrypted, never returned (only "has token"), and one number can't serve
+two academies. Admin email goes only to accounts, never to typed addresses. Payment and invoice
+messages read every figure back from the stored row.
+
+**Not read in full:** the support conversation engine (`support-conversation.service.ts` and the
+shared `transitionSupport`), follow-ups, tickets, attachments and analytics; the messaging scheduler
+and worker beyond the opt-out check; the remaining recipient resolvers (payroll, referrals,
+approvals).
+
+| # | Severity | Where | Problem | Fix |
+|---|---|---|---|---|
+| M1 | **important** | `batch-schedule/batch-schedule.service.ts:804-833` (`deactivate`), `:838-925` (`occurrenceAction`: CANCEL, RESCHEDULE, coach change), `batch/batch.service.ts:345-358` (batch dates shortened) | When **an admin** cancels a class, moves it, swaps its coach, ends a schedule, or shortens a batch's dates, nobody is told: none of these paths dispatch a message. Only coach-side cancellations (`coach.service.ts:422`, `class-cancel.handler.ts`) send `CLASS_CANCELLED`. Students and parents find out by joining an empty room. | Dispatch `CLASS_CANCELLED` for each cancelled class (after commit, one per class), and `CLASS_SUBSTITUTE_ASSIGNED` on a coach change. Add a `CLASS_RESCHEDULED` event (`MessagingEvent` + `NotificationType`, §3.6e) for a time change. |
+| M2 | minor | `messaging/messaging-dispatch.service.ts:597` (`classRecipients` dedupe key) | The dedupe key is `event:classId:userId`. A class moved after its reminder was sent never gets a reminder for the new time, and a class cancelled, restored and cancelled again sends no second notice. | Put the class's `startsAt` in the key for reminders (as `ASSIGNMENT_DUE_SOON` does with the due date), and the `cancelledAt` for cancellations. |
+| M3 | minor | `student/student.service.ts:117-133` | The student dashboard reads the student's batches without `isDeleted: false`, so a student removed from a batch keeps seeing that batch's announcements. | Add `isDeleted: false` (and `batch: { isDeleted: false }`). |
+| M4 | minor (convention) | `announcement/announcement.service.ts:88-92` | Publishing awaits `dispatch()` inline, not `dispatchInBackground` (CLAUDE.md §3.6e). An academy-wide announcement writes up to three outbox rows per member, one at a time, inside the HTTP request, which can run past the proxy timeout for a large academy. | Dispatch in the background and return the recipient count from a quick `count` query, or show the summary when it is ready. |
+
+## Suggested order (Part 5)
+
+1. **M1**: families aren't told about cancellations and time changes made by admins.
+2. **M2, M3**: small fixes.
+3. **M4**: when academies grow.
