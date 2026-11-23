@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { PayrollAdjustmentService } from "./payroll-adjustment.service";
@@ -88,6 +88,14 @@ describe("PayrollAdjustmentService", () => {
     expect(adjustment.amountMinor).toBe(2000);
     // Review R2: the record's status is read under its row lock.
     expect(prisma.$queryRaw).toHaveBeenCalled();
+  });
+
+  // Review R8: an admin who also teaches never adjusts their own pay.
+  it("refuses an adjustment to the actor's own payroll record", async () => {
+    const { service } = await build({ ...baseRecord, coachId: "admin_1" });
+    await expect(
+      service.create("rec_1", "admin_1", { amountMinor: 100, description: "x", reason: "x", type: "EARNING" })
+    ).rejects.toThrow(ForbiddenException);
   });
 
   it("refuses to create an adjustment for a record that doesn't exist", async () => {

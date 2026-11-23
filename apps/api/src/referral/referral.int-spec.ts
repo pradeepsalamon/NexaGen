@@ -648,4 +648,15 @@ describe("referral programme (real app, real Postgres)", () => {
     const plainAdmin = await active(UserRole.ADMIN);
     expect((await t.call(plainAdmin, "GET", API_ROUTES.referrals.me)).status).toBe(403);
   });
+  // Review R9: a manual adjustment goes to the wallet the person's role earns.
+  it("refuses a manual adjustment in the wrong wallet for the person's role", async () => {
+    const kid = await active(UserRole.STUDENT);
+    const coach = await active(UserRole.COACH);
+    const adjust = (userId: string, wallet: string) =>
+      t.call(admin, "POST", API_ROUTES.adminReferrals.adjustCredits, { amountMinor: 100, note: "R9", userId, wallet });
+    expect((await adjust(kid.id, "CASH")).status).toBe(400);
+    expect((await adjust(coach.id, "POINTS")).status).toBe(400);
+    expect((await adjust(kid.id, "POINTS")).status).toBeLessThan(300);
+    expect((await adjust(coach.id, "CASH")).status).toBeLessThan(300);
+  });
 });

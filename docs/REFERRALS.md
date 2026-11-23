@@ -150,7 +150,9 @@ withdrawals refuse students outright.
   each paid one is announced like a single payment.
 - **History**: `GET /referrals/me/credits` is the user's points/money history;
   the admin History tab (`GET /admin/referrals/ledger`, filter by wallet, type,
-  user) lists every movement of every user; admins adjust either wallet.
+  user) lists every movement of every user; admins adjust the wallet the
+  person's role earns (points for a student, money for coaches and sales; a
+  wrong wallet is a 400, review R9).
 
 Financial rows (`ReferralReward`, `ReferralCreditEntry`, `ReferralWithdrawal`,
 `ReferralRedemption`, legacy transfers/conversions, personal discounts)

@@ -63,7 +63,7 @@ export class PayrollCalculationService {
     }
 
     try {
-      const coachIds = await this.getInScopeCoachIds(period.startDate, period.endDate);
+      const coachIds = await this.getInScopeCoachIds(periodId, period.startDate, period.endDate);
       const settings = await this.settings.find();
 
       for (const coachId of coachIds) {
@@ -87,18 +87,22 @@ export class PayrollCalculationService {
     }
   }
 
-  private async getInScopeCoachIds(startDate: Date, endDate: Date): Promise<string[]> {
-    const [classCoaches, profileCoaches] = await Promise.all([
+  private async getInScopeCoachIds(periodId: string, startDate: Date, endDate: Date): Promise<string[]> {
+    const [classCoaches, profileCoaches, recordCoaches] = await Promise.all([
       this.prisma.coachClass.findMany({
         where: { startsAt: { gte: startDate, lt: endDate } },
         distinct: ["coachId"],
         select: { coachId: true }
       }),
-      this.prisma.coachCompensationProfile.findMany({ select: { coachId: true } })
+      this.prisma.coachCompensationProfile.findMany({ select: { coachId: true } }),
+      // A coach already calculated here is recalculated too, so one who dropped out
+      // of scope (classes moved away, profile removed) comes back as zero instead
+      // of keeping the old figures (review R7).
+      this.prisma.coachPayrollRecord.findMany({ select: { coachId: true }, where: { periodId } })
     ]);
 
     return Array.from(
-      new Set([...classCoaches.map((c) => c.coachId), ...profileCoaches.map((p) => p.coachId)])
+      new Set([...classCoaches.map((c) => c.coachId), ...profileCoaches.map((p) => p.coachId), ...recordCoaches.map((r) => r.coachId)])
     );
   }
 

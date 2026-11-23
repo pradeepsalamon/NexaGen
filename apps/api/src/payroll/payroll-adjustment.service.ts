@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   CreatePayrollAdjustmentRequest,
   PayrollAdjustmentItem,
@@ -44,7 +44,9 @@ export class PayrollAdjustmentService {
     // transaction (review R2): a finalize that commits first is seen here,
     // and one that comes later waits for this adjustment.
     const adjustment = await this.prisma.$transaction(async (tx) => {
-      this.assertAdjustable(await this.lockedRecordOrThrow(tx, payrollRecordId));
+      const record = await this.lockedRecordOrThrow(tx, payrollRecordId);
+      this.assertNotOwnRecord(record, actorId);
+      this.assertAdjustable(record);
       const created = await tx.payrollAdjustment.create({
         data: {
           payrollRecordId,
@@ -87,7 +89,9 @@ export class PayrollAdjustmentService {
     // Same lock as create (review R2); the reversal is claimed so two clicks
     // can't both reverse it.
     const updated = await this.prisma.$transaction(async (tx) => {
-      this.assertAdjustable(await this.lockedRecordOrThrow(tx, adjustment.payrollRecordId));
+      const record = await this.lockedRecordOrThrow(tx, adjustment.payrollRecordId);
+      this.assertNotOwnRecord(record, actorId);
+      this.assertAdjustable(record);
       const { count } = await tx.payrollAdjustment.updateMany({
         where: { id: adjustmentId, reversedAt: null },
         data: { reversedById: actorId, reversedAt: new Date(), reversalReason: dto.reversalReason }
@@ -112,6 +116,13 @@ export class PayrollAdjustmentService {
     const record = await lockAndReadRecord(tx, payrollRecordId);
     if (!record) throw new NotFoundException("Payroll record not found.");
     return record;
+  }
+
+  /** An admin who also teaches never adjusts their own pay (review R8). */
+  private assertNotOwnRecord(record: CoachPayrollRecord, actorId: string): void {
+    if (record.coachId === actorId) {
+      throw new ForbiddenException("You can't adjust your own payroll. Ask another admin.");
+    }
   }
 
   private assertAdjustable(record: CoachPayrollRecord): void {

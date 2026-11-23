@@ -459,7 +459,11 @@ reversing an adjustment re-works the TDS without re-reading the settings.
   class is paid and counted for TDS once (review R3, 2026-11-23).
 - An adjustment checks the record's status, writes and recomputes under the
   record's row lock in one transaction, so it can't land on a record finalized
-  in between (review R2).
+  in between (review R2). An admin who also teaches can't adjust their own
+  record (403, review R8).
+- Recalculating includes every coach who already has a record in the period,
+  so one who dropped out of scope comes back as zero, not with the old figures
+  (review R7).
 - An approved coach cancellation keeps the coach as the canceller, with the
   notice measured from the request time, so the coach-cancel rules pay it
   (review R1); the reviewer is on the approval row.

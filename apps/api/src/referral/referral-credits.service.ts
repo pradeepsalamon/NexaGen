@@ -3,6 +3,7 @@ import {
   formatMoney,
   REFERRAL_POINTS_EXPIRY_WARNING_DAYS,
   referralPointsExpired,
+  referralWalletForRole,
   type AdjustReferralCreditsRequest,
   type CancelReferralRewardRequest,
   type PayReferralWithdrawalRequest,
@@ -12,7 +13,7 @@ import {
 import { OrderStatus, type ReferralSettings, type ReferralWallet, type User, UserRole } from "@prisma/client";
 import { DiscountService } from "../payments/discount.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
-import { creditLockKey, displayName, isReferrerRole, voucherLockKey } from "./referral.util";
+import { creditLockKey, displayName, referralRoleOf, voucherLockKey } from "./referral.util";
 
 /** Orders that may still capture with a code already applied. */
 export const OPEN_ORDER_STATUSES: OrderStatus[] = [OrderStatus.CREATED, OrderStatus.PENDING];
@@ -413,8 +414,15 @@ export class ReferralCreditsService {
   // ── Admin ──
 
   async adjust(adminId: string, body: AdjustReferralCreditsRequest, currency: string) {
-    const target = await this.prisma.user.findUnique({ select: { id: true, role: true }, where: { id: body.userId } });
-    if (!target || !isReferrerRole(target.role)) throw new NotFoundException("Referrer not found.");
+    const target = await this.prisma.user.findUnique({ select: { extraRoles: true, id: true, role: true }, where: { id: body.userId } });
+    const role = target ? referralRoleOf(target) : null;
+    if (!target || !role) throw new NotFoundException("Referrer not found.");
+    // Students hold points and staff hold money, never the other way round (review R9).
+    if (body.wallet !== referralWalletForRole(role)) {
+      throw new BadRequestException(
+        role === "STUDENT" ? "Students earn points only, not money." : "Coaches and sales staff earn money only, not points."
+      );
+    }
     await this.prisma.$transaction(async (tx) => {
       await this.lockUser(tx, target.id);
       await tx.referralCreditEntry.create({
