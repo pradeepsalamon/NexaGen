@@ -151,6 +151,12 @@ can't silently switch off.
   family. A refresh that loses the rotation claim re-reads the row and gets a
   401 when a logout or reset revoked it meanwhile, so the grace path never
   mints into an ended family (review A5).
+- **Web refresh** (`apps/web/src/lib/api.ts`): only a refused refresh (401/403)
+  clears the session and opens `/login`. A network error or 5xx rejects the
+  waiting requests and leaves the store and page alone, so the next request
+  tries again (FE review AU1). **Sign-out** (`useLogout`) leaves the page only
+  once the server ended the session (or answered 401); a failed logout keeps
+  the user where they are with a retry (AU2).
 - `getCookieBaseOptions` (`@nexa-chess/config/api`) sets every cookie: `secure`
   when `FRONTEND_URL` is https, `sameSite` from `COOKIE_SAME_SITE` (default
   `lax` — web and API are same-site subdomains).
