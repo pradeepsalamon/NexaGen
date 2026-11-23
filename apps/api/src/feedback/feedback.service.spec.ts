@@ -105,6 +105,39 @@ describe("FeedbackService", () => {
     service = module.get(FeedbackService);
   });
 
+  it("gives a coach no class and no time of day on an anonymous response (review G1)", () => {
+    const row = {
+      answers: [],
+      class: { title: "Endgames", topic: null },
+      classId: CLASS_ID,
+      coach: { firstName: "Ada", lastName: null },
+      coachId: COACH_ID,
+      createdAt: new Date("2026-11-20T19:42:13.000Z"),
+      form: { title: "Class feedback" },
+      formId: "form-1",
+      id: "resp-1",
+      overallRating: 4,
+      student: { firstName: "Asha", lastName: null },
+      studentId: STUDENT_ID
+    };
+    const toDto = (service as unknown as { toResponseDto: (r: unknown, anonymous: boolean) => Record<string, unknown> })
+      .toResponseDto.bind(service);
+
+    expect(toDto(row, true)).toMatchObject({
+      classId: null,
+      classTitle: null,
+      createdAt: "2026-11-20T12:00:00.000Z",
+      studentId: null,
+      studentName: null
+    });
+    expect(toDto(row, false)).toMatchObject({
+      classId: CLASS_ID,
+      classTitle: "Endgames",
+      createdAt: "2026-11-20T19:42:13.000Z",
+      studentName: "Asha"
+    });
+  });
+
   it("rejects a missing token", async () => {
     await expect(service.getPending(undefined, {})).rejects.toBeInstanceOf(UnauthorizedException);
   });

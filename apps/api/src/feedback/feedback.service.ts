@@ -67,6 +67,15 @@ type ResponseRow = Prisma.FeedbackResponseGetPayload<{ include: typeof responseI
 const fullName = (u: { firstName: string; lastName: string | null }) =>
   [u.firstName, u.lastName].filter(Boolean).join(" ");
 
+/**
+ * A response's day without its time, for the coach's anonymous view: noon UTC
+ * of that UTC day, so it shows the same date in every zone from UTC−11 to
+ * UTC+11 (review G1).
+ */
+export function anonymousDay(at: Date): string {
+  return `${at.toISOString().slice(0, 10)}T12:00:00.000Z`;
+}
+
 @Injectable()
 export class FeedbackService {
 
@@ -574,11 +583,13 @@ export class FeedbackService {
         ratingValue: a.ratingValue,
         textValue: a.textValue
       })),
-      classId: row.classId,
-      classTitle: row.class ? (row.class.title ?? row.class.topic) : null,
+      // Anonymous (the coach's own view): no class and only the day, so the
+      // timing after a class can't point at who wrote it (review G1).
+      classId: anonymous ? null : row.classId,
+      classTitle: anonymous ? null : row.class ? (row.class.title ?? row.class.topic) : null,
       coachId: row.coachId,
       coachName: fullName(row.coach),
-      createdAt: row.createdAt.toISOString(),
+      createdAt: anonymous ? anonymousDay(row.createdAt) : row.createdAt.toISOString(),
       formId: row.formId,
       formTitle: row.form.title,
       id: row.id,

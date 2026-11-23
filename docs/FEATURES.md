@@ -26,7 +26,9 @@ N days per coach / `ONE_TIME`) and **where** (`placements`: `CLASS_END` on
 - `FeedbackAnswer` snapshots the question label/type at submit time;
   `FeedbackResponse.overallRating` is the mean of its RATING answers, and the
   coach rating is the mean of those. Coaches only see responses from
-  `showToCoach` forms, with the student stripped (`toResponseDto(row, true)`).
+  `showToCoach` forms, with the student stripped (`toResponseDto(row, true)`),
+  and with no class and only the day (`anonymousDay`, noon UTC), so the time
+  after a class can't point at who wrote it (review G1).
 - A form with responses cannot be deleted (FK is `Restrict`) — it is
   deactivated. A form without responses is deleted to Trash (`FeedbackForm`);
   responses and answers are not Trash entities.
