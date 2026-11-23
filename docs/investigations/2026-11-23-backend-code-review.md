@@ -1,4 +1,4 @@
-# Backend code review — 2026-11-23 (Part 1: PR #170 + rule checks; Part 2: high-risk modules; Part 3: learning, chat, uploads, tournaments; Part 4: scores and fair play; Part 5: messages and support)
+# Backend code review — 2026-11-23 (Part 1: PR #170 + rule checks; Part 2: high-risk modules; Part 3: learning, chat, uploads, tournaments; Part 4: scores and fair play; Part 5: messages and support; Part 6: data access, staff tools, platform)
 
 Scope: `apps/api` and `packages/types` on `dev` at `8c0749d` (after PR #170, "one lead pipeline + ad
 measurement"). Two passes:
@@ -336,11 +336,67 @@ approvals).
 |---|---|---|---|---|
 | M1 | **important** | `batch-schedule/batch-schedule.service.ts:804-833` (`deactivate`), `:838-925` (`occurrenceAction`: CANCEL, RESCHEDULE, coach change), `batch/batch.service.ts:345-358` (batch dates shortened) | When **an admin** cancels a class, moves it, swaps its coach, ends a schedule, or shortens a batch's dates, nobody is told: none of these paths dispatch a message. Only coach-side cancellations (`coach.service.ts:422`, `class-cancel.handler.ts`) send `CLASS_CANCELLED`. Students and parents find out by joining an empty room. | Dispatch `CLASS_CANCELLED` for each cancelled class (after commit, one per class), and `CLASS_SUBSTITUTE_ASSIGNED` on a coach change. Add a `CLASS_RESCHEDULED` event (`MessagingEvent` + `NotificationType`, §3.6e) for a time change. |
 | M2 | minor | `messaging/messaging-dispatch.service.ts:597` (`classRecipients` dedupe key) | The dedupe key is `event:classId:userId`. A class moved after its reminder was sent never gets a reminder for the new time, and a class cancelled, restored and cancelled again sends no second notice. | Put the class's `startsAt` in the key for reminders (as `ASSIGNMENT_DUE_SOON` does with the due date), and the `cancelledAt` for cancellations. |
-| M3 | minor | `student/student.service.ts:117-133` | The student dashboard reads the student's batches without `isDeleted: false`, so a student removed from a batch keeps seeing that batch's announcements. | Add `isDeleted: false` (and `batch: { isDeleted: false }`). |
+| ~~M3~~ | withdrawn | `student/student.service.ts:117-133` | Withdrawn on re-check: `BatchStudent` is in `softDeleteModels`, so the top-level `findMany` already gets `isDeleted: false`. Removed students don't see the old batch's announcements. | — |
 | M4 | minor (convention) | `announcement/announcement.service.ts:88-92` | Publishing awaits `dispatch()` inline, not `dispatchInBackground` (CLAUDE.md §3.6e). An academy-wide announcement writes up to three outbox rows per member, one at a time, inside the HTTP request, which can run past the proxy timeout for a large academy. | Dispatch in the background and return the recipient count from a quick `count` query, or show the summary when it is ready. |
 
 ## Suggested order (Part 5)
 
 1. **M1**: families aren't told about cancellations and time changes made by admins.
-2. **M2, M3**: small fixes.
+2. **M2**: a small fix.
 3. **M4**: when academies grow.
+
+---
+
+# Part 6 — data access, staff tools and platform plumbing (groups 3–5)
+
+Read on `dev` at `e16947f`, by one reviewer in this session. Group 3 asked "who can see which
+data", group 4 "can a staff tool reach past its own classes", and group 5 "can anything
+platform-wide be reached from inside one academy". Every finding was checked against the code.
+Nothing was changed.
+
+**Read:** `analytics/` (access and every raw-SQL identifier), `knowledge/` (`readerForUser`,
+`readerWhere`), `progress/` (`student-access.ts`, the rating recorder), `feedback/` (coach view),
+`game-analysis/` (request rules), `game-sources/` providers (outbound URLs), `batch/` (archive,
+restore, plan limits), `batch-schedule/`, `coach/coach.service.ts` (class access), `activity-queue/`,
+`live-class-chapter/`, `move-poll/`, `classroom-tools/`, attendance heartbeats, `backup/`,
+`csp-report/`, `health/`, the `SUPER_ADMIN` checks in every module, `tenancy/tenant-models.ts`
+(`PLATFORM_MODELS`), `platform/platform-operator.ts`.
+
+**Checked and sound:** analytics is admin only, and its raw SQL only splices fixed column names.
+Knowledge articles go through `readerWhere` in the same query, and batch scope uses live
+memberships (`BatchStudent`/`BatchCoach` are soft-delete filtered). A coach reads a student's
+progress only through a shared live batch. Students can analyse only games they played and that
+have finished, can't import PGNs, and have a daily limit. Game-source fetches go only to
+lichess.org and api.chess.com, with the username URL-encoded. Every live-class tool (queues,
+chapters, polls, tools) goes through the class-manager check, and a move poll's answer reaches
+students only once it is closed and revealed. Attendance heartbeats only extend a session that a
+LiveKit join opened, so they can't create attendance. Seats and the batch limit are checked on
+every path that activates a user or creates a batch (archived batches count). The other
+platform-wide features (console, content packs, support visits, integrity runs) use
+`assertPlatformOperator`.
+
+**Not read in full:** `ai/` (mock only, off unless `AI_ENABLED`), `retention/` purge SQL,
+`branding/` uploads, `common/` (rule-checked in Part 1), `revision/`, `admin/` coach approvals,
+attendance monitoring.
+
+| # | Severity | Where | Problem | Fix |
+|---|---|---|---|---|
+| B1 | **critical** | `backup/backup.controller.ts:18-28` (`getAdminId`) | The backups routes (`/admin/backups`: list, trigger, download, delete) check only `role === 'SUPER_ADMIN'`. **Every academy's owner is created as SUPER_ADMIN** (`platform/platform-tenants.service.ts:207-228`), and so is the platform-support account. Any academy's owner can therefore list, create, **download** (a 15-minute signed URL) and **delete** the whole-database `pg_dump`. That dump holds every academy's data: all students (minors), parents' contacts, payments, password hashes and encrypted secrets. The web nav (`navItems.ts:204`) also shows "Database backups" to every super admin, because it lacks `platformOnly`. | `assertPlatformOperator(user)` in `getAdminId`. Add `platformOnly: true` to the nav item and a platform-only rule in `routeAccess.ts`. Add `/admin/backups/*` to the cross-academy access suite (an academy super admin gets 403). Then check the bucket's access logs for downloads by non-Nexa accounts since the first academy was created. |
+| B2 | **critical** (part of B1) | `backup/backup.service.ts:131-146` (`getDownloadUrl`) | The download route accepts keys under `recordings/` as well as `database/` (it is shared with recording downloads). So the same caller can sign any class recording, of any academy, whose key they know, and the dump in B1 contains every key (`LiveSession.recordingUrl`). | The backups controller passes only `['database/']`. Recording downloads keep their own path through `live-class-recording.service.ts`, which checks the class. |
+| G1 | minor | `feedback/feedback.service.ts:197-240`, `:568-588` | Coach feedback is "anonymous", but the coach's view returns each response's exact `createdAt`, `classId` and class title. In a small batch, the coach can often tell who wrote what by when they submitted after a given class. | For the coach's view, drop `classId` and round `createdAt` to the day (or the week). Show a response only once the class has at least N responses. |
+
+---
+
+# Summary of all parts — what to fix first
+
+1. **B1 + B2** (critical, today): any academy's owner can download every academy's database and recordings.
+2. **P1** (critical): a buyer can pay in a cheaper currency for the same plan.
+3. **S1, S3** (important, easy to abuse): solve-the-line answers are sent with the assignment, and any student can get a full-strength engine.
+4. **S5, T1, T2**: one academy can delete another's images; plan limits can be bypassed.
+5. **A1–A4**: account takeover paths and accounts that can never sign in.
+6. **F1, M1**: tournament eligibility can be self-edited; admin cancellations aren't announced.
+7. **L1, L2, L4, L5**: admin locks the live class ignores (students are minors).
+8. **P2–P9, R1–R3**: subscriptions, refunds, payroll correctness.
+9. The rest, in each part's own order.
+
+Withdrawn on re-check: M3 (Part 5).
