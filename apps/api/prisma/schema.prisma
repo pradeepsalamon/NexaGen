@@ -8073,6 +8073,10 @@ model ReferralRedemption {
   minOrderMinor    Int?
   freeDays         Int?
   currency         String
+  /// The voucher's plans and code lifetime when it was redeemed, so an edit to the voucher while
+  /// this waits for approval doesn't change what the student gets (review R4).
+  voucherPlanIds   String[]                 @default([])
+  codeValidDays    Int?
   /// Discounts: the personal one-use code issued on fulfilment.
   discountId       String?                  @unique
   discount         Discount?                @relation("ReferralRedemptionDiscount", fields: [discountId], references: [id], onDelete: Restrict)

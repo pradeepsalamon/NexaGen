@@ -578,4 +578,31 @@ describe("referral programme (real app, real Postgres)", () => {
     const created = await t.prisma.user.findFirstOrThrow({ where: { email } });
     expect((await t.prisma.referral.findUniqueOrThrow({ where: { id: referral.id } })).referredUserId).toBe(created.id);
   });
+  // Review R4: a redemption waiting for approval keeps the voucher's terms from when it was made.
+  it("fulfils a pending redemption on the voucher's terms when it was redeemed, not after an edit", async () => {
+    const buyer = await active(UserRole.STUDENT);
+    const planA = await t.prisma.plan.create({ data: { amount: 99900, code: "r4-a", currency: "INR", name: "Plan A" } });
+    const planB = await t.prisma.plan.create({ data: { amount: 99900, code: "r4-b", currency: "INR", name: "Plan B" } });
+    await t.call(admin, "POST", API_ROUTES.adminReferrals.adjustCredits, { amountMinor: 100, note: "R4", userId: buyer.id, wallet: "POINTS" });
+    const created = (
+      await t.call(admin, "POST", API_ROUTES.adminReferrals.vouchers, {
+        amountOffMinor: 5000,
+        codeValidDays: 30,
+        name: "R4 voucher",
+        planIds: [planA.id],
+        pointsCost: 10,
+        requiresApproval: true,
+        type: "FIXED_DISCOUNT"
+      })
+    ).body as ReferralVoucherItem;
+    const pending = (await t.call(buyer, "POST", API_ROUTES.referrals.redeemVoucher(created.id), {})).body as ReferralRedemptionItem;
+    expect(pending.status).toBe("PENDING");
+    expect((await t.call(admin, "PATCH", API_ROUTES.adminReferrals.voucher(created.id), { codeValidDays: 1, planIds: [planB.id] })).status).toBe(200);
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.approveRedemption(pending.id))).status).toBe(200);
+
+    const row = await t.prisma.referralRedemption.findUniqueOrThrow({ include: { discount: true }, where: { id: pending.id } });
+    expect(row.discount?.planIds).toEqual([planA.id]);
+    const days = (row.discount!.endsAt!.getTime() - Date.now()) / 86_400_000;
+    expect(Math.round(days)).toBe(30);
+  });
 });

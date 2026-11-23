@@ -203,7 +203,9 @@ path). A voucher someone redeemed is switched off instead of deleted.
 lock (`referral-voucher:<id>`) then the user's lock, re-checks the window,
 stock, per-student limit, the academy's `maxRedemptionsPer30Days` and the
 points balance, writes a `ReferralRedemption` (the voucher's terms
-**snapshotted**) and a `REDEMPTION` debit. Stock and limits count `PENDING` +
+**snapshotted**, including its plans `voucherPlanIds` and `codeValidDays`, so
+approving a request later fulfils what was redeemed even if the voucher was
+edited meanwhile, review R4) and a `REDEMPTION` debit. Stock and limits count `PENDING` +
 `FULFILLED` redemptions.
 
 - No approval: fulfilled in the same transaction (a failure spends nothing).
