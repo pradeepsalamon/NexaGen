@@ -664,7 +664,11 @@ Every transition goes through one function, `applySubscriptionTransition`. It
 has an allowed-transition guard, an idempotent `PlatformWebhookEvent (provider, eventId)`,
 and appends a `TenantSubscriptionEvent`. A browser "success" callback only
 triggers a provider read (reconcile); it never grants anything, the same rule as
-student payments.
+student payments. The funnel and `lockTenantSubscription` live in
+`platform/subscription-transition.ts`: the lapse sweep re-reads each row under that
+lock before acting (a payment that landed meanwhile wins), a settling checkout reads
+the period end under it (two at once extend twice), and the console's raw edit
+sends a status change through the funnel (review T4–T6).
 
 ### Enforcement
 

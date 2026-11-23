@@ -44,7 +44,7 @@ import {
 import { authenticateUser } from "../auth/authenticate";
 import { EntitlementService } from "../platform/entitlement.service";
 import { assertPlatformOperator, writePlatformAudit } from "../platform/platform-operator";
-import { applyPaidPeriod } from "../platform/platform-subscriptions.service";
+import { applyPaidPeriod, lockTenantSubscription } from "../platform/platform-subscriptions.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 import { asPlatform, runInTenant } from "../tenancy/tenant-context";
@@ -386,6 +386,9 @@ export class PlatformBillingService {
           where: { id: checkout.id, status: { not: PlatformCheckoutStatus.PAID } }
         });
         if (claim.count !== 1) return false;
+        // Two checkouts settling at once each extend the period: read its end
+        // under the row lock, so the second extends the first's (review T5).
+        await lockTenantSubscription(tx, checkout.tenantId);
         const sub = await tx.tenantSubscription.findUniqueOrThrow({ where: { tenantId: checkout.tenantId } });
         const now = new Date();
         const periodStart = sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() > now.getTime() ? sub.currentPeriodEnd : now;

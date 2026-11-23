@@ -65,6 +65,7 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "payroll/payroll-period.service.ts": { calls: 1, kind: "infra", why: "advisory lock keyed by the academy (no overlapping periods)" },
   "payroll/payroll-record-totals.util.ts": { calls: 1, kind: "id-keyed", why: "locks one payroll record" },
   "platform/entitlement.service.ts": { calls: 1, kind: "infra", why: "advisory lock keyed by the academy" },
+  "platform/subscription-transition.ts": { calls: 1, kind: "platform", why: "locks one academy's subscription row (platform table)" },
   "prisma/job-lock.service.ts": { calls: 3, kind: "platform", why: "job_locks" },
   "prisma/prisma.service.ts": { calls: 12, kind: "infra", why: "the client's own $queryRaw/$executeRaw bindings" },
   "progress/activity-history.service.ts": { calls: 10, kind: "id-keyed", why: "every subquery is one student's rows" },

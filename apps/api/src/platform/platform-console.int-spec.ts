@@ -125,6 +125,34 @@ describe("platform console: plans, subscriptions, support, packs (real app, real
     expect((await sub()).subscription?.status).toBe("ACTIVE");
   });
 
+  // Review T4: a payment that lands between the sweep's read and its write wins.
+  it("the sweep acts on the subscription as it is now, not as it read it", async () => {
+    const day = 86_400_000;
+    const sweeper = t.app.get(PlatformSubscriptionsService);
+    const stale = await asPlatform("test", () =>
+      t.prisma.tenantSubscription.findUniqueOrThrow({ include: { plan: true }, where: { tenantId } })
+    );
+    expect(stale.status).toBe("ACTIVE");
+    const now = new Date(stale.currentPeriodEnd!.getTime() + 1_000);
+    await asPlatform("test", () =>
+      t.prisma.tenantSubscription.update({ data: { currentPeriodEnd: new Date(now.getTime() + 30 * day) }, where: { id: stale.id } })
+    );
+    await (sweeper as unknown as { sweepOne: (row: typeof stale, at: Date) => Promise<boolean> }).sweepOne(stale, now);
+    expect((await sub()).subscription?.status).toBe("ACTIVE");
+  });
+
+  // Review T6: an operator's status edit goes through the one transition funnel.
+  it("an operator's status edit is guarded, claimed and logged once", async () => {
+    const count = () => asPlatform("test", () => t.prisma.tenantSubscriptionEvent.count({ where: { tenantId } }));
+    const before = await count();
+    const edit = await op("PUT", API_ROUTES.platform.tenantSubscription(tenantId), { note: "Card failed", status: "PAST_DUE" });
+    expect(edit.status).toBe(200);
+    expect((await sub()).subscription?.status).toBe("PAST_DUE");
+    expect(await count()).toBe(before + 1);
+    const bad = await op("PUT", API_ROUTES.platform.tenantSubscription(tenantId), { status: "TRIALING" });
+    expect(bad.status).toBe(409);
+  });
+
   it("a support visit signs in on the academy's host once, as its support user, and is logged", async () => {
     const started = await op("POST", API_ROUTES.platform.tenantSupport(tenantId), { reason: "Ticket 42: batch missing" });
     const { enterUrl, id } = started.body as StartSupportSessionResponse;
