@@ -26,6 +26,7 @@ import {
 } from "@nexa-chess/types";
 import { ConversationType, Prisma, UserRole, UserStatus } from "@prisma/client";
 import { authenticateUser, isAdminRole } from "../auth/authenticate";
+import { coachWhere } from "../common/coach-accounts";
 import { PrismaService } from "../prisma/prisma.service";
 
 type Actor = { id: string; role: UserRole };
@@ -285,7 +286,12 @@ export class ChatService {
         orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
         select: userSelect,
         take: 30,
-        where: { ...nameFilter, id: { not: user.id }, role: { in: [UserRole.COACH, UserRole.STUDENT] }, status: UserStatus.ACTIVE },
+        // Coach accounts include admins who also teach (review S9).
+        where: {
+          AND: [nameFilter, { OR: [coachWhere(), { role: UserRole.STUDENT }] }],
+          id: { not: user.id },
+          status: UserStatus.ACTIVE,
+        },
       });
       return { contacts: people.map((p) => ({ ...toUser(p), batchNames: [] })), groupCandidates: [] };
     }
@@ -366,6 +372,19 @@ export class ChatService {
 
     if (!readState || readState.leftAt) throw new NotFoundException("Conversation not found.");
     if (conversation.type === ConversationType.GROUP) {
+      // A coach's group is for students of that coach's batches: a student who
+      // has since left every shared batch leaves the group too, the moment
+      // they next open it (review S10). Admin-owned groups have no roster.
+      if (user.role === UserRole.STUDENT) {
+        const owner = conversation.members.find((m) => m.role === "OWNER")?.user;
+        if (owner && owner.role === UserRole.COACH && !(await this.shareBatch(owner.id, user.id))) {
+          await this.prisma.conversationMember.updateMany({
+            data: { leftAt: new Date() },
+            where: { conversationId: id, leftAt: null, userId: user.id },
+          });
+          throw new NotFoundException("Conversation not found.");
+        }
+      }
       return { canSend: true, conversation, historyFrom: readState.joinedAt, lastReadAt: readState.lastReadAt };
     }
     // DIRECT: the pair rule decides writing, every time (a student who left

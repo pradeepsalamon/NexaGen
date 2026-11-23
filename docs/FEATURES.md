@@ -194,7 +194,11 @@ coach-made) + `ConversationMember` (read state; `leftAt`) + `ChatMessage`.
   `enrolledAt`, a removed one loses access; a GROUP member sees from `joinedAt`.
   A DIRECT thread stays readable but `canSend: false` once the shared batch is
   gone. Groups are coach-created (students in the coach's batches only);
-  owner or admin edits members, the owner can't be removed.
+  owner or admin edits members, the owner can't be removed. A student who no
+  longer shares any batch with a coach-owned group's owner is taken out of the
+  group (`leftAt`) the next time they open it (review S10). An admin's contact
+  search finds students and every coach account, admins who teach included
+  (`coachWhere()`, S9).
 - **Sends are idempotent** on unique `(senderId, clientId)` — the web client
   generates the id once and reuses it on Retry.
 - **No websocket**: the web polls (open thread 4s, list 15s, sidebar unread 30s;

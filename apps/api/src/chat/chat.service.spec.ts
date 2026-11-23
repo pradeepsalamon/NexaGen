@@ -117,6 +117,17 @@ describe("ChatService", () => {
     });
   });
 
+  describe("contacts", () => {
+    it("lets an admin find admins who also teach, not only primary coaches (review S9)", async () => {
+      as("a1", "ADMIN");
+      prisma.user.findMany.mockResolvedValue([]);
+      await service.contacts("t");
+      expect(prisma.user.findMany.mock.calls[0][0].where).toMatchObject({
+        AND: [{}, { OR: [{ OR: [{ role: "COACH" }, { extraRoles: { has: "COACH" } }] }, { role: "STUDENT" }] }],
+      });
+    });
+  });
+
   describe("conversation access", () => {
     it("answers 404 for a thread the caller isn't in (changing the id in the URL gets nothing)", async () => {
       as("s1", "STUDENT");
@@ -141,6 +152,27 @@ describe("ChatService", () => {
 
       prisma.batchStudent.findFirst.mockResolvedValue(null);
       await expect(service.listMessages("t", "conv-1", chatMessagesQuerySchema.parse({}))).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("takes a student out of a coach's group once they share no batch with that coach (review S10)", async () => {
+      as("s1", "STUDENT");
+      const squad = conversation({
+        members: [{ role: "OWNER", user: user("c1", "COACH"), userId: "c1" }, { role: "MEMBER", user: user("s1", "STUDENT"), userId: "s1" }],
+        name: "Squad",
+        type: "GROUP",
+      });
+      prisma.conversation.findUnique.mockResolvedValue(squad);
+      prisma.conversationMember.findUnique.mockResolvedValue({ joinedAt: new Date(), lastReadAt: null, leftAt: null });
+
+      prisma.batchStudent.findFirst.mockResolvedValue({ id: "bs" });
+      await expect(service.getConversation("t", "conv-1")).resolves.toMatchObject({ canSend: true });
+
+      prisma.batchStudent.findFirst.mockResolvedValue(null);
+      await expect(service.getConversation("t", "conv-1")).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.conversationMember.updateMany).toHaveBeenCalledWith({
+        data: { leftAt: expect.any(Date) },
+        where: { conversationId: "conv-1", leftAt: null, userId: "s1" },
+      });
     });
 
     it("cuts a removed group member off", async () => {
