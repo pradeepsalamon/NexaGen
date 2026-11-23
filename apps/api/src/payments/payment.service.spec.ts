@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException } from "@nestjs/common";
+import { getApiEnv } from "@nexa-chess/config";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
@@ -85,6 +86,7 @@ describe("PaymentService.applyProviderState", () => {
   let paymentUpdate: jest.Mock;
   let orderUpdate: jest.Mock;
   let verifyPayment: jest.Mock;
+  let module: TestingModule;
 
   beforeEach(async () => {
     payment = {
@@ -141,7 +143,7 @@ describe("PaymentService.applyProviderState", () => {
       order: { update: orderUpdate }
     };
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         PaymentService,
         {
@@ -319,6 +321,44 @@ describe("PaymentService.applyProviderState", () => {
         data: expect.objectContaining({ failureCode: "amount_mismatch" })
       })
     );
+  });
+
+  it("withholds access when the capture is in another currency", async () => {
+    // Review P1: 99900 paise of PKR is not ₹999.
+    const result = await service.applyProviderState(
+      "pmt_1",
+      details({ currency: "PKR" }),
+      "webhook"
+    );
+
+    expect(result.status).toBe(PaymentStatus.PROCESSING);
+    expect(grant).not.toHaveBeenCalled();
+    expect(paymentUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ failureCode: "currency_mismatch" })
+      })
+    );
+  });
+
+  it("refuses a checkout in a currency other than the plan's", async () => {
+    Object.assign(getApiEnv(), { PAYMENTS_ENABLED: true });
+    const registry = module.get(ProviderRegistry) as unknown as { anyConfigured?: () => boolean };
+    registry.anyConfigured = () => true;
+    const prisma = module.get(PrismaService) as unknown as Record<string, unknown>;
+    const orderLookup = jest.fn().mockResolvedValue(null);
+    prisma.plan = {
+      findUnique: jest.fn().mockResolvedValue({ amount: 99900, currency: "INR", id: "plan_1", isActive: true })
+    };
+    prisma.order = { findUnique: orderLookup };
+
+    await expect(
+      service.createCheckout({ id: "usr_1", role: "STUDENT" } as never, {
+        currency: "PKR",
+        idempotencyKey: "key-1",
+        planId: "plan_1"
+      } as never)
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(orderLookup).not.toHaveBeenCalled();
   });
 
   it("records a genuine failure and tells the customer", async () => {

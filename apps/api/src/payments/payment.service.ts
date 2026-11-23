@@ -299,6 +299,14 @@ export class PaymentService {
       throw new NotFoundException("This plan is not available.");
     }
 
+    // A plan has one price in one currency. The buyer may not pick another:
+    // nothing converts the amount, so "PKR 999" for a ₹999 plan would be a
+    // discount (review P1). A client that sends the plan's own currency is fine.
+    const currency = plan.currency.toUpperCase();
+    if (dto.currency && dto.currency.toUpperCase() !== currency) {
+      throw new BadRequestException(`This plan is priced in ${currency}.`);
+    }
+
     const existing = await this.prisma.order.findUnique({
       where: { idempotencyKey: dto.idempotencyKey },
       include: {
@@ -314,8 +322,6 @@ export class PaymentService {
       }
       return this.replayOrder(existing.id, dto);
     }
-
-    const currency = (dto.currency ?? plan.currency).toUpperCase();
 
     // Re-resolved here, never taken from the client: a code that expired, hit
     // its limit, or does not apply to the chosen method is simply not applied,
@@ -653,21 +659,24 @@ export class PaymentService {
 
       // An amount mismatch means the customer paid something other than what
       // we asked for. Record it, never grant on it.
+      // The same for the currency: 999 of another currency is not ₹999.
+      const currencyMismatch =
+        details.currency !== null &&
+        details.currency.toUpperCase() !== payment.currency.toUpperCase();
       if (
         nextStatus === PaymentStatus.PAID &&
-        details.amount !== null &&
-        details.amount !== payment.amount
+        ((details.amount !== null && details.amount !== payment.amount) || currencyMismatch)
       ) {
         this.logger.error(
-          `Payment ${payment.id} captured ${details.amount} but the order is ${payment.amount} ${payment.currency}. Access withheld for manual review.`
+          `Payment ${payment.id} captured ${details.amount} ${details.currency ?? "?"} but the order is ${payment.amount} ${payment.currency}. Access withheld for manual review.`
         );
         await tx.payment.update({
           where: { id: payment.id },
           data: {
             ...handleUpdates,
             status: PaymentStatus.PROCESSING,
-            failureCode: "amount_mismatch",
-            failureMessage: `Provider reported ${details.amount} against an order of ${payment.amount}.`,
+            failureCode: currencyMismatch ? "currency_mismatch" : "amount_mismatch",
+            failureMessage: `Provider reported ${details.amount} ${details.currency ?? "(currency not given)"} against an order of ${payment.amount} ${payment.currency}.`,
             metadata: toJson(details.raw)
           }
         });

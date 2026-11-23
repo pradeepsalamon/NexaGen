@@ -29,7 +29,9 @@ for India.
   a stale `PENDING` redelivered after a capture — or a `FAILED` for a sibling
   attempt — cannot un-pay anything. A captured amount that differs from the
   order parks the payment at `PROCESSING` with `failureCode: amount_mismatch`
-  rather than granting. State whose `providerOrderId` is not the payment's own
+  rather than granting; a capture in another currency does the same with
+  `currency_mismatch`. Checkout always uses the plan's own currency and refuses
+  a request for another (nothing converts the amount). State whose `providerOrderId` is not the payment's own
   is ignored, and `verify` only ever queries the stored gateway order — a
   client-supplied handle for another order can never apply that order's capture.
 - **Access is an `Entitlement` row, never a gateway status (§21).** Provider →
@@ -394,6 +396,7 @@ speaks rupees, converts at its adapter boundary and nowhere else.
 | Retry against another gateway | Off by default (`failoverEnabled`). A provider is only excluded after its attempt reached a *settled* failure — never while it is unclear whether money moved |
 | Browser closed mid-payment | The reconciliation cron asks the gateway directly and applies the answer through the same funnel |
 | Wrong amount captured | Parked at `PROCESSING` with `amount_mismatch`; access is withheld for review |
+| Captured in another currency | Parked at `PROCESSING` with `currency_mismatch`; access is withheld for review |
 
 ### Refunds
 
