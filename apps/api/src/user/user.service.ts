@@ -123,9 +123,10 @@ export class UserService {
     // `withDeleted` bypasses the soft-delete filter. users.email is uniquely
     // indexed across deleted rows too, so a filtered read would miss the
     // conflict and the insert would fail with P2002 -> unhandled 500.
-    const existingUser = await this.prisma.withDeleted.user.findUnique({
-      where: { tenantId_email: { email: data.email, tenantId: requireTenantId("user") } }
-    });
+    // Sign-in looks the email up lowercased, so it is stored that way, and a
+    // case-only variant of an existing email is the same person (review A4).
+    data = { ...data, email: normalizeEmail(data.email) };
+    const existingUser = await this.findEmailOwner(data.email);
 
     if (existingUser) {
       throw new BadRequestException("User with this email already exists.");
@@ -210,11 +211,10 @@ export class UserService {
       throw new BadRequestException("You cannot change your own status.");
     }
 
+    if (data.email) data = { ...data, email: normalizeEmail(data.email) };
     if (data.email && data.email !== userToUpdate.email) {
       // See create(): must include soft-deleted rows, the unique index does.
-      const existingUser = await this.prisma.withDeleted.user.findUnique({
-        where: { tenantId_email: { email: data.email, tenantId: requireTenantId("user") } }
-      });
+      const existingUser = await this.findEmailOwner(data.email, id);
       if (existingUser) {
         throw new BadRequestException("User with this email already exists.");
       }
@@ -593,6 +593,22 @@ export class UserService {
     });
   }
 
+  /**
+   * Another account of this academy with the email in any letter case,
+   * soft-deleted ones included: `users.email` is uniquely indexed across
+   * deleted rows, so a filtered read would miss the conflict (P2002 -> 500).
+   */
+  private findEmailOwner(email: string, exceptUserId?: string) {
+    return this.prisma.withDeleted.user.findFirst({
+      select: { id: true },
+      where: {
+        email: { equals: email, mode: "insensitive" },
+        tenantId: requireTenantId("user"),
+        ...(exceptUserId ? { id: { not: exceptUserId } } : {})
+      }
+    });
+  }
+
   private getAuthenticatedUser(accessToken: string | undefined) {
     return authenticateUser(this.jwtService, this.prisma, accessToken);
   }
@@ -698,6 +714,10 @@ export class UserService {
       username: user.username
     };
   }
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
 }
 
 /** A concurrent create/edit won the email (or username) between the pre-check and the write. */

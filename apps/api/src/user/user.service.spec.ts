@@ -18,6 +18,7 @@ type MockPrismaService = {
   user: {
     count: jest.Mock;
     create: jest.Mock;
+    findFirst: jest.Mock;
     findMany: jest.Mock;
     findUnique: jest.Mock;
     findUniqueOrThrow: jest.Mock;
@@ -71,6 +72,7 @@ describe("UserService", () => {
     const userMock = {
       count: jest.fn(),
       create: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn(),
       findUnique: jest.fn(),
       findUniqueOrThrow: jest.fn(),
@@ -250,7 +252,6 @@ describe("UserService", () => {
 
     it("creates a student user and profile", async () => {
       mockAuthContext();
-      prismaService.user.findUnique.mockResolvedValueOnce(null);
       prismaService.user.create.mockResolvedValueOnce({
         firstName: "Student",
         id: "new-user",
@@ -265,6 +266,34 @@ describe("UserService", () => {
         data: { parentName: "Student Parent", userId: "new-user" }
       });
       expect(result.user.id).toBe("new-user");
+    });
+
+    // Review A4: sign-in looks the email up lowercased.
+    it("stores the email lowercased and trimmed", async () => {
+      mockAuthContext();
+      prismaService.user.create.mockResolvedValueOnce({ firstName: "Student", id: "new-user", role: UserRole.STUDENT });
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(studentRow("new-user"));
+
+      await service.create("token", { ...createStudentPayload, email: "  Ravi.K@Example.COM " });
+
+      expect(prismaService.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ email: "ravi.k@example.com" }) })
+      );
+      expect(prismaService.user.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ email: { equals: "ravi.k@example.com", mode: "insensitive" } })
+        })
+      );
+    });
+
+    it("refuses an email another account has in another letter case", async () => {
+      mockAuthContext();
+      prismaService.user.findFirst.mockResolvedValueOnce({ id: "old-user" });
+
+      await expect(
+        service.create("token", { ...createStudentPayload, email: "Student@Example.com" })
+      ).rejects.toThrow("User with this email already exists.");
+      expect(prismaService.user.create).not.toHaveBeenCalled();
     });
   });
 

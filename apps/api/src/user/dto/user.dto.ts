@@ -1,3 +1,4 @@
+import { Transform } from "class-transformer";
 import {
   IsEmail,
   IsEnum,
@@ -9,7 +10,12 @@ import {
 import type { CreateUserRequest, UpdateUserRequest } from "@nexa-chess/types";
 import { UserRole, UserStatus } from "@prisma/client";
 
+/** Sign-in looks the email up lowercased, so it is stored that way (review A4). */
+const normalizeEmail = ({ value }: { value: unknown }) =>
+  typeof value === "string" ? value.trim().toLowerCase() : value;
+
 export class CreateUserDto implements CreateUserRequest {
+  @Transform(normalizeEmail)
   @IsEmail({}, { message: "Enter a valid email address." })
   @MaxLength(255)
   email!: string;
@@ -38,6 +44,7 @@ export class CreateUserDto implements CreateUserRequest {
 }
 
 export class UpdateUserDto implements UpdateUserRequest {
+  @Transform(normalizeEmail)
   @IsEmail({}, { message: "Enter a valid email address." })
   @MaxLength(255)
   @IsOptional()
