@@ -455,6 +455,14 @@ reversing an adjustment re-works the TDS without re-reading the settings.
   An approved or finalized record keeps its snapshot.
 - Recalculating an earlier period does not reach forward: recalculate the later
   one too while it is still in review.
+- Periods never overlap (`[startDate, endDate)`, cancelled ones aside), so a
+  class is paid and counted for TDS once (review R3, 2026-11-23).
+- An adjustment checks the record's status, writes and recomputes under the
+  record's row lock in one transaction, so it can't land on a record finalized
+  in between (review R2).
+- An approved coach cancellation keeps the coach as the canceller, with the
+  notice measured from the request time, so the coach-cancel rules pay it
+  (review R1); the reviewer is on the approval row.
 
 **Where it shows:** a "TDS (rate)" line under Deductions on the payslip PDF, a
 TDS row in the record's totals, and a TDS column on the admin period table and

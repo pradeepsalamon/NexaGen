@@ -79,8 +79,15 @@ abstract class ClassCancelHandlerBase implements ApprovalHandler<Payload> {
   }
 
   async execute(tx: PrismaTransactionClient, request: ApprovalRequest, reviewer: { id: string }) {
+    // A coach's cancellation stays the coach's (review R1, owner decision
+    // 2026-11-23): payroll pays it under the coach-cancel rules, with the
+    // notice the coach gave when asking. The reviewer is on the approval row.
     const { count } = await tx.coachClass.updateMany({
-      data: { cancelledAt: new Date(), cancelledById: reviewer.id, status: ClassStatus.CANCELLED },
+      data: {
+        cancelledAt: request.createdAt ?? new Date(),
+        cancelledById: request.requesterId ?? reviewer.id,
+        status: ClassStatus.CANCELLED
+      },
       where: { id: request.classId!, status: { in: [ClassStatus.SCHEDULED] } }
     });
     if (count !== 1) throw new ConflictException("The class changed while this was being approved.");

@@ -61,6 +61,7 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "payments/credit-note.service.ts": { calls: 1, kind: "id-keyed", why: "locks one invoice" },
   "payments/payment.service.ts": { calls: 1, kind: "id-keyed", why: "locks one payment" },
   "payments/refund.service.ts": { calls: 1, kind: "id-keyed", why: "locks a refund's payment" },
+  "payroll/payroll-period.service.ts": { calls: 1, kind: "infra", why: "advisory lock keyed by the academy (no overlapping periods)" },
   "payroll/payroll-record-totals.util.ts": { calls: 1, kind: "id-keyed", why: "locks one payroll record" },
   "platform/entitlement.service.ts": { calls: 1, kind: "infra", why: "advisory lock keyed by the academy" },
   "prisma/job-lock.service.ts": { calls: 3, kind: "platform", why: "job_locks" },

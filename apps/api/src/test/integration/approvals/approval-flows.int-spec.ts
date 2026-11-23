@@ -95,7 +95,8 @@ describe("approval flows: class cancellation (V10), guest students (V4), class c
     expect(approved.status).toBe(201);
     const after = await t.prisma.coachClass.findUniqueOrThrow({ where: { id: cls.id } });
     expect(after.status).toBe("CANCELLED");
-    expect(after.cancelledById).toBe(admin.id);
+    // Review R1: the coach who asked stays the canceller (payroll's coach-cancel rules).
+    expect(after.cancelledById).toBe(coach.id);
     const events = await t.prisma.approvalEvent.findMany({ where: { requestId: id }, orderBy: { createdAt: "asc" } });
     expect(events.map((e) => e.type)).toEqual(["CREATED", "APPROVED"]);
   });
