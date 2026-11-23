@@ -796,6 +796,15 @@ describe("LiveClassService.getToken coach-presence gate", () => {
     expect(recordJoinEvent).toHaveBeenCalled();
   });
 
+  it("refuses the coach's board client id, and an unsafe client id, from a student (review L7)", async () => {
+    authenticateAs("student-1", UserRole.STUDENT);
+    listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
+
+    await expect(service.getToken(ACCESS_TOKEN, "class-1", "board")).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.getToken(ACCESS_TOKEN, "class-1", "tab_x")).rejects.toBeInstanceOf(BadRequestException);
+    expect(recordJoinEvent).not.toHaveBeenCalled();
+  });
+
   it("admits the student when the coach joined without a suffix", async () => {
     authenticateAs("student-1", UserRole.STUDENT);
     listParticipants.mockResolvedValue([{ identity: "coach-1" }]);

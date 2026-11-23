@@ -228,6 +228,16 @@ export class LiveClassService {
       throw new ForbiddenException("You are not authorized to join this class.");
     }
 
+    // The client id becomes part of the LiveKit identity, so it is a tab id
+    // (letters, digits, dashes). `board` is the coach's pop-out board window,
+    // which the attendance webhook records as the coach's board (review L7).
+    if (clientId !== undefined && !/^[A-Za-z0-9-]{1,64}$/.test(clientId)) {
+      throw new BadRequestException("clientId may only contain letters, digits and dashes.");
+    }
+    if (clientId === "board" && !isCoach && !isAdmin) {
+      throw new ForbiddenException("Only the coach can open the class board window.");
+    }
+
     // Pre-class settings enforcement: derive LiveKit publish grants from the
     // frozen snapshot (§38). Fail closed (review L4): a missing or unreadable
     // snapshot (the best-effort snapshot at start failed) is resolved now with
