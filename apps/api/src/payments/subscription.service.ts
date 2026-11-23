@@ -108,6 +108,14 @@ export class SubscriptionService {
       );
     }
 
+    // The mandate charges the priced order (discount and tax included), not
+    // the plan's list price (review P2).
+    const order = options.orderId
+      ? await this.prisma.order.findUnique({ select: { amount: true, currency: true }, where: { id: options.orderId } })
+      : null;
+    const amount = order?.amount ?? plan.amount;
+    const currency = order?.currency ?? plan.currency;
+
     const subscription = await this.prisma.subscription.create({
       data: {
         userId: user.id,
@@ -117,8 +125,8 @@ export class SubscriptionService {
         interval: plan.interval,
         // Frozen at subscribe time: a later price change must not re-price an
         // existing subscriber without their consent.
-        amount: plan.amount,
-        currency: plan.currency,
+        amount,
+        currency,
         initialOrderId: options.orderId ?? null
       }
     });
@@ -128,8 +136,8 @@ export class SubscriptionService {
         subscriptionId: subscription.id,
         planName: plan.name,
         planCode: plan.code,
-        amount: plan.amount,
-        currency: plan.currency,
+        amount,
+        currency,
         intervalMonths: months,
         customer: {
           id: user.id,

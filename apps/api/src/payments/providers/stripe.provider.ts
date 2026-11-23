@@ -299,12 +299,14 @@ export class StripeProvider implements PaymentProviderAdapter {
               ? mapSubscriptionStatus(pickString(object, "status"))
               : null
           : null,
+      subscriptionCharge: eventType === "invoice.paid" || eventType === "invoice.payment_succeeded",
       method: methodFromObject(object),
       methodDetail: methodDetail(object),
       amount:
         pickNumber(object, "amount_total") ??
         pickNumber(object, "amount") ??
-        pickNumber(object, "amount_received"),
+        pickNumber(object, "amount_received") ??
+        pickNumber(object, "amount_paid"),
       amountRefunded: pickNumber(object, "amount_refunded"),
       currency: pickString(object, "currency")?.toUpperCase() ?? null,
       failureCode: pickString(object, "last_payment_error", "code"),

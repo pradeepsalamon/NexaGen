@@ -214,6 +214,19 @@ describe("StripeProvider.handleWebhook subscription status", () => {
     expect(result.subscriptionStatus).toBeNull();
   });
 
+  it("marks a paid invoice as a cycle charge with its amount (review P2)", async () => {
+    const result = await parse({
+      data: {
+        object: { amount_paid: 118000, currency: "inr", object: "invoice", payment_intent: "pi_1", subscription: "sub_1" }
+      },
+      id: "evt_3",
+      type: "invoice.paid"
+    });
+    expect(result.subscriptionCharge).toBe(true);
+    expect(result.amount).toBe(118000);
+    expect(result.providerPaymentId).toBe("pi_1");
+  });
+
   it("reads the status of a customer.subscription event", async () => {
     const result = await parse({
       data: { object: { id: "sub_1", object: "subscription", status: "past_due" } },
@@ -221,5 +234,26 @@ describe("StripeProvider.handleWebhook subscription status", () => {
       type: "customer.subscription.updated"
     });
     expect(result.subscriptionStatus).toBe("PAST_DUE");
+  });
+});
+
+describe("RazorpayProvider.handleWebhook subscription charge (review P2)", () => {
+  const parse = (event: string, payload: Record<string, unknown>) =>
+    new RazorpayProvider(health).handleWebhook({ headers: {}, rawBody: JSON.stringify({ event, payload }) });
+
+  it("marks subscription.charged with its payment as a cycle charge", async () => {
+    const result = await parse("subscription.charged", {
+      payment: { entity: { amount: 118000, currency: "INR", id: "pay_9", status: "captured" } },
+      subscription: { entity: { id: "sub_r1", status: "active" } }
+    });
+    expect(result.subscriptionCharge).toBe(true);
+    expect(result.providerPaymentId).toBe("pay_9");
+    expect(result.providerSubscriptionId).toBe("sub_r1");
+    expect(result.amount).toBe(118000);
+  });
+
+  it("does not mark subscription.activated", async () => {
+    const result = await parse("subscription.activated", { subscription: { entity: { id: "sub_r1", status: "active" } } });
+    expect(result.subscriptionCharge).toBe(false);
   });
 });

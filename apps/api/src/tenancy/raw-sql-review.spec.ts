@@ -60,7 +60,7 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "messaging/messaging-delivery.worker.ts": { calls: 1, kind: "global-claim", why: "outbox claim; each row sent in its academy" },
   "payments/credit-note.service.ts": { calls: 1, kind: "id-keyed", why: "locks one invoice" },
   "payments/discount.service.ts": { calls: 1, kind: "id-keyed", why: "locks one discount while a checkout writes its order" },
-  "payments/payment.service.ts": { calls: 2, kind: "id-keyed", why: "locks one payment; locks one order (one attempt in the air)" },
+  "payments/payment.service.ts": { calls: 3, kind: "id-keyed", why: "locks one payment; locks one order (one attempt in the air); locks one subscription (one cycle charge at a time)" },
   "payments/refund.service.ts": { calls: 1, kind: "id-keyed", why: "locks a refund's payment" },
   "payroll/payroll-period.service.ts": { calls: 1, kind: "infra", why: "advisory lock keyed by the academy (no overlapping periods)" },
   "payroll/payroll-record-totals.util.ts": { calls: 1, kind: "id-keyed", why: "locks one payroll record" },

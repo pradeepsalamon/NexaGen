@@ -660,3 +660,107 @@ describe("PaymentService.priceForUser", () => {
     expect(priced.total).toBe(500);
   });
 });
+
+// Review P2: each cycle charge becomes a Payment through applyProviderState.
+describe("PaymentService.recordSubscriptionCharge", () => {
+  const subscription = {
+    amount: 118000,
+    currency: "INR",
+    id: "sub_1",
+    initialOrderId: "ord_1",
+    planId: "plan_1",
+    userId: "usr_1"
+  };
+  const initialOrder = {
+    amount: 118000,
+    currency: "INR",
+    discountAmount: 0,
+    discountCode: null,
+    id: "ord_1",
+    notes: { planCode: "MONTHLY", taxPercent: 18 },
+    subtotalAmount: 100000,
+    taxAmount: 18000
+  };
+  const charge = {
+    amount: 118000,
+    currency: "INR",
+    eventType: "subscription.charged",
+    method: null,
+    methodDetail: null,
+    paidAt: null,
+    providerOrderId: null,
+    providerPaymentId: "pay_9",
+    providerSubscriptionId: "rzp_sub_1",
+    raw: {},
+    subscriptionCharge: true
+  };
+
+  const build = (initialPayments: Array<{ id: string }>) => {
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      order: {
+        create: jest.fn().mockResolvedValue({ amount: 118000, currency: "INR", id: "ord_2" }),
+        findUnique: jest.fn().mockResolvedValue({ ...initialOrder, payments: initialPayments })
+      },
+      payment: {
+        create: jest.fn().mockResolvedValue({ id: "pmt_new" }),
+        findFirst: jest.fn().mockResolvedValue(null)
+      }
+    };
+    const service = Object.create(PaymentService.prototype) as PaymentService;
+    const applyProviderState = jest.fn().mockResolvedValue({ changed: true, status: "PAID" });
+    Object.assign(service, {
+      applyProviderState,
+      env: { PAYMENTS_INVOICE_PREFIX: "NX" },
+      logger: { warn: jest.fn() },
+      prisma: {
+        $transaction: (callback: (client: unknown) => unknown) => Promise.resolve(callback(tx)),
+        payment: { findFirst: jest.fn().mockResolvedValue(null) },
+        subscription: { findFirst: jest.fn().mockResolvedValue(subscription) }
+      }
+    });
+    return { applyProviderState, service, tx };
+  };
+
+  it("puts the first cycle on the order the mandate was opened from", async () => {
+    const { applyProviderState, service, tx } = build([]);
+    await service.recordSubscriptionCharge("RAZORPAY", charge as never);
+
+    expect(tx.order.create).not.toHaveBeenCalled();
+    expect(tx.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ amount: 118000, orderId: "ord_1", providerPaymentId: "pay_9", subscriptionId: "sub_1" })
+    });
+    expect(applyProviderState).toHaveBeenCalledWith(
+      "pmt_new",
+      expect.objectContaining({ amount: 118000, providerPaymentId: "pay_9", status: "PAID" }),
+      "subscription-charge"
+    );
+  });
+
+  it("gives a renewal its own order priced like the first, without redeeming the code again", async () => {
+    const { service, tx } = build([{ id: "pmt_first" }]);
+    await service.recordSubscriptionCharge("RAZORPAY", charge as never);
+
+    expect(tx.order.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        amount: 118000,
+        idempotencyKey: "subscription:sub_1:pay_9",
+        subtotalAmount: 100000,
+        taxAmount: 18000
+      })
+    });
+    expect(tx.order.create.mock.calls[0][0].data.discountId).toBeUndefined();
+    expect(tx.payment.create).toHaveBeenCalledWith({ data: expect.objectContaining({ orderId: "ord_2" }) });
+  });
+
+  it("re-applies to the existing payment on a repeat event", async () => {
+    const { applyProviderState, service, tx } = build([]);
+    (service as unknown as { prisma: { payment: { findFirst: jest.Mock } } }).prisma.payment.findFirst.mockResolvedValue({
+      id: "pmt_old"
+    });
+    await service.recordSubscriptionCharge("RAZORPAY", charge as never);
+
+    expect(tx.payment.create).not.toHaveBeenCalled();
+    expect(applyProviderState).toHaveBeenCalledWith("pmt_old", expect.anything(), "subscription-charge");
+  });
+});

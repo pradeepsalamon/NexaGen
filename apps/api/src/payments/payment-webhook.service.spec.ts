@@ -54,6 +54,8 @@ describe("PaymentWebhookService", () => {
   let createEvent: jest.Mock;
   let updateEvent: jest.Mock;
   let findPayment: jest.Mock;
+  let applyWebhook: jest.Mock;
+  let recordSubscriptionCharge: jest.Mock;
 
   const duplicateError = new Prisma.PrismaClientKnownRequestError("dup", {
     code: "P2002",
@@ -68,6 +70,8 @@ describe("PaymentWebhookService", () => {
     createEvent = jest.fn().mockResolvedValue({ id: "evt_row_1" });
     updateEvent = jest.fn().mockResolvedValue({});
     findPayment = jest.fn().mockResolvedValue({ id: "pmt_1" });
+    applyWebhook = jest.fn().mockResolvedValue(WebhookEventStatus.PROCESSED);
+    recordSubscriptionCharge = jest.fn().mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -90,9 +94,9 @@ describe("PaymentWebhookService", () => {
             refund: { findFirst: jest.fn().mockResolvedValue(null) }
           }
         },
-        { provide: PaymentService, useValue: { applyProviderState } },
+        { provide: PaymentService, useValue: { applyProviderState, recordSubscriptionCharge } },
         { provide: RefundService, useValue: { applyProviderState: jest.fn() } },
-        { provide: SubscriptionService, useValue: { applyWebhook: jest.fn() } },
+        { provide: SubscriptionService, useValue: { applyWebhook } },
         {
           provide: ProviderRegistry,
           useValue: { get: () => ({ handleWebhook, isConfigured: () => true }) }
@@ -104,6 +108,22 @@ describe("PaymentWebhookService", () => {
   });
 
   const body = JSON.stringify({ event: "payment.captured" });
+
+  // Review P2: a cycle's charge becomes a Payment.
+  it("records a subscription charge after the subscription update", async () => {
+    handleWebhook.mockResolvedValue(
+      webhookResult({ eventType: "subscription.charged", subject: "SUBSCRIPTION", subscriptionCharge: true })
+    );
+    await service.handle("RAZORPAY", JSON.stringify({ event: "subscription.charged" }), {});
+    expect(applyWebhook).toHaveBeenCalled();
+    expect(recordSubscriptionCharge).toHaveBeenCalledWith("RAZORPAY", expect.objectContaining({ subscriptionCharge: true }));
+  });
+
+  it("records nothing for a subscription event that took no money", async () => {
+    handleWebhook.mockResolvedValue(webhookResult({ eventType: "subscription.activated", subject: "SUBSCRIPTION" }));
+    await service.handle("RAZORPAY", JSON.stringify({ event: "subscription.activated" }), {});
+    expect(recordSubscriptionCharge).not.toHaveBeenCalled();
+  });
 
   it("processes a valid, signed event", async () => {
     const result = await service.handle("RAZORPAY", body, {});

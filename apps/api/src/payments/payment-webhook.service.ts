@@ -159,8 +159,15 @@ export class PaymentWebhookService {
         return this.applyPayment(provider, result);
       case "REFUND":
         return this.applyRefund(provider, result);
-      case "SUBSCRIPTION":
-        return this.subscriptions.applyWebhook(provider, result);
+      case "SUBSCRIPTION": {
+        const status = await this.subscriptions.applyWebhook(provider, result);
+        // A cycle's charge becomes a Payment, so access and an invoice follow
+        // through applyProviderState like any other capture (review P2).
+        if (result.subscriptionCharge && status === WebhookEventStatus.PROCESSED) {
+          await this.payments.recordSubscriptionCharge(provider, result);
+        }
+        return status;
+      }
       default:
         return WebhookEventStatus.IGNORED;
     }

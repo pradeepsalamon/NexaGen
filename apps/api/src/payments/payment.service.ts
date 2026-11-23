@@ -36,8 +36,10 @@ import {
   PaymentStatus,
   Prisma,
   UserRole,
+  type Order,
   type Payment,
   type Plan,
+  type Subscription,
   type User
 } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
@@ -61,7 +63,7 @@ import {
   toJson,
   toPlanItem
 } from "./payments.util";
-import type { PaymentDetails } from "./providers/payment-provider.interface";
+import type { PaymentDetails, WebhookResult } from "./providers/payment-provider.interface";
 import { PaymentProviderError } from "./providers/payment-provider.interface";
 import { ProviderRegistry } from "./providers/provider-registry.service";
 import { SubscriptionService } from "./subscription.service";
@@ -876,6 +878,142 @@ export class PaymentService {
     return { changed: outcome.changed, status: outcome.status };
   }
 
+  /**
+   * A recurring plan's cycle charge (review P2). The gateway took the money
+   * on its own, so there is no checkout attempt: the charge gets a Payment on
+   * an order of its own (the first cycle uses the order the mandate was opened
+   * from) and goes through `applyProviderState`, so the entitlement, invoice and
+   * receipt follow exactly as for a one-time payment. Idempotent on the
+   * gateway's payment id; a repeat event only re-applies the same state.
+   */
+  async recordSubscriptionCharge(provider: PaymentProvider, result: WebhookResult): Promise<void> {
+    const handle = result.providerSubscriptionId;
+    const providerPaymentId = result.providerPaymentId;
+    if (!handle || !providerPaymentId) {
+      this.logger.warn(`${provider} subscription charge ${result.eventType} has no subscription or payment id; ignored.`);
+      return;
+    }
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { provider, providerSubscriptionId: handle }
+    });
+    if (!subscription) return;
+
+    const paymentId =
+      (await this.prisma.payment.findFirst({ select: { id: true }, where: { provider, providerPaymentId } }))?.id ??
+      (await this.createSubscriptionPayment(subscription, provider, providerPaymentId));
+
+    await this.applyProviderState(
+      paymentId,
+      {
+        amount: result.amount,
+        amountRefunded: 0,
+        currency: result.currency,
+        failureCode: null,
+        failureMessage: null,
+        method: result.method,
+        methodDetail: result.methodDetail,
+        paidAt: result.paidAt,
+        providerOrderId: result.providerOrderId,
+        providerPaymentId,
+        raw: result.raw,
+        status: PaymentStatus.PAID
+      },
+      "subscription-charge"
+    );
+  }
+
+  /** The Payment (and, after the first cycle, the Order) a cycle charge lands on. */
+  private async createSubscriptionPayment(
+    subscription: Subscription,
+    provider: PaymentProvider,
+    providerPaymentId: string
+  ): Promise<string> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // One cycle charge at a time per subscription, so two events for one
+        // charge (invoice.paid + invoice.payment_succeeded) make one payment.
+        await tx.$queryRaw`SELECT id FROM "subscriptions" WHERE id = ${subscription.id} FOR UPDATE`;
+        const again = await tx.payment.findFirst({ select: { id: true }, where: { provider, providerPaymentId } });
+        if (again) return again.id;
+
+        const initial = subscription.initialOrderId
+          ? await tx.order.findUnique({
+              include: { payments: { select: { id: true }, where: { subscriptionId: subscription.id } } },
+              where: { id: subscription.initialOrderId }
+            })
+          : null;
+        const order =
+          initial && initial.payments.length === 0
+            ? initial
+            : await tx.order.create({ data: this.renewalOrderData(subscription, initial, providerPaymentId) });
+
+        const payment = await tx.payment.create({
+          data: {
+            amount: order.amount,
+            currency: order.currency,
+            orderId: order.id,
+            provider,
+            providerPaymentId,
+            status: PaymentStatus.CREATED,
+            subscriptionId: subscription.id,
+            userId: subscription.userId
+          }
+        });
+        return payment.id;
+      });
+    } catch (error) {
+      // A concurrent event created it first.
+      if (!isUniqueViolationOn(error, "providerPaymentId")) throw error;
+      const winner = await this.prisma.payment.findFirst({ select: { id: true }, where: { provider, providerPaymentId } });
+      if (!winner) throw error;
+      return winner.id;
+    }
+  }
+
+  /**
+   * A renewal is priced like the first cycle: the initial order's figures when
+   * the mandate charges that order's total. An older mandate that charges the
+   * plan's list price gets an order for that amount without tax, so the order,
+   * the charge and the invoice still agree. The discount is not redeemed
+   * again (no `discountId`); its code stays on the invoice.
+   */
+  private renewalOrderData(
+    subscription: Subscription,
+    initial: Order | null,
+    providerPaymentId: string
+  ): Prisma.OrderUncheckedCreateInput {
+    const base = {
+      currency: subscription.currency.toUpperCase(),
+      idempotencyKey: `subscription:${subscription.id}:${providerPaymentId}`,
+      orderNumber: generateOrderNumber(this.env.PAYMENTS_INVOICE_PREFIX),
+      planId: subscription.planId,
+      status: OrderStatus.CREATED,
+      userId: subscription.userId
+    };
+    if (initial && initial.amount === subscription.amount) {
+      return {
+        ...base,
+        amount: initial.amount,
+        discountAmount: initial.discountAmount,
+        discountCode: initial.discountCode,
+        notes: { ...(isJsonObject(initial.notes) ? initial.notes : {}), renewalOf: subscription.id },
+        subtotalAmount: initial.subtotalAmount,
+        taxAmount: initial.taxAmount
+      };
+    }
+    this.logger.warn(
+      `Subscription ${subscription.id} charges ${subscription.amount}, not its first order's total; renewal priced at that amount without tax.`
+    );
+    return {
+      ...base,
+      amount: subscription.amount,
+      discountAmount: 0,
+      notes: { renewalOf: subscription.id, taxPercent: 0 },
+      subtotalAmount: subscription.amount,
+      taxAmount: 0
+    };
+  }
+
   // ────────────────────────────────────────────────
   // Reads
   // ────────────────────────────────────────────────
@@ -1488,6 +1626,10 @@ function appliedFromOrder(order: {
 }
 
 /** The tax rate frozen on the order at checkout; absent on orders created before it was stored. */
+function isJsonObject(value: Prisma.JsonValue): value is Prisma.JsonObject {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function orderTaxPercent(notes: Prisma.JsonValue): number | null {
   if (!notes || typeof notes !== "object" || Array.isArray(notes)) return null;
   const value = (notes as Prisma.JsonObject).taxPercent;

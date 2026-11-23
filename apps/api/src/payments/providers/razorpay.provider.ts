@@ -311,6 +311,7 @@ export class RazorpayProvider implements PaymentProviderAdapter {
         subject === "SUBSCRIPTION"
           ? mapSubscriptionStatus(pickString(subscriptionEntity, "status"))
           : null,
+      subscriptionCharge: eventType === "subscription.charged" && Boolean(paymentEntity),
       method: mapMethod(pickString(source, "method")),
       methodDetail: methodDetail(source),
       amount: pickNumber(source, "amount"),

@@ -155,6 +155,12 @@ export type WebhookResult = {
   paidAt: Date | null;
   /** Subscription renewals carry the next cycle boundary. */
   nextBillingDate: Date | null;
+  /**
+   * A subscription event that took a cycle's money (Razorpay
+   * `subscription.charged`, Stripe `invoice.paid`): it becomes a Payment
+   * (review P2). `providerPaymentId`, `amount` and `currency` describe it.
+   */
+  subscriptionCharge?: boolean;
   raw: unknown;
 };
 

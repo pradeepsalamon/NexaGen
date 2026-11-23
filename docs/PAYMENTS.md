@@ -83,7 +83,13 @@ for India.
   on `isRecurringInterval(plan.interval)` into `SubscriptionService.start`, and
   the router is passed `recurring: true` so only a gateway that can actually
   mandate that method is a candidate. The provider bills each cycle; we mirror
-  its state from webhooks and never charge on our own clock.
+  its state from webhooks and never charge on our own clock. **The mandate
+  charges the priced order total** (discount and tax included), and **every
+  cycle's charge becomes a Payment** (`PaymentService.recordSubscriptionCharge`
+  on Razorpay `subscription.charged` / Stripe `invoice.paid`): the first cycle
+  lands on the checkout's order, each renewal on a new order priced like it
+  (no second discount redemption), then `applyProviderState` grants the
+  entitlement and issues the invoice like any capture (review P2).
 - **Discounts are the ONE mechanism that changes what someone pays.** A launch
   code, a UPI-only offer and a batch deal are the same `Discount` row with a
   different scope (`planIds` / `batchIds` / `methods`). The arithmetic is
