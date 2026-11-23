@@ -424,6 +424,7 @@ speaks rupees, converts at its adapter boundary and nowhere else.
 | Wrong amount captured | Parked at `PROCESSING` with `amount_mismatch`; access is withheld for review |
 | Captured in another currency | Parked at `PROCESSING` with `currency_mismatch`; access is withheld for review |
 | Stripe renewal (`invoice.*` events) | An invoice event carries no subscription status (an invoice's `paid`/`open` is not the subscription's). Any webhook moves a subscription forward only (`allowedSubscriptionMove`: CREATED → PENDING_ACTIVATION → ACTIVE/PAST_DUE/PAUSED → CANCELLED/EXPIRED, moves inside a stage allowed), never out of CANCELLED/EXPIRED (review P3) |
+| Two admins refund one payment at once; a refund webhook without a refund id | The balance is read and the refund written under the payment's row lock. Refund webhooks match by the gateway's refund id only, never "the newest unsettled refund"; anything else is left to the reconcile sweep. Cashfree events without an `event_id` are keyed on the body, not the payment id, so a payment's refund event isn't dropped as a repeat of its success (review P10) |
 | Refund with "revoke access" fails at the gateway | Access is revoked once the gateway accepts the refund; if it later fails and no refund of that payment succeeded, the access it revoked comes back (`restoreRevokedForOrder`, review P9) |
 
 ### Refunds

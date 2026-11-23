@@ -55,6 +55,7 @@ describe("PaymentWebhookService", () => {
   let updateEvent: jest.Mock;
   let findPayment: jest.Mock;
   let applyWebhook: jest.Mock;
+  let applyRefundState: jest.Mock;
   let recordSubscriptionCharge: jest.Mock;
 
   const duplicateError = new Prisma.PrismaClientKnownRequestError("dup", {
@@ -71,6 +72,7 @@ describe("PaymentWebhookService", () => {
     updateEvent = jest.fn().mockResolvedValue({});
     findPayment = jest.fn().mockResolvedValue({ id: "pmt_1" });
     applyWebhook = jest.fn().mockResolvedValue(WebhookEventStatus.PROCESSED);
+    applyRefundState = jest.fn();
     recordSubscriptionCharge = jest.fn().mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
@@ -95,7 +97,7 @@ describe("PaymentWebhookService", () => {
           }
         },
         { provide: PaymentService, useValue: { applyProviderState, recordSubscriptionCharge } },
-        { provide: RefundService, useValue: { applyProviderState: jest.fn() } },
+        { provide: RefundService, useValue: { applyProviderState: applyRefundState } },
         { provide: SubscriptionService, useValue: { applyWebhook } },
         {
           provide: ProviderRegistry,
@@ -108,6 +110,16 @@ describe("PaymentWebhookService", () => {
   });
 
   const body = JSON.stringify({ event: "payment.captured" });
+
+  // Review P10: a refund event is matched by the gateway's refund id only.
+  it("ignores a refund event that names no refund we know, rather than guessing one", async () => {
+    handleWebhook.mockResolvedValue(
+      webhookResult({ eventType: "refund.processed", providerRefundId: null, refundStatus: "SUCCEEDED", subject: "REFUND" })
+    );
+    const result = await service.handle("RAZORPAY", JSON.stringify({ event: "refund.processed" }), {});
+    expect(result.status).toBe(WebhookEventStatus.IGNORED);
+    expect(applyRefundState).not.toHaveBeenCalled();
+  });
 
   // Review P2: a cycle's charge becomes a Payment.
   it("records a subscription charge after the subscription update", async () => {

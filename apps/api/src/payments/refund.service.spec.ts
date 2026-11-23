@@ -87,7 +87,11 @@ describe("RefundService.create", () => {
               Promise.resolve(
                 callback({
                   $queryRaw: jest.fn().mockResolvedValue([]),
-                  refund: { findUnique: jest.fn().mockResolvedValue(null) },
+                  refund: {
+                    create: jest.fn().mockResolvedValue(refundRow),
+                    findMany: jest.fn().mockResolvedValue(payment.refunds),
+                    findUnique: jest.fn().mockResolvedValue(null)
+                  },
                   payment: {
                     findUnique: jest.fn().mockResolvedValue(payment),
                     // A definitive rejection restores the payment's status.

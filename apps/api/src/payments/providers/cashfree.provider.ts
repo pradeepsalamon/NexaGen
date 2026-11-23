@@ -293,10 +293,10 @@ export class CashfreeProvider implements PaymentProviderAdapter {
     });
 
     return {
-      eventId:
-        pickString(payload, "event_id") ??
-        pickString(paymentEntity, "cf_payment_id") ??
-        hashPayload(input.rawBody),
+      // Not the payment id: a payment's success and its refund are different
+      // events about the same payment, and the second would be dropped as a
+      // repeat (review P10). A redelivery repeats the same body.
+      eventId: pickString(payload, "event_id") ?? hashPayload(input.rawBody),
       eventType,
       signatureValid,
       subject,

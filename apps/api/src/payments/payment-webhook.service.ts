@@ -3,7 +3,6 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { DEFAULT_TENANT_ID, type PaymentProvider, type TenantGatewayProvider } from "@nexa-chess/types";
 import {
   Prisma,
-  RefundStatus,
   WebhookEventStatus,
   type Payment
 } from "@prisma/client";
@@ -219,27 +218,16 @@ export class PaymentWebhookService {
   ): Promise<WebhookEventStatus> {
     if (!result.refundStatus) return WebhookEventStatus.IGNORED;
 
-    const refund = result.providerRefundId
+    // Matched by the gateway's refund id only (review P10): guessing "the newest
+    // unsettled refund on that payment" could settle the wrong one, or ours
+    // with a refund made in the gateway's dashboard. An event that names no
+    // refund we know is left to the reconcile sweep, which reads each refund
+    // by its own id.
+    const target = result.providerRefundId
       ? await this.prisma.refund.findFirst({
           where: { provider, providerRefundId: result.providerRefundId }
         })
       : null;
-
-    // Some gateways report the refund only against the payment, so fall back to
-    // the newest unsettled refund on that payment.
-    const fallback =
-      !refund && result.providerPaymentId
-        ? await this.prisma.refund.findFirst({
-            where: {
-              provider,
-              payment: { providerPaymentId: result.providerPaymentId },
-              status: { in: [RefundStatus.PENDING, RefundStatus.PROCESSING] }
-            },
-            orderBy: { createdAt: "desc" }
-          })
-        : null;
-
-    const target = refund ?? fallback;
     if (!target) return WebhookEventStatus.IGNORED;
 
     await this.refunds.applyProviderState(target.id, {

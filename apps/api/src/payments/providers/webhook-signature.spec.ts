@@ -257,3 +257,18 @@ describe("RazorpayProvider.handleWebhook subscription charge (review P2)", () =>
     expect(result.subscriptionCharge).toBe(false);
   });
 });
+
+// Review P10: two events about one payment (its success, then its refund) are two events.
+describe("CashfreeProvider.handleWebhook event id", () => {
+  it("doesn't use the payment id as the event id", async () => {
+    const parse = (type: string) =>
+      new CashfreeProvider(health).handleWebhook({
+        headers: {},
+        rawBody: JSON.stringify({ data: { payment: { cf_payment_id: "cf_1" } }, type })
+      });
+    const success = await parse("PAYMENT_SUCCESS_WEBHOOK");
+    const refund = await parse("REFUND_STATUS_WEBHOOK");
+    expect(success.eventId).not.toBe("cf_1");
+    expect(success.eventId).not.toBe(refund.eventId);
+  });
+});
