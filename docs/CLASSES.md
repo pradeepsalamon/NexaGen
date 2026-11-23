@@ -84,6 +84,9 @@ web `features/admin/components/DemoClass*` + `demo-classes/*`, public page
   disconnects every connection of that guest; the join, the guest-token routes
   and the `participant_joined` webhook (`enforceGuestRemovalOnJoin`) then keep
   them out. A guest from before this identity format can only be disconnected.
+- **Guest-token routes need an APPROVED registration** (review F2): a pending
+  or removed guest gets nothing from the room, the class puzzle's solution
+  included (`LiveClassAccessService.resolveDemoGuest`).
 - **A guest in the room has no session** — only the LiveKit token the join
   mints, plus a `guestToken` (`live-class/demo-guest-token.ts`: a 6h JWT of
   `type: "demo_guest"` naming the registration + class, so `authenticateUser`

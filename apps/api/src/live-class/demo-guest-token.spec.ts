@@ -69,6 +69,14 @@ describe("demo guest token", () => {
       id: "reg-1"
     });
     await expect(access.resolveDemoGuest(await token(), CLASS_ID)).rejects.toBeInstanceOf(ForbiddenException);
+    // Still waiting for the coach: nothing from the room yet (review F2).
+    prisma.demoClassRegistration.findUnique.mockResolvedValueOnce({
+      approval: DemoGuestApproval.PENDING,
+      class: { isDemo: true },
+      classId: CLASS_ID,
+      id: "reg-1"
+    });
+    await expect(access.resolveDemoGuest(await token(), CLASS_ID)).rejects.toBeInstanceOf(ForbiddenException);
     prisma.liveSession.findUnique.mockResolvedValueOnce({ classId: CLASS_ID, status: "ENDED" });
     await expect(access.resolveDemoGuest(await token(), CLASS_ID)).rejects.toBeInstanceOf(BadRequestException);
   });
