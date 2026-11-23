@@ -149,6 +149,19 @@ describe("MessagingDispatchService", () => {
 
   afterEach(() => jest.clearAllMocks());
 
+  it("keys a cancellation by when it was cancelled, so a second cancellation sends again (review M2)", async () => {
+    await setup();
+    prisma.coachClass.findUnique.mockResolvedValue({
+      ...(await prisma.coachClass.findUnique()),
+      cancelledAt: new Date("2026-09-13T08:00:00.000Z")
+    });
+
+    await service.dispatch({ event: "CLASS_CANCELLED", classId: CLASS_ID });
+
+    const [row] = queuedRows(prisma.messageDelivery.create);
+    expect(row.dedupeKey).toBe(`CLASS_CANCELLED:${CLASS_ID}:2026-09-13T08:00:00.000Z:student_1`);
+  });
+
   it("queues nothing while the rule is disabled", async () => {
     await setup(makeRule({ enabled: false }));
 
@@ -193,7 +206,8 @@ describe("MessagingDispatchService", () => {
       status: "PENDING",
       channel: "WHATSAPP",
       recipientPhone: "919876543210",
-      dedupeKey: `CLASS_SCHEDULED:${CLASS_ID}:student_1`
+      // The class's start time is in the key: a moved class is a new message (review M2).
+      dedupeKey: `CLASS_SCHEDULED:${CLASS_ID}:2026-09-14T12:30:00.000Z:student_1`
     });
     expect(row.body).toContain("Hi Asha");
     expect(row.body).toContain("Rook Endgames");

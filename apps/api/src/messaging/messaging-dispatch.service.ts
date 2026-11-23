@@ -568,6 +568,16 @@ export class MessagingDispatchService {
     });
     if (!cls) return [];
 
+    // What the message is about, in its dedupe key (review M2): a class moved
+    // after its reminder gets one for the new time, and a class cancelled,
+    // restored and cancelled again gets a second notice.
+    const classVersion =
+      event === "CLASS_CANCELLED"
+        ? (cls.cancelledAt?.toISOString() ?? "")
+        : event === "CLASS_SUBSTITUTE_ASSIGNED"
+          ? `${cls.coachId}:${cls.startsAt.toISOString()}`
+          : cls.startsAt.toISOString();
+
     const coachName = this.fullName(cls.coach.firstName, cls.coach.lastName);
     const startsInMinutes = Math.max(
       0,
@@ -604,7 +614,7 @@ export class MessagingDispatchService {
             variables: classVariables(u.timezone),
             linkPath: role === UserRole.STUDENT ? "/student/classes" : "/coach/classes",
             linkVariable: "links.class",
-            dedupeKey: `${event}:${classId}:${u.id}`
+            dedupeKey: `${event}:${classId}:${classVersion}:${u.id}`
           })
         )
     );

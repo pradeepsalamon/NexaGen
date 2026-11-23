@@ -67,7 +67,11 @@ the editors; a new placeholder needs an entry (a spec checks).
   queued") instead of queueing twice. Provider sends are at-least-once — the
   worker sends, then marks SENT, so a crash between the two re-sends. The
   two lead-time crons in `messaging.scheduler.ts` also take job locks
-  (§3.6b).
+  (§3.6b). A key names what the message is *about*, not just the thing: class
+  messages carry the class's `startsAt` (a class moved after its reminder
+  gets a reminder for the new time), `CLASS_CANCELLED` its `cancelledAt` (a
+  second cancellation sends again) and `CLASS_SUBSTITUTE_ASSIGNED` the coach
+  too (review M2), as `ASSIGNMENT_DUE_SOON` carries the due date.
 - `INVOICE_ISSUED` ships **enabled, in-app only**, and is the one event that can
   carry an attachment: `DispatchRequest` takes an optional `document`
   (`mediaId`/`link`/`filename`) which the CALLER resolves — dispatch persists it
