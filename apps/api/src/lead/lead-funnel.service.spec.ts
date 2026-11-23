@@ -49,9 +49,11 @@ describe("ad spend", () => {
   });
 
   it("reads Meta's spend in minor units", () => {
-    expect(spendToMinor("123.45")).toBe(12345);
-    expect(spendToMinor("0")).toBe(0);
-    expect(spendToMinor("bad")).toBe(0);
+    expect(spendToMinor("123.45", "INR")).toBe(12345);
+    expect(spendToMinor("0", "INR")).toBe(0);
+    expect(spendToMinor("bad", "INR")).toBe(0);
+    // Review Part 1 #4: a currency without decimals isn't multiplied by 100.
+    expect(spendToMinor("1500", "JPY")).toBe(1500);
   });
 });
 

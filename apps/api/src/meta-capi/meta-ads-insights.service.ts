@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
-import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
+import { DEFAULT_TENANT_ID, toMinorUnits } from "@nexa-chess/types";
 import { currentTenantId } from "../tenancy/tenant-context";
 
 const GRAPH_BASE = "https://graph.facebook.com";
@@ -20,10 +20,13 @@ type InsightsPage = {
   paging?: { next?: unknown };
 };
 
-/** "123.45" (major units) → 12345. */
-export function spendToMinor(spend: unknown): number {
+/**
+ * Meta's spend (major units, "123.45") in the account currency's minor units: ×100 for INR, ×1
+ * for a currency without decimals such as JPY (review Part 1 #4).
+ */
+export function spendToMinor(spend: unknown, currency: string): number {
   const value = typeof spend === "string" ? Number(spend) : typeof spend === "number" ? spend : NaN;
-  return Number.isFinite(value) && value > 0 ? Math.round(value * 100) : 0;
+  return Number.isFinite(value) && value > 0 ? toMinorUnits(value, currency) : 0;
 }
 
 /**
@@ -82,7 +85,11 @@ export class MetaAdsInsightsService {
       for (const row of json?.data ?? []) {
         if (typeof row.ad_id !== "string") continue;
         if (typeof row.account_currency === "string") currency = row.account_currency;
-        ads.push({ adId: row.ad_id, campaignName: typeof row.campaign_name === "string" ? row.campaign_name : null, spendMinor: spendToMinor(row.spend) });
+        ads.push({
+          adId: row.ad_id,
+          campaignName: typeof row.campaign_name === "string" ? row.campaign_name : null,
+          spendMinor: spendToMinor(row.spend, currency)
+        });
       }
       // Only follow Meta's own next page.
       const next = json?.paging?.next;

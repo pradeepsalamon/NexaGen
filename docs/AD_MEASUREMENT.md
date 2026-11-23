@@ -103,6 +103,8 @@ Admin → Leads → **Funnel** tab (`LeadFunnelPanel`), `GET /admin/leads/funnel
 - **Ad spend** (optional): `META_ADS_ACCESS_TOKEN` + `META_AD_ACCOUNT_ID` →
   `MetaAdsInsightsService` reads ad-level spend for the range (read-only Marketing API Insights,
   `ads_read`; Meta's days are the ad account's), cached six hours per range, Nexa's academy only.
+  Spend arrives in major units and is converted with `toMinorUnits` in the account's currency, so a
+  currency without decimals isn't multiplied by 100 (review Part 1 #4).
   Matched per row: WhatsApp ad leads by ad id (`LeadAdClick.firstAdId`), website leads by campaign
   name (`utm_campaign` = the Meta campaign's name), leaving out ads a WhatsApp row already took;
   rows sharing one campaign (say instagram and facebook) split its spend by their leads
