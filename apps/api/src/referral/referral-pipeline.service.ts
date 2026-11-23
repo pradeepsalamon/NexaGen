@@ -14,6 +14,7 @@ import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.se
 import { requireTenantId } from "../tenancy/tenant-sql";
 import { ReferralCreditsService } from "./referral-credits.service";
 import { ReferralSettingsService } from "./referral-settings.service";
+import { referralRoleOf } from "./referral.util";
 
 export type ReferralForMove = {
   id: string;
@@ -28,7 +29,7 @@ export const REFERRAL_FOR_MOVE = {
   convertedAt: true,
   id: true,
   referredUserId: true,
-  referrer: { select: { firstName: true, role: true } },
+  referrer: { select: { extraRoles: true, firstName: true, role: true } },
   referrerId: true,
   stageId: true
 } as const;
@@ -278,7 +279,9 @@ export class ReferralPipelineService {
       tx.referralStage.findMany({ where: { id: { in: stageIds } } }),
       this.settings.get()
     ]);
-    const role = referral.referrer.role;
+    // The same role rule that issued the code (review R6); an account that can't refer earns nothing.
+    const role = referralRoleOf(referral.referrer);
+    if (!role) return;
     const grants: Grant[] = [];
 
     for (const stage of stages) {

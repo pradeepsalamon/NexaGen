@@ -635,4 +635,17 @@ describe("referral programme (real app, real Postgres)", () => {
     expect(await t.prisma.referral.count({ where: { leadId: other.id } })).toBe(1);
     await stageValues("refstage_visited", { studentPoints: 0 });
   });
+  // Review R6: an admin who also teaches refers as a coach, and the link works.
+  it("gives an admin who also teaches a working link, as a coach", async () => {
+    const teacher = await active(UserRole.ADMIN);
+    await t.prisma.user.update({ data: { extraRoles: [UserRole.COACH] }, where: { id: teacher.id } });
+    const mine = await summary(teacher);
+    expect(mine.wallet).toBe("CASH");
+    expect(mine.code).toBeTruthy();
+    const visit = (await browser()("POST", API_ROUTES.referrals.visit, { code: mine.code })).body as { valid: boolean };
+    expect(visit.valid).toBe(true);
+
+    const plainAdmin = await active(UserRole.ADMIN);
+    expect((await t.call(plainAdmin, "GET", API_ROUTES.referrals.me)).status).toBe(403);
+  });
 });

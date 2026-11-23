@@ -77,6 +77,11 @@ Rewards are `ReferralReward` rows with `stageId` (and `ruleId` null), dedupe key
 Settings `autoApprovePoints` (default on) and `autoApproveCash` (default off)
 decide whether a stage reward is credited at once or waits in the Rewards tab.
 
+**Which role an account refers as (review R6):** `referralRoleOf` (`referral.util.ts`), from the
+stored role and extra roles, never the session's active role: a student, coach or sales account
+as itself, an admin who also teaches as a coach (cash), anyone else not at all. The summary, the
+link check and the rewards all use it.
+
 **What can't be farmed (review R5).** Anyone can open a link and book a demo, so:
 a `LINK_VISITED` stage never pays the referrer (stage value or bonus), whatever
 is set; a `DEMO_BOOKED` stage's referrer rewards and bonuses always wait for an

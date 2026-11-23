@@ -10,6 +10,18 @@ export function isReferrerRole(role: UserRole | string): role is ReferrerRole {
   return (REFERRER_ROLES as readonly string[]).includes(role);
 }
 
+/**
+ * The one role rule for referrals (review R6): the role an account refers as,
+ * from its stored role and extra roles, never the session's active role. A
+ * student, coach or sales account refers as itself; an admin who also teaches
+ * refers as a coach; anyone else can't refer.
+ */
+export function referralRoleOf(user: { extraRoles?: readonly UserRole[] | null; role: UserRole }): ReferrerRole | null {
+  if (isReferrerRole(user.role)) return user.role;
+  if (user.extraRoles?.includes("COACH")) return "COACH";
+  return null;
+}
+
 export function toReferrerRole(role: UserRole): ReferrerRole {
   // Only referrer roles ever own codes; anything else is shown as a student.
   return isReferrerRole(role) ? role : "STUDENT";

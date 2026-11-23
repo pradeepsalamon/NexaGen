@@ -8,6 +8,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { REFERRAL_FOR_MOVE, ReferralPipelineService } from "./referral-pipeline.service";
 import { ReferralSettingsService } from "./referral-settings.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
+import { referralRoleOf } from "./referral.util";
 
 /** Lead CRM statuses that move a referral, and where to. */
 const LEAD_STATUS_TRIGGERS: Partial<Record<LeadStatus, ReferralStageTrigger>> = {
@@ -41,11 +42,12 @@ export class ReferralTrackerService {
     const settings = await this.settings.get();
     if (!settings.enabled || !(await this.entitlements.hasFeature("referralProgram"))) return null;
     const row = await this.prisma.referralCode.findUnique({
-      include: { user: { select: { firstName: true, id: true, role: true, status: true } } },
+      include: { user: { select: { extraRoles: true, firstName: true, id: true, role: true, status: true } } },
       where: { tenantId_code: { code, tenantId: requireTenantId("referralCode") } }
     });
     if (!row || !row.isActive || row.user.status !== UserStatus.ACTIVE) return null;
-    if (!this.settings.isEligible(row.user, settings)) return null;
+    const role = referralRoleOf(row.user);
+    if (!role || !this.settings.isEligible({ role }, settings)) return null;
     return { ...row, settings };
   }
 
