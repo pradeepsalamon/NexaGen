@@ -16,6 +16,7 @@ import {
 import { UserRole, UserStatus, type User } from "@prisma/client";
 import { TEST_ORIGIN } from "../test/integration/app-env";
 import { createTestApp, type TestApp } from "../test/integration/app";
+import { ReferralTrackerService } from "./referral-tracker.service";
 import { createUser, resetDatabase } from "../test/integration/db";
 import { runInTenant } from "../tenancy/tenant-context";
 import { ReferralCreditsService } from "./referral-credits.service";
@@ -115,7 +116,12 @@ describe("referral programme (real app, real Postgres)", () => {
     let me = await summary(student);
     expect(me.totals).toEqual({ converted: 0, referrals: 2, visits: 2 });
     // A student earns points only: the students' bonus, never the staff one.
-    expect([me.wallet, me.money, me.points.balance]).toEqual(["POINTS", null, 50]);
+    // Review R5: anyone can book a demo, so that bonus waits for an admin even with auto-approve on.
+    expect([me.wallet, me.money, me.points.balance]).toEqual(["POINTS", null, 0]);
+    const held = await t.prisma.referralReward.findFirstOrThrow({ where: { referrerId: student.id, status: "PENDING" } });
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.approveReward(held.id))).status).toBe(200);
+    me = await summary(student);
+    expect(me.points.balance).toBe(50);
     expect(me.bonuses.map((b) => b.name)).toEqual(["Every two"]);
     expect(me.earnings.map((e) => [e.stageName, e.referrer])).toEqual([
       ["Demo attended", 100],
@@ -604,5 +610,29 @@ describe("referral programme (real app, real Postgres)", () => {
     expect(row.discount?.planIds).toEqual([planA.id]);
     const days = (row.discount!.endsAt!.getTime() - Date.now()) / 86_400_000;
     expect(Math.round(days)).toBe(30);
+  });
+  // Review R5: a link visit pays the referrer nothing, and a referrer's own lead isn't theirs to earn on.
+  it("pays nothing for a link visit and ignores a lead with the referrer's own phone", async () => {
+    const referrer = await active(UserRole.STUDENT);
+    await t.prisma.user.update({ data: { phoneNumber: "9000012345" }, where: { id: referrer.id } });
+    await t.call(admin, "GET", API_ROUTES.adminReferrals.stages);
+    expect((await stageValues("refstage_visited", { studentPoints: 10 })).status).toBe(200);
+    const code = (await summary(referrer)).code!;
+
+    for (let i = 0; i < 3; i += 1) await browser()("POST", API_ROUTES.referrals.visit, { code });
+    expect(await t.prisma.referralReward.count({ where: { referrerId: referrer.id } })).toBe(0);
+
+    // Straight to the tracker: the lead form's own rate limit is spent by the tests above.
+    const own = await t.prisma.lead.create({
+      data: { experienceLevel: "beginner", parentName: "Self", phone: "+91 90000 12345", studentAge: 9, studentName: "Self Booked" }
+    });
+    await t.app.get(ReferralTrackerService).attachLead({ leadId: own.id, prospectName: "Self Booked", referralCode: code });
+    expect(await t.prisma.referral.count({ where: { leadId: own.id } })).toBe(0);
+    const other = await t.prisma.lead.create({
+      data: { experienceLevel: "beginner", parentName: "Other", phone: "9111112222", studentAge: 9, studentName: "Other Kid" }
+    });
+    await t.app.get(ReferralTrackerService).attachLead({ leadId: other.id, prospectName: "Other Kid", referralCode: code });
+    expect(await t.prisma.referral.count({ where: { leadId: other.id } })).toBe(1);
+    await stageValues("refstage_visited", { studentPoints: 0 });
   });
 });

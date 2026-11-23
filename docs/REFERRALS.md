@@ -77,6 +77,15 @@ Rewards are `ReferralReward` rows with `stageId` (and `ruleId` null), dedupe key
 Settings `autoApprovePoints` (default on) and `autoApproveCash` (default off)
 decide whether a stage reward is credited at once or waits in the Rewards tab.
 
+**What can't be farmed (review R5).** Anyone can open a link and book a demo, so:
+a `LINK_VISITED` stage never pays the referrer (stage value or bonus), whatever
+is set; a `DEMO_BOOKED` stage's referrer rewards and bonuses always wait for an
+admin, whatever the auto-approve settings say (`UNPAID_REFERRER_TRIGGERS` /
+`HELD_REFERRER_TRIGGERS` in `referral-pipeline.service.ts`); and a lead whose
+email or phone (last ten digits) is the referrer's own, or their parent contact,
+is never attached to their referral (`leadIsReferrer`). Welcome points for the
+new member are unchanged: they need a linked account.
+
 ### Milestone bonuses
 
 `ReferralRewardRule` rows with `kind: MILESTONE`, `beneficiary: REFERRER`: every

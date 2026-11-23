@@ -282,12 +282,16 @@ export class ReferralPipelineService {
     const grants: Grant[] = [];
 
     for (const stage of stages) {
-      if (only !== "REFERRED") {
+      // Anyone can make visits and book demos with a link (review R5): a visit
+      // pays the referrer nothing, and a booked demo's reward waits for an admin.
+      if (only !== "REFERRED" && !UNPAID_REFERRER_TRIGGERS.has(stage.trigger)) {
         const earned = referrerStageReward(stage, role);
         if (earned) {
           grants.push({
             amount: earned.amount,
-            autoApprove: earned.wallet === "POINTS" ? settings.autoApprovePoints : settings.autoApproveCash,
+            autoApprove:
+              !HELD_REFERRER_TRIGGERS.has(stage.trigger) &&
+              (earned.wallet === "POINTS" ? settings.autoApprovePoints : settings.autoApproveCash),
             beneficiary: "REFERRER",
             dedupeKey: `stage:${stage.id}:ref:${referral.id}:referrer`,
             description: `A referral reached ${stage.name}`,
@@ -321,16 +325,19 @@ export class ReferralPipelineService {
         include: { stage: { select: { name: true } } },
         where: { beneficiary: "REFERRER", isActive: true, kind: "MILESTONE", roles: { has: role }, stageId: { in: stageIds } }
       });
+      const triggerOf = new Map(stages.map((stage) => [stage.id, stage.trigger]));
       for (const rule of rules) {
         // Students earn points and staff earn money — a rule paying the wrong one is skipped.
         if (!rule.milestoneCount || rule.unit !== referralWalletForRole(role)) continue;
+        const ruleTrigger = triggerOf.get(rule.stageId);
+        if (ruleTrigger && UNPAID_REFERRER_TRIGGERS.has(ruleTrigger)) continue;
         const count = await tx.referralStageReach.count({
           where: { referral: { referrerId: referral.referrerId }, stageId: rule.stageId }
         });
         for (const n of referralMilestonesReached(count, rule.milestoneCount)) {
           grants.push({
             amount: rule.amountMinor,
-            autoApprove: rule.autoApprove,
+            autoApprove: rule.autoApprove && !(ruleTrigger && HELD_REFERRER_TRIGGERS.has(ruleTrigger)),
             beneficiary: "REFERRER",
             dedupeKey: `rule:${rule.id}:user:${referral.referrerId}:n:${n}`,
             description: `${rule.name}: ${n} referrals reached ${rule.stage.name}`,
@@ -370,6 +377,11 @@ export class ReferralPipelineService {
     }
   }
 }
+
+/** Stages whose referrer rewards are never paid: a link visit costs nothing to fake (review R5). */
+const UNPAID_REFERRER_TRIGGERS = new Set<ReferralStageTrigger>(["LINK_VISITED"]);
+/** Stages whose referrer rewards always wait for an admin: anyone can book a demo (review R5). */
+const HELD_REFERRER_TRIGGERS = new Set<ReferralStageTrigger>(["DEMO_BOOKED"]);
 
 type Grant = {
   amount: number;
