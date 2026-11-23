@@ -694,8 +694,10 @@ same rules. **No behaviour change.**
     - A coach host only reaches students of their own live batches; admins
       reach any academy student.
     - Approval-required tournaments take entries as PENDING.
-    - Withdrawal is possible while the tournament is still PUBLISHED. A
-      withdrawn player may re-enter; rejected and disqualified players may not.
+    - Withdrawal is possible while the tournament is still PUBLISHED, checked
+      under the tournament row lock the start also takes (review F4), so a
+      withdrawal racing the start never lands after round 1 paired the player.
+      A withdrawn player may re-enter; rejected and disqualified players may not.
     - Seed rating and age group are snapshotted at entry.
   - `approval/handlers/tournament-publish.handler.ts`: snapshot = the
     tournament `version`. Approval re-checks that it is still a draft, still

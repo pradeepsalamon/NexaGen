@@ -131,12 +131,22 @@ export class TournamentRegistrationService {
     if (!this.canWithdraw(loaded)) {
       throw new ConflictException("You can't withdraw now. Ask the tournament's host.");
     }
-    const { count } = await this.prisma.tournamentPlayer.updateMany({
-      data: { status: TournamentPlayerStatus.WITHDRAWN, withdrawnAt: new Date() },
-      where: { id: loaded.playerRow.id, status: { in: WITHDRAWABLE } }
+    // Under the tournament lock (the start takes it too), and only while it is
+    // still PUBLISHED: a withdrawal racing the start can't leave a player
+    // WITHDRAWN after round 1 has paired them (review F4).
+    const playerId = loaded.playerRow.id;
+    await this.prisma.$transaction(async (tx) => {
+      const tournament = await this.lock(tx, id);
+      if (tournament.status !== TournamentStatus.PUBLISHED) {
+        throw new ConflictException("You can't withdraw now. Ask the tournament's host.");
+      }
+      const { count } = await tx.tournamentPlayer.updateMany({
+        data: { status: TournamentPlayerStatus.WITHDRAWN, withdrawnAt: new Date() },
+        where: { id: playerId, status: { in: WITHDRAWABLE } }
+      });
+      if (count === 0) throw new ConflictException("Your entry changed. Reload and try again.");
     });
-    if (count === 0) throw new ConflictException("Your entry changed. Reload and try again.");
-    return { player: toPlayer(await this.prisma.tournamentPlayer.findUniqueOrThrow({ include: playerInclude, where: { id: loaded.playerRow.id } })) };
+    return { player: toPlayer(await this.prisma.tournamentPlayer.findUniqueOrThrow({ include: playerInclude, where: { id: playerId } })) };
   }
 
   async acceptInvitation(accessToken: string | undefined, id: string): Promise<TournamentPlayerResponse> {
