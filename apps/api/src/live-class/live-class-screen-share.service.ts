@@ -84,7 +84,10 @@ export class LiveClassScreenShareService {
     }
   }
 
-  /** Best-effort: widen one connected student's LiveKit grant to also allow screen share. */
+  /**
+   * Best-effort: widen a connected student's LiveKit grant to also allow screen share, on every
+   * connection they have (a second tab included, review L3).
+   */
   private async widenScreenShareGrant(
     liveSession: { roomName: string },
     studentId: string,
@@ -92,10 +95,10 @@ export class LiveClassScreenShareService {
   ): Promise<void> {
     try {
       const participants = await this.livekit.listParticipants(liveSession.roomName);
-      const participant = participants.find((p) => p.identity.split("_")[0] === studentId);
-      if (!participant) return;
       const grants = withScreenShareSources(deriveLiveKitGrants(settings, "STUDENT"));
-      await this.livekit.updateParticipantPermissions(liveSession.roomName, participant.identity, grants);
+      for (const participant of participants.filter((p) => p.identity.split("_")[0] === studentId)) {
+        await this.livekit.updateParticipantPermissions(liveSession.roomName, participant.identity, grants);
+      }
     } catch (error) {
       this.logger.warn(`Failed to widen screen-share grant for student ${studentId}`, error as Error);
     }
@@ -114,16 +117,17 @@ export class LiveClassScreenShareService {
   ): Promise<void> {
     try {
       const participants = await this.livekit.listParticipants(liveSession.roomName);
-      const participant = participants.find((p) => p.identity.split("_")[0] === studentId);
-      if (!participant) return;
       const grants = deriveLiveKitGrants(settings, "STUDENT");
-      await this.livekit.updateParticipantPermissions(liveSession.roomName, participant.identity, grants);
       const allowedSources = new Set(grants.canPublishSources);
-      for (const track of participant.tracks ?? []) {
-        if (track.muted) continue;
-        const label = LiveKitService.trackSourceLabel(track.source);
-        if (label && !allowedSources.has(label)) {
-          await this.livekit.muteParticipantTrack(liveSession.roomName, participant.identity, track.sid);
+      // Every connection of the student: a revoke must not leave a second tab sharing (review L3).
+      for (const participant of participants.filter((p) => p.identity.split("_")[0] === studentId)) {
+        await this.livekit.updateParticipantPermissions(liveSession.roomName, participant.identity, grants);
+        for (const track of participant.tracks ?? []) {
+          if (track.muted) continue;
+          const label = LiveKitService.trackSourceLabel(track.source);
+          if (label && !allowedSources.has(label)) {
+            await this.livekit.muteParticipantTrack(liveSession.roomName, participant.identity, track.sid);
+          }
         }
       }
     } catch (error) {

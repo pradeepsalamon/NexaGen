@@ -389,13 +389,14 @@ export class LiveClassService {
       data: { effectiveSettings: resolved as object, settingsSnapshotAt: new Date() },
     });
 
-    await this.applyLiveSettingsToRoom(liveSession.roomName, liveSession.coachId, resolved);
+    await this.applyLiveSettingsToRoom(liveSession.id, liveSession.roomName, liveSession.coachId, resolved);
 
     return this.settingsService.getSettingsForClass(accessToken, classId);
   }
 
   /** Push refreshed grants to connected students and broadcast the new config. */
   private async applyLiveSettingsToRoom(
+    liveSessionId: string,
     roomName: string,
     coachId: string,
     resolved: LiveClassSettings,
@@ -408,7 +409,16 @@ export class LiveClassService {
     }
 
     const studentGrants = deriveLiveKitGrants(resolved, "STUDENT");
-    const allowedSources = new Set(studentGrants.canPublishSources);
+    // A student whose screen share was approved keeps it through a settings change,
+    // as on a reconnect (`getToken`), so the request row and the room agree (review L9).
+    const approvedSharers = new Set(
+      (
+        await this.prisma.liveClassScreenShareRequest.findMany({
+          select: { studentId: true },
+          where: { liveSessionId, status: ScreenShareRequestStatus.APPROVED },
+        })
+      ).map((row) => row.studentId),
+    );
 
     for (const participant of participants) {
       if (isCoachParticipant(participant.identity, coachId)) continue;
@@ -422,8 +432,12 @@ export class LiveClassService {
       }
       if (role && role !== "STUDENT") continue;
 
+      const grants = approvedSharers.has(participant.identity.split("_")[0] ?? "")
+        ? withScreenShareSources(studentGrants)
+        : studentGrants;
+      const allowedSources = new Set(grants.canPublishSources);
       try {
-        await this.livekit.updateParticipantPermissions(roomName, participant.identity, studentGrants);
+        await this.livekit.updateParticipantPermissions(roomName, participant.identity, grants);
         for (const track of participant.tracks ?? []) {
           if (track.muted) continue;
           const label = LiveKitService.trackSourceLabel(track.source);

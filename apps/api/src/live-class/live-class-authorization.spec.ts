@@ -914,6 +914,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
   let updateParticipantPermissions: jest.Mock;
   let muteParticipantTrack: jest.Mock;
   let broadcastData: jest.Mock;
+  let approvedShares: jest.Mock;
   let updateSettingsForClass: jest.Mock;
   let resolveForClass: jest.Mock;
   let getSettingsForClass: jest.Mock;
@@ -947,6 +948,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
     updateParticipantPermissions = jest.fn().mockResolvedValue(undefined);
     muteParticipantTrack = jest.fn().mockResolvedValue(undefined);
     broadcastData = jest.fn().mockResolvedValue(undefined);
+    approvedShares = jest.fn().mockResolvedValue([]);
     updateSettingsForClass = jest.fn().mockResolvedValue(undefined);
     resolveForClass = jest.fn().mockResolvedValue({ resolved: forcedOffMic });
     getSettingsForClass = jest.fn().mockResolvedValue({ resolved: forcedOffMic });
@@ -959,6 +961,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
           provide: PrismaService,
           useValue: {
             liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+            liveClassScreenShareRequest: { findMany: approvedShares },
             liveSession: { findUnique: liveSessionFindUnique, update: liveSessionUpdate },
             user: { findUnique: userFindUnique },
           },
@@ -1032,6 +1035,18 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
       expect.any(Uint8Array),
       "live_class_settings",
     );
+  });
+
+  // Review L9: an approved screen share survives a mid-class settings change.
+  it("keeps an approved student's screen share when the settings change", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+    approvedShares.mockResolvedValue([{ studentId: "student-1" }]);
+
+    await service.updateLiveSettings(ACCESS_TOKEN, "class-1", {
+      liveClassSettings: { student: { mic: "FORCED_OFF" } },
+    });
+
+    expect(updateParticipantPermissions.mock.calls[0][2].canPublishSources).toContain("screen_share");
   });
 
   // V1: a locked field refused by the settings service stops the whole mid-class
@@ -1529,6 +1544,23 @@ describe("LiveClassService screen-share requests", () => {
       );
       expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_client-a", "track-1");
       expect(result.status).toBe("REVOKED");
+    });
+
+    // Review L3: a second tab of the same student is narrowed and muted too.
+    it("revokes on every connection the student has", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      listParticipants.mockResolvedValue([
+        { identity: "student-1_client-a", tracks: [] },
+        { identity: "student-1_client-b", tracks: [{ sid: "track-2", source: 3, muted: false }] },
+        { identity: "student-2_client-c", tracks: [{ sid: "track-3", source: 3, muted: false }] }
+      ]);
+      shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "REVOKED" }));
+
+      await screenShare.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", { action: "REVOKE", studentId: "student-1" });
+
+      expect(updateParticipantPermissions.mock.calls.map((call) => call[1]).sort()).toEqual(["student-1_client-a", "student-1_client-b"]);
+      expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_client-b", "track-2");
+      expect(muteParticipantTrack).not.toHaveBeenCalledWith("room-1", "student-2_client-c", "track-3");
     });
   });
 
