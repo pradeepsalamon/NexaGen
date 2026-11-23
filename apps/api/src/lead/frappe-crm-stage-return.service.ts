@@ -78,8 +78,13 @@ class LostRace extends Error {}
 export class FrappeCrmStageReturnService {
   private readonly logger = new Logger(FrappeCrmStageReturnService.name);
   private warnedNoSync = false;
+  /** Where the next run carries on when the last one stopped at `MAX_PER_RUN` (this process only). */
+  private resumeAfter: string | undefined;
   /** Pause between Frappe reads, so a big run stays far below Frappe's rate limits. */
   pauseMs = 500;
+  /** Leads per Frappe request and per run; properties so tests can make them small. */
+  batchSize = STAGE_RETURN_BATCH;
+  maxPerRun = MAX_PER_RUN;
 
   constructor(
     private readonly jobLocks: JobLockService,
@@ -114,28 +119,45 @@ export class FrappeCrmStageReturnService {
     );
   }
 
-  /** Reads Frappe's stage for every copied open lead and takes over a person's change. Call inside Nexa's academy. */
+  /**
+   * Reads Frappe's stage for every copied open lead and takes over a person's change. Call inside
+   * Nexa's academy. With more than `MAX_PER_RUN` rows, the next run carries on after the last one
+   * read (`resumeAfter`), then wraps round, so every lead is read in turn.
+   */
   async run(config: FrappeCrmConfig): Promise<StageReturnResult> {
     const since = new Date(Date.now() - STAGE_RETURN_WINDOW_DAYS * 24 * 60 * 60_000);
-    let cursor: string | undefined;
+    const startedAfter = this.resumeAfter;
+    let cursor = startedAfter;
+    // After wrapping to the start, read only up to where this run began.
+    let wrapped = startedAfter === undefined;
     let checked = 0;
     let moved = 0;
-    while (checked < MAX_PER_RUN) {
+    this.resumeAfter = undefined;
+    while (checked < this.maxPerRun) {
+      const idFilter = {
+        ...(cursor ? { gt: cursor } : {}),
+        ...(wrapped && startedAfter ? { lte: startedAfter } : {})
+      };
       const rows: ReturnRow[] = (
         await this.prisma.crmLeadPush.findMany({
-          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
           orderBy: { id: "asc" },
           select: { externalId: true, id: true, lead: { select: { convertedAt: true, id: true, status: true } }, sentStatus: true },
-          take: STAGE_RETURN_BATCH,
+          take: this.batchSize,
           // A PENDING row has a NexaGen change on its way to Frappe: Frappe's older stage must not undo it.
           where: {
             externalId: { not: null },
+            ...(Object.keys(idFilter).length > 0 ? { id: idFilter } : {}),
             lead: { status: { notIn: [...WON_STATUSES] }, updatedAt: { gte: since } },
             status: { in: ["SENT", "FAILED"] }
           }
         })
       ).filter((row): row is ReturnRow => row.externalId !== null);
-      if (rows.length === 0) break;
+      if (rows.length === 0) {
+        if (wrapped) break;
+        wrapped = true;
+        cursor = undefined;
+        continue;
+      }
       cursor = rows[rows.length - 1].id;
       if (checked > 0 && this.pauseMs > 0) await new Promise((resolve) => setTimeout(resolve, this.pauseMs));
 
@@ -146,7 +168,15 @@ export class FrappeCrmStageReturnService {
         if (target && frappeStage && (await this.take(row, frappeStage, target))) moved += 1;
       }
       checked += rows.length;
-      if (rows.length < STAGE_RETURN_BATCH) break;
+      if (checked >= this.maxPerRun) {
+        this.resumeAfter = cursor;
+        break;
+      }
+      if (rows.length < this.batchSize) {
+        if (wrapped) break;
+        wrapped = true;
+        cursor = undefined;
+      }
     }
     if (moved > 0) this.logger.log(`Took ${moved} stage change(s) from Frappe CRM.`);
     return { checked, moved };

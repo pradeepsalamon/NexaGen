@@ -109,9 +109,10 @@ function fakePrisma(rows: Row[]) {
   const prisma = {
     $transaction: async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx),
     crmLeadPush: {
-      findMany: jest.fn(async (args: { cursor?: { id: string }; take: number }) => {
-        const start = args.cursor ? rows.findIndex((row) => row.id === args.cursor!.id) + 1 : 0;
-        return rows.slice(start, start + args.take);
+      // Rows are in id order; the service pages with `id: { gt, lte }`.
+      findMany: jest.fn(async (args: { take: number; where: { id?: { gt?: string; lte?: string } } }) => {
+        const { gt, lte } = args.where.id ?? {};
+        return rows.filter((row) => (gt === undefined || row.id > gt) && (lte === undefined || row.id <= lte)).slice(0, args.take);
       })
     }
   };

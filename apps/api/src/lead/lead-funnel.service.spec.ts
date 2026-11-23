@@ -1,7 +1,7 @@
 import { DEFAULT_TENANT_ID, leadFunnelReach } from "@nexa-chess/types";
 import { runInTenant } from "../tenancy/tenant-context";
 import { AD_SPEND_CACHE_MS, MetaAdsInsightsService, spendToMinor } from "../meta-capi/meta-ads-insights.service";
-import { matchSpend } from "./lead-funnel.service";
+import { allocateSpend } from "./lead-funnel.service";
 
 describe("leadFunnelReach", () => {
   const reach = (over: Partial<Parameters<typeof leadFunnelReach>[0]>) =>
@@ -33,12 +33,19 @@ describe("ad spend", () => {
     totalMinor: 1750
   };
 
+  const row = (campaign: string | null, leads: number, adIds: string[] = []) => ({ adIds: new Set(adIds), campaign, leads, spendMinor: null as number | null });
+
   it("matches WhatsApp ad rows by ad id and website rows by campaign name", () => {
-    expect(matchSpend({ adIds: new Set(["a1", "a3"]), campaign: "anything" }, report)).toBe(1250);
-    expect(matchSpend({ adIds: new Set(), campaign: " diwali kids " }, report)).toBe(1500);
-    expect(matchSpend({ adIds: new Set(), campaign: "unknown" }, report)).toBeNull();
-    expect(matchSpend({ adIds: new Set(), campaign: null }, report)).toBeNull();
-    expect(matchSpend({ adIds: new Set(["zz"]), campaign: "Weekend" }, report)).toBeNull();
+    const rows = [row("anything", 1, ["a1", "a3"]), row(" diwali kids ", 2), row("unknown", 1), row(null, 1), row("Weekend", 1, ["zz"])];
+    allocateSpend(rows, report);
+    // a1 (Diwali Kids) went to the WhatsApp row, so the website row gets only a2.
+    expect(rows.map((r) => r.spendMinor)).toEqual([1250, 500, null, null, null]);
+  });
+
+  it("splits one campaign's spend over its rows by their leads, so the total adds up", () => {
+    const rows = [row("Diwali Kids", 3), row("diwali kids", 1)];
+    allocateSpend(rows, report);
+    expect(rows.map((r) => r.spendMinor)).toEqual([1125, 375]);
   });
 
   it("reads Meta's spend in minor units", () => {

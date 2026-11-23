@@ -34,19 +34,44 @@ function nextDay(ymd: string): string {
   return new Date(Date.UTC(year, month - 1, day) + DAY_MS).toISOString().slice(0, 10);
 }
 
+const sumSpend = (ads: AdSpendReport["ads"]) => ads.reduce((sum, ad) => sum + ad.spendMinor, 0);
+
 /**
- * Matched Meta spend for one row: a WhatsApp ad row by the ad ids its leads came from, a website
- * row by its campaign name (utm_campaign = the Meta campaign's name). Null = nothing matched.
+ * Shares Meta's spend out over the rows, each ad counted once (null = nothing matched):
+ *
+ * - A WhatsApp ad row gets the ads its leads came from (by ad id).
+ * - A website row gets its campaign's ads by name (utm_campaign = the Meta campaign's name),
+ *   leaving out ads a WhatsApp row already took. Several rows with one campaign (say instagram and
+ *   facebook) split that spend by their leads, so the column adds up.
  */
-export function matchSpend(group: { adIds: Set<string>; campaign: string | null }, report: AdSpendReport): number | null {
-  if (group.adIds.size > 0) {
+export function allocateSpend(groups: { adIds: Set<string>; campaign: string | null; leads: number; spendMinor: number | null }[], report: AdSpendReport): void {
+  const taken = new Set<string>();
+  for (const group of groups) {
+    if (group.adIds.size === 0) continue;
     const ads = report.ads.filter((ad) => group.adIds.has(ad.adId));
-    return ads.length > 0 ? ads.reduce((sum, ad) => sum + ad.spendMinor, 0) : null;
+    group.spendMinor = ads.length > 0 ? sumSpend(ads) : null;
+    for (const ad of ads) taken.add(ad.adId);
   }
-  const campaign = group.campaign?.trim().toLowerCase();
-  if (!campaign) return null;
-  const ads = report.ads.filter((ad) => ad.campaignName?.trim().toLowerCase() === campaign);
-  return ads.length > 0 ? ads.reduce((sum, ad) => sum + ad.spendMinor, 0) : null;
+  const byCampaign = new Map<string, typeof groups>();
+  for (const group of groups) {
+    if (group.adIds.size > 0) continue;
+    group.spendMinor = null;
+    const campaign = group.campaign?.trim().toLowerCase();
+    if (!campaign) continue;
+    byCampaign.set(campaign, [...(byCampaign.get(campaign) ?? []), group]);
+  }
+  for (const [campaign, rows] of byCampaign) {
+    const ads = report.ads.filter((ad) => !taken.has(ad.adId) && ad.campaignName?.trim().toLowerCase() === campaign);
+    if (ads.length === 0) continue;
+    const total = sumSpend(ads);
+    const leads = rows.reduce((sum, row) => sum + row.leads, 0);
+    let left = total;
+    rows.forEach((row, index) => {
+      const share = index === rows.length - 1 ? left : Math.round((total * row.leads) / leads);
+      row.spendMinor = share;
+      left -= share;
+    });
+  }
 }
 
 /**
@@ -126,7 +151,7 @@ export class LeadFunnelService {
       const report = await this.insights.spend(query.from, query.to);
       if (report) {
         spend = { currency: report.currency, error: null, totalMinor: report.totalMinor };
-        for (const group of groups.values()) group.spendMinor = matchSpend(group, report);
+        allocateSpend([...groups.values()], report);
       }
     } catch (error) {
       // The funnel still shows; only the spend columns say why they're empty.

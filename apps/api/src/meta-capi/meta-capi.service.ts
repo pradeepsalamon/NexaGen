@@ -23,6 +23,12 @@ const TIMEOUT_MS = 15_000;
 /** Meta refuses events older than 7 days; a row that waited longer is given up. */
 const MAX_EVENT_AGE_MS = 7 * 24 * 60 * 60_000;
 const GRAPH_BASE = "https://graph.facebook.com";
+/** Graph error codes Meta documents as temporary (unknown, service, app/user rate limits). */
+const TRANSIENT_GRAPH_CODES = new Set([1, 2, 4, 17, 32, 341, 613]);
+const PURCHASE_EVENT = "Purchase";
+/** How long a Purchase waits for its paid order (inside Meta's 7-day limit), looking hourly. */
+export const PURCHASE_VALUE_WAIT_MS = 6 * 24 * 60 * 60_000;
+const PURCHASE_VALUE_RECHECK_MS = 60 * 60_000;
 /** A caller's event id (shared with the pixel) must look like one. */
 const EVENT_ID = /^[A-Za-z0-9_.:-]{8,64}$/;
 
@@ -112,15 +118,8 @@ export class MetaCapiService {
     const channel = this.channelOf(lead);
     if (!channel) return;
 
-    let value: { currency: string; minor: number } | null = null;
-    if (milestone === "CONVERTED" && lead.userId) {
-      const order = await tx.order.findFirst({
-        orderBy: { paidAt: "desc" },
-        select: { amount: true, currency: true },
-        where: { paidAt: { not: null }, status: { in: [OrderStatus.PAID, OrderStatus.PARTIALLY_REFUNDED] }, userId: lead.userId }
-      });
-      if (order && order.amount > 0) value = { currency: order.currency, minor: order.amount };
-    }
+    // Purchase without a paid order yet: the send looks again (`send`, `PURCHASE_VALUE_WAIT_MS`).
+    const value = milestone === "CONVERTED" ? await this.paidValue(tx, lead.userId) : null;
 
     const eventName = META_EVENT_NAMES[milestone][channel];
     await tx.metaCapiEvent.createMany({
@@ -138,6 +137,20 @@ export class MetaCapiService {
       // Once per lead and event name: a demo booked twice is one QualifiedLead.
       skipDuplicates: true
     });
+  }
+
+  /** The student's latest paid order (`PAID` or `PARTIALLY_REFUNDED`) as the Purchase value. */
+  private async paidValue(
+    client: Pick<PrismaTransactionClient, "order">,
+    userId: string | null
+  ): Promise<{ currency: string; minor: number } | null> {
+    if (!userId) return null;
+    const order = await client.order.findFirst({
+      orderBy: { paidAt: "desc" },
+      select: { amount: true, currency: true },
+      where: { paidAt: { not: null }, status: { in: [OrderStatus.PAID, OrderStatus.PARTIALLY_REFUNDED] }, userId }
+    });
+    return order && order.amount > 0 ? { currency: order.currency, minor: order.amount } : null;
   }
 
   /** WhatsApp when an ad click id is known; else the website, only with the visitor's consent. */
@@ -188,6 +201,7 @@ export class MetaCapiService {
             adClick: { select: { firstCtwaClid: true, latestCtwaClid: true } },
             email: true,
             phone: true,
+            userId: true,
             visitorSession: { select: { adConsent: true, fbclid: true, fbp: true, firstVisit: true, ipAddress: true, landingPage: true, userAgent: true } }
           }
         }
@@ -199,6 +213,26 @@ export class MetaCapiService {
     const skip = (why: string) =>
       this.prisma.metaCapiEvent.update({ data: { claimedAt: null, error: why, status: "SKIPPED" }, where: { id } });
     if (now.getTime() - row.eventTime.getTime() > MAX_EVENT_AGE_MS) return void (await skip("Older than Meta's 7-day limit."));
+
+    // Meta requires a Purchase's value and currency: wait for the paid order (an enrolment marked
+    // before the payment lands), then give up rather than send a Purchase without them.
+    if (row.eventName === PURCHASE_EVENT && row.valueMinor === null) {
+      const value = await this.paidValue(this.prisma, row.lead.userId);
+      if (value) {
+        await this.prisma.metaCapiEvent.update({ data: { currency: value.currency, valueMinor: value.minor }, where: { id } });
+        row.currency = value.currency;
+        row.valueMinor = value.minor;
+      } else if (now.getTime() - row.eventTime.getTime() < PURCHASE_VALUE_WAIT_MS) {
+        // Not an attempt: look again in an hour.
+        await this.prisma.metaCapiEvent.update({
+          data: { attempts: { decrement: 1 }, claimedAt: null, nextAttemptAt: new Date(now.getTime() + PURCHASE_VALUE_RECHECK_MS) },
+          where: { id }
+        });
+        return;
+      } else {
+        return void (await skip("No paid order: Meta needs a Purchase's value."));
+      }
+    }
 
     let event: Record<string, unknown>;
     if (row.channel === "whatsapp") {
@@ -261,12 +295,17 @@ export class MetaCapiService {
       redirect: "error",
       signal: AbortSignal.timeout(TIMEOUT_MS)
     });
-    const json = (await res.json().catch(() => null)) as { error?: { code?: unknown; message?: unknown }; events_received?: unknown } | null;
+    const json = (await res.json().catch(() => null)) as {
+      error?: { code?: unknown; is_transient?: unknown; message?: unknown };
+      events_received?: unknown;
+    } | null;
     if (!res.ok) {
       const detail = typeof json?.error?.message === "string" ? `: ${json.error.message}` : "";
       const text = `Meta answered ${res.status}${detail}`;
-      // 400/401/403/404 = refused (bad event, token, dataset): retrying won't help. 429/5xx may pass later.
-      throw [400, 401, 403, 404].includes(res.status) ? new MetaRejectedError(text) : new Error(text);
+      // 400/401/403/404 = refused (bad event, token, dataset): retrying won't help, unless Meta
+      // marks the error temporary (`is_transient`, or a throttling/service code). 429/5xx may pass later.
+      const transient = json?.error?.is_transient === true || TRANSIENT_GRAPH_CODES.has(Number(json?.error?.code));
+      throw [400, 401, 403, 404].includes(res.status) && !transient ? new MetaRejectedError(text) : new Error(text);
     }
     if (json?.events_received !== 1) throw new Error("Meta didn't confirm the event.");
   }

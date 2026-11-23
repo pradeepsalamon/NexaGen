@@ -4,7 +4,7 @@ import { createTestApp, type TestApp } from "../test/integration/app";
 import { resetDatabase } from "../test/integration/db";
 import { runInTenant } from "../tenancy/tenant-context";
 import { FrappeCrmPushService, type FrappeCrmConfig } from "./frappe-crm-push.service";
-import { FrappeCrmStageReturnService } from "./frappe-crm-stage-return.service";
+import { FrappeCrmStageReturnService, STAGE_RETURN_BATCH } from "./frappe-crm-stage-return.service";
 import { LeadStageService } from "./lead-stage.service";
 
 const CONFIG: FrappeCrmConfig = {
@@ -52,7 +52,8 @@ describe("Frappe stage return (real Postgres)", () => {
       const name = decoded.split("/").pop()!;
       return { data: { status: frappe.get(name) } };
     });
-    t.app.get(FrappeCrmStageReturnService).pauseMs = 0;
+    // One service for the whole file: reset its knobs and where it carries on.
+    Object.assign(t.app.get(FrappeCrmStageReturnService), { batchSize: STAGE_RETURN_BATCH, maxPerRun: 2000, pauseMs: 0, resumeAfter: undefined });
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -103,6 +104,40 @@ describe("Frappe stage return (real Postgres)", () => {
     expect(frappe.get("CRM-LEAD-00002")).toBe("Demo Booked");
     expect((await leadOf(lead.id)).crmPush?.sentStatus).toBe("DEMO_SCHEDULED");
     await expect(run()).resolves.toMatchObject({ moved: 0 });
+  });
+
+  it("brings Frappe's further stage back when the push refused to move it backwards", async () => {
+    const lead = await copied("CRM-LEAD-00011", "FOLLOW_UP");
+    frappe.set("CRM-LEAD-00011", "Follow Up");
+    // A person moves NexaGen back to Demo booked; the push may not move Frappe backwards.
+    await db(() => t.prisma.lead.update({ data: { status: "DEMO_SCHEDULED" }, where: { id: lead.id } }));
+    await db(() => t.app.get(FrappeCrmPushService).markStageChanged(t.prisma, lead.id));
+    await db(() => t.app.get(FrappeCrmPushService).sweep());
+    expect(puts).toEqual([]);
+    expect(frappe.get("CRM-LEAD-00011")).toBe("Follow Up");
+
+    await expect(run()).resolves.toEqual({ checked: 1, moved: 1 });
+    expect((await leadOf(lead.id)).status).toBe("FOLLOW_UP");
+  });
+
+  it("carries on where the last run stopped, so every lead is read in turn", async () => {
+    Object.assign(t.app.get(FrappeCrmStageReturnService), { batchSize: 1, maxPerRun: 2 });
+    await copied("CRM-LEAD-00021", "NEW");
+    await copied("CRM-LEAD-00022", "NEW");
+    const third = await copied("CRM-LEAD-00023", "NEW");
+    for (const name of ["CRM-LEAD-00021", "CRM-LEAD-00022", "CRM-LEAD-00023"]) frappe.set(name, "Demo Requested");
+    frappe.set("CRM-LEAD-00023", "Contacted");
+    const ids = (await db(() => t.prisma.crmLeadPush.findMany({ orderBy: { id: "asc" }, select: { lead: { select: { id: true } } } }))).map((row) => row.lead.id);
+    const lastRead = ids.indexOf(third.id) === 2;
+
+    const first = await run();
+    const second = await run();
+    expect(first.checked).toBe(2);
+    expect(second.checked).toBe(2);
+    // Two runs of two cover all three leads, whichever order the ids fall in.
+    expect(first.moved + second.moved).toBe(1);
+    if (lastRead) expect(second.moved).toBe(1);
+    expect((await leadOf(third.id)).status).toBe("CONTACTED");
   });
 
   it("ignores Frappe's older stage names", async () => {

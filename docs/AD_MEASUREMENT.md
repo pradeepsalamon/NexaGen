@@ -14,7 +14,8 @@ for them, without sending anything about the children.
 **Outbox.** A `MetaCapiEvent` row (unique per lead + event name) is written **in the transaction
 that made the lead or moved its stage**, and sent by a minute sweep (`JOB_LOCKS.metaCapiSend`,
 lease claim like the Frappe push), with retries 1 min → 5 min → 30 min → 2 h → 12 h, then
-`FAILED`. A refusal from Meta (400/401/403/404) fails at once; 429/5xx retry. An event older than
+`FAILED`. A refusal from Meta (400/401/403/404) fails at once, unless Meta marks the error
+temporary (`is_transient`, or codes 1, 2, 4, 17, 32, 341, 613); 429/5xx retry. An event older than
 Meta's 7-day limit, a website event whose consent was withdrawn, or a WhatsApp event without
 `WHATSAPP_BUSINESS_ACCOUNT_ID` becomes `SKIPPED` with the reason in `error`. The row holds no
 personal data (the hashed details are built at send time). Retention: 180 days
@@ -31,7 +32,9 @@ automatic, the Leads page, or Frappe's return path):
 
 Each at most once per lead (a demo booked twice is one `QualifiedLead`). `Purchase` carries
 `value` (major units) + `currency` from the student's latest paid order (`PAID` or
-`PARTIALLY_REFUNDED`, linked through `Lead.userId`); without a paid order it has no value.
+`PARTIALLY_REFUNDED`, linked through `Lead.userId`). Meta requires both, so a `Purchase` queued
+before the payment (enrolment marked by hand) waits: the send looks for the order hourly for up to
+six days (`PURCHASE_VALUE_WAIT_MS`), without using an attempt, then is `SKIPPED`.
 
 **Which leads.** A **WhatsApp lead** is one with a Click-to-WhatsApp click id (`LeadAdClick`,
 lead capture): `action_source: "business_messaging"`, `messaging_channel: "whatsapp"`,
@@ -68,6 +71,13 @@ the server's `Lead` reuses it so Meta keeps one of the two. A malformed id is re
   tracking call hasn't yet). **Decline marks every visit of this browser** (same `visitorId`), so a
   queued website event for an earlier lead is skipped. "Change cookie choices" on `/privacy`
   reopens the banner.
+- **Keeping the server in step** (`lib/consentSync.ts`): consent calls run one after another (a
+  later answer always lands last), after the page's visit-tracking call (so both use one visit),
+  are retried, and a saved answer is sent again for each new browser session (the server's
+  consent is per visit) until the server confirms it. The demo form waits for a consent call
+  still on its way (at most three seconds) before sending the lead. Decline also switches off a
+  pixel already loaded on the page (`fbq("consent", "revoke")`), and every pixel event checks the
+  answer at the moment it is sent.
 - **Pixel, after Accept only:** loaded without an inline script (`loadMetaPixel`: Meta's queue stub
   + `connect.facebook.net/en_US/fbevents.js`), then `PageView` on each page and `Lead` when the demo form succeeds, with the `event_id` the form also sends as
   `metaEventId` (the server's `Lead` reuses it). Meta's `_fbp` cookie (on the site's top domain)
@@ -93,7 +103,9 @@ Admin → Leads → **Funnel** tab (`LeadFunnelPanel`), `GET /admin/leads/funnel
   `MetaAdsInsightsService` reads ad-level spend for the range (read-only Marketing API Insights,
   `ads_read`; Meta's days are the ad account's), cached six hours per range, Nexa's academy only.
   Matched per row: WhatsApp ad leads by ad id (`LeadAdClick.firstAdId`), website leads by campaign
-  name (`utm_campaign` = the Meta campaign's name). Cost per lead / enrolment where matched; the
+  name (`utm_campaign` = the Meta campaign's name), leaving out ads a WhatsApp row already took;
+  rows sharing one campaign (say instagram and facebook) split its spend by their leads
+  (`allocateSpend`), so each ad is counted once. Cost per lead / enrolment where matched; the
   total is every ad's spend in the range. A Meta error leaves the funnel and shows why spend is
   missing. Empty = no spend columns.
 

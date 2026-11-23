@@ -79,7 +79,8 @@ no import, no clean-up; the return path ignores names it doesn't know.
 
 - Reads Frappe's stage for every copied lead (`CrmLeadPush` with `externalId`, status `SENT` or
   `FAILED`) touched in the last 180 days, 50 per request (`name in [...]`), 0.5 s apart, at most
-  2,000 per run. A `PENDING` row is skipped: a NexaGen change is on its way and Frappe's older
+  2,000 per run; the next run carries on after the last one read and wraps round, so every lead
+  is read in turn. A `PENDING` row is skipped: a NexaGen change is on its way and Frappe's older
   stage must not undo it. Won leads (Converted / Active student) are never read.
 - **`stageFromFrappe`** is the one rule: the Frappe name maps back through
   `LEAD_STATUS_FROM_FRAPPE` (built from `FRAPPE_LEAD_STAGES`; Enrolled → `CONVERTED`); unknown
@@ -122,6 +123,9 @@ stored only for capture (no transcript, no reply, no inbox).
   ten digits>`), so two first messages make one lead; a re-run of the same message changes nothing
   (event dedupe + `LeadAdClick.latestMessageId`). A capture failure fails the webhook event (retried
   by the sweep) but never stops the bot's answer.
+- **STOP / START** from a number the bot isn't answering are still recorded on its
+  `WhatsAppContact` (`recordOptCommand`, the bot's own words), so proactive WhatsApp stops; nothing
+  is sent back.
 - The parser reads `messages[].referral`; the WhatsApp Business app's coexistence fields
   (`smb_message_echoes`, `smb_app_state_sync`, `history`) are skipped.
 - Support Insights' "New leads" still counts demo bookings only (child details given).

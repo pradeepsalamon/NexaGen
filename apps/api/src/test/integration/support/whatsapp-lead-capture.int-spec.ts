@@ -153,6 +153,16 @@ describe("WhatsApp lead capture (real app, real Postgres)", () => {
     expect(lead.activities.filter((a) => a.activityType === "WHATSAPP_AD_CLICK")).toHaveLength(2);
   });
 
+  it("records STOP and START with the bot off, so proactive WhatsApp stops, and sends nothing", async () => {
+    const contact = () => db(() => t.prisma.whatsAppContact.findFirst({ where: { waId: "919800000099" } }));
+    await post(messageBody("919800000099", { text: { body: "STOP" } }));
+    expect((await contact())?.optedOutAt).toBeInstanceOf(Date);
+    await post(messageBody("919800000099", { text: { body: "start" } }));
+    expect((await contact())?.optedOutAt).toBeNull();
+    expect(graphCalls).toEqual([]);
+    expect(await db(() => t.prisma.supportMessage.count())).toBe(0);
+  });
+
   it("does nothing twice for the same message", async () => {
     const raw = messageBody("919800000003", ad("120200000000000003", "Trial", "CLID-3"), "wamid.cap.same");
     await post(raw);

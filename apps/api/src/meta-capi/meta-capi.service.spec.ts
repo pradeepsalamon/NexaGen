@@ -9,7 +9,7 @@ import {
   normalizeMetaEmail,
   normalizeMetaPhone
 } from "./meta-capi.payload";
-import { META_CAPI_MAX_ATTEMPTS, MetaCapiService, type MetaCapiConfig } from "./meta-capi.service";
+import { META_CAPI_MAX_ATTEMPTS, MetaCapiService, PURCHASE_VALUE_WAIT_MS, type MetaCapiConfig } from "./meta-capi.service";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 const AT = new Date("2026-11-22T10:00:00.000Z");
@@ -146,14 +146,16 @@ type Row = {
     adClick: { firstCtwaClid: string | null; latestCtwaClid: string | null } | null;
     email: string | null;
     phone: string;
+    userId?: string | null;
     visitorSession: Record<string, unknown> | null;
   };
   valueMinor: number | null;
 };
 
-function fakePrisma(row: Row) {
+function fakePrisma(row: Row, paidOrder: { amount: number; currency: string } | null = null) {
   const updates: Record<string, unknown>[] = [];
   const prisma = {
+    order: { findFirst: async () => paidOrder },
     metaCapiEvent: {
       findUnique: async () => row,
       update: async ({ data }: { data: Record<string, unknown> }) => {
@@ -284,6 +286,55 @@ describe("MetaCapiService.send", () => {
     const { svc } = service(prisma, () => ({ body: { error: { message: "Invalid parameter" } }, status: 400 }));
     await svc.send("m1");
     expect(Object.assign({}, ...updates)).toMatchObject({ error: "Meta answered 400: Invalid parameter", status: "FAILED" });
+  });
+
+  it("retries a 400 that Meta marks temporary", async () => {
+    for (const error of [{ is_transient: true, message: "Try again" }, { code: 2, message: "Service temporarily unavailable" }]) {
+      const { prisma, updates } = fakePrisma(whatsappRow());
+      const { svc } = service(prisma, () => ({ body: { error }, status: 400 }));
+      await svc.send("m1");
+      const written = Object.assign({}, ...updates) as Record<string, unknown>;
+      expect(written.status).toBeUndefined();
+      expect((written.nextAttemptAt as Date).getTime()).toBeGreaterThan(Date.now());
+    }
+  });
+
+  describe("a Purchase without a value", () => {
+    const purchaseRow = (ageMs = 0): Row => ({
+      ...whatsappRow(),
+      eventId: "nexa.Purchase.lead_1",
+      eventName: "Purchase",
+      eventTime: new Date(Date.now() - ageMs),
+      lead: { ...whatsappRow().lead, userId: "user_1" }
+    });
+
+    it("waits for the paid order without calling Meta or using an attempt", async () => {
+      const row = purchaseRow();
+      const { prisma, updates } = fakePrisma(row);
+      const { calls, svc } = service(prisma, () => ({ body: { events_received: 1 }, status: 200 }));
+      await svc.send("m1");
+      expect(calls).toEqual([]);
+      const written = Object.assign({}, ...updates) as Record<string, unknown>;
+      expect(written).toMatchObject({ attempts: { decrement: 1 }, claimedAt: null });
+      expect(written.status).toBeUndefined();
+      expect((written.nextAttemptAt as Date).getTime()).toBeGreaterThan(Date.now() + 30 * 60_000);
+    });
+
+    it("sends it with the order's amount once the order is paid", async () => {
+      const { prisma, updates } = fakePrisma(purchaseRow(), { amount: 250_000, currency: "INR" });
+      const { calls, svc } = service(prisma, () => ({ body: { events_received: 1 }, status: 200 }));
+      await svc.send("m1");
+      expect((calls[0].body.data as Record<string, unknown>[])[0]).toMatchObject({ custom_data: { currency: "INR", value: 2500 } });
+      expect(Object.assign({}, ...updates)).toMatchObject({ status: "SENT", valueMinor: 250_000 });
+    });
+
+    it("is skipped when no order is paid in time", async () => {
+      const { prisma, updates } = fakePrisma(purchaseRow(PURCHASE_VALUE_WAIT_MS + 60_000));
+      const { calls, svc } = service(prisma, () => ({ body: { events_received: 1 }, status: 200 }));
+      await svc.send("m1");
+      expect(calls).toEqual([]);
+      expect(Object.assign({}, ...updates)).toMatchObject({ status: "SKIPPED" });
+    });
   });
 
   it("gives up after the last attempt", async () => {

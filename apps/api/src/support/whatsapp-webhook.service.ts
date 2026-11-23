@@ -206,6 +206,8 @@ export class WhatsAppWebhookService {
       }
     }
     if (!capturing || supportAnswersNumber(settings, event.waId)) await this.conversations.handleMessage(event);
+    // The bot isn't answering this number: STOP / START still decide proactive WhatsApp.
+    else await this.capture.recordOptCommand(event);
     if (captureError) throw captureError;
   }
 

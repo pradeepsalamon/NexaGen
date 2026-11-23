@@ -1,11 +1,18 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { DEFAULT_TENANT_ID, LEAD_DETAILS_NOT_GIVEN, WHATSAPP_AD_LEAD_SOURCE, WHATSAPP_LEAD_SOURCE } from "@nexa-chess/types";
+import {
+  DEFAULT_TENANT_ID,
+  LEAD_DETAILS_NOT_GIVEN,
+  supportOptCommand,
+  WHATSAPP_AD_LEAD_SOURCE,
+  WHATSAPP_LEAD_SOURCE
+} from "@nexa-chess/types";
 import { LeadStatus, type Prisma, type WhatsAppWebhookEvent } from "@prisma/client";
 import { FrappeCrmPushService, phoneTail } from "../lead/frappe-crm-push.service";
 import { WHATSAPP_LEAD_REUSE_DAYS } from "../lead/lead-constants";
 import { MetaCapiService } from "../meta-capi/meta-capi.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { currentTenantId } from "../tenancy/tenant-context";
+import { requireTenantId } from "../tenancy/tenant-sql";
 import type { EffectiveSupportSettings } from "./support-settings.service";
 import type { AdReferral } from "./whatsapp-webhook.parse";
 
@@ -70,6 +77,29 @@ export class SupportLeadCaptureService {
   /** Whether capture runs for the current academy with these settings. */
   enabled(settings: Pick<EffectiveSupportSettings, "captureLeads">): boolean {
     return settings.captureLeads && currentTenantId() === DEFAULT_TENANT_ID;
+  }
+
+  /**
+   * STOP / START from a number the bot isn't answering (capture with the bot off): recorded on
+   * the contact like the bot's own opt-out, so proactive WhatsApp stops. Sends nothing (staff
+   * answer in the WhatsApp Business app). Any other message changes nothing here.
+   */
+  async recordOptCommand(event: Pick<WhatsAppWebhookEvent, "occurredAt" | "profileName" | "text" | "waId">): Promise<void> {
+    const command = supportOptCommand(event.text);
+    if (!command) return;
+    const tenantId = requireTenantId("whatsapp contact");
+    if (command === "STOP") {
+      await this.prisma.whatsAppContact.upsert({
+        create: { lastInboundAt: event.occurredAt, optedOutAt: event.occurredAt, profileName: event.profileName, waId: event.waId },
+        update: { lastInboundAt: event.occurredAt, optedOutAt: event.occurredAt },
+        where: { tenantId_waId: { tenantId, waId: event.waId } }
+      });
+    } else {
+      await this.prisma.whatsAppContact.updateMany({
+        data: { lastInboundAt: event.occurredAt, optedOutAt: null },
+        where: { optedOutAt: { not: null }, waId: event.waId }
+      });
+    }
   }
 
   /** Captures one customer message. Throws only on a database error (the webhook retries). */

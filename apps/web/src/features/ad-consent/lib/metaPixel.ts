@@ -1,4 +1,5 @@
 import { META_PIXEL_ID } from "@/lib/site";
+import { adMeasurementAllowed } from "./adConsent";
 
 type Fbq = ((...args: unknown[]) => void) & {
   callMethod?: (...args: unknown[]) => void;
@@ -43,9 +44,19 @@ export function loadMetaPixel(): boolean {
   return true;
 }
 
-/** A standard pixel event; `eventId` lets Meta match it to the server's Conversions API event. */
+/**
+ * A standard pixel event; `eventId` lets Meta match it to the server's Conversions API event.
+ * Checks the answer at the moment of sending, so a Decline given meanwhile (say while the demo
+ * form was submitting) stops it.
+ */
 export function trackMetaPixel(event: "Lead" | "PageView", params: Record<string, string> = {}, eventId?: string): void {
+  if (!adMeasurementAllowed()) return;
   window.fbq?.("track", event, params, ...(eventId ? [{ eventID: eventId }] : []));
+}
+
+/** Meta's own consent switch on a pixel already loaded on this page (Decline after Accept, then Accept again). */
+export function setMetaPixelConsent(granted: boolean): void {
+  window.fbq?.("consent", granted ? "grant" : "revoke");
 }
 
 /** A fresh event id for a pixel event the server will also send. */

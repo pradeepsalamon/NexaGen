@@ -127,7 +127,7 @@ export function LeadFunnelPanel() {
       {data ? (
         <p className="text-xs text-app-muted">
           Leads made from {data.from} to {data.to} ({data.timeZone}). A lead counts at every step it reached, even if it was later
-          lost. {withSpend ? "Spend is matched to WhatsApp ad leads by ad, and to website leads by campaign name; the total is all ads in these days." : null}
+          lost. {withSpend ? "Spend is matched to WhatsApp ad leads by ad, and to website leads by campaign name (rows sharing a campaign split it by leads); the total is all ads in these days." : null}
         </p>
       ) : null}
     </div>

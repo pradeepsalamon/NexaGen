@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { createLeadRequestSchema, type LeadExperienceLevel } from "@nexa-chess/types";
 import { adMeasurementAllowed } from "@/features/ad-consent/lib/adConsent";
+import { adConsentSettled } from "@/features/ad-consent/lib/consentSync";
 import { newMetaEventId, trackMetaPixel } from "@/features/ad-consent/lib/metaPixel";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
@@ -83,7 +84,7 @@ export function DemoBookingSection() {
 
   const createLead = useCreateLeadMutation();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPhone = formData.phone.replace(/\D/g, "");
 
@@ -117,6 +118,8 @@ export function DemoBookingSection() {
 
     // After the banner's Accept: the pixel's Lead and the server's share one id (docs/AD_MEASUREMENT.md).
     const metaEventId = adMeasurementAllowed() ? newMetaEventId() : undefined;
+    // An Accept still on its way to the server must reach the visit before the lead does.
+    if (metaEventId) await adConsentSettled();
     createLead.mutate(
       {
         studentName,

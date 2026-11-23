@@ -5,9 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { META_PIXEL_ID } from "@/lib/site";
 import { useAuthStore } from "@/stores/authStore";
-import { useAdConsentMutation } from "../hooks/useAdConsentApi";
 import { AD_CONSENT_REOPEN_EVENT, onAcademyHost, readAdConsent, writeAdConsent, type AdConsent } from "../lib/adConsent";
-import { loadMetaPixel, trackMetaPixel } from "../lib/metaPixel";
+import { syncAdConsent } from "../lib/consentSync";
+import { loadMetaPixel, setMetaPixelConsent, trackMetaPixel } from "../lib/metaPixel";
 
 /**
  * Ad measurement on one of Nexa's public pages (docs/AD_MEASUREMENT.md): the cookie banner until
@@ -19,14 +19,16 @@ export function AdMeasurement() {
   const [ready, setReady] = useState(false);
   const [answer, setAnswer] = useState<AdConsent | null>(null);
   const [reopened, setReopened] = useState(false);
-  const consent = useAdConsentMutation();
 
   const active = ready && Boolean(META_PIXEL_ID) && !signedIn;
 
   useEffect(() => {
     if (onAcademyHost()) return;
-    setAnswer(readAdConsent());
+    const saved = readAdConsent();
+    setAnswer(saved);
     setReady(true);
+    // The server's consent is per visit: a saved answer goes to each new one (and is retried until acknowledged).
+    if (saved && META_PIXEL_ID && !useAuthStore.getState().user) syncAdConsent(saved);
     const reopen = () => setReopened(true);
     window.addEventListener(AD_CONSENT_REOPEN_EVENT, reopen);
     return () => window.removeEventListener(AD_CONSENT_REOPEN_EVENT, reopen);
@@ -35,6 +37,7 @@ export function AdMeasurement() {
   useEffect(() => {
     if (!active || answer !== "granted") return;
     if (!loadMetaPixel()) return;
+    setMetaPixelConsent(true);
     trackMetaPixel("PageView");
   }, [active, answer]);
 
@@ -43,10 +46,11 @@ export function AdMeasurement() {
       writeAdConsent(value);
       setAnswer(value);
       setReopened(false);
-      consent.mutate({ consent: value === "granted", referrer: document.referrer || undefined, url: window.location.href });
-      // Declining after accepting: the pixel already on this page stops at the next page load.
+      // Declining after accepting: the pixel already loaded on this page stops sending at once.
+      if (value === "denied") setMetaPixelConsent(false);
+      syncAdConsent(value, true);
     },
-    [consent]
+    []
   );
 
   if (!active || (answer !== null && !reopened)) return null;
