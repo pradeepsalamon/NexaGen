@@ -128,10 +128,17 @@ export class BackupService {
     }
   }
 
-  async getDownloadUrl(key: string): Promise<{ url: string }> {
+  /**
+   * Each caller names the one folder it may sign: the backups route only
+   * `database/`, the class recording route only `recordings/` (after it has
+   * checked the class). A backups caller can never sign a recording.
+   */
+  async getDownloadUrl(
+    key: string,
+    allowedPrefix: 'database/' | 'recordings/'
+  ): Promise<{ url: string }> {
     const bucketName = this.validateConfig();
-    // Also reached via LiveClassService.downloadRecording.
-    this.assertAllowedKey(key, ['database/', 'recordings/']);
+    this.assertAllowedKey(key, [allowedPrefix]);
     try {
       const command = new GetObjectCommand({
         Bucket: bucketName,

@@ -441,7 +441,7 @@ export class LiveClassRecordingService {
       };
     }
 
-    return this.backupService.getDownloadUrl(liveSession.recordingUrl);
+    return this.backupService.getDownloadUrl(liveSession.recordingUrl, "recordings/");
   }
 
   async streamRecording(

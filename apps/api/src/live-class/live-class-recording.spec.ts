@@ -624,7 +624,8 @@ describe("LiveClassRecordingService recording feature", () => {
       const res = await service.downloadRecording(ACCESS_TOKEN, "class-1", mockReq);
       expect(res).toEqual({ url: "https://signed.download.url" });
       expect(backupService.getDownloadUrl).toHaveBeenCalledWith(
-        "recordings/class_class-1-123.mp4"
+        "recordings/class_class-1-123.mp4",
+        "recordings/"
       );
     });
 

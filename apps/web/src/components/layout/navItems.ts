@@ -201,7 +201,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/subscription", label: "Subscription", icon: Gem, group: "Settings" },
   // Super Admin
   { href: "/admin/platform", label: "Platform console", icon: Building2, group: "Super Admin", superAdminOnly: true, platformOnly: true },
-  { href: "/admin/backups", label: "Database backups", icon: Database, group: "Super Admin", superAdminOnly: true },
+  { href: "/admin/backups", label: "Database backups", icon: Database, group: "Super Admin", superAdminOnly: true, platformOnly: true },
   { href: "/admin/trash", label: "Trash", icon: Trash2, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/data-retention", label: "Data retention", icon: Archive, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/demo-classes", label: "Demo classes", icon: Video, group: "Super Admin", superAdminOnly: true, feature: "demoClasses" },

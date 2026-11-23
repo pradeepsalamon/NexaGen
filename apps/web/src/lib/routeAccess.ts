@@ -22,6 +22,7 @@ type RouteRule = {
 
 // Most specific prefix first; the first match wins.
 const ROUTE_RULES: readonly RouteRule[] = [
+  // Whole-database dumps: Nexa's super admins only (the API refuses any other academy's).
   { prefix: "/admin/backups", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/classes", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/data-retention", roles: ["SUPER_ADMIN"] },
