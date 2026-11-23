@@ -185,6 +185,18 @@ describe("PaymentService.applyProviderState", () => {
     service = module.get(PaymentService);
   });
 
+  // Review P6: a second capture on an order already paid is held for a refund.
+  it("holds a second capture on an already-paid order instead of granting again", async () => {
+    payment.order.status = OrderStatus.PAID;
+    const result = await service.applyProviderState("pmt_1", details({ providerPaymentId: "pay_2" }), "webhook");
+    expect(result.status).toBe(PaymentStatus.PROCESSING);
+    expect(grant).not.toHaveBeenCalled();
+    expect(issue).not.toHaveBeenCalled();
+    expect(paymentUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ failureCode: "duplicate_capture" }) })
+    );
+  });
+
   // Review P7: a failed attempt then a success on the same gateway order.
   it("takes the capturing payment id over a failed attempt's", async () => {
     payment.providerPaymentId = "pay_failed";
@@ -461,6 +473,64 @@ describe("PaymentService.applyProviderState", () => {
 });
 
 describe("PaymentService.retry", () => {
+  // Review P6: the payment being retried failed, but ANOTHER attempt on the
+  // same order is still in the air.
+  it("refuses a new attempt while another payment on the order is in flight", async () => {
+    const failed = { id: "pmt_1", orderId: "ord_1", status: PaymentStatus.FAILED, userId: "usr_1" };
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      order: { update: jest.fn() },
+      payment: { create: jest.fn(), findFirst: jest.fn().mockResolvedValue({ id: "pmt_2" }) },
+      paymentAttempt: { create: jest.fn() }
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        PaymentService,
+        {
+          provide: PrismaService,
+          useValue: {
+            $transaction: (callback: (client: unknown) => unknown) => Promise.resolve(callback(tx)),
+            order: {
+              findUnique: jest.fn().mockResolvedValue({
+                amount: 99900,
+                attempts: [{ attemptNumber: 1, provider: "RAZORPAY", status: PaymentStatus.FAILED }],
+                currency: "INR",
+                id: "ord_1",
+                plan: null,
+                status: OrderStatus.PENDING,
+                userId: "usr_1"
+              })
+            },
+            payment: { findUnique: jest.fn().mockResolvedValue(failed) }
+          }
+        },
+        { provide: BillingProfileService, useValue: {} },
+        { provide: CreditNoteService, useValue: {} },
+        { provide: DiscountService, useValue: {} },
+        { provide: EntitlementService, useValue: {} },
+        { provide: InvoiceAuditService, useValue: { recordTx: jest.fn() } },
+        { provide: InvoiceGenerationService, useValue: { requestGeneration: jest.fn() } },
+        { provide: InvoiceService, useValue: {} },
+        { provide: MessagingDispatchService, useValue: { dispatchInBackground: jest.fn() } },
+        {
+          provide: ProviderRegistry,
+          useValue: { anyConfigured: () => true, require: () => ({ createPayment: jest.fn() }) }
+        },
+        { provide: PaymentRouterService, useValue: { route: jest.fn().mockResolvedValue({ provider: "RAZORPAY", ruleId: null }) } },
+        { provide: SubscriptionService, useValue: {} }
+      ]
+    }).compile();
+
+    const service = module.get(PaymentService);
+    jest.spyOn(service, "getStatus").mockResolvedValue({ pending: false, status: "FAILED" } as never);
+
+    await expect(service.retry({ id: "usr_1", role: "STUDENT" } as never, "pmt_1")).rejects.toThrow(
+      "A payment for this order is still being confirmed."
+    );
+    expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(tx.payment.create).not.toHaveBeenCalled();
+  });
+
   it("refuses a second attempt while one is still in flight", async () => {
     const payment = {
       id: "pmt_1",

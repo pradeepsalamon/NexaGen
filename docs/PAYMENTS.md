@@ -395,6 +395,7 @@ speaks rupees, converts at its adapter boundary and nowhere else.
 | Benefit granted twice | Unique `(orderId, planId)` on `entitlements` |
 | Retry against another gateway | Off by default (`failoverEnabled`). A provider is only excluded after its attempt reached a *settled* failure — never while it is unclear whether money moved |
 | Browser closed mid-payment | The reconciliation cron asks the gateway directly and applies the answer through the same funnel. With no payment id yet it asks by gateway order (Razorpay `/orders/:id/payments`). A failed lookup never expires the payment; only a stale one the gateway says nobody paid expires (review P5) |
+| Pay clicked twice, two tabs, or a retry while a payment is confirming | One attempt in the air per order: opening an attempt locks the order row and refuses (409) while another payment on it is processing/authorised, or created/pending within `PAYMENTS_ORDER_TTL_MINUTES`. A capture that still lands on an order already paid is held at PROCESSING with `failureCode: duplicate_capture` (no second entitlement or invoice) for an admin refund (review P6) |
 | Failed attempt, then a success, on one gateway order | The capturing (or authorised) payment id replaces the failed one, so refunds and reconcile use it; a row that already captured keeps its id (review P7) |
 | Wrong amount captured | Parked at `PROCESSING` with `amount_mismatch`; access is withheld for review |
 | Captured in another currency | Parked at `PROCESSING` with `currency_mismatch`; access is withheld for review |

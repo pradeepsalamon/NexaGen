@@ -678,6 +678,30 @@ export class PaymentService {
         };
       }
 
+      // A second capture on an order another payment already paid (review
+      // P6): the money is real, but the access is already granted. Park it for
+      // an admin to refund rather than granting or invoicing twice.
+      const orderAlreadyPaid =
+        payment.order.status === OrderStatus.PAID ||
+        payment.order.status === OrderStatus.PARTIALLY_REFUNDED ||
+        payment.order.status === OrderStatus.REFUNDED;
+      if (nextStatus === PaymentStatus.PAID && orderAlreadyPaid) {
+        this.logger.error(
+          `Payment ${payment.id} captured on order ${payment.orderId}, which another payment already paid. Held for a refund.`
+        );
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            ...handleUpdates,
+            status: PaymentStatus.PROCESSING,
+            failureCode: "duplicate_capture",
+            failureMessage: "A second payment captured on an order that was already paid. Refund this one.",
+            metadata: toJson(details.raw)
+          }
+        });
+        return { changed: true, status: PaymentStatus.PROCESSING, captured: false, invoiceId: null };
+      }
+
       // An amount mismatch means the customer paid something other than what
       // we asked for. Record it, never grant on it.
       // The same for the currency: 999 of another currency is not ₹999.
@@ -1032,6 +1056,30 @@ export class PaymentService {
       order.attempts.reduce((max, a) => Math.max(max, a.attemptNumber), 0) + 1;
 
     const { payment, attempt } = await this.prisma.$transaction(async (tx) => {
+      // One attempt in the air per order (review P6): retrying an old failed
+      // payment must not open a second charge while another attempt on the
+      // same order may still be captured. The order row lock makes two
+      // concurrent retries take turns. A CREATED/PENDING attempt older than
+      // the order TTL never reached a capture the gateway confirmed and is
+      // left to the reconcile sweep; PROCESSING/AUTHORIZED always block.
+      await tx.$queryRaw`SELECT id FROM "orders" WHERE id = ${order.id} FOR UPDATE`;
+      const staleBefore = new Date(Date.now() - this.env.PAYMENTS_ORDER_TTL_MINUTES * 60_000);
+      const inFlight = await tx.payment.findFirst({
+        select: { id: true },
+        where: {
+          orderId: order.id,
+          OR: [
+            { status: { in: [PaymentStatus.PROCESSING, PaymentStatus.AUTHORIZED] } },
+            { createdAt: { gt: staleBefore }, status: { in: [PaymentStatus.CREATED, PaymentStatus.PENDING] } }
+          ]
+        }
+      });
+      if (inFlight) {
+        throw new ConflictException(
+          "A payment for this order is still being confirmed. Please wait rather than paying again."
+        );
+      }
+
       const created = await tx.payment.create({
         data: {
           orderId: order.id,
