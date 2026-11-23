@@ -30,7 +30,7 @@ import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { SystemNotifier } from "../mail/system-notifier.service";
 import { formatDemoTime } from "../messaging/messaging.format";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
-import { signDemoGuestToken } from "./demo-guest-token";
+import { DEMO_GUEST_IDENTITY_PREFIX, signDemoGuestToken } from "./demo-guest-token";
 import { LeadStageService } from "../lead/lead-stage.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 
@@ -193,12 +193,15 @@ export class LiveClassDemoService {
     // `crypto.randomUUID()` — the old `Math.random().toString(36).substring(7)`
     // yielded ~4 chars, so two guests could collide and LiveKit would evict the
     // earlier one for a duplicate identity (AUDIT M18).
-    const participantIdentity = `guest_${randomUUID()}`;
+    // The registration id rides in the identity so the coach can remove this
+    // guest (`kickParticipant`) and a denied guest is put back out on join.
+    const participantIdentity = `${DEMO_GUEST_IDENTITY_PREFIX}${registration.id}_${randomUUID()}`;
 
     const tokenOptions: LiveKitTokenOptions = {
       roomName: liveSession.roomName,
       participantIdentity,
-      participantName: body.guestName || registration.name,
+      // The name the coach saw when admitting them, never one typed now.
+      participantName: registration.name,
       isCoach: false,
       grants: this.guestGrants(liveSession.effectiveSettings, coachClass.id)
     };
@@ -272,7 +275,22 @@ export class LiveClassDemoService {
     const existing = await this.prisma.demoClassRegistration.findUnique({
       where: { classId_contactMethod_contactValue: key }
     });
-    if (existing) return { registration: existing, created: false };
+
+    // A typed phone/email is never verified, so matching an existing row does
+    // not stand in for the class's gate: anyone could type a booked guest's
+    // number. An admin-invited guest comes in by their personal link (it was
+    // sent to that contact); in PASSCODE mode everyone still needs the code.
+    // Returning self-registered guests (re-polling the join page) keep working:
+    // they typed the passcode the first time and type it again.
+    if (
+      existing?.inviteToken &&
+      coachClass.demoAccessMode === DemoClassAccessMode.INVITE_ONLY
+    ) {
+      throw new ForbiddenException({
+        message: "You were invited to this class. Open the personal invite link we sent you to join.",
+        code: "DEMO_INVITE_REQUIRED"
+      });
+    }
 
     if (
       coachClass.demoAccessMode === DemoClassAccessMode.PASSCODE &&
@@ -283,6 +301,8 @@ export class LiveClassDemoService {
         code: "DEMO_PASSCODE_INVALID"
       });
     }
+
+    if (existing) return { registration: existing, created: false };
 
     const approval =
       coachClass.demoAccessMode === DemoClassAccessMode.INVITE_ONLY

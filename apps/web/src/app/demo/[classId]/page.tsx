@@ -107,6 +107,10 @@ function DemoClassJoin() {
           setInviteToken(null);
           setPhase("form");
           if (!opts.silent) toast.warning({ title: message });
+        } else if (code === "DEMO_INVITE_REQUIRED") {
+          // An invited guest typed their details: their personal link is the way in.
+          setPhase("form");
+          toast.warning({ title: message });
         } else if (code === "DEMO_PASSCODE_INVALID") {
           setPasscodeError(message);
           setPhase("form");

@@ -283,8 +283,14 @@ export class AttendanceWebhookController {
 
     if (!userId) return;
 
-    // Skip guest participants (those with identity starting with "guest_")
-    if (participantIdentity?.startsWith("guest_")) return;
+    // Guests (`guest_…`) are not attendees. A guest the coach removed who
+    // reconnects with an older LiveKit token is put back out.
+    if (participantIdentity?.startsWith("guest_")) {
+      if (event.event === "participant_joined") {
+        await this.moderation.enforceGuestRemovalOnJoin(liveSession, participantIdentity);
+      }
+      return;
+    }
 
     // Skip an admin's hidden spectator seat (`spectator_<userId>_<tab>`): the
     // split above would read "spectator" as the user id, and a watching admin is

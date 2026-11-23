@@ -15,6 +15,20 @@ export type DemoGuestTokenPayload = {
   classId: string;
 };
 
+/**
+ * A demo guest's LiveKit identity: `guest_<registrationId>_<uuid>`. The
+ * registration id lets the coach remove the guest and the join webhook put a
+ * denied guest back out. Older tokens were `guest_<uuid>` (no registration).
+ */
+export const DEMO_GUEST_IDENTITY_PREFIX = "guest_";
+
+/** The registration id in a guest identity, or null when it carries none. */
+export function demoGuestRegistrationId(identity: string): string | null {
+  if (!identity.startsWith(DEMO_GUEST_IDENTITY_PREFIX)) return null;
+  const parts = identity.slice(DEMO_GUEST_IDENTITY_PREFIX.length).split("_");
+  return parts.length >= 2 && parts[0] ? parts[0] : null;
+}
+
 /** Covers a long demo; a guest who reloads the page re-joins and gets a fresh one. */
 export const DEMO_GUEST_TOKEN_TTL = "6h";
 

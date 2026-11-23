@@ -26,11 +26,13 @@ import {
   type ModerationNotice,
 } from "@nexa-chess/types";
 import {
+  DemoGuestApproval,
   UserRole,
   WaitingRoomStatus,
 } from "@prisma/client";
 import { LiveClassAccessService } from "./live-class-access.service";
 import { isCoachParticipant } from "./live-class.util";
+import { DEMO_GUEST_IDENTITY_PREFIX, demoGuestRegistrationId } from "./demo-guest-token";
 
 /** Coach moderation: force-mute (one or all) and removing a student from the class. */
 @Injectable()
@@ -241,6 +243,9 @@ export class LiveClassModerationService {
     body: KickParticipantRequest
   ): Promise<KickParticipantResponse> {
     const { liveSession } = await this.resolveModerator(accessToken, classId);
+    if (body.identity.startsWith(DEMO_GUEST_IDENTITY_PREFIX)) {
+      return this.removeDemoGuest(liveSession, body.identity);
+    }
     const studentId = body.identity.split("_")[0];
     if (isCoachParticipant(body.identity, liveSession.coachId)) {
       throw new BadRequestException("You can't remove yourself from your class.");
@@ -300,6 +305,67 @@ export class LiveClassModerationService {
     try {
       await this.livekit.removeParticipant(liveSession.roomName, identity);
       this.logger.warn(`Removed ${identity} from ${liveSession.roomName}: rejoined after being removed`);
+    } catch (error) {
+      this.logger.warn(`Could not remove ${identity} from ${liveSession.roomName}`, error as Error);
+    }
+    return true;
+  }
+
+  /**
+   * Removes a demo guest: their registration becomes DENIED (so a re-join, a
+   * poll and every guest-token route refuse them) and each of their
+   * connections leaves the room. A guest from before identities carried the
+   * registration id can only be disconnected.
+   */
+  private async removeDemoGuest(
+    liveSession: { classId: string; roomName: string },
+    identity: string,
+  ): Promise<KickParticipantResponse> {
+    const registrationId = demoGuestRegistrationId(identity);
+    if (registrationId) {
+      const denied = await this.prisma.demoClassRegistration.updateMany({
+        where: { id: registrationId, classId: liveSession.classId },
+        data: { approval: DemoGuestApproval.DENIED },
+      });
+      if (denied.count === 0) {
+        throw new NotFoundException("That guest is not registered for this class.");
+      }
+    }
+
+    const prefix = registrationId ? `${DEMO_GUEST_IDENTITY_PREFIX}${registrationId}_` : null;
+    const participants = await this.livekit.listParticipants(liveSession.roomName);
+    let removed = 0;
+    for (const p of participants) {
+      if (prefix ? !p.identity.startsWith(prefix) : p.identity !== identity) continue;
+      try {
+        await this.livekit.removeParticipant(liveSession.roomName, p.identity);
+        removed += 1;
+      } catch (error) {
+        this.logger.warn(`Could not remove ${p.identity} from ${liveSession.roomName}`, error as Error);
+      }
+    }
+    return { removed };
+  }
+
+  /**
+   * Called from the `participant_joined` webhook for a demo guest: a guest the
+   * coach removed (or denied) who connects with a LiveKit token from before is
+   * put straight back out. Returns true when it removed them.
+   */
+  async enforceGuestRemovalOnJoin(
+    liveSession: { classId: string; roomName: string },
+    identity: string,
+  ): Promise<boolean> {
+    const registrationId = demoGuestRegistrationId(identity);
+    if (!registrationId) return false;
+    const registration = await this.prisma.demoClassRegistration.findFirst({
+      where: { id: registrationId, classId: liveSession.classId },
+      select: { approval: true },
+    });
+    if (registration && registration.approval !== DemoGuestApproval.DENIED) return false;
+    try {
+      await this.livekit.removeParticipant(liveSession.roomName, identity);
+      this.logger.warn(`Removed ${identity} from ${liveSession.roomName}: removed demo guest rejoined`);
     } catch (error) {
       this.logger.warn(`Could not remove ${identity} from ${liveSession.roomName}`, error as Error);
     }

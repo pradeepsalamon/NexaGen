@@ -1734,8 +1734,12 @@ describe("LiveClassModerationService.kickParticipant", () => {
   let pullUpdateMany: jest.Mock;
   let removeParticipant: jest.Mock;
   let waitingFindUnique: jest.Mock;
+  let registrationUpdateMany: jest.Mock;
+  let registrationFindFirst: jest.Mock;
 
   beforeEach(async () => {
+    registrationUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+    registrationFindFirst = jest.fn().mockResolvedValue({ approval: "APPROVED" });
     waitingFindUnique = jest.fn().mockResolvedValue(null);
     jwtService = { verifyAsync: jest.fn().mockResolvedValue({ sub: "coach-1", type: "access" }) };
     waitingFindUnique = jest.fn().mockResolvedValue(null);
@@ -1764,6 +1768,7 @@ describe("LiveClassModerationService.kickParticipant", () => {
       user: { findUnique: userFindUnique, findFirst: userFindFirst },
       liveClassWaitingParticipant: { upsert: waitingUpsert, findUnique: waitingFindUnique },
       liveClassPull: { updateMany: pullUpdateMany },
+      demoClassRegistration: { updateMany: registrationUpdateMany, findFirst: registrationFindFirst },
       $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops))
     };
 
@@ -1780,7 +1785,10 @@ describe("LiveClassModerationService.kickParticipant", () => {
               { identity: "coach-1" },
               { identity: "student-1_tab-a" },
               { identity: "student-1_tab-b" },
-              { identity: "student-2_tab-c" }
+              { identity: "student-2_tab-c" },
+              { identity: "guest_reg-1_aaaa" },
+              { identity: "guest_reg-1_bbbb" },
+              { identity: "guest_reg-2_cccc" }
             ]),
             removeParticipant
           }
@@ -1827,6 +1835,41 @@ describe("LiveClassModerationService.kickParticipant", () => {
     await expect(
       service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "admin-1_tab-x" })
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("removes a demo guest: denies their registration and disconnects each of their tabs", async () => {
+    const res = await service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "guest_reg-1_aaaa" });
+
+    expect(res.removed).toBe(2);
+    expect(removeParticipant.mock.calls.map((c) => c[1])).toEqual(["guest_reg-1_aaaa", "guest_reg-1_bbbb"]);
+    expect(registrationUpdateMany).toHaveBeenCalledWith({
+      where: { id: "reg-1", classId: "class-1" },
+      data: { approval: "DENIED" }
+    });
+    expect(waitingUpsert).not.toHaveBeenCalled();
+  });
+
+  it("refuses to remove a guest registered for another class", async () => {
+    registrationUpdateMany.mockResolvedValue({ count: 0 });
+    await expect(
+      service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "guest_reg-9_zzzz" })
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(removeParticipant).not.toHaveBeenCalled();
+  });
+
+  describe("enforceGuestRemovalOnJoin (participant_joined webhook)", () => {
+    const session = { classId: "class-1", roomName: "room-1" };
+
+    it("puts a removed guest back out", async () => {
+      registrationFindFirst.mockResolvedValue({ approval: "DENIED" });
+      await expect(service.enforceGuestRemovalOnJoin(session, "guest_reg-1_aaaa")).resolves.toBe(true);
+      expect(removeParticipant).toHaveBeenCalledWith("room-1", "guest_reg-1_aaaa");
+    });
+
+    it("leaves an admitted guest alone", async () => {
+      await expect(service.enforceGuestRemovalOnJoin(session, "guest_reg-1_aaaa")).resolves.toBe(false);
+      expect(removeParticipant).not.toHaveBeenCalled();
+    });
   });
 
   describe("enforceRemovalOnJoin (participant_joined webhook)", () => {
