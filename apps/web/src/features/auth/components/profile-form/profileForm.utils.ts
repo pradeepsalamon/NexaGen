@@ -142,14 +142,24 @@ export function isParentContactChanged(values: ProfileFormValues, user: AuthUser
   return Boolean(user?.studentProfile) && isParentContactChange(user?.studentProfile ?? {}, values);
 }
 
+/** Same rule as the API: the phone can receive password resets (review A2). */
+export function isPhoneChanged(values: ProfileFormValues, user: AuthUser | undefined) {
+  return Boolean(user) && (values.phoneNumber.trim() || null) !== (user?.phoneNumber ?? null);
+}
+
 /** Why the current password is needed for this save, or null when it isn't. */
 export function passwordRequiredReason(values: ProfileFormValues, user: AuthUser | undefined): string | null {
   const email = isEmailChanged(values, user);
+  const phone = isPhoneChanged(values, user);
   const parent = isParentContactChanged(values, user);
-  if (email && parent) return "Required to change your email address and the parent contact.";
-  if (email) return "Required to change your email address.";
-  if (parent) return "Required to change the parent contact. The previous contact will be told.";
-  return null;
+  const what = [
+    email ? "your email address" : null,
+    phone ? "your phone number" : null,
+    parent ? "the parent contact" : null
+  ].filter(Boolean);
+  if (what.length === 0) return null;
+  const list = what.length === 1 ? what[0] : `${what.slice(0, -1).join(", ")} and ${what[what.length - 1]}`;
+  return `Required to change ${list}.${parent ? " The previous contact will be told." : ""}`;
 }
 
 export function optionalString(value: string) {

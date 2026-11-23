@@ -359,6 +359,21 @@ describe("AuthService", () => {
   });
 
   describe("login", () => {
+    // Review A2: a support account is entered only through a support visit.
+    it("refuses a platform-support account's password like an unknown email", async () => {
+      const password = "password123";
+      prismaService.user.findUnique.mockResolvedValueOnce({
+        ...activeUser,
+        isPlatformSupport: true,
+        password: await hashSecret(password)
+      });
+
+      await expect(service.login({ email: activeUser.email, password }, {})).rejects.toThrow(
+        "Invalid email or password."
+      );
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
+    });
+
     it("throws UnauthorizedException for invalid credentials", async () => {
       prismaService.user.findUnique.mockResolvedValueOnce(null);
 
@@ -758,7 +773,7 @@ describe("AuthService", () => {
   });
 
   describe("updateProfile", () => {
-    const profile = { email: "test@example.com", firstName: "John" };
+    const profile = { email: "test@example.com", firstName: "John", phoneNumber: "1234567890" };
 
     beforeEach(async () => {
       jwtService.verifyAsync.mockResolvedValue({ sessionId: "sess-1", sub: "usr-123", type: "access" });
@@ -850,6 +865,32 @@ describe("AuthService", () => {
         "EMAIL_CHANGED",
         expect.objectContaining({ email: "test@example.com" }),
         { "email.new": "new@example.com" }
+      );
+    });
+
+    // Review A2: with WhatsApp on for resets the phone is a reset channel, so
+    // moving it takes the password and the account is told.
+    it("asks for the current password to change the phone number", async () => {
+      await expect(
+        service.updateProfile("access-token", { ...profile, phoneNumber: "9999999999" })
+      ).rejects.toThrow("Enter your current password to change your phone number.");
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+    });
+
+    it("changes the phone with the password and tells the account", async () => {
+      await service.updateProfile("access-token", {
+        ...profile,
+        currentPassword: "password123",
+        phoneNumber: "9999999999"
+      });
+
+      expect(prismaService.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ phoneNumber: "9999999999" }) })
+      );
+      expect(notifierSend).toHaveBeenCalledWith(
+        "PHONE_CHANGED",
+        { email: "test@example.com", phone: "1234567890", userId: "usr-123" },
+        {}
       );
     });
 
@@ -1130,6 +1171,19 @@ describe("AuthService", () => {
       await expect(service.me("access-token")).rejects.toThrow(
         UnauthorizedException
       );
+    });
+  });
+
+  describe("forgotPassword", () => {
+    // Review A2: platform-support accounts never get a reset link.
+    it("creates no reset link for a platform-support account", async () => {
+      prismaService.user.findUnique.mockResolvedValueOnce({ ...activeUser, isPlatformSupport: true });
+      // The constant-time response delay isn't what this test is about.
+      Object.defineProperty(service, "passwordResetResponseDelayMs", { value: 0 });
+
+      await expect(service.forgotPassword(activeUser.email)).resolves.toEqual({ ok: true });
+      expect(prismaService.passwordResetToken.create).not.toHaveBeenCalled();
+      expect(notifierSend).not.toHaveBeenCalled();
     });
   });
 

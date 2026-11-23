@@ -323,10 +323,13 @@ export class AuthService {
     context: SessionContext
   ): Promise<LoginOutcome> {
     const startedAt = Date.now();
-    const user = await this.prisma.user.findUnique({
+    const found = await this.prisma.user.findUnique({
       include: { coachProfile: true, studentProfile: true },
       where: { tenantId_email: { email: payload.email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
+    // A platform-support account is entered only through a support visit,
+    // never by password (review A2): it answers like an unknown email.
+    const user = found?.isPlatformSupport ? null : found;
     // Locked even for the right password, or the guessing would simply go on.
     if (user?.loginLockedUntil && user.loginLockedUntil.getTime() > Date.now()) {
       await this.waitForLoginResponseDelay(startedAt);
@@ -676,6 +679,10 @@ export class AuthService {
     const email = payload.email.toLowerCase().trim();
     const username = this.toNullableString(payload.username);
     const emailChanged = email !== user.email.toLowerCase();
+    // With WhatsApp on for password resets the phone is a reset channel too
+    // (review A2), so it takes the same proof as the email.
+    const phoneNumber = this.toNullableString(payload.phoneNumber);
+    const phoneChanged = phoneNumber !== (user.phoneNumber ?? null);
 
     // The parent contact receives invoices and academy notices (it is the
     // billing-profile default), so moving it needs the same proof as an email
@@ -686,14 +693,17 @@ export class AuthService {
         isParentContactChange(user.studentProfile, payload.studentProfile)
     );
 
-    // The email is what password reset trusts, so a stolen session alone must
-    // not be enough to move it. 400, not 401, so the client doesn't refresh-retry.
-    if (emailChanged || parentContactChanged) {
+    // The email and phone are what password reset trusts, so a stolen session
+    // alone must not be enough to move them. 400, not 401, so the client
+    // doesn't refresh-retry.
+    if (emailChanged || phoneChanged || parentContactChanged) {
       if (!payload.currentPassword) {
         throw new BadRequestException(
           emailChanged
             ? "Enter your current password to change your email."
-            : "Enter your current password to change the parent contact."
+            : phoneChanged
+              ? "Enter your current password to change your phone number."
+              : "Enter your current password to change the parent contact."
         );
       }
       if (!(await verifySecret(payload.currentPassword, user.password))) {
@@ -711,7 +721,7 @@ export class AuthService {
           email,
           firstName: payload.firstName.trim(),
           lastName: this.toNullableString(payload.lastName),
-          phoneNumber: this.toNullableString(payload.phoneNumber),
+          phoneNumber,
           timezone: payload.timezone?.trim() || user.timezone,
           username,
           ...(reverifyEmail ? { emailVerifiedAt: null, isEmailVerified: false } : {})
@@ -814,6 +824,15 @@ export class AuthService {
       );
     }
 
+    if (phoneChanged && user.phoneNumber) {
+      // Best effort: to the OLD number, the account's email and its inbox.
+      void this.notifier.send(
+        "PHONE_CHANGED",
+        { email: user.email, phone: user.phoneNumber, userId: user.id },
+        {}
+      );
+    }
+
     if (emailChanged) {
       await this.revokeOtherSessions(user.id, tokenPayload.sessionId);
       // Best effort (never throws): to the OLD address, the account's phone and its inbox.
@@ -871,7 +890,8 @@ export class AuthService {
       where: { tenantId_email: { email: email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
 
-    if (!user) {
+    // Platform-support accounts never get a reset link (review A2).
+    if (!user || user.isPlatformSupport) {
       await this.waitForPasswordResetResponseDelay(startedAt);
       return { ok: true };
     }

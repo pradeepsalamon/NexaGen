@@ -15,6 +15,7 @@ export const systemMessageKeySchema = z.enum([
   "ACCOUNT_INVITE",
   "EMAIL_VERIFICATION",
   "EMAIL_CHANGED",
+  "PHONE_CHANGED",
   "PARENT_CONTACT_CHANGED",
   "ACCOUNT_DELETION_COMPLETED",
   "ACCOUNT_DELETION_DECLINED",
@@ -366,6 +367,24 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
     defaults: {
       subject: "Your {{academy.name}} email address was changed",
       body: "The email address on your {{academy.name}} account was changed to {{email.new}}.\n\nIf you made this change, no action is needed.\nIf you did not, contact the academy immediately: someone else may have access to your account.",
+      actionLabel: null,
+      whatsappBody: null
+    }
+  },
+  PHONE_CHANGED: {
+    key: "PHONE_CHANGED",
+    group: "ACCOUNT",
+    label: "Phone number changed",
+    description:
+      "Warns the account's owner that its phone number changed (the phone can receive password resets), so a hijacked account's owner finds out. Never includes the new number.",
+    sentTo: "The account's email, its old phone number and its in-app inbox",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    inAppLink: "/profile",
+    variables: ["academy.name"],
+    defaults: {
+      subject: "Your {{academy.name}} phone number was changed",
+      body: "The phone number on your {{academy.name}} account was changed.\n\nIf you made this change, no action is needed.\nIf you did not, contact the academy immediately: someone else may have access to your account.",
       actionLabel: null,
       whatsappBody: null
     }

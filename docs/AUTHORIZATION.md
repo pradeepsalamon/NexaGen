@@ -122,6 +122,12 @@ can't silently switch off.
   (400 if missing or wrong; the route is throttled 10/min), revokes every other
   session family, and mails a notice to the old address — the email is what
   password reset trusts, so a stolen session alone must not move it.
+- Changing the account phone needs `currentPassword` too, because with WhatsApp on
+  for resets the phone is a reset channel. The account is told by the
+  `PHONE_CHANGED` system message (to its email, old phone and inbox; it never
+  shows the new number). Platform-support accounts (`isPlatformSupport`) can't use
+  password sign-in or forgot-password: they are entered only through a support
+  visit. Both from review A2, 2026-11-23.
 - Email verification is an academy setting, off by default. When `REQUIRED`,
   password sign-in refuses unverified students and coaches with a 401; admins are
   exempt. [EMAIL_ADMIN](EMAIL_ADMIN.md)
