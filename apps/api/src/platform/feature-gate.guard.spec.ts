@@ -101,7 +101,7 @@ describe("FeatureGateGuard", () => {
     await expect(run(state({ accessMode: "LOCKED" }), context(CoreController, "handle"))).rejects.toMatchObject({
       response: { code: "SUBSCRIPTION_LOCKED" }
     });
-    for (const path of ["/auth/login", "/subscription", "/admin/subscription", "/platform/plans", "/payments/webhooks/stripe", "/health"]) {
+    for (const path of ["/admin/academy/closure", "/admin/academy/export", "/auth/login", "/subscription", "/admin/subscription", "/platform/plans", "/payments/webhooks/stripe", "/health"]) {
       await expect(run(state({ accessMode: "LOCKED" }), context(CoreController, "handle", "POST", path))).resolves.toBe(true);
     }
   });

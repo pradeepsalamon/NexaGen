@@ -213,7 +213,9 @@ read, so an ended trial locks on time without a cron:
 | anything ended, EXPIRED, CANCELLED, tenant not ACTIVE, no subscription | LOCKED |
 
 LOCKED and READ_ONLY never block `/auth`, `/health`, `/subscription`,
-`/admin/subscription`, `/privacy`, `/platform` or provider webhooks
+`/admin/subscription`, `/admin/academy` (closure request and data export: a
+lapsed academy is the usual one leaving, review T3), `/privacy`, `/platform` or
+provider webhooks
 (`isAlwaysOpenPath` in `feature-gate.guard.ts`).
 
 ## Errors

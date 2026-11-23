@@ -18,6 +18,10 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  * (a payment captured before a lapse must still settle).
  */
 const ALWAYS_OPEN_PREFIXES = [
+  // Closing the academy and exporting its data: a lapsed (LOCKED) academy is
+  // the usual one leaving (review T3). Both routes are the academy's own
+  // super admin's only.
+  "/admin/academy",
   "/admin/subscription",
   "/auth",
   "/health",
