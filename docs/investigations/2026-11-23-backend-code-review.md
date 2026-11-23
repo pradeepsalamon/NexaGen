@@ -1,4 +1,4 @@
-# Backend code review — 2026-11-23 (Part 1: PR #170 + rule checks; Part 2: high-risk modules; Part 3: learning, chat, uploads, tournaments)
+# Backend code review — 2026-11-23 (Part 1: PR #170 + rule checks; Part 2: high-risk modules; Part 3: learning, chat, uploads, tournaments; Part 4: scores and fair play)
 
 Scope: `apps/api` and `packages/types` on `dev` at `8c0749d` (after PR #170, "one lead pipeline + ad
 measurement"). Two passes:
@@ -259,3 +259,44 @@ puzzle-rush, revision, student, student-match, simul, the rest of support and to
    live now and easy to use.
 2. **S5**: one academy can delete another's images.
 3. **S2, S4**: assignment scores can be forged.
+
+---
+
+# Part 4 — students' scores and tournament fairness (group 1)
+
+Read on `dev` at `32aef41`, by one reviewer in this session, focused on two questions: can a
+student forge a score, and can anyone see an answer early. Every finding was checked against the
+code. Nothing was changed.
+
+**Read:** `puzzle-activity/` (MCQ runs, Playout games, library reads), `puzzle/daily-puzzle-answer.service.ts`,
+`puzzle/live-class-puzzle.service.ts` (student and guest reads), `puzzle/puzzle-catalog.service.ts`
+(the solution route), `student-match/` (moves, actions, player resolution), `simul/` (moves, engine
+moves), `puzzle-rush/solo-puzzle-rush.service.ts`, and in `tournament/`: public spectating,
+realtime packets, registration, certificate PDF and verification, image changes.
+
+**Checked and sound:** MCQ answer keys never reach a student before the reveal rules allow, and
+with hidden verdicts a refusal doesn't give the answer away. Playout replies are played and stored
+by the server, and hints are handed out one at a time. Class matches and simuls check every move
+on the server and claim it on `ply`; only the coach can make engine moves. The catalogue's solution
+route is staff only. The WhatsApp daily-puzzle answer only works for the one student whose phone
+received today's signed picture. Public spectating sends names in the academy's public format and
+never a user id, and moves go live only to the two players. Certificate PDFs go to their owner or
+the tournament's managers, and the public check needs the 16-hex code.
+
+**Not read in full (spot-checked only):** the tournament pairing engine, runner, scheduler,
+commentary and notifier; `puzzle/puzzle.service.ts`, `puzzle-topic.service.ts`,
+`puzzle-training.service.ts`, `daily-puzzle.service.ts`; `puzzle-rush/live-class-puzzle-rush.service.ts`.
+
+| # | Severity | Where | Problem | Fix |
+|---|---|---|---|---|
+| F1 | **important** | `auth/auth.service.ts:731-745` (`updateProfile`) → `tournament/tournament-registration.service.ts:366,426-441` | A student edits their own `chessRating`, `dateOfBirth` and `experienceLevel` on the profile page. Tournament entry uses exactly these for eligibility (`minRating`/`maxRating`, age cutoff, level, `tournamentEligibilityIssue`), the age group (`ageGroup` in standings and age-group prizes) and the seed rating. A 1,600 player can set 900 to enter an under-1,000 event, or make themselves younger for an under-10 section. | Make these three fields staff-only (admin or the student's coach), or keep the student's value but have tournaments read a staff-set or verified one. Record who last changed each one and when. |
+| F2 | minor | `puzzle/live-class-puzzle.service.ts:446-467` (`getCurrentForGuest`) → `live-class/live-class-access.service.ts:119-142` | A demo guest gets the active class puzzle **with its solution** (by design: guests practise unscored). But `resolveDemoGuest` refuses only DENIED, so a guest still waiting in the waiting room gets it too. Any signed-in student in that demo class can read the solution of the scored puzzle from a second tab with a guest link. | Require `approval === APPROVED` here. Consider leaving the solution out until the puzzle ends whenever a scored attempt by a signed-in student is open in the class. |
+| F3 | minor (by design) | `puzzle-rush/solo-puzzle-rush.service.ts:93-183,412-480` | Solo Storm/Racer sends the whole run, solutions included, at start, then trusts the solved/errors/score the client reports. `clamp` caps it at what the time and moves allow, but a script can still post a perfect run: 0 errors, every puzzle solved, at the time limit. Those runs feed the batch leaderboard and Batch Battles. Lichess has the same trade-off. | Accept it and say so in PUZZLE_RUSH_SOLO.md, or check each puzzle on the server (send the solution of puzzle *n* only after puzzle *n−1* is reported solved). |
+| F4 | minor (plausible) | `tournament/tournament-registration.service.ts:127-140` (`withdraw`) | `canWithdraw` checks the tournament's status from an unlocked read, and the `updateMany` claim checks only the player's status. A withdrawal that lands while the tournament is starting can mark a player WITHDRAWN after round 1 has paired them. | Do the claim inside a transaction that first takes the tournament lock (`lock(tx, id)`, as registration does) and re-checks `status === PUBLISHED`. |
+| F5 | minor (adds to S7) | `tournament/tournament-realtime.service.ts:141-148`, `tournament-public.service.ts:72-89` | Besides the summaries in S7, the `spectate` packet carries `finished` at once, and the public `live` view drops a game from `ongoingGames` the moment it ends. Both show the result before the spectator delay has passed. | Send `finished` only with `visibleAt`, and keep a finished game in `ongoingGames` until its `visibleAt`. |
+
+## Suggested order (Part 4)
+
+1. **F1**: tournament eligibility and age groups can be beaten from the profile page.
+2. **F2, F4**: small, contained fixes.
+3. **F3, F5**: decide whether to accept them; document the decision either way.
