@@ -29,6 +29,9 @@ type MockPrismaService = {
   authSession: {
     updateMany: jest.Mock;
   };
+  passwordResetToken: {
+    updateMany: jest.Mock;
+  };
   coachProfile: {
     create: jest.Mock;
   };
@@ -81,6 +84,9 @@ describe("UserService", () => {
         create: jest.fn()
       },
       authSession: {
+        updateMany: jest.fn()
+      },
+      passwordResetToken: {
         updateMany: jest.fn()
       },
       coachProfile: {
@@ -301,6 +307,11 @@ describe("UserService", () => {
         data: { revokedAt: expect.any(Date) },
         where: { revokedAt: null, userId: "student-1" }
       });
+      // Review A1: an unused reset or invite link dies with the old password.
+      expect(prismaService.passwordResetToken.updateMany).toHaveBeenCalledWith({
+        data: { usedAt: expect.any(Date) },
+        where: { usedAt: null, userId: "student-1" }
+      });
     });
 
     it("leaves sessions alone for a plain profile edit", async () => {
@@ -313,6 +324,7 @@ describe("UserService", () => {
 
       expect(prismaService.user.update).toHaveBeenCalled();
       expect(prismaService.authSession.updateMany).not.toHaveBeenCalled();
+      expect(prismaService.passwordResetToken.updateMany).not.toHaveBeenCalled();
     });
   });
 
@@ -353,6 +365,11 @@ describe("UserService", () => {
       const result = await service.archive("token", "student-1");
 
       expect(result.user.status).toBe("ARCHIVED");
+      // Review A3: a restore must not bring an old refresh token back.
+      expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
+        data: { revokedAt: expect.any(Date) },
+        where: { revokedAt: null, userId: "student-1" }
+      });
     });
   });
 
@@ -401,6 +418,10 @@ describe("UserService", () => {
         expect.any(String),
         { metadata: { title: "student@example.com" } }
       );
+      expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
+        data: { revokedAt: expect.any(Date) },
+        where: { revokedAt: null, userId: "student-1" }
+      });
       expect(result.ok).toBe(true);
     });
   });

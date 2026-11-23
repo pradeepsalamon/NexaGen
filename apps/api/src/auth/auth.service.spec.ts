@@ -793,6 +793,11 @@ describe("AuthService", () => {
         data: { usedAt: expect.any(Date) },
         where: { usedAt: null, userId: "usr-123" }
       });
+      // Review A1: a reset or invite link mailed to the old address dies too.
+      expect(prismaService.passwordResetToken.updateMany).toHaveBeenCalledWith({
+        data: { usedAt: expect.any(Date) },
+        where: { usedAt: null, userId: "usr-123" }
+      });
       expect(emailVerification.sendLinkBestEffort).toHaveBeenCalledTimes(1);
     });
 
@@ -1146,6 +1151,11 @@ describe("AuthService", () => {
       expect(prismaService.passwordResetToken.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: "prt-1", usedAt: null } })
       );
+      // Review A1: every other unused reset or invite link dies with it.
+      expect(prismaService.passwordResetToken.updateMany).toHaveBeenCalledWith({
+        data: { usedAt: expect.any(Date) },
+        where: { usedAt: null, userId: "usr-123" }
+      });
       expect(prismaService.user.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: "usr-123" } })
       );

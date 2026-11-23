@@ -189,7 +189,8 @@ can't silently switch off.
 | Logout | Refresh family revoked **and** every access token of that session refused at once (`authenticateUser` checks `auth_sessions.revokedAt` for the token's `sessionId`). |
 | Password reset (self) / refresh-token reuse | Same: family revoked, access tokens die immediately. |
 | Admin sets a new password or a non-ACTIVE status | All of that user's sessions revoked (`UserService.update`). |
-| Account archived / deleted | Next request is a 401 (`status !== ACTIVE`). |
+| Account archived / deleted | Next request is a 401 (`status !== ACTIVE`), and every session is revoked, so a restore doesn't revive an old refresh token (review A3, 2026-11-23). |
+| Email changed (self or admin), admin sets a password, or a reset completes | Every unused password-reset and invite link of that user is spent (`usedAt`), so a link sent to an old or mistyped address can't take the account (review A1). |
 | Role changed | Takes effect on the next request — the role is read from the DB, never the token. |
 | Kicked from a live class | `getToken` refuses a new LiveKit token; a reconnect with an older token is removed by the `participant_joined` webhook (`LiveClassModerationService.enforceRemovalOnJoin`). |
 | Removed from a batch | Loses API access to the batch's classes/chat at once. An already-issued LiveKit token still connects until it expires, at most 10 minutes (`LIVEKIT_TOKEN_TTL`). |

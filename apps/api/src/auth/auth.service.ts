@@ -719,9 +719,14 @@ export class AuthService {
         where: { id: user.id }
       });
 
-      // A link sent to the old address must not vouch for the new one.
+      // A link sent to the old address must not vouch for the new one, and a
+      // reset or invite link mailed there must not take the account (review A1).
       if (emailChanged) {
         await transaction.emailVerificationToken.updateMany({
+          data: { usedAt: new Date() },
+          where: { usedAt: null, userId: user.id }
+        });
+        await transaction.passwordResetToken.updateMany({
           data: { usedAt: new Date() },
           where: { usedAt: null, userId: user.id }
         });
@@ -983,6 +988,11 @@ export class AuthService {
       if (claimed.count === 0) {
         throw new BadRequestException("Reset token is invalid or expired.");
       }
+      // Every other reset or invite link dies with this one (review A1).
+      await tx.passwordResetToken.updateMany({
+        data: { usedAt: new Date() },
+        where: { usedAt: null, userId: token.userId }
+      });
 
       await tx.user.update({
         // Proving control of the email is the way out of a login lock.

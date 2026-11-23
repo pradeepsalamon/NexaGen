@@ -261,8 +261,19 @@ export class UserService {
       });
 
       // A link sent to the old address must not vouch for the new one.
-      if (data.email && data.email !== userToUpdate.email) {
+      const emailChanged = Boolean(data.email && data.email !== userToUpdate.email);
+      if (emailChanged) {
         await tx.emailVerificationToken.updateMany({
+          data: { usedAt: new Date() },
+          where: { usedAt: null, userId: id }
+        });
+      }
+
+      // A reset or invite link already sent (perhaps to a mistyped address)
+      // must not take the account after the admin fixes the email or sets a
+      // password (review A1).
+      if (emailChanged || passwordHash) {
+        await tx.passwordResetToken.updateMany({
           data: { usedAt: new Date() },
           where: { usedAt: null, userId: id }
         });
@@ -371,10 +382,16 @@ export class UserService {
 
     this.assertCanModifyTarget(authUser, userToArchive);
 
-    const updated = await this.prisma.user.update({
-      where: { id, isDeleted: false, isPlatformSupport: false },
-      data: { status: UserStatus.ARCHIVED },
-      include: userInclude
+    // Revoked with the archive (review A3): otherwise a refresh token from
+    // before it (up to 7 days) works again the moment the account is restored.
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.user.update({
+        where: { id, isDeleted: false, isPlatformSupport: false },
+        data: { status: UserStatus.ARCHIVED },
+        include: userInclude
+      });
+      await this.revokeSessions(tx, id);
+      return row;
     });
 
     return { user: this.toAuthUser(updated) };
@@ -557,13 +574,23 @@ export class UserService {
 
     // Retire the user together with their student/coach profile in one group so
     // a trash restore brings the profile back too (AUDIT M13/M14).
-    await this.prisma.$transaction((tx) =>
-      this.trashRepository.cascadeSoftDelete(tx, "User", id, authUser.id, {
+    // Sessions go with the account (review A3), so a trash restore doesn't
+    // bring an old refresh token back to life.
+    await this.prisma.$transaction(async (tx) => {
+      await this.trashRepository.cascadeSoftDelete(tx, "User", id, authUser.id, {
         metadata: { title: userToDelete.email }
-      })
-    );
+      });
+      await this.revokeSessions(tx, id);
+    });
 
     return { ok: true };
+  }
+
+  private async revokeSessions(tx: PrismaTransactionClient, userId: string) {
+    await tx.authSession.updateMany({
+      data: { revokedAt: new Date() },
+      where: { revokedAt: null, userId }
+    });
   }
 
   private getAuthenticatedUser(accessToken: string | undefined) {
