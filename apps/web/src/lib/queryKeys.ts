@@ -396,6 +396,7 @@ export const queryKeys = {
   progress: {
     mine: ["progress", "me"] as const,
     student: (id: string) => ["progress", "student", id] as const,
+    playingProfile: (id: string) => ["progress", "playing-profile", id] as const,
     summary: (id: string, scope: Record<string, unknown>) => ["progress", "summary", id, scope] as const,
     history: (id: string, query: Record<string, unknown>) => ["progress", "history", id, query] as const,
   },

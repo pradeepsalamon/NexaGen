@@ -1,4 +1,5 @@
 import { StaffStudentProgressClient } from "@/features/progress/components/StaffStudentProgressClient";
+import { StudentPlayingProfileButton } from "@/features/progress/components/StudentPlayingProfileButton";
 import { WhatsAppLinkCodeButton } from "@/features/support/components/WhatsAppLinkCodeButton";
 import { pageTitle } from "@/lib/pageTitles";
 
@@ -10,7 +11,12 @@ export default async function AdminStudentProgressPage(props: { params: Promise<
   const { studentId } = await props.params;
   return (
     <StaffStudentProgressClient
-      actions={<WhatsAppLinkCodeButton studentId={studentId} />}
+      actions={
+        <>
+          <StudentPlayingProfileButton studentId={studentId} />
+          <WhatsAppLinkCodeButton studentId={studentId} />
+        </>
+      }
       backHref="/admin/users"
       backLabel="Users"
       studentId={studentId}

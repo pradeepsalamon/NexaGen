@@ -3,10 +3,16 @@
 import { memo } from "react";
 import { format, parseISO } from "date-fns";
 import { FormField } from "@/components/ui/FormField";
-import { DatePicker } from "@/components/ui/DatePicker";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import type { ProfileFormValues } from "./profileForm.utils";
+
+const STAFF_SET_HINT = "Set by your coach or academy.";
+const LEVEL_LABELS: Record<string, string> = {
+  ADVANCED: "Advanced",
+  BEGINNER: "Beginner",
+  INTERMEDIATE: "Intermediate"
+};
 
 interface StudentProfileFieldsProps {
   values: ProfileFormValues;
@@ -70,25 +76,16 @@ export const StudentProfileFields = memo(function StudentProfileFields({
         </FormField>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <FormField id="profile-date-of-birth" label="Date of Birth">
-          <DatePicker
+        {/* Staff-set (review F1): tournaments use these for entry, age groups and seeding. */}
+        <FormField hint={STAFF_SET_HINT} id="profile-date-of-birth" label="Date of Birth">
+          <Input
             id="profile-date-of-birth"
-            onChange={(date) => {
-              onFieldChange("dateOfBirth", date ? format(date, "yyyy-MM-dd") : "");
-            }}
-            value={values.dateOfBirth ? parseISO(values.dateOfBirth) : undefined}
+            readOnly
+            value={values.dateOfBirth ? format(parseISO(values.dateOfBirth), "d MMM yyyy") : "Not set"}
           />
         </FormField>
-        <FormField id="profile-chess-rating" label="Chess Rating">
-          <Input
-            id="profile-chess-rating"
-            inputMode="numeric"
-            min={0}
-            max={4000}
-            onChange={(event) => onFieldChange("chessRating", event.target.value)}
-            type="number"
-            value={values.chessRating}
-          />
+        <FormField hint={STAFF_SET_HINT} id="profile-chess-rating" label="Chess Rating">
+          <Input id="profile-chess-rating" readOnly value={values.chessRating || "Not set"} />
         </FormField>
         <FormField id="profile-student-fide-id" label="FIDE ID">
           <Input
@@ -113,16 +110,11 @@ export const StudentProfileFields = memo(function StudentProfileFields({
             value={values.referralSource}
           />
         </FormField>
-        <FormField id="profile-experience-level" label="Experience Level">
-          <Select
+        <FormField hint={STAFF_SET_HINT} id="profile-experience-level" label="Experience Level">
+          <Input
             id="profile-experience-level"
-            onChange={(event) => onFieldChange("experienceLevel", event.target.value)}
-            options={[
-              { label: "Beginner", value: "BEGINNER" },
-              { label: "Intermediate", value: "INTERMEDIATE" },
-              { label: "Advanced", value: "ADVANCED" }
-            ]}
-            value={values.experienceLevel}
+            readOnly
+            value={LEVEL_LABELS[values.experienceLevel] ?? "Not set"}
           />
         </FormField>
       </div>

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException
@@ -7,6 +8,7 @@ import { JwtService } from "@nestjs/jwt";
 import {
   INITIAL_PUZZLE_RATING,
   liveStreak,
+  type StudentPlayingProfile,
   type StudentProgressResponse
 } from "@nexa-chess/types";
 import { UserRole } from "@prisma/client";
@@ -19,6 +21,13 @@ type AuthenticatedUser = { id: string; role: UserRole };
 
 const HISTORY_POINTS = 100;
 const RECENT_PUZZLES = 10;
+
+const playingProfileSelect = {
+  chessRating: true,
+  dateOfBirth: true,
+  experienceLevel: true,
+  id: true
+} as const;
 
 @Injectable()
 export class ProgressService {
@@ -119,6 +128,87 @@ export class ProgressService {
         studentId,
         studentName: `${student.firstName} ${student.lastName ?? ""}`.trim()
       }
+    };
+  }
+
+  /** Rating, date of birth and level, as staff see them (review F1). */
+  async getPlayingProfile(accessToken: string | undefined, studentId: string): Promise<StudentPlayingProfile> {
+    const user = await this.getAuthenticatedUser(accessToken);
+    await this.assertStaffForStudent(user, studentId);
+    return this.toPlayingProfile(await this.loadPlayingProfile(studentId));
+  }
+
+  /**
+   * Tournament entry, age groups and seeding read these three, so a student
+   * can't set them on their own profile (review F1): an admin, or a coach of a
+   * batch the student is in, does. Who changed which field, and when, goes in
+   * the audit log; the values don't (a date of birth is a minor's personal data).
+   */
+  async updatePlayingProfile(
+    accessToken: string | undefined,
+    studentId: string,
+    body: StudentPlayingProfile
+  ): Promise<StudentPlayingProfile> {
+    const user = await this.getAuthenticatedUser(accessToken);
+    await this.assertStaffForStudent(user, studentId);
+    const current = await this.loadPlayingProfile(studentId);
+
+    const dateOfBirth = body.dateOfBirth ? new Date(`${body.dateOfBirth}T00:00:00.000Z`) : null;
+    if (dateOfBirth && (Number.isNaN(dateOfBirth.getTime()) || dateOfBirth.getTime() > Date.now())) {
+      throw new BadRequestException("Enter a date of birth in the past.");
+    }
+    const before = this.toPlayingProfile(current);
+    const changed = (["chessRating", "dateOfBirth", "experienceLevel"] as const).filter(
+      (field) => before[field] !== body[field]
+    );
+    if (changed.length === 0) return before;
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.studentProfile.update({
+        data: { chessRating: body.chessRating, dateOfBirth, experienceLevel: body.experienceLevel },
+        select: playingProfileSelect,
+        where: { id: current.id }
+      });
+      await tx.trashAuditLog.create({
+        data: {
+          action: "STUDENT_PLAYING_PROFILE_CHANGE",
+          entity: "StudentProfile",
+          entityId: studentId,
+          metadata: { changed },
+          userId: user.id
+        }
+      });
+      return row;
+    });
+    return this.toPlayingProfile(updated);
+  }
+
+  private async assertStaffForStudent(user: AuthenticatedUser, studentId: string) {
+    if (user.role === UserRole.STUDENT) {
+      throw new ForbiddenException("Your coach or academy sets these details.");
+    }
+    await assertCanViewStudent(this.prisma, user, studentId);
+  }
+
+  private async loadPlayingProfile(studentId: string) {
+    const profile = await this.prisma.studentProfile.findFirst({
+      select: playingProfileSelect,
+      where: { userId: studentId }
+    });
+    if (!profile) throw new NotFoundException("Student not found.");
+    return profile;
+  }
+
+  private toPlayingProfile(row: {
+    chessRating: number | null;
+    dateOfBirth: Date | null;
+    experienceLevel: StudentPlayingProfile["experienceLevel"];
+  }): StudentPlayingProfile {
+    return {
+      chessRating: row.chessRating,
+      // A date only, stored at UTC midnight.
+      dateOfBirth: row.dateOfBirth ? row.dateOfBirth.toISOString().slice(0, 10) : null,
+      experienceLevel: row.experienceLevel
     };
   }
 

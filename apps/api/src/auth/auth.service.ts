@@ -14,7 +14,6 @@ import {
   AcquisitionSource,
   CoachProfile,
   CoachTitle,
-  ExperienceLevel,
   ReferralSource,
   StudentProfile,
   User,
@@ -744,12 +743,10 @@ export class AuthService {
 
       if (user.studentProfile && payload.studentProfile) {
         await transaction.studentProfile.update({
+          // Rating, date of birth and level decide tournament entry, age groups
+          // and seeding, so staff set them (review F1): a student's own save
+          // leaves them as they are (`progress/students/:id/playing-profile`).
           data: {
-            chessRating: payload.studentProfile.chessRating ?? null,
-            dateOfBirth: this.toNullableDate(payload.studentProfile.dateOfBirth),
-            experienceLevel: payload.studentProfile.experienceLevel
-              ? this.toPrismaExperienceLevel(payload.studentProfile.experienceLevel)
-              : user.studentProfile.experienceLevel,
             referralSource: payload.studentProfile.referralSource
               ? this.toPrismaReferralSource(payload.studentProfile.referralSource)
               : user.studentProfile.referralSource,
@@ -1230,22 +1227,6 @@ export class AuthService {
     return trimmed ? trimmed : null;
   }
 
-  private toNullableDate(value: string | undefined) {
-    const trimmed = value?.trim();
-
-    if (!trimmed) {
-      return null;
-    }
-
-    const date = new Date(trimmed);
-
-    if (Number.isNaN(date.getTime())) {
-      throw new BadRequestException("Date of birth is invalid.");
-    }
-
-    return date;
-  }
-
   private toCoachTitle(title: UpdateProfileRequest["coachProfile"] extends infer T
     ? T extends { title?: infer U }
       ? U
@@ -1277,22 +1258,6 @@ export class AuthService {
     };
 
     return sources[source as string] ?? ReferralSource.OTHER;
-  }
-
-  private toPrismaExperienceLevel(
-    level: UpdateProfileRequest["studentProfile"] extends infer T
-      ? T extends { experienceLevel?: infer U }
-        ? NonNullable<U>
-        : never
-      : never
-  ) {
-    const levels: Record<string, ExperienceLevel> = {
-      BEGINNER: ExperienceLevel.BEGINNER,
-      INTERMEDIATE: ExperienceLevel.INTERMEDIATE,
-      ADVANCED: ExperienceLevel.ADVANCED
-    };
-
-    return levels[level as string] ?? ExperienceLevel.BEGINNER;
   }
 
   private toReferralSource(

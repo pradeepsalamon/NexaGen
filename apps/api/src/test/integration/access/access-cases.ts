@@ -63,6 +63,9 @@ export const CROSS_USER: Case[] = [
   { name: "coach reads another coach's puzzle-set results", as: (w) => w.a.coach, path: (w) => API_ROUTES.assignments.deployment(w.b.setDeployment.id) },
   // Coach A reaching coach B
   { name: "coach reads a student outside their batches (progress)", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.student(w.b.student.id) },
+  // Review F1: rating, date of birth and level are staff-set, for their own students only
+  { name: "coach reads the playing details of a student outside their batches", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.playingProfile(w.b.student.id) },
+  { name: "coach sets the rating of a student outside their batches", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.progress.playingProfile(w.b.student.id), body: { chessRating: 900, dateOfBirth: null, experienceLevel: "BEGINNER" } },
   { name: "coach reads a student outside their batches (activity history)", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.history(w.b.student.id) },
   { name: "coach reads a student outside their batches (activity summary)", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.summary(w.b.student.id) },
   { name: "coach reads a student outside their batches (revision)", as: (w) => w.a.coach, path: (w) => API_ROUTES.revision.student(w.b.student.id) },
@@ -249,6 +252,7 @@ export const OWN_CASES: Case[] = [
   { name: "coach reads own batch", as: (w) => w.a.coach, path: (w) => API_ROUTES.batches.get(w.a.batch.id) },
   { name: "coach reads own class details", as: (w) => w.a.coach, path: (w) => API_ROUTES.coach.classDetails(w.a.class.id) },
   { name: "coach reads own student's progress", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.student(w.a.student.id) },
+  { name: "coach reads own student's playing details", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.playingProfile(w.a.student.id) },
   { name: "coach reads own student's activity history", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.history(w.a.student.id) },
   { name: "coach reads own student's activity summary", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.summary(w.a.student.id) },
   { name: "coach reads own student's revision", as: (w) => w.a.coach, path: (w) => API_ROUTES.revision.student(w.a.student.id) },
@@ -363,6 +367,8 @@ export function rushReport(rushId: string) {
 }
 
 export const WRONG_ROLE: Case[] = [
+  // Review F1: a student can't set their own rating, date of birth or level.
+  { name: "student sets their own rating", as: (w) => w.a.student, method: "PATCH", path: (w) => API_ROUTES.progress.playingProfile(w.a.student.id), body: { chessRating: 2400, dateOfBirth: null, experienceLevel: "ADVANCED" } },
   // Closing an academy (docs/ACADEMY_CLOSURE.md): the academy's own super admin, and operators.
   { name: "ADMIN asks to close the academy (super admin only)", as: (w) => w.admin, method: "POST", path: () => API_ROUTES.academyClosure.current, body: { choice: "KEEP_DATA", confirmName: "x", reason: "x" } },
   { name: "coach downloads the academy's data", as: (w) => w.a.coach, path: () => API_ROUTES.academyClosure.export },

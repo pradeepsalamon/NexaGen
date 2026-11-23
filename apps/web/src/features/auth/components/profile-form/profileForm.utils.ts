@@ -98,12 +98,8 @@ export function toProfilePayload(
   };
 
   if (user?.studentProfile) {
+    // Rating, date of birth and level are staff-set (review F1), so not sent.
     payload.studentProfile = {
-      chessRating: optionalNumber(values.chessRating),
-      dateOfBirth: optionalString(values.dateOfBirth),
-      experienceLevel: values.experienceLevel as NonNullable<
-        UpdateProfileRequest["studentProfile"]
-      >["experienceLevel"],
       referralSource: values.referralSource as NonNullable<
         UpdateProfileRequest["studentProfile"]
       >["referralSource"],

@@ -4,6 +4,7 @@ import type {
   StudentActivityHistoryResponse,
   StudentActivityScope,
   StudentActivitySummaryResponse,
+  StudentPlayingProfile,
   StudentProgressResponse
 } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
@@ -14,6 +15,15 @@ export function getMyProgress() {
 
 export function getStudentProgress(studentId: string) {
   return apiFetch<StudentProgressResponse>(API_ROUTES.progress.student(studentId));
+}
+
+/** Rating, date of birth and level: staff only (review F1). */
+export function getPlayingProfile(studentId: string) {
+  return apiFetch<StudentPlayingProfile>(API_ROUTES.progress.playingProfile(studentId));
+}
+
+export function updatePlayingProfile(studentId: string, body: StudentPlayingProfile) {
+  return apiFetch<StudentPlayingProfile>(API_ROUTES.progress.playingProfile(studentId), { body, method: "PATCH" });
 }
 
 /** `undefined` values are dropped, so an unset filter never reaches the API. */

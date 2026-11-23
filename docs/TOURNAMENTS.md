@@ -78,7 +78,10 @@ ever involved. Arena points are plain integers.
   `startsAt`, `registrationOpensAt`, `registrationClosesAt`,
   `lateRegistrationRounds`, `minPlayers`, `maxPlayers`, `eligibilityJson`
   (Zod: age-group set + cutoff date, rating range, experience levels, batch
-  ids), `rulesText`, `prizesText` (no fee columns in v1, decision 5),
+  ids; the student's rating, date of birth and level it reads are staff-set
+  since 2026-11-23, review F1: `PATCH /progress/students/:id/playing-profile`
+  by an admin or the student's coach, read-only on the student's own profile,
+  each change in `trash_audit_logs` as `STUDENT_PLAYING_PROFILE_CHANGE`), `rulesText`, `prizesText` (no fee columns in v1, decision 5),
   `clockInitialMs`, `clockIncrementMs`, `startFen`, `rounds`, `roundBreakSec`,
   `arenaDurationMin`, `arenaConfigJson` (win/draw points, streaks, berserk),
   `knockoutConfigJson` (games per match, tiebreak game, armageddon),

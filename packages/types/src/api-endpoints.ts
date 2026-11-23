@@ -1048,7 +1048,9 @@ export const API_ROUTES = {
     historyMine: "/progress/me/history",
     summaryMine: "/progress/me/summary",
     history: (id: string = ":id") => `/progress/students/${id}/history`,
-    summary: (id: string = ":id") => `/progress/students/${id}/summary`
+    summary: (id: string = ":id") => `/progress/students/${id}/summary`,
+    // Rating, date of birth and level: GET/PATCH, staff only (review F1).
+    playingProfile: (id: string = ":id") => `/progress/students/${id}/playing-profile`
   },
   // Puzzle of the Day (docs/PUZZLE_OF_THE_DAY.md): student today/start; admin
   // (academy or any batch) and coach (own batch) schedule, overrides, switches.
