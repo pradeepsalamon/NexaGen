@@ -118,6 +118,11 @@ can't silently switch off.
   or a completed password reset clears it; by hand:
   `UPDATE users SET "loginLockedUntil" = NULL, "failedLoginAttempts" = 0 WHERE email = '…'`.
   The IP throttle (5/min) alone missed guessing spread across many IPs.
+  `auth/password-lockout.ts` holds the rule. **Password confirmations count too**
+  (a profile change's `currentPassword`, account deletion): a wrong one adds to
+  the same counter and a locked account gets the same 429 (review A7). **An email
+  with no account locks the same way** (in memory, per academy + email, bounded),
+  so a 429 never tells a guesser that an account exists (review A8).
 - Changing the account email (`PATCH /auth/profile`) requires `currentPassword`
   (400 if missing or wrong; the route is throttled 10/min), revokes every other
   session family, and mails a notice to the old address — the email is what

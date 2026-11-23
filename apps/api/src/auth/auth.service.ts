@@ -2,8 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  HttpException,
-  HttpStatus,
   Injectable,
   Logger,
   UnauthorizedException
@@ -71,6 +69,7 @@ import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { bindAuthenticatedUser } from "../tenancy/bind-authenticated-user";
 import { asPlatform } from "../tenancy/tenant-context";
 import { requireTenantId } from "../tenancy/tenant-sql";
+import { assertNotLockedOut, lockedOutError, recordPasswordFailure, UnknownEmailLockout } from "./password-lockout";
 import { isUniqueViolationOn } from "../payments/payments.util";
 
 type SessionContext = {
@@ -92,9 +91,7 @@ type UserWithProfiles = User & {
   studentProfile?: StudentProfile | null;
 };
 
-/** Wrong passwords per account before sign-in locks; per IP limits miss spread-out guessing. */
-export const LOGIN_MAX_FAILED_ATTEMPTS = 10;
-export const LOGIN_LOCKOUT_MS = 15 * 60_000;
+export { LOGIN_LOCKOUT_MS, LOGIN_MAX_FAILED_ATTEMPTS } from "./password-lockout";
 
 const UNVERIFIED_SIGN_IN_MESSAGE = {
   failed: "Verify your email address to sign in. We could not send you a new link, so please contact the academy.",
@@ -120,6 +117,7 @@ const dummyPasswordHash =
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly unknownEmailLockout = new UnknownEmailLockout();
   private readonly env = getApiEnv();
   private readonly accessSecret = this.env.JWT_ACCESS_SECRET;
   private readonly refreshSecret = this.env.JWT_REFRESH_SECRET;
@@ -343,13 +341,16 @@ export class AuthService {
     // never by password (review A2): it answers like an unknown email.
     const user = found?.isPlatformSupport ? null : found;
     // Locked even for the right password, or the guessing would simply go on.
-    if (user?.loginLockedUntil && user.loginLockedUntil.getTime() > Date.now()) {
+    // An unknown email locks the same way, so a 429 doesn't reveal an account (review A8).
+    const unknownKey = `${requireTenantId("user")}:${payload.email.toLowerCase()}`;
+    const lockedUntil = user
+      ? user.loginLockedUntil && user.loginLockedUntil.getTime() > Date.now()
+        ? user.loginLockedUntil
+        : null
+      : this.unknownEmailLockout.lockedUntil(unknownKey);
+    if (lockedUntil) {
       await this.waitForLoginResponseDelay(startedAt);
-      const minutes = Math.ceil((user.loginLockedUntil.getTime() - Date.now()) / 60_000);
-      throw new HttpException(
-        `Too many failed sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}, or reset your password.`,
-        HttpStatus.TOO_MANY_REQUESTS
-      );
+      throw lockedOutError(lockedUntil);
     }
 
     const passwordMatches = await verifySecret(
@@ -358,7 +359,8 @@ export class AuthService {
     );
 
     if (!user || !passwordMatches) {
-      if (user) await this.recordLoginFailure(user.id);
+      if (user) await recordPasswordFailure(this.prisma, user.id);
+      else this.unknownEmailLockout.recordFailure(unknownKey);
       await this.waitForLoginResponseDelay(startedAt);
       throw new UnauthorizedException("Invalid email or password.");
     }
@@ -728,7 +730,10 @@ export class AuthService {
               : "Enter your current password to change the parent contact."
         );
       }
+      // Wrong confirmations count toward the sign-in lockout (review A7).
+      assertNotLockedOut(user);
       if (!(await verifySecret(payload.currentPassword, user.password))) {
+        await recordPasswordFailure(this.prisma, user.id);
         throw new BadRequestException("Current password is incorrect.");
       }
     }
@@ -866,22 +871,6 @@ export class AuthService {
 
     // Shown in the role this session acts in, not the stored one.
     return { user: this.toAuthUser(applyActiveRole(updatedUser, user.role)) };
-  }
-
-  /** Counts a wrong password against the account; the Nth one locks sign-in. */
-  private async recordLoginFailure(userId: string) {
-    const { failedLoginAttempts } = await this.prisma.user.update({
-      data: { failedLoginAttempts: { increment: 1 } },
-      select: { failedLoginAttempts: true },
-      where: { id: userId }
-    });
-    if (failedLoginAttempts < LOGIN_MAX_FAILED_ATTEMPTS) return;
-
-    await this.prisma.user.update({
-      data: { failedLoginAttempts: 0, loginLockedUntil: new Date(Date.now() + LOGIN_LOCKOUT_MS) },
-      where: { id: userId }
-    });
-    this.logger.warn(`Sign-in locked for user ${userId} after ${failedLoginAttempts} failed attempts.`);
   }
 
   /** Signs every other device out, keeping the session the request came from. */

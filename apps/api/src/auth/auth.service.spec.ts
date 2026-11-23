@@ -485,6 +485,19 @@ describe("AuthService", () => {
         expect(prismaService.authSession.create).not.toHaveBeenCalled();
       });
 
+      // Review A8: an unknown email locks the same way, so a 429 doesn't reveal an account.
+      it("locks an unknown email after the same number of tries, with the same answer", async () => {
+        const lockout = (service as unknown as { unknownEmailLockout: { recordFailure: (key: string) => void } }).unknownEmailLockout;
+        for (let i = 0; i < LOGIN_MAX_FAILED_ATTEMPTS; i += 1) lockout.recordFailure("tenant_nexa:nobody@example.com");
+        prismaService.user.findUnique.mockResolvedValueOnce(null);
+
+        const error = (await service
+          .login({ email: "Nobody@example.com", password }, {})
+          .catch((caught: unknown) => caught)) as HttpException;
+
+        expect(error.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+      });
+
       it("clears the count once the right password is given", async () => {
         prismaService.user.findUnique.mockResolvedValueOnce({
           ...activeUser,
@@ -856,7 +869,8 @@ describe("AuthService", () => {
       expect(prismaService.user.update).not.toHaveBeenCalled();
     });
 
-    it("refuses an email change with the wrong password", async () => {
+    it("refuses an email change with the wrong password, and counts it toward the lockout", async () => {
+      prismaService.user.update.mockResolvedValueOnce({ failedLoginAttempts: 1 });
       await expect(
         service.updateProfile("access-token", {
           ...profile,
@@ -864,7 +878,25 @@ describe("AuthService", () => {
           email: "new@example.com"
         })
       ).rejects.toThrow("Current password is incorrect.");
-      expect(prismaService.user.update).not.toHaveBeenCalled();
+      // Review A7: only the failure counter moved; nothing on the profile changed.
+      expect(prismaService.user.update).toHaveBeenCalledTimes(1);
+      expect(prismaService.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { failedLoginAttempts: { increment: 1 } } })
+      );
+    });
+
+    it("refuses a password confirmation while sign-in is locked", async () => {
+      prismaService.user.findUnique
+        .mockReset()
+        .mockResolvedValueOnce({
+          ...activeUser,
+          loginLockedUntil: new Date(Date.now() + 60_000),
+          password: await hashSecret("password123")
+        })
+        .mockResolvedValue(null);
+      await expect(
+        service.updateProfile("access-token", { ...profile, currentPassword: "password123", email: "new@example.com" })
+      ).rejects.toMatchObject({ status: 429 });
     });
 
     it("changes the email, signs other devices out and tells the old address", async () => {
@@ -953,6 +985,7 @@ describe("AuthService", () => {
       });
 
       it("refuses a phone-only change with the wrong password", async () => {
+        prismaService.user.update.mockResolvedValueOnce({ failedLoginAttempts: 1 });
         await expect(
           service.updateProfile("access-token", {
             ...profile,
@@ -960,7 +993,7 @@ describe("AuthService", () => {
             studentProfile: { ...keepRest, parentEmail: "mum@example.com", parentPhone: "999" }
           })
         ).rejects.toThrow("Current password is incorrect.");
-        expect(prismaService.user.update).not.toHaveBeenCalled();
+        expect(prismaService.user.update).toHaveBeenCalledTimes(1);
       });
 
       it("saves with the password, tells the previous contact and audits it", async () => {

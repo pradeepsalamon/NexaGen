@@ -19,6 +19,7 @@ import type {
 import { AccountDeletionStatus, Prisma, UserRole, type AccountDeletionRequest, type User } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
 import { verifySecret } from "../auth/auth.utils";
+import { assertNotLockedOut, recordPasswordFailure } from "../auth/password-lockout";
 import { SystemNotifier } from "../mail/system-notifier.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { UserService } from "../user/user.service";
@@ -57,8 +58,11 @@ export class AccountDeletionService {
     dto: CreateAccountDeletionRequest
   ): Promise<AccountDeletionRequestResponse> {
     const user = await this.authenticate(accessToken);
-    // 400, not 401, so the web client doesn't refresh-and-retry.
+    // 400, not 401, so the web client doesn't refresh-and-retry. Wrong passwords
+    // count toward the sign-in lockout (review A7).
+    assertNotLockedOut(user);
     if (!(await verifySecret(dto.currentPassword, user.password))) {
+      await recordPasswordFailure(this.prisma, user.id);
       throw new BadRequestException("Password is incorrect.");
     }
 
