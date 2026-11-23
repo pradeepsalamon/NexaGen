@@ -1,4 +1,4 @@
-# Backend code review — 2026-11-23 (Part 1: PR #170 + rule checks; Part 2: high-risk modules)
+# Backend code review — 2026-11-23 (Part 1: PR #170 + rule checks; Part 2: high-risk modules; Part 3: learning, chat, uploads, tournaments)
 
 Scope: `apps/api` and `packages/types` on `dev` at `8c0749d` (after PR #170, "one lead pipeline + ad
 measurement"). Two passes:
@@ -132,10 +132,7 @@ the finding is marked **✓ re-checked**; the others are as the reviewer confirm
 changed. Severity: **critical** = money or security now; **important** = a real bug users can hit;
 **minor** = narrow or low impact.
 
-Modules not covered by either part (not yet reviewed line by line): admin, analytics, assignment,
-attendance (outside the LiveKit webhook), batch, chat, course, game-*, knowledge, messaging,
-notification, puzzle*, student, support (outside lead capture), tournament, upload, whatsapp and
-the rest.
+Modules not covered by Parts 1–2 are listed at the start of Part 3, with what Part 3 covered.
 
 ## Payments (`payments/`)
 
@@ -218,3 +215,47 @@ Points and money can't be double-credited, and the approval engine's claims are 
 4. **A1–A4**: account takeover paths and unreachable accounts.
 5. **L1, L2, L4, L5**: admin locks that the live class ignores, for minors.
 6. **R1–R3**: payroll correctness.
+
+---
+
+# Part 3 — learning, chat, uploads, tournament games
+
+Read in full on `dev` at `80640fe`, by one reviewer in this session. Every finding was checked
+against the code. Nothing was changed.
+
+**Read in full:** `assignment/` (service, attempts, evaluation), `puzzle/puzzle-attempt.service.ts`
+(save, submit), `course/` (student progress), `chat/`, `upload/`, `tournament/tournament-game.service.ts`,
+`game-library/game-library.service.ts` (visibility), `stockfish/stockfish.controller.ts`, the
+WhatsApp webhook entry (`support/whatsapp-webhook.*`), and `attendance/` corrections and the report
+access checks.
+
+**Checked and sound:** chat access (rebuilt from live rosters on every request; no student ↔
+student DMs; history starts at enrolment), game-library visibility, attendance report and
+correction permissions, puzzle attempts (wrong moves are counted on the server, submits are claimed),
+tournament moves (the engine checks every move, claimed on `ply`, one lock order), and the WhatsApp
+webhooks (signature checked before anything is stored; events filtered to the academy's own number).
+
+**Still not reviewed line by line:** admin, analytics, batch, batch-schedule, demo-class, feedback,
+knowledge, messaging, notification, progress, puzzle (outside attempts), puzzle-activity,
+puzzle-rush, revision, student, student-match, simul, the rest of support and tournament
+(registration, engine, runner, certificates), whatsapp.
+
+| # | Severity | Where | Problem | Fix |
+|---|---|---|---|---|
+| S1 | **important** | `assignment/assignment.service.ts:999` (`toStudentItem`), `:714-726`, `course/course-progress.service.ts:200` (`toModuleSummary`) | A SOLVE_LINE assignment's `pgn` is built by `buildLinePgn(startFen, solution)`, so it contains **the whole solution line**. `toStudentItem` hides `solutionMoves` until the student completes it, but returns `pgn` and `pgnUrl` (a public Cloudinary file of the same PGN) in every student list and detail response. A course module returns the same `pgn`. Any student can read the answer before the first attempt. | For SOLVE_LINE, send students `positionPgn(startFen)` (and `pgnUrl: null`) until `revealSolution`. Do the same in the course module summary. Add a spec that a student's response never contains a solution move before completion. |
+| S2 | **important** | `assignment/assignment-evaluation.service.ts:389-418` (`evaluateEngineGame`), called from `assignment-attempt.service.ts:185` (`submit`) | PLAY_VS_ENGINE is scored from the move list the client submits. The engine's moves in it are never checked against what the engine played, so a student can submit a line where "the engine" walks into mate and get WIN, 100%, passed. | Store the game on the server, as Playout does (`puzzle-activity/playout-game.service.ts`): the engine's reply is computed and saved by the server, and the student sends one move at a time, claimed on ply. |
+| S3 | **important** | `assignment/assignment-attempt.service.ts:338-354` (`engineMove`) → `assignment-evaluation.service.ts:483` | `engineMove` takes **any FEN from the client** and returns Stockfish's best move at the assignment's level (coaches can set up to 20, full strength). The analysis endpoint refuses students (`stockfish.controller.ts` `ANALYSIS_ROLES`), but any student with an open PLAY_VS_ENGINE attempt has a best-move oracle for any position, including their own live tournament game. | Fixed by S2: the server plays the reply from its own stored position and never accepts a FEN. Until then, refuse a FEN that isn't the attempt's saved line replayed. |
+| S4 | important | `assignment/assignment-attempt.service.ts:146-183` (`saveProgress`), `:185` (`submit`) | SOLVE_LINE: `saveProgress` says whether any line is correct, as often as the student likes, and nothing counts the wrong tries (puzzle attempts do: `wrongMoves`). The score comes only from the moves sent at submit. A student can try every legal move per ply, then submit the right line for 100% with no hints used. | Count a wrong line as a mistake on the attempt, as `PuzzleAttemptService.saveProgress` does, and score from the saved progress rather than the submitted list. Or move SOLVE_LINE onto `PuzzleAttemptService`. |
+| S5 | important | `upload/upload.controller.ts:63-93` → `upload.service.ts:173` | An admin may delete **any** URL. `publicIdOf` takes the public id from the URL's path, whatever its host or folder, and destroys it in the one Cloudinary account all academies share. So any academy's ADMIN can delete Nexa's or another academy's avatars, logos, tournament banners and activity images by URL. | For everyone, admins too: require `isProfileImageUrl(url)` (it already checks host and the caller's academy folder). Admin bulk cleanup belongs to the trash purge, which deletes from stored rows. |
+| S6 | minor | `course/course-progress.service.ts:157-200` (`completeModule`) | A student can mark any module complete, including a PUZZLE or ASSIGNMENT module never done, so course progress is self-declared. | For PUZZLE / ASSIGNMENT modules, complete only from a solved attempt or a completed assignment (the read path already checks puzzles). |
+| S7 | minor | `tournament/tournament-game.service.ts:141-230` (`list`, `rounds`, `bracket`) | The spectator delay only applies in `toDto`. The summaries give spectators each game's `ply`, `result`, points and `finishedAt` live, so a delayed board can be read ahead of its delay. | Apply the same cutoff to summaries for non-live viewers (hide the result until `finishedAt` is older than the delay; show the delayed ply). |
+| S8 | minor | `assignment/assignment.service.ts:467-486` (`undeploy`) | Withdrawing is a hard delete: every student's copy and attempt cascades away, and the puzzle attempts lose their link. Any co-coach of the batch can do it to a deployment another coach made. The UI warns ("Student progress will be lost") and defers it with undo, so this is by design, but it can't be recovered afterwards. | Consider a soft withdraw (hide the deployment, keep the rows), or allow only the coach who assigned it, or an admin. |
+| S9 | minor | `chat/chat.service.ts:283-291` (`contacts`, admin branch) | `role: { in: [COACH, STUDENT] }` leaves out admins who also teach (`extraRoles`), so they can't be found as chat contacts. CLAUDE.md §3.2 says to use `coachWhere()`. | `OR: [coachWhere(), { role: STUDENT }]`. |
+| S10 | minor | `chat/chat.service.ts:368-370` | A GROUP member who has left all of the coach's batches keeps reading and writing the group. Group chats are not re-checked against rosters the way DMs are. | Re-check that a STUDENT member still shares a batch with the group's owner, or remove them when they leave the last shared batch. |
+
+## Suggested order (Part 3)
+
+1. **S1** (the solution sent with the assignment) and **S3** (an engine for students): both are
+   live now and easy to use.
+2. **S5**: one academy can delete another's images.
+3. **S2, S4**: assignment scores can be forged.
