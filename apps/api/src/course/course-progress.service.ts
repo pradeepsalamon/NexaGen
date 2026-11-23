@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type {
   CompleteCourseModuleResponse,
@@ -169,6 +169,21 @@ export class CourseProgressService {
     const courseModule = await this.prisma.courseModule.findUnique({ where: { id: moduleId } });
     if (!courseModule || courseModule.courseId !== courseId) {
       throw new NotFoundException("Module not found.");
+    }
+    // A puzzle module is complete only once the puzzle is solved (review S6);
+    // getForStudent records that by itself. An assignment module is study
+    // material read in the course (its PGN), so "Mark complete" stays the
+    // student's own call.
+    if (courseModule.contentType === "PUZZLE") {
+      const solved = courseModule.puzzleId
+        ? await this.prisma.puzzleAttempt.findFirst({
+            where: { studentId: user.id, puzzleId: courseModule.puzzleId, status: PuzzleAttemptStatus.SOLVED },
+            select: { id: true }
+          })
+        : null;
+      if (!solved) {
+        throw new BadRequestException("Solve this puzzle to complete the module.");
+      }
     }
 
     const progressPercent = await this.prisma.$transaction(async (tx) => {

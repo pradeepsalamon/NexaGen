@@ -218,6 +218,15 @@ for accuracy — a line found by trying every move is still SOLVED but no longer
 line: further saves are refused and submit scores the stored line, never a
 resubmitted one.
 
+## 3.6k2c Course module completion
+
+`course/course-progress.service.ts` (review S6, 2026-11-23). A **puzzle**
+module is complete only from a SOLVED `PuzzleAttempt` of its puzzle:
+`completeModule` refuses it otherwise, and `getForStudent` records it by
+itself once the puzzle is solved anywhere. An **assignment** module is study
+material read in the course (its PGN, never a SOLVE_LINE answer), so its
+"Mark complete" stays the student's own call.
+
 ## 3.6k3 Assignment due-date reminders
 
 `packages/types/src/assignment-reminders.ts` —

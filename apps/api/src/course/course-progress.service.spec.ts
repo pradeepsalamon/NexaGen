@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
 import { CourseStatus, UserRole, UserStatus } from "@prisma/client";
@@ -18,6 +18,7 @@ function moduleRow(overrides: Partial<any> = {}) {
     title: "Module 1",
     order: 0,
     contentType: "PUZZLE",
+    puzzleId: "puzzle-1",
     assignment: null,
     puzzle: { id: "puzzle-1", title: "Fork practice", puzzleType: "TACTICAL" },
     ...overrides
@@ -49,6 +50,10 @@ describe("CourseProgressService", () => {
         findMany: jest.fn().mockResolvedValue([]),
         upsert: jest.fn().mockResolvedValue(undefined),
         count: jest.fn().mockResolvedValue(1)
+      },
+      puzzleAttempt: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn().mockResolvedValue({ id: "attempt-1" })
       },
       $transaction: jest.fn((arg: unknown) =>
         Array.isArray(arg) ? Promise.all(arg) : (arg as (tx: unknown) => unknown)(prisma)
@@ -129,6 +134,29 @@ describe("CourseProgressService", () => {
     // the unique constraint's `update: {}` is a no-op, count stays at 1/3.
     const res2 = await service.completeModule(TOKEN, "course-1", "module-1");
     expect(res2.progressPercent).toBe(33);
+  });
+
+  it("refuses to complete a puzzle module whose puzzle is not solved (review S6)", async () => {
+    prisma.course.findUnique.mockResolvedValue({ id: "course-1", status: CourseStatus.PUBLISHED });
+    prisma.puzzleAttempt.findFirst.mockResolvedValue(null);
+
+    await expect(service.completeModule(TOKEN, "course-1", "module-1")).rejects.toBeInstanceOf(
+      BadRequestException
+    );
+    expect(prisma.puzzleAttempt.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ puzzleId: "puzzle-1", status: "SOLVED" }) })
+    );
+    expect(prisma.studentModuleProgress.upsert).not.toHaveBeenCalled();
+  });
+
+  it("lets the student mark an assignment (study) module complete", async () => {
+    prisma.course.findUnique.mockResolvedValue({ id: "course-1", status: CourseStatus.PUBLISHED });
+    prisma.courseModule.findUnique.mockResolvedValue(
+      moduleRow({ contentType: "ASSIGNMENT", puzzleId: null, puzzle: null, assignmentId: "a-1" })
+    );
+    prisma.puzzleAttempt.findFirst.mockResolvedValue(null);
+
+    await expect(service.completeModule(TOKEN, "course-1", "module-1")).resolves.toMatchObject({ completed: true });
   });
 
   it("mark-complete on a DRAFT course's module throws NotFoundException", async () => {
