@@ -356,6 +356,15 @@ Rules that shape the implementation:
 - **A code is consumed when money arrives, not when a checkout opens.** An
   abandoned cart never burns a limited code, and a replayed webhook never
   consumes a second use (the redemption is unique per order).
+- **A code on an unfinished checkout of yours counts as used, for you.** While
+  one of your open orders (inside its window, or with a payment still being
+  confirmed) carries a limited code, the same code is refused on a new
+  checkout with `IN_USE`, against both your per-account limit and the total
+  limit. The checkout re-checks this under the discount's row lock while it
+  writes the order, so two tabs can't both take the last use (review P8).
+  Other people's abandoned carts still hold nothing; if two people's
+  checkouts take the last use, both captures stand and the over-limit count is
+  logged.
 - A code can never make an order negative — one worth more than the order makes
   it free.
 - The receipt shows the discount as its own negative line, naming the code, so

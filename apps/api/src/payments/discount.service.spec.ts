@@ -114,7 +114,8 @@ describe("DiscountService.resolve", () => {
 
   const build = async (
     discount: Record<string, unknown> | null,
-    redemptionsByUser = 0
+    redemptionsByUser = 0,
+    openOrdersByUser = 0
   ) => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -125,7 +126,8 @@ describe("DiscountService.resolve", () => {
             discount: { findUnique: jest.fn().mockResolvedValue(discount) },
             discountRedemption: {
               count: jest.fn().mockResolvedValue(redemptionsByUser)
-            }
+            },
+            order: { count: jest.fn().mockResolvedValue(openOrdersByUser) }
           }
         }
       ]
@@ -148,6 +150,36 @@ describe("DiscountService.resolve", () => {
 
     expect(result.valid).toBe(true);
     if (result.valid) expect(result.amount).toBe(24975);
+  });
+
+  // Review P8: one limited code can't sit on several open orders of one account.
+  it("refuses a code already on another open checkout of the same account", async () => {
+    const service = await build(baseDiscount, 0, 1);
+    expect(await resolve(service)).toMatchObject({ reason: "IN_USE", valid: false });
+  });
+
+  it("counts open checkouts against the code's total limit too", async () => {
+    const service = await build({ ...baseDiscount, maxPerUser: 5, maxRedemptions: 3, redemptionCount: 2 }, 0, 1);
+    expect(await resolve(service)).toMatchObject({ reason: "IN_USE" });
+  });
+
+  it("allows another open checkout when the per-user limit leaves room", async () => {
+    const service = await build({ ...baseDiscount, maxPerUser: 3 }, 1, 1);
+    expect((await resolve(service)).valid).toBe(true);
+  });
+
+  it("re-checks under the discount's row lock while checkout writes the order", async () => {
+    const service = await build(baseDiscount);
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      discount: { findUnique: jest.fn().mockResolvedValue(baseDiscount) },
+      discountRedemption: { count: jest.fn().mockResolvedValue(0) },
+      order: { count: jest.fn().mockResolvedValue(1) }
+    };
+    await expect(service.recheckForCheckout(tx as never, "disc_1", "usr_1")).resolves.toBe("IN_USE");
+    expect(tx.$queryRaw).toHaveBeenCalled();
+    tx.order.count.mockResolvedValue(0);
+    await expect(service.recheckForCheckout(tx as never, "disc_1", "usr_1")).resolves.toBeNull();
   });
 
   it("matches the code case-insensitively", async () => {

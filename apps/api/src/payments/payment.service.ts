@@ -41,7 +41,7 @@ import {
   type User
 } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { AcademyLinksService } from "../tenancy/academy-links.service";
 import { BillingProfileService } from "./billing-profile.service";
 import { CreditNoteService } from "./credit-note.service";
@@ -348,8 +348,9 @@ export class PaymentService {
     // Tax is charged on the discounted subtotal.
     const pricing = priceOrder(plan.amount - discountAmount, plan.taxPercent);
 
-    const order = await this.prisma.order
-      .create({
+    // A limited code is re-checked under its row lock while the order that
+    // carries it is written (review P8).
+    const writeOrder = (client: PrismaTransactionClient | PrismaService) => client.order.create({
         data: {
           orderNumber: generateOrderNumber(this.env.PAYMENTS_INVOICE_PREFIX),
           userId: user.id,
@@ -370,8 +371,16 @@ export class PaymentService {
           // taxPercent is frozen here so a later plan edit cannot change the invoice.
           notes: { planCode: plan.code, method: dto.method ?? null, taxPercent: plan.taxPercent }
         }
-      })
-      .catch((error: unknown) => {
+      });
+
+    const order = await (applied
+      ? this.prisma.$transaction(async (tx) => {
+          const rejection = await this.discounts.recheckForCheckout(tx, applied.id, user.id);
+          if (rejection) throw new ConflictException(this.discounts.rejectionMessage(rejection));
+          return writeOrder(tx);
+        })
+      : writeOrder(this.prisma)
+    ).catch((error: unknown) => {
         // Lost the race against a concurrent identical submit; the winner's
         // order is the one we want, so fall through to the replay path.
         if (isUniqueViolationOn(error, "idempotencyKey")) return null;

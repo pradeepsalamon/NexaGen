@@ -17,7 +17,7 @@ import {
   type PaymentMethodKind,
   type UpdateDiscountRequest
 } from "@nexa-chess/types";
-import { Prisma, type Discount, type User } from "@prisma/client";
+import { OrderStatus, PaymentStatus, Prisma, type Discount, type User } from "@prisma/client";
 import {
   PrismaService,
   type PrismaTransactionClient
@@ -30,6 +30,23 @@ const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 function randomCodeSuffix(length: number): string {
   const bytes = randomBytes(length);
   return Array.from(bytes, (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join("");
+}
+
+/**
+ * An unfinished order of `userId` carrying the code: still open, and either
+ * inside its window or with a payment the gateway may still capture.
+ */
+export function openOrderHoldingWhere(discountId: string, userId: string): Prisma.OrderWhereInput {
+  return {
+    discountId,
+    userId,
+    status: { in: [OrderStatus.CREATED, OrderStatus.PENDING] },
+    OR: [
+      { expiresAt: null },
+      { expiresAt: { gt: new Date() } },
+      { payments: { some: { status: { in: [PaymentStatus.AUTHORIZED, PaymentStatus.PROCESSING] } } } }
+    ]
+  };
 }
 
 /** A code either applies, with a computed amount, or it does not, with a reason. */
@@ -91,21 +108,8 @@ export class DiscountService {
       return this.reject("EXPIRED");
     }
 
-    if (
-      discount.maxRedemptions !== null &&
-      discount.redemptionCount >= discount.maxRedemptions
-    ) {
-      return this.reject("USAGE_LIMIT_REACHED");
-    }
-
-    // Per-user limit counts settled redemptions only, so an abandoned attempt
-    // never locks someone out of a code they have not actually used.
-    const usedByUser = await this.prisma.discountRedemption.count({
-      where: { discountId: discount.id, userId: input.userId }
-    });
-    if (usedByUser >= discount.maxPerUser) {
-      return this.reject("ALREADY_USED");
-    }
+    const limit = await this.limitRejection(this.prisma, discount, input.userId);
+    if (limit) return this.reject(limit);
 
     if (
       discount.planIds.length > 0 &&
@@ -159,6 +163,56 @@ export class DiscountService {
   }
 
   /**
+   * Re-checks the limits of an applied code while the checkout writes its
+   * order: locks the discount row, so two checkouts of the same account (two
+   * tabs, two keys) can't both pass on the last use (review P8). Returns the
+   * reason the code no longer applies, or null.
+   */
+  async recheckForCheckout(
+    tx: PrismaTransactionClient,
+    discountId: string,
+    userId: string
+  ): Promise<DiscountRejection | null> {
+    await tx.$queryRaw`SELECT id FROM "discounts" WHERE id = ${discountId} FOR UPDATE`;
+    const discount = await tx.discount.findUnique({ where: { id: discountId } });
+    if (!discount || !discount.isActive) return "INACTIVE";
+    return this.limitRejection(tx, discount, userId);
+  }
+
+  /** Message shown for a rejection. */
+  rejectionMessage(reason: DiscountRejection): string {
+    return DISCOUNT_REJECTION_MESSAGES[reason];
+  }
+
+  /**
+   * The usage limits. Settled redemptions count, and so do this account's
+   * own open orders carrying the code (review P8): a limited code is held by
+   * an unfinished checkout until it closes, so one code can't sit on several
+   * open orders and be captured on each. Other people's abandoned carts never
+   * hold a code (see the class comment).
+   */
+  private async limitRejection(
+    client: PrismaTransactionClient | PrismaService,
+    discount: Discount,
+    userId: string
+  ): Promise<DiscountRejection | null> {
+    if (discount.maxRedemptions !== null && discount.redemptionCount >= discount.maxRedemptions) {
+      return "USAGE_LIMIT_REACHED";
+    }
+    const [usedByUser, heldByUser] = await Promise.all([
+      client.discountRedemption.count({ where: { discountId: discount.id, userId } }),
+      client.order.count({ where: openOrderHoldingWhere(discount.id, userId) })
+    ]);
+    if (usedByUser >= discount.maxPerUser) return "ALREADY_USED";
+    if (heldByUser === 0) return null;
+    if (usedByUser + heldByUser >= discount.maxPerUser) return "IN_USE";
+    if (discount.maxRedemptions !== null && discount.redemptionCount + heldByUser >= discount.maxRedemptions) {
+      return "IN_USE";
+    }
+    return null;
+  }
+
+  /**
    * Records the redemption, inside the capture transaction. Idempotent on the
    * unique `orderId`, so a replayed webhook cannot consume a second use.
    *
@@ -183,10 +237,17 @@ export class DiscountService {
           amount: input.amount
         }
       });
-      await tx.discount.update({
+      const updated = await tx.discount.update({
         where: { id: input.discountId },
         data: { redemptionCount: { increment: 1 } }
       });
+      // Money has moved, so this can't refuse; say so when two people's
+      // checkouts both took the last use (the trade-off in the class comment).
+      if (updated.maxRedemptions !== null && updated.redemptionCount > updated.maxRedemptions) {
+        this.logger.warn(
+          `Discount ${updated.id} is over its limit (${updated.redemptionCount}/${updated.maxRedemptions}) after order ${input.orderId}.`
+        );
+      }
     } catch (error) {
       if (isUniqueViolation(error)) return;
       this.logger.error(
