@@ -86,6 +86,8 @@ describe("PaymentService.applyProviderState", () => {
   let paymentUpdate: jest.Mock;
   let orderUpdate: jest.Mock;
   let verifyPayment: jest.Mock;
+  let getPayment: jest.Mock;
+  let expireMany: jest.Mock;
   let module: TestingModule;
 
   beforeEach(async () => {
@@ -135,10 +137,12 @@ describe("PaymentService.applyProviderState", () => {
     });
     orderUpdate = jest.fn().mockResolvedValue(payment.order);
     verifyPayment = jest.fn();
+    getPayment = jest.fn();
+    expireMany = jest.fn().mockResolvedValue({ count: 0 });
 
     const tx = {
       $queryRaw: jest.fn().mockResolvedValue([]),
-      payment: { findUnique: () => Promise.resolve(payment), update: paymentUpdate },
+      payment: { findUnique: () => Promise.resolve(payment), update: paymentUpdate, updateMany: expireMany },
       paymentAttempt: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       order: { update: orderUpdate }
     };
@@ -169,13 +173,37 @@ describe("PaymentService.applyProviderState", () => {
           provide: MessagingDispatchService,
           useValue: { dispatchInBackground: dispatch }
         },
-        { provide: ProviderRegistry, useValue: { get: () => ({ verifyPayment }) } },
+        {
+          provide: ProviderRegistry,
+          useValue: { get: () => ({ getPayment, isConfigured: () => true, verifyPayment }) }
+        },
         { provide: PaymentRouterService, useValue: {} },
         { provide: SubscriptionService, useValue: {} }
       ]
     }).compile();
 
     service = module.get(PaymentService);
+  });
+
+  // Review P7: a failed attempt then a success on the same gateway order.
+  it("takes the capturing payment id over a failed attempt's", async () => {
+    payment.providerPaymentId = "pay_failed";
+    await service.applyProviderState("pmt_1", details({ providerPaymentId: "pay_ok" }), "webhook");
+    expect(paymentUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ providerPaymentId: "pay_ok" }) })
+    );
+  });
+
+  it("keeps the id of a payment that already captured", async () => {
+    payment.providerPaymentId = "pay_ok";
+    payment.status = PaymentStatus.PAID;
+    await service.applyProviderState(
+      "pmt_1",
+      details({ providerPaymentId: "pay_failed", status: PaymentStatus.FAILED }),
+      "webhook"
+    );
+    const writes = paymentUpdate.mock.calls.map(([arg]) => arg.data);
+    expect(writes.some((data) => data.providerPaymentId)).toBe(false);
   });
 
   it("ignores a capture that belongs to a different gateway order", async () => {
@@ -378,6 +406,37 @@ describe("PaymentService.applyProviderState", () => {
     expect(dispatch).toHaveBeenCalledWith({
       event: "PAYMENT_FAILED",
       paymentId: "pmt_1"
+    });
+  });
+
+  // Review P5: a failed lookup must never expire a payment that may have captured.
+  describe("reconcile", () => {
+    beforeEach(() => {
+      payment.createdAt = new Date("2020-01-01T00:00:00Z"); // long stale
+      payment.providerPaymentId = null;
+    });
+
+    it("leaves the payment alone when the gateway lookup fails", async () => {
+      getPayment.mockRejectedValue(new Error("gateway down"));
+      await service.reconcile("pmt_1");
+      expect(getPayment).toHaveBeenCalledWith("order_1", "order_1");
+      expect(expireMany).not.toHaveBeenCalled();
+      expect(payment.status).toBe(PaymentStatus.PENDING);
+    });
+
+    it("applies a capture the gateway reports for the order", async () => {
+      getPayment.mockResolvedValue(details());
+      await service.reconcile("pmt_1");
+      expect(grant).toHaveBeenCalled();
+      expect(expireMany).not.toHaveBeenCalled();
+    });
+
+    it("expires a stale payment only when the gateway says nothing was paid", async () => {
+      getPayment.mockResolvedValue(details({ amount: null, providerPaymentId: null, status: PaymentStatus.PENDING }));
+      await service.reconcile("pmt_1");
+      expect(expireMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: PaymentStatus.EXPIRED }) })
+      );
     });
   });
 

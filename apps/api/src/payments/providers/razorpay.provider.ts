@@ -172,11 +172,34 @@ export class RazorpayProvider implements PaymentProviderAdapter {
     // the shared signature and is only used by the fallback lookup below.
     _providerOrderId?: string | null
   ): Promise<PaymentDetails> {
+    // Reconcile passes the gateway order when no payment id is known yet
+    // (review P5): `/payments/order_…` always fails, so ask the order instead.
+    if (providerPaymentId.startsWith("order_")) {
+      return (await this.getPaymentByOrder(providerPaymentId)) ?? this.unpaidOrder(providerPaymentId);
+    }
     const response = await this.call("getPayment", {
       path: `/payments/${encodeURIComponent(providerPaymentId)}`,
       method: "GET"
     });
     return this.toDetails(response.body);
+  }
+
+  /** An order nobody has tried to pay yet: still waiting, nothing captured. */
+  private unpaidOrder(providerOrderId: string): PaymentDetails {
+    return {
+      amount: null,
+      amountRefunded: 0,
+      currency: null,
+      failureCode: null,
+      failureMessage: null,
+      method: null,
+      methodDetail: null,
+      paidAt: null,
+      providerOrderId,
+      providerPaymentId: null,
+      raw: { order: providerOrderId, payments: [] },
+      status: "PENDING"
+    };
   }
 
   /** Used when the browser died before Checkout.js handed back a payment id. */

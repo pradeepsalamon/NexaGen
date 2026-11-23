@@ -394,7 +394,8 @@ speaks rupees, converts at its adapter boundary and nowhere else.
 | Out-of-order webhooks | `PAYMENT_STATUS_RANK`: a status may only move forward, so a stale `PENDING` (or a sibling attempt's `FAILED`) cannot un-pay a captured payment |
 | Benefit granted twice | Unique `(orderId, planId)` on `entitlements` |
 | Retry against another gateway | Off by default (`failoverEnabled`). A provider is only excluded after its attempt reached a *settled* failure — never while it is unclear whether money moved |
-| Browser closed mid-payment | The reconciliation cron asks the gateway directly and applies the answer through the same funnel |
+| Browser closed mid-payment | The reconciliation cron asks the gateway directly and applies the answer through the same funnel. With no payment id yet it asks by gateway order (Razorpay `/orders/:id/payments`). A failed lookup never expires the payment; only a stale one the gateway says nobody paid expires (review P5) |
+| Failed attempt, then a success, on one gateway order | The capturing (or authorised) payment id replaces the failed one, so refunds and reconcile use it; a row that already captured keeps its id (review P7) |
 | Wrong amount captured | Parked at `PROCESSING` with `amount_mismatch`; access is withheld for review |
 | Captured in another currency | Parked at `PROCESSING` with `currency_mismatch`; access is withheld for review |
 

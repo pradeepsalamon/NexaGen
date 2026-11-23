@@ -566,11 +566,19 @@ export class PaymentService {
       return;
     }
 
+    let details: PaymentDetails;
     try {
-      const details = await adapter.getPayment(handle, payment.providerOrderId);
-      await this.applyProviderState(payment.id, details, "reconcile");
+      details = await adapter.getPayment(handle, payment.providerOrderId);
     } catch (error) {
+      // Never expire on a failed lookup (review P5): the payment may have been
+      // captured, and an expired one sends the student to pay again. The next
+      // sweep asks again.
       this.logProviderError("reconcile", payment.id, error);
+      return;
+    }
+    await this.applyProviderState(payment.id, details, "reconcile");
+    // The gateway answered, and nothing was paid: an old one can expire.
+    if (details.status === PaymentStatus.CREATED || details.status === PaymentStatus.PENDING) {
       await this.expireIfStale(payment);
     }
   }
@@ -633,10 +641,23 @@ export class PaymentService {
       // Provider handles and method detail are always worth recording, even
       // when the status itself has not moved — they are how support traces a
       // disputed charge.
+      // A failed Razorpay attempt and a later success on the same gateway order
+      // carry different payment ids: the one that captured (or authorised) is
+      // the one refunds and reconcile must use (review P7). A row that already
+      // captured keeps its id; a second capture is a different problem.
+      const capturedAlready =
+        payment.status === PaymentStatus.PAID ||
+        payment.status === PaymentStatus.PARTIALLY_REFUNDED ||
+        payment.status === PaymentStatus.REFUND_PENDING ||
+        payment.status === PaymentStatus.REFUNDED;
+      const takesPaymentId =
+        details.providerPaymentId &&
+        details.providerPaymentId !== payment.providerPaymentId &&
+        (!payment.providerPaymentId ||
+          (!capturedAlready &&
+            (details.status === PaymentStatus.PAID || details.status === PaymentStatus.AUTHORIZED)));
       const handleUpdates: Prisma.PaymentUpdateInput = {
-        ...(details.providerPaymentId && !payment.providerPaymentId
-          ? { providerPaymentId: details.providerPaymentId }
-          : {}),
+        ...(takesPaymentId ? { providerPaymentId: details.providerPaymentId } : {}),
         ...(details.providerOrderId && !payment.providerOrderId
           ? { providerOrderId: details.providerOrderId }
           : {}),
