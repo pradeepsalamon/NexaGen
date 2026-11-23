@@ -222,6 +222,11 @@ for accuracy — a line found by trying every move is still SOLVED but no longer
 line: further saves are refused and submit scores the stored line, never a
 resubmitted one.
 
+**Withdrawing a deployment** (`AssignmentService.undeploy`, review S8) is a
+hard delete of every student's copy and attempt (the UI warns and defers it
+with undo), so only the coach who assigned it may withdraw it; once that coach
+has left the batch (or is unknown), any coach of the batch may.
+
 ## 3.6k2c Course module completion
 
 `course/course-progress.service.ts` (review S6, 2026-11-23). A **puzzle**

@@ -482,6 +482,14 @@ export class AssignmentService {
     if (!row || !row.batch.coaches.some((c) => c.coachId === coach.id)) {
       throw new NotFoundException("Assignment not found.");
     }
+    // Withdrawing deletes every student's copy and attempt, so a co-coach
+    // can't do it to work another coach of the batch assigned (review S8).
+    // Work whose coach has left the batch (or is unknown) any coach may withdraw.
+    const assignerStillCoaches =
+      row.assignedById !== null && row.batch.coaches.some((c) => c.coachId === row.assignedById);
+    if (assignerStillCoaches && row.assignedById !== coach.id) {
+      throw new ForbiddenException("Only the coach who assigned this can withdraw it.");
+    }
 
     await this.prisma.assignmentBatch.delete({ where: { id } });
     return { success: true };

@@ -238,6 +238,35 @@ describe("AssignmentService", () => {
     });
   });
 
+  describe("undeploy (review S8)", () => {
+    const deployment = (assignedById: string | null, coaches: string[]) => ({
+      assignedById,
+      batch: { coaches: coaches.map((coachId) => ({ coachId })) },
+      id: "dep-1"
+    });
+
+    beforeEach(() => {
+      prisma.user.findUnique.mockResolvedValue(asRole(COACH_ID, UserRole.COACH));
+    });
+
+    it("lets the coach who assigned it withdraw it", async () => {
+      prisma.assignmentBatch.findUnique.mockResolvedValue(deployment(COACH_ID, [COACH_ID, "coach-2"]));
+      await expect(service.undeploy(TOKEN, "dep-1")).resolves.toEqual({ success: true });
+      expect(prisma.assignmentBatch.delete).toHaveBeenCalledWith({ where: { id: "dep-1" } });
+    });
+
+    it("refuses a co-coach withdrawing work another coach of the batch assigned", async () => {
+      prisma.assignmentBatch.findUnique.mockResolvedValue(deployment("coach-2", [COACH_ID, "coach-2"]));
+      await expect(service.undeploy(TOKEN, "dep-1")).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.assignmentBatch.delete).not.toHaveBeenCalled();
+    });
+
+    it("lets any coach of the batch withdraw work whose coach has left it", async () => {
+      prisma.assignmentBatch.findUnique.mockResolvedValue(deployment("coach-2", [COACH_ID]));
+      await expect(service.undeploy(TOKEN, "dep-1")).resolves.toEqual({ success: true });
+    });
+  });
+
   describe("a SOLVE_LINE answer (review S1)", () => {
     const START = "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1";
     const LINE_PGN = '[FEN "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1"]\n\n1. Ra8#';
