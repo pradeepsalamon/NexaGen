@@ -1,4 +1,3 @@
-import { BadRequestException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { DEFAULT_INVOICE_SETTINGS } from "@nexa-chess/types";
 import { CreditNoteService } from "./credit-note.service";
@@ -165,30 +164,28 @@ describe("CreditNoteService", () => {
     );
   });
 
-  it("refuses to credit more than the invoice was worth", async () => {
-    await expect(
-      service.issueForRefund(tx as never, { ...fullRefund, amount: 200000 })
-    ).rejects.toBeInstanceOf(BadRequestException);
+  // Review P4: a refund's note runs inside the refund settlement, so it is
+  // capped at what the invoice has left instead of throwing.
+  it("caps a refund's note at the invoice total instead of refusing", async () => {
+    await service.issueForRefund(tx as never, { ...fullRefund, amount: 200000 });
+    expect(created().total).toBe(118000);
+    expect(created().isFullCredit).toBe(true);
   });
 
   it("counts earlier credits so repeated partials cannot over-credit", async () => {
     tx.creditNote.aggregate.mockResolvedValue({ _sum: { total: 100000 } });
 
     // 100000 already credited of 118000 leaves 18000.
-    await expect(
-      service.issueForRefund(tx as never, { ...fullRefund, amount: 20000 })
-    ).rejects.toBeInstanceOf(BadRequestException);
-
-    await service.issueForRefund(tx as never, { ...fullRefund, amount: 18000 });
+    await service.issueForRefund(tx as never, { ...fullRefund, amount: 20000 });
+    expect(created().total).toBe(18000);
     expect(created().isFullCredit).toBe(true);
   });
 
-  it("refuses once the invoice is fully credited", async () => {
+  it("issues no note for a refund once the invoice is fully credited", async () => {
     tx.creditNote.aggregate.mockResolvedValue({ _sum: { total: 118000 } });
 
-    await expect(
-      service.issueForRefund(tx as never, { ...fullRefund, amount: 1 })
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.issueForRefund(tx as never, { ...fullRefund, amount: 1 })).resolves.toBeNull();
+    expect(tx.creditNote.create).not.toHaveBeenCalled();
   });
 
   it("writes an audit entry for the credit note", async () => {

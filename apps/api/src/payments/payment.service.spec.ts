@@ -638,3 +638,25 @@ describe("idempotency-key collisions", () => {
     expect(isUniqueViolation(new Error("boom"))).toBe(false);
   });
 });
+
+// Review P4: checkout charges what the invoice will total, from the same engine.
+describe("PaymentService.priceForUser", () => {
+  it("prices tax with the invoice's engine for this buyer", async () => {
+    const taxFor = jest.fn().mockResolvedValue({ taxTotal: 0, treatment: "EXPORT" });
+    const priced = await PaymentService.prototype.priceForUser.call(
+      { invoices: { taxFor } } as never,
+      "usr_1",
+      99900,
+      18
+    );
+    expect(taxFor).toHaveBeenCalledWith("usr_1", 99900, 18);
+    expect(priced).toEqual({ subtotal: 99900, taxAmount: 0, total: 99900 });
+  });
+
+  it("skips the lookups for a plan without tax", async () => {
+    const taxFor = jest.fn();
+    const priced = await PaymentService.prototype.priceForUser.call({ invoices: { taxFor } } as never, "usr_1", 500, 0);
+    expect(taxFor).not.toHaveBeenCalled();
+    expect(priced.total).toBe(500);
+  });
+});

@@ -57,6 +57,7 @@ import {
   isUniqueViolationOn,
   normalizePhone,
   priceOrder,
+  type PricedOrder,
   toJson,
   toPlanItem
 } from "./payments.util";
@@ -134,7 +135,7 @@ export class PaymentService {
     }
 
     const currency = plan.currency;
-    const pricing = priceOrder(plan.amount, plan.taxPercent);
+    const pricing = await this.priceForUser(user.id, plan.amount, plan.taxPercent);
     const recurring = isRecurringInterval(plan.interval);
     const methods = await this.availableMethodsForPlan(plan, currency);
 
@@ -234,10 +235,7 @@ export class PaymentService {
 
     // Tax is charged on the DISCOUNTED subtotal — taxing a price nobody paid
     // would overcharge.
-    const pricing = priceOrder(
-      plan.amount - resolution.amount,
-      plan.taxPercent
-    );
+    const pricing = await this.priceForUser(user.id, plan.amount - resolution.amount, plan.taxPercent);
 
     return {
       valid: true,
@@ -346,7 +344,7 @@ export class PaymentService {
       : null;
 
     // Tax is charged on the discounted subtotal.
-    const pricing = priceOrder(plan.amount - discountAmount, plan.taxPercent);
+    const pricing = await this.priceForUser(user.id, plan.amount - discountAmount, plan.taxPercent);
 
     // A limited code is re-checked under its row lock while the order that
     // carries it is written (review P8).
@@ -1432,6 +1430,17 @@ export class PaymentService {
     });
     if (!order) throw new NotFoundException("Order not found.");
     return order;
+  }
+
+  /**
+   * What `userId` pays for `amount` before tax: the tax comes from the same
+   * engine, seller and billing profile the invoice uses, so the charge and the
+   * invoice total agree (review P4). A plan without tax skips the lookups.
+   */
+  async priceForUser(userId: string, amount: number, taxPercent: number): Promise<PricedOrder> {
+    if (taxPercent <= 0) return priceOrder(amount, 0);
+    const tax = await this.invoices.taxFor(userId, amount, taxPercent);
+    return { subtotal: amount, taxAmount: tax.taxTotal, total: amount + tax.taxTotal };
   }
 
   private assertPaymentsEnabled(): void {

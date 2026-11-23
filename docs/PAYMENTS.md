@@ -164,7 +164,16 @@ for India.
   matching the issued document. **Never assume CGST+SGST or IGST**: the
   treatment is derived from the seller's and buyer's place of supply, and a sale
   abroad is a zero-rated export whatever the plan's rate says. Tax is charged on
-  the **discounted** subtotal.
+  the **discounted** subtotal. **Checkout prices with the same engine**
+  (`PaymentService.priceForUser` → `InvoiceService.taxFor`: seller settings +
+  the buyer's billing profile), so the amount charged is the invoice total
+  (review P4); never use bare `priceOrder` for a buyer's order.
+- **A refund's credit note is capped, never refused.** It is issued inside the
+  refund settlement, so a refund larger than what the invoice has left (an admin
+  credit note already issued, or billing details changed after checkout) gets a
+  note for the remainder, or none once the invoice is fully credited, with a
+  warning log and `cappedFrom` in the audit entry. An admin credit note still
+  refuses to over-credit (review P4).
 - **PDF generation NEVER touches the payment (§20).** It runs after the capture
   commits, on the BullMQ `invoice` queue. A failure sets `pdfStatus: FAILED` and
   leaves the financial `status: PAID` alone; `sweepFailedGenerations` (10 min,

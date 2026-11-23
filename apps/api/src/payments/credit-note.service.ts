@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   computeCreditBreakdown,
   financialYear,
@@ -47,6 +47,8 @@ const CREDIT_NOTE_INCLUDE = {
  */
 @Injectable()
 export class CreditNoteService {
+  private readonly logger = new Logger(CreditNoteService.name);
+
   constructor(
     private readonly audit: InvoiceAuditService,
     private readonly prisma: PrismaService,
@@ -77,7 +79,12 @@ export class CreditNoteService {
     });
     if (existing) return existing;
 
+    // Capped, never refused (review P4): this runs inside the refund's
+    // settlement, and a throw there leaves the refund PENDING forever. The
+    // invoice can hold less than was refunded (an admin credit note already
+    // issued, or an invoice priced before checkout used the invoice's tax).
     return this.create(tx, {
+      capAtRemainder: true,
       invoiceId: input.invoiceId,
       refundId: input.refundId,
       amount: input.amount,
@@ -94,6 +101,7 @@ export class CreditNoteService {
   ): Promise<CreditNoteItem> {
     const created = await this.prisma.$transaction((tx) =>
       this.create(tx, {
+        capAtRemainder: false,
         invoiceId: input.invoiceId,
         refundId: null,
         amount: input.amount ?? null,
@@ -103,6 +111,7 @@ export class CreditNoteService {
       })
     );
 
+    if (!created) throw new BadRequestException("This invoice has already been credited in full.");
     const row = await this.prisma.creditNote.findUniqueOrThrow({
       where: { id: created.id },
       include: CREDIT_NOTE_INCLUDE
@@ -113,6 +122,8 @@ export class CreditNoteService {
   private async create(
     tx: PrismaTransactionClient,
     input: {
+      /** A refund's note: credit what is left (or nothing) instead of refusing. */
+      capAtRemainder: boolean;
       invoiceId: string;
       refundId: string | null;
       /** Null credits the whole invoice. */
@@ -121,7 +132,7 @@ export class CreditNoteService {
       note: string | null;
       actorId: string | null;
     }
-  ): Promise<CreditNote> {
+  ): Promise<CreditNote | null> {
     const invoice = await tx.invoice.findUnique({
       where: { id: input.invoiceId }
     });
@@ -130,7 +141,7 @@ export class CreditNoteService {
     // Serialize concurrent credits for one invoice, so both cannot read the same prior total.
     await tx.$queryRaw`SELECT id FROM "invoices" WHERE id = ${invoice.id} FOR UPDATE`;
 
-    const requested = input.amount ?? invoice.total;
+    let requested = input.amount ?? invoice.total;
     if (requested <= 0) {
       throw new BadRequestException("A credit note must be for a positive amount.");
     }
@@ -144,6 +155,13 @@ export class CreditNoteService {
     const alreadyCredited = priorCredits._sum.total ?? 0;
     const creditable = invoice.total - alreadyCredited;
 
+    if (input.capAtRemainder && requested > creditable) {
+      this.logger.warn(
+        `Refund ${input.refundId} of ${requested} exceeds the ${Math.max(creditable, 0)} left on invoice ${invoice.id}; crediting what is left.`
+      );
+      if (creditable <= 0) return null;
+      requested = creditable;
+    }
     if (creditable <= 0) {
       throw new BadRequestException(
         "This invoice has already been credited in full."
@@ -242,7 +260,8 @@ export class CreditNoteService {
         amount: breakdown.total,
         currency: invoice.currency,
         reason: input.reason,
-        refundId: input.refundId
+        refundId: input.refundId,
+        ...(input.amount !== null && input.amount > breakdown.total ? { cappedFrom: input.amount } : {})
       }
     });
 
