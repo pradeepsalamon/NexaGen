@@ -12,12 +12,19 @@ import { Input } from "@/components/ui/Input";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { usePreviewDiscount } from "../hooks/usePaymentsApi";
 
+/** An applied code with the server's own figures for the order (FE review P1). */
+export type DiscountQuote = {
+  discount: AppliedDiscount;
+  taxAmount: number;
+  total: number;
+};
+
 type Props = {
   planId: string;
   currency: string;
   method: PaymentMethodKind | null;
   applied: AppliedDiscount | null;
-  onApply: (discount: AppliedDiscount | null) => void;
+  onApply: (quote: DiscountQuote | null) => void;
   disabled?: boolean;
 };
 
@@ -51,7 +58,7 @@ export function DiscountField({
       {
         onSuccess: (result) => {
           if (result.valid) {
-            onApply(result.discount);
+            onApply({ discount: result.discount, taxAmount: result.taxAmount, total: result.total });
             setCode("");
           } else {
             setError(result.message);

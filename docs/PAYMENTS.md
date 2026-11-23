@@ -402,6 +402,14 @@ transaction that marks the payment PAID, and it is unique per `(orderId,
 planId)` — so a replayed webhook, a status-check and a reconciliation sweep all
 converge on one grant and one batch enrolment.
 
+**The checkout screen does no maths** (FE review P1, 2026-11-23): it shows the
+config's `taxAmount` / `total`, the discount preview's own figures once a code
+is applied (`DiscountField` passes the whole quote up), and the charged
+`amount` when checkout resolved the code differently. Tax only ever comes from
+the server's invoice engine. **The gateway sheet always names the academy
+being paid**: `openGateway`'s `merchantName` is required, on the first attempt
+as on a retry (P3).
+
 ### Money
 
 Always **integer minor units** (paise, cents) in `Int` columns — never a float,
