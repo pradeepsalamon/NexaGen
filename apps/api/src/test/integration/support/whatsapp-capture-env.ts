@@ -2,7 +2,8 @@
 // lead capture ON (server fallback, no settings row), before AppModule reads getApiEnv().
 import "../app-env";
 
-export const CAPTURE_APP_SECRET = "integration-capture-app-secret";
+// A fixed test-only value for signing fake webhook calls, not a real secret.
+export const CAPTURE_APP_SECRET = "integration-capture-app-secret"; // nosemgrep: ajinabraham.njsscan.generic.hardcoded_secrets.node_secret
 export const CAPTURE_PHONE_NUMBER_ID = "100000000000077";
 /** The stubbed Graph API: nothing ever reaches Meta (and capture must never call it). */
 export const CAPTURE_GRAPH_BASE = "https://graph.capture.int.test";
