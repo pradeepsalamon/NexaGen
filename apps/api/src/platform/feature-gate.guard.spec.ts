@@ -4,6 +4,11 @@ import type { EntitlementService, TenantEntitlementState } from "./entitlement.s
 import { FeatureGateGuard } from "./feature-gate.guard";
 import { PlanRestrictionException } from "./plan-restriction.exception";
 import { RequireFeature } from "./require-feature.decorator";
+import { verifyAccessToken } from "../auth/authenticate";
+import type { PrismaService } from "../prisma/prisma.service";
+import { getTenantContext, runWithTenantContext } from "../tenancy/tenant-context";
+
+jest.mock("../auth/authenticate", () => ({ verifyAccessToken: jest.fn() }));
 
 @RequireFeature("coachPayroll")
 class PayrollController {
@@ -43,7 +48,7 @@ function context(controller: new () => object, handler: string, method = "GET", 
 describe("FeatureGateGuard", () => {
   const run = (s: TenantEntitlementState, ctx: ExecutionContext) => {
     const entitlements = { getState: jest.fn().mockResolvedValue(s) } as unknown as EntitlementService;
-    return new FeatureGateGuard(entitlements, new Reflector()).canActivate(ctx);
+    return new FeatureGateGuard(entitlements, new Reflector(), {} as PrismaService).canActivate(ctx);
   };
 
   it("refuses a route whose feature the plan lacks with a 402", async () => {
@@ -99,5 +104,64 @@ describe("FeatureGateGuard", () => {
     for (const path of ["/auth/login", "/subscription", "/admin/subscription", "/platform/plans", "/payments/webhooks/stripe", "/health"]) {
       await expect(run(state({ accessMode: "LOCKED" }), context(CoreController, "handle", "POST", path))).resolves.toBe(true);
     }
+  });
+
+  // Review T1: with no academy from the host, a signed-in caller's plan is
+  // their own academy's, never the DEFAULT academy's Enterprise plan.
+  describe("a request whose host names no academy", () => {
+    const verify = verifyAccessToken as jest.Mock;
+    let findUnique: jest.Mock;
+    let entitlements: EntitlementService;
+
+    const cookieContext = (cookies: Record<string, string>) =>
+      ({
+        getClass: () => CoreController,
+        getHandler: () => CoreController.prototype.handle,
+        getType: () => "http",
+        switchToHttp: () => ({ getRequest: () => ({ cookies, method: "POST", path: "/batches" }) })
+      }) as unknown as ExecutionContext;
+
+    const inRequest = <T>(tenantId: string | null, fn: () => Promise<T>) =>
+      runWithTenantContext({ host: null, label: "POST /batches", source: tenantId ? "host" : null, tenantId }, fn);
+
+    beforeEach(() => {
+      verify.mockReset();
+      findUnique = jest.fn().mockResolvedValue({ tenantId: "tenant_rook" });
+      entitlements = {
+        getState: jest.fn(async () => state({ tenant: { id: getTenantContext()?.tenantId ?? "?", name: "x" } }))
+      } as unknown as EntitlementService;
+    });
+
+    const guard = () =>
+      new FeatureGateGuard(entitlements, new Reflector(), { user: { findUnique } } as unknown as PrismaService);
+
+    it("takes the academy from the token's user before reading the plan", async () => {
+      verify.mockResolvedValue({ sub: "user_1", type: "access" });
+      const seen = await inRequest(null, async () => {
+        await guard().canActivate(cookieContext({ nexa_access_token: "t" }));
+        return getTenantContext()?.tenantId;
+      });
+      expect(seen).toBe("tenant_rook");
+      expect(findUnique).toHaveBeenCalledWith({ select: { tenantId: true }, where: { id: "user_1" } });
+    });
+
+    it("keeps an academy the host already named", async () => {
+      const seen = await inRequest("tenant_nexa", async () => {
+        await guard().canActivate(cookieContext({ nexa_access_token: "t" }));
+        return getTenantContext()?.tenantId;
+      });
+      expect(seen).toBe("tenant_nexa");
+      expect(verify).not.toHaveBeenCalled();
+    });
+
+    it("leaves a bad token to the handler's own 401", async () => {
+      verify.mockRejectedValue(new Error("bad"));
+      const seen = await inRequest(null, async () => {
+        await guard().canActivate(cookieContext({ nexa_access_token: "t" }));
+        return getTenantContext()?.tenantId;
+      });
+      expect(seen).toBeNull();
+      expect(findUnique).not.toHaveBeenCalled();
+    });
   });
 });

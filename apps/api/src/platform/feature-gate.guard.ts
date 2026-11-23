@@ -1,6 +1,11 @@
 import { type CanActivate, type ExecutionContext, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { isGraceAllowedPath } from "@nexa-chess/types";
+import { JwtService } from "@nestjs/jwt";
+import { DEFAULT_TENANT_ID, isGraceAllowedPath } from "@nexa-chess/types";
+import { verifyAccessToken } from "../auth/authenticate";
+import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { asPlatform, getTenantContext } from "../tenancy/tenant-context";
 import { EntitlementService } from "./entitlement.service";
 import { PlanRestrictionException } from "./plan-restriction.exception";
 import { REQUIRED_FEATURE_KEY, type RequiredFeature } from "./require-feature.decorator";
@@ -37,16 +42,21 @@ export const isAlwaysOpenPath = (path: string) =>
  */
 @Injectable()
 export class FeatureGateGuard implements CanActivate {
+  // verifyAccessToken passes the secret itself, so no module config is needed.
+  private readonly jwt = new JwtService({});
+
   constructor(
     private readonly entitlements: EntitlementService,
-    private readonly reflector: Reflector
+    private readonly reflector: Reflector,
+    private readonly prisma: PrismaService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     if (context.getType() !== "http") return true;
-    const request = context.switchToHttp().getRequest<{ method: string; path: string }>();
+    const request = context.switchToHttp().getRequest<GateRequest>();
     if (isAlwaysOpenPath(request.path)) return true;
 
+    await this.bindAcademyFromToken(request);
     const state = await this.entitlements.getState();
     if (state.accessMode === "LOCKED") throw PlanRestrictionException.locked();
     // Grace (§G "Lapse policy"): reads work, and so do the writes the lapse
@@ -67,4 +77,31 @@ export class FeatureGateGuard implements CanActivate {
     if (required.allowReads && SAFE_METHODS.has(request.method)) return true;
     throw PlanRestrictionException.featureRequired(required.feature);
   }
+
+  /**
+   * Review T1: this guard runs before any handler's `authenticateUser`. When
+   * the host, Origin and Referer name no academy (a direct API call with a
+   * cookie), the plan would otherwise be the DEFAULT academy's, Nexa's
+   * Enterprise, and every LOCKED, READ_ONLY and feature check would pass for
+   * any academy. A signed-in caller's plan is their own academy's, so the
+   * academy is taken from the token's user here, as `authenticateUser` would
+   * (it then finds the same academy and binds the user). A bad token is left
+   * for the handler's own 401; an anonymous call reaches only public routes.
+   */
+  private async bindAcademyFromToken(request: GateRequest): Promise<void> {
+    const store = getTenantContext();
+    if (!store || store.tenantId) return;
+    const token = request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
+    if (!token) return;
+    const payload = await verifyAccessToken(this.jwt, token).catch(() => null);
+    if (!payload) return;
+    const user = await asPlatform("feature gate: the token names the academy", () =>
+      this.prisma.user.findUnique({ select: { tenantId: true }, where: { id: payload.sub } })
+    );
+    if (!user) return;
+    store.tenantId = user.tenantId ?? DEFAULT_TENANT_ID;
+    store.source = "user";
+  }
 }
+
+type GateRequest = { cookies?: Record<string, string | undefined>; method: string; path: string };

@@ -21,7 +21,7 @@ Not to be confused with `Plan` / `Subscription` / `Entitlement` in
 |---|---|
 | Feature + limit catalogue, default plans, access-mode rule, effective-entitlement resolver, API shapes | `packages/types/src/platform-plans.ts` |
 | Tables | `tenants`, `platform_plans`, `tenant_subscriptions`, `tenant_subscription_events`, `platform_staff` (migration `20261020120000_saas_subscription_plans`) |
-| Enforcement | `apps/api/src/platform/`: `EntitlementService`, `FeatureGateGuard` (global), `@RequireFeature`, `PlanRestrictionException` |
+| Enforcement | `apps/api/src/platform/`: `EntitlementService`, `FeatureGateGuard` (global; when the host names no academy it takes the signed-in caller's academy from the token before reading the plan, never the DEFAULT academy's), `@RequireFeature`, `PlanRestrictionException` |
 | Academy view | `GET /subscription` (any signed-in user), `GET /admin/subscription` (admins) |
 | Platform staff | `GET /platform/plans`, `PATCH /platform/plans/:id`, `GET`/`PUT /platform/tenants/:tenantId/subscription` |
 | Web | `features/subscription/` (`useCurrentEntitlements`, `usePlanFeature`, `FeatureGate`, `RouteFeatureGate`, `SubscriptionClient`), page `/admin/subscription`, `NavItem.feature` in `components/layout/navItems.ts` |
