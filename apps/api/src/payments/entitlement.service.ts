@@ -220,6 +220,23 @@ export class EntitlementService {
     return count;
   }
 
+  /**
+   * Undoes `revokeForOrder` for a refund that then failed (review P9): the
+   * money stayed with the academy, so the access does too. Only rows a refund
+   * request revoked (their reason starts with `reasonPrefix`) come back.
+   */
+  async restoreRevokedForOrder(
+    tx: PrismaTransactionClient,
+    orderId: string,
+    reasonPrefix: string
+  ): Promise<number> {
+    const { count } = await tx.entitlement.updateMany({
+      where: { orderId, revokedReason: { startsWith: reasonPrefix }, status: EntitlementStatus.REVOKED },
+      data: { revokedAt: null, revokedReason: null, status: EntitlementStatus.ACTIVE }
+    });
+    return count;
+  }
+
   /** Whether this user currently holds usable access to a plan. */
   async hasActiveAccess(userId: string, planId: string): Promise<boolean> {
     const now = new Date();

@@ -398,6 +398,7 @@ speaks rupees, converts at its adapter boundary and nowhere else.
 | Failed attempt, then a success, on one gateway order | The capturing (or authorised) payment id replaces the failed one, so refunds and reconcile use it; a row that already captured keeps its id (review P7) |
 | Wrong amount captured | Parked at `PROCESSING` with `amount_mismatch`; access is withheld for review |
 | Captured in another currency | Parked at `PROCESSING` with `currency_mismatch`; access is withheld for review |
+| Refund with "revoke access" fails at the gateway | Access is revoked once the gateway accepts the refund; if it later fails and no refund of that payment succeeded, the access it revoked comes back (`restoreRevokedForOrder`, review P9) |
 
 ### Refunds
 

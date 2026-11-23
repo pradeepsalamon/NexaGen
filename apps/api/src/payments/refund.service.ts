@@ -62,6 +62,9 @@ const REFUND_INCLUDE = {
  * PENDING/PROCESSING; only a provider webhook — or a reconciliation read of the
  * provider's own record — settles it to SUCCEEDED.
  */
+/** How a refund request marks the access it revoked, so a failed refund can restore it. */
+const REFUND_REVOKE_REASON = "Refund requested: ";
+
 @Injectable()
 export class RefundService {
   private readonly logger = new Logger(RefundService.name);
@@ -156,7 +159,7 @@ export class RefundService {
         await this.entitlements.revokeForOrder(
           tx,
           payment.orderId,
-          `Refund requested: ${dto.reason}`.slice(0, 500)
+          `${REFUND_REVOKE_REASON}${dto.reason}`.slice(0, 500)
         );
       });
     };
@@ -467,6 +470,12 @@ export class RefundService {
               : PaymentStatus.PARTIALLY_REFUNDED
       }
     });
+
+    // Access a refund request took away comes back when no money went back
+    // after all (review P9): the refund failed and none succeeded.
+    if (succeeded === 0) {
+      await this.entitlements.restoreRevokedForOrder(tx, payment.orderId, REFUND_REVOKE_REASON);
+    }
   }
 
   private toItem(row: RefundRow): RefundItem {
