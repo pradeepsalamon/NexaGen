@@ -65,10 +65,11 @@ stay as written; the living doc for that area wins where they disagree.
 | [SERVICE_STATUS.md](SERVICE_STATUS.md) | What users see when the app is down, deploying, in maintenance, crashed, outdated or offline (nginx status page, `error.tsx`, offline pill) |
 | [PROD_DOCKER_COMMANDS.md](PROD_DOCKER_COMMANDS.md) | Production container cheat sheet |
 | [DATABASE_RESTORE.md](DATABASE_RESTORE.md) | Restoring a backup (CLI only) |
+| [DEPLOY_ROLLBACK_HARDENING.md](DEPLOY_ROLLBACK_HARDENING.md) | Plan (2026-11-23, not built): pre-migration backups, no migrations on container start, rollback schema checks, monitoring, registry, drills |
 | [NEXA_CLI.md](NEXA_CLI.md) | The `nexa` dev/stage/prod helper |
 | [PERF_CPU.md](PERF_CPU.md) | Measuring CPU contention on the VPS |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Symptom → where to look, per feature |
-| [investigations/](investigations/) | Dated root-cause write-ups (2026-11-05: empty 400s after an engine stream; 2026-11-23: backend code review, Parts 1–3) |
+| [investigations/](investigations/) | Dated root-cause write-ups (2026-11-05: empty 400s after an engine stream; 2026-11-23: backend code review, Parts 1–6) |
 | [BACKLOG.md](BACKLOG.md) | Known gaps and the recurring root causes — read before a new feature |
 
 ## Design records & assessments (point-in-time)

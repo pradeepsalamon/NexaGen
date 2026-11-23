@@ -311,6 +311,10 @@ Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselve
   (`last-good-commit`, `previous-commit`, `last-deploy-services`,
   `history.log`, the lock) lives in the gitignored `.deploy/` in the prod
   checkout.
+- **Known gaps (2026-11-23 audit):** rollback has never run in production,
+  isn't checked against the migrated schema, and the entrypoint re-runs
+  migrations on every start. The fix plan is
+  [DEPLOY_ROLLBACK_HARDENING.md](DEPLOY_ROLLBACK_HARDENING.md).
 - **Concurrency**: the workflow's `production` group runs one at a time (a
   newer pending run replaces an older pending one); on the box the script holds
   a flock on `.deploy/deploy.lock` and skips a commit that is an ancestor of
