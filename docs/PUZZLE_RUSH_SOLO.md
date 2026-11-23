@@ -58,6 +58,14 @@ Rules that must stay true:
   (`updateMany` with `moves` / `puzzleIndex` `lte`, `finishedAt: null`); a
   Racer report after `endsAt` + grace is a 409. A client that stops reporting
   just leaves an unfinished run, which never counts.
+- **Known trade-off (review F3, 2026-11-23): a script can post a perfect run.**
+  The whole run, solutions included, reaches the browser at start, and the
+  server trusts the solved / errors / score it reports within the clamp. So a
+  script can report 0 errors and every puzzle solved at the time limit, and
+  that run feeds the batch leaderboard and Batch Battles. Lichess makes the
+  same trade-off. The fix, if it is ever needed, is to send puzzle *n*'s
+  solution only after puzzle *n−1* is reported solved and check each answer
+  on the server (owner question in BACKLOG.md).
 - **Only finished runs reach the leaderboard.** Each student's best run counts
   (score, then fewer errors, then earliest); ties on score and errors share a
   rank. The raw query carries `tenantFilter("r")` and is listed in
