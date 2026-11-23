@@ -67,6 +67,15 @@ export class UploadController {
       throw new BadRequestException('URL is required');
     }
 
+    // Only a profile upload of the caller's own academy, for everyone, admins
+    // too (review S5). Every academy shares one Cloudinary account and the
+    // delete goes by public id, so without this an academy's admin could
+    // destroy Nexa's or another academy's images by URL. Bulk cleanup of other
+    // images is the trash purge's job, from stored rows.
+    if (!this.uploadService.isProfileImageUrl(url)) {
+      throw new ForbiddenException('You can only delete your own image.');
+    }
+
     // Only the owner of the image, or an admin, may delete it. Without this an
     // authenticated user could delete any other user's avatar by URL.
     const isAdmin =
@@ -84,7 +93,7 @@ export class UploadController {
       const sharedWith = await this.prisma.withDeleted.user.count({
         where: { avatarUrl: url, id: { not: user.id } },
       });
-      if (!this.uploadService.isProfileImageUrl(url) || sharedWith > 0) {
+      if (sharedWith > 0) {
         throw new ForbiddenException('You can only delete your own image.');
       }
     }
