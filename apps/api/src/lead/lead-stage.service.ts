@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { nextLeadStatus, type LeadStageEvent } from "@nexa-chess/types";
+import { MetaCapiService } from "../meta-capi/meta-capi.service";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { FrappeCrmPushService } from "./frappe-crm-push.service";
@@ -41,6 +42,7 @@ export class LeadStageService {
 
   constructor(
     private readonly crmPush: FrappeCrmPushService,
+    private readonly metaCapi: MetaCapiService,
     private readonly prisma: PrismaService,
     private readonly referrals: ReferralTrackerService
   ) {}
@@ -71,7 +73,10 @@ export class LeadStageService {
           }
         });
       }
-      if (moved) await this.crmPush.markStageChanged(tx, leadId);
+      if (moved && target) {
+        await this.crmPush.markStageChanged(tx, leadId);
+        await this.metaCapi.onLeadStatus(tx, leadId, target, now);
+      }
     });
 
     const trigger = REFERRAL_TRIGGERS[event];

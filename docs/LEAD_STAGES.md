@@ -8,6 +8,23 @@ moves, missed-demo job, stage copy to Frappe (off by default). Phase 2 (reminder
 confirm/reschedule buttons, missed-demo message, "waiting for a demo time" alert, Enrolled
 on payment) is planned below and needs the WhatsApp bot to receive the number's messages.
 
+## One pipeline: who writes what (2026-11-22)
+
+NexaGen is the lead's record; Frappe (crm.nexachess.in) is the sales desk. Both show the same
+stage names and, once the return path is on, the same stage for each lead.
+
+| What | Written by | Copied |
+|---|---|---|
+| The lead (parent, phone, email, child, source, campaign) | NexaGen: website demo form, WhatsApp capture, the bot's booking, an admin | NexaGen → Frappe only (`CrmLeadPush`); edits in Frappe stay there |
+| Automatic stages (demo booked / attended / missed, enrolled) | NexaGen (`LeadStageService.apply`) | → Frappe, forward only (`frappeStageMayMove`) |
+| A person's stage change | either side; **the latest wins** | Leads page → Frappe as before; Frappe → NexaGen by the return path |
+| Owner, notes, calls, tasks | Frappe | not copied |
+| Ad click (`LeadAdClick`), registration, payment | NexaGen | ad name in the Frappe note only |
+| Ad conversions (Meta) | NexaGen's outbox (`MetaCapiEvent`) | → Meta ([AD_MEASUREMENT.md](AD_MEASUREMENT.md)); Frappe sends nothing |
+
+Existing Frappe-only leads and old Frappe stage names are left as they are (owner 2026-11-22):
+no import, no clean-up; the return path ignores names it doesn't know.
+
 ## Stages
 
 `LeadStatus` (Prisma) = `leadStatusSchema` (`@nexa-chess/types` `leads.ts`). Frappe names in
@@ -47,11 +64,71 @@ on payment) is planned below and needs the WhatsApp bot to receive the number's 
   change sets the row back to `PENDING`; the sweep reads Frappe's current stage and writes
   the new one only when **`frappeStageMayMove`** allows: forward only; a stage a salesperson
   closed (Enrolled, Lost, Junk, …) or one the list doesn't know stays; Enrolled/Lost always
-  pass from an open stage. Changes made in Frappe never come back (one way).
+  pass from an open stage. A stage a salesperson sets in Frappe comes back through the return
+  path below (off by default).
 - **`FRAPPE_CRM_STAGE_SYNC`** (default `false`): off = the old behaviour (first copy only, in
   `FRAPPE_CRM_LEAD_STATUS`). Before switching it on, every name in `FRAPPE_LEAD_STAGES` must
   exist as a `CRM Lead Status` in Frappe, or Frappe refuses new leads.
 - A NexaGen manual move backwards is not copied (Frappe keeps the further stage).
+
+## The return path (Frappe → NexaGen, built 2026-11-22)
+
+`FrappeCrmStageReturnService` (`lead/frappe-crm-stage-return.service.ts`, every 15 min,
+`JOB_LOCKS.crmStageReturn`, Nexa's academy only). Off unless **`FRAPPE_CRM_STAGE_RETURN=true`**
+*and* `FRAPPE_CRM_STAGE_SYNC=true` (same stage names on both sides) *and* the push is configured.
+
+- Reads Frappe's stage for every copied lead (`CrmLeadPush` with `externalId`, status `SENT` or
+  `FAILED`) touched in the last 180 days, 50 per request (`name in [...]`), 0.5 s apart, at most
+  2,000 per run; the next run carries on after the last one read and wraps round, so every lead
+  is read in turn. A `PENDING` row is skipped: a NexaGen change is on its way and Frappe's older
+  stage must not undo it. Won leads (Converted / Active student) are never read.
+- **`stageFromFrappe`** is the one rule: the Frappe name maps back through
+  `LEAD_STATUS_FROM_FRAPPE` (built from `FRAPPE_LEAD_STAGES`; Enrolled → `CONVERTED`); unknown
+  names (New, New Inquiry, Offer Sent, Junk…) are ignored; it is a person's change only when it
+  differs from the stage NexaGen last copied (`sentStatus`, else the lead's own stage); a won lead
+  never moves (not even to Lost).
+- Applied like a change on the Leads page: status-filtered claim on the lead **and** on the push
+  row (`sentStatus` + not `PENDING`), timeline entry "Changed in Frappe: X → Y", `convertedAt` on
+  Enrolled, referral progress (`ReferralTrackerService.onLeadStatus`). Then `sentStatus` = the new
+  stage, so the push never sends it back (no loop). Either claim lost = nothing changes; the next
+  run looks again.
+- Latest change wins: a stage set on the Leads page is copied to Frappe as before, and a
+  later Frappe change comes back. When the push refused to overwrite a salesperson's further stage
+  (`frappeStageMayMove`), the next return run brings that stage into NexaGen, so both sides agree.
+- Lead details (name, phone, child) still flow one way, NexaGen → Frappe.
+
+## WhatsApp lead capture (built 2026-11-22)
+
+`support/support-lead-capture.service.ts`, run by the WhatsApp webhook for every customer message
+of **Nexa's academy** when capture is on: **Admin → Support → Settings → "Make every new chat a
+lead"** (`SupportSettings.captureLeads`; before the page is first saved, `SUPPORT_CAPTURE_LEADS`).
+Default off. It works with the bot on or off and **sends nothing**: with the bot off, a message is
+stored only for capture (no transcript, no reply, no inbox).
+
+- **Which chats become leads:** a number that is not an account (any user's `phoneNumber`, or a
+  student's `parentPhone`; last ten digits) and has no open lead (created in the last 90 days, not
+  Lost / Converted / Active student). A Lost-only number gets a new lead.
+- **The lead:** source `WhatsApp ad` when the message carried Meta's Click-to-WhatsApp `referral`,
+  else `WhatsApp` (`WHATSAPP_LEAD_SOURCE(S)` in `@nexa-chess/types` `leads.ts`); campaign = the ad's
+  headline (else its id); parent = the WhatsApp profile name; the required child fields get
+  **`LEAD_DETAILS_NOT_GIVEN`** (`studentName ""`, `studentAge 0`, `experienceLevel "not_given"`),
+  shown as "—" on the Leads page and **never sent to Frappe** (`student_name` left out; the note says
+  "Student: not given yet"). The bot's later demo booking fills them in (`upsertFromWhatsApp`).
+  Copied to Frappe like the bot's leads (`CrmLeadPush`, Frappe source `FRAPPE_CRM_LEAD_SOURCE`).
+- **Ad clicks:** `LeadAdClick`, one row per lead, keeping the first click and the latest (ad id,
+  `ctwa_clid`, headline, source URL, when), plus a timeline entry per click. A number with an open
+  lead (a website lead too) gets the click attached, never a second lead. Read by the Conversions
+  API (docs/AD_MEASUREMENT.md). Removed with its lead.
+- **Once per message:** one transaction under a per-number xact lock (`lead-capture:<academy>:<last
+  ten digits>`), so two first messages make one lead; a re-run of the same message changes nothing
+  (event dedupe + `LeadAdClick.latestMessageId`). A capture failure fails the webhook event (retried
+  by the sweep) but never stops the bot's answer.
+- **STOP / START** from a number the bot isn't answering are still recorded on its
+  `WhatsAppContact` (`recordOptCommand`, the bot's own words), so proactive WhatsApp stops; nothing
+  is sent back.
+- The parser reads `messages[].referral`; the WhatsApp Business app's coexistence fields
+  (`smb_message_echoes`, `smb_app_state_sync`, `history`) are skipped.
+- Support Insights' "New leads" still counts demo bookings only (child details given).
 
 ## Registration and enrolment (built 2026-11-21)
 
@@ -130,7 +207,9 @@ Open, in order:
    (including test leads) once billing works: owner to decide whether to keep it.
 5. **Staging can't list WhatsApp templates**: needs `WHATSAPP_ACCESS_TOKEN` +
    `WHATSAPP_BUSINESS_ACCOUNT_ID` in its `apps/api/.env` (no phone number id = read-only).
-6. **Moving the WhatsApp number from Frappe to the NexaGen bot** (owner: later), then switching
-   on `FRAPPE_CRM_STAGE_SYNC` in production at the next dev → main release, after Frappe's
-   stage names exist there (they do on crm.nexachess.in).
+6. **Moving the WhatsApp number from Frappe to NexaGen** (owner: after the release), then
+   switching on, in order: `FRAPPE_CRM_STAGE_SYNC` (production; Frappe's stage names exist on
+   crm.nexachess.in), `FRAPPE_CRM_STAGE_RETURN`, lead capture (bot stays off), the Conversions API
+   with a test event code, the Conversions API live, then the pixel. Owner checklist in
+   [BACKLOG.md](BACKLOG.md) § "Questions for the owner", 2026-11-22 night run.
 

@@ -1,12 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { getApiEnv } from "@nexa-chess/config/api";
-import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
+import { DEFAULT_TENANT_ID, WHATSAPP_AD_LEAD_SOURCE, isWhatsAppLeadSource, leadChildDetailsGiven } from "@nexa-chess/types";
 import type { Lead, LeadStatus } from "@prisma/client";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { currentTenantId, runInTenant } from "../tenancy/tenant-context";
-import { WHATSAPP_LEAD_REUSE_DAYS, WHATSAPP_LEAD_SOURCE } from "./lead-constants";
+import { WHATSAPP_LEAD_REUSE_DAYS } from "./lead-constants";
 
 /** Waits before each retry; after the last one the push is FAILED. */
 export const CRM_PUSH_BACKOFF_MS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 12 * 60 * 60_000];
@@ -94,7 +94,7 @@ type PushLead = Pick<
 >;
 
 function fromWhatsApp(lead: Pick<Lead, "source">): boolean {
-  return lead.source === WHATSAPP_LEAD_SOURCE;
+  return isWhatsAppLeadSource(lead.source);
 }
 
 /** A Frappe answer that retrying can't fix (bad data, missing source/status). */
@@ -128,7 +128,8 @@ export function frappeLeadDocument(lead: PushLead, config: FrappeCrmConfig) {
     mobile_no: frappePhone(lead.phone, config.countryCode),
     source: whatsapp ? config.leadSource : config.websiteLeadSource,
     status: config.stageSync ? FRAPPE_LEAD_STAGES[lead.status] : config.leadStatus,
-    student_name: lead.studentName.trim().slice(0, 140)
+    // A lead captured from a WhatsApp chat has no child details yet: nothing pretends otherwise.
+    ...(leadChildDetailsGiven(lead) ? { student_name: lead.studentName.trim().slice(0, 140) } : {})
   };
 }
 
@@ -140,12 +141,22 @@ export function frappeNoteMarker(leadId: string): string {
 /** The `FCRM Note` on that lead: the child's age and level, and where the booking came from. HTML, escaped. */
 export function frappeLeadNote(lead: PushLead): { content: string; title: string } {
   const whatsapp = fromWhatsApp(lead);
-  const cameFrom = !whatsapp && lead.source ? `Came from: ${lead.source.slice(0, 200)}${lead.campaign ? ` (campaign ${lead.campaign.slice(0, 100)})` : ""}` : null;
+  const details = leadChildDetailsGiven(lead);
+  const cameFrom =
+    lead.source === WHATSAPP_AD_LEAD_SOURCE
+      ? `Came from: a Click-to-WhatsApp ad${lead.campaign ? ` (${lead.campaign.slice(0, 100)})` : ""}`
+      : !whatsapp && lead.source
+        ? `Came from: ${lead.source.slice(0, 200)}${lead.campaign ? ` (campaign ${lead.campaign.slice(0, 100)})` : ""}`
+        : null;
   const lines = [
-    `Student: ${lead.studentName} (age ${lead.studentAge}, ${lead.experienceLevel})`,
+    details ? `Student: ${lead.studentName} (age ${lead.studentAge}, ${lead.experienceLevel})` : "Student: not given yet",
     `Parent: ${lead.parentName}`,
     lead.email ? `Email: ${lead.email}` : null,
-    whatsapp ? "Booked a demo through the WhatsApp assistant." : "Booked a demo through the website form.",
+    whatsapp
+      ? details
+        ? "Booked a demo through the WhatsApp assistant."
+        : "Wrote to the academy on WhatsApp; no demo booked yet."
+      : "Booked a demo through the website form.",
     cameFrom,
     frappeNoteMarker(lead.id)
   ].filter((line): line is string => line !== null);
@@ -347,7 +358,8 @@ export class FrappeCrmPushService {
     if (frappeStageMayMove(current, target)) await this.request(config, "PUT", path, { status: target });
   }
 
-  private async request(config: FrappeCrmConfig, method: "GET" | "POST" | "PUT", path: string, body?: unknown): Promise<unknown> {
+  /** One call to Frappe's REST API; also used by the stage return path. */
+  async request(config: FrappeCrmConfig, method: "GET" | "POST" | "PUT", path: string, body?: unknown): Promise<unknown> {
     const res = await fetch(`${config.url}${path}`, {
       body: body === undefined ? undefined : JSON.stringify(body),
       headers: {

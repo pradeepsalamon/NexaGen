@@ -205,6 +205,33 @@ const apiEnvSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  /**
+   * Read the stage a salesperson set in Frappe back into NexaGen every 15 minutes (docs/LEAD_STAGES.md
+   * "The return path"). Works only with FRAPPE_CRM_STAGE_SYNC on too (same stage names on both sides).
+   */
+  FRAPPE_CRM_STAGE_RETURN: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  // Meta Conversions API (docs/AD_MEASUREMENT.md), Nexa's academy only: lead events go to this
+  // dataset. Off unless both are set. The token belongs to a system user with access to the dataset.
+  META_DATASET_ID: z
+    .string()
+    .regex(/^\d{5,30}$/, "Expected the dataset (pixel) id, digits only.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  META_CAPI_ACCESS_TOKEN: z.string().optional(),
+  /** Set = every event is a test event (Events Manager → Test events), e.g. on staging. */
+  META_CAPI_TEST_EVENT_CODE: z.string().optional(),
+  META_GRAPH_API_VERSION: z.string().default("v21.0"),
+  // Ad spend on the Leads → Funnel report (read-only Marketing API Insights; docs/AD_MEASUREMENT.md).
+  // Both empty = no spend columns. The token needs ads_read on the ad account only.
+  META_ADS_ACCESS_TOKEN: z.string().optional(),
+  META_AD_ACCOUNT_ID: z
+    .string()
+    .regex(/^(act_)?\d{5,30}$/, "Expected the ad account id (digits, with or without act_).")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   // Nexa's WhatsApp Business Account id: reads template status (other academies save theirs under Branding).
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   // Incoming WhatsApp: the support bot (docs/WHATSAPP_SUPPORT.md). The webhook
@@ -225,6 +252,15 @@ const apiEnvSchema = z.object({
   SUPPORT_DEMO_REMINDER_TEMPLATE: z.string().optional(),
   SUPPORT_DEMO_MISSED_TEMPLATE: z.string().optional(),
   SUPPORT_DEMO_TEMPLATE_LANGUAGE: z.string().default("en_US"),
+  /**
+   * Nexa's academy before its support settings page is first saved: every new WhatsApp number
+   * (not an account, no open lead) becomes a lead, bot on or off; nothing is sent
+   * (docs/LEAD_STAGES.md "WhatsApp lead capture").
+   */
+  SUPPORT_CAPTURE_LEADS: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   /** Idle minutes before the bot asks "continue or start again?". */
   SUPPORT_SESSION_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(30),
   /** Comma-separated numbers. Set = the bot answers only these (dev, staff-only rollout). */

@@ -15,6 +15,7 @@ import { SupportConversationService } from "./support-conversation.service";
 import { SupportDemoRemindersService } from "./support-demo-reminders.service";
 import { SupportDemoSlotsService } from "./support-demo-slots.service";
 import { SupportFollowUpService } from "./support-follow-up.service";
+import { SupportLeadCaptureService } from "./support-lead-capture.service";
 import { SupportOutboxService } from "./support-outbox.service";
 import { SupportSavedRepliesService } from "./support-saved-replies.service";
 import { SupportSettingsService } from "./support-settings.service";
@@ -36,6 +37,7 @@ import { WhatsAppWebhookService } from "./whatsapp-webhook.service";
     SupportDemoRemindersService,
     SupportDemoSlotsService,
     SupportFollowUpService,
+    SupportLeadCaptureService,
     SupportOutboxService,
     SupportSavedRepliesService,
     SupportSettingsService,

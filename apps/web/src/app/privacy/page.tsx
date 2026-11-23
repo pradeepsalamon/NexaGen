@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { AdConsentSettingsButton } from "@/features/ad-consent/components/AdConsentSettingsButton";
+import { AdMeasurement } from "@/features/ad-consent/components/AdMeasurement";
 import { AcademyLegalText } from "@/features/legal/components/AcademyLegalText";
 import { LegalPage } from "@/features/legal/components/LegalPage";
 import { LEGAL_DRAFT, PRIVACY_SECTIONS } from "@/features/legal/content";
@@ -20,6 +22,10 @@ export default function PrivacyPage() {
         sections={PRIVACY_SECTIONS}
         title="Privacy policy"
       />
+      <div className="mx-auto flex max-w-3xl justify-end px-4 pb-10 sm:px-6">
+        <AdConsentSettingsButton />
+      </div>
+      <AdMeasurement />
     </AcademyLegalText>
   );
 }

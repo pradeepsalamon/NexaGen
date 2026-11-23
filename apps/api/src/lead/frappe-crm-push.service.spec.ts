@@ -69,6 +69,19 @@ describe("Frappe CRM documents", () => {
     expect(frappeLeadNote(LEAD).content).not.toContain("Came from");
   });
 
+  it("never sends a captured WhatsApp lead's placeholder child details as real", () => {
+    const captured = { ...LEAD, experienceLevel: "not_given", parentName: "Priya", source: "WhatsApp ad", campaign: "Chess for kids", studentAge: 0, studentName: "" };
+    const document = frappeLeadDocument(captured, CONFIG);
+    expect(document).not.toHaveProperty("student_name");
+    expect(document).toMatchObject({ first_name: "Priya", source: "Direct WhatsApp" });
+    const note = frappeLeadNote(captured);
+    expect(note.title).toBe("From NexaGen (WhatsApp)");
+    expect(note.content).toContain("Student: not given yet");
+    expect(note.content).not.toContain("age 0");
+    expect(note.content).toContain("Wrote to the academy on WhatsApp; no demo booked yet.");
+    expect(note.content).toContain("Came from: a Click-to-WhatsApp ad (Chess for kids)");
+  });
+
   it("compares numbers by their last ten digits", () => {
     expect(phoneTail("+91 98765-43210")).toBe("9876543210");
     expect(phoneTail("9876543210")).toBe("9876543210");

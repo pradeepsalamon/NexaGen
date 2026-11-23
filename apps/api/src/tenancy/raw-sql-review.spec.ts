@@ -82,6 +82,7 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "support/support-admin.service.ts": { calls: 4, kind: "infra", why: "advisory lock per WhatsApp contact id (global cuid)" },
   "support/support-conversation.service.ts": { calls: 2, kind: "infra", why: "advisory lock per WhatsApp contact id (global cuid)" },
   "support/support-follow-up.service.ts": { calls: 1, kind: "infra", why: "advisory lock per WhatsApp contact id (global cuid)" },
+  "support/support-lead-capture.service.ts": { calls: 1, kind: "infra", why: "advisory lock per academy + phone tail (lead capture)" },
   "support/support-tickets.service.ts": { calls: 1, kind: "infra", why: "nextval of the ticket reference sequence" },
   "tenancy/integrity/tenant-integrity.service.ts": {
     calls: 4,

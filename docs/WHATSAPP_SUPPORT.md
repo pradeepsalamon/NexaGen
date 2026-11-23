@@ -27,6 +27,7 @@ review in §9.
 | Inbox contract | `packages/types/src/support.ts`, routes `API_ROUTES.whatsappWebhook`, `API_ROUTES.adminSupport.*` |
 | Webhook | `apps/api/src/support/whatsapp-webhook.{controller,service,parse}.ts` |
 | Bot run per message | `support-conversation.service.ts` (one transaction, `pg_advisory_xact_lock` per contact) |
+| Lead capture (bot on or off; 2026-11-22) | `support-lead-capture.service.ts`: every new number becomes a `Lead`, Click-to-WhatsApp `referral` → `LeadAdClick`; switch `SupportSettings.captureLeads` / `SUPPORT_CAPTURE_LEADS` (Nexa only). Rules: docs/LEAD_STAGES.md "WhatsApp lead capture" |
 | Tickets | `support-tickets.service.ts` (references `NXS-<year>-<6 digits>` from `support_ticket_reference_seq`) |
 | Sending | `support-outbox.service.ts` (`WhatsAppService.sendInteractive` / text / template) |
 | Inbox API | `support-admin.{controller,service}.ts` |

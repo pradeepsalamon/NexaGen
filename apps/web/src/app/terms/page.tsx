@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AdMeasurement } from "@/features/ad-consent/components/AdMeasurement";
 import { AcademyLegalText } from "@/features/legal/components/AcademyLegalText";
 import { LegalPage } from "@/features/legal/components/LegalPage";
 import { LEGAL_DRAFT, TERMS_SECTIONS } from "@/features/legal/content";
@@ -20,6 +21,7 @@ export default function TermsPage() {
         sections={TERMS_SECTIONS}
         title="Terms of service"
       />
+      <AdMeasurement />
     </AcademyLegalText>
   );
 }

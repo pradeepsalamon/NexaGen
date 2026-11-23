@@ -565,6 +565,16 @@ const GLOBAL_WORDS: Record<string, GlobalCommand> = {
 /** At the menu, a greeting just shows the menu again (mid-form it is an answer like any other). */
 const GREETINGS: ReadonlySet<string> = new Set(["hello", "hey", "hi", "hii", "namaste", "vanakkam"]);
 
+/**
+ * STOP / START in a message the bot doesn't answer (lead capture with the bot off): the same
+ * words as the bot's own opt-out and opt-in, nothing else.
+ */
+export function supportOptCommand(text: string | null | undefined): "START" | "STOP" | null {
+  if (!text) return null;
+  const command = GLOBAL_WORDS[normalizeSupportText(text)];
+  return command === "STOP" || command === "START" ? command : null;
+}
+
 function globalCommand(input: SupportInput): GlobalCommand | null {
   if (input.kind !== "text") return null;
   return GLOBAL_WORDS[normalizeSupportText(input.text)] ?? null;

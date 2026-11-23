@@ -594,6 +594,8 @@ ALTER TABLE "certificate_templates" ALTER COLUMN "tenantId" SET DEFAULT nexa_ten
 
 -- AlterTable
 ALTER TABLE "crm_lead_pushes" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+ALTER TABLE "meta_capi_events" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+ALTER TABLE "lead_ad_clicks" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
 
 -- AlterTable
 ALTER TABLE "live_class_transcript_segments" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();

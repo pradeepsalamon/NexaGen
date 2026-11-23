@@ -4,6 +4,7 @@ import type {
   CreateLeadNoteRequest,
   LeadDetail,
   LeadDetailResponse,
+  LeadFunnelResponse,
   LeadListItem,
   LeadListResponse,
   LeadMetricsResponse,
@@ -16,6 +17,10 @@ import { toQueryString, type ListParams } from "@/lib/pagination";
 
 export async function getLeads(params: ListParams = {}): Promise<LeadListResponse> {
   return apiFetch<LeadListResponse>(API_ROUTES.adminLeads.list + toQueryString(params));
+}
+
+export async function getLeadFunnel(from: string, to: string): Promise<LeadFunnelResponse> {
+  return apiFetch<LeadFunnelResponse>(`${API_ROUTES.adminLeads.funnel}?${new URLSearchParams({ from, to }).toString()}`);
 }
 
 export async function getLeadDetails(id: string): Promise<LeadDetailResponse> {

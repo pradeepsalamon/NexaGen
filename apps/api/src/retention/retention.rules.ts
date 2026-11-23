@@ -50,6 +50,9 @@ export const RETENTION_RULES: readonly FixedRetentionRuleDef[] = [
   // and tickets, by cascade) goes 12 months after it closed, unless a ticket on
   // it is still unresolved. Open ones stay.
   { column: "receivedAt", days: 30, label: "WhatsApp webhook events", table: "whatsapp_webhook_events" },
+  // Meta Conversions API outbox (docs/AD_MEASUREMENT.md): only useful while Meta may still
+  // attribute the event (7-day click window) and for a while after, to read send errors.
+  { column: "createdAt", days: 180, label: "Meta Conversions API events", table: "meta_capi_events" },
   // Parents' questions the bot couldn't answer (free text, redacted): only the
   // recent ones tell admins which saved answers to write.
   { column: "lastAskedAt", days: 90, label: "WhatsApp questions the bot couldn't answer", table: "support_unanswered_questions" },
