@@ -127,6 +127,9 @@ export class LiveClassChatService {
     }
   }
 
+  /** How many of a class's newest messages the room loads on join. */
+  static readonly CHAT_HISTORY_LIMIT = 500;
+
   async getChatHistory(
     accessToken: string | undefined,
     classId: string
@@ -145,11 +148,14 @@ export class LiveClassChatService {
           { senderId: user.id, recipientId: { not: null } },
         ],
       },
-      orderBy: { createdAt: "asc" },
-      take: 500, // Limit to last 500 messages
+      // The newest CHAT_HISTORY_LIMIT, returned oldest first. One class's chat
+      // is bounded; a room that ran past it shows its latest messages, never
+      // its first ones (review L10).
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: LiveClassChatService.CHAT_HISTORY_LIMIT,
     });
 
-    return rows.map(LiveClassChatService.toChatMessage);
+    return rows.reverse().map(LiveClassChatService.toChatMessage);
   }
 
   private static toChatMessage(row: {

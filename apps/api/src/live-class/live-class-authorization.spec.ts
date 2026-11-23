@@ -166,6 +166,22 @@ describe("LiveClassChatService chat authorization", () => {
       ).resolves.toEqual([]);
     });
 
+    it("loads the newest messages and returns them oldest first (review L10)", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      const row = (id: string, at: string) => ({
+        id, senderId: "coach-1", senderName: "Ada", senderRole: "COACH", recipientId: null,
+        message: id, createdAt: new Date(at)
+      });
+      chatFindMany.mockResolvedValue([row("m3", "2026-11-23T10:03:00Z"), row("m2", "2026-11-23T10:02:00Z")]);
+
+      const messages = await service.getChatHistory(ACCESS_TOKEN, "class-1");
+
+      expect(chatFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 500 })
+      );
+      expect(messages.map((m) => m.id)).toEqual(["m2", "m3"]);
+    });
+
     it("still 404s when there is no live session", async () => {
       authenticateAs("coach-1", UserRole.COACH);
       liveSessionFindUnique.mockResolvedValue(null);
