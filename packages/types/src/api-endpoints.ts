@@ -42,6 +42,13 @@ export const API_ROUTES = {
     /** Public: RFC 8058 one-click POST from the mail app (`List-Unsubscribe-Post`). */
     oneClick: "/email-preferences/one-click"
   },
+  /** Database backups: platform operators only (`isPlatformOperator`). `key` is a query param. */
+  adminBackups: {
+    list: "/admin/backups",
+    trigger: "/admin/backups/trigger",
+    download: "/admin/backups/download",
+    remove: "/admin/backups"
+  },
   adminEmail: {
     optedOut: "/admin/email/opted-out",
     overview: "/admin/email",

@@ -1,6 +1,6 @@
 import { BackupManager } from "../_components/BackupManager";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { SuperAdminOnly } from "@/components/layout/SuperAdminOnly";
+import { PlatformOperatorOnly } from "@/components/layout/PlatformOperatorOnly";
 import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = { title: pageTitle("/admin/backups") };
@@ -12,9 +12,9 @@ export default function AdminBackupsPage() {
         description="Download the automated PostgreSQL backups stored in object storage. Restores are run from the server (see docs/DATABASE_RESTORE.md)."
         title="Database backups"
       />
-      <SuperAdminOnly>
+      <PlatformOperatorOnly>
         <BackupManager />
-      </SuperAdminOnly>
+      </PlatformOperatorOnly>
     </div>
   );
 }

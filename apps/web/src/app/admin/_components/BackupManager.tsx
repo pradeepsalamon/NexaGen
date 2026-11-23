@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { AlertTriangle, CheckCircle2, Download, HardDriveDownload } from "lucide-react";
 import { toast } from "sonner";
+import { API_ROUTES } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
 import { formatDateTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -49,7 +50,7 @@ export function BackupManager() {
   const fetchBackups = async () => {
     setIsLoading(true);
     try {
-      const data = await apiFetch<BackupItem[]>("/admin/backups");
+      const data = await apiFetch<BackupItem[]>(API_ROUTES.adminBackups.list);
       setBackups(data);
     } catch (error) {
       toast.error("Failed to load backups");
@@ -65,7 +66,7 @@ export function BackupManager() {
   const handleCreateBackup = async () => {
     setIsCreating(true);
     try {
-      const data = await apiFetch<{ message: string; key?: string }>("/admin/backups/trigger", {
+      const data = await apiFetch<{ message: string; key?: string }>(API_ROUTES.adminBackups.trigger, {
         method: "POST",
       });
       toast.success(data.message || "Backup created successfully!");
@@ -79,7 +80,7 @@ export function BackupManager() {
 
   const handleDownload = async (key: string) => {
     try {
-      const { url } = await apiFetch<{ url: string }>(`/admin/backups/download?key=${encodeURIComponent(key)}`);
+      const { url } = await apiFetch<{ url: string }>(API_ROUTES.adminBackups.download, { params: { key } });
       // Trigger download
       const a = document.createElement("a");
       a.href = url;

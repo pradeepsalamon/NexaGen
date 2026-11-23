@@ -45,6 +45,9 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/games", roles: null },
   // Help centre: every role; the API decides which articles each one sees.
   { prefix: "/help", roles: null },
+  // The live-class room (demo guests use the public /demo/[classId]); a
+  // referral-only SALES account has no class to join (FE review AU5).
+  { prefix: "/live-class", roles: [...STAFF_ROLES, "COACH", "STUDENT"] },
   { prefix: "/messages", roles: null },
   { prefix: "/plans", roles: null },
   { prefix: "/profile", roles: null },
