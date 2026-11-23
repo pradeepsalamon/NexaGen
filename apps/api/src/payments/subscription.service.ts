@@ -249,7 +249,13 @@ export class SubscriptionService {
       result.eventType.includes("charge.failed") ||
       result.subscriptionStatus === SubscriptionStatus.PAST_DUE;
 
-    const nextStatus = result.subscriptionStatus ?? subscription.status;
+    // A webhook may only move the subscription along (review P3): a status a
+    // provider reports out of order, or one that doesn't describe the
+    // subscription, never sends an ACTIVE one back to CREATED or reopens a
+    // cancelled one.
+    const nextStatus = allowedSubscriptionMove(subscription.status, result.subscriptionStatus)
+      ? (result.subscriptionStatus as SubscriptionStatus)
+      : subscription.status;
 
     await this.prisma.subscription.update({
       where: { id: subscription.id },
@@ -392,4 +398,25 @@ export class SubscriptionService {
       createdAt: row.createdAt.toISOString()
     };
   }
+}
+
+const SUBSCRIPTION_STAGE: Record<SubscriptionStatus, number> = {
+  CREATED: 0,
+  PENDING_ACTIVATION: 1,
+  ACTIVE: 2,
+  PAST_DUE: 2,
+  PAUSED: 2,
+  CANCELLED: 3,
+  EXPIRED: 3
+};
+
+/**
+ * Whether a webhook may move a subscription from `from` to `to`: never out of
+ * CANCELLED/EXPIRED, never back to an earlier stage (CREATED → PENDING_ACTIVATION
+ * → ACTIVE/PAST_DUE/PAUSED → CANCELLED/EXPIRED); moves within a stage are fine.
+ */
+export function allowedSubscriptionMove(from: SubscriptionStatus, to: SubscriptionStatus | null): boolean {
+  if (!to || to === from) return false;
+  if (SUBSCRIPTION_STAGE[from] === 3) return false;
+  return SUBSCRIPTION_STAGE[to] >= SUBSCRIPTION_STAGE[from];
 }

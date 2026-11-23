@@ -3,7 +3,7 @@ import type { ProviderHealthService } from "../provider-health.service";
 import { CashfreeProvider } from "./cashfree.provider";
 import { hmacBase64, hmacHex, safeCompare } from "./provider-http";
 import { RazorpayProvider } from "./razorpay.provider";
-import { verifyStripeSignature } from "./stripe.provider";
+import { StripeProvider, verifyStripeSignature } from "./stripe.provider";
 
 /**
  * Signature verification is the only thing standing between a webhook endpoint
@@ -195,5 +195,31 @@ describe("verifyStripeSignature", () => {
     const valid = sign(now);
     const header = `${valid},v1=${"0".repeat(64)}`;
     expect(verifyStripeSignature(body, header, secret, now)).toBe(true);
+  });
+});
+
+// Review P3: an invoice's status ("paid", "open") isn't the subscription's.
+describe("StripeProvider.handleWebhook subscription status", () => {
+  const parse = (payload: Record<string, unknown>) =>
+    new StripeProvider(health).handleWebhook({ headers: {}, rawBody: JSON.stringify(payload) });
+
+  it("gives invoice events no subscription status", async () => {
+    const result = await parse({
+      data: { object: { object: "invoice", status: "paid", subscription: "sub_1" } },
+      id: "evt_1",
+      type: "invoice.paid"
+    });
+    expect(result.subject).toBe("SUBSCRIPTION");
+    expect(result.providerSubscriptionId).toBe("sub_1");
+    expect(result.subscriptionStatus).toBeNull();
+  });
+
+  it("reads the status of a customer.subscription event", async () => {
+    const result = await parse({
+      data: { object: { id: "sub_1", object: "subscription", status: "past_due" } },
+      id: "evt_2",
+      type: "customer.subscription.updated"
+    });
+    expect(result.subscriptionStatus).toBe("PAST_DUE");
   });
 });
