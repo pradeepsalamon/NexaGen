@@ -331,7 +331,14 @@ class uses. No new infrastructure.
     or after `visibleAt`. **The delay is enforced on the server**: the
     spectator endpoint returns only the moves whose `moveTimesJson` timestamp
     is older than `spectatorDelaySec`. Spectators therefore never receive live
-    moves, even by calling the API directly.
+    moves, even by calling the API directly. The packet itself carries no
+    result: a finished game's `visibleAt` is its `finishedAt` + the delay
+    (review F5). **Summaries keep the delay too** (`toGameSummaryFor`, review
+    S7): in the game list, rounds, bracket and the `live` snapshot a spectator
+    sees a game that is ongoing, or ended within the delay, at its delayed ply
+    with no result, points or finish time (still listed among the ongoing
+    games), and a knockout match decided by such a game stays undecided.
+    Players see their own games live; hosts and broadcasters see everything.
   - `tournament_commentary`: `{ id }`, then the client refetches the feed (cursor-paged).
 - **Fallback**: when LiveKit is not configured or the connection drops,
   the same hooks poll with `refetchInterval` (2 s for the player's own game,

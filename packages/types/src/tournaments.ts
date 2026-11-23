@@ -1038,7 +1038,7 @@ export type TournamentRealtimeMessage =
    */
   | { type: "game"; gameId: string; ply: number; move?: TournamentRealtimeMove }
   /** To everyone: refetch this game at or after `visibleAt` (the delay is applied by the server). */
-  | { type: "spectate"; gameId: string; visibleAt: string; finished: boolean };
+  | { type: "spectate"; gameId: string; visibleAt: string };
 
 export type TournamentRealtimeMove = {
   san: string;
