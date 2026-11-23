@@ -254,7 +254,7 @@ its precondition, the student training surface, now exists).
   - **Defaults I took (each easy to change):**
     1. **Won leads ignore Frappe entirely.** A Converted / Active student lead is never read back, so marking it Lost in Frappe doesn't move it in NexaGen. Option: allow Enrolled → Lost from Frappe.
     2. **Capture is Nexa only**, a switch on the support settings page shown only for the platform number, not a per-academy feature. Option: open it to academies with their own number later.
-    3. **Captured leads' child details aren't re-sent to Frappe** once the bot (or an admin) fills them in: the Frappe lead keeps "Student: not given yet" in its note. Option: send an update of the details (would break "details flow once").
+    3. ~~**Captured leads' child details aren't re-sent to Frappe**~~ **Done 2026-11-23** (backend review Part 1 #1): when the bot's demo booking fills them in, the next push sets the Frappe lead's `student_name` and adds a "Child details (NexaGen)" note (`CrmLeadPush.detailsPending`). Nothing else on the Frappe lead is overwritten.
     4. **Leads and their ad clicks aren't in an account's privacy export** (a lead isn't an account; this was already so). Option: include a parent's leads in their export when the phone matches.
     5. **No pixel on `/plans`**: it needs a sign-in, so there is no ViewContent event. Option: fire ViewContent when the home page's pricing section comes into view.
     6. **Organic WhatsApp chats send no Conversions API event** (only chats with a Click-to-WhatsApp click id). Meta's business_messaging events need the `ctwa_clid`.

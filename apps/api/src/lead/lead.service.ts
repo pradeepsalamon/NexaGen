@@ -175,7 +175,7 @@ export class LeadService {
   async upsertFromWhatsApp(
     tx: PrismaTransactionClient,
     input: SupportDemoRequest & { phone: string; now: Date }
-  ): Promise<{ lead: Lead; created: boolean }> {
+  ): Promise<{ lead: Lead; created: boolean; detailsFilled: boolean }> {
     const description = [
       supportDemoSummary(input),
       "Booked through the WhatsApp assistant."
@@ -212,7 +212,9 @@ export class LeadService {
         },
         where: { id: existing.id }
       });
-      return { created: false, lead };
+      // Frappe got this lead without them; the next push adds them (review Part 1 #1).
+      if (filling) await this.crmPush.markDetailsChanged(tx, existing.id);
+      return { created: false, detailsFilled: filling, lead };
     }
     const lead = await tx.lead.create({
       data: {
@@ -228,7 +230,7 @@ export class LeadService {
         studentName: input.studentName
       }
     });
-    return { created: true, lead };
+    return { created: true, detailsFilled: false, lead };
   }
 
   /** Tells staff about a new lead (NEW_LEAD_ADMIN). Never throws. */

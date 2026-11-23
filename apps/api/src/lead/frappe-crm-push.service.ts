@@ -237,6 +237,19 @@ export class FrappeCrmPushService {
     });
   }
 
+  /**
+   * In the transaction that filled a chat lead's child details (a demo booked later on the same
+   * number): the next send sets `student_name` and adds a note on the Frappe lead (review Part 1 #1).
+   * A lead never copied has no row; one not copied yet goes with its details anyway.
+   */
+  async markDetailsChanged(tx: Pick<PrismaTransactionClient, "crmLeadPush">, leadId: string): Promise<void> {
+    if (!this.config()) return;
+    await tx.crmLeadPush.updateMany({
+      data: { attempts: 0, detailsPending: true, error: null, nextAttemptAt: new Date(), status: "PENDING" },
+      where: { leadId }
+    });
+  }
+
   /** After commit: try it now. Never throws (the sweep retries). */
   async pushLead(leadId: string): Promise<void> {
     try {
@@ -283,6 +296,7 @@ export class FrappeCrmPushService {
 
     try {
       let name = row.externalId;
+      const createdNow = !name;
       if (!name) {
         // Frappe may already have this family: from an ad form, the other channel, a lead the sales
         // team typed in, or an earlier attempt of this push whose answer was lost.
@@ -318,16 +332,33 @@ export class FrappeCrmPushService {
         ]);
         row.sentStatus = existing || !config.stageSync ? null : row.lead.status;
       }
+      // Details that came after the first copy (a lead made from it already has them).
+      const detailsGiven = leadChildDetailsGiven(row.lead);
+      if (row.detailsPending && !createdNow && detailsGiven) {
+        await this.sendDetails(config, name, row.lead);
+      }
       let sentStatus = row.sentStatus;
       if (config.stageSync && sentStatus !== row.lead.status) {
         await this.syncStage(config, name, row.lead.status);
         sentStatus = row.lead.status;
       }
-      // A stage that changed while this ran is sent next time (the row stays PENDING).
-      const latest = await this.prisma.lead.findUnique({ select: { status: true }, where: { id: row.leadId } });
-      const done = !config.stageSync || !latest || latest.status === sentStatus;
+      // A stage that changed while this ran is sent next time (the row stays PENDING), and so are
+      // details that arrived while it ran.
+      const [latest, latestRow] = await Promise.all([
+        this.prisma.lead.findUnique({ select: { status: true }, where: { id: row.leadId } }),
+        this.prisma.crmLeadPush.findUnique({ select: { detailsPending: true }, where: { id } })
+      ]);
+      const detailsLeft = Boolean(latestRow?.detailsPending) && !detailsGiven;
+      const done = (!config.stageSync || !latest || latest.status === sentStatus) && !detailsLeft;
       await this.prisma.crmLeadPush.update({
-        data: { claimedAt: null, error: null, sentAt: new Date(), sentStatus, ...(done ? { status: "SENT" } : {}) },
+        data: {
+          claimedAt: null,
+          error: null,
+          sentAt: new Date(),
+          sentStatus,
+          ...(detailsLeft ? {} : { detailsPending: false }),
+          ...(done ? { status: "SENT" } : {})
+        },
         where: { id }
       });
     } catch (error) {
@@ -398,6 +429,19 @@ export class FrappeCrmPushService {
 
   private async addNote(config: FrappeCrmConfig, name: string, lead: PushLead): Promise<void> {
     await this.request(config, "POST", "/api/resource/FCRM%20Note", { ...frappeLeadNote(lead), reference_docname: name, reference_doctype: "CRM Lead" });
+  }
+
+  /** The child's details on a Frappe lead copied before they were given. */
+  private async sendDetails(config: FrappeCrmConfig, name: string, lead: PushLead): Promise<void> {
+    await this.request(config, "PUT", `/api/resource/CRM%20Lead/${encodeURIComponent(name)}`, {
+      student_name: lead.studentName.trim().slice(0, 140)
+    });
+    await this.request(config, "POST", "/api/resource/FCRM%20Note", {
+      ...frappeLeadNote(lead),
+      reference_docname: name,
+      reference_doctype: "CRM Lead",
+      title: "Child details (NexaGen)"
+    });
   }
 
   private async hasNote(config: FrappeCrmConfig, name: string, lead: PushLead): Promise<boolean> {

@@ -3557,11 +3557,11 @@ model MessagingRule {
   body  String
 
   /// Approved WhatsApp template, for sends that may fall outside the 24h window.
-  whatsappTemplateName     String?
-  whatsappTemplateLanguage String?
-  whatsappTemplateParams   String[]
+  whatsappTemplateName        String?
+  whatsappTemplateLanguage    String?
+  whatsappTemplateParams      String[]
   /// The template has an IMAGE header the rule fills (only rules that make a picture: Puzzle of the Day's board).
-  whatsappTemplateImageHeader Boolean @default(false)
+  whatsappTemplateImageHeader Boolean  @default(false)
 
   updatedById String?
   updatedBy   User?   @relation("MessagingRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
@@ -9275,22 +9275,25 @@ enum CrmLeadPushStatus {
 /// docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM"). Written in the lead's
 /// transaction, sent after commit, retried by a sweep. Holds no personal data.
 model CrmLeadPush {
-  id            String            @id @default(cuid())
-  tenantId      String            @default("tenant_nexa")
-  leadId        String            @unique
-  lead          Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  status        CrmLeadPushStatus @default(PENDING)
-  attempts      Int               @default(0)
-  nextAttemptAt DateTime          @default(now())
-  claimedAt     DateTime?
+  id             String            @id @default(cuid())
+  tenantId       String            @default("tenant_nexa")
+  leadId         String            @unique
+  lead           Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  status         CrmLeadPushStatus @default(PENDING)
+  attempts       Int               @default(0)
+  nextAttemptAt  DateTime          @default(now())
+  claimedAt      DateTime?
   /// The Frappe document name (e.g. CRM-LEAD-2026-00042).
-  externalId    String?
+  externalId     String?
   /// The lead's stage last copied to Frappe (stage sync, docs/LEAD_STAGES.md); null = none yet.
-  sentStatus    LeadStatus?
-  error         String?
-  sentAt        DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  sentStatus     LeadStatus?
+  /// The child's details arrived after the lead was copied (a chat lead that later booked a
+  /// demo): the next send sets student_name and adds a note in Frappe (review Part 1 #1).
+  detailsPending Boolean           @default(false)
+  error          String?
+  sentAt         DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@index([status, nextAttemptAt])
   @@map("crm_lead_pushes")
@@ -9436,13 +9439,13 @@ model DailyPuzzleEntry {
   attemptId String           @unique
   attempt   PuzzleAttempt    @relation(fields: [attemptId], references: [id], onDelete: Cascade)
 
-  finishedAt DateTime?
-  solved     Boolean?
+  finishedAt     DateTime?
+  solved         Boolean?
   /// Wrong moves sent by WhatsApp reply (docs/PUZZLE_OF_THE_DAY.md step 3); the academy's limits apply.
   whatsappTries  Int       @default(0)
   /// A hint was sent by WhatsApp.
   whatsappHintAt DateTime?
-  createdAt  DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
   @@unique([studentId, day, level])
   @@index([studentId, finishedAt])
@@ -9452,19 +9455,19 @@ model DailyPuzzleEntry {
 
 /// The academy's Puzzle of the Day switch (one row per academy; Nexa's id is "default").
 model DailyPuzzleSettings {
-  id          String   @id @default("default")
+  id                  String           @id @default("default")
   /// Owning academy (Tenant.id).
-  tenantId    String   @unique @default("tenant_nexa")
-  enabled     Boolean  @default(true)
+  tenantId            String           @unique @default("tenant_nexa")
+  enabled             Boolean          @default(true)
   /// Step 3 (WhatsApp picture + answering by reply): the level whose academy puzzle is pictured.
   whatsappLevel       DailyPuzzleLevel @default(MEDIUM)
   /// Wrong replies allowed; after `whatsappHintAfter` wrong ones a HINT, after `whatsappAnswerAfter` the ANSWER.
   whatsappMaxTries    Int              @default(3)
   whatsappHintAfter   Int              @default(1)
   whatsappAnswerAfter Int              @default(3)
-  updatedById String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedById         String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
   @@map("daily_puzzle_settings")
 }

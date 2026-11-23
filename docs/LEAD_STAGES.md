@@ -113,7 +113,9 @@ stored only for capture (no transcript, no reply, no inbox).
   headline (else its id); parent = the WhatsApp profile name; the required child fields get
   **`LEAD_DETAILS_NOT_GIVEN`** (`studentName ""`, `studentAge 0`, `experienceLevel "not_given"`),
   shown as "—" on the Leads page and **never sent to Frappe** (`student_name` left out; the note says
-  "Student: not given yet"). The bot's later demo booking fills them in (`upsertFromWhatsApp`).
+  "Student: not given yet"). The bot's later demo booking fills them in (`upsertFromWhatsApp`),
+  which sets `CrmLeadPush.detailsPending` (`markDetailsChanged`): the next send sets the Frappe
+  lead's `student_name` and adds a "Child details (NexaGen)" note (review Part 1 #1).
   Copied to Frappe like the bot's leads (`CrmLeadPush`, Frappe source `FRAPPE_CRM_LEAD_SOURCE`).
 - **Ad clicks:** `LeadAdClick`, one row per lead, keeping the first click and the latest (ad id,
   `ctwa_clid`, headline, source URL, when), plus a timeline entry per click. A number with an open

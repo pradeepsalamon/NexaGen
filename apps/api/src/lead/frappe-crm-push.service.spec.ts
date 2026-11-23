@@ -98,6 +98,7 @@ describe("Frappe CRM documents", () => {
 type Row = {
   attempts: number;
   createdAt: Date;
+  detailsPending?: boolean;
   externalId?: string | null;
   id: string;
   lead: typeof LEAD | (Omit<typeof LEAD, "status"> & { status: string });
@@ -276,6 +277,43 @@ describe("FrappeCrmPushService.send", () => {
     await service(prisma).send("p1");
 
     expect(updates[0]).toMatchObject({ status: "FAILED" });
+  });
+});
+
+// Review Part 1 #1: a chat lead copied without its child's details gets them later.
+describe("FrappeCrmPushService child details sent later", () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  it("sets student_name and adds a details note on the lead it already sent", async () => {
+    const { prisma, updates } = fakePrisma({
+      attempts: 0,
+      createdAt: LEAD.createdAt,
+      detailsPending: true,
+      externalId: "CRM-LEAD-2026-00042",
+      id: "p1",
+      lead: LEAD,
+      leadId: "lead_1"
+    });
+    const calls = fakeFrappe(() => ({ name: "x" }));
+
+    await service(prisma).send("p1");
+
+    expect(calls.map(step)).toEqual(["PUT CRM Lead/CRM-LEAD-2026-00042", "POST FCRM Note"]);
+    expect(calls[0].body).toEqual({ student_name: LEAD.studentName });
+    expect(calls[1].body).toMatchObject({ reference_docname: "CRM-LEAD-2026-00042", title: "Child details (NexaGen)" });
+    expect(written(updates)).toMatchObject({ detailsPending: false, status: "SENT" });
+  });
+
+  it("marks a copied lead's row to send again", async () => {
+    const tx = { crmLeadPush: { updateMany: jest.fn() } };
+    await service({}).markDetailsChanged(tx as never, "lead_1");
+    expect(tx.crmLeadPush.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({ detailsPending: true, status: "PENDING" }),
+      where: { leadId: "lead_1" }
+    });
   });
 });
 
