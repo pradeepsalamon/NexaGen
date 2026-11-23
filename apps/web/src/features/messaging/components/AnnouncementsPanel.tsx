@@ -43,6 +43,9 @@ function summarise(result: CreateAnnouncementResponse): string {
   if (!dispatch.ruleEnabled) {
     return "Published to the dashboard. The Announcement rule is off, so no messages went out.";
   }
+  if (result.messagesQueuedInBackground) {
+    return "Published. Messages are being queued for everyone it reaches; the delivery log shows each one.";
+  }
   const parts = [
     `${dispatch.queuedWhatsApp} WhatsApp`,
     `${dispatch.queuedInApp} in-app`,

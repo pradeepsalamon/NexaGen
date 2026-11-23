@@ -111,6 +111,9 @@ the editors; a new placeholder needs an entry (a spec checks).
 - Announcements (`apps/api/src/announcement/`) publish the feed row then fire the
   ANNOUNCEMENT rule; **the announcement's own audience picks recipients**, not
   the rule's. `student.service` filters the dashboard feed by that audience.
+  The messages are queued with `dispatchInBackground` (review M4), so a large
+  academy's publish returns at once; the response only says whether the rule
+  is on (`messagesQueuedInBackground`), and the delivery log shows each send.
 
 ## Walkthrough: sending WhatsApp messages
 

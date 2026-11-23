@@ -1431,8 +1431,13 @@ export interface AnnouncementListResponse {
 
 export interface CreateAnnouncementResponse {
   announcement: AnnouncementItem;
-  /** What the ANNOUNCEMENT rule actually did with it. */
+  /**
+   * Only `ruleEnabled` is meaningful: the messages are queued in the
+   * background (review M4), so the counts are zero; the delivery log shows them.
+   */
   dispatch: MessagingDispatchSummary;
+  /** True when the ANNOUNCEMENT rule is on and its messages are being queued. */
+  messagesQueuedInBackground: boolean;
 }
 
 export interface MessagingDispatchSummary {

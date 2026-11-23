@@ -85,18 +85,21 @@ export class AnnouncementService {
       }
     });
 
-    // Publishing must not fail because a message did — the announcement is
-    // already on the dashboard either way.
-    const dispatch = dto.sendMessages
-      ? await this.dispatch
-          .dispatch({ event: "ANNOUNCEMENT", announcementId: row.id })
-          .catch(() => null)
-      : null;
+    // Messages are queued in the background (CLAUDE.md §3.6e, review M4): an
+    // academy-wide announcement writes up to three outbox rows per member,
+    // which can outlast the proxy timeout. Publishing never fails because a
+    // message did; the delivery log shows what went out.
+    const rule = dto.sendMessages ? await this.messagingRules.getRule("ANNOUNCEMENT").catch(() => null) : null;
+    const ruleEnabled =
+      !!rule && rule.enabled && (rule.whatsappEnabled || rule.inAppEnabled || rule.emailEnabled);
+    if (ruleEnabled) {
+      this.dispatch.dispatchInBackground({ event: "ANNOUNCEMENT", announcementId: row.id });
+    }
 
     return {
       announcement: this.toItem(row),
-      dispatch: dispatch ?? {
-        ruleEnabled: false,
+      dispatch: {
+        ruleEnabled,
         recipients: 0,
         queuedWhatsApp: 0,
         queuedInApp: 0,
@@ -104,7 +107,8 @@ export class AnnouncementService {
         missingPhone: 0,
         unverifiedEmail: 0,
         scheduledFor: null
-      }
+      },
+      messagesQueuedInBackground: ruleEnabled
     };
   }
 
