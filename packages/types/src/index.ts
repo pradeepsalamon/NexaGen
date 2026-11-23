@@ -2089,8 +2089,22 @@ export const submitAttemptRequestSchema = saveAttemptProgressRequestSchema.exten
   resign: z.boolean().optional()
 });
 
+/**
+ * One turn of a PLAY_VS_ENGINE game. The game is stored on the server: the
+ * student sends only their own move and the server plays and stores the
+ * engine's reply from the stored position (review S2/S3). No position is ever
+ * taken from the client.
+ */
 export const requestEngineMoveRequestSchema = z.object({
-  fen: z.string().min(1).max(120)
+  /** The student's move. Omit it to ask for the engine's move when it is the
+   * engine's turn: it moves first, or it was offline after the last move. */
+  uci: z
+    .string()
+    .regex(/^[a-h][1-8][a-h][1-8][qrbn]?$/, "Not a move.")
+    .optional(),
+  /** How many moves the client's board holds. A different count on the server
+   * (another tab, a lost reply) is refused with 409 so the client reloads. */
+  ply: z.number().int().min(0).max(400)
 });
 
 export const solveLineHintRequestSchema = z.object({
@@ -2363,6 +2377,8 @@ export type RequestEngineMoveResponse = {
   uci: string | null;
   san: string | null;
   fenAfter: string | null;
+  /** The whole stored game after this turn; the client's board follows it. */
+  moves: AttemptMove[];
 };
 
 //

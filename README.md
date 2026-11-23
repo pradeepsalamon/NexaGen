@@ -80,6 +80,11 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
     Stockfish engine (skill level configurable); scored from the game result,
     with move accuracy computed from per-move engine analysis (falls back to
     result-only when the engine pool is offline or the student resigned).
+    The game is stored on the server: the student sends one move at a time
+    (`{ uci, ply }`, 409 when `ply` isn't the stored length), the server plays
+    and stores the engine's reply from the stored position, and `submit` scores
+    the stored game. No position is ever taken from the client, so the endpoint
+    is not a best-move oracle for other games.
   - `FREE_ANALYSIS` — an open interactive board the student submits when done,
     optionally after a minimum number of moves (`minMoves`).
   - `PUZZLE_SET` — an ordered list of published library puzzles
