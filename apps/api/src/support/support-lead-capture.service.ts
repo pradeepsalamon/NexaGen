@@ -172,6 +172,10 @@ export class SupportLeadCaptureService {
       latestSourceType: referral.sourceType,
       latestSourceUrl: referral.sourceUrl
     };
+    // Once per message, whichever click it was (review Part 1 #2): an older message processed again
+    // never becomes the latest, so the latest message id alone can't tell.
+    const sourceKey = `wa-ad:${event.providerMessageId}`;
+    if (await tx.leadActivity.findFirst({ select: { id: true }, where: { leadId, sourceKey } })) return false;
     const existing = await tx.leadAdClick.findUnique({ select: { latestMessageId: true, latestSeenAt: true }, where: { leadId } });
     if (!existing) {
       await tx.leadAdClick.create({
@@ -195,7 +199,7 @@ export class SupportLeadCaptureService {
       });
     }
     await tx.leadActivity.create({
-      data: { activityType: "WHATSAPP_AD_CLICK", description: adLabel(referral), leadId, title: "Came from a WhatsApp ad" }
+      data: { activityType: "WHATSAPP_AD_CLICK", description: adLabel(referral), leadId, sourceKey, title: "Came from a WhatsApp ad" }
     });
     await tx.lead.update({ data: { lastActivityAt: event.occurredAt }, where: { id: leadId } });
     return true;

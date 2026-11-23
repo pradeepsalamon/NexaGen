@@ -1463,11 +1463,15 @@ model LeadActivity {
   activityType String
   title        String
   description  String?
+  /// What made this entry, when it must happen once (a WhatsApp ad click: `wa-ad:<message id>`),
+  /// so a re-processed message never repeats it (review Part 1 #2). Null for everything else.
+  sourceKey    String?
 
   createdById String?
   createdBy   User?    @relation("LeadActivityCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
 
+  @@unique([leadId, sourceKey])
   @@index([leadId])
   @@map("lead_activities")
 }

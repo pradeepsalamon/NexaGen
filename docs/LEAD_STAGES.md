@@ -118,7 +118,9 @@ stored only for capture (no transcript, no reply, no inbox).
   lead's `student_name` and adds a "Child details (NexaGen)" note (review Part 1 #1).
   Copied to Frappe like the bot's leads (`CrmLeadPush`, Frappe source `FRAPPE_CRM_LEAD_SOURCE`).
 - **Ad clicks:** `LeadAdClick`, one row per lead, keeping the first click and the latest (ad id,
-  `ctwa_clid`, headline, source URL, when), plus a timeline entry per click. A number with an open
+  `ctwa_clid`, headline, source URL, when), plus a timeline entry per click, keyed on the message
+  (`LeadActivity.sourceKey` `wa-ad:<message id>`), so a message processed again never counts twice
+  (review Part 1 #2). A number with an open
   lead (a website lead too) gets the click attached, never a second lead. Read by the Conversions
   API (docs/AD_MEASUREMENT.md). Removed with its lead.
 - **Once per message:** one transaction under a per-number xact lock (`lead-capture:<academy>:<last

@@ -176,6 +176,19 @@ describe("WhatsApp lead capture (real app, real Postgres)", () => {
     expect(lead.adClick?.clicks).toBe(1);
   });
 
+  // Review Part 1 #2: an older ad message processed again, after a newer click, isn't counted twice.
+  it("counts an older ad message once when it is processed again after a newer click", async () => {
+    await post(messageBody("919800000004", ad("120200000000000004", "First", "CLID-4"), "wamid.cap.older"));
+    await post(messageBody("919800000004", ad("120200000000000005", "Second", "CLID-5"), "wamid.cap.newer"));
+    const capture = t.app.get(SupportLeadCaptureService);
+    const older = await db(() => t.prisma.whatsAppWebhookEvent.findUniqueOrThrow({ where: { dedupeKey: "msg:wamid.cap.older" } }));
+    await db(() => capture.capture(older));
+
+    const [lead] = await leads();
+    expect(lead.adClick).toMatchObject({ clicks: 2, latestAdId: "120200000000000005" });
+    expect(lead.activities.filter((a) => a.activityType === "WHATSAPP_AD_CLICK")).toHaveLength(2);
+  });
+
   it("makes one lead when two messages from a new number are handled at once", async () => {
     const capture = t.app.get(SupportLeadCaptureService);
     const at = new Date();
