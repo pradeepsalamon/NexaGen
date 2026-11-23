@@ -24,6 +24,8 @@ import { RecordingStorageService } from "./recording-storage.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import type { Request, Response } from "express";
 import { LiveClassAccessService } from "./live-class-access.service";
+import { effectiveClassSettings } from "./live-class-effective-settings";
+import { LiveClassSettingsService } from "./live-class-settings.service";
 
 /**
  * One entry of an egress `fileResults` array as it arrives on the webhook.
@@ -51,7 +53,8 @@ export class LiveClassRecordingService {
     private readonly backupService: BackupService,
     private readonly recordingStorageService: RecordingStorageService,
     private readonly analyticsEvents: AnalyticsEventService,
-    private readonly access: LiveClassAccessService
+    private readonly access: LiveClassAccessService,
+    private readonly settings: LiveClassSettingsService
   ) {}
 
   /** Parses a protobuf 64-bit field, which may arrive as a string, or null. */
@@ -94,6 +97,13 @@ export class LiveClassRecordingService {
 
     if (liveSession.status !== LiveSessionStatus.LIVE) {
       throw new BadRequestException("Class is not live.");
+    }
+
+    // Students are minors: a class whose recording is switched or locked off
+    // is never recorded, whoever asks (review L1).
+    const { recording } = await effectiveClassSettings(liveSession, this.settings, this.logger);
+    if (recording === "DISABLED") {
+      throw new ForbiddenException("Recording is switched off for this class.");
     }
 
     const metadata = (liveSession.metadata as Record<string, unknown>) || {};

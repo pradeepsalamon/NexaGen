@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
@@ -23,6 +24,8 @@ import {
   UserRole,
 } from "@prisma/client";
 import { LiveClassAccessService } from "./live-class-access.service";
+import { liveSettingLocked } from "./live-class-effective-settings";
+import { LiveClassSettingsService } from "./live-class-settings.service";
 import { withScreenShareSources } from "./live-class.util";
 
 /** Student screen-share requests: per-student grant widening on top of the class policy. */
@@ -33,8 +36,19 @@ export class LiveClassScreenShareService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly livekit: LiveKitService,
-    private readonly access: LiveClassAccessService
+    private readonly access: LiveClassAccessService,
+    private readonly settings: LiveClassSettingsService
   ) {}
+
+  /**
+   * One student's screen share is an exception to a class-wide DISABLED, and
+   * a coach's exception never gets round an admin's lock (review L2).
+   */
+  private async assertScreenShareNotLocked(classId: string) {
+    if (await liveSettingLocked(classId, "student.screenShare", this.settings)) {
+      throw new ForbiddenException("Your academy has locked screen sharing off for students.");
+    }
+  }
 
   private static toScreenShareRequestEntry(row: {
     id: string;
@@ -157,6 +171,7 @@ export class LiveClassScreenShareService {
     if (effectiveSettings?.student.screenShare === "ALLOWED") {
       throw new BadRequestException("Screen sharing is already allowed for this class.");
     }
+    await this.assertScreenShareNotLocked(classId);
 
     const existing = await this.prisma.liveClassScreenShareRequest.findUnique({
       where: { liveSessionId_studentId: { liveSessionId: liveSession.id, studentId: user.id } },
@@ -188,6 +203,7 @@ export class LiveClassScreenShareService {
     body: ResolveScreenShareRequest,
   ): Promise<ScreenShareRequestEntry> {
     const { liveSession } = await this.access.resolveClassManager(accessToken, classId);
+    if (body.action === "APPROVE") await this.assertScreenShareNotLocked(classId);
 
     const fromStatus =
       body.action === "REVOKE" ? ScreenShareRequestStatus.APPROVED : ScreenShareRequestStatus.PENDING;
@@ -261,6 +277,7 @@ export class LiveClassScreenShareService {
     if (settings.student.screenShare === "ALLOWED") {
       throw new BadRequestException("Screen sharing is already allowed for everyone in this class.");
     }
+    await this.assertScreenShareNotLocked(classId);
 
     const student = await this.prisma.user.findFirst({
       where: { id: body.studentId, role: UserRole.STUDENT },

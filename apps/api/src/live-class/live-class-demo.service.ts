@@ -12,6 +12,7 @@ import { LiveKitService } from "./livekit.service";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types";
 import {
+  DEFAULT_LIVE_CLASS_SETTINGS,
   deriveLiveKitGrants,
   liveClassSettingsSchema,
   type DemoClassPublicInfo,
@@ -360,14 +361,14 @@ export class LiveClassDemoService {
     }
   }
 
-  /** Guests get the class's student publish policy; no snapshot keeps the default grants. */
+  /**
+   * Guests get the class's student publish policy. Without a readable snapshot
+   * they get the default student policy, never the wide-open grants (review L4).
+   */
   private guestGrants(snapshot: Prisma.JsonValue | null, classId: string): LiveKitTokenOptions["grants"] {
-    if (!snapshot) return undefined;
-    try {
-      return deriveLiveKitGrants(liveClassSettingsSchema.parse(snapshot), "STUDENT");
-    } catch (error) {
-      this.logger.warn(`Invalid effectiveSettings for demo class ${classId}; using default grants`, error as Error);
-      return undefined;
-    }
+    const parsed = snapshot ? liveClassSettingsSchema.safeParse(snapshot) : null;
+    if (parsed?.success) return deriveLiveKitGrants(parsed.data, "STUDENT");
+    if (parsed) this.logger.warn(`Invalid effectiveSettings for demo class ${classId}; using the default student policy`);
+    return deriveLiveKitGrants(DEFAULT_LIVE_CLASS_SETTINGS, "STUDENT");
   }
 }

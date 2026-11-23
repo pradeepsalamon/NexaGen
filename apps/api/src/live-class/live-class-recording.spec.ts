@@ -166,6 +166,25 @@ describe("LiveClassRecordingService recording feature", () => {
       expect(livekitService.stopRecording).not.toHaveBeenCalled();
     });
 
+    // Review L1: students are minors; a switched-off recording holds for everyone.
+    it("refuses to record a class whose recording is switched off", async () => {
+      authenticateAs("admin-1", UserRole.ADMIN);
+      liveSessionFindUnique.mockResolvedValue({
+        id: "session-1",
+        classId: "class-1",
+        coachId: "coach-1",
+        status: LiveSessionStatus.LIVE,
+        roomName: "class_class-1",
+        metadata: {},
+        effectiveSettings: { recording: "DISABLED" },
+      });
+
+      await expect(service.startRecording(ACCESS_TOKEN, "class-1")).rejects.toThrow(
+        "Recording is switched off for this class."
+      );
+      expect(livekitService.startRecording).not.toHaveBeenCalled();
+    });
+
     it("lets an admin record a class they do not teach", async () => {
       authenticateAs("admin-1", UserRole.ADMIN);
       liveSessionFindUnique.mockResolvedValue({

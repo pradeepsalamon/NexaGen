@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
-import { liveClassSettingsSchema } from "@nexa-chess/types";
+import { DEFAULT_LIVE_CLASS_SETTINGS, deriveLiveKitGrants, liveClassSettingsSchema } from "@nexa-chess/types";
 import { LiveClassService } from "./live-class.service";
 import { LiveClassChatService } from "./live-class-chat.service";
 import { LiveClassModerationService } from "./live-class-moderation.service";
@@ -112,7 +112,7 @@ describe("LiveClassChatService chat authorization", () => {
         { provide: SystemNotifier, useValue: { send: jest.fn() } },
         {
           provide: LiveClassSettingsService,
-          useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
+          useValue: { resolveForClass: jest.fn().mockResolvedValue({ batchLocks: [], lockExceptions: [], resolved: {}, systemLocks: [] }) }
         },
         {
           provide: AnalyticsEventService,
@@ -202,6 +202,34 @@ describe("LiveClassChatService chat authorization", () => {
           })
         })
       );
+    });
+
+    // Review L5: the class's chat settings hold on the server.
+    it("refuses a student when the class chat is switched off, but not the coach", async () => {
+      liveSessionFindUnique.mockResolvedValue({
+        ...session,
+        effectiveSettings: liveClassSettingsSchema.parse({ student: { chat: "DISABLED" } })
+      });
+      authenticateAs("student-1", UserRole.STUDENT);
+      await expect(service.saveChatMessage(ACCESS_TOKEN, "class-1", "hello")).rejects.toThrow(
+        "Chat is switched off in this class."
+      );
+
+      authenticateAs("coach-1", UserRole.COACH);
+      await service.saveChatMessage(ACCESS_TOKEN, "class-1", "class, listen");
+      expect(chatCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a student's private message when private chat is switched off", async () => {
+      liveSessionFindUnique.mockResolvedValue({
+        ...session,
+        effectiveSettings: liveClassSettingsSchema.parse({ student: { privateChat: "DISABLED" } })
+      });
+      authenticateAs("student-1", UserRole.STUDENT);
+      await expect(
+        service.saveChatMessage(ACCESS_TOKEN, "class-1", "psst", undefined, "coach-1")
+      ).rejects.toThrow("Private messages are switched off in this class.");
+      expect(chatCreate).not.toHaveBeenCalled();
     });
   });
 
@@ -726,7 +754,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         { provide: SystemNotifier, useValue: { send: jest.fn() } },
         {
           provide: LiveClassSettingsService,
-          useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
+          useValue: { resolveForClass: jest.fn().mockResolvedValue({ batchLocks: [], lockExceptions: [], resolved: {}, systemLocks: [] }) }
         },
         {
           provide: AnalyticsEventService,
@@ -860,15 +888,18 @@ describe("LiveClassService.getToken coach-presence gate", () => {
       );
     });
 
-    it("falls back to default grants (no policy) for a class started before the feature", async () => {
+    // Review L4: no snapshot (it failed at start) never means wide-open grants.
+    it("resolves the policy when the class has no snapshot, never the wide-open grants", async () => {
       authenticateAs("student-1", UserRole.STUDENT);
       listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
       // default liveSession from the outer beforeEach has no effectiveSettings
 
       const res = await service.getToken(ACCESS_TOKEN, "class-1");
 
-      expect(generateAccessToken.mock.calls[0][0].grants).toBeUndefined();
-      expect(res.settings).toBeNull();
+      expect(generateAccessToken.mock.calls[0][0].grants).toEqual(
+        deriveLiveKitGrants(DEFAULT_LIVE_CLASS_SETTINGS, "STUDENT")
+      );
+      expect(res.settings).toEqual(DEFAULT_LIVE_CLASS_SETTINGS);
     });
   });
 });
@@ -1272,7 +1303,11 @@ describe("LiveClassService screen-share requests", () => {
     ...overrides
   });
 
+  // Review L2: the academy/batch locks the screen-share checks read.
+  let screenShareLocks: jest.Mock;
+
   beforeEach(async () => {
+    screenShareLocks = jest.fn().mockResolvedValue({ batchLocks: [], lockExceptions: [], resolved: {}, systemLocks: [] });
     jwtService = { verifyAsync: jest.fn() };
     userFindUnique = jest.fn();
     coachClassFindUnique = jest.fn().mockResolvedValue({ id: "class-1", status: "LIVE" });
@@ -1347,7 +1382,7 @@ describe("LiveClassService screen-share requests", () => {
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
         { provide: SystemNotifier, useValue: { send: jest.fn() } },
-        { provide: LiveClassSettingsService, useValue: {} },
+        { provide: LiveClassSettingsService, useValue: { resolveForClass: (classId: string) => screenShareLocks(classId) } },
         {
           provide: AnalyticsEventService,
           useValue: { record: jest.fn(), recordRecordingWatchOncePerDay: jest.fn() }
@@ -1554,6 +1589,18 @@ describe("LiveClassService screen-share requests", () => {
       await expect(
         screenShare.grantScreenShare(ACCESS_TOKEN, "class-1", { studentId: "student-1" })
       ).rejects.toBeInstanceOf(BadRequestException);
+      expect(shareUpsert).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["the academy", { systemLocks: ["student.screenShare"] }],
+      ["the batch", { batchLocks: ["student.screenShare"] }]
+    ])("refuses when %s locked screen sharing off (review L2)", async (_who, locks) => {
+      screenShareLocks.mockResolvedValue({ batchLocks: [], lockExceptions: [], resolved: {}, systemLocks: [], ...locks });
+      authenticateAs("coach-1", UserRole.COACH);
+      await expect(
+        screenShare.grantScreenShare(ACCESS_TOKEN, "class-1", { studentId: "student-1" })
+      ).rejects.toBeInstanceOf(ForbiddenException);
       expect(shareUpsert).not.toHaveBeenCalled();
     });
 

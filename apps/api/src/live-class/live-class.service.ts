@@ -32,6 +32,7 @@ import {
   WaitingRoomStatus,
 } from "@prisma/client";
 import { AttendanceService } from "../attendance/attendance.service";
+import { effectiveClassSettings } from "./live-class-effective-settings";
 import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { LiveClassAccessService } from "./live-class-access.service";
@@ -228,24 +229,16 @@ export class LiveClassService {
     }
 
     // Pre-class settings enforcement: derive LiveKit publish grants from the
-    // frozen snapshot (§38). A class started before this feature has no
-    // snapshot → `grants` stays undefined and the pre-feature grant logic runs.
-    // Hoisted above the gates below so the waiting-room check can read the
-    // resolved policy before minting anything.
-    let effectiveSettings: LiveClassSettings | null = null;
-    let grants: LiveKitTokenOptions["grants"];
-    if (liveSession.effectiveSettings) {
-      try {
-        effectiveSettings = liveClassSettingsSchema.parse(liveSession.effectiveSettings);
-        grants = deriveLiveKitGrants(
-          effectiveSettings,
-          isStudent ? "STUDENT" : "COACH"
-        );
-      } catch (error) {
-        this.logger.warn(`Invalid effectiveSettings for class ${classId}; using default grants`, error as Error);
-        effectiveSettings = null;
-      }
-    }
+    // frozen snapshot (§38). Fail closed (review L4): a missing or unreadable
+    // snapshot (the best-effort snapshot at start failed) is resolved now with
+    // the admin's locks, else the safe defaults; never the wide-open grants
+    // that skipped the waiting room. Hoisted above the gates below so the
+    // waiting-room check can read the policy before minting anything.
+    const effectiveSettings = await effectiveClassSettings(liveSession, this.settingsService, this.logger);
+    let grants: LiveKitTokenOptions["grants"] = deriveLiveKitGrants(
+      effectiveSettings,
+      isStudent ? "STUDENT" : "COACH"
+    );
 
     // A previously-approved screen-share request must survive a reconnect —
     // `getToken` is otherwise the only place grants are computed, so without
