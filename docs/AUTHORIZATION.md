@@ -143,7 +143,9 @@ can't silently switch off.
   logout / password reset / reuse and is **never** revived. Within 30s of a
   rotation the old token may mint a sibling in the same `familyId` (concurrent
   tabs); after that a replay revokes the whole family. Logout revokes the
-  family.
+  family. A refresh that loses the rotation claim re-reads the row and gets a
+  401 when a logout or reset revoked it meanwhile, so the grace path never
+  mints into an ended family (review A5).
 - `getCookieBaseOptions` (`@nexa-chess/config/api`) sets every cookie: `secure`
   when `FRONTEND_URL` is https, `sameSite` from `COOKIE_SAME_SITE` (default
   `lax` — web and API are same-site subdomains).

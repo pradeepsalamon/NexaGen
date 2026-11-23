@@ -71,6 +71,7 @@ import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { bindAuthenticatedUser } from "../tenancy/bind-authenticated-user";
 import { asPlatform } from "../tenancy/tenant-context";
 import { requireTenantId } from "../tenancy/tenant-sql";
+import { isUniqueViolationOn } from "../payments/payments.util";
 
 type SessionContext = {
   ipAddress?: string;
@@ -100,6 +101,18 @@ const UNVERIFIED_SIGN_IN_MESSAGE = {
   recent: "Verify your email address to sign in. Use the link we recently sent you, and check your spam folder.",
   sent: "Verify your email address to sign in. We have just sent you a new link."
 } as const;
+
+/**
+ * The email index that still spans academies (until D5 drops it) answers a
+ * P2002 for an address another academy uses. That is a 409 like any taken
+ * email, never a 500 (review A6).
+ */
+function rethrowEmailTaken(error: unknown): never {
+  if (isUniqueViolationOn(error, "email")) {
+    throw new ConflictException("An account already exists for this email.");
+  }
+  throw error;
+}
 
 const dummyPasswordHash =
   "$2b$12$7Hb149Y.levymTZlxpT3M.52k1w61HGHtm49NErn1svp4nVrPi9nO";
@@ -228,7 +241,7 @@ export class AuthService {
           }
         }
       }
-    });
+    }).catch(rethrowEmailTaken);
 
     if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
     // Joined through a referral link (or booked a demo with this email)?
@@ -298,7 +311,7 @@ export class AuthService {
           }
         }
       }
-    });
+    }).catch(rethrowEmailTaken);
 
     if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
     // Joined through a referral link (or booked a demo with this email)?
@@ -505,7 +518,17 @@ export class AuthService {
         ).count;
 
     if (claimed === 0) {
-      const rotatedAt = session.rotatedAt ?? new Date();
+      // The claim can lose to a logout or reset that revoked this row after it
+      // was read: re-read it, so the grace path never mints a session into a
+      // family that was just ended (review A5).
+      const current = await this.prisma.authSession.findUnique({
+        select: { revokedAt: true, rotatedAt: true },
+        where: { id: session.id }
+      });
+      if (!current || current.revokedAt) {
+        throw new UnauthorizedException("Session expired.");
+      }
+      const rotatedAt = current.rotatedAt ?? session.rotatedAt ?? new Date();
       // A token that was already rotated, presented after the grace window, is a
       // replay of a stolen copy: end the whole device chain.
       if (Date.now() - rotatedAt.getTime() > this.refreshRotationGraceMs) {
@@ -809,7 +832,7 @@ export class AuthService {
         include: { coachProfile: true, studentProfile: true },
         where: { id: user.id }
       });
-    });
+    }).catch(rethrowEmailTaken);
 
     if (parentContactChanged && user.studentProfile) {
       // To the previous parent contact (email and phone), and in-app to the student's own inbox.

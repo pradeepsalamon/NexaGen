@@ -11,6 +11,7 @@ import { JwtService } from "@nestjs/jwt";
 import type { RegisterCoachRequest, RegisterRequest } from "@nexa-chess/types";
 import { LEGAL_TERMS_VERSION } from "@nexa-chess/types";
 import {
+  Prisma,
   ReferralSource,
   UserRole,
   UserStatus
@@ -235,6 +236,19 @@ describe("AuthService", () => {
   });
 
   describe("register", () => {
+    // Review A6: the email index that still spans academies answers a 409, not a 500.
+    it("turns an email taken in another academy into a 409", async () => {
+      prismaService.user.findUnique.mockResolvedValueOnce(null);
+      prismaService.user.create.mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+          clientVersion: "6",
+          code: "P2002",
+          meta: { target: ["email"] }
+        })
+      );
+      await expect(service.register(registerPayload, {})).rejects.toBeInstanceOf(ConflictException);
+    });
+
     it("creates a PENDING student and issues no session", async () => {
       prismaService.user.findUnique.mockResolvedValueOnce(null);
       prismaService.user.create.mockResolvedValueOnce({
@@ -530,6 +544,17 @@ describe("AuthService", () => {
       prismaService.authSession.create.mockResolvedValue({ id: "sess-2" });
       prismaService.authSession.update.mockResolvedValue({ id: "sess-2" });
       prismaService.authSession.updateMany.mockResolvedValue({ count: 1 });
+      prismaService.authSession.findUnique.mockResolvedValue({ activeRole: null, revokedAt: null, rotatedAt: null });
+    });
+
+    // Review A5: a refresh that loses the claim to a logout or reset is refused.
+    it("refuses a refresh that lost the rotation claim to a logout", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(liveSession());
+      prismaService.authSession.updateMany.mockResolvedValueOnce({ count: 0 });
+      prismaService.authSession.findUnique.mockResolvedValueOnce({ revokedAt: new Date(), rotatedAt: null });
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).rejects.toThrow(UnauthorizedException);
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
     });
 
     it("rotates a live session into a successor in the same family", async () => {
