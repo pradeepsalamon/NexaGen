@@ -2453,6 +2453,9 @@ model StudentAssignmentAttempt {
   scorePercent        Int?
   accuracyPercent     Int?
   hintsUsed           Int                     @default(0)
+  /// SOLVE_LINE: wrong moves the student tried while saving progress. Each one
+  /// costs a ply in the score (review S4); never sent back as a solution.
+  wrongMoves          Int                     @default(0)
   durationSeconds     Int                     @default(0)
   result              String? // "SOLVED" | "PARTIAL" | "WIN" | "LOSS" | "DRAW" | "SUBMITTED"
   startedAt           DateTime                @default(now())

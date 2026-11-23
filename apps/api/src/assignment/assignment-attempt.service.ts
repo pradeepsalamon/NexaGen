@@ -160,17 +160,15 @@ export class AssignmentAttemptService {
     const moves = dto.moves as AttemptMove[];
     if (!engineGame) this.evaluation.assertLegalLine(assignment.startFen ?? "", moves);
 
-    const updated = await this.prisma.studentAssignmentAttempt.update({
-      where: { id: attempt.id },
-      data: {
-        ...(engineGame ? {} : { movesJson: moves as unknown as Prisma.InputJsonValue }),
-        durationSeconds: dto.durationSeconds ?? attempt.durationSeconds,
-        hintsUsed: Math.max(attempt.hintsUsed, dto.hintsUsed ?? 0)
-      }
-    });
-
+    // SOLVE_LINE: every save answers "is this move right?", so a wrong one is
+    // counted (review S4) — once per new line, not per re-sent save. With
+    // retries off, the first wrong move ends the line: it is what gets scored.
     let moveFeedback: AttemptProgressResponse["moveFeedback"] = null;
+    let wrongTry = false;
     if (assignment.activityType === "SOLVE_LINE") {
+      if (!assignment.allowRetry && attempt.wrongMoves > 0) {
+        throw new BadRequestException("Retrying a wrong move is off for this assignment. Submit your attempt.");
+      }
       const solution = this.solution(assignment);
       if (solution) {
         moveFeedback = this.evaluation.solveLineFeedback(
@@ -179,8 +177,19 @@ export class AssignmentAttemptService {
           moves,
           this.studentColor(assignment)
         );
+        wrongTry = !moveFeedback.correct && !AssignmentAttemptService.sameLine(this.storedMoves(attempt), moves);
       }
     }
+
+    const updated = await this.prisma.studentAssignmentAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        ...(engineGame ? {} : { movesJson: moves as unknown as Prisma.InputJsonValue }),
+        ...(wrongTry ? { wrongMoves: { increment: 1 } } : {}),
+        durationSeconds: dto.durationSeconds ?? attempt.durationSeconds,
+        hintsUsed: Math.max(attempt.hintsUsed, dto.hintsUsed ?? 0)
+      }
+    });
 
     return { attempt: this.toAttempt(updated), moveFeedback };
   }
@@ -197,9 +206,12 @@ export class AssignmentAttemptService {
     const attempt = this.activeAttempt(sa, attemptId);
 
     // A game against the engine is scored from the game the server stored,
-    // never from the client's move list (review S2).
+    // never from the client's move list (review S2). So is a SOLVE_LINE whose
+    // wrong move ended it (retries off, review S4).
+    const lineEndedByMistake =
+      assignment.activityType === "SOLVE_LINE" && !assignment.allowRetry && attempt.wrongMoves > 0;
     const moves =
-      assignment.activityType === "PLAY_VS_ENGINE"
+      assignment.activityType === "PLAY_VS_ENGINE" || lineEndedByMistake
         ? this.storedMoves(attempt)
         : (dto.moves as AttemptMove[]);
     this.evaluation.assertLegalLine(assignment.startFen ?? "", moves);
@@ -221,7 +233,9 @@ export class AssignmentAttemptService {
         assignment.startFen ?? "",
         solution,
         moves,
-        studentColor
+        studentColor,
+        // Retries off: the wrong move is in the scored line already.
+        lineEndedByMistake ? 0 : attempt.wrongMoves
       );
       scorePercent = evalResult.scorePercent;
       accuracyPercent = evalResult.accuracyPercent;
@@ -472,6 +486,10 @@ export class AssignmentAttemptService {
   }
 
   // ── internals ──────────────────────────────────────────────
+
+  private static sameLine(a: AttemptMove[], b: AttemptMove[]): boolean {
+    return a.length === b.length && a.every((move, i) => move.uci === b[i].uci);
+  }
 
   private storedMoves(attempt: AttemptRow): AttemptMove[] {
     return Array.isArray(attempt.movesJson) ? (attempt.movesJson as unknown as AttemptMove[]) : [];

@@ -304,6 +304,63 @@ describe("AssignmentAttemptService", () => {
     expect(result.attemptsRemaining).toBe(2);
   });
 
+  describe("SOLVE_LINE wrong tries (review S4)", () => {
+    const openAttempt = (over: Record<string, unknown> = {}) => ({
+      id: "att-1",
+      attemptNumber: 1,
+      status: "IN_PROGRESS",
+      movesJson: [],
+      hintsUsed: 0,
+      wrongMoves: 0,
+      durationSeconds: 0,
+      ...over
+    });
+    const withAttempt = (attempt: Record<string, unknown>, assignment: Record<string, unknown> = {}) =>
+      prisma.studentAssignment.findUnique.mockResolvedValue(
+        makeSa({ attempts: [attempt], assignmentBatch: { assignment: makeAssignment(assignment) } })
+      );
+    const line = (...ucis: string[]) => ucis.map((uci, i) => ({ ply: i + 1, uci, san: uci, fenAfter: START }));
+
+    it("counts a wrong move once, not again when the same line is re-sent", async () => {
+      withAttempt(openAttempt());
+      const res = await service.saveProgress(TOKEN, SA_ID, "att-1", { moves: line("d2d4") });
+      expect(res.moveFeedback?.correct).toBe(false);
+      expect(prisma.studentAssignmentAttempt.update.mock.calls[0][0].data.wrongMoves).toEqual({ increment: 1 });
+
+      withAttempt(openAttempt({ movesJson: line("d2d4"), wrongMoves: 1 }));
+      await service.saveProgress(TOKEN, SA_ID, "att-1", { moves: line("d2d4") });
+      expect(prisma.studentAssignmentAttempt.update.mock.calls[1][0].data).not.toHaveProperty("wrongMoves");
+    });
+
+    it("does not count a right move", async () => {
+      withAttempt(openAttempt());
+      await service.saveProgress(TOKEN, SA_ID, "att-1", { moves: line("e2e4") });
+      expect(prisma.studentAssignmentAttempt.update.mock.calls[0][0].data).not.toHaveProperty("wrongMoves");
+    });
+
+    it("takes each wrong try off the score of a line found by trial", async () => {
+      withAttempt(openAttempt({ wrongMoves: 2 }));
+      const full = SOLUTION.map((m, i) => ({ ply: i + 1, uci: m.uci, san: m.san, fenAfter: START }));
+      const res = await service.submit(TOKEN, SA_ID, "att-1", { moves: full });
+      // 4 student plies, all right, plus 2 wrong tries: 4 / 6.
+      expect(res.scorePercent).toBe(67);
+      expect(res.result).toBe("SOLVED");
+      expect(res.passed).toBe(false);
+    });
+
+    it("with retries off, refuses another try and scores the stored line, not a resubmitted one", async () => {
+      withAttempt(openAttempt({ movesJson: line("d2d4"), wrongMoves: 1 }), { allowRetry: false });
+      await expect(
+        service.saveProgress(TOKEN, SA_ID, "att-1", { moves: line("e2e4") })
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      const full = SOLUTION.map((m, i) => ({ ply: i + 1, uci: m.uci, san: m.san, fenAfter: START }));
+      const res = await service.submit(TOKEN, SA_ID, "att-1", { moves: full });
+      expect(res.scorePercent).toBe(0);
+      expect(res.result).toBe("PARTIAL");
+    });
+  });
+
   describe("hint", () => {
     const openAttempt = (over: Record<string, unknown> = {}) => ({
       id: "att-1",

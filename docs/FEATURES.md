@@ -205,6 +205,19 @@ coach-made) + `ConversationMember` (read state; `leftAt`) + `ChatMessage`.
   [INFRASTRUCTURE.md](INFRASTRUCTURE.md) "Retention sweep"). A thread whose
   messages all aged out still lists, with no last message.
 
+## 3.6k2b Assignment SOLVE_LINE scoring (wrong tries)
+
+`assignment/assignment-attempt.service.ts` + `assignment-evaluation.service.ts`
+(review S4, 2026-11-23). Every save-progress of a SOLVE_LINE answers "is this
+move right?", so a wrong move is counted on the attempt
+(`StudentAssignmentAttempt.wrongMoves`, once per new line, not per re-sent
+save). At submit each wrong try costs as much as a missed ply:
+`score = correct student plies / (student plies + wrong tries)`, and the same
+for accuracy — a line found by trying every move is still SOLVED but no longer
+100%. With **Allow retry of a wrong move** off, the first wrong move ends the
+line: further saves are refused and submit scores the stored line, never a
+resubmitted one.
+
 ## 3.6k3 Assignment due-date reminders
 
 `packages/types/src/assignment-reminders.ts` —

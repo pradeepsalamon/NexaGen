@@ -238,11 +238,18 @@ export class AssignmentEvaluationService {
     return indices;
   }
 
+  /**
+   * Scores a SOLVE_LINE attempt. `wrongTries` are the wrong moves the student
+   * tried (and took back) while saving progress: each costs as much as a
+   * missed ply, in the score and the accuracy (review S4), so trying every
+   * move until one is accepted no longer earns 100%.
+   */
   evaluateSolveLine(
     startFen: string,
     solution: SolutionMove[],
     studentMoves: AttemptMove[],
-    student: ChessColor
+    student: ChessColor,
+    wrongTries = 0
   ): SolveLineEvaluation {
     const fen = assertValidFen(startFen);
     const studentIdx = this.studentPlyIndices(fen, solution, student);
@@ -279,12 +286,15 @@ export class AssignmentEvaluationService {
       }
     }
 
+    const slips = Math.max(0, Math.floor(wrongTries));
     const scorePercent =
-      totalStudentPlies === 0 ? 0 : Math.round((correctStudentPlies / totalStudentPlies) * 100);
-    const accuracyPercent =
-      attemptedStudentPlies === 0
+      totalStudentPlies === 0
         ? 0
-        : Math.round((correctAttemptedPlies / attemptedStudentPlies) * 100);
+        : Math.round((correctStudentPlies / (totalStudentPlies + slips)) * 100);
+    const accuracyPercent =
+      attemptedStudentPlies + slips === 0
+        ? 0
+        : Math.round((correctAttemptedPlies / (attemptedStudentPlies + slips)) * 100);
 
     return {
       scorePercent,
