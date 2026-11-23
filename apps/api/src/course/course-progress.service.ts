@@ -8,11 +8,12 @@ import type {
   StudentCourseSummary
 } from "@nexa-chess/types";
 import { CourseStatus, Prisma, PuzzleAttemptStatus } from "@prisma/client";
+import { studentVisiblePgn } from "../assignment/assignment-evaluation.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { assertStudent, authenticateUser } from "./course-auth.helper";
 
 const courseModuleInclude = {
-  assignment: { select: { id: true, title: true, activityType: true, pgn: true } },
+  assignment: { select: { id: true, title: true, activityType: true, pgn: true, startFen: true } },
   puzzle: { select: { id: true, title: true, puzzleType: true } }
 } satisfies Prisma.CourseModuleInclude;
 
@@ -205,7 +206,8 @@ export class CourseProgressService {
               id: row.assignment.id,
               title: row.assignment.title,
               activityType: row.assignment.activityType,
-              pgn: row.assignment.pgn
+              // A course never reveals a SOLVE_LINE answer (review S1).
+              pgn: studentVisiblePgn(row.assignment, false)
             },
             puzzle: null
           }

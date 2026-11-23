@@ -33,6 +33,25 @@ export function assertValidFen(fen: string | null | undefined): string {
   }
 }
 
+/**
+ * The PGN a student may see. A SOLVE_LINE assignment's stored `pgn` is the
+ * whole solution line (`buildLinePgn`), so until the answer is revealed a
+ * student gets only the starting position (review S1). Other activity types
+ * store a PGN that holds no answer.
+ */
+export function studentVisiblePgn(
+  assignment: { activityType: string; pgn: string; startFen: string | null },
+  revealSolution: boolean
+): string {
+  if (assignment.activityType !== "SOLVE_LINE" || revealSolution) return assignment.pgn;
+  if (!assignment.startFen) return "";
+  try {
+    return new Chess(assertValidFen(assignment.startFen)).pgn();
+  } catch {
+    return "";
+  }
+}
+
 export function applyUci(chess: Chess, uci: string) {
   const u = normalizeUci(uci);
   return chess.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u.slice(4) || undefined });

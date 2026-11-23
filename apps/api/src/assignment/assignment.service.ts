@@ -40,7 +40,11 @@ import { Chess } from "../common/chess/chess";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { UploadService } from "../upload/upload.service";
-import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
+import {
+  AssignmentEvaluationService,
+  assertValidFen,
+  studentVisiblePgn
+} from "./assignment-evaluation.service";
 import { AssignmentPuzzleSetService } from "./assignment-puzzle-set.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { authenticateUser } from "../auth/authenticate";
@@ -996,8 +1000,10 @@ export class AssignmentService {
       assignmentId: assignment.id,
       title: assignment.title,
       description: assignment.description,
-      pgn: assignment.pgn,
-      pgnUrl: assignment.pgnUrl,
+      pgn: studentVisiblePgn(assignment, revealSolution),
+      // The uploaded file is the same PGN, so it waits for the reveal too.
+      pgnUrl:
+        assignment.activityType === "SOLVE_LINE" && !revealSolution ? null : assignment.pgnUrl,
       difficulty: assignment.difficulty as AssignmentDifficulty,
       timeLimitMinutes: assignment.timeLimitMinutes,
       dueDate: row.assignmentBatch.dueDate.toISOString(),

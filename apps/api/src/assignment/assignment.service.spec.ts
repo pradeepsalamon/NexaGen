@@ -238,6 +238,73 @@ describe("AssignmentService", () => {
     });
   });
 
+  describe("a SOLVE_LINE answer (review S1)", () => {
+    const START = "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1";
+    const LINE_PGN = '[FEN "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1"]\n\n1. Ra8#';
+    const rowWith = (status: string, completedAt: Date | null) => ({
+      id: "sa-1",
+      studentId: STUDENT_ID,
+      status,
+      completedAt,
+      timeSpentSeconds: 0,
+      note: null,
+      bestScorePercent: null,
+      bestAccuracyPercent: null,
+      attemptCount: 0,
+      lastAttemptAt: null,
+      assignmentBatch: {
+        dueDate: new Date("2026-12-01T00:00:00Z"),
+        batch: { name: "Batch A" },
+        assignment: {
+          id: "a-1",
+          title: "Mate in one",
+          description: null,
+          pgn: LINE_PGN,
+          pgnUrl: "https://res.cloudinary.com/x/raw/upload/line.pgn",
+          difficulty: "BEGINNER",
+          timeLimitMinutes: null,
+          createdBy: { firstName: "Coach", lastName: null },
+          solutionMovesJson: [{ uci: "a1a8", san: "Ra8#" }],
+          activityType: "SOLVE_LINE",
+          startFen: START,
+          orientation: "white",
+          studentColor: "white",
+          engineLevel: null,
+          passThresholdPercent: 100,
+          maxAttempts: null,
+          allowHints: false,
+          allowRetry: true,
+          requiredCompletionPercent: 100,
+          minMoves: null
+        }
+      }
+    });
+
+    it("sends only the starting position before the student completes it", async () => {
+      prisma.user.findUnique.mockResolvedValue(asRole(STUDENT_ID, UserRole.STUDENT));
+      prisma.studentAssignment.findUnique.mockResolvedValue(rowWith("PENDING", null));
+
+      const { assignment } = await service.getForStudent(TOKEN, "sa-1");
+
+      expect(JSON.stringify(assignment)).not.toContain("Ra8");
+      expect(JSON.stringify(assignment)).not.toContain("a1a8");
+      expect(assignment.pgnUrl).toBeNull();
+      expect(assignment.pgn).toContain(START);
+    });
+
+    it("shows the line once the student has completed it", async () => {
+      prisma.user.findUnique.mockResolvedValue(asRole(STUDENT_ID, UserRole.STUDENT));
+      prisma.studentAssignment.findUnique.mockResolvedValue(
+        rowWith("COMPLETED", new Date("2026-11-20T00:00:00Z"))
+      );
+
+      const { assignment } = await service.getForStudent(TOKEN, "sa-1");
+
+      expect(assignment.pgn).toContain("Ra8#");
+      expect(assignment.pgnUrl).not.toBeNull();
+    });
+  });
+
   describe("updateStatus", () => {
     const studentRow = {
       id: "sa-1",
