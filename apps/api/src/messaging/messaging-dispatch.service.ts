@@ -78,6 +78,7 @@ export type DispatchRequest =
       event:
         | "CLASS_SCHEDULED"
         | "CLASS_CANCELLED"
+        | "CLASS_RESCHEDULED"
         | "CLASS_SUBSTITUTE_ASSIGNED"
         | "CLASS_REMINDER"
         | "CLASS_REMINDER_COACH";
@@ -443,6 +444,7 @@ export class MessagingDispatchService {
     switch (request.event) {
       case "CLASS_SCHEDULED":
       case "CLASS_CANCELLED":
+      case "CLASS_RESCHEDULED":
       case "CLASS_SUBSTITUTE_ASSIGNED":
       case "CLASS_REMINDER":
       case "CLASS_REMINDER_COACH":

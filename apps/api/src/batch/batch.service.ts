@@ -28,6 +28,7 @@ import {
   resolveOrderBy,
   resolvePagination
 } from "../common/pagination";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { authenticateUser } from "../auth/authenticate";
@@ -75,7 +76,8 @@ export class BatchService {
     private readonly entitlements: EntitlementService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly trashRepository: TrashRepository
+    private readonly trashRepository: TrashRepository,
+    private readonly messaging: MessagingDispatchService
   ) { }
 
   async list(
@@ -230,6 +232,7 @@ export class BatchService {
 
     await this.assertAssignableUsers(payload.coachIds, payload.studentIds);
 
+    let cancelledClassIds: string[] = [];
     const batch = await this.prisma.$transaction(async (transaction) => {
       await transaction.batch.update({
         data: {
@@ -315,11 +318,16 @@ export class BatchService {
       });
 
       if (payload.startsAt !== undefined || payload.endsAt !== undefined) {
-        await this.cancelClassesOutsideDates(transaction, updated, user.id);
+        cancelledClassIds = await this.cancelClassesOutsideDates(transaction, updated, user.id);
       }
 
       return updated;
     });
+
+    // After commit, one per class (review M1): families were never told.
+    for (const classId of cancelledClassIds) {
+      this.messaging.dispatchInBackground({ classId, event: "CLASS_CANCELLED" });
+    }
 
     return { batch: this.toBatch(batch, user) };
   }
@@ -341,7 +349,19 @@ export class BatchService {
       ...(from ? [{ startsAt: { lt: from } }] : []),
       ...(until ? [{ startsAt: { gte: until } }] : [])
     ];
-    if (outside.length === 0) return;
+    if (outside.length === 0) return [];
+
+    const due = await transaction.coachClass.findMany({
+      select: { id: true },
+      where: {
+        batchId: batch.id,
+        OR: outside,
+        startsAt: { gt: new Date() },
+        status: ClassStatus.SCHEDULED
+      }
+    });
+    const ids = due.map((c) => c.id);
+    if (ids.length === 0) return [];
 
     await transaction.coachClass.updateMany({
       data: {
@@ -350,13 +370,9 @@ export class BatchService {
         cancelledById: userId,
         status: ClassStatus.CANCELLED
       },
-      where: {
-        batchId: batch.id,
-        OR: outside,
-        startsAt: { gt: new Date() },
-        status: ClassStatus.SCHEDULED
-      }
+      where: { id: { in: ids }, status: ClassStatus.SCHEDULED }
     });
+    return ids;
   }
 
   async archive(

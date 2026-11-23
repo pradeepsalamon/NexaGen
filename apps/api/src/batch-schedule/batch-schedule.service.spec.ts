@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException } from "@nestjs/common";
 import type { JwtService } from "@nestjs/jwt";
 import type { PreviewBatchScheduleRequest } from "@nexa-chess/types";
+import type { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import { BatchScheduleService } from "./batch-schedule.service";
 
@@ -57,11 +58,13 @@ function makeService(overrides: Record<string, unknown> = {}) {
   Object.assign(prisma, overrides);
   prisma.$transaction.mockImplementation((fn: (tx: typeof prisma) => unknown) => fn(prisma));
 
+  const messaging = { dispatchInBackground: jest.fn() };
   const service = new BatchScheduleService(
     jwt as unknown as JwtService,
-    prisma as unknown as PrismaService
+    prisma as unknown as PrismaService,
+    messaging as unknown as MessagingDispatchService
   );
-  return { service, prisma };
+  return { messaging, prisma, service };
 }
 
 const baseBody: PreviewBatchScheduleRequest = {
@@ -210,6 +213,72 @@ describe("BatchScheduleService", () => {
       await expect(
         service.occurrenceAction("token", "cls1", { action: "CANCEL" })
       ).rejects.toThrow(ConflictException);
+    });
+
+    // Review M1: an admin's change reaches families like a coach's does.
+    const scheduled = (over: Record<string, unknown> = {}) => ({
+      batchId: "batch1",
+      coachId: "john",
+      endsAt: new Date("2099-01-01T11:00:00.000Z"),
+      id: "cls1",
+      scheduleId: "sched1",
+      startsAt: new Date("2099-01-01T10:00:00.000Z"),
+      status: "SCHEDULED",
+      ...over
+    });
+    const classWith = (row: Record<string, unknown>) => ({
+      findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue(row),
+      findUniqueOrThrow: jest.fn().mockResolvedValue({ ...row, batch: { name: "A" }, coach: { firstName: "J", lastName: null }, liveSession: null }),
+      update: jest.fn()
+    });
+
+    it("announces a cancelled class", async () => {
+      const { messaging, service } = makeService({ coachClass: classWith(scheduled()) });
+      await service.occurrenceAction("token", "cls1", { action: "CANCEL" });
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ classId: "cls1", event: "CLASS_CANCELLED" });
+    });
+
+    it("announces a moved class and a new coach", async () => {
+      const { messaging, service } = makeService({ coachClass: classWith(scheduled()) });
+      await service.occurrenceAction("token", "cls1", {
+        action: "RESCHEDULE",
+        coachId: "mary",
+        endsAt: "2099-01-02T11:00:00.000Z",
+        startsAt: "2099-01-02T10:00:00.000Z"
+      });
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ classId: "cls1", event: "CLASS_RESCHEDULED" });
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ classId: "cls1", event: "CLASS_SUBSTITUTE_ASSIGNED" });
+    });
+
+    it("says nothing about a time that didn't change", async () => {
+      const { messaging, service } = makeService({ coachClass: classWith(scheduled()) });
+      await service.occurrenceAction("token", "cls1", {
+        action: "RESCHEDULE",
+        endsAt: "2099-01-01T11:00:00.000Z",
+        startsAt: "2099-01-01T10:00:00.000Z"
+      });
+      expect(messaging.dispatchInBackground).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("deactivate", () => {
+    it("cancels the schedule's future classes and announces each one", async () => {
+      const { messaging, prisma, service } = makeService();
+      prisma.batchClassSchedule.findUnique.mockResolvedValue({ id: "sched1" });
+      (prisma.batchClassSchedule as Record<string, jest.Mock>).update = jest.fn();
+      prisma.coachClass.findMany.mockResolvedValueOnce([{ id: "c1" }, { id: "c2" }]);
+      jest.spyOn(service as unknown as { loadDetail: () => Promise<unknown> }, "loadDetail").mockResolvedValue({});
+
+      const res = await service.deactivate("token", "sched1");
+
+      expect(res.cancelledCount).toBe(2);
+      expect(prisma.coachClass.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: ["c1", "c2"] }, status: "SCHEDULED" } })
+      );
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ classId: "c1", event: "CLASS_CANCELLED" });
+      expect(messaging.dispatchInBackground).toHaveBeenCalledWith({ classId: "c2", event: "CLASS_CANCELLED" });
     });
   });
 });

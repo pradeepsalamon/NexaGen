@@ -13,6 +13,7 @@ export const messagingEventSchema = z.enum([
   "CLASS_REMINDER",
   "CLASS_REMINDER_COACH",
   "CLASS_CANCELLED",
+  "CLASS_RESCHEDULED",
   "CLASS_SUBSTITUTE_ASSIGNED",
   "ASSIGNMENT_ASSIGNED",
   "ASSIGNMENT_DUE_SOON",
@@ -60,6 +61,7 @@ export const MESSAGING_EVENT_EMAIL_CATEGORY: Record<MessagingEvent, EmailCategor
   ASSIGNMENT_OVERDUE_COACH: "HOMEWORK",
   CLASS_CANCELLED: "CLASSES",
   CLASS_REMINDER: "CLASSES",
+  CLASS_RESCHEDULED: "CLASSES",
   CLASS_REMINDER_COACH: "CLASSES",
   CLASS_SCHEDULED: "CLASSES",
   CLASS_SUBSTITUTE_ASSIGNED: "CLASSES",
@@ -315,10 +317,19 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     audiences: ["STUDENTS", "COACHES", "STUDENTS_AND_COACHES"],
     supportsLeadTime: false
   },
+  CLASS_RESCHEDULED: {
+    event: "CLASS_RESCHEDULED",
+    label: "Class moved",
+    description: "Sent when an admin moves a scheduled class to another time. The class variables carry the new time.",
+    variables: CLASS_VARIABLES,
+    audiences: ["STUDENTS", "COACHES", "STUDENTS_AND_COACHES"],
+    supportsLeadTime: false
+  },
   CLASS_SUBSTITUTE_ASSIGNED: {
     event: "CLASS_SUBSTITUTE_ASSIGNED",
     label: "Substitute coach assigned",
-    description: "Sent to the coach taking over a class once an admin approves the original coach's request.",
+    description:
+      "Sent to the coach taking over a class: when an admin approves the original coach's request, or swaps the coach on the schedule.",
     variables: CLASS_VARIABLES,
     audiences: ["COACHES"],
     supportsLeadTime: false
@@ -941,6 +952,15 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "Class cancelled",
     body: "Hi {{recipient.firstName}}, the class \"{{class.title}}\" on {{class.dateTime}} has been cancelled. We'll share a new time soon."
+  },
+  CLASS_RESCHEDULED: {
+    enabled: false,
+    whatsappEnabled: true,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    title: "Class moved",
+    body: "Hi {{recipient.firstName}}, the class \"{{class.title}}\" ({{batch.name}}) has moved to {{class.dateTime}}."
   },
   CLASS_SUBSTITUTE_ASSIGNED: {
     enabled: true,

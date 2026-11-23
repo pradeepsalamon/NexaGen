@@ -29,6 +29,7 @@ import {
   UserRole,
   UserStatus
 } from "@prisma/client";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   generateOccurrences,
@@ -67,7 +68,8 @@ export class BatchScheduleService {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly messaging: MessagingDispatchService
   ) {}
 
   // ── Auth ────────────────────────────────────────────────────────────────
@@ -813,24 +815,33 @@ export class BatchScheduleService {
       throw new NotFoundException("Schedule not found.");
     }
 
-    const cancelledCount = await this.prisma.$transaction(async (tx) => {
+    const cancelledIds = await this.prisma.$transaction(async (tx) => {
       await tx.batchClassSchedule.update({
         where: { id },
         data: { status: BatchScheduleStatus.ENDED }
       });
-      const cancelled = await tx.coachClass.updateMany({
+      const due = await tx.coachClass.findMany({
+        select: { id: true },
         where: {
           scheduleId: id,
           status: ClassStatus.SCHEDULED,
           startsAt: { gt: new Date() }
-        },
-        data: { status: ClassStatus.CANCELLED, cancelledAt: new Date(), cancelledById: user.id }
+        }
       });
-      return cancelled.count;
+      const ids = due.map((c) => c.id);
+      if (ids.length > 0) {
+        await tx.coachClass.updateMany({
+          where: { id: { in: ids }, status: ClassStatus.SCHEDULED },
+          data: { status: ClassStatus.CANCELLED, cancelledAt: new Date(), cancelledById: user.id }
+        });
+      }
+      return ids;
     });
+    // After commit, one per class (review M1): families were never told.
+    this.announceCancelled(cancelledIds);
 
     const detail = await this.loadDetail(id);
-    return { schedule: detail, cancelledCount };
+    return { schedule: detail, cancelledCount: cancelledIds.length };
   }
 
   // ── Single occurrence ───────────────────────────────────────────────────
@@ -864,6 +875,7 @@ export class BatchScheduleService {
         where: { id: classId },
         data: { status: ClassStatus.CANCELLED, cancelledAt: new Date(), cancelledById: user.id }
       });
+      if (cls.status === ClassStatus.SCHEDULED) this.announceCancelled([classId]);
     } else if (body.action === "RESTORE") {
       if (cls.status !== ClassStatus.CANCELLED) {
         throw new ConflictException("Only a cancelled class can be restored.");
@@ -918,6 +930,14 @@ export class BatchScheduleService {
         where: { id: classId },
         data: { coachId, startsAt, endsAt }
       });
+
+      // Review M1: an admin's move or coach swap is announced like a coach's.
+      if (startsAt.getTime() !== cls.startsAt.getTime() || endsAt.getTime() !== cls.endsAt.getTime()) {
+        this.messaging.dispatchInBackground({ classId, event: "CLASS_RESCHEDULED" });
+      }
+      if (coachId !== cls.coachId) {
+        this.messaging.dispatchInBackground({ classId, event: "CLASS_SUBSTITUTE_ASSIGNED" });
+      }
     }
 
     const updated = await this.prisma.coachClass.findUniqueOrThrow({
@@ -929,6 +949,13 @@ export class BatchScheduleService {
       }
     });
     return { class: this.toCalendarClass(updated) };
+  }
+
+  /** After commit: each cancelled class goes through the CLASS_CANCELLED rule. */
+  private announceCancelled(classIds: string[]) {
+    for (const classId of classIds) {
+      this.messaging.dispatchInBackground({ classId, event: "CLASS_CANCELLED" });
+    }
   }
 
   private async assertNoConflict(

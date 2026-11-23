@@ -73,7 +73,8 @@ the editors; a new placeholder needs an entry (a spec checks).
   (`mediaId`/`link`/`filename`) which the CALLER resolves — dispatch persists it
   onto `message_deliveries` and the worker sends it as a WhatsApp document.
 - `APPROVAL_REQUESTED` / `APPROVAL_DECIDED` ship **enabled, in-app only** (admin approvals, [PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md](PLATFORM_PERMISSIONS_AND_APPROVALS_PLAN.md) §2.7). `ApprovalService` dispatches REQUESTED after a request commits — to every ACTIVE user in the action's catalogue `reviewerRoles`, never the requester (audience `ADMINS`, the only admin-side audience) — and DECIDED to the requester after an approval, rejection or expiry. Everything shown is read back from the request row.
-- `CLASS_SUBSTITUTE_ASSIGNED` ships **enabled, in-app only**: sent after commit to the coach who now owns a class, once an admin approves a `CLASS_SUBSTITUTE_COACH` request. The audience is coaches only; the batch isn't told by this event.
+- `CLASS_SUBSTITUTE_ASSIGNED` ships **enabled, in-app only**: sent after commit to the coach who now owns a class, once an admin approves a `CLASS_SUBSTITUTE_COACH` request, or swaps the coach on the schedule. The audience is coaches only; the batch isn't told by this event.
+- Admin changes on the schedule are announced like a coach's (review M1, 2026-11-23), all after commit and one per class: `CLASS_CANCELLED` when an admin cancels a class, ends a recurring schedule, or shortens a batch's dates; `CLASS_RESCHEDULED` ("Class moved"; class variables carry the new time) when an admin moves a class. Both ship **disabled**, like `CLASS_CANCELLED` always has: switch them on in `/admin/messaging`.
 - **Registration messages** ship **enabled, email + in-app** (WhatsApp off until an
   admin turns it on): `ACCOUNT_WELCOME` ("Registration received") goes to a
   student or coach right after `AuthService.register`/`registerCoach`;
