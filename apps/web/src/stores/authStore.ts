@@ -14,6 +14,11 @@ type AuthState = {
   user?: AuthUser;
 };
 
+function persistedUser(user: AuthUser): AuthUser {
+  const { phoneNumber: _phone, studentProfile: _student, coachProfile: _coach, ...rest } = user;
+  return rest;
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -41,7 +46,11 @@ export const useAuthStore = create<AuthState>()(
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);
       },
-      partialize: (state) => ({ user: state.user })
+      // Only what the first paint needs is kept in localStorage; the rest
+      // comes from /auth/me on every load (SessionBootstrap). A student's
+      // date of birth and parent's contact details, and anyone's phone, never
+      // sit in the browser (students are minors; FE review AU4).
+      partialize: (state) => ({ user: state.user ? persistedUser(state.user) : undefined })
     }
   )
 );

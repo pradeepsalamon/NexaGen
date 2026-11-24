@@ -9,6 +9,7 @@ import { ApiError } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { focusFirstInvalid } from "@/lib/forms";
 import { useRouter } from "@/lib/navigation";
+import { safeNextPath } from "@/lib/routeAccess";
 import { useToast } from "@/providers/ToastProvider";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { login } from "../api/authApi";
@@ -66,7 +67,11 @@ export function useLoginFlow() {
       message: `Welcome back to ${brandName}.`,
       title: "Login successful"
     });
-    router.push(getRoleDashboardHref(user.role));
+    // A link opened while signed out (a class or checkout from WhatsApp)
+    // comes back here: `?next=`, if it is a safe path for this role.
+    const next =
+      typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("next");
+    router.push(safeNextPath(next, user.role) ?? getRoleDashboardHref(user.role));
   }
 
   function resetChallenge() {

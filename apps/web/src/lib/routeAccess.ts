@@ -135,3 +135,20 @@ export function readRoleFromJwt(token: string | undefined): string | undefined {
     return undefined;
   }
 }
+
+/**
+ * Where to send a user after sign-in when the login link carries `?next=`
+ * (FE review AU3): only a same-site path (starts with one `/`, never `//` or
+ * `/\\`) that this role may open. Anything else falls back to the dashboard,
+ * so the link can't be an open redirect.
+ */
+export function safeNextPath(next: string | null | undefined, role: string): string | null {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
+  // Browsers drop tabs/newlines and read "\\" as "/" in a URL, so "/\t/x" or
+  // "/\\x" would become "//x" (another site).
+  if (/[\u0000-\u001f\\]/.test(next)) return null;
+  const pathname = next.split(/[?#]/)[0];
+  if (pathname === "/login" || pathname === "/signup") return null;
+  if (!isProtectedPath(pathname) || !canAccessPath(pathname, role)) return null;
+  return next;
+}

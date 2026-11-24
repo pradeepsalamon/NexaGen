@@ -51,6 +51,8 @@ export function middleware(request: NextRequest) {
     if (!hasSession) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("reason", "unauthorized");
+      // Back to this page after sign-in (checked by safeNextPath; FE review AU3).
+      loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
       return NextResponse.redirect(loginUrl);
     }
     if (role && !canAccessPath(pathname, role)) {
