@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Select } from "@/components/ui/Select";
 import { useToast } from "@/providers/ToastProvider";
 import {
   Users,
@@ -13,7 +14,6 @@ import {
   CalendarDays,
   Phone,
   GraduationCap,
-  ChevronDown,
   Mail,
   ArrowRight,
   CircleCheckBig
@@ -378,23 +378,14 @@ export function DemoBookingSection() {
                       className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-accent-ink"
                       strokeWidth={2.2}
                     />
-                    <select
+                    <Select
                       id="demo-program"
                       value={formData.program}
                       onChange={(e) =>
                         setFormData({ ...formData, program: e.target.value })
                       }
-                      className={`${inputBaseClass} appearance-none pl-10 pr-9 cursor-pointer`}
-                    >
-                      {programOptions.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 size-4 text-app-subtle"
-                      strokeWidth={2.2}
+                      options={programOptions}
+                      className={`${inputBaseClass} min-h-11 pl-10 pr-9 cursor-pointer`}
                     />
                   </div>
                   <p

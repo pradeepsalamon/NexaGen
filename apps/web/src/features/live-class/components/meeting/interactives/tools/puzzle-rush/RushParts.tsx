@@ -10,6 +10,7 @@ import {
   type PuzzleRushMode,
   type PuzzleRushStanding,
 } from "@nexa-chess/types";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { cn } from "@/lib/utils";
 import { formatRushClock } from "../../../../../hooks/usePuzzleRush";
 import { rushAccuracy, type RushFeedback, type RushResult } from "../../../../../lib/puzzleRushRun";
@@ -189,24 +190,21 @@ export function RushStandings({
   }
   return (
     <div className="overflow-hidden rounded-control border border-app-border">
-      <table className="w-full text-sm">
-        <thead className="bg-app-soft text-left text-xs font-bold text-app-muted">
-          <tr>
-            <th className="px-2 py-1.5" scope="col">#</th>
-            <th className="px-2 py-1.5" scope="col">Player</th>
-            <th className="px-2 py-1.5 text-right" scope="col">{mode === "STORM" ? "Solved" : "Score"}</th>
-            <th className="px-2 py-1.5 text-right" scope="col">Accuracy</th>
-            <th className="px-2 py-1.5 text-right" scope="col">Combo</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="px-2 py-1.5" scope="col">#</TableHead>
+            <TableHead className="px-2 py-1.5" scope="col">Player</TableHead>
+            <TableHead className="px-2 py-1.5 text-right" scope="col">{mode === "STORM" ? "Solved" : "Score"}</TableHead>
+            <TableHead className="px-2 py-1.5 text-right" scope="col">Accuracy</TableHead>
+            <TableHead className="px-2 py-1.5 text-right" scope="col">Combo</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {standings.map((s) => (
-            <tr
-              className={cn("border-t border-app-border", s.studentId === meId && "bg-primary/10")}
-              key={s.studentId}
-            >
-              <td className="px-2 py-1.5 font-bold tabular-nums">{s.rank}</td>
-              <td className="max-w-[9rem] truncate px-2 py-1.5">
+            <TableRow className={cn(s.studentId === meId && "bg-primary/10")} key={s.studentId}>
+              <TableCell className="px-2 py-1.5 font-bold tabular-nums">{s.rank}</TableCell>
+              <TableCell className="max-w-[9rem] truncate px-2 py-1.5">
                 {s.name}
                 {s.isCoach ? <span className="ml-1 text-xs text-app-muted">· coach</span> : null}
                 {s.finishedAt ? (
@@ -214,14 +212,14 @@ export function RushStandings({
                 ) : s.startedAt ? (
                   <span className="ml-1 text-xs text-primary-ink">· playing</span>
                 ) : null}
-              </td>
-              <td className="px-2 py-1.5 text-right font-extrabold tabular-nums">{s.score}</td>
-              <td className="px-2 py-1.5 text-right tabular-nums">{rushAccuracy(s.moves, s.errors)}%</td>
-              <td className="px-2 py-1.5 text-right tabular-nums">{s.bestCombo}</td>
-            </tr>
+              </TableCell>
+              <TableCell className="px-2 py-1.5 text-right font-extrabold tabular-nums">{s.score}</TableCell>
+              <TableCell className="px-2 py-1.5 text-right tabular-nums">{rushAccuracy(s.moves, s.errors)}%</TableCell>
+              <TableCell className="px-2 py-1.5 text-right tabular-nums">{s.bestCombo}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

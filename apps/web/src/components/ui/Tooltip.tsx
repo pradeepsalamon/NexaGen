@@ -10,9 +10,12 @@ const TooltipTrigger = TooltipPrimitive.Trigger;
 
 const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
->(({ className, sideOffset = 8, ...props }, ref) => (
-  <TooltipPrimitive.Portal>
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content> & {
+    /** Where to portal; another window's body for a Picture-in-Picture document. */
+    container?: HTMLElement | null;
+  }
+>(({ className, container, sideOffset = 8, ...props }, ref) => (
+  <TooltipPrimitive.Portal container={container ?? undefined}>
     <TooltipPrimitive.Content
       className={cn(
         "z-50 overflow-hidden rounded-control bg-app-text px-2 py-1 text-xs font-medium text-app-surface shadow-lift origin-[var(--radix-tooltip-content-transform-origin)] ease-emphasized animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
@@ -32,6 +35,8 @@ type SimpleTooltipProps = {
   side?: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>["side"];
   align?: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>["align"];
   className?: string;
+  /** Portal target when the trigger lives in another document (the mini player's PiP window). */
+  container?: HTMLElement | null;
 };
 
 /**
@@ -39,11 +44,11 @@ type SimpleTooltipProps = {
  * on interactive elements — it is themed, keyboard-accessible, and consistent.
  * The child must forward a ref and props (a DOM element or `asChild` primitive).
  */
-function SimpleTooltip({ align, children, className, label, side = "top" }: SimpleTooltipProps) {
+function SimpleTooltip({ align, children, className, container, label, side = "top" }: SimpleTooltipProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent align={align} className={className} side={side}>
+      <TooltipContent align={align} className={className} container={container} side={side}>
         {label}
       </TooltipContent>
     </Tooltip>
