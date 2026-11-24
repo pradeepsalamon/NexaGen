@@ -98,6 +98,8 @@ describe("MailService", () => {
       AI_ENABLED: false,
       AI_RUNTIME_SHARED_SECRET: undefined,
       AI_RUNTIME_TIMEOUT_MS: 5000,
+      PLAY_REVIEW_JOB_ENABLED: false,
+      AI_REVIEW_PROVIDER_TIMEOUT_MS: 30000,
       AI_RUNTIME_URL: "http://ai-runtime:8000",
       GAME_ANALYSIS_AUTO_LIVE_GAMES: false,
       GAME_ANALYSIS_CONCURRENCY: 1,

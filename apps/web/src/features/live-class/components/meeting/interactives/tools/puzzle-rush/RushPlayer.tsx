@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SkipForward, Timer, Zap } from "lucide-react";
 import {
   PUZZLE_RACER_CONFIG,
+  PUZZLE_RUSH_MAX_PLAYED,
   PUZZLE_STORM_CONFIG,
   type PuzzleRush,
   type PuzzleRushMode,
@@ -253,6 +254,8 @@ function ActiveRun({
       finished: over,
       highestRating: r.highestRating,
       moves: r.moves,
+      // Each finished puzzle's moves, for the student's Board play (docs/AI_PLAY_REVIEW.md).
+      played: r.played.slice(-PUZZLE_RUSH_MAX_PLAYED),
       puzzleIndex: r.puzzleIndex,
       rushId: rush.id,
       score: rushScore(r),

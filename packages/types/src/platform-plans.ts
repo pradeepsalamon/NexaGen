@@ -23,6 +23,7 @@ export const DEFAULT_TENANT_ID = "tenant_nexa";
 
 export const PLAN_FEATURE_KEYS = [
   "advancedAnalytics",
+  "aiPlayReview",
   "brandIdentity",
   "classRecording",
   "coachFeedback",
@@ -70,6 +71,13 @@ export const PLAN_FEATURES: Record<PlanFeatureKey, PlanFeatureDefinition> = {
     description: "Detailed analytics for users, coaches, classes, attendance, recordings and engagement, with exports.",
     key: "advancedAnalytics",
     label: "Advanced analytics"
+  },
+  aiPlayReview: {
+    category: "Learning",
+    description:
+      "Nightly engine review of every move students play on any board, plus optional outside-AI comments for students whose parents agreed.",
+    key: "aiPlayReview",
+    label: "AI play review"
   },
   brandIdentity: {
     category: "Growth",

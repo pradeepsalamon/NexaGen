@@ -48,6 +48,16 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
+          "Every move a student plays on a board in the app (live classes, puzzles, homework, Puzzle Storm and Racer, tournaments, their own imported games, and the class board while they have control) is recorded, and each night our own chess engine, on our own server, reviews it for mistakes, better moves and missed tactics. The student, their coach and academy admins see the review. There is no switch for this: it is part of how the academy teaches.",
+        label: "Board moves and engine review"
+      },
+      {
+        detail:
+          "Only for a student whose switch is on (Profile → \"AI comments on my play\", with a parent or guardian's agreement, or turned on by their coach or an admin after a parent agreed), and only if the academy turns it on: short coach-style comments on that student's play, written by an outside AI service. Who changed the switch, and when, is recorded. Switching it off stops this at once and deletes those comments.",
+        label: "Outside-AI comments (students who switch it on)"
+      },
+      {
+        detail:
           "What you search for in the help centre (without your name: only your role and batch, the page you searched from, how many results it found and when), and whether you marked a help article helpful. Coaches can suggest help articles; those suggestions are kept with their name.",
         label: "Help centre"
       },
@@ -114,6 +124,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
+          "Only for a student whose outside-AI switch is on: the board positions and moves of their play and what our engine found are sent to an outside AI service to write comments. Never a name, email, account id, class, batch or academy. The service may keep what it is sent under its own terms. None is in use yet; the service is named here before anything is sent.",
+        label: "Outside AI service (AI play review)"
+      },
+      {
+        detail:
           "Error reports go to Sentry with only an internal user ID and your role — never your name, email or messages.",
         label: "Sentry"
       },
@@ -165,6 +180,10 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       { detail: "Our record of what was sent to Meta is removed after 180 days.", label: "Ad measurement events" },
       { detail: "Removed after 30 days.", label: "Class transcripts" },
       { detail: "Our copy is removed after a year.", label: "Emails academy staff write to you" },
+      {
+        detail: "Engine reviews of a student's play, and any outside-AI comments on them, are removed after a year. The moves themselves are kept with the class, puzzle or game they belong to.",
+        label: "Engine reviews and AI comments"
+      },
       {
         detail:
           "A conversation and its requests are removed a year after the conversation ends, unless a request is still open. The raw delivery records from WhatsApp are removed after 30 days.",
@@ -255,6 +274,13 @@ export const TERMS_SECTIONS: LegalSection[] = [
     paragraphs: ["A coach may record a live class for students in that class to watch later."],
     pending: "Consent to being recorded, who may watch recordings, and that recordings may not be redistributed.",
     title: "Class recordings"
+  },
+  {
+    id: "board-play",
+    paragraphs: [
+      "The moves a student plays on boards in the app are recorded and reviewed each night by the academy's own chess engine, so the student and their coaches can see what to work on. Short comments from an outside AI service are added only for a student whose switch is on, with a parent or guardian's agreement, and can be switched off at any time. See the privacy policy for what is kept and shared."
+    ],
+    title: "Board play and AI review"
   },
   {
     id: "payments",

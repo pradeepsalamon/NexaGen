@@ -14,6 +14,8 @@ import {
   promoteToMainline,
   setMoveComment,
   toggleMoveNag,
+  MAX_BOARD_MOVE_CREDITS,
+  type BoardMoveCredit,
   type MoveTree,
   type MoveTreePath,
 } from "@nexa-chess/types";
@@ -126,6 +128,13 @@ export interface BoardState {
    */
   freeMoveUndo: FreeMoveSnapshot[];
   freeMoveRedo: FreeMoveSnapshot[];
+  /**
+   * Coach's window only: the moves it accepted from a student with control in
+   * game `moveCreditsGameId`, saved with the board so the API can credit the
+   * student (docs/AI_PLAY_REVIEW.md gap B). Never broadcast.
+   */
+  moveCredits: BoardMoveCredit[];
+  moveCreditsGameId: string | null;
   pendingPromotion: { from: string, to: string } | null;
   isSetupPositionOpen: boolean;
   isDrawingMode: boolean;
@@ -220,6 +229,8 @@ export interface BoardActions {
    * move is taken from the packet — never its PGN or tree.
    */
   applyRemoteMove: (move: { from: string; to: string; promotion?: string }, moveType?: SoundType) => void;
+  /** Record that a student played `uci` from `fenBefore` in the current game (coach's window). */
+  creditMove: (credit: BoardMoveCredit) => void;
   /** A controlling student's free move (illegal moves allowed), replayed on this board. */
   applyRemoteFreeMove: (move: { from: string; to: string }, moveType?: SoundType) => void;
   /**
@@ -421,6 +432,8 @@ export const createBoardStore = () => {
     allowIllegalMoves: false,
     freeMoveUndo: NO_SNAPSHOTS,
     freeMoveRedo: NO_SNAPSHOTS,
+    moveCredits: [],
+    moveCreditsGameId: null,
     pendingPromotion: null,
     isSetupPositionOpen: false,
 
@@ -812,6 +825,13 @@ export const createBoardStore = () => {
       } catch {
         // Not legal here after all: the packet is dropped.
       }
+    },
+
+    creditMove: (credit) => {
+      const state = get();
+      const same = state.moveCreditsGameId === state.gameId;
+      const kept = same ? state.moveCredits.filter((c) => !(c.fenBefore === credit.fenBefore && c.uci === credit.uci)) : [];
+      set({ moveCredits: [...kept, credit].slice(-MAX_BOARD_MOVE_CREDITS), moveCreditsGameId: state.gameId });
     },
 
     applyRemoteFreeMove: ({ from, to }, moveType) => {

@@ -122,6 +122,26 @@ const apiEnvSchema = z.object({
   AI_RUNTIME_URL: z.string().default("http://ai-runtime:8000"),
   AI_RUNTIME_SHARED_SECRET: z.string().optional(),
   AI_RUNTIME_TIMEOUT_MS: z.coerce.number().int().min(500).max(30000).default(5000),
+  // AI play review (docs/AI_PLAY_REVIEW.md). The nightly engine review of
+  // students' play (our own Stockfish; needs GAME_ANALYSIS_ENABLED) and the
+  // outside AI that writes comments for students whose switch is on. The
+  // outside AI is off until all three of URL, key and model are set: an
+  // OpenAI-compatible chat API (`<url>/chat/completions`).
+  PLAY_REVIEW_JOB_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  AI_REVIEW_PROVIDER_URL: z
+    .string()
+    .optional()
+    .refine((value) => !value?.trim() || /^https:\/\//.test(value.trim()) || /^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(value.trim()), {
+      message: "AI_REVIEW_PROVIDER_URL must be https:// (http only for localhost)."
+    }),
+  AI_REVIEW_PROVIDER_API_KEY: z.string().optional(),
+  AI_REVIEW_PROVIDER_MODEL: z.string().optional(),
+  /** Shown to admins and students, and named in the privacy policy. */
+  AI_REVIEW_PROVIDER_NAME: z.string().optional(),
+  AI_REVIEW_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
   COOKIE_DOMAIN: z.string().optional(),
   // Web and API are same-site subdomains, so Lax is enough and blocks cross-site form posts.
   // "none" only for a deployment where the API sits on a different registrable domain.

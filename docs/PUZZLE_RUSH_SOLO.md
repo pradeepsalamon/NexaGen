@@ -41,7 +41,7 @@ Routes in `API_ROUTES.puzzleRushSolo`, contract in `packages/types/src/puzzle-ru
 |---|---|
 | `GET /puzzle-rush/solo` | batches, personal bests (`bests` all time, `weekBests` the last 7 days), `enabled` |
 | `POST /puzzle-rush/solo/runs` `{ mode }` | closes the student's unfinished run, freezes a new one |
-| `PUT /puzzle-rush/solo/runs/:id/progress` | the running totals; the server clamps them |
+| `PUT /puzzle-rush/solo/runs/:id/progress` | the running totals; the server clamps them. Optional `played` (each finished puzzle's moves) is rebuilt against the run's own puzzles into `movesJson` for the Board play feed ([AI_PLAY_REVIEW.md](AI_PLAY_REVIEW.md) gap A) |
 | `GET /puzzle-rush/solo/leaderboard?batchId&mode&period` | `period` is `WEEK` or `ALL` |
 | `GET /puzzle-rush/solo/battles?mode&period` | the Batch Battles board (students of a training batch) |
 | `PATCH /puzzle-rush/solo/battles/batches/:id` `{ battlesEnabled?, battlesShowNames? }` | a batch's Batch Battles settings: an admin, or a coach of that batch (any other batch is a 404) |

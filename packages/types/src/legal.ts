@@ -9,7 +9,7 @@ import { z } from "zod";
  * who accepted the older text. The API records this constant, never a version
  * sent by the browser.
  */
-export const LEGAL_TERMS_VERSION = "2026-11-07";
+export const LEGAL_TERMS_VERSION = "2026-11-24";
 
 /** The sign-up checkbox: the request is refused unless it was ticked. */
 export const acceptedTermsSchema = z.literal(true, {

@@ -117,7 +117,11 @@ export class PrivacyService {
       tournamentCommentary,
       tournamentCertificates,
       whatsAppLinks,
-      roleChanges
+      roleChanges,
+      aiReviewConsents,
+      aiPlayReviews,
+      aiPlayComments,
+      classBoardMoves
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -270,7 +274,14 @@ export class PrivacyService {
       }),
       // Extra roles granted to / removed from this account (docs/MULTI_ROLE_ACCOUNTS.md);
       // who made the change is someone else's account, so only the fact.
-      p.userRoleChange.findMany({ omit: { actorId: true }, where: { userId: id } })
+      p.userRoleChange.findMany({ omit: { actorId: true }, where: { userId: id } }),
+      // AI play review (docs/AI_PLAY_REVIEW.md): the outside-AI switch history
+      // (who changed it is someone else's account, so only their role), the
+      // engine reviews, the outside AI's comments, and class-board moves credited.
+      p.aiReviewConsent.findMany({ omit: { changedById: true }, where: { studentId: id } }),
+      p.aiPlayReview.findMany({ where: { studentId: id } }),
+      p.aiPlayComment.findMany({ where: { studentId: id } }),
+      p.liveClassBoardMove.findMany({ where: { studentId: id } })
     ]);
 
     return {
@@ -326,6 +337,10 @@ export class PrivacyService {
         referredBy: records(referredBy),
         referralsMade: records(referralsMade),
         roleChanges: records(roleChanges),
+        aiReviewConsents: records(aiReviewConsents),
+        aiPlayReviews: records(aiPlayReviews),
+        aiPlayComments: records(aiPlayComments),
+        classBoardMoves: records(classBoardMoves),
         sessions: records(sessions),
         tournamentAuditActions: records(tournamentAuditActions),
         tournamentCertificates: records(tournamentCertificates),

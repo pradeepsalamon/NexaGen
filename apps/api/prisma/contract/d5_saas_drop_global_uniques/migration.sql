@@ -709,3 +709,19 @@ ALTER TABLE "daily_puzzles" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_requ
 
 -- AlterTable
 ALTER TABLE "user_role_changes" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- Added 2026-11-24 (AI play review, docs/AI_PLAY_REVIEW.md). Found by src/tenancy/d5-contract.spec.ts.
+-- AlterTable
+ALTER TABLE "ai_review_consents" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- AlterTable
+ALTER TABLE "ai_play_review_settings" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- AlterTable
+ALTER TABLE "ai_play_reviews" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- AlterTable
+ALTER TABLE "ai_play_comments" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- AlterTable
+ALTER TABLE "live_class_board_moves" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();

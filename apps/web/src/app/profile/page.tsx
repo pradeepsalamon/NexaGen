@@ -6,6 +6,7 @@ import { TwoFactorSettings } from "../../features/auth/components/mfa/TwoFactorS
 import { EmailPreferencesSection } from "@/features/email-preferences/components/EmailPreferencesSection";
 import { AccountDeletionSection } from "@/features/privacy/components/AccountDeletionSection";
 import { PersonalDataSection } from "@/features/privacy/components/PersonalDataSection";
+import { StudentAiReviewSection } from "@/features/play-review/components/StudentAiReviewSection";
 import { UserTypographySettings } from "@/features/typography/components/UserTypographySettings";
 import { pageTitle } from "@/lib/pageTitles";
 
@@ -44,6 +45,7 @@ export default function ProfilePage() {
           <UserTypographySettings />
         </section>
         <EmailPreferencesSection />
+        <StudentAiReviewSection />
         <PersonalDataSection />
         <AccountDeletionSection />
       </main>

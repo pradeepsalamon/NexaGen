@@ -67,6 +67,7 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "platform/subscription-transition.ts": { calls: 1, kind: "platform", why: "locks one academy's subscription row (platform table)" },
   "prisma/job-lock.service.ts": { calls: 3, kind: "platform", why: "job_locks" },
   "prisma/prisma.service.ts": { calls: 12, kind: "infra", why: "the client's own $queryRaw/$executeRaw bindings" },
+  "play-review/play-feed.sql.ts": { calls: 2, kind: "tenant-filtered", why: "every source branch filters its driving table (+ ai_play_reviews r)" },
   "progress/activity-history.service.ts": { calls: 10, kind: "id-keyed", why: "every subquery is one student's rows" },
   "progress/progress-recorder.service.ts": { calls: 1, kind: "id-keyed", why: "locks one student's progress row" },
   "puzzle-activity/library-activity.service.ts": { calls: 2, kind: "tenant-filtered", why: "GLOBAL means academy-wide" },

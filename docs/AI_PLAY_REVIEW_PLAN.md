@@ -1,6 +1,6 @@
 # AI play review: student consent + one record of every board move (night-run plan)
 
-Status: **plan, owner decisions taken 2026-11-24 (§8).** Anything the run finds
+Status: **built 2026-11-24 — see [AI_PLAY_REVIEW.md](AI_PLAY_REVIEW.md)** (owner decisions in §8). Anything the run finds
 undecided is taken at a safe default and logged in `docs/BACKLOG.md`
 § "Questions for the owner (unattended runs)".
 

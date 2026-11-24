@@ -1049,6 +1049,20 @@ export const API_ROUTES = {
     policy: (category: string = ":category") => `/admin/retention/policies/${category}`,
     preview: (category: string = ":category") => `/admin/retention/policies/${category}/preview`
   },
+  // AI play review (docs/AI_PLAY_REVIEW.md): the play feed + engine review
+  // (student own, their coach, admins), the outside-AI switch, academy settings.
+  playReview: {
+    feedMine: "/play-review/me/feed",
+    feed: (id: string = ":id") => `/play-review/students/${id}/feed`,
+    itemMine: (source: string = ":source", sourceId: string = ":sourceId") => `/play-review/me/items/${source}/${sourceId}`,
+    item: (id: string = ":id", source: string = ":source", sourceId: string = ":sourceId") =>
+      `/play-review/students/${id}/items/${source}/${sourceId}`,
+    rollupMine: "/play-review/me/rollup",
+    rollup: (id: string = ":id") => `/play-review/students/${id}/rollup`,
+    consentMine: "/play-review/me/consent",
+    consent: (id: string = ":id") => `/play-review/students/${id}/consent`,
+    settings: "/admin/play-review/settings"
+  },
   progress: {
     mine: "/progress/me",
     student: (id: string = ":id") => `/progress/students/${id}`,

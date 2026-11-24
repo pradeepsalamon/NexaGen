@@ -5,6 +5,7 @@ import {
   type PuzzleRushMode,
   type PuzzleRushPuzzle,
   type PuzzleRushStanding,
+  type RushPlayedPuzzle,
 } from "@nexa-chess/types";
 import { Chess } from "@/lib/chess";
 
@@ -46,6 +47,10 @@ export type RushRun = {
   /** Storm: seconds added (combo) minus seconds lost (mistakes) so far. */
   clockAdjustSeconds: number;
   results: RushResult[];
+  /** Each finished puzzle's tried moves, sent with every report (docs/AI_PLAY_REVIEW.md gap A). */
+  played: RushPlayedPuzzle[];
+  /** Moves tried in the current puzzle so far. */
+  tried: RushPlayedPuzzle["moves"];
   feedback: RushFeedback | null;
   /** Ran out of puzzles. */
   exhausted: boolean;
@@ -102,9 +107,11 @@ export function createRushRun(
     moves: resume?.moves ?? 0,
     ply: 0,
     points: resume?.score ?? 0,
+    played: [],
     puzzleIndex: 0,
     results: [],
     skipsUsed: resume?.skipsUsed ?? 0,
+    tried: [],
     solved: resume?.solved ?? 0,
   };
   return openPuzzle(base, puzzles, resume?.puzzleIndex ?? 0);
@@ -119,6 +126,8 @@ function advance(run: RushRun, puzzles: PuzzleRushPuzzle[], chess: Chess, played
   if (mated || next.ply >= puzzle.moves.length) {
     next = {
       ...next,
+      played: [...next.played, { i: run.puzzleIndex, moves: next.tried, solved: true }],
+      tried: [],
       highestRating: Math.max(next.highestRating ?? 0, puzzle.rating),
       results: [...next.results, { puzzleId: puzzle.id, rating: puzzle.rating, solved: true }],
       solved: next.solved + 1,
@@ -143,6 +152,7 @@ export function playRushMove(run: RushRun, puzzles: PuzzleRushPuzzle[], uci: str
     const bonus = comboBonus(levelsOf(run.mode), combo);
     const scored: RushRun = {
       ...run,
+      tried: [...run.tried, { uci }],
       bestCombo: Math.max(run.bestCombo, combo),
       clockAdjustSeconds: run.clockAdjustSeconds + (run.mode === "STORM" ? bonus : 0),
       combo,
@@ -159,7 +169,9 @@ export function playRushMove(run: RushRun, puzzles: PuzzleRushPuzzle[], uci: str
     combo: 0,
     errors: run.errors + 1,
     feedback: feedback("bad", run.mode === "STORM" ? `-${PUZZLE_STORM_CONFIG.malusSeconds}s` : "✗"),
+    played: [...run.played, { i: run.puzzleIndex, moves: [...run.tried, { uci }], solved: false }],
     results: [...run.results, { puzzleId: puzzle.id, rating: puzzle.rating, solved: false }],
+    tried: [],
   };
   return openPuzzle(failed, puzzles, run.puzzleIndex + 1);
 }
@@ -171,7 +183,13 @@ export function skipRushMove(run: RushRun, puzzles: PuzzleRushPuzzle[]): RushRun
   const chess = new Chess(run.fen);
   const expected = puzzle.moves[run.ply];
   if (!playUci(chess, expected)) return run;
-  return advance({ ...run, feedback: feedback("good", "Skipped"), skipsUsed: run.skipsUsed + 1 }, puzzles, chess, expected, false);
+  return advance(
+    { ...run, feedback: feedback("good", "Skipped"), skipsUsed: run.skipsUsed + 1, tried: [...run.tried, { skipped: true, uci: expected }] },
+    puzzles,
+    chess,
+    expected,
+    false,
+  );
 }
 
 /**

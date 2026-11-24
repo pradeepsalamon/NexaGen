@@ -401,6 +401,14 @@ export const queryKeys = {
     policies: ["retention", "policies"] as const,
     preview: (category: string, days: number) => ["retention", "preview", category, days] as const,
   },
+  playReview: {
+    all: ["play-review"] as const,
+    feed: (studentId: string, source: string) => ["play-review", "feed", studentId, source] as const,
+    item: (studentId: string, key: string) => ["play-review", "item", studentId, key] as const,
+    rollup: (studentId: string) => ["play-review", "rollup", studentId] as const,
+    consent: (studentId: string) => ["play-review", "consent", studentId] as const,
+    settings: ["play-review", "settings"] as const
+  },
   progress: {
     mine: ["progress", "me"] as const,
     student: (id: string) => ["progress", "student", id] as const,

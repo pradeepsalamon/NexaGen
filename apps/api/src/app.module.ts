@@ -48,6 +48,7 @@ import { TypographyModule } from "./typography/typography.module";
 import { ApprovalModule } from "./approval/approval.module";
 import { FeedbackModule } from "./feedback/feedback.module";
 import { PrivacyModule } from "./privacy/privacy.module";
+import { PlayReviewModule } from "./play-review/play-review.module";
 import { ProgressModule } from "./progress/progress.module";
 import { RevisionModule } from "./revision/revision.module";
 import { DemoClassModule } from "./demo-class/demo-class.module";
@@ -142,6 +143,7 @@ import { TenancyModule } from "./tenancy/tenancy.module";
     FeedbackModule,
     ApprovalModule,
     PrivacyModule,
+    PlayReviewModule,
     ProgressModule,
     RevisionModule,
     HealthModule,

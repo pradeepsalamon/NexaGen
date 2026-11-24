@@ -2775,6 +2775,7 @@ export * from "./class-requests";
 // ──────────────────────────────────────────────
 export * from "./progress";
 export * from "./student-activity";
+export * from "./ai-review";
 export * from "./revision";
 
 // ──────────────────────────────────────────────
