@@ -50,8 +50,8 @@ export function AuthStatus({
         <Heading
           className={cn(
             "leading-tight tracking-tight text-app-text",
-            // The page heading takes the auth pages' serif (`AuthFrame`), like `AuthHeader`.
-            headingLevel === "h1" ? "login-v2-serif text-3xl font-bold" : "text-lg font-extrabold"
+            // The page heading takes the app's page-heading type, like `AuthHeader`.
+            headingLevel === "h1" ? "text-2xl font-extrabold" : "text-lg font-extrabold"
           )}
         >
           {title}

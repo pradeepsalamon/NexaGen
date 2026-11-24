@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/providers/ToastProvider";
 import { verifyEmail } from "../api/authApi";
-import { AuthSplitShell } from "./AuthSplitShell";
+import { AuthCard } from "../login-v2/AuthFrame";
 import { AuthStatus } from "./AuthStatus";
 
 export function VerifyEmailStatus() {
@@ -51,7 +51,7 @@ export function VerifyEmailStatus() {
   }, [token]);
 
   return (
-    <AuthSplitShell variant="forgot-password">
+    <AuthCard>
       {status === "loading" && (
         <AuthStatus title="Verifying your email" tone="loading">
           This takes a moment.
@@ -77,6 +77,6 @@ export function VerifyEmailStatus() {
           {errorMsg}
         </AuthStatus>
       )}
-    </AuthSplitShell>
+    </AuthCard>
   );
 }

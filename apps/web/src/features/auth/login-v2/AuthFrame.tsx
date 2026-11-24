@@ -4,11 +4,12 @@ import "./login-v2.css";
 import { MotionConfig, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Card } from "@/components/ui/Card";
 import { declareFontVariables } from "@/app/fonts";
 import { ACADEMY_FONT_FACES } from "@/features/academy/fonts.generated";
 import { cn } from "@/lib/utils";
-import { type AuthHeroCopy, LoginHeroBottom, LoginHeroTop } from "./LoginHero";
+import { LoginHeroBottom, LoginHeroTop, SIGN_IN_HERO } from "./LoginHero";
 
 // Playfair for the headings, loaded only on the auth pages (as on the academy page).
 const loginFontVariablesCss = declareFontVariables(".login-v2", ACADEMY_FONT_FACES);
@@ -121,59 +122,38 @@ function FooterLinks() {
   );
 }
 
-type AuthFrameProps = {
-  children: ReactNode;
-  copy: AuthHeroCopy;
-  /** A wider card (the two-column registration form); the hero gives up some width for it. */
-  wide?: boolean;
-};
+/** The hero text, the same on every auth page: only the card changes between them. */
+const HERO_COPY = SIGN_IN_HERO;
 
 /**
  * Every auth page (`/login`, `/register`, password reset, email verification, unsubscribe):
  * a hero (headline, feature chips, the gold-knight scene) beside the page's card, champagne
  * and ivory in light, navy in dark. Below `lg` the hero's top stacks over the card and the
  * trust row follows it, so the form stays first on a phone. Every academy's address gets
- * this same frame (its own logo and name, Nexa's gold). Pages use it through `AuthSplitShell`.
+ * this same frame (its own logo and name, Nexa's gold).
+ *
+ * The `(auth)` route group renders it once in its layout, so moving between those pages
+ * keeps the frame still and swaps only the `AuthCard` inside it. Pages outside the group
+ * (unsubscribe) use `AuthSplitShell`, which is this frame around one card.
  */
-export function AuthFrame({ children, copy, wide = false }: AuthFrameProps) {
-  const frameVars = { "--auth-hero-w": wide ? "42%" : "58%" } as CSSProperties;
-
+export function AuthFrame({ children }: { children: ReactNode }) {
   return (
     <MotionConfig reducedMotion="user">
-      <div className="login-v2 relative min-h-dvh bg-login-page text-login-text" style={frameVars}>
+      <div className="login-v2 relative min-h-dvh bg-login-page text-login-text">
         <style dangerouslySetInnerHTML={{ __html: loginFontVariablesCss }} />
         <HeroBackdrop />
 
         <div className="relative flex min-h-dvh flex-col lg:grid lg:grid-cols-[minmax(0,var(--auth-hero-w))_minmax(0,1fr)] lg:grid-rows-[auto_minmax(0,1fr)]">
           <LoginHeroTop
             className="login-v2-hero-mobile relative z-10 px-4 pb-10 pt-4 sm:px-8 sm:pt-6 lg:col-start-1 lg:row-start-1 lg:px-12 lg:pb-0 lg:pr-[7%] lg:pt-10 xl:px-16"
-            compact={wide}
-            copy={copy}
+            copy={HERO_COPY}
           />
 
           <div className="login-v2-form-side relative flex flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1">
             <FormSideDecor />
-            <div
-              className={cn(
-                "relative z-10 flex flex-1 flex-col px-4 pb-6 pt-8 sm:px-8 lg:px-10 xl:px-16",
-                // The wide card (registration) is tall: tighter frame so it fits a 768px-high screen.
-                wide ? "lg:pb-3 lg:pt-4" : "lg:pb-8 lg:pt-12"
-              )}
-            >
-              <div className="flex flex-1 items-center justify-center">
-                <motion.div
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  className={cn(
-                    "w-full rounded-panel border border-app-border bg-login-card p-5 shadow-card sm:p-8",
-                    wide ? "max-w-2xl lg:py-5" : "max-w-md"
-                  )}
-                  initial={{ opacity: 0, scale: 0.98, y: 18 }}
-                  transition={{ delay: 0.1, duration: 0.55, ease: "easeOut" }}
-                >
-                  {children}
-                </motion.div>
-              </div>
-              <div className={cn("mx-auto mt-8 w-full lg:max-w-none", wide ? "max-w-2xl lg:mt-2" : "max-w-md")}>
+            <div className="relative z-10 flex flex-1 flex-col px-4 pb-6 pt-8 sm:px-8 lg:px-8 lg:pb-3 lg:pt-4 xl:px-12">
+              <div className="flex flex-1 items-center justify-center">{children}</div>
+              <div className="mx-auto mt-8 w-full max-w-md lg:mt-2 lg:max-w-none">
                 <FooterLinks />
               </div>
             </div>
@@ -181,9 +161,7 @@ export function AuthFrame({ children, copy, wide = false }: AuthFrameProps) {
 
           <LoginHeroBottom
             className={cn(
-              "login-v2-hero-mobile-bottom relative z-10 px-4 pb-8 pt-10 sm:px-8 lg:col-start-1 lg:row-start-2 lg:px-12 lg:pb-8 lg:pt-12 xl:px-16",
-              // The curve leaves the trust row less room at the foot; the narrower wide-card hero needs it all.
-              wide ? "lg:pr-[14%]" : "lg:pr-[24%]",
+              "login-v2-hero-mobile-bottom relative z-10 px-4 pb-8 pt-10 sm:px-8 lg:col-start-1 lg:row-start-2 lg:px-12 lg:pb-8 lg:pr-[22%] lg:pt-12 xl:px-16",
               // A short desktop screen has no room under the knight: the row would sit on it.
               "[@media(min-width:1024px)_and_(max-height:760px)]:hidden"
             )}
@@ -191,5 +169,23 @@ export function AuthFrame({ children, copy, wide = false }: AuthFrameProps) {
         </div>
       </div>
     </MotionConfig>
+  );
+}
+
+/**
+ * The page's card inside `AuthFrame`, in the app's own look (surface, fields, blue primary
+ * button), so the sign-in forms match the rest of the app. It fades in when a page opens;
+ * the frame around it stays still. `wide`: the two-column registration form.
+ */
+export function AuthCard({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
+  return (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      className={cn("w-full", wide ? "max-w-2xl" : "max-w-md")}
+      initial={{ opacity: 0, y: 12 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      <Card className={cn("p-5 sm:p-8", wide && "lg:px-6 lg:py-5")}>{children}</Card>
+    </motion.div>
   );
 }

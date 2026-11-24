@@ -13,7 +13,7 @@ import { focusFirstInvalid, getEmailError } from "@/lib/forms";
 import { useToast } from "@/providers/ToastProvider";
 import { forgotPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
-import { AuthSplitShell } from "./AuthSplitShell";
+import { AuthCard } from "../login-v2/AuthFrame";
 import { AuthStatus } from "./AuthStatus";
 
 export function ForgotPasswordForm() {
@@ -54,7 +54,7 @@ export function ForgotPasswordForm() {
 
   if (sentTo) {
     return (
-      <AuthSplitShell variant="forgot-password">
+      <AuthCard>
         <AuthStatus
           actions={
             <>
@@ -73,12 +73,12 @@ export function ForgotPasswordForm() {
           <span className="font-semibold text-app-text">{sentTo}</span>, we&apos;ve sent a
           link to reset its password.
         </AuthStatus>
-      </AuthSplitShell>
+      </AuthCard>
     );
   }
 
   return (
-    <AuthSplitShell variant="forgot-password">
+    <AuthCard>
       <AuthHeader
         description={`Enter the email address of your ${brandName} account and we'll send you a reset link.`}
         title="Forgot your password?"
@@ -111,6 +111,6 @@ export function ForgotPasswordForm() {
           </Link>
         </p>
       </form>
-    </AuthSplitShell>
+    </AuthCard>
   );
 }

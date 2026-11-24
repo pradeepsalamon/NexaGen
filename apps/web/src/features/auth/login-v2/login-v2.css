@@ -1,6 +1,9 @@
 /* Login page (`/login`). Colours are the "Login page" tokens in styles/globals.css. */
 
 .login-v2 {
+  /* The hero's share of a desktop screen: the same on every auth page, wide enough
+     beside it for the two-column registration card. */
+  --auth-hero-w: 50%;
   --login-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
   overflow-x: clip;
 }
@@ -71,21 +74,6 @@
   border-radius: 9999px;
   height: 3px;
   transform: rotate(-1.2deg);
-}
-
-/* Primary buttons (and the active tab) on the auth card: the gold gradient. */
-.login-v2-form-side .bg-button,
-.login-v2-form-side [data-state="active"].data-\[state\=active\]\:bg-button {
-  background-image: linear-gradient(
-    180deg,
-    rgb(var(--rgb-login-gold-light)) 0%,
-    rgb(var(--rgb-login-gold)) 55%,
-    rgb(var(--rgb-login-gold-deep)) 100%
-  );
-}
-
-.login-v2-form-side .bg-button:hover:not(:disabled) {
-  filter: brightness(1.05);
 }
 
 /* The hero picture fades in from the hero colour above it (no seam on any height). */

@@ -228,9 +228,8 @@
 
 /* Login page (`/login`, features/auth/login-v2): a hero beside a warm form side, both
    following the theme: a champagne hero beside an ivory form side in light, a navy hero
-   beside a deep-navy form side in dark. `.login-v2-form-side` re-points the app tokens, so
-   the shared fields, checkbox and focus halo take the warm look without per-component
-   styling. The gold sign-in button keeps the same gold in both themes.
+   beside a deep-navy form side in dark. The card on the form side keeps the app's own
+   tokens (surface, fields, blue primary button) so the forms match the rest of the app.
    The navy is the app's own `--rgb-brand-900`. The gold stays login-only on purpose: academy
    branding overrides `--rgb-accent`, and every academy gets this same gold page (owner, 2026-11-22). */
 :root {
@@ -284,29 +283,6 @@
   --rgb-login-hero-gold-3: 190 130 34;
   --rgb-login-chip-1: 7 21 47;
   --rgb-login-chip-2: 7 13 32;
-}
-
-.login-v2-form-side {
-  --rgb-background: var(--rgb-login-page);
-  --rgb-surface: var(--rgb-login-field);
-  --rgb-surface-soft: var(--rgb-login-page);
-  --rgb-surface-hover: var(--rgb-login-page);
-  --rgb-border: var(--rgb-login-line);
-  --rgb-line-strong: var(--rgb-login-line-strong);
-  --rgb-text: var(--rgb-login-text);
-  --rgb-text-muted: var(--rgb-login-muted);
-  --rgb-text-subtle: var(--rgb-login-subtle);
-  --rgb-primary: var(--rgb-login-gold-deep);
-  --rgb-on-primary: 255 255 255;
-  /* Primary buttons and the active tab: the login gold with navy text (login-v2.css adds
-     the gradient), on every auth page's card. */
-  --rgb-button: var(--rgb-login-gold);
-  --rgb-button-hover: var(--rgb-login-gold);
-  --rgb-button-dark: var(--rgb-login-gold-deep);
-  --rgb-on-button: var(--rgb-login-on-gold);
-  --rgb-primary-soft: var(--rgb-login-page);
-  --color-primary-ink: var(--color-login-gold-ink);
-  --color-focus: rgb(var(--rgb-login-gold-deep));
 }
 
 /* Solid status fills that look the same in both themes (BulkActionsBar):

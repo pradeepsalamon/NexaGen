@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
-import { AuthSplitShell } from "./AuthSplitShell";
+import { AuthCard } from "../login-v2/AuthFrame";
 import { CoachRegisterForm } from "./CoachRegisterForm";
 import { RegisterForm } from "./RegisterForm";
 import { LoginPrompt } from "./RegistrationConsent";
@@ -15,14 +15,14 @@ export function RegisterPageClient() {
   const slide = role === "coach" ? "motion-safe:data-[state=active]:animate-tab-in-right" : "motion-safe:data-[state=active]:animate-tab-in-left";
 
   return (
-    <AuthSplitShell variant={role === "student" ? "student-register" : "coach-register"} wide>
+    <AuthCard wide>
       <Tabs onValueChange={(value) => setRole(value as Role)} value={role}>
         {/* Phones: heading, then the tabs, and "Already have an account?" under each form.
             From `lg` the heading (with that prompt) and the tabs share one row, so the whole
             form fits a laptop screen without scrolling. Same type as `AuthHeader`. */}
         <div className="grid gap-6 lg:flex lg:items-center lg:justify-between lg:gap-6">
           <div className="grid gap-1">
-            <h1 className="login-v2-serif text-3xl font-bold leading-tight tracking-tight text-app-text sm:text-4xl lg:text-[1.625rem] 2xl:text-3xl">
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
               Create your account
             </h1>
             <LoginPrompt className="hidden text-left lg:block" />
@@ -39,6 +39,6 @@ export function RegisterPageClient() {
           <CoachRegisterForm />
         </TabsContent>
       </Tabs>
-    </AuthSplitShell>
+    </AuthCard>
   );
 }

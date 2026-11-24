@@ -6,13 +6,16 @@ The academy marketing site at `/` is the Design System v2 page (`features/academ
 follows every rule here and reads `features/academy/content.ts`. The original page
 (`features/academy/components`, kept at `/academy` since 2026-11-16) follows the colour rules;
 its layout and type keep their own look. **The auth pages** (`/login`, `/register`,
-password reset, `/verify-email`, `/unsubscribe`; `AuthSplitShell` → `features/auth/login-v2/AuthFrame`,
+password reset, `/verify-email`, `/unsubscribe`; `features/auth/login-v2/AuthFrame`,
 since 2026-11-22) are one bespoke gold frame whose hero and form side both
 follow the theme (champagne and ivory in light, navy in dark): its colours are the `login-*`
 tokens in `globals.css` ("Login page"; hero colours are `login-hero*`, the navy is
-`--rgb-brand-900`), `.login-v2-form-side` re-points the app tokens so the shared fields take its
-warm look (primary buttons and the active tab take the login gold gradient), and sign-in is
-`useLoginFlow`. Registration must fit a 1366×768 laptop without scrolling (its spacing tightens from `lg`). Its gold is deliberately not `--rgb-accent`: every
+`--rgb-brand-900`), and sign-in is `useLoginFlow`. **The frame never changes between auth pages
+(owner, 2026-11-24):** the `(auth)` layout renders `AuthFrame` once (same hero text and width on
+every page), and each page renders only its `AuthCard`; `/unsubscribe`, outside the group, uses
+`AuthSplitShell` (frame + card). **The card is the app's own look**: app tokens, blue primary
+button and tabs, `PageHeader` heading type, no gold and no serif inside it. Registration must fit
+a 1366×650 desktop viewport without scrolling (its spacing tightens from `lg`). The hero's gold is deliberately not `--rgb-accent`: every
 academy gets this same page, and academy branding would recolour the accent.
 
 **NexaChess Design System v2** is the colour, type and spacing specification
@@ -188,7 +191,7 @@ disagree.
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
 | Page title + actions | `PageHeader` | Pass `breadcrumbs` on a detail page instead of a `BackButton`. |
 | Batch card on a "My batches" page | `BatchSummaryCard` (`features/batches/components`) | Title + badges, one-line description, facts as one wrapping row, footer with people left and actions right. Student and coach pages use it. |
-| Sign-in and account pages (`/login`, `/register`, password reset, email verification) | `AuthSplitShell` + `AuthHeader` + `AuthStatus` (`features/auth/components`) | Navy brand panel (text never on the artwork) beside the form card; below `lg` the panel is a navy bar. `AuthHeader` is the card's only `h1`, the panel tagline a `<p>`. `AuthStatus` is every outcome in the card (sent, verified, incomplete link, waiting). Registration groups fields with `RegistrationFieldset` and uses full-size fields, not `density="compact"`. |
+| Sign-in and account pages (`/login`, `/register`, password reset, email verification) | `AuthCard` (in the `(auth)` layout's `AuthFrame`) + `AuthHeader` + `AuthStatus` (`features/auth/components`) | The gold/navy hero beside the form card; the frame stays still between pages, only the card changes; below `lg` the hero stacks over the card. `AuthHeader` is the card's only `h1`, the panel tagline a `<p>`. `AuthStatus` is every outcome in the card (sent, verified, incomplete link, waiting). Registration groups fields with `RegistrationFieldset` and uses full-size fields, not `density="compact"`. |
 | Analytics page | `AnalyticsPageShell` (`features/analytics/components`) | `PageHeader` with the date range, Refresh and Export as its actions; `breadcrumbs` on a detail report. The admin dashboard uses it too. Never a second hand-built analytics header. |
 | Role page frame | `PageContent` | The one ground, padding and `max-w-7xl` content width. Role layouts use it; pages don't add their own. |
 | A class in a list | `ClassRow` inside `ClassRowList` | Status and Join come from `class-availability`. Pass `actions` to replace the buttons, `quietJoin` where another control is the page's primary action. Coach lists use `CoachClassRow` (`features/coach/components`): Start while the start window is open, View class, and a ⋮ menu for notes and requests. |

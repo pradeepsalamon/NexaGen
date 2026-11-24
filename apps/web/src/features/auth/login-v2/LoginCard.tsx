@@ -74,7 +74,6 @@ function LoginFields({ flow }: { flow: ReturnType<typeof useLoginFlow> }) {
           </Link>
         </div>
 
-        {/* The standard primary button; the auth card's tokens make it gold (login-v2.css). */}
         <Button
           fullWidth
           isLoading={isPending}

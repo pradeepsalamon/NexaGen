@@ -56,17 +56,7 @@ function AcademyBadge() {
  * Top of the hero: logo, badge, theme switch, the headline and the three feature chips.
  * The panel tagline is a `<p>`: the auth card holds the page's only `h1`.
  */
-export function LoginHeroTop({
-  className,
-  compact = false,
-  copy
-}: {
-  className?: string;
-  /** Smaller headline and tagline, and no feature chips, from `lg`: beside the wide
-   * registration card the page has to fit a laptop screen. */
-  compact?: boolean;
-  copy: AuthHeroCopy;
-}) {
+export function LoginHeroTop({ className, copy }: { className?: string; copy: AuthHeroCopy }) {
   const brandName = useBrandName();
 
   return (
@@ -96,7 +86,7 @@ export function LoginHeroTop({
           >
             <Logo mobileSize={36} size={48} />
           </Link>
-          <div className={cn("hidden md:block", compact && "lg:hidden 2xl:block")}>
+          <div className="hidden md:block">
             <AcademyBadge />
           </div>
         </div>
@@ -107,7 +97,7 @@ export function LoginHeroTop({
 
       <motion.div
         animate="animate"
-        className={cn("relative mt-7", compact ? "lg:mt-8" : "lg:mt-12")}
+        className="relative mt-7 lg:mt-10"
         initial="initial"
         transition={{ duration: 0.6, ease: "easeOut" }}
         variants={rise}
@@ -118,7 +108,7 @@ export function LoginHeroTop({
         <p
           className={cn(
             "login-v2-serif text-[2.125rem] font-semibold leading-[1.08] tracking-[-0.01em] sm:text-5xl",
-            compact ? "lg:text-[2.5rem] xl:text-[3rem]" : "lg:text-[3.25rem] xl:text-[4rem]"
+            "lg:text-[2.75rem] xl:text-[3.5rem]"
           )}
         >
           {copy.lead}{" "}
@@ -130,7 +120,7 @@ export function LoginHeroTop({
         <p
           className={cn(
             "mt-4 max-w-xl text-[0.9375rem] leading-relaxed text-login-on-hero-muted sm:text-lg",
-            compact ? "lg:mt-4 lg:text-base xl:text-lg" : "lg:mt-5 xl:text-xl"
+            "lg:mt-5 xl:text-xl"
           )}
         >
           {copy.subtitle}
@@ -140,7 +130,11 @@ export function LoginHeroTop({
       <motion.ul
         animate="animate"
         aria-label="Highlights"
-        className={cn("relative mt-6 hidden flex-wrap gap-3 sm:flex lg:mt-8", compact && "lg:hidden")}
+        className={cn(
+          "relative mt-6 hidden flex-wrap gap-3 sm:flex lg:mt-8",
+          // A short desktop screen: the chips would sit on the knight (AuthFrame hides the trust row too).
+          "[@media(min-width:1024px)_and_(max-height:760px)]:hidden"
+        )}
         initial="initial"
         transition={{ delay: 0.15, duration: 0.6, ease: "easeOut" }}
         variants={rise}
