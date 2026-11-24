@@ -64,6 +64,52 @@ describe("DemoInviteService", () => {
     service = module.get(DemoInviteService);
   });
 
+  describe("resendInvite (an invited guest lost their link)", () => {
+    const INVITED = {
+      contactMethod: "PHONE",
+      email: null,
+      id: "reg-1",
+      inviteToken: "tok-1",
+      name: "Ravi",
+      phoneNumber: "+91 98765 43210"
+    };
+    const ask = { contactMethod: "PHONE" as const, phoneNumber: "98765 43210" };
+    const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+    beforeEach(() => {
+      (prisma.coachClass as unknown as Record<string, jest.Mock>).findFirst = jest.fn().mockResolvedValue(DEMO_CLASS);
+      (prisma.demoClassRegistration as unknown as Record<string, jest.Mock>).updateMany = jest
+        .fn()
+        .mockResolvedValue({ count: 1 });
+    });
+
+    it("sends the personal link again to the contact on the invitation", async () => {
+      prisma.demoClassRegistration.findUnique.mockResolvedValue(INVITED);
+      await expect(service.resendInvite("class-1", ask)).resolves.toEqual({ accepted: true });
+      await flush();
+      expect(notifierSend).toHaveBeenCalledWith(
+        "DEMO_INVITATION",
+        { email: null, phone: INVITED.phoneNumber },
+        expect.objectContaining({ "links.join": expect.stringContaining("invite=tok-1") })
+      );
+    });
+
+    it("answers the same and sends nothing for a contact that wasn't invited", async () => {
+      prisma.demoClassRegistration.findUnique.mockResolvedValue({ ...INVITED, inviteToken: null });
+      await expect(service.resendInvite("class-1", ask)).resolves.toEqual({ accepted: true });
+      await flush();
+      expect(notifierSend).not.toHaveBeenCalled();
+    });
+
+    it("sends nothing inside the 10-minute window", async () => {
+      prisma.demoClassRegistration.findUnique.mockResolvedValue(INVITED);
+      (prisma.demoClassRegistration as unknown as Record<string, jest.Mock>).updateMany.mockResolvedValue({ count: 0 });
+      await expect(service.resendInvite("class-1", ask)).resolves.toEqual({ accepted: true });
+      await flush();
+      expect(notifierSend).not.toHaveBeenCalled();
+    });
+  });
+
   it("normalizes national and +CC phone numbers to the same key", () => {
     expect(service.normalizeContact("PHONE", "+91 98765 43210")).toBe(
       service.normalizeContact("PHONE", "9876543210")

@@ -62,6 +62,11 @@ web `features/admin/components/DemoClass*` + `demo-classes/*`, public page
   a lead booking), but a `PASSCODE` class still needs the passcode, and an
   admin-invited row (`inviteToken` set) of an `INVITE_ONLY` class is refused
   with `DEMO_INVITE_REQUIRED` — that guest comes in by their personal link.
+  The join page then offers **Send my link again** (`API_ROUTES.liveClass.
+  demoResendInvite`, public, `DemoInviteService.resendInvite`): the link goes
+  only to the contact stored on the invitation, at most once per 10 minutes
+  (`inviteResentAt`), and the reply is always `{ accepted: true }` so it never
+  tells who is invited (owner 2026-11-24).
   The guest always joins under the registration's own `name`, never one typed
   at join time.
 - **Access mode** (`CoachClass.demoAccessMode`): `PUBLIC` / `PASSCODE`

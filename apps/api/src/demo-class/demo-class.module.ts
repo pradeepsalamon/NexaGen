@@ -5,6 +5,7 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { ReferralModule } from "../referral/referral.module";
 import { WhatsAppModule } from "../whatsapp/whatsapp.module";
 import { LeadStageModule } from "../lead/lead-stage.module";
+import { DemoGuestController } from "./demo-guest.controller";
 import { DemoInviteService } from "./demo-invite.service";
 import { DemoScheduleController } from "./demo-schedule.controller";
 import { DemoScheduleService } from "./demo-schedule.service";
@@ -12,7 +13,7 @@ import { TrashModule } from "../trash/trash.module";
 
 @Module({
   imports: [JwtModule.register({}), LeadStageModule, PrismaModule, MailModule, ReferralModule, TrashModule, WhatsAppModule],
-  controllers: [DemoScheduleController],
+  controllers: [DemoGuestController, DemoScheduleController],
   providers: [DemoInviteService, DemoScheduleService],
   exports: [DemoInviteService]
 })

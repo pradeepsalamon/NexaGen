@@ -1301,6 +1301,8 @@ model DemoClassRegistration {
   eveningReminderAt DateTime?
   hourReminderAt    DateTime?
   missedMessageAt   DateTime?
+  /// Last time the guest asked for their personal link again (one re-send per 10 minutes).
+  inviteResentAt    DateTime?
   createdAt         DateTime                      @default(now())
 
   @@unique([classId, contactMethod, contactValue])

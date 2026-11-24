@@ -1666,6 +1666,24 @@ export const guestJoinDemoRequestSchema = z
     path: ["contactMethod"]
   });
 
+/**
+ * An invited guest who lost their personal link asks for it again
+ * (`API_ROUTES.liveClass.demoResendInvite`). The answer never says whether the
+ * contact was invited; the link only ever goes to the contact on the invitation.
+ */
+export const resendDemoInviteRequestSchema = z
+  .object({
+    contactMethod: demoRegistrationContactMethodSchema.default("PHONE"),
+    phoneNumber: z.string().trim().max(20).optional(),
+    email: z.string().trim().toLowerCase().email("Enter a valid email address").max(200).optional()
+  })
+  .refine((value) => hasValidDemoContact(value), {
+    message: "Enter a valid phone number or email address.",
+    path: ["contactMethod"]
+  });
+export type ResendDemoInviteRequest = z.infer<typeof resendDemoInviteRequestSchema>;
+export type ResendDemoInviteResponse = { accepted: true };
+
 export const guestJoinDemoResponseSchema = z.object({
   registered: z.literal(true),
   /** True once a LiveKit token was minted. */

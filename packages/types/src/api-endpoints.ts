@@ -161,6 +161,8 @@ export const API_ROUTES = {
     heartbeat: (id: string = ":id") => `/live-class/${id}/heartbeat`,
     demoInfo: (id: string = ":id") => `/live-class/demo/${id}`,
     demoJoin: (id: string = ":id") => `/live-class/demo/${id}/join`,
+    /** Public: an invited guest asks for their personal link again (always 200, says nothing about who is invited). */
+    demoResendInvite: (id: string = ":id") => `/live-class/demo/${id}/resend-invite`,
     startRecording: (id: string = ":id") => `/live-class/${id}/recording/start`,
     stopRecording: (id: string = ":id") => `/live-class/${id}/recording/stop`,
     downloadRecording: (id: string = ":id") => `/live-class/${id}/recording/download`,

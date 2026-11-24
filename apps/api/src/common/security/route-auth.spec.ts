@@ -9,6 +9,8 @@ import * as path from "path";
  * proven against the real app in test/integration/access/admin-routes.int-spec.ts.
  */
 const PUBLIC_ROUTES = new Set([
+  // An invited demo guest asks for their link again; the answer never says who is invited.
+  "demo-class/demo-guest.controller.ts#resendDemoInvite",
   "auth/auth.controller.ts#forgotPassword",
   "auth/auth.controller.ts#resetPassword",
   "auth/auth.controller.ts#verifyEmail",
