@@ -18,23 +18,71 @@ COMMAND=$1
 ENV=$2
 TARGET=$3
 
+# Prod is the Docker stack in the production checkout, not this one: compose
+# reads that folder's .env and names the project after it ("nexagen"). Run from
+# any other folder, `docker compose down` failed on a missing variable or would
+# have aimed at a project that isn't running. Every prod compose call goes
+# through prod_compose, so `nexa … prod` works from anywhere.
+PROD_DIR="${NEXA_PROD_DIR:-/opt/nexa-chess/NexaGen}"
+
+# `nexa`, `nexa help`: the main menu (exit 0). After a mistake: the menu, exit 1.
 function show_usage() {
-    echo "Nexa Unified CLI"
+    local b="" d="" r=""
+    if [ -t 1 ]; then b=$'\033[1m'; d=$'\033[2m'; r=$'\033[0m'; fi
+    cat <<EOF
+${b}Nexa — server commands${r}
+
+${b}Status & logs${r}
+  nexa status                           Health of dev/stage (3010/3011) and prod (3000/3001)
+  nexa logs [api|web]                   Last lines of the dev/stage logs
+  nexa attach                           Open the nexa-dev tmux session ${d}(leave: Ctrl-b d)${r}
+
+${b}Dev / staging${r}  ${d}(this checkout, tmux session nexa-dev)${r}
+  nexa start   <dev|stage> [api|web]    dev = watch mode; stage = pull, build, migrate, run
+  nexa restart <dev|stage> [api|web]
+  nexa stop    <dev|stage> [api|web]
+
+${b}Production${r}  ${d}(live site, Docker in $PROD_DIR; works from any folder)${r}
+  nexa start   prod                     Start the containers from their existing images
+  nexa restart prod                     Recreate api + web (picks up .env; DB and LiveKit keep running)
+  nexa stop    prod                     Take the WHOLE live site down (web, API, Postgres, Redis, LiveKit)
+  ${d}Every prod change asks you to type "prod" first. New code ships only via Actions → Deploy Production.${r}
+
+${b}Maintenance screen${r}  ${d}(docs/SERVICE_STATUS.md)${r}
+  nexa maintenance on <prod|stage> [minutes] [message]
+  nexa maintenance off <prod|stage>
+  nexa maintenance status <prod|stage>
+  nexa status-pages <prod|stage>        Install/refresh the status page files
+
+  nexa help                             This menu
+EOF
+    exit "${1:-1}"
+}
+
+# One more step before anything touches the live site: type "prod". Without a
+# terminal to answer on (a script, an agent) it refuses rather than assume yes.
+function confirm_prod() {
     echo ""
-    echo "Usage: nexa <command> [environment] [component]"
-    echo ""
-    echo "Commands:"
-    echo "  start   <dev|stage|prod> [api|web]   Start environment (or one component; dev/stage)"
-    echo "  stop    <dev|stage|prod> [api|web]   Stop the environment (or one component)"
-    echo "  restart <dev|stage|prod> [api|web]   Restart environment (or one component)"
-    echo "  status                     Show status of all environments"
-    echo "  logs [api|web]             View logs (for dev)"
-    echo "  attach                     Attach to the dev tmux session"
-    echo "  maintenance <on|off|status> <prod|stage> [minutes] [message]"
-    echo "                             Show the maintenance page (docs/SERVICE_STATUS.md)"
-    echo "  status-pages <prod|stage>  Install/refresh the nginx status page files"
-    echo ""
-    exit 1
+    echo "⚠  PRODUCTION: $1"
+    [ -n "${2:-}" ] && echo "   $2"
+    if [ ! -t 0 ]; then
+        echo "Refusing: prod changes need a person at a terminal to confirm."
+        exit 1
+    fi
+    local answer
+    read -r -p "Type prod to continue (anything else cancels): " answer
+    if [ "$answer" != "prod" ]; then
+        echo "Cancelled. Nothing was changed."
+        exit 1
+    fi
+}
+
+function prod_compose() {
+    if [ ! -f "$PROD_DIR/docker-compose.yml" ] || [ ! -f "$PROD_DIR/.env" ]; then
+        echo "The production checkout isn't at $PROD_DIR (docker-compose.yml + .env). Set NEXA_PROD_DIR."
+        exit 1
+    fi
+    (cd "$PROD_DIR" && docker compose "$@")
 }
 
 # Service status pages (docs/SERVICE_STATUS.md). nginx reads
@@ -56,9 +104,12 @@ function install_status_pages() {
         echo "Creating $dir (needs sudo once)..."
         sudo install -d -o "$(id -un)" -g "$(id -gn)" -m 755 "$dir"
     fi
+    # Prod gets the page from the production checkout, as deploy-production.sh does.
+    local src="$ROOT_DIR"
+    [ "$1" = "prod" ] && src="$PROD_DIR"
     local file
     for file in page.html api-unavailable.json; do
-        cp "$ROOT_DIR/deploy/status-pages/$file" "$dir/.$file.tmp"
+        cp "$src/deploy/status-pages/$file" "$dir/.$file.tmp"
         mv -f "$dir/.$file.tmp" "$dir/$file"
     done
     echo "Status pages installed in $dir."
@@ -77,6 +128,8 @@ function maintenance_command() {
                 [[ "$minutes" =~ ^[0-9]+$ ]] || { echo "Minutes must be a whole number."; exit 1; }
                 until=$(date -u -d "+$minutes minutes" +%Y-%m-%dT%H:%M:%SZ)
             fi
+            [ "$env" = "prod" ] && confirm_prod "turn the maintenance screen ON." \
+                "Every visitor sees it and the API answers 503 until you run: nexa maintenance off prod"
             jq -n --arg since "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg until "$until" --arg message "$message" \
                 '{since: $since} + (if $until != "" then {until: $until} else {} end) + (if $message != "" then {message: $message} else {} end)' \
                 > "$dir/.maintenance.json.tmp"
@@ -85,6 +138,8 @@ function maintenance_command() {
             echo "Turn it off with: nexa maintenance off $env"
             ;;
         off)
+            [ "$env" = "prod" ] && confirm_prod "turn the maintenance screen OFF." \
+                "The live site opens to everyone again."
             rm -f "$dir/maintenance.json"
             echo "Maintenance OFF for $env. Open tabs reload by themselves within a minute."
             ;;
@@ -92,9 +147,13 @@ function maintenance_command() {
             if [ -f "$dir/maintenance.json" ]; then echo "Maintenance ON for $env:"; cat "$dir/maintenance.json"; else echo "Maintenance off for $env."; fi
             if [ -f "$dir/deploying.json" ]; then echo "Deploy marker present:"; cat "$dir/deploying.json"; fi
             ;;
-        *) show_usage ;;
+        *) echo "Unknown maintenance action: ${action:-(none)}"; echo ""; show_usage 1 ;;
     esac
 }
+
+case "$COMMAND" in
+    "" | help | -h | --help) show_usage 0 ;;
+esac
 
 if [[ "$COMMAND" == "maintenance" ]]; then
     shift
@@ -102,6 +161,8 @@ if [[ "$COMMAND" == "maintenance" ]]; then
     exit 0
 fi
 if [[ "$COMMAND" == "status-pages" ]]; then
+    status_env_dir "$ENV" > /dev/null
+    [ "$ENV" = "prod" ] && confirm_prod "replace the live status page files in $STATUS_ROOT/prod."
     install_status_pages "$ENV"
     exit 0
 fi
@@ -299,10 +360,6 @@ function status_prod() {
     fi
 }
 
-if [[ -z "$COMMAND" ]]; then
-    show_usage
-fi
-
 if [[ "$COMMAND" == "status" ]]; then
     status_prod
     echo ""
@@ -329,7 +386,8 @@ fi
 
 if [[ -z "$ENV" ]]; then
     echo "Error: Please specify an environment (dev, stage, or prod)."
-    show_usage
+    echo ""
+    show_usage 1
 fi
 
 cd "$ROOT_DIR"
@@ -347,6 +405,26 @@ if [[ "$ENV" == "prod" && -n "$TARGET" ]]; then
     exit 1
 fi
 
+# Validate before asking, so a typo never gets as far as the prompt.
+case "$COMMAND" in
+    start | stop | restart) ;;
+    *) echo "Unknown command: $COMMAND"; echo ""; show_usage 1 ;;
+esac
+case "$ENV" in
+    dev | stage | prod) ;;
+    *) echo "Unknown environment: $ENV (expected dev, stage or prod)"; exit 1 ;;
+esac
+
+if [[ "$ENV" == "prod" ]]; then
+    case "$COMMAND" in
+        start) confirm_prod "start the live containers from their existing images (no build)." ;;
+        restart) confirm_prod "recreate the live api + web containers." \
+            "The site is unavailable for about a minute; live classes drop and reconnect." ;;
+        stop) confirm_prod "STOP the whole live site: web, API, Postgres, Redis and LiveKit." \
+            "Everyone is disconnected until 'nexa start prod'. Tip: 'nexa maintenance on prod' first shows a nicer screen." ;;
+    esac
+fi
+
 case "$COMMAND" in
     start)
         if [[ "$ENV" == "prod" ]]; then
@@ -354,7 +432,7 @@ case "$COMMAND" in
             # prod only through scripts/deploy-production.sh (lock, backup,
             # migrations, health gate, rollback): docs/DEPLOY_ROLLBACK_HARDENING.md.
             echo "Starting prod environment (Docker, existing images, no build)..."
-            docker compose up -d --no-build
+            prod_compose up -d --no-build
         elif [[ "$ENV" == "stage" ]]; then
             pull_latest
             start_stage "$TARGET"
@@ -368,7 +446,7 @@ case "$COMMAND" in
     stop)
         if [[ "$ENV" == "prod" ]]; then
             echo "Stopping prod environment (Docker)..."
-            docker compose down
+            prod_compose down
         elif [[ "$ENV" == "dev" || "$ENV" == "stage" ]]; then
             if [ "$TARGET" = "web" ] && tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": web"; then
                 tmux kill-window -t nexa-dev:web
@@ -393,7 +471,7 @@ case "$COMMAND" in
             # changes). Never rebuilds, and never stops Postgres or LiveKit.
             # New code: Actions -> Deploy Production.
             echo "Recreating prod api + web from their current images (no build)..."
-            docker compose up -d --no-build --force-recreate api web
+            prod_compose up -d --no-build --force-recreate api web
         elif [[ "$ENV" == "stage" ]]; then
             echo "Restarting stage environment (Tmux)..."
             pull_latest
