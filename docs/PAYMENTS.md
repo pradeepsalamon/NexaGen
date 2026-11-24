@@ -421,7 +421,8 @@ speaks rupees, converts at its adapter boundary and nowhere else.
 
 | Hazard | What stops it |
 |---|---|
-| Double click, refresh, back/forward, second tab | Unique index on `orders.idempotencyKey`; the client holds one key per plan in `sessionStorage` and the server replays the original order |
+| Double click, refresh, back/forward, second tab | Unique index on `orders.idempotencyKey`; the client holds one key per plan **and discount code** in `sessionStorage` and the server replays the original order |
+| Code applied or removed after the gateway was closed | A changed code is a new key, so a new order at the new price (FE review P2). A replay whose code differs from its unpaid order's is refused with 409 `CHECKOUT_CHANGED` (the screen clears its key) instead of silently charging the old price. The older unpaid order simply expires |
 | Webhook delivered twice | Unique `(provider, eventId)` on `payment_webhook_events` — the redelivery collides on insert |
 | Out-of-order webhooks | `PAYMENT_STATUS_RANK`: a status may only move forward, so a stale `PENDING` (or a sibling attempt's `FAILED`) cannot un-pay a captured payment |
 | Benefit granted twice | Unique `(orderId, planId)` on `entitlements` |

@@ -401,6 +401,32 @@ describe("PaymentService.applyProviderState", () => {
     expect(orderLookup).not.toHaveBeenCalled();
   });
 
+  it("refuses to replay an unpaid order under a different discount code (FE review P2)", async () => {
+    Object.assign(getApiEnv(), { PAYMENTS_ENABLED: true });
+    const registry = module.get(ProviderRegistry) as unknown as { anyConfigured?: () => boolean };
+    registry.anyConfigured = () => true;
+    const prisma = module.get(PrismaService) as unknown as Record<string, unknown>;
+    prisma.plan = {
+      findUnique: jest.fn().mockResolvedValue({ amount: 99900, currency: "INR", id: "plan_1", isActive: true })
+    };
+    prisma.order = {
+      findUnique: jest.fn().mockResolvedValue({
+        discountCode: null,
+        id: "ord_1",
+        status: OrderStatus.PENDING,
+        userId: "usr_1"
+      })
+    };
+
+    await expect(
+      service.createCheckout({ id: "usr_1", role: "STUDENT" } as never, {
+        discountCode: "SAVE20",
+        idempotencyKey: "key-1",
+        planId: "plan_1"
+      } as never)
+    ).rejects.toMatchObject({ response: expect.objectContaining({ code: "CHECKOUT_CHANGED" }) });
+  });
+
   it("records a genuine failure and tells the customer", async () => {
     const result = await service.applyProviderState(
       "pmt_1",

@@ -15,8 +15,12 @@ const STORAGE_PREFIX = "nexa-checkout-key:";
  * data), so every access is guarded and the fallback is a fresh per-call key —
  * which loses replay protection for that one tab but never blocks a purchase.
  */
-export function checkoutKeyFor(planId: string): string {
-  const storageKey = `${STORAGE_PREFIX}${planId}`;
+export function checkoutKeyFor(planId: string, discountCode?: string | null): string {
+  // The key covers the whole intent, plan *and* code (FE review P2): a buyer
+  // who applies or removes a code after closing the gateway gets a new order
+  // at the new price, instead of the server replaying the old order and
+  // charging its old amount.
+  const storageKey = `${STORAGE_PREFIX}${planId}:${discountCode?.trim().toUpperCase() || "-"}`;
 
   try {
     const existing = window.sessionStorage.getItem(storageKey);
@@ -30,9 +34,14 @@ export function checkoutKeyFor(planId: string): string {
   }
 }
 
+/** Forgets every key of this plan (any code), e.g. once the purchase completed. */
 export function clearCheckoutKey(planId: string): void {
   try {
-    window.sessionStorage.removeItem(`${STORAGE_PREFIX}${planId}`);
+    const prefix = `${STORAGE_PREFIX}${planId}`;
+    for (let i = window.sessionStorage.length - 1; i >= 0; i -= 1) {
+      const key = window.sessionStorage.key(i);
+      if (key && (key === prefix || key.startsWith(`${prefix}:`))) window.sessionStorage.removeItem(key);
+    }
   } catch {
     // Nothing to clean up if storage is unavailable.
   }

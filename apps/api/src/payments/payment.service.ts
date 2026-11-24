@@ -320,6 +320,18 @@ export class PaymentService {
         // Someone guessed or replayed another account's key — never reuse it.
         throw new ConflictException("This checkout key is already in use.");
       }
+      // A replay opens attempts at the order's frozen price, never re-reading
+      // the request's code. A different code under the same key would show
+      // one price and charge another: refuse it so the screen starts over
+      // (FE review P2). A paid order still replays (the buyer sees it's done).
+      const requestedCode = dto.discountCode?.trim().toUpperCase() || null;
+      const orderCode = existing.discountCode?.trim().toUpperCase() || null;
+      if (existing.status !== OrderStatus.PAID && requestedCode !== orderCode) {
+        throw new ConflictException({
+          code: "CHECKOUT_CHANGED",
+          message: "This checkout was opened with a different discount code. Reload the page to pay at the new price."
+        });
+      }
       return this.replayOrder(existing.id, dto);
     }
 

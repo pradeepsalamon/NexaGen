@@ -30,6 +30,7 @@ import {
 import { openGateway } from "../lib/gatewayHandoff";
 import { checkoutKeyFor, clearCheckoutKey } from "../lib/checkoutKey";
 import { DiscountField, type DiscountQuote } from "./DiscountField";
+import { ApiError } from "@/lib/api";
 import { PaymentMethodPicker } from "./PaymentMethodPicker";
 import { PaymentStatusCard } from "./PaymentStatusCard";
 import { UpiQrPanel } from "./UpiQrPanel";
@@ -70,10 +71,11 @@ export function CheckoutClient({ planId }: Props) {
   // What the server charged (after any discount), which is what the QR must show.
   const [qrAmount, setQrAmount] = useState<number | null>(null);
 
-  // One key per (user, plan) checkout intent, held in sessionStorage. A double
-  // click, a refresh or a second tab replays the same key, and the server's
-  // unique index turns that into one order instead of two (§11).
-  const idempotencyKey = useMemo(() => checkoutKeyFor(planId), [planId]);
+  // One key per (plan, discount code) checkout intent, held in sessionStorage.
+  // A double click, a refresh or a second tab replays the same key, and the
+  // server's unique index turns that into one order instead of two (§11). A
+  // changed code is a new intent with its own order (FE review P2).
+  const idempotencyKey = useMemo(() => checkoutKeyFor(planId, discount?.code), [planId, discount?.code]);
 
   const {
     data: status,
@@ -167,6 +169,10 @@ export function CheckoutClient({ planId }: Props) {
       // "dismissed" deliberately does nothing: closing the modal does not mean
       // the payment failed, and the poll will find out either way.
     } catch (mutationError) {
+      if (mutationError instanceof ApiError && mutationError.code === "CHECKOUT_CHANGED") {
+        // A key from before this rule, opened with another code: start over.
+        clearCheckoutKey(planId);
+      }
       toast.error({
         title: "Checkout could not be opened",
         message: getErrorMessage(mutationError)
