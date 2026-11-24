@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useCallback, type KeyboardEvent } from "react";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 
@@ -156,9 +157,13 @@ function CardBody({ item, isActive, compact = false }: CardBodyProps) {
         </div>
 
         <div className="flex items-center justify-center gap-3">
-          <img
+          {/* Remote stock photo: unoptimized keeps it a direct load (no remotePatterns entry, no image proxy). */}
+          <Image
             src={item.avatar}
             alt={item.parentName}
+            height={44}
+            unoptimized
+            width={44}
             className={`rounded-full object-cover shrink-0 border transition-colors duration-700 ${compact ? "size-10" : "size-11"
               } ${isActive ? "border-accent/50" : "border-app-surface/15"}`}
           />

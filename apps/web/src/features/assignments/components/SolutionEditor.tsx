@@ -121,6 +121,7 @@ function ImportPanel({ onImport }: { onImport: (line: ImportedLine) => void }) {
       setGames(null);
       setOpen(false);
     } catch (e) {
+      // eslint-disable-next-line no-restricted-syntax -- a PGN/FEN parse error from the text the coach pasted, meant to be read
       setError(e instanceof Error ? e.message : "Couldn't import that.");
     }
   };
