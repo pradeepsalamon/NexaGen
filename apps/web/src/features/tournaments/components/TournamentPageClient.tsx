@@ -1,5 +1,6 @@
 "use client";
 
+import { queryKeys } from "@/lib/queryKeys";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -233,7 +234,7 @@ function StartPanel({ t }: { t: TournamentDetailDto }) {
   const entered = t.viewer.myStatus === "APPROVED";
   useEffect(() => {
     if (!due) return;
-    const refresh = () => void qc.invalidateQueries({ queryKey: ["tournaments", "detail", t.id] });
+    const refresh = () => void qc.invalidateQueries({ queryKey: queryKeys.tournaments.detail(t.id) });
     refresh();
     const timer = window.setInterval(refresh, START_RECHECK_MS);
     return () => window.clearInterval(timer);
@@ -588,9 +589,9 @@ export function TournamentPageClient({ tournamentId }: { tournamentId: string })
   useEffect(() => {
     if (liveVersion === undefined) return;
     if (seenVersion.current !== undefined && seenVersion.current !== liveVersion) {
-      void qc.invalidateQueries({ queryKey: ["tournaments", "detail", tournamentId] });
-      void qc.invalidateQueries({ queryKey: ["tournaments", "rounds", tournamentId] });
-      void qc.invalidateQueries({ queryKey: ["tournaments", "bracket", tournamentId] });
+      void qc.invalidateQueries({ queryKey: queryKeys.tournaments.detail(tournamentId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.tournaments.rounds(tournamentId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.tournaments.bracket(tournamentId) });
     }
     seenVersion.current = liveVersion;
   }, [liveVersion, qc, tournamentId]);

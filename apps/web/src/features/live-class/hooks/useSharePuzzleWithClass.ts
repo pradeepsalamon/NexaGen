@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { AssignLivePuzzleRequest, LivePuzzleAssignment } from "@nexa-chess/types";
@@ -52,7 +53,7 @@ export function useSharePuzzleWithClass(classId: string) {
             ({ puzzleId } = await materialiseCatalogPuzzle(target.catalogSourceId));
             void qc.invalidateQueries({ queryKey: queryKeys.puzzles.topics });
           } catch (error) {
-            toast.error({ title: "Couldn't share this puzzle", message: (error as Error).message });
+            toast.error({ title: "Couldn't share this puzzle", message: getErrorMessage(error) });
             return null;
           }
         }
@@ -71,7 +72,7 @@ export function useSharePuzzleWithClass(classId: string) {
           } catch (error) {
             toast.error({
               title: "Shared, but the main board couldn't show it",
-              message: (error as Error).message
+              message: getErrorMessage(error)
             });
           }
         }

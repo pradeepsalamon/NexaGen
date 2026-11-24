@@ -1,3 +1,4 @@
+import { formatNumber as formatCount } from "@/lib/formatNumber";
 import type { KpiValue } from "@nexa-chess/types";
 
 /** Wrap a plain number as a comparison-less KpiValue for <KpiCard>. */
@@ -8,7 +9,7 @@ export function asKpi(value: number | null | undefined): KpiValue | undefined {
 
 export function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
-  return value.toLocaleString();
+  return formatCount(value);
 }
 
 export function formatPercent(value: number | null | undefined): string {
@@ -18,7 +19,7 @@ export function formatPercent(value: number | null | undefined): string {
 
 export function formatHours(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
-  return `${value.toLocaleString()} h`;
+  return `${formatNumber(value)} h`;
 }
 
 export function formatBytes(bytes: number | null | undefined): string {

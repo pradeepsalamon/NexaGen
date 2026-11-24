@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -219,7 +220,7 @@ export function CatalogBrowser({
           setSelected(new Map());
           reportAdopt(res, toast);
         },
-        onError: (error) => toast.error({ title: "Could not add puzzles", message: (error as Error).message })
+        onError: (error) => toast.error({ title: "Could not add puzzles", message: getErrorMessage(error) })
       }
     );
   };
@@ -238,7 +239,7 @@ export function CatalogBrowser({
         solutionMoves: full.solutionMoves
       });
     } catch (error) {
-      toast.error({ title: "Could not load the puzzle", message: (error as Error).message });
+      toast.error({ title: "Could not load the puzzle", message: getErrorMessage(error) });
     } finally {
       setHomeworkLoading(null);
     }
@@ -483,7 +484,7 @@ export function CatalogBrowser({
           ))}
         </div>
       ) : catalog.error ? (
-        <Alert variant="error">{(catalog.error as Error).message}</Alert>
+        <Alert variant="error">{getErrorMessage(catalog.error)}</Alert>
       ) : puzzles.length === 0 && !windowInvalid && !timedOut ? (
         <EmptyState
           illustration="search-results"

@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "@/lib/navigation";
@@ -91,7 +92,7 @@ export function DiagramPositionActions({ analysis = true, children, confirmed, l
     importGame.mutate(
       { pgn, title },
       {
-        onError: (err) => toast.error({ title: "Could not open the analysis board", message: (err as Error).message }),
+        onError: (err) => toast.error({ title: "Could not open the analysis board", message: getErrorMessage(err) }),
         onSuccess: (game) => {
           openedGames.set(sessionKey, game.id);
           toast.success({ title: "Opened in your Game Library", message: "Only you can see it." });

@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -386,7 +387,7 @@ function AssignFolderDialog({
     if (error || blocker) {
       toast.error({
         title: `"${folder.name}" can't be assigned`,
-        message: blocker ?? (error as Error).message
+        message: blocker ?? getErrorMessage(error)
       });
       onClose();
     }

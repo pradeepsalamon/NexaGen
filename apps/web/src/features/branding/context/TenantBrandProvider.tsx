@@ -1,5 +1,6 @@
 "use client";
 
+import { queryKeys } from "@/lib/queryKeys";
 import { useQuery } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { brandPaletteCss, type TenantPublicConfig } from "@nexa-chess/types";
@@ -61,7 +62,7 @@ export function TenantBrandProvider({ children }: { children: ReactNode }) {
   const query = useQuery({
     enabled: isAcademyHost,
     queryFn: getTenantPublicConfig,
-    queryKey: ["tenant", "public-config"],
+    queryKey: queryKeys.tenant.publicConfig,
     staleTime: 5 * 60_000
   });
   const config = isAcademyHost ? (query.data ?? null) : null;

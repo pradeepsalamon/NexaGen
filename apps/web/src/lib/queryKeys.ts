@@ -326,7 +326,12 @@ export const queryKeys = {
     monitor: (classId: string, runId: string) => ["activity-run", classId, "monitor", runId] as const,
     game: (classId: string, gameId: string, ply: number) => ["activity-run", classId, "game", gameId, ply] as const,
   },
+  tenant: {
+    publicConfig: ["tenant", "public-config"] as const,
+  },
   activityQueues: {
+    /** Prefix of every activity-queue query of one class. */
+    all: (classId: string) => ["activity-queues", classId] as const,
     list: (classId: string) => ["activity-queues", classId, "list"] as const,
     progress: (classId: string, queueId: string) => ["activity-queues", classId, "progress", queueId] as const,
     current: (classId: string) => ["activity-queues", classId, "current"] as const,
@@ -455,12 +460,18 @@ export const queryKeys = {
     detail: (id: string) => ["tournaments", "detail", id] as const,
     live: (id: string) => ["tournaments", "live", id] as const,
     standings: (id: string, filters: Record<string, unknown> = {}) => ["tournaments", "standings", id, filters] as const,
+    /** Prefix of every standings query of one tournament (any filters), for invalidation. */
+    standingsAll: (id: string) => ["tournaments", "standings", id] as const,
+    /** Prefix of every list query (any filters). */
+    listAll: ["tournaments", "list"] as const,
     rounds: (id: string) => ["tournaments", "rounds", id] as const,
     bracket: (id: string) => ["tournaments", "bracket", id] as const,
     players: (id: string) => ["tournaments", "players", id] as const,
     candidates: (id: string, q: string) => ["tournaments", "candidates", id, q] as const,
     game: (id: string, gameId: string) => ["tournaments", "game", id, gameId] as const,
     games: (id: string, filters: Record<string, unknown>) => ["tournaments", "games", id, filters] as const,
+    /** Prefix of every games query of one tournament (any filters). */
+    gamesAll: (id: string) => ["tournaments", "games", id] as const,
     myGame: (id: string) => ["tournaments", "my-game", id] as const,
     commentary: (id: string) => ["tournaments", "commentary", id] as const,
     audit: (id: string, page: number) => ["tournaments", "audit", id, page] as const,
@@ -469,6 +480,7 @@ export const queryKeys = {
     templates: ["tournaments", "templates"] as const,
     history: (userId: string | null) => ["tournaments", "history", userId ?? "me"] as const,
     admin: {
+      all: ["tournaments", "admin"] as const,
       overview: ["tournaments", "admin", "overview"] as const,
       registrations: (page: number) => ["tournaments", "admin", "registrations", page] as const,
       settings: ["tournaments", "admin", "settings"] as const,

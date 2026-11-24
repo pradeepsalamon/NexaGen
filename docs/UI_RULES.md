@@ -298,7 +298,11 @@ disagree.
   swapped main stage cross-fades with `animate-stage-in`. Both use `backwards`
   fill so no transform stays on the panel, and are `motion-safe:`.
 - Dates/times: `lib/datetime.ts` + `useUserTimeZone()`; never `toLocale*` in a
-  component (see CLAUDE.md §3.6).
+  component (see CLAUDE.md §3.6). Plain counts: `formatNumber` (`lib/formatNumber.ts`,
+  fixed `en-IN` grouping), never a bare `toLocaleString()`.
+- Error text: `getErrorMessage(error)` (`lib/errors.ts`), never
+  `(error as Error).message`, so a 5xx or driver message never reaches a user
+  word for word (FE review D4).
 - **Form errors** (2026-11-17, `docs/FORM_VALIDATION_AUDIT.md`): a field's
   problem is **`FieldError`** (`components/ui/FieldError.tsx`; `FormField` uses
   it for you): a danger icon + short human text ("Enter your email", "Use at

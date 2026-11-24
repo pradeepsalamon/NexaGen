@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "@/lib/navigation";
@@ -168,7 +169,7 @@ export function CheckoutClient({ planId }: Props) {
     } catch (mutationError) {
       toast.error({
         title: "Checkout could not be opened",
-        message: (mutationError as Error).message
+        message: getErrorMessage(mutationError)
       });
     }
   }, [
@@ -219,7 +220,7 @@ export function CheckoutClient({ planId }: Props) {
     } catch (mutationError) {
       toast.error({
         title: "Could not start another attempt",
-        message: (mutationError as Error).message
+        message: getErrorMessage(mutationError)
       });
     }
   }, [brandName, config?.plan.name, method, paymentId, retry, toast, verify]);

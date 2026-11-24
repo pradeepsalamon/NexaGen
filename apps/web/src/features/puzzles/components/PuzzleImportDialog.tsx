@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useMemo, useRef, useState } from "react";
 import { FieldError } from "@/components/ui/FieldError";
 import {
@@ -147,7 +148,7 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
         });
       }
     } catch (error) {
-      toast.error({ title: "Import failed", message: (error as Error).message });
+      toast.error({ title: "Import failed", message: getErrorMessage(error) });
     }
   };
 

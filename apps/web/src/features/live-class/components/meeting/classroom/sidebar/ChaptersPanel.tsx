@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useContext, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -107,7 +108,7 @@ export function ChaptersPanel({ classId, activePuzzleId }: { classId: string; ac
       loadChapterOnBoard(board(), chapter.state);
       selection.select(classId, chapter.id, chapterSignature(chapter.state));
     } catch (error) {
-      toast.error({ title: `Couldn't load "${chapter.title}"`, message: (error as Error).message });
+      toast.error({ title: `Couldn't load "${chapter.title}"`, message: getErrorMessage(error) });
     }
   };
 
@@ -140,7 +141,7 @@ export function ChaptersPanel({ classId, activePuzzleId }: { classId: string; ac
         else await actions.createNow(`Chapter ${all.length + 1}`, state);
       } catch (error) {
         // The board keeps its moves: nothing is loaded over unsaved work.
-        toast.error({ title: "Couldn't save the board", message: (error as Error).message });
+        toast.error({ title: "Couldn't save the board", message: getErrorMessage(error) });
         return;
       } finally {
         setBusyLoad(false);
@@ -192,7 +193,7 @@ export function ChaptersPanel({ classId, activePuzzleId }: { classId: string; ac
       }
       await actions.importPuzzles({ puzzleIds: ids });
     } catch (error) {
-      toast.error({ title: "Couldn't read that folder", message: (error as Error).message });
+      toast.error({ title: "Couldn't read that folder", message: getErrorMessage(error) });
     }
   };
 

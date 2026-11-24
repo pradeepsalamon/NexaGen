@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import { Check, Tag, X } from "lucide-react";
 import {
@@ -65,7 +66,7 @@ export function DiscountField({
             onApply(null);
           }
         },
-        onError: (mutationError) => setError((mutationError as Error).message)
+        onError: (mutationError) => setError(getErrorMessage(mutationError))
       }
     );
   };

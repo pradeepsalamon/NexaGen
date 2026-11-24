@@ -56,7 +56,7 @@ export function StudentRevisionClient() {
 
   const next = useMutation({
     mutationFn: nextRevisionItem,
-    onError: (error) => toast.error({ message: (error as Error).message, title: "Couldn't load the next item" }),
+    onError: (error) => toast.error({ message: getErrorMessage(error), title: "Couldn't load the next item" }),
     onSuccess: (res) => {
       setReviewed(null);
       setSummary(res.summary);
@@ -71,7 +71,7 @@ export function StudentRevisionClient() {
 
   const rate = useMutation({
     mutationFn: (grade: RevisionGrade) => reviewRevisionItem({ attemptId: current!.attemptId, grade }),
-    onError: (error) => toast.error({ message: (error as Error).message, title: "Couldn't save your rating" }),
+    onError: (error) => toast.error({ message: getErrorMessage(error), title: "Couldn't save your rating" }),
     onSuccess: (res) => {
       setReviewed(res);
       setSummary(res.summary);
@@ -81,7 +81,7 @@ export function StudentRevisionClient() {
 
   const skip = useMutation({
     mutationFn: () => skipRevisionItem({ itemId: current!.itemId }),
-    onError: (error) => toast.error({ message: (error as Error).message, title: "Couldn't skip" }),
+    onError: (error) => toast.error({ message: getErrorMessage(error), title: "Couldn't skip" }),
     onSuccess: () => requestNext()
   });
 
