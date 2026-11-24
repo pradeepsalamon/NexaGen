@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { useCoachBatches } from "@/features/coach/hooks/useCoachApi";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import {
   useManualBatchPlans,
   useManualBatchStudents,
@@ -54,7 +54,7 @@ export function RecordManualPaymentDialog({ scope, onClose }: Props) {
 }
 
 function AdminManualPaymentForm({ onClose }: { onClose: () => void }) {
-  const { data } = useBatchesQuery();
+  const { data } = useAllBatchesQuery();
   return (
     <ManualPaymentForm batches={data?.batches ?? []} onClose={onClose} scope="admin" />
   );

@@ -105,7 +105,7 @@ export function AcademyDomainsCard({ tenant }: { tenant: PlatformTenantDetail })
           <p className="mt-1 text-app-muted">Then run certbot for the host, reload nginx, and press Check.</p>
         </div>
       ) : null}
-      <form
+      <form noValidate
         className="mt-3 flex flex-wrap gap-2"
         onSubmit={(event) => {
           event.preventDefault();

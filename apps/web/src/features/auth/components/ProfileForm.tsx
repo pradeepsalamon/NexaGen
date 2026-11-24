@@ -169,7 +169,7 @@ export function ProfileForm() {
     "NC";
 
   return (
-    <form className="mt-6 grid gap-6" onSubmit={handleSubmit}>
+    <form noValidate className="mt-6 grid gap-6" onSubmit={handleSubmit}>
       <AvatarUploader
         avatarUrl={values.avatarUrl}
         initials={initials}

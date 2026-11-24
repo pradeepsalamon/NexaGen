@@ -41,7 +41,7 @@ function DetailsCard({ tenant }: { tenant: PlatformTenantDetail }) {
 
   return (
     <SectionCard title="Academy">
-      <form
+      <form noValidate
         className="grid gap-4"
         onSubmit={(event) => {
           event.preventDefault();

@@ -118,7 +118,7 @@ function ScheduleForm({ schedule, onDone }: { schedule: DemoScheduleDto | null; 
   };
 
   return (
-    <form onSubmit={submit} className="grid gap-4">
+    <form noValidate onSubmit={submit} className="grid gap-4">
       <Field label="Topic" error={errors.topic}>
         <Input
           value={topic}

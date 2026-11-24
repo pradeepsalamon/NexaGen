@@ -173,9 +173,22 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
     [assignmentId, attemptId]
   );
 
+  // A pending progress save must not land after the submit, or after the
+  // page has gone (FE review S1).
+  useEffect(
+    () => () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    },
+    []
+  );
+
   const doSubmit = useCallback(
     async (finalMoves: AttemptMove[], resign = false) => {
       if (!attemptId) return;
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
       setBusy(true);
       try {
         const evaluation = await submitMutation.mutateAsync({
@@ -184,6 +197,9 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
         });
         setResult(evaluation);
         setPhase("result");
+      } catch {
+        // The mutation's onError already showed the toast; nothing else to
+        // report (FE review S2: no unhandled rejection).
       } finally {
         setBusy(false);
       }

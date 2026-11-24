@@ -27,7 +27,7 @@ function SellerForm({ saved, seller }: { seller: PlatformSellerDetails; saved: b
   const rateOk = rateText.trim() !== "" && Number.isFinite(rate) && rate >= 0 && rate <= 50; // the API allows 0–5000 bps
 
   return (
-    <form
+    <form noValidate
       className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();

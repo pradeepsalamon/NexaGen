@@ -185,7 +185,7 @@ function NewQueueForm({
   busy: boolean;
 }) {
   return (
-    <form
+    <form noValidate
       className="flex gap-2"
       onSubmit={(e) => {
         e.preventDefault();
@@ -271,7 +271,7 @@ function QueueView({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           {renaming ? (
-            <form
+            <form noValidate
               onSubmit={(e) => {
                 e.preventDefault();
                 const title = String(new FormData(e.currentTarget).get("title") ?? "").trim();

@@ -52,7 +52,7 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import { queryKeys } from "@/lib/queryKeys";
@@ -214,7 +214,7 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const categories = useKnowledgeCategories();
-  const batches = useBatchesQuery({ pageSize: 100 });
+  const batches = useAllBatchesQuery();
   const others = useKnowledgeArticles({});
 
   // A freshly saved draft resets "what changed".

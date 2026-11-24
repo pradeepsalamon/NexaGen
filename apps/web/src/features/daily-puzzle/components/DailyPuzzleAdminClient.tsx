@@ -3,12 +3,12 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { DailyPuzzleScheduleManager } from "./DailyPuzzleScheduleManager";
 
 /** Admin: the academy's Puzzle of the Day, or any active batch's (docs/PUZZLE_OF_THE_DAY.md). */
 export function DailyPuzzleAdminClient() {
-  const batches = useBatchesQuery({ pageSize: 100, status: "ACTIVE" });
+  const batches = useAllBatchesQuery({ status: "ACTIVE" });
   return (
     <div className="animate-fade-in space-y-5 pb-10">
       <PageHeader

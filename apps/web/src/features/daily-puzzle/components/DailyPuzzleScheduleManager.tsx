@@ -323,6 +323,7 @@ function WhatsAppAnswerSettings({ initial }: { initial: DailyPuzzleWhatsAppSetti
   const save = useSaveDailyPuzzleWhatsAppSettings();
   const form = useForm<DailyPuzzleWhatsAppSettings>({
     defaultValues: initial,
+    mode: "onTouched",
     resolver: zodResolver(dailyPuzzleWhatsAppSettingsSchema)
   });
   const { errors, isDirty } = form.formState;

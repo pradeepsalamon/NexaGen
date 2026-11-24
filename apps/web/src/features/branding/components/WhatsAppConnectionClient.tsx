@@ -50,7 +50,7 @@ function Form({ data }: { data: WhatsAppSettingsResponse }) {
   const wabaOk = /^(\d{5,30})?$/.test(wabaId.trim());
 
   return (
-    <form
+    <form noValidate
       className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();

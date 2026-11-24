@@ -49,7 +49,7 @@ export function ReasonDialog({
           <DialogTitle className="px-6 sm:pl-0">{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
-        <form
+        <form noValidate
           className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();

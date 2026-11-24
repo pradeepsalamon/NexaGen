@@ -114,7 +114,7 @@ function AdjustPopover({
             </Button>
           ))}
         </div>
-        <form
+        <form noValidate
           className="flex gap-1.5"
           onSubmit={(e) => {
             e.preventDefault();

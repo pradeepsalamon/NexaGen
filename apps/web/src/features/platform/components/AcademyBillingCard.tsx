@@ -46,7 +46,7 @@ export function AcademyBillingCard({ primaryHost, tenantId }: { tenantId: string
 
   return (
     <SectionCard description="Plan payments, GST invoices and a pay link to send the academy. Prices exclude GST." title="Billing">
-      <form
+      <form noValidate
         className="grid gap-3"
         onSubmit={(event) => {
           event.preventDefault();

@@ -26,7 +26,7 @@ import { Select } from "@/components/ui/Select";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import {
@@ -205,7 +205,7 @@ function DiscountForm({
 }) {
   const create = useCreateDiscount();
   const update = useUpdateDiscount();
-  const { data: batches } = useBatchesQuery();
+  const { data: batches } = useAllBatchesQuery();
   const { data: plans } = useAdminPlans();
 
   const currency = discount?.currency ?? "INR";

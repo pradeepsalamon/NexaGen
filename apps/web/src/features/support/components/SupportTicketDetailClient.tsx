@@ -245,7 +245,7 @@ function Conversation({ ticket }: { ticket: SupportTicketDetail }) {
         })}
       </div>
 
-      <form className="grid gap-2 border-t border-app-border p-3" onSubmit={(event) => void submit(event)}>
+      <form noValidate className="grid gap-2 border-t border-app-border p-3" onSubmit={(event) => void submit(event)}>
         {!windowOpen ? (
           <Alert variant="warning">
             The customer last wrote more than 24 hours ago. WhatsApp only allows an approved template now, so your reply
@@ -565,7 +565,7 @@ function TicketHistory({ ticket }: { ticket: SupportTicketDetail }) {
           </li>
         ))}
       </ol>
-      <form
+      <form noValidate
         className="grid gap-2"
         onSubmit={async (event) => {
           event.preventDefault();

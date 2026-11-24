@@ -20,7 +20,7 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TextEditor } from "@/components/ui/TextEditor";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import { useToast } from "@/providers/ToastProvider";
@@ -66,7 +66,7 @@ function summarise(result: CreateAnnouncementResponse): string {
 function Composer() {
   const create = useCreateAnnouncement();
   const toast = useToast();
-  const { data: batchData } = useBatchesQuery();
+  const { data: batchData } = useAllBatchesQuery();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");

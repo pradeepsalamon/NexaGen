@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useHelpPreview } from "../../hooks/useKnowledgeApi";
 import { ArticleCard } from "../HelpCenterClient";
@@ -26,7 +26,7 @@ export function PreviewPanel() {
   const [q, setQ] = useState("");
   const [route, setRoute] = useState("");
   const debounced = useDebouncedValue(q.trim(), 350);
-  const batches = useBatchesQuery({ pageSize: 100 });
+  const batches = useAllBatchesQuery();
   const preview = useHelpPreview({
     asRole,
     batchId: batchId || undefined,

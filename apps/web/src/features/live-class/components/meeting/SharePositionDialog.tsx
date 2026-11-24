@@ -197,7 +197,7 @@ export function SharePositionDialog({
             </div>
           </div>
         ) : (
-          <form
+          <form noValidate
             id="share-position-form"
             className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
             onSubmit={(e) => {
