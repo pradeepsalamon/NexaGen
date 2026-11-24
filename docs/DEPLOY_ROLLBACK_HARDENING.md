@@ -1,269 +1,143 @@
-# Safe deployment and rollback plan
+# Safe deployment and rollback
 
-**Status (2026-11-24): plan only, nothing below is built yet.** This is the single plan for
-deploying production safely and getting back out when a deploy goes wrong. It replaces the
-2026-11-23 fix list, which is now folded in (§5) together with the audit evidence (§8).
+**Status (2026-11-24): the minimum workflow (§3) is built on `dev`; it reaches production with the
+next release.** Later work (§6) waits until a specific risk calls for it. How the pipeline works
+day to day is in [DEPLOYMENT.md](DEPLOYMENT.md) § "CI, automated deploys and rollback"; the
+recovery runbooks are in [DATABASE_RESTORE.md](DATABASE_RESTORE.md) §7–§8. The SaaS-only stages
+(enforce, D5 contract, first academy) add their steps on top: [SAAS_CUTOVER_RUNBOOK.md](SAAS_CUTOVER_RUNBOOK.md).
 
-How the pipeline works **today** is in [DEPLOYMENT.md](DEPLOYMENT.md) § "CI, automated deploys
-and rollback". As items here ship, mark them done in §5 and describe the new behaviour in
-DEPLOYMENT.md. The SaaS-specific stages (enforce, D5 contract, first academy) stay in
-[SAAS_CUTOVER_RUNBOOK.md](SAAS_CUTOVER_RUNBOOK.md); this plan is the general path every release
-takes, that runbook adds its extra steps on top.
+Aim: something the team can read in one sitting and operate without help. Prefer a check that
+stops a deploy to automation that repairs one.
 
 ---
 
 ## 1. The rules
 
 1. **Production changes only through `deploy-production.sh`.** No `docker compose up --build`,
-   no `nexa.sh restart prod`, no migration typed by hand outside a runbook. One path means one
-   lock, one migration step, one health gate and one rollback.
-2. **Every release is classified before it is merged** (§3): can its images be rolled back, or
+   no migration typed by hand outside a runbook. One path: one lock, one migration step, one
+   health gate, one rollback.
+2. **Every release is classified before it is merged** (§2): can its images be rolled back, or
    only rolled forward or restored? The release PR says which.
-3. **No migration runs without a fresh backup taken seconds before it.**
+3. **No migration runs without a checked backup taken minutes before it.**
 4. **Old code must keep working on the new schema** (expand/contract). A change old code can't
-   live with ships in two releases, and CI enforces it.
+   live with ships in two releases, and CI enforces the marker.
 5. **A rollback never makes things worse.** It refuses when the schema is ahead of the code it
-   would restore, and says what to do instead.
-6. **Someone hears about a failure within minutes**, not when a parent calls.
-7. **Every path is rehearsed** on staging before production needs it, and drilled on a calendar.
+   would restore by a class C migration, and says what to do instead.
+6. **Someone hears about a failure.** For now: the red deploy run and the post-deploy check (§3).
+   Alerting comes later (§6).
+7. **Every path is tried before production needs it**: on staging, or as a read-only check
+   against production.
 
----
+## 2. Rollback classes
 
-## 2. How a release runs (target procedure)
+`scripts/migration-class.sh` classifies migrations; CI puts the classes in the job summary of
+every PR that adds one, and fails an unmarked class C.
 
-### Before merging (the release PR)
-
-1. `dev` has run on staging for at least two days with no new errors in its log.
-2. The release PR (branch off `dev`, `main` merged in before CI, `gh pr create --base main`)
-   carries a **release note** in its description:
-   - the migrations it brings, each with its class from §3;
-   - the release's overall rollback class (the worst of its migrations);
-   - new feature switches and their default (new risky features ship **off**);
-   - env vars to add to the prod `.env` **before** merging.
-3. CI is green: unit, integration, build, the migration-safety check (§5 item 8) and, once
-   built, migrations applied to a sanitised production copy (item 16).
-4. Pick the window: outside class hours. The deploy script refuses while a class is `LIVE` or
-   `IN_PROGRESS` unless `FORCE_DEPLOY_DURING_CLASS=1` (item 6b).
-5. The owner merges. Merging is the deploy.
-
-### The deploy (automatic on merge; each step is a gate)
-
-| # | Step | On failure |
+| Class | What the migration does | Image rollback afterwards |
 |---|---|---|
-| 1 | Lock, skip a stale commit, refuse during a live class | Abort, nothing changed |
-| 2 | Build the new images | Abort, nothing changed |
-| 3 | `prisma migrate status` from the new image: refuse a failed or unknown migration | Abort, nothing changed |
-| 4 | If migrations are pending: `pg_dump` → local + OCI `database/predeploy/` | Abort, nothing changed |
-| 5 | `prisma migrate deploy` from the new image (only place production migrates) | Abort; old API keeps serving. Failed-migration runbook |
-| 6 | Snapshot running images as `:last-good`; push new images to the registry | Abort before swap |
-| 7 | Swap containers (graceful stop) | Automatic restore of `:last-good` |
-| 8 | Health gate: `/health/ready` **and** the deep check | Automatic restore of `:last-good` |
-| 9 | Smoke test through nginx: login + one student and one admin read path | Automatic restore of `:last-good` |
-| 10 | Watch window, 10 min: Sentry error rate and the uptime check | Alert; the human decides (§4) |
-| 11 | Mark good: record commit + image SHAs + backup key in `history.log`, tag `prod-YYYYMMDD-HHMM-<sha>` | — |
+| **A: additive** | New table, nullable column, column with a default, new index | **Safe**: old code ignores it |
+| **B: enum value** | `ALTER TYPE … ADD VALUE` | **Safe until a row uses the new value.** Then an old Prisma client errors reading that row; roll forward instead |
+| **C: contract** | `DROP TABLE/COLUMN/TYPE`, `RENAME`, `SET NOT NULL`, a type change, a trigger, `TRUNCATE`, a new `NOT NULL` column without a default | **Never.** Roll forward with a fix, or restore the pre-deploy backup |
 
-Steps 7–9 restore automatically because nothing outside the images has changed since step 5
-except additive schema (class A/B). For a class C release the automatic restore is refused by
-the compatibility check (item 7) and the deploy stops at "needs a human" with an alert.
+A class C migration needs the comment `-- nexa:contract <reason>` and ships one release after the
+code stopped using the old shape (the D5 folder `apps/api/prisma/contract/` is the precedent).
+`UPDATE`/`DELETE`/`DROP INDEX`/`DROP CONSTRAINT` are flagged "review": class A if old code reads
+the result fine, which the release note says. A release takes the class of its worst migration.
 
-### After the deploy
+**The next release (dev → main, 21 migrations, checked 2026-11-24): class B.** Four migrations add
+enum values (`DAILY_PUZZLE` and `CLASS_RESCHEDULED` to two enums each, `DEMO_CONFIRMED`,
+`NO_SHOW`, `DAILY`); three
+`UPDATE`s are readable by old code (plan features, referral terms, lowercased emails). An image
+rollback is fine in the first hour; once daily-puzzle notifications have gone out, roll forward.
+It also carries the B1 backup-download fix (0e2baf0b), needed before a second academy exists.
 
-- The person who merged checks the release note's "check after deploy" list in a browser:
-  sign in as each role, open a class, a puzzle set, the payments page.
-- Leave the release alone for 24 h before the next one, unless it is a hotfix.
+## 3. The minimum workflow (built)
 
----
+**Release PR** (branch off `dev`, `main` merged in before CI, `gh pr create --base main`). Its
+description carries:
+- the migrations and their classes (copy CI's job summary) and the release's class;
+- new feature switches (risky features ship **off**) and env vars to add to the prod `.env` first;
+- what to check after the deploy.
 
-## 3. Rollback classes (decided per migration, per release)
+Merge outside class hours. Merging is the deploy.
 
-| Class | What the migration does | Image rollback afterwards | Examples |
+**The deploy** (`scripts/deploy-production.sh`; each step stops the deploy on failure):
+
+| # | Step | Protects | On failure |
 |---|---|---|---|
-| **A: additive** | New table, nullable column, column with a default, new index, new composite unique beside the old | **Safe**: old code ignores it | Most migrations |
-| **B: enum value** | `ALTER TYPE … ADD VALUE` | **Safe only until a row uses the new value.** After that, an old Prisma client throws reading that row ("Value not found in enum"), so every screen listing those rows errors | `NotificationType.DAILY_PUZZLE`, `LeadStatus.NO_SHOW` |
-| **C: contract** | `DROP`, `RENAME`, `SET NOT NULL`, a type change, a write-refusing trigger, a data rewrite old code can't read | **Never.** Roll forward with a fix, or restore the pre-deploy dump (loses writes since the deploy) | D5 contract, `class_requests_into_approvals` |
+| 1 | Lock (`flock`, max 15 min wait, below the 45 min SSH timeout); skip a commit older than the live one | Exclusivity | Abort, nothing changed |
+| 2 | Migration state from `_prisma_migrations`: refuse a failed migration or one the commit doesn't know; list the pending ones with their class | Migration safety | Abort, nothing changed |
+| 3 | `TENANT_SCOPE_MODE` must not drop from `enforce` | Tenant isolation | Abort, nothing changed |
+| 4 | Build the images | — | Abort, nothing changed |
+| 5 | If migrations are pending: `backup_db.sh --predeploy` (dump, gzip test, pg_dump's completion marker, OCI upload with the size compared, copy in `.deploy/backups/`) | Backup integrity | Abort, nothing changed |
+| 6 | `prisma migrate deploy` from the new image, while the old API serves. The only place production migrates (`MIGRATE_ON_START=false`) | Migration safety | Abort; old API keeps serving. Runbook §7 |
+| 7 | Swap containers, then the health gate: `/health/ready` now reads `users` through Prisma, so code on a schema it doesn't match fails | Health check | Restore `:last-good`* |
+| 8 | Smoke test through nginx: home and sign-in pages 200, API ready 200, the academy resolves for the site's origin, a signed-out `/auth/me` is 401 | Smoke test, tenant isolation | Restore `:last-good`* |
+| 9 | Mark good; `history.log` records the commit and the backup key | — | — |
 
-Data rewrites (`UPDATE`/`DELETE`) are class C unless the release note shows old code reads the
-result fine (then A). A release takes the class of its worst migration.
+\* Before restoring, the script classifies the migrations the old code doesn't know. Past a class
+C one it does **not** restore and prints "NOT ROLLED BACK" with the backup key: roll forward, or
+follow DATABASE_RESTORE.md §8. Manual rollback (Actions → `action: rollback`) runs the same check
+and refuses (`ROLLBACK_PAST_CONTRACT=1` on the box overrides, a human decision).
 
-**The next release (dev → main, 166 commits, 21 migrations, checked 2026-11-24):** class **B**.
-Six migrations add enum values (`MessagingEvent`/`NotificationType` `CLASS_RESCHEDULED` and
-`DAILY_PUZZLE`, `LeadStatus` `DEMO_CONFIRMED`/`NO_SHOW`, `PuzzleAttemptContext.DAILY`). Three
-rewrite data, all readable by old code: plan feature lists gain keys, `referral_redemptions`
-gains terms, user emails are lowercased. No `DROP`/`RENAME`/`SET NOT NULL`. So an image rollback
-is fine in the first hour; once daily-puzzle notifications have gone out, old code would break
-students' notification lists, and the answer is roll forward. That release also carries the
-B1 backup-download fix (0e2baf0b), which must be in production before a second academy exists.
+**After the deploy:** the person who merged signs in as each role and opens a class, a puzzle set
+and the payments page, then leaves the release alone for 24 h unless a hotfix is needed.
 
----
+Also built: `nexa.sh start|restart prod` no longer rebuilds (start = existing images, restart =
+recreate `api` + `web` only, never Postgres or LiveKit).
 
-## 4. When something goes wrong: decide in this order
+Checked 2026-11-24 against production, read-only: the migration-state queries (156 applied, 21
+pending, none failed or unknown), every smoke check (all pass), the rollback check (allows
+`main`, refuses a pre-November commit), and a real pre-deploy backup to OCI (uploaded and
+size-checked; a truncated dump and one without the completion marker were both rejected).
 
-| Situation | Do this | Time to recover |
-|---|---|---|
-| A new feature misbehaves and has a switch | **Turn the switch off** (admin setting or env + recreate API) | 1 min |
-| Build, `migrate status`, backup or migration fails | Nothing to do: production is unchanged. Failed migration → runbook R1 | 0 |
-| Health gate or smoke test fails | Automatic restore of `:last-good`. Read the failure logs, fix, redeploy | Seconds |
-| Deploy went green, then errors climb, class A release (or B before the new values are used) | **Image rollback**: Actions → Deploy Production → `action: rollback`, to any retained SHA (item 11) | ~2 min |
-| Same, class B after new values are written, or class C | **Roll forward**: hotfix PR into `main` (CI ~15 min, deploy ~8 min). Maintenance page if the app is unusable meanwhile | ~30 min |
-| Data damaged by a migration or a bug | **Restore** the pre-deploy dump (runbook R2), then replay or accept the gap. Owner's call, with the data-loss window stated | 30–60 min |
-| Box lost | New box, images from the registry, latest dump from OCI, `.env` from the encrypted copy (runbook R3) | Hours |
+## 4. When something goes wrong
 
-When in doubt between rollback and roll forward: if the compatibility check (item 7) refuses,
-roll forward. Never hand-edit `_prisma_migrations` or tags to get past it.
+| Situation | Do this |
+|---|---|
+| A new feature misbehaves and has a switch | Turn the switch off (admin setting, or `.env` + `nexa.sh restart prod`) |
+| Lock, migration state, build, backup or migration fails | Nothing to undo: production is unchanged. A failed migration: DATABASE_RESTORE.md §7 |
+| Health gate or smoke test fails | The script restored `:last-good`. Read its logs, fix, redeploy |
+| Deploy went green, then errors climb; class A, or B before new values are used | Actions → Deploy Production → `action: rollback` |
+| Class B after the new values are written, or class C | Roll forward: hotfix PR into `main`. Maintenance page meanwhile if unusable |
+| Data damaged, or "NOT ROLLED BACK" with no quick fix | Restore the pre-deploy backup: DATABASE_RESTORE.md §8 (owner's call: writes since it are lost) |
 
-Runbooks (item 4), linked from DEPLOYMENT.md:
-- **R1 failed migration:** P3009, `prisma migrate resolve --rolled-back` or `--applied`, when to
-  restore instead.
-- **R2 database restore** from the pre-deploy dump ([DATABASE_RESTORE.md](DATABASE_RESTORE.md)
-  extended).
-- **R3 box lost** (rebuild from the registry, OCI and the `.env` copy).
-- **Incident checklist:** maintenance page on (`nexa.sh maintenance on prod`), decide via the
-  table above, tell coaches/parents (template), write a short note in `docs/TROUBLESHOOTING.md`.
+## 5. Before the first release with this
 
----
+- In the OCI console, add the lifecycle rule for `database/predeploy/` (DATABASE_RESTORE.md §8).
+- The release that ships this runs it: the workflow runs the target commit's script.
 
-## 5. What to build, in order
+## 6. Later (when a specific risk calls for it)
 
-Each item: what changes, where, and how we know it's done.
+Not built on purpose. Each line says what would justify it.
 
-### Phase 0: before the next release that contains a migration
+- **Alerting** (Sentry DSNs, an uptime check, a watch window after deploy): once deploys happen
+  while nobody watches, or the first incident is found by a user. Owner picks the channel.
+- **Images in a registry** (GHCR or OCIR) for rollback to any release and surviving a lost box:
+  when the box's disk or a second server makes local tags insufficient.
+- **Off-box copies of `.env`, recordings and Cloudinary media**: before relying on rebuilding the
+  box; decide Cloudinary export vs accepting the risk.
+- **`lock_timeout` and `CONCURRENTLY` conventions**: when a migration touches a large, busy table.
+- **Graceful shutdown** (`enableShutdownHooks`, `stop_grace_period`): if the few seconds of
+  errors during a swap start to matter.
+- **Migrations tested on a sanitised production copy in CI**: after a migration fails on real data.
+- **Drills** (monthly restore into scratch Postgres, quarterly broken build on staging),
+  **containerised staging**, **bats tests for the deploy script**: when the team grows, or before
+  the D5 contract release.
+- **Required reviewer on production runs and `prod-…` git tags**: when someone other than the
+  owner can merge to `main`.
 
-1. **Stop migrating in the container entrypoint.** `apps/api/entrypoint.sh` runs
-   `prisma migrate deploy` only when `MIGRATE_ON_START=true`; set `false` for `api` in
-   `docker-compose.yml` (local and staging keep it on). The deploy script becomes the only thing
-   that migrates production, and no rollback ever migrates.
-   *Done when:* restarting `nexa_api` logs no migration run, and a drill with a failed migration
-   (P3009 state) followed by `docker restart nexa_api` keeps the API up.
-2. **Back up right before migrating** (§2 step 4). `pg_dump` with the same
-   `--exclude-table-data` flags as `backup_db.sh` to `.deploy/backups/<UTC>-<sha>.sql.gz`, upload
-   to OCI `database/predeploy/`, keep 5 locally and 30 days in OCI, write the key to
-   `history.log`. Abort if the dump or upload fails.
-   *Done when:* a deploy with a pending migration leaves a dump locally and in OCI; one without
-   takes none.
-3. **Check migration state before building anything** (§2 step 3): abort with a clear message
-   on a failed migration or one the target commit doesn't know.
-4. **Write runbooks R1, R2, R3 and the incident checklist** (§4).
-5. **Remove `nexa.sh restart prod`'s rebuild path.** Refuse with a pointer to the workflow, or
-   call `deploy-production.sh` with the current commit. It must never stop Postgres or LiveKit.
-6. **Fix the timeout race and handle interruption.** Lock wait well below the 45 min SSH timeout
-   (15 min), or run the script detached and have the workflow poll `history.log`. Add
-   `trap … HUP INT TERM` that restores `:last-good` when a run stops after the swap.
-   6b. **Refuse to deploy during a live class** (§2 step 1), with the override env var.
-7. **Release note template** (§2) in `.github/pull_request_template.md` for PRs into `main`,
-   with the §3 classes.
+## 7. Evidence (audit 2026-11-23)
 
-### Phase 1: make rollback trustworthy
-
-8. **Migration-safety check in CI.** Fail on `DROP`, `RENAME`, `SET NOT NULL`, type changes,
-   write-refusing triggers and `UPDATE`/`DELETE`, unless the migration carries
-   `-- nexa:contract <reason>`; flag `ADD VALUE` as class B in the job summary. A contract change
-   ships one release after the code stops depending on the old shape (the D5 folder
-   `apps/api/prisma/contract/` is the precedent).
-   *Done when:* a new migration containing `DROP COLUMN` without the marker fails CI.
-9. **Migrations safe on a live database.** Each starts with `SET lock_timeout = '5s';` (CI
-   check). Large-table indexes are built `CONCURRENTLY` in a migration of their own.
-10. **Schema compatibility check before any restore** (automatic or manual). Bake the image's
-    migration names into the API image; before restoring, compare with `_prisma_migrations`. If
-    the database is ahead by a class C migration, refuse, print why, alert, point to R2. Class B:
-    refuse if any row uses a value the target image doesn't know (the check reads the enum
-    values from both images' `schema.prisma`). Class A rolls back as today.
-11. **Images in a registry.** After the swap, push both images tagged with the commit SHA; keep
-    at least 5 per service. Rollback = pull + retag to **any** retained SHA, for **any** service,
-    and survives losing the box.
-12. **Images carry their commit** (`org.opencontainers.image.revision` label); the snapshot reads
-    it from the running image instead of trusting `last-good-commit`.
-13. **Deep readiness.** `/health/deep` runs a few real Prisma reads (`users`, `classes`,
-    `payments` with `LIMIT 1`, one enum-typed column). Old code on an incompatible schema fails
-    the gate and the uptime check.
-14. **Graceful shutdown.** `app.enableShutdownHooks()` in `main.ts`, `stop_grace_period: 30s` on
-    `api` and `web`, BullMQ workers and the Stockfish pool closed on shutdown.
-15. **Monitoring and the watch window** (§2 steps 9–10). Sentry DSNs set (API and web) with an
-    error-rate alert, an external uptime check on `/health/deep`, both to the alert channel
-    (owner decision). Smoke test after the swap; 10-minute watch before marking good.
-
-### Phase 2: prove it and protect it
-
-16. **Migrations against a sanitised production copy in CI** (names, emails, phones, free text
-    scrubbed; keys and secrets dropped). Catches `NOT NULL`/`UNIQUE` failures that depend on real
-    data.
-17. **Back up the state outside the database.** Prod `.env` encrypted (age or gpg) into OCI
-    nightly, or OCI Vault. Recordings (local disk only). Cloudinary: export, or accept the risk
-    in writing. Redis: decide (the outbox rows that drive BullMQ are in Postgres).
-18. **Containerised staging** running the same `deploy-production.sh` with its own compose
-    project and `.deploy/` state, so every deploy and rollback path runs there first.
-19. **Test the deploy script in CI** (bats, `docker`/`git` stubbed): build fails, migration
-    fails, `up` fails, health timeout, crash loop, rollback fails, manual rollback twice, stale
-    commit, lock contention, missing `:last-good`, the item 10 refusal, interrupted run.
-20. **Drills.** Monthly: restore the latest backup into a scratch Postgres and compare row counts
-    (`scripts/saas/rehearse-d5.sh` pattern). Quarterly: a deliberately broken build on staging to
-    exercise automatic rollback, manual rollback and the item 10 refusal. Record each drill in
-    DEPLOYMENT.md.
-21. **Protect production runs.** `deploy` and `rollback` jobs behind `environment: production`
-    with a required reviewer (public repo or paid plan), or an `github.actor` allow-list if the
-    repo goes private on GitHub Free.
-22. **Tag every successful deploy** `prod-YYYYMMDD-HHMM-<short sha>` from the workflow.
-
-**Rough size:** Phase 0 is about a day of work plus one drill on staging; Phase 1 two to three
-days; Phase 2 spread over the following weeks.
-
----
-
-## 6. How we know it works
-
-- A drill per path has passed on staging and is recorded: failed build, failed migration,
-  failed health gate, manual rollback (class A), refused rollback (class C), restore from a
-  pre-deploy dump, interrupted run.
-- Every production deploy since Phase 0 has a pre-deploy dump key (when it migrated), image SHAs
-  in the registry and a `prod-…` tag.
-- An induced failure on staging reaches the alert channel within 5 minutes.
-
-## 7. Owner decisions needed
-
-- **Registry (item 11):** GHCR is small and paid once the repo is private (~1.9 GB of images per
-  release: api ~1.4 GB, web ~0.5 GB); Oracle's OCIR sits beside the server and the OCI bucket.
-- **Alert channel (item 15):** email, WhatsApp, Telegram or Slack, and who reads it.
-- **Sentry:** create the projects and put the DSNs in the prod `.env`. Students are minors, so
-  the scrubbing rules in INFRASTRUCTURE.md stay as they are.
-- **Deploy window:** which hours count as "outside class hours".
-- **Cloudinary:** back it up, or accept the risk (item 17).
-- **Whether the repo stays public** (item 21: free required reviewers).
-
----
-
-## 8. Evidence: what the 2026-11-23 audit found
-
-Every claim was checked in the code, the config or the production box's deploy history.
-
-- **Rollback has never run in production.** `.deploy/history.log` on the prod checkout holds 64
-  events since 2026-10-11 (deploys and 4 aborted builds), 0 rollbacks. No test covers
-  `scripts/deploy-production.sh`.
-- **A rollback puts old code on the migrated schema, unchecked.** The restore path
-  (`restore_generation`) never compares the database with the code it restores. The health check
-  is `GET /health/ready` (`SELECT 1` plus Redis), so old code on an incompatible schema passes.
-  "Keep migrations additive" is enforced by nothing, and the repo has shipped migrations old code
-  can't run on: `20261101100736_class_requests_into_approvals` (write-refusing trigger),
-  `20261107083808_system_message_channels` (renames and deletes rows), 36 enum additions, 11
-  with `DROP`, `RENAME` or `SET NOT NULL`.
-- **Every container start runs migrations** (`apps/api/entrypoint.sh`). After a failed migration
-  Prisma refuses with P3009, so any restart of the still-serving old API (crash, reboot,
-  `nexa.sh`) or a restored old image exits and crash-loops.
-- **No backup right before migrating.** Only the nightly `backup_db.sh` (cron `0 20 * * *` UTC,
-  14 days in OCI) and the admin "Backup now": a bad data migration can lose up to a day.
-- **Only two image generations, on the same server** (`:last-good`, `:previous`). Manual
-  rollback goes back one step, only for the services the last deploy changed. Losing the box
-  loses every artifact.
-- **Nobody is alerted.** `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` are unset in prod; no uptime
-  monitor; the only signal is a red Actions run.
-- **A second deploy path skips every safeguard.** `nexa.sh restart prod` runs
-  `docker compose down` + `up -d --build`: no lock, CI, migrations-first, tags, health gate or
-  rollback, and it stops Postgres and LiveKit.
-- **The SSH timeout can cut a deploy short.** `deploy-production.yml` `command_timeout: 45m`
-  while the script may wait 2400 s for the lock before a 5–8 min build; no trap restores an
-  interrupted run.
-- **Migrations run on the live database without guards.** None of 170 sets `lock_timeout` or
-  builds an index `CONCURRENTLY`; CI applies migrations only to an empty database.
-- **Every deploy causes a short outage**: in-place replacement, no `enableShutdownHooks()`, no
-  `stop_grace_period`.
-- **State outside the database isn't backed up:** the prod `.env` (hand-edited on the box),
-  Cloudinary media, recordings (local, pruned after 14 days under disk pressure), Redis.
-- **`last-good-commit` can drift from the image**: written only when empty during the snapshot.
+What made the §3 items necessary, each checked in code, config or the prod box:
+- Rollback had never run in production (0 of 64 history events) and never compared the
+  schema with the code it restored; the health check was `SELECT 1`.
+- Every API container start ran `prisma migrate deploy`; after a failed migration (P3009) any
+  restart of the old API would crash-loop.
+- No backup was taken before migrating: up to a day of data at risk.
+- `nexa.sh restart prod` rebuilt everything with no lock, migration step, health gate or
+  rollback, and stopped Postgres and LiveKit.
+- The deploy lock could wait 40 min inside a 45 min SSH timeout.
+- 14 of 177 migrations are class C, 34 class B; nothing enforced "keep them additive".
+- Not addressed yet (§6): Sentry DSNs unset, no uptime monitor, images only on the box, no copy
+  of the prod `.env`, no `lock_timeout`, no graceful shutdown.

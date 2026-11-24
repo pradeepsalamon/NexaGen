@@ -295,10 +295,21 @@ Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselve
   push), so a later push also redeploys what a failed deploy left out. To
   redeploy by hand: Actions → Deploy Production → **Run workflow**
   (`workflow_dispatch`, services `both`/`api`/`web`); it runs CI first.
-- **Migrations first**: the script applies `prisma migrate deploy` from the
-  newly built image *before* replacing the running API, so a failed migration
-  aborts the deploy without downtime. `apps/api`'s `entrypoint.sh` also runs it
-  on container start (idempotent; the safety net for manual starts).
+- **Migrations first, after a backup**: before building, the script reads
+  `_prisma_migrations` and refuses a failed migration or one the commit doesn't
+  know, and refuses a `TENANT_SCOPE_MODE` that would drop from `enforce`. With
+  migrations pending it takes a checked backup (`scripts/backup_db.sh
+  --predeploy`: gzip test, completion marker, OCI upload with size compared,
+  local copy in `.deploy/backups/`; a failure aborts), then applies
+  `prisma migrate deploy` from the new image *before* replacing the running API,
+  so a failed migration aborts the deploy without downtime. This is the only
+  place production migrates: the API container's `entrypoint.sh` runs migrations
+  only when `MIGRATE_ON_START=true`, and compose passes `false`.
+- **Smoke test after the health gate**, through nginx with `FRONTEND_URL` and
+  `NEXT_PUBLIC_API_URL` from `.env`: home and `/login` 200, API ready 200, the
+  academy resolves for the site's origin, a signed-out `/auth/me` 401. A failure
+  rolls back like a failed health check. `/health/ready` reads `users` through
+  Prisma, so code on a schema it doesn't match is unhealthy.
 - **Rollback restores images, never rebuilds.** Each service keeps
   `<image>:last-good` (live and healthy) and `<image>:previous` beside
   compose's `latest`. A failed `up` (including web's "dependency failed to
@@ -307,17 +318,22 @@ Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselve
   immediately. A deploy that succeeded but misbehaves: Run workflow →
   `action: rollback` (or `scripts/deploy-production.sh --rollback [api|web]` on
   the box) → `:previous` + that commit's checkout, once per successful deploy,
-  no CI, no build. Migrations are never reversed, so keep them additive. State
+  no CI, no build. Migrations are never reversed, so keep them additive: both
+  the automatic restore and the manual rollback classify the migrations the
+  restored code doesn't know (`scripts/migration-class.sh`, classes A/B/C) and
+  refuse past a class C one (roll forward, or
+  [DATABASE_RESTORE.md](DATABASE_RESTORE.md) §8). CI fails a PR adding a class C
+  migration without `-- nexa:contract <reason>`. State
   (`last-good-commit`, `previous-commit`, `last-deploy-services`,
   `history.log`, the lock) lives in the gitignored `.deploy/` in the prod
   checkout.
-- **Known gaps (2026-11-23 audit):** rollback has never run in production,
-  isn't checked against the migrated schema, and the entrypoint re-runs
-  migrations on every start. The fix plan is
-  [DEPLOY_ROLLBACK_HARDENING.md](DEPLOY_ROLLBACK_HARDENING.md).
+- **Rules, classes, release-PR note and what to do when it goes wrong:**
+  [DEPLOY_ROLLBACK_HARDENING.md](DEPLOY_ROLLBACK_HARDENING.md). Not built yet
+  (on purpose): alerting, an image registry, drills. A failed migration and a
+  restore after a bad deploy: [DATABASE_RESTORE.md](DATABASE_RESTORE.md) §7–§8.
 - **Concurrency**: the workflow's `production` group runs one at a time (a
   newer pending run replaces an older pending one); on the box the script holds
-  a flock on `.deploy/deploy.lock` and skips a commit that is an ancestor of
+  a flock on `.deploy/deploy.lock` (waits at most 15 min) and skips a commit that is an ancestor of
   the one live (`FORCE_DEPLOY=1` overrides). It runs from a temp copy of
   itself, since `git checkout -f` rewrites `scripts/deploy-production.sh` in
   place.
@@ -343,13 +359,11 @@ Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselve
 - `NEXT_PUBLIC_*` vars are build-time — they must be set before
   `docker compose build` for web.
 
-## Step 5: Ongoing Updates (manual)
+## Step 5: Ongoing Updates
 
-The push-to-`main` workflow above is the normal path. To update by hand:
-
-```bash
-cd /opt/nexa-chess
-git pull origin main
-docker compose up -d --build
-```
-Docker is smart enough to only rebuild the containers that had code changes (like `web` or `api`), leaving the others (`postgres`, `livekit`, `redis`) running untouched!
+The push-to-`main` workflow above is the only path for new code, so every
+release gets the lock, backup, migration step, health gate, smoke test and
+rollback. To redeploy by hand: Actions → Deploy Production → **Run workflow**.
+Never `docker compose up --build` on the prod checkout. To pick up a `.env`
+change without new code: `scripts/nexa.sh restart prod` (recreates `api` and
+`web` from their current images; Postgres and LiveKit keep running).

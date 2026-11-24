@@ -86,3 +86,72 @@ To reload it:
    need Lichess to be reachable.
 
 Spec: [PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md](PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md) §13–§14.
+
+## 7. A failed migration
+
+The deploy stopped at "DEPLOYMENT ABORTED: migrations failed". The previous API
+is still serving, and restarting it is safe: a container start never migrates
+(`MIGRATE_ON_START=false`). The next deploy refuses until this is cleared
+("the database has a failed migration"). A pre-deploy backup was taken just
+before; its key is in `.deploy/history.log` (`backup ok … backup=<key>`).
+
+1. See what failed and why:
+   ```bash
+   docker exec -i nexa_postgres psql -U postgres -d nexa_chess -c \
+     "select migration_name, started_at, logs from _prisma_migrations where finished_at is null and rolled_back_at is null;"
+   ```
+2. Check whether any of it applied. Postgres runs a migration file as one
+   implicit transaction, so usually nothing did. Look for the tables, columns
+   or types the file creates (`\d <table>` in psql).
+3. **Nothing applied** (the usual case): mark it rolled back. This is what
+   `prisma migrate resolve --rolled-back <name>` writes; the prod checkout no
+   longer has the file after the abort, so do it in SQL:
+   ```bash
+   docker exec -i nexa_postgres psql -U postgres -d nexa_chess -c \
+     "update _prisma_migrations set rolled_back_at = now() where migration_name = '<name>' and finished_at is null;"
+   ```
+   Then fix the migration in a PR into `main` (it never applied in
+   production, so the file itself may be corrected; say so in the PR) and
+   deploy again.
+4. **Part of it applied**: either finish it by hand and mark it applied
+   (`finished_at = now()`, an owner's call), or restore the pre-deploy backup
+   (§8). Never mark it applied while its changes are only partly there.
+
+## 8. Restore after a bad deploy
+
+Use this when a deploy damaged data, or a class C migration is live and a fix
+can't be rolled forward in time (docs/DEPLOY_ROLLBACK_HARDENING.md §4). Every
+write since the backup is lost, so the owner decides, knowing the window
+(the backup's UTC time is in its name).
+
+1. Maintenance page on: `scripts/nexa.sh maintenance on prod`.
+2. Keep what is there now, so nothing is lost for good: `scripts/backup_db.sh`.
+3. Find the pre-deploy dump: the newest `backup=` in `.deploy/history.log`.
+   A local copy is in `.deploy/backups/` (newest 5), otherwise download it from
+   OCI `database/predeploy/` (§1).
+4. Stop the app: `docker compose stop api web`.
+5. Recreate the database. Restoring over the top would keep the newer schema,
+   so drop it first:
+   ```bash
+   docker exec -i nexa_postgres psql -U postgres -d postgres \
+     -c 'DROP DATABASE nexa_chess WITH (FORCE);' -c 'CREATE DATABASE nexa_chess;'
+   gunzip -c .deploy/backups/<file>.sql.gz | docker exec -i nexa_postgres psql -v ON_ERROR_STOP=1 -U postgres -d nexa_chess
+   ```
+6. Put back the code that matches the restored schema:
+   - **The deploy failed and was not rolled back** ("NOT ROLLED BACK"):
+     ```bash
+     git checkout -f "$(cat .deploy/last-good-commit)"
+     for s in api web; do docker tag "nexagen-$s:last-good" "nexagen-$s:latest"; done
+     docker compose up -d --no-build api web
+     ```
+     (`docker images | grep last-good` shows the image names if the compose
+     project isn't `nexagen`.)
+   - **The deploy succeeded and misbehaved later**: Actions → Deploy Production
+     → Run workflow → `action: rollback`. Its schema check passes now that the
+     database is back to the older migrations.
+7. Reload the Lichess catalogue (§6), check §5, maintenance page off.
+8. Record it: `echo "$(date -u +%FT%TZ) restore <file> (reason)" >> .deploy/history.log`.
+
+Pre-deploy dumps are not pruned by any script. Once, in the OCI console:
+bucket → Lifecycle Policy Rules → delete objects with prefix
+`database/predeploy/` older than 30 days.

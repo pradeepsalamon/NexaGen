@@ -191,6 +191,9 @@ services:
 
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nexa_chess}?schema=public
+      # Only scripts/deploy-production.sh migrates production (after a backup);
+      # a container start never does (entrypoint.sh, docs/DEPLOY_ROLLBACK_HARDENING.md).
+      MIGRATE_ON_START: ${MIGRATE_ON_START:-false}
 
       NODE_ENV: production
       PORT: 3001

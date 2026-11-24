@@ -7,7 +7,29 @@ set -euo pipefail
 # This script performs a pg_dump of the production database running in Docker,
 # compresses it, and uploads it to an Oracle Cloud (OCI) Object Storage bucket
 # using the S3 compatibility API. It also handles a 14-day retention policy.
+#
+# Usage:
+#   backup_db.sh                              nightly backup (cron), 14-day retention
+#   backup_db.sh --predeploy <label> <dir>    right before a production migration
+#                                             (scripts/deploy-production.sh): goes to
+#                                             database/predeploy/, a copy stays in <dir>
+#                                             (newest 5 kept), prints BACKUP_KEY=<key>
+#
+# Either way the dump is checked before it counts (gzip intact, pg_dump's
+# completion marker present, uploaded size equal to the local file); any
+# failure exits non-zero, so a deploy never migrates without a good backup.
 # ==============================================================================
+
+MODE=automatic
+if [ "${1:-}" = "--predeploy" ]; then
+  MODE=predeploy
+  LABEL=$(printf '%s' "${2:-}" | tr -cd 'A-Za-z0-9._-')
+  LOCAL_COPY_DIR="${3:-}"
+  if [ -z "$LABEL" ] || [ -z "$LOCAL_COPY_DIR" ]; then
+    echo "Usage: $0 --predeploy <label> <local-copy-dir>"
+    exit 1
+  fi
+fi
 
 # Ensure standard and user bin paths (including oci cli location) are available in non-interactive cron shells
 export PATH="/home/ubuntu/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
@@ -48,11 +70,15 @@ RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 # We no longer need to export AWS credentials for this script.
 
 DATE=$(date +%Y-%m-%d-%H-%M-%S)
-FILENAME="nexa-db-${DATE}.sql.gz"
+if [ "$MODE" = "predeploy" ]; then
+  FILENAME="nexa-db-predeploy-${DATE}-${LABEL}.sql.gz"
+else
+  FILENAME="nexa-db-${DATE}.sql.gz"
+fi
 # Owner-only and unpredictable: the dump holds every user's data.
 umask 077
 TEMP_FILE=$(mktemp --suffix=.sql.gz "/tmp/nexa-db-${DATE}.XXXXXX")
-REMOTE_PATH="database/automatic/${FILENAME}"
+REMOTE_PATH="database/${MODE}/${FILENAME}"
 
 # Trap for cleanup
 cleanup() {
@@ -90,17 +116,49 @@ if [ ! -s "$TEMP_FILE" ]; then
 fi
 echo "Backup created locally: $TEMP_FILE ($(du -h "$TEMP_FILE" | cut -f1))"
 
+# Integrity: a dump cut short (disk full, container restart, killed pg_dump)
+# can still be a non-empty, valid gzip. pg_dump writes this marker last.
+echo "Checking the dump is complete..."
+if ! gzip -t "$TEMP_FILE"; then
+  echo "Error: the backup file is not a valid gzip."
+  exit 1
+fi
+if ! gzip -dc "$TEMP_FILE" | tail -n 20 | grep -q -- "-- PostgreSQL database dump complete"; then
+  echo "Error: the dump has no completion marker; pg_dump did not finish."
+  exit 1
+fi
+LOCAL_BYTES=$(stat -c %s "$TEMP_FILE")
+echo "Dump is complete (${LOCAL_BYTES} bytes)."
+
 # 3. Upload to OCI Object Storage
 echo "Uploading backup to OCI Object Storage using OCI CLI..."
 oci os object put -ns "$NAMESPACE" -bn "$BUCKET" --name "$REMOTE_PATH" --file "$TEMP_FILE"
 
 # 4. Verify Upload via Head-Object
-echo "Verifying uploaded object exists in OCI..."
-if ! oci os object head -ns "$NAMESPACE" -bn "$BUCKET" --name "$REMOTE_PATH" >/dev/null 2>&1; then
+echo "Verifying the uploaded object in OCI..."
+if ! HEAD_JSON=$(oci os object head -ns "$NAMESPACE" -bn "$BUCKET" --name "$REMOTE_PATH" 2>/dev/null); then
   echo "Error: Verification failed. The object '$REMOTE_PATH' was not found in OCI."
   exit 1
 fi
-echo "Upload verification successful."
+REMOTE_BYTES=$(printf '%s' "$HEAD_JSON" | grep -o '"content-length": *"\?[0-9]*' | tr -dc '0-9')
+if [ "$REMOTE_BYTES" != "$LOCAL_BYTES" ]; then
+  echo "Error: uploaded size (${REMOTE_BYTES:-unknown}) differs from the local file (${LOCAL_BYTES})."
+  exit 1
+fi
+echo "Upload verification successful (${REMOTE_BYTES} bytes)."
+
+if [ "$MODE" = "predeploy" ]; then
+  # A local copy makes a restore right after a bad deploy fast; the newest 5 stay.
+  mkdir -p "$LOCAL_COPY_DIR"
+  chmod 700 "$LOCAL_COPY_DIR"
+  cp "$TEMP_FILE" "$LOCAL_COPY_DIR/$FILENAME"
+  ls -1t "$LOCAL_COPY_DIR"/nexa-db-predeploy-*.sql.gz 2>/dev/null | tail -n +6 | xargs -r rm -f --
+  echo "Local copy: $LOCAL_COPY_DIR/$FILENAME"
+  # Pre-deploy dumps are not pruned here: the bucket's lifecycle rule for
+  # database/predeploy/ does it (DATABASE_RESTORE.md).
+  echo "BACKUP_KEY=$REMOTE_PATH"
+  exit 0
+fi
 
 # 5. Enforce Retention Policy
 echo "Enforcing retention policy (${RETENTION_DAYS} days)..."

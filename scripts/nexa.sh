@@ -343,15 +343,18 @@ fi
 # Prod is the whole Docker stack: a component target would be ignored and the
 # command would take everything down, so refuse it up front.
 if [[ "$ENV" == "prod" && -n "$TARGET" ]]; then
-    echo "Component targets are dev/stage only. For prod use: docker compose up -d --build $TARGET"
+    echo "Component targets are dev/stage only. New prod code ships only through Actions -> Deploy Production."
     exit 1
 fi
 
 case "$COMMAND" in
     start)
         if [[ "$ENV" == "prod" ]]; then
-            echo "Starting prod environment (Docker)..."
-            docker compose up -d --build
+            # Starts the images already built; never builds. New code reaches
+            # prod only through scripts/deploy-production.sh (lock, backup,
+            # migrations, health gate, rollback): docs/DEPLOY_ROLLBACK_HARDENING.md.
+            echo "Starting prod environment (Docker, existing images, no build)..."
+            docker compose up -d --no-build
         elif [[ "$ENV" == "stage" ]]; then
             pull_latest
             start_stage "$TARGET"
@@ -386,9 +389,11 @@ case "$COMMAND" in
         ;;
     restart)
         if [[ "$ENV" == "prod" ]]; then
-            echo "Restarting prod environment (Docker)..."
-            docker compose down
-            docker compose up -d --build
+            # Recreates api + web from their current images (picks up .env
+            # changes). Never rebuilds, and never stops Postgres or LiveKit.
+            # New code: Actions -> Deploy Production.
+            echo "Recreating prod api + web from their current images (no build)..."
+            docker compose up -d --no-build --force-recreate api web
         elif [[ "$ENV" == "stage" ]]; then
             echo "Restarting stage environment (Tmux)..."
             pull_latest

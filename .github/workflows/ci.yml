@@ -168,6 +168,24 @@ jobs:
 
       - run: npm ci
 
+      # Rollback classes A/B/C (docs/DEPLOY_ROLLBACK_HARDENING.md). Fails on a
+      # class C migration without its `-- nexa:contract` marker; the classes go
+      # in the job summary for the release note.
+      - name: Classify new migrations for rollback safety
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -z "$BASE" ]; then echo "No pull request base: nothing to classify."; exit 0; fi
+          mapfile -t files < <(git diff --name-only --diff-filter=A "$BASE" HEAD -- 'apps/api/prisma/migrations/*/migration.sql')
+          if [ "${#files[@]}" -eq 0 ]; then echo "No new migrations."; exit 0; fi
+          set +e
+          bash scripts/migration-class.sh --ci "${files[@]}" > migration-classes.txt
+          status=$?
+          set -e
+          cat migration-classes.txt
+          { echo "### Migration rollback classes"; echo '```'; cat migration-classes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
       - name: Apply every migration to an empty database
         run: npm run db:migrate:deploy
 

@@ -65,7 +65,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [SERVICE_STATUS.md](SERVICE_STATUS.md) | What users see when the app is down, deploying, in maintenance, crashed, outdated or offline (nginx status page, `error.tsx`, offline pill) |
 | [PROD_DOCKER_COMMANDS.md](PROD_DOCKER_COMMANDS.md) | Production container cheat sheet |
 | [DATABASE_RESTORE.md](DATABASE_RESTORE.md) | Restoring a backup (CLI only) |
-| [DEPLOY_ROLLBACK_HARDENING.md](DEPLOY_ROLLBACK_HARDENING.md) | The one safe deployment and rollback plan (2026-11-24, not built): release procedure, rollback classes, what to do when a deploy goes wrong, build order, audit evidence |
+| [DEPLOY_ROLLBACK_HARDENING.md](DEPLOY_ROLLBACK_HARDENING.md) | Safe deployment and rollback: the rules, rollback classes A/B/C, the minimum deploy workflow (built 2026-11-24), what to do when it goes wrong, later items |
 | [NEXA_CLI.md](NEXA_CLI.md) | The `nexa` dev/stage/prod helper |
 | [PERF_CPU.md](PERF_CPU.md) | Measuring CPU contention on the VPS |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Symptom → where to look, per feature |

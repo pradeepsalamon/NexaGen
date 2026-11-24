@@ -24,8 +24,10 @@ nexa attach                              # attach to the nexa-dev tmux session
   The web is built with `NEXT_STANDALONE=false` (no `output: "standalone"`; Docker
   keeps it) and served by `next start`. The standalone `server.js` ignores the Host
   header behind nginx, which broke middleware cookie checks and redirects.
-- **prod** — `docker compose up -d --build` / `down`. On the production box use
-  the deploy workflow instead (CLAUDE.md §6); never run this from an agent
+- **prod** — never builds: `start` = `docker compose up -d --no-build` (existing
+  images), `restart` = recreate `api` + `web` from their current images (picks up
+  `.env`; Postgres and LiveKit keep running), `stop` = `down`. New code goes out
+  only through the deploy workflow (CLAUDE.md §6); never run this from an agent
   ([.agents/SAFETY.md](../.agents/SAFETY.md)).
 
 `start`/`restart stage` first fast-forwards the checkout to its branch's upstream

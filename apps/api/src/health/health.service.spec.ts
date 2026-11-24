@@ -9,9 +9,9 @@ jest.mock("ioredis");
 const mockedGetApiEnv = getApiEnv as jest.Mock;
 const MockedRedis = Redis as unknown as jest.Mock;
 
-function createService(queryRaw: jest.Mock = jest.fn().mockResolvedValue([{ "?column?": 1 }])) {
-  const prisma = { $queryRaw: queryRaw } as unknown as PrismaService;
-  return { queryRaw, service: new HealthService(prisma) };
+function createService(findFirst: jest.Mock = jest.fn().mockResolvedValue(null)) {
+  const prisma = { user: { findFirst } } as unknown as PrismaService;
+  return { findFirst, service: new HealthService(prisma) };
 }
 
 function mockRedisClient(ping: jest.Mock) {
@@ -30,10 +30,10 @@ describe("HealthService", () => {
   });
 
   it("reports liveness without touching any dependency", () => {
-    const { queryRaw, service } = createService();
+    const { findFirst, service } = createService();
 
     expect(service.live()).toMatchObject({ status: "ok" });
-    expect(queryRaw).not.toHaveBeenCalled();
+    expect(findFirst).not.toHaveBeenCalled();
   });
 
   it("is ready with Redis disabled when REDIS_URL is unset", async () => {
