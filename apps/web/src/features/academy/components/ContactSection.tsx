@@ -2,7 +2,7 @@ import { MessageCircle, Phone, Mail, BookOpen, Users, ArrowRight, Sparkles } fro
 import { ACADEMY_EMAIL, ACADEMY_PHONE, ACADEMY_WHATSAPP } from "../content";
 
 // content.ts is the one source of the contact details (JSON-LD and llms.txt
-// read it too). "+91-7010854643" → "+91 7010854643" / "917010854643".
+// read it too). "+91-9344967940" → "+91 9344967940" / "919344967940".
 const displayNumber = (value: string) => value.replace("-", " ");
 const digits = (value: string) => value.replace(/\D/g, "");
 const whatsappHref = `https://wa.me/${digits(ACADEMY_WHATSAPP)}`;

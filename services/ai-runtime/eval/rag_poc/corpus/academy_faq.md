@@ -38,7 +38,7 @@ Yes. Training covers preparation for national and international tournaments, and
 
 ## How do I book a free demo class?
 
-Fill in the "Book Your Free Demo Class" form on nexachess.in, message us on WhatsApp at +91 9344967940, call +91 7010854643 or email nexachessacademy@gmail.com.
+Fill in the "Book Your Free Demo Class" form on nexachess.in, message or call us on +91 9344967940 (WhatsApp) or email nexachessacademy@gmail.com.
 
 ## Programs
 
