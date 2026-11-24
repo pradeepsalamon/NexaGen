@@ -211,6 +211,9 @@ services:
       MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES:-SUPER_ADMIN,ADMIN}
       # Signs Puzzle of the Day's WhatsApp board-picture links; unset = derived from the keys above.
       DAILY_PUZZLE_PICTURE_SECRET: ${DAILY_PUZZLE_PICTURE_SECRET:-}
+      # Encrypts academies' own WhatsApp tokens and gateway keys; unset = MFA_ENCRYPTION_KEY.
+      # Never set it once data is stored under MFA_ENCRYPTION_KEY: that data would stop decrypting.
+      CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY:-}
 
       # Constant-time-ish auth responses so a client can't tell "wrong password"
       # from "no such account" apart by response latency.
@@ -298,6 +301,25 @@ services:
       FRAPPE_CRM_LEAD_SOURCE: ${FRAPPE_CRM_LEAD_SOURCE:-Direct WhatsApp}
       FRAPPE_CRM_WEBSITE_LEAD_SOURCE: ${FRAPPE_CRM_WEBSITE_LEAD_SOURCE:-Website Form}
       FRAPPE_CRM_LEAD_STATUS: ${FRAPPE_CRM_LEAD_STATUS:-New Inquiry}
+      # Lead stages to/from Frappe (docs/LEAD_STAGES.md); both off by default.
+      FRAPPE_CRM_STAGE_SYNC: ${FRAPPE_CRM_STAGE_SYNC:-false}
+      FRAPPE_CRM_STAGE_RETURN: ${FRAPPE_CRM_STAGE_RETURN:-false}
+      # WhatsApp chats become leads (sends nothing); demo reminder templates (Meta-approved names).
+      SUPPORT_CAPTURE_LEADS: ${SUPPORT_CAPTURE_LEADS:-false}
+      SUPPORT_DEMO_REMINDER_TEMPLATE: ${SUPPORT_DEMO_REMINDER_TEMPLATE:-}
+      SUPPORT_DEMO_MISSED_TEMPLATE: ${SUPPORT_DEMO_MISSED_TEMPLATE:-}
+      SUPPORT_DEMO_TEMPLATE_LANGUAGE: ${SUPPORT_DEMO_TEMPLATE_LANGUAGE:-en_US}
+      # Meta Conversions API + ad spend (docs/AD_MEASUREMENT.md). Unset = nothing is sent.
+      META_DATASET_ID: ${META_DATASET_ID:-}
+      META_CAPI_ACCESS_TOKEN: ${META_CAPI_ACCESS_TOKEN:-}
+      META_CAPI_TEST_EVENT_CODE: ${META_CAPI_TEST_EVENT_CODE:-}
+      META_GRAPH_API_VERSION: ${META_GRAPH_API_VERSION:-v21.0}
+      META_ADS_ACCESS_TOKEN: ${META_ADS_ACCESS_TOKEN:-}
+      META_AD_ACCOUNT_ID: ${META_AD_ACCOUNT_ID:-}
+      # Academy subscriptions paid to the platform owner (platform-billing/). Unset = no checkout.
+      PLATFORM_RAZORPAY_KEY_ID: ${PLATFORM_RAZORPAY_KEY_ID:-}
+      PLATFORM_RAZORPAY_KEY_SECRET: ${PLATFORM_RAZORPAY_KEY_SECRET:-}
+      PLATFORM_RAZORPAY_WEBHOOK_SECRET: ${PLATFORM_RAZORPAY_WEBHOOK_SECRET:-}
 
       # Admin analytics thresholds/cache — see CLAUDE.md's analytics debug row.
       ANALYTICS_STORAGE_WARN_PERCENT: ${ANALYTICS_STORAGE_WARN_PERCENT:-70}
