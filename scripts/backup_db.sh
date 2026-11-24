@@ -12,8 +12,9 @@ set -euo pipefail
 #   backup_db.sh                              nightly backup (cron), 14-day retention
 #   backup_db.sh --predeploy <label> <dir>    right before a production migration
 #                                             (scripts/deploy-production.sh): goes to
-#                                             database/predeploy/, a copy stays in <dir>
-#                                             (newest 5 kept), prints BACKUP_KEY=<key>
+#                                             database/predeploy/, a copy stays in <dir>,
+#                                             only this newest one is kept (locally and
+#                                             in OCI), prints BACKUP_KEY=<key>
 #
 # Either way the dump is checked before it counts (gzip intact, pg_dump's
 # completion marker present, uploaded size equal to the local file); any
@@ -148,14 +149,26 @@ fi
 echo "Upload verification successful (${REMOTE_BYTES} bytes)."
 
 if [ "$MODE" = "predeploy" ]; then
-  # A local copy makes a restore right after a bad deploy fast; the newest 5 stay.
+  # Only the newest pre-deploy backup is kept (owner 2026-11-24): older ones go
+  # only after this one is verified above. The nightly backups cover the past.
+  # A local copy makes a restore right after a bad deploy fast.
   mkdir -p "$LOCAL_COPY_DIR"
   chmod 700 "$LOCAL_COPY_DIR"
   cp "$TEMP_FILE" "$LOCAL_COPY_DIR/$FILENAME"
-  ls -1t "$LOCAL_COPY_DIR"/nexa-db-predeploy-*.sql.gz 2>/dev/null | tail -n +6 | xargs -r rm -f --
+  find "$LOCAL_COPY_DIR" -maxdepth 1 -name 'nexa-db-predeploy-*.sql.gz' ! -name "$FILENAME" -delete
   echo "Local copy: $LOCAL_COPY_DIR/$FILENAME"
-  # Pre-deploy dumps are not pruned here: the bucket's lifecycle rule for
-  # database/predeploy/ does it (DATABASE_RESTORE.md).
+
+  # A failed clean-up leaves an extra file behind; it never fails the deploy.
+  if OLD_KEYS=$(oci os object list -ns "$NAMESPACE" -bn "$BUCKET" --prefix "database/predeploy/" --all --query 'data[].name' --raw-output 2>/dev/null); then
+    printf '%s' "$OLD_KEYS" | tr -d '[]",' | tr -s '[:space:]' '\n' | sed -n '/^database\/predeploy\//p' | while read -r key; do
+      [ "$key" = "$REMOTE_PATH" ] && continue
+      echo "Removing older pre-deploy backup: $key"
+      oci os object delete -ns "$NAMESPACE" -bn "$BUCKET" --name "$key" --force >/dev/null 2>&1 \
+        || echo "Warning: could not remove $key"
+    done
+  else
+    echo "Warning: could not list older pre-deploy backups to remove them."
+  fi
   echo "BACKUP_KEY=$REMOTE_PATH"
   exit 0
 fi

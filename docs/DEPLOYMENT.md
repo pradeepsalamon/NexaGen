@@ -300,7 +300,8 @@ Moved out of CLAUDE.md §6 on 2026-10-31. Agents don't run any of this themselve
   know, and refuses a `TENANT_SCOPE_MODE` that would drop from `enforce`. With
   migrations pending it takes a checked backup (`scripts/backup_db.sh
   --predeploy`: gzip test, completion marker, OCI upload with size compared,
-  local copy in `.deploy/backups/`; a failure aborts), then applies
+  local copy in `.deploy/backups/`; only the newest is kept, locally and in OCI;
+  a failure aborts), then applies
   `prisma migrate deploy` from the new image *before* replacing the running API,
   so a failed migration aborts the deploy without downtime. This is the only
   place production migrates: the API container's `entrypoint.sh` runs migrations

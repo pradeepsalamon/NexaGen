@@ -69,7 +69,7 @@ Merge outside class hours. Merging is the deploy.
 | 2 | Migration state from `_prisma_migrations`: refuse a failed migration or one the commit doesn't know; list the pending ones with their class | Migration safety | Abort, nothing changed |
 | 3 | `TENANT_SCOPE_MODE` must not drop from `enforce` | Tenant isolation | Abort, nothing changed |
 | 4 | Build the images | — | Abort, nothing changed |
-| 5 | If migrations are pending: `backup_db.sh --predeploy` (dump, gzip test, pg_dump's completion marker, OCI upload with the size compared, copy in `.deploy/backups/`) | Backup integrity | Abort, nothing changed |
+| 5 | If migrations are pending: `backup_db.sh --predeploy` (dump, gzip test, pg_dump's completion marker, OCI upload with the size compared, copy in `.deploy/backups/`; only the newest is kept, locally and in OCI) | Backup integrity | Abort, nothing changed |
 | 6 | `prisma migrate deploy` from the new image, while the old API serves. The only place production migrates (`MIGRATE_ON_START=false`) | Migration safety | Abort; old API keeps serving. Runbook §7 |
 | 7 | Swap containers, then the health gate: `/health/ready` now reads `users` through Prisma, so code on a schema it doesn't match fails | Health check | Restore `:last-good`* |
 | 8 | Smoke test through nginx: home and sign-in pages 200, API ready 200, the academy resolves for the site's origin, a signed-out `/auth/me` is 401 | Smoke test, tenant isolation | Restore `:last-good`* |
@@ -104,8 +104,8 @@ size-checked; a truncated dump and one without the completion marker were both r
 
 ## 5. Before the first release with this
 
-- In the OCI console, add the lifecycle rule for `database/predeploy/` (DATABASE_RESTORE.md §8).
-- The release that ships this runs it: the workflow runs the target commit's script.
+Nothing to set up: the release that ships this runs it (the workflow runs the target commit's
+script). Only the newest pre-deploy backup is kept, so the script removes older ones itself.
 
 ## 6. Later (when a specific risk calls for it)
 

@@ -127,8 +127,9 @@ write since the backup is lost, so the owner decides, knowing the window
 1. Maintenance page on: `scripts/nexa.sh maintenance on prod`.
 2. Keep what is there now, so nothing is lost for good: `scripts/backup_db.sh`.
 3. Find the pre-deploy dump: the newest `backup=` in `.deploy/history.log`.
-   A local copy is in `.deploy/backups/` (newest 5), otherwise download it from
-   OCI `database/predeploy/` (§1).
+   Only the newest one is kept: a local copy in `.deploy/backups/` and one in
+   OCI `database/predeploy/` (§1). An older point in time means a nightly
+   backup (`database/automatic/`, 14 days).
 4. Stop the app: `docker compose stop api web`.
 5. Recreate the database. Restoring over the top would keep the newer schema,
    so drop it first:
@@ -152,6 +153,6 @@ write since the backup is lost, so the owner decides, knowing the window
 7. Reload the Lichess catalogue (§6), check §5, maintenance page off.
 8. Record it: `echo "$(date -u +%FT%TZ) restore <file> (reason)" >> .deploy/history.log`.
 
-Pre-deploy dumps are not pruned by any script. Once, in the OCI console:
-bucket → Lifecycle Policy Rules → delete objects with prefix
-`database/predeploy/` older than 30 days.
+Only the newest pre-deploy backup is kept, locally and in OCI: each new one,
+once verified, removes the older ones. So restore from it before the next
+deploy that migrates, or copy it somewhere first.
