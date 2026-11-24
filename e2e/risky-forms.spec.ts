@@ -67,10 +67,14 @@ async function stubGet(page: Page, path: string, body: unknown) {
   );
 }
 
-/** The field's message: visible and wired to the control (FieldError + aria-describedby). */
+/**
+ * The field's problem (UI_RULES § "Form errors"): screen-reader text wired to the control, never
+ * drawn; the blocked submit's toast names the first problem.
+ */
 async function expectFieldError(page: Page, fieldId: string, text: RegExp | string) {
   const message = page.locator(`#${fieldId}-error`);
-  await expect(message).toBeVisible();
+  await expect(message).toHaveCount(1);
+  await expect(message).toHaveClass(/\bsr-only\b/);
   await expect(message).toContainText(text);
   await expect(page.locator(`#${fieldId}`)).toHaveAttribute("aria-describedby", new RegExp(`${fieldId}-error`));
 }
@@ -200,7 +204,7 @@ test.describe("risky forms", () => {
     const save = dialog.getByRole("button", { name: /^(Save|Add)/ });
 
     await save.click();
-    await expect(page.locator("#stage-name-error")).toBeVisible();
+    await expect(page.locator("#stage-name-error")).toHaveCount(1);
 
     const name = `E2E stage ${stamp()}`;
     await dialog.locator("#stage-name").fill(name);
@@ -304,12 +308,14 @@ test.describe("risky forms", () => {
 
     await dialog.getByRole("switch").first().click(); // partial amount
     await dialog.locator("#refund-amount").fill("2500");
+    // Checked when Refund is pressed, not while typing; a refused amount sends nothing.
+    await expect(page.locator("#refund-amount-error")).toHaveCount(0);
+    await submit.click();
     await expectFieldError(page, "refund-amount", /Enter an amount between 0 and/);
-    await expect(submit).toBeDisabled();
     await dialog.locator("#refund-amount").fill("0");
-    await expect(submit).toBeDisabled();
+    await expectFieldError(page, "refund-amount", /Enter an amount between 0 and/);
     await dialog.locator("#refund-amount").fill("100");
-    await expect(page.locator("#refund-amount-error")).toBeHidden();
+    await expect(page.locator("#refund-amount-error")).toHaveCount(0);
     await expect(submit).toBeEnabled();
     await dialog.getByRole("button", { name: "Cancel" }).click();
     expect(blocked.count, "nothing may reach the refund route").toBe(0);

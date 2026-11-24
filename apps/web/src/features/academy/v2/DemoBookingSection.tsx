@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useState } from "react";
 import { useToast } from "@/providers/ToastProvider";
 import {
@@ -71,6 +72,7 @@ export function DemoBookingSection() {
   const [submitted, setSubmitted] = useState(false);
   // Field problems go under their field (v2) or a toast (the original page); a failed send is a toast.
   const [error, setError] = useState<{ field: "age" | "email" | "fullName" | "phone"; message: string } | null>(null);
+  useRevealFormErrors(error);
   const errorFor = (field: "age" | "email" | "fullName" | "phone") => (error?.field === field ? error.message : undefined);
   const toast = useToast();
   const [formData, setFormData] = useState({

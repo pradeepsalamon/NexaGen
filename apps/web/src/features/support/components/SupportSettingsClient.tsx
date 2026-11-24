@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldError } from "@/components/ui/FieldError";
 import Link from "next/link";
@@ -184,7 +185,7 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
     handleSubmit,
     register,
     reset
-  } = useForm<FormValues>({ mode: "onTouched", defaultValues: toForm(data, userZone), resolver: zodResolver(formSchema) });
+  } = useForm<FormValues>({ mode: "onSubmit", defaultValues: toForm(data, userZone), resolver: zodResolver(formSchema) });
   const hoursEnabled = useWatch({ control, name: "hoursEnabled" });
   const days = useWatch({ control, name: "days" });
   const timezone = useWatch({ control, name: "timezone" });
@@ -201,7 +202,7 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
       noValidate
       onSubmit={handleSubmit((values) => {
         save.mutateAsync(toRequest(values, data.connection.usesPlatformNumber)).then((saved) => reset(toForm(saved, userZone)), () => undefined);
-      })}
+      }, onInvalidSubmit)}
     >
       {data.source === "SERVER" ? (
         <Alert title="Using the server's settings" variant="info">

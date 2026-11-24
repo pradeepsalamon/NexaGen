@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useState, type ChangeEvent } from "react";
 import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { formatMoney } from "@nexa-chess/types";
@@ -83,6 +84,8 @@ function ManualPaymentForm({
   const [reference, setReference] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  // Found when the file is picked, so it toasts at once.
+  useRevealFormErrors(fileError, { immediate: true });
   const [idempotencyKey] = useState(() => crypto.randomUUID());
 
   const { data: plansData } = useManualBatchPlans(batchId || null);

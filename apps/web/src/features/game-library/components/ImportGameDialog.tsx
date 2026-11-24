@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useState } from "react";
 import { useRouter } from "@/lib/navigation";
 import { FileUp } from "lucide-react";
@@ -41,6 +42,8 @@ export function ImportGameDialog({
   const [batchId, setBatchId] = useState("");
   // About the PGN field (file too big or unreadable); a refused import is a toast.
   const [error, setError] = useState<string | null>(null);
+  // Found when the file is picked, so it toasts at once.
+  useRevealFormErrors(error, { immediate: true });
 
   const onFile = async (input: HTMLInputElement) => {
     const file = input.files?.[0];

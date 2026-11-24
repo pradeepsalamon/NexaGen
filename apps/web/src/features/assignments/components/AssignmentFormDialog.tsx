@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { assignmentFormSchema } from "../validation/assignmentForm";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -293,7 +294,7 @@ export function AssignmentFormDialog({
   // than as a server error toast (FE review F1).
   const form = useForm<FormValues>({
     defaultValues: DEFAULTS,
-    mode: "onTouched",
+    mode: "onSubmit",
     resolver: zodResolver(assignmentFormSchema) as unknown as Resolver<FormValues>
   });
 
@@ -455,7 +456,7 @@ export function AssignmentFormDialog({
         batchIds: deploying ? values.batchIds : undefined,
         dueDate: deploying ? values.dueDate : undefined
       } as CreateAssignmentRequest);
-  });
+  }, onInvalidSubmit);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

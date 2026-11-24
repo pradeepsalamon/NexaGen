@@ -41,7 +41,7 @@ export function RegisterForm() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState<string | undefined>();
   const termsRef = useRef<HTMLButtonElement>(null);
-  const { touched, touchAll, touchField } = useTouchedFields<RegisterFormValues>();
+  const { touched, touchAll } = useTouchedFields<RegisterFormValues>();
   const errors = validateRegisterForm(values, touched);
 
   const registerMutation = useMutation({
@@ -126,7 +126,6 @@ export function RegisterForm() {
             autoComplete="name"
             hasError={Boolean(errors.studentName)}
             id="student-name"
-            onBlur={() => touchField("studentName")}
             leadingIcon={<UserRound />}
             onChange={(e) => updateField("studentName", e.target.value)}
             placeholder="e.g. Aarav Sharma"
@@ -140,7 +139,6 @@ export function RegisterForm() {
           <Input
             hasError={Boolean(errors.studentAge)}
             id="student-age"
-            onBlur={() => touchField("studentAge")}
             inputMode="numeric"
             leadingIcon={<CalendarDays />}
             onChange={(e) => {
@@ -163,7 +161,6 @@ export function RegisterForm() {
             autoComplete="name"
             hasError={Boolean(errors.parentName)}
             id="parent-name"
-            onBlur={() => touchField("parentName")}
             leadingIcon={<UserRound />}
             onChange={(e) => updateField("parentName", e.target.value)}
             placeholder="e.g. Rajesh Sharma"
@@ -178,7 +175,6 @@ export function RegisterForm() {
             autoComplete="tel"
             hasError={Boolean(errors.contactNumber)}
             id="contact-number"
-            onBlur={() => touchField("contactNumber")}
             inputMode="numeric"
             leadingIcon={<Phone />}
             maxLength={15}
@@ -201,7 +197,6 @@ export function RegisterForm() {
             autoComplete="email"
             hasError={Boolean(errors.email)}
             id="email"
-            onBlur={() => touchField("email")}
             inputMode="email"
             leadingIcon={<AtSign />}
             onChange={(e) => updateField("email", e.target.value)}
@@ -216,7 +211,6 @@ export function RegisterForm() {
           detail={values.acquisitionDetail}
           onDetailChange={(detail) => updateField("acquisitionDetail", detail)}
           error={errors.acquisitionSource}
-          onBlur={() => touchField("acquisitionSource")}
           onValueChange={(value) => updateField("acquisitionSource", value)}
           required
           value={values.acquisitionSource}
@@ -227,7 +221,6 @@ export function RegisterForm() {
             autoComplete="new-password"
             hasError={Boolean(errors.password)}
             id="password"
-            onBlur={() => touchField("password")}
             leadingIcon={<Lock />}
             onChange={(e) => updateField("password", e.target.value)}
             placeholder="Create a secure password"
@@ -241,7 +234,6 @@ export function RegisterForm() {
             autoComplete="new-password"
             hasError={Boolean(errors.confirmPassword)}
             id="confirm-password"
-            onBlur={() => touchField("confirmPassword")}
             leadingIcon={<Lock />}
             name="confirmPassword"
             onChange={(e) => updateField("confirmPassword", e.target.value)}

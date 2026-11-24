@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useState } from "react";
 import { requestReferralWithdrawalRequestSchema } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
@@ -29,6 +30,7 @@ export function WithdrawDialog({
   const [payoutDetails, setPayoutDetails] = useState("");
   // A message goes under the field it is about (UI_RULES § "Form errors").
   const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  useRevealFormErrors(error);
   const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
 
   const submit = async () => {

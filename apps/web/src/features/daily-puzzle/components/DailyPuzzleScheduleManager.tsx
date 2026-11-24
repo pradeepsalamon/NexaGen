@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import Link from "next/link";
@@ -323,7 +324,7 @@ function WhatsAppAnswerSettings({ initial }: { initial: DailyPuzzleWhatsAppSetti
   const save = useSaveDailyPuzzleWhatsAppSettings();
   const form = useForm<DailyPuzzleWhatsAppSettings>({
     defaultValues: initial,
-    mode: "onTouched",
+    mode: "onSubmit",
     resolver: zodResolver(dailyPuzzleWhatsAppSettingsSchema)
   });
   const { errors, isDirty } = form.formState;
@@ -344,7 +345,7 @@ function WhatsAppAnswerSettings({ initial }: { initial: DailyPuzzleWhatsAppSetti
     <form
       className="space-y-3 border-t border-app-border pt-4"
       noValidate
-      onSubmit={form.handleSubmit((values) => save.mutate(values, { onSuccess: () => form.reset(values) }))}
+      onSubmit={form.handleSubmit((values) => save.mutate(values, { onSuccess: () => form.reset(values) }), onInvalidSubmit)}
     >
       <div>
         <p className="font-semibold text-app-text">Picture and answering by reply</p>

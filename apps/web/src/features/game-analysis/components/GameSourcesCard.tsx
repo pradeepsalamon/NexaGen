@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { getErrorMessage } from "@/lib/errors";
 import { useRef, useState } from "react";
 import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
@@ -92,6 +93,10 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   const [names, setNames] = useState("");
   const [analyse, setAnalyse] = useState(true);
   const tooBig = pgn.length > PGN_IMPORT_LIMITS.maxChars;
+  // Checked when Upload is pressed (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const pgnError = tried && tooBig ? `Too long: at most ${PGN_IMPORT_LIMITS.maxChars.toLocaleString("en-US")} characters` : undefined;
+  useRevealFormErrors(pgnError);
 
   const readFile = (file: File | undefined) => {
     if (!file) return;
@@ -102,7 +107,9 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
     void file.text().then(setPgn);
   };
 
-  const submit = () =>
+  const submit = () => {
+    setTried(true);
+    if (tooBig) return;
     upload.mutate(
       {
         analyse,
@@ -126,6 +133,7 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
         },
       },
     );
+  };
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -153,8 +161,8 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           </div>
           <div className="relative space-y-1">
             <Label htmlFor="pgn-text">PGN</Label>
-            <Textarea className="min-h-40 font-mono text-xs" id="pgn-text" aria-describedby={tooBig ? fieldErrorId("pgn-text") : undefined} hasError={tooBig} onChange={(e) => setPgn(e.target.value)} value={pgn} />
-            <FieldError id="pgn-text" message={tooBig ? `Too long: at most ${PGN_IMPORT_LIMITS.maxChars.toLocaleString("en-US")} characters` : undefined} />
+            <Textarea className="min-h-40 font-mono text-xs" id="pgn-text" aria-describedby={pgnError ? fieldErrorId("pgn-text") : undefined} hasError={Boolean(pgnError)} onChange={(e) => setPgn(e.target.value)} value={pgn} />
+            <FieldError id="pgn-text" message={pgnError} />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
@@ -177,7 +185,7 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           <Button onClick={() => onOpenChange(false)} variant="neutral">
             Cancel
           </Button>
-          <Button disabled={!pgn.trim() || tooBig || upload.isPending} onClick={submit}>
+          <Button disabled={!pgn.trim() || upload.isPending} onClick={submit}>
             {upload.isPending && <Spinner className="mr-2 size-4" aria-hidden />}
             Import
           </Button>

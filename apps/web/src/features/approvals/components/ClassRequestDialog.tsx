@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useEffect, useState } from "react";
 import {
   classExtraPayloadSchema,
@@ -73,6 +74,7 @@ export function ClassRequestDialog({
   const [reason, setReason] = useState("");
   // A message belongs under the field it is about; anything else is a toast (UI_RULES § "Form errors").
   const [errors, setErrors] = useState<{ reason?: string; start?: string }>({});
+  useRevealFormErrors(errors);
   const toast = useToast();
   const showIssue = (issue: { message: string; path: PropertyKey[] } | undefined) => {
     const message = issue?.message ?? "Check the details.";

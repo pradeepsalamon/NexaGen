@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -54,7 +55,7 @@ const toForm = (settings: PayrollSettingsItem): FormValues => ({
 
 function TdsForm({ settings }: { settings: PayrollSettingsItem }) {
   const save = useUpdatePayrollSettings();
-  const form = useForm<FormValues>({ mode: "onTouched", defaultValues: toForm(settings), resolver: zodResolver(formSchema) });
+  const form = useForm<FormValues>({ mode: "onSubmit", defaultValues: toForm(settings), resolver: zodResolver(formSchema) });
   const { errors, isDirty } = form.formState;
   const enabled = form.watch("tdsEnabled");
   const rateBps = Math.round(Number(form.watch("ratePercent")) * 100) || 0;
@@ -68,7 +69,7 @@ function TdsForm({ settings }: { settings: PayrollSettingsItem }) {
       tdsThresholdMinor: toMinorUnits(Number(values.threshold), CURRENCY)
     });
     form.reset(toForm(result.settings));
-  });
+  }, onInvalidSubmit);
 
   return (
     <form className="grid gap-4" noValidate onSubmit={(event) => void submit(event).catch(() => undefined)}>

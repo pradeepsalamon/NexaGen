@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -308,7 +309,7 @@ function SavedReplyDialog({
   const save = useSaveSupportSavedReply();
   const dismiss = useDismissSupportUnanswered();
   const form = useForm<FormValues>({
-    mode: "onTouched",
+    mode: "onSubmit",
     defaultValues: {
       body: item?.body ?? "",
       description: item?.description ?? "",
@@ -344,7 +345,7 @@ function SavedReplyDialog({
     // The question it was written for is answered now.
     if (question) await dismiss.mutateAsync({ id: question.id, quiet: true }).catch(() => undefined);
     onClose();
-  });
+  }, onInvalidSubmit);
 
   return (
     <Dialog onOpenChange={(open) => !open && onClose()} open>

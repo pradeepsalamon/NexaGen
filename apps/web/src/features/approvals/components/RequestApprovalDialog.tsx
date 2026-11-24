@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -51,6 +52,7 @@ export function RequestApprovalDialog({
   const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  useRevealFormErrors(error);
 
   useEffect(() => {
     if (open) {

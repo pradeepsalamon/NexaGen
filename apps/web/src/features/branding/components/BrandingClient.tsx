@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ImageUp, Trash2 } from "lucide-react";
 import { useRef } from "react";
@@ -188,7 +189,7 @@ function AssetsCard({ data }: { data: TenantBrandingResponse }) {
 
 function DetailsForm({ data }: { data: TenantBrandingResponse }) {
   const save = useUpdateTenantBranding();
-  const form = useForm<FormValues>({ mode: "onTouched", defaultValues: toForm(data.branding), resolver: zodResolver(formSchema) });
+  const form = useForm<FormValues>({ mode: "onSubmit", defaultValues: toForm(data.branding), resolver: zodResolver(formSchema) });
   const { errors, isDirty } = form.formState;
 
   const submit = form.handleSubmit(async (values) => {
@@ -206,7 +207,7 @@ function DetailsForm({ data }: { data: TenantBrandingResponse }) {
       tagline: orNull(values.tagline)
     });
     form.reset(toForm(result.branding));
-  });
+  }, onInvalidSubmit);
 
   return (
     <form className="grid gap-6" noValidate onSubmit={(event) => void submit(event).catch(() => undefined)}>

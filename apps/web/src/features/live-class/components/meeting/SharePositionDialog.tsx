@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useEffect, useState } from "react";
 import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { useQuery } from "@tanstack/react-query";
@@ -135,20 +136,26 @@ export function SharePositionDialog({
   const durationSeconds = toInt(seconds);
   const basePoints = toInt(points);
   const wrongMovePenalty = toInt(penalty);
-  const durationError =
+  // Checked when Share is pressed, not while typing (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const durationProblem =
     durationSeconds !== null && (Number.isNaN(durationSeconds) || durationSeconds < 30 || durationSeconds > 3600)
       ? "30 to 3600 seconds, or leave empty for no timer."
       : null;
-  const pointsError = basePoints === null || Number.isNaN(basePoints) || basePoints < 0 ? "Enter the points." : null;
-  const penaltyError =
+  const pointsProblem = basePoints === null || Number.isNaN(basePoints) || basePoints < 0 ? "Enter the points." : null;
+  const penaltyProblem =
     wrongMovePenalty !== null && (Number.isNaN(wrongMovePenalty) || wrongMovePenalty < 0)
       ? "Zero or more."
       : null;
-  const canShare =
-    title.trim().length > 0 && solution.length > 0 && !durationError && !pointsError && !penaltyError;
+  const durationError = tried ? durationProblem : null;
+  const pointsError = tried ? pointsProblem : null;
+  const penaltyError = tried ? penaltyProblem : null;
+  useRevealFormErrors({ duration: durationError, penalty: penaltyError, points: pointsError });
+  const canShare = title.trim().length > 0 && solution.length > 0;
 
   const submit = () => {
-    if (!canShare || basePoints === null) return;
+    setTried(true);
+    if (!canShare || durationProblem || pointsProblem || penaltyProblem || basePoints === null) return;
     const scoring = { basePoints, wrongMovePenalty: wrongMovePenalty ?? 0 };
     share.mutate(
       {

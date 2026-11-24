@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Archive, Check, CheckCircle2, Inbox, Pencil, Plus, Trophy, Users, X } from "lucide-react";
@@ -318,6 +319,7 @@ function TemplateDialog({ template, onClose }: { template: CertificateTemplateDt
         };
   const [form, setForm] = useState<CertificateTemplateRequest>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  useRevealFormErrors(errors);
   const toast = useToast();
   const save = useAdminMutation((body: CertificateTemplateRequest) => (template === "new" ? api.createTemplate(body) : api.updateTemplate(template.id, body)));
   const set = (patch: Partial<CertificateTemplateRequest>) => setForm({ ...form, ...patch });

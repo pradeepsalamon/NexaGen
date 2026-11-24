@@ -1,5 +1,10 @@
 # Form validation audit (2026-11-17 night run)
 
+> **Superseded display (owner 2026-11-24):** the messages this audit placed under each field
+> are now screen-reader text only. A blocked submit turns the bad fields red, focuses the
+> first and raises one toast; nothing is checked while typing or on blur. The rule is in
+> [UI_RULES.md](UI_RULES.md) § "Form errors". The inventory below is still the list of forms.
+
 Inventory of every file in `apps/web/src` with a `<form>`, a `useForm`, or a dialog holding inputs, built by a script (the counts are files: one file can hold several dialogs). "Today" is `dev` at `183a2c00`, before this branch. The rule the sweep applies is in [UI_RULES.md](UI_RULES.md) § "Form errors".
 
 **How much was tested, honestly:** "auto" = an assertion in `e2e/form-validation.spec.ts` drives that form in Chromium; "manual" = clicked through by hand on staging; "read only" = changed or inheriting the new `FormField`, checked by reading the code plus typecheck / lint / build, never driven in a browser; "not tested" = unchanged and not exercised. Every row that is not "auto" or "manual" could still hide a regression.

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { getErrorMessage } from "@/lib/errors";
 import { useMemo, useRef, useState } from "react";
 import { FieldError } from "@/components/ui/FieldError";
@@ -90,8 +91,14 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
     (g): g is Extract<ImportedPgnGame, { ok: true }> => g.ok && selected.has(g.index)
   );
   const tooMany = chosen.length > MAX_PUZZLE_IMPORT;
+  // Checked when Import is pressed (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const listError = tried && tooMany ? `Import at most ${MAX_PUZZLE_IMPORT} puzzles at a time` : undefined;
+  useRevealFormErrors(listError);
 
   const submit = async () => {
+    setTried(true);
+    if (tooMany) return;
     if (!topicId) {
       toast.error({ title: "Pick a topic for the imported puzzles." });
       return;
@@ -278,7 +285,7 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
                 </li>
               ))}
             </ul>
-            <FieldError id="puzzle-import-list" message={tooMany ? `Import at most ${MAX_PUZZLE_IMPORT} puzzles at a time` : undefined} />
+            <FieldError id="puzzle-import-list" message={listError} />
           </div>
         )}
 
@@ -290,7 +297,7 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
             <Button
               type="button"
               onClick={submit}
-              disabled={importMut.isPending || chosen.length === 0 || tooMany}
+              disabled={importMut.isPending || chosen.length === 0}
             >
               {importMut.isPending ? <Spinner className="mr-1.5 size-4" /> : null}
               Import {chosen.length} puzzle{chosen.length === 1 ? "" : "s"}

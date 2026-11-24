@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ArrowDown, ArrowUp, PencilLine, Plus, Trash2, Zap } from "lucide-react";
@@ -178,6 +179,7 @@ function StageDialog({ currency, onClose, stage }: { stage: ReferralStageItem | 
   const [salesCash, setSalesCash] = useState(stage?.salesCashMinor ? String(toMajorUnits(stage.salesCashMinor, currency)) : "");
   // A message goes under the field it is about (UI_RULES § "Form errors").
   const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  useRevealFormErrors(error);
   const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
   const save = useReferralAdminMutation(
     (body: CreateReferralStageRequest) => (stage ? referralAdminApi.updateStage(stage.id, body) : referralAdminApi.createStage(body)),

@@ -306,22 +306,30 @@ disagree.
   reaches a user word for word (FE review D4). ESLint enforces it
   (`no-restricted-syntax`); a device, file or local parse error whose own text is
   meant for people takes an `eslint-disable-next-line` comment saying so.
-- **Form errors** (2026-11-17, `docs/FORM_VALIDATION_AUDIT.md`): a field's
-  problem is **`FieldError`** (`components/ui/FieldError.tsx`; `FormField` uses
-  it for you): a danger icon + short human text ("Enter your email", "Use at
-  least 8 characters") absolutely placed under the field, so showing it never
-  changes the form's or dialog's height. Keep field stacks at `gap-4` or more;
-  without a `relative` wrapper use `<FieldError standalone>`; a group's message
-  may sit on its title line. Show it after blur or submit (react-hook-form
-  `mode: "onTouched"`, or `useTouchedFields`), clear it as soon as the value is
-  valid, and focus the first invalid field on a blocked submit
-  (`focusFirstInvalid`). Forms are `noValidate`: no browser bubbles, but keep
-  `type`, `required`, `min`/`max`, `inputMode` and `autoComplete`. Client
-  limits mirror the API's schema or DTO, never looser or invented. Form-level
-  and server errors are a toast through `getErrorMessage` (never raw server or
-  Zod text); only a message the user must keep reading while acting on it (a
-  lockout's wait time) stays on screen, in the field's message slot or a fixed
-  one-line notice. No red banners inside forms.
+- **Form errors** (owner 2026-11-24; replaces the 2026-11-17 under-the-field
+  messages, `docs/FORM_VALIDATION_AUDIT.md`): **nothing is checked while typing or
+  on leaving a field.** A blocked submit (1) turns every bad field red
+  (`aria-invalid` / `hasError`), (2) focuses the first, and (3) raises **one toast**
+  naming its problem ("Enter your email", "+ 2 more fields need a look"); the same
+  toast id replaces itself, so pressing Submit again never stacks them. After that
+  the fields re-check as you type, so a fixed field turns back to normal at once.
+  The message itself is **`FieldError`** (`FormField` uses it for you), which is
+  screen-reader text only (`sr-only`, wired by `aria-describedby`): never text drawn
+  under a field. How a form raises it: react-hook-form `mode: "onSubmit"` and
+  `handleSubmit(onValid, onInvalidSubmit)` (`components/forms/Form` does it); a form
+  that checks in its own submit handler calls `focusFirstInvalid(form)` /
+  `revealFormErrors()` or, when it keeps error state, `useRevealFormErrors(errors)`
+  (toasts only right after a Submit click/Enter, never while typing; `immediate` for
+  a problem found when a file is picked). A value that is merely invalid never
+  disables Submit (pressing it is how the user finds out); "disabled until the
+  required fields are filled" is fine. **Drawn on purpose** (`FormField
+  errorVisible` / `FieldError visible`): only a message the user must keep reading
+  while acting on it (a sign-in lockout's wait time) and a live filter with no
+  Submit (the lead funnel's date range). Forms are `noValidate`: no browser
+  bubbles, but keep `type`, `required`, `min`/`max`, `inputMode` and
+  `autoComplete`. Client limits mirror the API's schema or DTO, never looser or
+  invented. Server errors are a toast through `getErrorMessage` (never raw server or
+  Zod text). No red banners or red text inside forms.
 
 ## 6. Typography
 

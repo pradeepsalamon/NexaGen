@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -184,7 +185,7 @@ function VoucherDialog({ currency, onClose, voucher }: { voucher: ReferralVouche
   const plans = planData?.plans ?? [];
   const major = (minor: number | null) => (minor === null ? "" : String(toMajorUnits(minor, currency)));
   const form = useForm<VoucherForm>({
-    mode: "onTouched",
+    mode: "onSubmit",
     defaultValues: {
       amountOff: major(voucher?.amountOffMinor ?? null),
       codeValidDays: blankOr(voucher?.codeValidDays ?? null),
@@ -261,7 +262,7 @@ function VoucherDialog({ currency, onClose, voucher }: { voucher: ReferralVouche
           <DialogTitle>{voucher ? "Edit voucher" : "New voucher"}</DialogTitle>
           <DialogDescription>Changes apply to redemptions from now on; what students already got keeps its terms.</DialogDescription>
         </DialogHeader>
-        <form className="grid max-h-[65dvh] gap-4 dialog-scroll-body" id="voucher-form" noValidate onSubmit={form.handleSubmit(submit)}>
+        <form className="grid max-h-[65dvh] gap-4 dialog-scroll-body" id="voucher-form" noValidate onSubmit={form.handleSubmit(submit, onInvalidSubmit)}>
           <FormField error={errors.name?.message} id="voucher-name" label="Name" required>
             <Input id="voucher-name" placeholder="A free month" {...form.register("name")} />
           </FormField>

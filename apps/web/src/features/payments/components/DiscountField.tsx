@@ -1,5 +1,7 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import { Check, Tag, X } from "lucide-react";
@@ -47,6 +49,8 @@ export function DiscountField({
   const preview = usePreviewDiscount();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // A refused code: the field turns red and one toast says why (UI_RULES § "Form errors").
+  useRevealFormErrors(error);
   const [open, setOpen] = useState(false);
 
   const submit = () => {
@@ -117,6 +121,8 @@ export function DiscountField({
     <div>
       <div className="flex gap-2">
         <Input
+          aria-describedby={error ? fieldErrorId("discount-code") : undefined}
+          aria-invalid={Boolean(error)}
           aria-label="Discount code"
           className="font-mono uppercase"
           disabled={disabled}
@@ -145,11 +151,7 @@ export function DiscountField({
         </Button>
       </div>
 
-      {error ? (
-        <p aria-live="polite" className="mt-1 text-xs text-app-danger-ink">
-          {error}
-        </p>
-      ) : null}
+      <FieldError id="discount-code" message={error} />
     </div>
   );
 }

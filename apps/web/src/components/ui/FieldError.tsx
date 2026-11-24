@@ -10,19 +10,23 @@ export function fieldErrorId(fieldId: string) {
 }
 
 /**
- * A field's validation message: a danger icon and short text, absolutely placed just under
- * the field so showing or clearing it never changes the form's height (docs/UI_RULES.md
- * § "Form errors"). The parent must be `relative` (FormField is); the form's field gap must
- * be at least `gap-4` (16 px) so one line never touches the next label.
+ * A field's validation message (docs/UI_RULES.md § "Form errors", owner 2026-11-24): never
+ * drawn on the page. The field itself turns red (`aria-invalid` / `hasError`), a blocked
+ * submit raises one toast naming the first problem and focuses that field (`revealFormErrors`,
+ * `onInvalidSubmit` in lib/forms), and this text stays in the DOM for screen readers: the
+ * control's `aria-describedby` points at it, and the toast reads it from here.
  *
- * Screen readers hear it once, when it first appears (`role="alert"` on mount); a message
- * that changes while you type is not re-announced. Renders nothing without a message.
+ * `visible` is only for a message the user must keep reading while acting on it (a sign-in
+ * lockout's wait time): then it is drawn just under the field, absolutely placed so it never
+ * changes the form's height (the parent must be `relative`; FormField is), and announced once.
+ * Renders nothing without a message.
  */
 export function FieldError({
   className,
   id,
   message,
-  standalone = false
+  standalone = false,
+  visible = false
 }: {
   className?: string;
   /** The field's id: the message gets `fieldErrorId(id)`. */
@@ -34,6 +38,8 @@ export function FieldError({
    * from it. `className` then goes on the anchor (e.g. its grid placement).
    */
   standalone?: boolean;
+  /** Draw it under the field (a lockout's wait time); otherwise screen-reader text only. */
+  visible?: boolean;
 }) {
   const shown = Boolean(message);
   const [announce, setAnnounce] = useState(true);
@@ -52,12 +58,20 @@ export function FieldError({
   if (standalone) {
     return (
       <div className={cn("relative h-0", className)}>
-        <FieldError id={id} message={message} />
+        <FieldError id={id} message={message} visible={visible} />
       </div>
     );
   }
 
   if (!message) return null;
+
+  if (!visible) {
+    return (
+      <span className="sr-only" data-field-error="" id={fieldErrorId(id)}>
+        {message}
+      </span>
+    );
+  }
 
   return (
     <p
@@ -65,6 +79,7 @@ export function FieldError({
         "pointer-events-none absolute inset-x-0 top-full z-[1] m-0 mt-px flex items-start gap-1 text-xs font-medium leading-4 text-app-danger-ink",
         className
       )}
+      data-field-error=""
       id={fieldErrorId(id)}
       role={announce ? "alert" : undefined}
     >

@@ -92,7 +92,6 @@ export function ForgotPasswordForm() {
             id="forgot-email"
             inputMode="email"
             leadingIcon={<Mail strokeWidth={2.25} />}
-            onBlur={() => setEmailTouched(true)}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="name@example.com"
             required

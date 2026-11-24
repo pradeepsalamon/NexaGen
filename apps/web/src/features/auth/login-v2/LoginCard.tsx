@@ -13,7 +13,7 @@ import { MfaCodeStep } from "../components/mfa/MfaCodeStep";
 import { MfaEnrollment } from "../components/mfa/MfaEnrollment";
 
 function LoginFields({ flow }: { flow: ReturnType<typeof useLoginFlow> }) {
-  const { errors, handleSubmit, isPending, lockout, touchField, updateField, values } = flow;
+  const { errors, handleSubmit, isPending, lockout, updateField, values } = flow;
 
   return (
     <>
@@ -30,7 +30,6 @@ function LoginFields({ flow }: { flow: ReturnType<typeof useLoginFlow> }) {
             id="email"
             inputMode="email"
             leadingIcon={<Mail strokeWidth={2.25} />}
-            onBlur={() => touchField("email")}
             onChange={(e) => updateField("email", e.target.value)}
             placeholder="name@example.com"
             required
@@ -39,13 +38,18 @@ function LoginFields({ flow }: { flow: ReturnType<typeof useLoginFlow> }) {
           />
         </FormField>
 
-        <FormField error={errors.password ?? lockout ?? undefined} id="password" label="Password">
+        {/* A lockout's wait time stays on screen (UI_RULES § "Form errors"); field problems are a toast. */}
+        <FormField
+          error={errors.password ?? lockout ?? undefined}
+          errorVisible={!errors.password && Boolean(lockout)}
+          id="password"
+          label="Password"
+        >
           <PasswordInput
             autoComplete="current-password"
             hasError={Boolean(errors.password ?? lockout)}
             id="password"
             leadingIcon={<Lock strokeWidth={2.25} />}
-            onBlur={() => touchField("password")}
             onChange={(e) => updateField("password", e.target.value)}
             placeholder="Enter your password"
             required

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useState } from "react";
 import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import {
@@ -51,9 +52,16 @@ export function RefundDialog({ payment, onClose }: Props) {
 
   const parsedMinor = toMinorUnits(Number(amountMajor) || 0, payment.currency);
   const amountValid = full || (parsedMinor > 0 && parsedMinor <= refundable);
-  const canSubmit = reason.trim().length > 0 && amountValid;
+  const canSubmit = reason.trim().length > 0;
+  // Checked when Refund is pressed, not while typing (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const amountError =
+    tried && !amountValid ? `Enter an amount between 0 and ${formatMoney(refundable, payment.currency)}` : undefined;
+  useRevealFormErrors(amountError);
 
   const handleSubmit = () => {
+    setTried(true);
+    if (!amountValid) return;
     refund.mutate(
       {
         id: payment.id,
@@ -96,8 +104,8 @@ export function RefundDialog({ payment, onClose }: Props) {
                 Amount ({payment.currency})
               </Label>
               <Input
-                aria-describedby={amountValid ? undefined : fieldErrorId("refund-amount")}
-                hasError={!amountValid}
+                aria-describedby={amountError ? fieldErrorId("refund-amount") : undefined}
+                hasError={Boolean(amountError)}
                 id="refund-amount"
                 inputMode="decimal"
                 max={toMajorUnits(refundable, payment.currency)}
@@ -107,7 +115,7 @@ export function RefundDialog({ payment, onClose }: Props) {
                 type="number"
                 value={amountMajor}
               />
-              <FieldError id="refund-amount" message={amountValid ? undefined : `Enter an amount between 0 and ${formatMoney(refundable, payment.currency)}`} />
+              <FieldError id="refund-amount" message={amountError} />
             </div>
           ) : null}
 

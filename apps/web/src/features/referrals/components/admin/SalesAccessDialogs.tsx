@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useState } from "react";
 import { useToast } from "@/providers/ToastProvider";
 import { Mail, MessageCircle } from "lucide-react";
@@ -126,6 +127,7 @@ export function NewSalesAccountDialog({ onClose }: { onClose: () => void }) {
   const [channels, setChannels] = useState<Channel[]>(["EMAIL"]);
   // A message goes under the field it is about (UI_RULES § "Form errors").
   const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  useRevealFormErrors(error);
   const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
   const toast = useToast();
   const [result, setResult] = useState<SendReferrerAccessLinkResponse | null>(null);

@@ -56,7 +56,6 @@ export function CoachRegisterForm() {
 
   const hasFideTitle = Boolean(values.title && values.title !== "NONE");
   const [touched, setTouched] = useState<Partial<Record<CoachField, boolean>>>({});
-  const touch = (field: CoachField) => setTouched((current) => ({ ...current, [field]: true }));
   const errors = validateCoach(values, acquisitionSource, touched);
 
   const registerMutation = useMutation({
@@ -150,7 +149,6 @@ export function CoachRegisterForm() {
             autoComplete="name"
             hasError={Boolean(errors.coachName)}
             id="coach-name"
-            onBlur={() => touch("coachName")}
             leadingIcon={<UserRound />}
             onChange={(e) => updateField("coachName", e.target.value)}
             placeholder="e.g. John Doe"
@@ -193,7 +191,6 @@ export function CoachRegisterForm() {
               <Input
                 hasError={Boolean(errors.fideRating)}
                 id="fide-rating"
-                onBlur={() => touch("fideRating")}
                 inputMode="numeric"
                 onChange={(e) => {
                   const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 4);
@@ -213,7 +210,6 @@ export function CoachRegisterForm() {
           <Input
             hasError={Boolean(errors.yearsOfExperience)}
             id="years-of-experience"
-            onBlur={() => touch("yearsOfExperience")}
             inputMode="numeric"
             onChange={(e) => {
               const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 2);
@@ -234,7 +230,6 @@ export function CoachRegisterForm() {
           detail={acquisitionDetail}
           onDetailChange={setAcquisitionDetail}
           error={errors.acquisitionSource}
-          onBlur={() => touch("acquisitionSource")}
           onValueChange={setAcquisitionSource}
           required
           value={acquisitionSource}
@@ -247,7 +242,6 @@ export function CoachRegisterForm() {
             autoComplete="email"
             hasError={Boolean(errors.email)}
             id="email"
-            onBlur={() => touch("email")}
             inputMode="email"
             leadingIcon={<AtSign />}
             onChange={(e) => updateField("email", e.target.value)}
@@ -263,7 +257,6 @@ export function CoachRegisterForm() {
             autoComplete="tel"
             hasError={Boolean(errors.contactNumber)}
             id="contact-number"
-            onBlur={() => touch("contactNumber")}
             inputMode="numeric"
             leadingIcon={<Phone />}
             maxLength={15}
@@ -284,7 +277,6 @@ export function CoachRegisterForm() {
             autoComplete="new-password"
             hasError={Boolean(errors.password)}
             id="coach-password"
-            onBlur={() => touch("password")}
             leadingIcon={<Lock />}
             onChange={(e) => updateField("password", e.target.value)}
             placeholder="Create a secure password"
@@ -298,7 +290,6 @@ export function CoachRegisterForm() {
             autoComplete="new-password"
             hasError={Boolean(errors.confirmPassword)}
             id="coach-confirm-password"
-            onBlur={() => touch("confirmPassword")}
             leadingIcon={<Lock />}
             name="confirmPassword"
             onChange={(e) => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -163,7 +164,7 @@ function BonusDialog({
 }) {
   const defaultStage = stages.find((stage) => stage.trigger === "CONVERTED") ?? stages[0];
   const form = useForm<BonusForm>({
-    mode: "onTouched",
+    mode: "onSubmit",
     defaultValues: {
       amount: rule ? (rule.audience === "STUDENTS" ? String(rule.amount) : String(toMajorUnits(rule.amount, rule.currency))) : "",
       audience: rule?.audience ?? "STUDENTS",
@@ -211,7 +212,7 @@ function BonusDialog({
           className="grid max-h-[65dvh] gap-4 dialog-scroll-body"
           id="bonus-form"
           noValidate
-          onSubmit={form.handleSubmit((values) => save.mutate(values, { onSuccess: onClose }))}
+          onSubmit={form.handleSubmit((values) => save.mutate(values, { onSuccess: onClose }), onInvalidSubmit)}
         >
           <FormField error={errors.name?.message} id="bonus-name" label="Name" required>
             <Input id="bonus-name" placeholder="Super referrer" {...form.register("name")} />

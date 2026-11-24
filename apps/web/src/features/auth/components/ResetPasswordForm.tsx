@@ -93,7 +93,6 @@ export function ResetPasswordForm() {
             hasError={Boolean(passwordError)}
             id="reset-password"
             minLength={8}
-            onBlur={() => setTouched((current) => ({ ...current, password: true }))}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Create a password"
             required
@@ -107,7 +106,6 @@ export function ResetPasswordForm() {
             id="reset-confirm-password"
             minLength={8}
             name="confirmPassword"
-            onBlur={() => setTouched((current) => ({ ...current, confirmPassword: true }))}
             onChange={(event) => setConfirmPassword(event.target.value)}
             placeholder="Confirm your password"
             required

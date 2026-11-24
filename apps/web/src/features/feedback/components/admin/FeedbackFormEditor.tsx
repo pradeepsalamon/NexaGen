@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { useEffect, useMemo, useId } from "react";
 import { FieldError as SharedFieldError } from "@/components/ui/FieldError";
 import { Controller, useForm } from "react-hook-form";
@@ -86,7 +87,7 @@ export function FeedbackFormEditor({
     setValue,
     watch
   } = useForm<UpsertFeedbackFormRequest>({
-    mode: "onTouched",
+    mode: "onSubmit",
     defaultValues: defaultFormValues(),
     resolver: zodResolver(upsertFeedbackFormRequestSchema)
   });
@@ -125,7 +126,7 @@ export function FeedbackFormEditor({
           : q
       )
     );
-    void handleSubmit(onValid)();
+    void handleSubmit(onValid, onInvalidSubmit)();
   };
 
   const toggleBatch = (id: string, checked: boolean) =>

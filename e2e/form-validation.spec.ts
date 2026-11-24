@@ -1,7 +1,9 @@
 /**
- * Form validation (docs/UI_RULES.md § "Form errors"): an error is a small message under the
- * field (FieldError) that never changes the form's height, an empty submit sends nothing,
- * fixing the input clears the message, and server errors are toasts with human text.
+ * Form validation (docs/UI_RULES.md § "Form errors", owner 2026-11-24): nothing is checked
+ * while typing or on leaving a field. A blocked submit turns the bad fields red, focuses the
+ * first, and raises one toast naming its problem; the field's message is screen-reader text
+ * (FieldError, `sr-only`), never drawn, so the form's height never changes. An empty submit
+ * sends nothing, fixing the input clears the problem, and server errors are human toasts.
  *
  * Needs E2E_BASE_URL + NEXT_PUBLIC_API_URL (.env.e2e) and the seeded accounts.
  * Run: npx playwright test e2e/form-validation.spec.ts
@@ -39,13 +41,25 @@ function countRequests(page: Page, path: string) {
   return seen;
 }
 
-/** The field's message: visible, wired to the control by aria-describedby. */
+/** The field's problem: the control is red and points at its screen-reader text; nothing is drawn. */
 async function expectFieldError(page: Page, fieldId: string, text: RegExp | string) {
   const message = page.locator(`#${fieldId}-error`);
-  await expect(message).toBeVisible();
+  await expect(message).toHaveCount(1);
+  await expect(message).toHaveClass(/\bsr-only\b/);
   await expect(message).toContainText(text);
   await expect(page.locator(`#${fieldId}`)).toHaveAttribute("aria-describedby", new RegExp(`${fieldId}-error`));
   await expect(page.locator(`#${fieldId}`)).toHaveAttribute("aria-invalid", "true");
+}
+
+/** A blocked submit's one toast, naming the first problem. */
+async function expectFormToast(page: Page, text: RegExp | string) {
+  await expect(page.locator("[data-sonner-toast]").filter({ hasText: text })).toBeVisible();
+}
+
+/** Nothing shows before a submit: no message, not marked invalid. */
+async function expectNoFieldError(page: Page, fieldId: string) {
+  await expect(page.locator(`#${fieldId}-error`)).toHaveCount(0);
+  await expect(page.locator(`#${fieldId}`)).not.toHaveAttribute("aria-invalid", "true");
 }
 
 for (const theme of THEMES) {
@@ -61,14 +75,21 @@ for (const theme of THEMES) {
         const calls = countRequests(page, "/auth/login");
         const before = await heightOf(form);
 
+        // Leaving a field shows nothing: problems wait for Log in.
+        await page.locator("#email").fill("not-an-email");
+        await page.locator("#email").blur();
+        await expectNoFieldError(page, "email");
+        await page.locator("#email").fill("");
+
         await page.getByRole("button", { exact: true, name: "Log in" }).click();
         await expectFieldError(page, "email", "Enter your email");
         await expectFieldError(page, "password", "Enter your password");
+        await expectFormToast(page, "Enter your email");
         await expect(page.locator("#email")).toBeFocused();
         expect(await heightOf(form)).toBe(before);
 
+        // After a blocked submit the fields re-check as you type.
         await page.locator("#email").fill("not-an-email");
-        await page.locator("#email").blur();
         await expectFieldError(page, "email", "Enter a valid email");
         expect(await heightOf(form)).toBe(before);
         await page.waitForTimeout(500);
@@ -102,7 +123,7 @@ for (const theme of THEMES) {
         expect(await heightOf(form)).toBe(before);
       });
 
-      test("register: password rules and an empty select, all under their fields", async ({ page }) => {
+      test("register: password rules and an empty select, all on submit", async ({ page }) => {
         await useTheme(page, theme);
         await page.goto("/register");
         const form = page.locator("form").first();
@@ -112,19 +133,22 @@ for (const theme of THEMES) {
 
         await page.locator("#password").fill("short1");
         await page.locator("#password").blur();
-        await expectFieldError(page, "password", "Use at least 8 characters");
-        await page.locator("#password").fill("lettersonly");
-        await expectFieldError(page, "password", "Use at least one letter and one number");
+        await expectNoFieldError(page, "password");
         await page.locator("#confirm-password").fill("different1");
         await page.locator("#confirm-password").blur();
-        await expectFieldError(page, "confirm-password", "Passwords don't match");
-        expect(await heightOf(form)).toBe(before);
+        await expectNoFieldError(page, "confirm-password");
 
         await page.getByRole("button", { name: "Complete registration" }).click();
         await expectFieldError(page, "acquisition-source", "Choose an option");
         await expectFieldError(page, "student-name", "Enter the student's name");
+        await expectFieldError(page, "password", "Use at least 8 characters");
+        await expectFieldError(page, "confirm-password", "Passwords don't match");
+        await expectFormToast(page, "Enter the student's name");
         await expect(page.locator("#student-name")).toBeFocused();
         expect(await heightOf(form)).toBe(before);
+
+        await page.locator("#password").fill("lettersonly");
+        await expectFieldError(page, "password", "Use at least one letter and one number");
 
         // Fixed values clear their messages at once.
         await page.locator("#password").fill("letters123");
@@ -142,6 +166,8 @@ for (const theme of THEMES) {
         await expect(field).toBeVisible({ timeout: 60_000 });
         await field.fill("99");
         await field.blur();
+        await expectNoFieldError(page, "years-of-experience");
+        await page.locator("form").filter({ has: field }).locator('button[type="submit"]').click();
         await expectFieldError(page, "years-of-experience", "Enter up to 80 years");
         await field.fill("12");
         await expect(page.locator("#years-of-experience-error")).toHaveCount(0);
@@ -161,6 +187,7 @@ for (const theme of THEMES) {
 
         await dialog.getByRole("button", { name: /create/i }).click();
         await expectFieldError(page, "sales-first", "Enter a first name");
+        await expectFormToast(page, "Enter a first name");
         expect(await heightOf(dialog)).toBe(before);
         await page.locator("#sales-first").fill("E2E");
         await dialog.getByRole("button", { name: /create/i }).click();
@@ -204,6 +231,7 @@ for (const theme of THEMES) {
         await name.fill("");
         await page.getByRole("button", { name: "Save Batch" }).click();
         await expectFieldError(page, "name", /required/i);
+        await expectFormToast(page, /required/i);
         expect(await heightOf(form)).toBe(before);
         await page.waitForTimeout(400);
         expect(saves.count).toBe(0);

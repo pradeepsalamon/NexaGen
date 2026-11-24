@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -92,6 +93,7 @@ export function CorrectAttendanceDialog({
   const [status, setStatus] = useState<AttendanceCorrectionStatus | "">("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  useRevealFormErrors(error);
 
   useEffect(() => {
     setStatus("");

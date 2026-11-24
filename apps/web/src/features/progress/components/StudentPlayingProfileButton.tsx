@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Trophy } from "lucide-react";
@@ -41,13 +42,18 @@ export function StudentPlayingProfileButton({ studentId }: { studentId: string }
   }, [open, profile.data]);
 
   const ratingNumber = rating.trim() === "" ? null : Number(rating);
-  const ratingError =
+  const ratingProblem =
     ratingNumber !== null && (!Number.isInteger(ratingNumber) || ratingNumber < 0 || ratingNumber > 4000)
       ? "Enter a whole number from 0 to 4000."
       : undefined;
+  // Checked when Save is pressed, not while typing (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const ratingError = tried ? ratingProblem : undefined;
+  useRevealFormErrors(ratingError);
 
   async function submit() {
-    if (ratingError) return;
+    setTried(true);
+    if (ratingProblem) return;
     try {
       await save.mutateAsync({ chessRating: ratingNumber, dateOfBirth: dateOfBirth || null, experienceLevel: level });
       toast.success({ title: "Playing details saved" });
@@ -111,7 +117,7 @@ export function StudentPlayingProfileButton({ studentId }: { studentId: string }
               Cancel
             </Button>
             <Button
-              disabled={!profile.data || Boolean(ratingError)}
+              disabled={!profile.data}
               isLoading={save.isPending}
               onClick={() => void submit()}
               type="button"

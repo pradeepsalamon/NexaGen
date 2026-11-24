@@ -55,7 +55,13 @@ export function LeadFunnelPanel() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <div className="grid grid-cols-2 gap-3 sm:flex sm:justify-end">
-        <FormField error={backwards ? "Starts after the end" : tooLong ? `At most ${LEAD_FUNNEL_MAX_DAYS} days` : undefined} id="funnel-from" label="From">
+        {/* A filter with no Submit: its problem stays on screen (UI_RULES § "Form errors"). */}
+        <FormField
+          error={backwards ? "Starts after the end" : tooLong ? `At most ${LEAD_FUNNEL_MAX_DAYS} days` : undefined}
+          errorVisible
+          id="funnel-from"
+          label="From"
+        >
           <DateStringPicker className="w-full sm:w-56" id="funnel-from" onChange={setFrom} value={from} />
         </FormField>
         <FormField id="funnel-to" label="To">

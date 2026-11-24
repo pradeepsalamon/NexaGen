@@ -52,7 +52,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
   const updateMutation = useUpdateDemoClassMutation(selectedClass?.id || "");
 
   const form = useForm<z.infer<typeof formSchema>>({
-    mode: "onTouched",
+    mode: "onSubmit",
     resolver: zodResolver(formSchema),
     defaultValues: {
       coachId: "",

@@ -124,7 +124,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
   const students = assignableUsersQuery.data?.students ?? [];
 
   const form = useForm<BatchFormValues>({
-    mode: "onTouched",
+    mode: "onSubmit",
     resolver: zodResolver(batchFormSchema),
     defaultValues: {
       name: selectedBatch?.name || "",
