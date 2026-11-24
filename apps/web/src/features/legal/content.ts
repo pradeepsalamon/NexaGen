@@ -207,6 +207,32 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     title: "Security"
   },
   {
+    id: "browser",
+    items: [
+      {
+        detail: "Kept in cookies the page's own scripts can't read, and ended when you sign out or the session expires.",
+        label: "Sign-in"
+      },
+      {
+        detail:
+          "Your account id, first name, role, profile photo link and time zone, so the app opens straight away. Your email, phone, date of birth and parent details are never kept in the browser; they are loaded fresh each visit.",
+        label: "Who is signed in"
+      },
+      {
+        detail:
+          "Theme, text size, board look, camera and microphone choice, video background and class layout, kept on this device only.",
+        label: "Your settings"
+      },
+      {
+        detail:
+          "A referral code or ad link you arrived with, until you sign up, and unsaved drafts such as game notes.",
+        label: "Sign-up source and drafts"
+      }
+    ],
+    paragraphs: ["Signing out ends the session; clearing your browser's site data removes everything listed here."],
+    title: "What your browser keeps"
+  },
+  {
     id: "changes",
     pending: "How users are told about changes to this policy, and the date it takes effect.",
     title: "Changes to this policy"
