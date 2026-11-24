@@ -261,6 +261,9 @@ export const queryKeys = {
     contentPacks: ["subscription", "content-packs"] as const,
     supportVisits: ["subscription", "support-visits"] as const,
   },
+  backups: {
+    all: ["admin-backups"] as const,
+  },
   branding: {
     admin: ["branding", "admin"] as const,
     domains: ["branding", "domains"] as const,

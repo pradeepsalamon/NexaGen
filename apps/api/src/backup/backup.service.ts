@@ -1,6 +1,7 @@
 import { Injectable, Logger, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, type ListObjectsV2CommandOutput } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import type { DatabaseBackup, DeleteBackupResponse, TriggerBackupResponse } from '@nexa-chess/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -21,13 +22,6 @@ const PG_DUMP_EXCLUDE_ARGS = EXCLUDED_TABLE_DATA.map(
   (table) => `--exclude-table-data=${table}`,
 ).join(' ');
 
-export interface BackupItem {
-  key: string;
-  filename: string;
-  type: 'Automatic' | 'Manual';
-  size: number;
-  date: Date;
-}
 
 @Injectable()
 export class BackupService {
@@ -71,7 +65,7 @@ export class BackupService {
     return config.bucketName;
   }
 
-  async listBackups(): Promise<BackupItem[]> {
+  async listBackups(): Promise<DatabaseBackup[]> {
     const bucketName = this.validateConfig();
     try {
       let continuationToken: string | undefined;
@@ -89,7 +83,7 @@ export class BackupService {
         continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
       } while (continuationToken);
 
-      const backups: BackupItem[] = allContents
+      const backups = allContents
         .filter(obj => typeof obj.Key === 'string' && obj.Key.endsWith('.sql.gz'))
         .map(obj => {
           const key = obj.Key as string;
@@ -97,13 +91,15 @@ export class BackupService {
           return {
             key,
             filename: path.basename(key),
-            type: isAuto ? 'Automatic' : 'Manual',
+            type: isAuto ? ('Automatic' as const) : ('Manual' as const),
             size: obj.Size || 0,
             date: obj.LastModified || new Date(),
           };
         });
 
-      return backups.sort((a, b) => b.date.getTime() - a.date.getTime());
+      return backups
+        .sort((a, b) => b.date.getTime() - a.date.getTime())
+        .map((backup) => ({ ...backup, date: backup.date.toISOString() }));
     } catch (error) {
       this.logger.error('Failed to list backups:', error);
       throw new InternalServerErrorException('Failed to retrieve backup list from OCI.');
@@ -152,7 +148,7 @@ export class BackupService {
     }
   }
 
-  async deleteBackup(key: string): Promise<{ message: string }> {
+  async deleteBackup(key: string): Promise<DeleteBackupResponse> {
     const bucketName = this.validateConfig();
     this.assertAllowedKey(key, ['database/']);
     try {
@@ -169,7 +165,7 @@ export class BackupService {
     }
   }
 
-  async triggerBackup(): Promise<{ message: string; key?: string }> {
+  async triggerBackup(): Promise<TriggerBackupResponse> {
     const bucketName = this.validateConfig();
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
