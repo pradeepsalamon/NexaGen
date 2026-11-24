@@ -45,6 +45,13 @@ the batch or sibling classes.
 - **Student `/student`**: `nextClasses` on the dashboard payload (next three not
   over, a live one included). `upcomingClasses` is unchanged — `/student/live-classes`
   still reads it. Join is enabled only while the class is `LIVE`/`IN_PROGRESS`.
+- **Admin `/admin/upcoming-classes`** (nav Classes → Upcoming classes;
+  `features/upcoming-classes/`): every batch's classes in the next 7/14/30 days
+  (`batchSchedules.calendar`) plus, for super admins on a plan with `demoClasses`,
+  the demo classes (`admin.demoClasses?from&to`, all pages). Upcoming =
+  `isUpcomingClass`. "By day" is an agenda (batch and type filters); "By batch"
+  lists every `ACTIVE`/`UPCOMING` batch, ones with nothing in the window first.
+  Read-only: actions link to the class, the live monitor or `/admin/demo-classes`.
 
 ## 3.6k Demo classes (guest access, invites, static schedules)
 

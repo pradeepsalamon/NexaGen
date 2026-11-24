@@ -88,6 +88,7 @@ export const PAGE_TITLES = {
   "/admin/subscription": "Subscription",
   "/admin/subscription/invoices/[id]": "Platform invoice",
   "/admin/trash": "Trash",
+  "/admin/upcoming-classes": "Upcoming classes",
   "/admin/typography": "Fonts & text",
   "/admin/users": "Users",
   "/admin/whatsapp": "WhatsApp connection",

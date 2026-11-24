@@ -3,7 +3,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/providers/ToastProvider";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ListParams } from "@/lib/pagination";
-import { addDemoInvitees, createDemoSchedule, getDemoClasses, getDemoSchedules, createDemoClass, updateDemoClass, cancelDemoClass, restoreDemoClass, getDemoClassDetails, updateDemoSchedule } from "../api/adminApi";
+import { addDemoInvitees, createDemoSchedule, getDemoClasses, getDemoClassesInWindow, getDemoSchedules, createDemoClass, updateDemoClass, cancelDemoClass, restoreDemoClass, getDemoClassDetails, updateDemoSchedule } from "../api/adminApi";
 import type { AddDemoInviteesRequest, AddDemoInviteesResponse, CreateDemoClassRequest, CreateDemoScheduleRequest, DemoScheduleResponse, ListDemoSchedulesResponse, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse } from "@nexa-chess/types";
 
 export const demoQueryKeys = {
@@ -17,6 +17,17 @@ export function useDemoClassesQuery(params: ListParams = {}) {
     queryKey: [...demoQueryKeys.classes, params],
     queryFn: () => getDemoClasses(params),
     placeholderData: keepPreviousData
+  });
+}
+
+/** Demo classes in a date window (Upcoming classes page); the demo mutations' invalidation covers it. */
+export function useDemoClassesInWindowQuery(params: { enabled: boolean; from: string; to: string }) {
+  const { enabled, ...window } = params;
+  return useQuery<DemoClass[], Error>({
+    enabled,
+    placeholderData: keepPreviousData,
+    queryFn: () => getDemoClassesInWindow(window),
+    queryKey: [...demoQueryKeys.classes, "window", window]
   });
 }
 

@@ -7,7 +7,7 @@ import { TrashRepository } from '../trash/trash.repository';
 import type { AddDemoInviteesRequest, DemoClass, DemoClassDetailsResponse, PaginatedQuery, PendingCoachesResponse, PendingStudentsResponse, UpdateCoachStatusRequest, UpdateStudentStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest } from '@nexa-chess/types';
 import { ClassStatus, Prisma, UserRole, UserStatus, type CoachClass, type DemoSchedule, type User } from '@prisma/client';
 import { DemoInviteService, demoInvitePath } from '../demo-class/demo-invite.service';
-import { queryEnum } from '../common/query-params';
+import { optionalQueryDate, queryEnum } from '../common/query-params';
 import { EntitlementService } from '../platform/entitlement.service';
 import { isCoachAccount } from "../common/coach-accounts";
 
@@ -338,9 +338,15 @@ export class AdminService {
     return { class: await this.getDemoClassDto(classId) };
   }
 
-  async listDemoClasses(query?: PaginatedQuery & { status?: string }) {
+  async listDemoClasses(query?: PaginatedQuery & { status?: string; from?: unknown; to?: unknown }) {
     const { page, pageSize, skip, take, search } = resolvePagination(query);
     const where = this.buildClassListWhere(true, query?.status, search);
+    // Optional window (Upcoming classes page): classes overlapping [from, to),
+    // the same rule as the batch calendar, so a class under way still counts.
+    const from = optionalQueryDate(query?.from, 'from');
+    const to = optionalQueryDate(query?.to, 'to');
+    if (from) where.endsAt = { gt: from };
+    if (to) where.startsAt = { lt: to };
     const orderBy = resolveOrderBy(
       query,
       ['startsAt', 'status', 'topic', 'createdAt'] as const,

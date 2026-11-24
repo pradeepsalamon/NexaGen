@@ -6,6 +6,7 @@ import {
   Building2,
   Brain,
   CalendarCheck,
+  CalendarClock,
   CalendarDays,
   Captions,
   ClipboardCheck,
@@ -168,6 +169,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/privacy", label: "Privacy requests", icon: ShieldCheck, group: "People" },
   // Classes & scheduling
   { href: "/admin/batches", label: "Batches", icon: Layers3, group: "Classes" },
+  { href: "/admin/upcoming-classes", label: "Upcoming classes", icon: CalendarClock, group: "Classes" },
   { href: "/admin/schedule", label: "Class scheduler", icon: CalendarDays, group: "Classes" },
   { href: "/admin/requests", label: "Requests", icon: Inbox, group: "Classes" },
   { href: "/admin/tournaments", label: "Tournaments", icon: Trophy, group: "Classes", feature: "tournaments" },

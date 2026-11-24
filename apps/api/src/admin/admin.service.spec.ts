@@ -21,7 +21,8 @@ describe('AdminService', () => {
         findFirst: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
-        update: jest.fn()
+        update: jest.fn(),
+        count: jest.fn()
       },
       $transaction: jest.fn()
     };
@@ -112,6 +113,39 @@ describe('AdminService', () => {
       await service.updateCoachStatus('admin-1', 'coach-1', { status: 'ACTIVE' });
 
       expect(messaging.dispatchInBackground).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listDemoClasses', () => {
+    const findMany = () => (prisma as unknown as { coachClass: { findMany: jest.Mock; count: jest.Mock } }).coachClass;
+
+    beforeEach(() => {
+      findMany().findMany.mockResolvedValue([]);
+      findMany().count.mockResolvedValue(0);
+    });
+
+    it('limits the list to classes overlapping the [from, to) window', async () => {
+      await service.listDemoClasses({
+        from: '2026-11-24T00:00:00.000Z',
+        status: 'SCHEDULED',
+        to: '2026-12-01T00:00:00.000Z'
+      });
+      const where = findMany().findMany.mock.calls[0][0].where;
+      expect(where).toMatchObject({
+        endsAt: { gt: new Date('2026-11-24T00:00:00.000Z') },
+        isDemo: true,
+        startsAt: { lt: new Date('2026-12-01T00:00:00.000Z') },
+        status: 'SCHEDULED'
+      });
+      expect(findMany().count.mock.calls[0][0].where).toBe(where);
+    });
+
+    it('leaves the dates unfiltered without a window and refuses an unreadable one', async () => {
+      await service.listDemoClasses({});
+      const where = findMany().findMany.mock.calls[0][0].where;
+      expect(where.startsAt).toBeUndefined();
+      expect(where.endsAt).toBeUndefined();
+      await expect(service.listDemoClasses({ from: 'soon' })).rejects.toThrow('from must be an ISO date-time.');
     });
   });
 });
