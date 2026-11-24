@@ -229,12 +229,13 @@ its precondition, the student training surface, now exists).
   or bring back a light panel that uses it).
 
 - **Unused assets: `apps/web/public/auth/hero-scene.webp`, `form-bg-dark.webp`,
-  `form-bg-light.webp`, `logo-knight.webp`** (2026-11-24; moved there from `public/auth/v2/`). The desktop auth pages now
+  `form-bg-light.webp`, `logo-knight.webp`, `hero-mobile.webp`, `hero-knight-light.webp`** (2026-11-24; moved there from `public/auth/v2/`). The desktop auth pages now
   show the academy's logo in the hero and one glowing board under both halves
   (`board-{dark,light}.webp`, built by `apps/web/scripts/build-auth-board.mjs`),
   so the gold-knight scene and the form-side pictures are no longer referenced
-  (`logo-knight.webp` was already unused). `hero-mobile.webp` and
-  `hero-knight-light.webp` are still used below `lg`. Kept until the owner says delete.
+  (`logo-knight.webp` was already unused). Later the same day phones and tablets dropped
+  the knight pictures too (`hero-mobile.webp`, `hero-knight-light.webp`): they show the
+  same board behind the form. Kept until the owner says delete.
 
 - **Unused assets: `apps/web/public/academy/hero_light.webp` and `hero_dark.webp`**
   (2026-11-14). Both hero sections (`/` and `/academy`) now show the 3D board
