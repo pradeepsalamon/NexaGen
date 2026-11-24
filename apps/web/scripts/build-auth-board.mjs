@@ -113,7 +113,9 @@ function renderBoard(theme) {
           if (dark) c = lightSq ? [30 * varr + 14 * sheen, 30 * varr + 12 * sheen, 40 * varr + 12 * sheen] : [5, 7, 14];
           else { const g = 0.96 + 0.08 * (varr - 0.85) / 0.3; c = lightSq ? [253, 249, 240] : [233 * g - 6 * sheen, 173 * g - 6 * sheen, 67 * g - 4 * sheen]; } // brand gold (--rgb-login-gold) on cream
           const fc = ramp(0.3 + 0.3 * lit);
-          const k = dark ? (lightSq ? 0.4 : 0.15) * lit : 0; // light theme: no fire tint, only the sparks
+          // Light theme: no fire tint, only the sparks. Dark: the glow eases off along the very
+          // bottom (owner 2026-11-24: less fiery there).
+          const k = dark ? (lightSq ? 0.4 : 0.15) * lit * (1 - 0.35 * smooth(0.8 * H, H, py)) : 0;
           c = dark ? c.map((ch, j) => ch + fc[j] * k) : c.map((ch, j) => mix(ch, fc[j], Math.min(0.75, k)));
           cr += c[0]; cg += c[1]; cb += c[2];
           // seams: distance to grid lines in screen px
@@ -149,30 +151,43 @@ function renderBoard(theme) {
     glow(i, c[0], c[1], c[2], a);
   }
 
-  // --- embers / sparks drifting up ---
-  const R = rng(42);
-  const embers = dark ? 360 : 240;
-  for (let k = 0; k < embers; k++) {
-    // distribution: around the hotspot, rising
-    const ex = W * (1.02 - Math.pow(R(), 1.3) * 0.95);
-    const ey = HS[1] - Math.pow(R(), 1.6) * H * 0.85 + 0.06 * H;
-    if (ex < 0 || ex >= W || ey < 0 || ey >= H) continue;
-    const rad = 0.8 + Math.pow(R(), 3) * 3.2;
-    const len = 1 + R() * 5; // vertical streak
-    const ang = -Math.PI / 2 + (R() - 0.5) * 0.9;
-    const heat = 0.55 + R() * 0.45;
-    const fade = 1 - clamp((HS[1] - ey) / (H * 0.85)) * 0.6;
-    const c = ramp(heat);
+  // --- embers / sparks ---
+  const spark = (ex, ey, rad, len, ang, c, alpha) => {
     const ext = Math.ceil(rad * 3 + len * 2);
     for (let yy = Math.max(0, Math.floor(ey - ext)); yy < Math.min(H, ey + ext); yy++) for (let xx = Math.max(0, Math.floor(ex - ext)); xx < Math.min(W, ex + ext); xx++) {
       const ox = xx - ex, oy = yy - ey;
       const along = ox * Math.cos(ang) + oy * Math.sin(ang), across = -ox * Math.sin(ang) + oy * Math.cos(ang);
       const d = Math.hypot(across / rad, along / (rad * len));
-      const core = Math.exp(-d * d * 2.2), halo = Math.exp(-d * 0.9) * 0.25;
-      const a = (core + halo) * fade;
+      const a = (Math.exp(-d * d * 2.2) + Math.exp(-d * 0.9) * 0.25) * alpha;
       if (a < 0.004) continue;
       glow((yy * W + xx) * 4, c[0], c[1], c[2], a);
     }
+  };
+  const R = rng(42);
+  // Embers rising off the board, around the warm light.
+  const embers = dark ? 360 : 240;
+  for (let k = 0; k < embers; k++) {
+    const ex = W * (1.02 - Math.pow(R(), 1.3) * 0.95);
+    const ey = HS[1] - Math.pow(R(), 1.6) * H * 0.85 + 0.06 * H;
+    const rad = 0.8 + Math.pow(R(), 3) * 3.2;
+    const len = 1 + R() * 5; // vertical streak
+    const ang = -Math.PI / 2 + (R() - 0.5) * 0.9;
+    const heat = 0.55 + R() * 0.45;
+    if (ex < 0 || ex >= W || ey < 0 || ey >= H) continue;
+    spark(ex, ey, rad, len, ang, ramp(heat), 1 - clamp((HS[1] - ey) / (H * 0.85)) * 0.6);
+  }
+  // Fine sparkles along the bottom, the whole width: pale gold, not fire colours
+  // (owner 2026-11-24), so the foot of the board twinkles without glowing orange.
+  const R2 = rng(7);
+  const sparkles = dark ? 220 : 150;
+  const gold = dark ? [255, 222, 160] : [214, 150, 50];
+  for (let k = 0; k < sparkles; k++) {
+    const ex = W * (0.12 + R2() * 0.9);
+    const ey = H * (0.74 + Math.pow(R2(), 0.7) * 0.26);
+    const rad = 0.6 + Math.pow(R2(), 3) * 2;
+    const len = 1 + R2() * 3;
+    const ang = -Math.PI / 2 + (R2() - 0.5) * 0.8;
+    spark(ex, ey, rad, len, ang, gold, (dark ? 0.55 : 0.6) + R2() * 0.4);
   }
 
   const buf = Buffer.alloc(W * H * 4);

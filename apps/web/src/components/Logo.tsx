@@ -22,6 +22,11 @@ type LogoProps = {
   mobileSize?: number;
   /** Always use the light-on-dark lockup, for placement on a dark/brand surface in either theme. */
   onDark?: boolean;
+  /**
+   * Preload the lockup (default). Off for a logo hidden on some screens: a preload
+   * downloads on every screen, hidden or not.
+   */
+  priority?: boolean;
 };
 
 /**
@@ -58,7 +63,7 @@ function AcademyLogo({ height, onDark }: { height: number; onDark: boolean }) {
   /* eslint-enable @next/next/no-img-element */
 }
 
-export function Logo({ compact = false, stacked = false, size, mobileSize, onDark = false }: LogoProps) {
+export function Logo({ compact = false, stacked = false, size, mobileSize, onDark = false, priority = true }: LogoProps) {
   const height = size ?? (stacked ? 96 : compact ? 32 : 40);
   const mobileHeight = Math.min(mobileSize ?? height, height);
   const fullWidth = Math.ceil(height * LOCKUP_RATIO);
@@ -74,7 +79,7 @@ export function Logo({ compact = false, stacked = false, size, mobileSize, onDar
   const imageProps = {
     className: "h-full w-auto max-w-none object-contain object-left",
     height,
-    priority: true,
+    priority,
     style: { width: "auto" },
     width: fullWidth,
   };

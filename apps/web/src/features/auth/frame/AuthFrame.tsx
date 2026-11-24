@@ -87,7 +87,8 @@ function HeroLogo() {
           className="pointer-events-auto relative block rounded-control transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-login-gold"
           href="/"
         >
-          <Logo size={192} />
+          {/* Desktop only: no preload, so phones never fetch it. */}
+          <Logo priority={false} size={192} />
         </Link>
       </div>
     </div>
