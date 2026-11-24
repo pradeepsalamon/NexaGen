@@ -28,7 +28,10 @@ N days per coach / `ONE_TIME`) and **where** (`placements`: `CLASS_END` on
   coach rating is the mean of those. Coaches only see responses from
   `showToCoach` forms, with the student stripped (`toResponseDto(row, true)`),
   and with no class and only the day (`anonymousDay`, noon UTC), so the time
-  after a class can't point at who wrote it (review G1).
+  after a class can't point at who wrote it (review G1). A form's responses
+  reach the coach (list and averages) only once it has
+  `COACH_FEEDBACK_MIN_RESPONSES` (3) about them; the rest count as
+  `withheldCount` (owner 2026-11-24). Admins see everything.
 - A form with responses cannot be deleted (FK is `Restrict`) — it is
   deactivated. A form without responses is deleted to Trash (`FeedbackForm`);
   responses and answers are not Trash entities.
@@ -224,10 +227,16 @@ for accuracy — a line found by trying every move is still SOLVED but no longer
 line: further saves are refused and submit scores the stored line, never a
 resubmitted one.
 
-**Withdrawing a deployment** (`AssignmentService.undeploy`, review S8) is a
-hard delete of every student's copy and attempt (the UI warns and defers it
-with undo), so only the coach who assigned it may withdraw it; once that coach
-has left the batch (or is unknown), any coach of the batch may.
+**Withdrawing a deployment** (`AssignmentService.undeploy`, review S8) hides
+it, not deletes it (owner 2026-11-24): it sets `AssignmentBatch.withdrawnAt`,
+and the soft-delete extension's `parentScopedWhere` hides the deployment and
+every student's copy from all reads, as for a trashed assignment. Their
+attempts stay (activity history keeps withdrawn work a student tried), and
+assigning the same work to the batch again (the deploy `upsert`) clears
+`withdrawnAt` and brings it all back. Nested `_count`s skip the extension, so
+they filter `withdrawnAt: null` themselves. Only the coach who assigned it may
+withdraw it; once that coach has left the batch (or is unknown), any coach of
+the batch may.
 
 ## 3.6k2c Course module completion
 
@@ -493,7 +502,9 @@ reversing an adjustment re-works the TDS without re-reading the settings.
 - An adjustment checks the record's status, writes and recomputes under the
   record's row lock in one transaction, so it can't land on a record finalized
   in between (review R2). An admin who also teaches can't adjust their own
-  record (403, review R8).
+  record (403, review R8), nor approve, finalize or mark paid a period (or a
+  payout) holding their own non-zero pay while another active admin exists
+  (`assertNotSigningOffOwnPay`; a one-admin academy isn't locked out).
 - Recalculating includes every coach who already has a record in the period,
   so one who dropped out of scope comes back as zero, not with the old figures
   (review R7).
