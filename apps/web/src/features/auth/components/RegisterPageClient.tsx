@@ -2,18 +2,29 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { cn } from "@/lib/utils";
 import { AuthCard } from "../login-v2/AuthFrame";
 import { CoachRegisterForm } from "./CoachRegisterForm";
 import { RegisterForm } from "./RegisterForm";
 
 type Role = "student" | "coach";
 
-const STACKED = "[grid-area:1/1] data-[state=inactive]:invisible";
+/**
+ * Both forms share one grid cell, so the card keeps the taller form's size. A tab change
+ * cross-fades them: the old form fades and slides out toward its own tab while the new one
+ * fades and slides in (one eased transition, no keyframes, so a quick double switch
+ * reverses smoothly). The hidden form turns `invisible` once it has faded, which keeps it
+ * out of tab order and screen readers. Reduced motion: an instant switch.
+ */
+const PANEL = cn(
+  "[grid-area:1/1] transition-[opacity,transform,visibility] duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+  // The Tabs default fade-up would run on top of the cross-fade.
+  "data-[state=active]:animate-none motion-safe:data-[state=active]:animate-none",
+  "data-[state=inactive]:pointer-events-none data-[state=inactive]:invisible data-[state=inactive]:opacity-0"
+);
 
 export function RegisterPageClient() {
   const [role, setRole] = useState<Role>("student");
-  // Coach is the right-hand tab: its form slides in from the right, Student's from the left.
-  const slide = role === "coach" ? "motion-safe:data-[state=active]:animate-tab-in-right" : "motion-safe:data-[state=active]:animate-tab-in-left";
 
   return (
     <AuthCard wide>
@@ -30,14 +41,13 @@ export function RegisterPageClient() {
             <TabsTrigger value="coach">Coach</TabsTrigger>
           </TabsList>
         </div>
-        {/* Both forms stay mounted in one grid cell, the hidden one invisible, so the card
-            keeps the taller form's size and nothing moves when the tab changes (typed
-            values survive a switch too). */}
+        {/* Both forms stay mounted (PANEL), so typed values survive a switch too. Student is
+            the left tab: hidden, it waits to the left; Coach waits to the right. */}
         <div className="grid">
-          <TabsContent className={`${slide} ${STACKED}`} forceMount value="student">
+          <TabsContent className={cn(PANEL, "data-[state=inactive]:-translate-x-4")} forceMount value="student">
             <RegisterForm />
           </TabsContent>
-          <TabsContent className={`${slide} ${STACKED}`} forceMount value="coach">
+          <TabsContent className={cn(PANEL, "data-[state=inactive]:translate-x-4")} forceMount value="coach">
             <CoachRegisterForm />
           </TabsContent>
         </div>

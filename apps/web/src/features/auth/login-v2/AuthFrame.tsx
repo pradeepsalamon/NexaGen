@@ -106,7 +106,7 @@ function FooterLinks() {
   ];
 
   return (
-    <footer className="flex justify-center border-t border-app-border pt-3 text-sm text-app-muted">
+    <footer className="flex justify-center text-sm text-app-muted">
       <nav aria-label="Legal and help">
         <ul className="flex items-center">
           {links.map((link, index) => (
@@ -152,9 +152,14 @@ export function AuthFrame({ children }: { children: ReactNode }) {
           <div className="login-v2-form-side relative flex flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1">
             <FormSideDecor />
             {/* The page's card, centred: the space around it is even on opposite sides and at
-                least --auth-gap. */}
-            <div className="relative z-10 flex flex-1 items-center justify-center p-[var(--auth-gap)]">
-              {children}
+                least --auth-gap. The Privacy/Terms/Help links sit under it, outside the card:
+                from `lg` pinned to the foot of the form side, so they don't push the card off
+                centre. */}
+            <div className="relative z-10 flex flex-1 flex-col p-[var(--auth-gap)]">
+              <div className="flex flex-1 items-center justify-center lg:py-6">{children}</div>
+              <div className="pt-[var(--auth-gap)] lg:absolute lg:inset-x-0 lg:bottom-[var(--auth-gap)] lg:pt-0">
+                <FooterLinks />
+              </div>
             </div>
           </div>
 
@@ -168,7 +173,7 @@ export function AuthFrame({ children }: { children: ReactNode }) {
 
 /**
  * A page's card inside `AuthFrame`, sized to its form, in the app's own look (surface,
- * fields, blue primary button), with the Privacy/Terms/Help links in its foot. The padding
+ * fields, blue primary button); the Privacy/Terms/Help links sit under it. The padding
  * is the same on all four sides (`--auth-card-pad`). It fades in when a page opens; the
  * frame around it stays still. `wide`: the two-column registration form.
  */
@@ -180,12 +185,7 @@ export function AuthCard({ children, wide = false }: { children: ReactNode; wide
       initial={{ opacity: 0, y: 8 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
     >
-      <Card className="p-[var(--auth-card-pad)]">
-        {children}
-        <div className="mt-[var(--auth-card-pad)]">
-          <FooterLinks />
-        </div>
-      </Card>
+      <Card className="p-[var(--auth-card-pad)]">{children}</Card>
     </motion.div>
   );
 }

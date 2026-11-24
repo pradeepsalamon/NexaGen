@@ -15,9 +15,11 @@ tokens in `globals.css` ("Login page"; hero colours are `login-hero*`, the navy 
 every page), and each page renders only its `AuthCard`; `/unsubscribe`, outside the group, uses
 `AuthSplitShell`. The card is sized to its form and centred on the form side (even space on
 opposite sides, at least `--auth-gap`), with the same padding on all four sides
-(`--auth-card-pad`: 20px, 32px from `sm`, 16px on a desktop screen up to 760px high) and the
-Privacy/Terms/Help links in its foot (owner, 2026-11-24: not a full-height card); both registration forms stay
-mounted in one grid cell, so Student and Coach are the same size, and "Already have an
+(`--auth-card-pad`: 20px, 32px from `sm`, 16px on a desktop screen up to 760px high); the
+Privacy/Terms/Help links sit outside it, pinned to the foot of the form side from `lg` so the card
+stays centred (owner, 2026-11-24: not a full-height card, links out of the box). Both registration
+forms stay mounted in one grid cell, so Student and Coach are the same size, and a tab change
+cross-fades them (400ms transition, no keyframes); "Already have an
 account?" sits under the submit button. The hero is 46% wide; its trust row shows only from
 1440px wide and above 760px high, its badge from 1360px. **The card is the app's own look**: app tokens, blue primary
 button and tabs, `PageHeader` heading type, no gold and no serif inside it. Registration must fit
