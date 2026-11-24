@@ -3,6 +3,7 @@
 import { LifeBuoy, Pause, Play } from "lucide-react";
 import { useState } from "react";
 import { DEFAULT_TENANT_ID, PLAN_LIMIT_KEYS, PLAN_LIMITS } from "@nexa-chess/types";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -10,7 +11,6 @@ import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { WidgetError } from "@/components/ui/WidgetError";
 import { useToast } from "@/providers/ToastProvider";
 import {
   useEndSupportSession,
@@ -101,7 +101,13 @@ export function AcademyDetailClient({ tenantId }: { tenantId: string }) {
     return (
       <div>
         <PageHeader breadcrumbs={breadcrumbs} title="Academy" />
-        <WidgetError message="Could not load this academy." onRetry={() => void query.refetch()} />
+        <ResourceLoadError
+          backHref="/admin/platform"
+          backLabel="Platform console"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+          resource="academy"
+        />
       </div>
     );
   }

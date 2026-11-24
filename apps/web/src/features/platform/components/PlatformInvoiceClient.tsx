@@ -9,6 +9,7 @@ export function PlatformInvoiceClient({ id }: { id: string }) {
     <PlatformInvoiceDocument
       backHref="/admin/platform"
       backLabel="Platform console"
+      error={query.error}
       invoice={query.data}
       isLoading={query.isLoading}
       onRetry={() => void query.refetch()}

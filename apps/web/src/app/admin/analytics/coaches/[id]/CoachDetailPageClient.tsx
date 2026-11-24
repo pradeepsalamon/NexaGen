@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { AreaChartCard } from "@/components/charts/Charts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { KpiCardRow } from "@/components/ui/KpiCardRow";
-import { WidgetError } from "@/components/ui/WidgetError";
 import { AnalyticsPageShell } from "@/features/analytics/components/AnalyticsPageShell";
 import { RankBarList } from "@/features/analytics/components/RankBarList";
 import { useCoachDetailQuery } from "@/features/analytics/hooks/useAnalyticsApi";
@@ -34,7 +34,7 @@ export function CoachDetailPageClient({ coachId }: { coachId: string }) {
 }
 
 function Body({ coachId, query }: { coachId: string; query: Parameters<typeof useCoachDetailQuery>[1] }) {
-  const { data, isLoading, isError, refetch } = useCoachDetailQuery(coachId, query);
+  const { data, error, isLoading, isError, refetch } = useCoachDetailQuery(coachId, query);
   const tz = useUserTimeZone();
   const c = data?.coach;
   const { rows: classes, sortProps } = useTableSort({
@@ -50,7 +50,15 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
   });
 
   if (isError) {
-    return <WidgetError message="Couldn't load this coach." onRetry={() => refetch()} />;
+    return (
+      <ResourceLoadError
+        backHref="/admin/analytics/coaches"
+        backLabel="All coaches"
+        error={error}
+        onRetry={() => void refetch()}
+        resource="coach"
+      />
+    );
   }
 
   return (

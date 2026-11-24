@@ -13,12 +13,12 @@ import {
   type CheckoutHandoff,
   type PaymentMethodKind
 } from "@nexa-chess/types";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { WidgetError } from "@/components/ui/WidgetError";
 import { useToast } from "@/providers/ToastProvider";
 import {
   useCheckoutConfig,
@@ -237,10 +237,7 @@ export function CheckoutClient({ planId }: Props) {
 
   if (error || !config) {
     return (
-      <WidgetError
-        message="We could not load this plan."
-        onRetry={() => void refetch()}
-      />
+      <ResourceLoadError backHref="/plans" backLabel="All plans" error={error} onRetry={() => void refetch()} resource="plan" />
     );
   }
 

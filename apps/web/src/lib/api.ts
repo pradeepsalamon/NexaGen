@@ -167,6 +167,22 @@ export class ApiError extends Error {
   }
 }
 
+/** The HTTP status of a failed request, or undefined (network failure, not an API error). */
+export function errorStatus(error: unknown): number | undefined {
+  if (error instanceof ApiError) return error.status;
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" ? status : undefined;
+}
+
+/**
+ * A 4xx that asking again won't change (not found, forbidden, invalid). 408 and
+ * 429 are worth another try; the query client's default retry skips the rest.
+ */
+export function isFinalClientError(error: unknown): boolean {
+  const status = errorStatus(error);
+  return status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429;
+}
+
 export async function apiFetch<TResponse>(
   path: string,
   options: ApiFetchOptions = {}

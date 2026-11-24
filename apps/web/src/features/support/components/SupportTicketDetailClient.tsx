@@ -12,6 +12,7 @@ import {
   type SupportTicketEventItem,
   type SupportTicketStatus
 } from "@nexa-chess/types";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLoading } from "@/components/layout/PageLoading";
@@ -94,7 +95,13 @@ export function SupportTicketDetailClient({ ticketId }: { ticketId: string }) {
     return (
       <div className="pb-10">
         <PageHeader breadcrumbs={[{ href: "/admin/support", label: "WhatsApp support" }, { label: "Ticket" }]} title="Ticket" />
-        <WidgetError message="This ticket could not be loaded." onRetry={() => void ticket.refetch()} />
+        <ResourceLoadError
+          backHref="/admin/support"
+          backLabel="WhatsApp support"
+          error={ticket.error}
+          onRetry={() => void ticket.refetch()}
+          resource="ticket"
+        />
       </div>
     );
   }

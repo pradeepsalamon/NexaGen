@@ -45,7 +45,7 @@ export function BoardsClient({ tournamentId }: { tournamentId: string }) {
   const standings = useStandings(tournamentId, {}, { realtime: connected });
   const [follow, setFollow] = useState("");
 
-  if (tournament.isError) return <Alert variant="error">This tournament isn&apos;t available.</Alert>;
+  if (tournament.isError || (live.isError && !live.data)) return <Alert variant="error">This tournament isn&apos;t available.</Alert>;
   if (!tournament.data || !live.data) return <Skeleton className="h-96 w-full" />;
   const t = tournament.data.tournament;
   const games = live.data.ongoingGames

@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { Pencil } from "lucide-react";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { WidgetError } from "@/components/ui/WidgetError";
 import { usePuzzle } from "../hooks/usePuzzlesApi";
 import {
   PUZZLE_DIFFICULTY_LABELS,
@@ -19,17 +19,14 @@ import { PuzzleSolver } from "./solver/PuzzleSolver";
 import { enumLabel } from "@/lib/utils";
 
 export function PuzzlePreviewClient({ id, basePath }: { id: string; basePath: string }) {
-  const { data, isLoading, isError, refetch } = usePuzzle(id);
+  const { data, error, isLoading, isError, refetch } = usePuzzle(id);
 
   if (isLoading) {
     return <Skeleton className="h-96 rounded-app" />;
   }
   if (isError || !data) {
     return (
-      <WidgetError
-        message="Couldn't load this puzzle. Check your connection and try again."
-        onRetry={() => refetch()}
-      />
+      <ResourceLoadError backHref={basePath} backLabel="All puzzles" error={error} onRetry={() => void refetch()} resource="puzzle" />
     );
   }
 

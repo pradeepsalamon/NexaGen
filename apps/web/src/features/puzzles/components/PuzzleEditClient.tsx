@@ -1,7 +1,7 @@
 "use client";
 
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { WidgetError } from "@/components/ui/WidgetError";
 import { usePuzzle } from "../hooks/usePuzzlesApi";
 import { PuzzleForm } from "./PuzzleForm";
 
@@ -14,15 +14,12 @@ export function PuzzleEditClient({
   basePath: string;
   role: "admin" | "coach";
 }) {
-  const { data, isLoading, isError, refetch } = usePuzzle(id);
+  const { data, error, isLoading, isError, refetch } = usePuzzle(id);
 
   if (isLoading) return <Skeleton className="h-96 rounded-app" />;
   if (isError || !data) {
     return (
-      <WidgetError
-        message="Couldn't load this puzzle. Check your connection and try again."
-        onRetry={() => refetch()}
-      />
+      <ResourceLoadError backHref={basePath} backLabel="All puzzles" error={error} onRetry={() => void refetch()} resource="puzzle" />
     );
   }
   return <PuzzleForm mode="edit" basePath={basePath} role={role} puzzle={data.puzzle} />;

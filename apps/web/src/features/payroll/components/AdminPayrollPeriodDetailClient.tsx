@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 import { Banknote, CalendarCheck, ChevronDown, ChevronRight, Users, Wallet } from "lucide-react";
 import { formatMoney, PAYROLL_PERIOD_TYPE_LABELS } from "@nexa-chess/types";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Alert } from "@/components/ui/Alert";
 import type { Crumb } from "@/components/ui/Breadcrumbs";
@@ -48,7 +49,7 @@ const CRUMBS: Crumb[] = [{ href: "/admin/finance/coach-payroll", label: "Coach p
 
 export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string }) {
   const timeZone = useUserTimeZone();
-  const { data: periodData, isLoading } = useAdminPayrollPeriod(periodId);
+  const { data: periodData, error: periodError, isError, isLoading, refetch } = useAdminPayrollPeriod(periodId);
   const { data: recordsData } = useAdminPayrollRecords(periodId);
   const { data: payoutsData } = useAdminPayouts(periodId);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -121,6 +122,15 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
       ) : null}
 
       {isLoading ? <Skeleton className="h-64 w-full" /> : null}
+      {isError && !period ? (
+        <ResourceLoadError
+          backHref="/admin/finance/coach-payroll"
+          backLabel="Coach payroll"
+          error={periodError}
+          onRetry={() => void refetch()}
+          resource="payroll period"
+        />
+      ) : null}
 
       {period ? (
         <>

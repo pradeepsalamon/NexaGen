@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { PageHeader, type PageHeaderProps } from "@/components/layout/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
@@ -77,7 +78,7 @@ export function StudentProgressWorkspace({
         {progress.isLoading ? (
           <LoadingTiles />
         ) : progress.isError || !progress.data ? (
-          <WidgetError message={progress.error?.message} onRetry={() => progress.refetch()} />
+          <ResourceLoadError error={progress.error} onRetry={() => void progress.refetch()} resource="student" />
         ) : (
           <ProgressView progress={progress.data.progress} />
         )}

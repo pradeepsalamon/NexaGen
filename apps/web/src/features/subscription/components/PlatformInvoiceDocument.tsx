@@ -2,11 +2,11 @@
 
 import { Printer } from "lucide-react";
 import { formatMoney, stateNameFromCode, TAX_TREATMENT_LABELS, type PlatformInvoiceView, type TaxTreatment } from "@nexa-chess/types";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
-import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 
@@ -27,10 +27,12 @@ function Party({ label, lines }: { label: string; lines: (string | null | undefi
 export function PlatformInvoiceDocument({
   backHref,
   backLabel,
+  error,
   invoice,
   isLoading,
   onRetry,
 }: {
+  error?: unknown;
   invoice: PlatformInvoiceView | undefined;
   isLoading: boolean;
   onRetry: () => void;
@@ -44,7 +46,7 @@ export function PlatformInvoiceDocument({
     return (
       <div className="space-y-4">
         <PageHeader breadcrumbs={breadcrumbs} title="Invoice" />
-        <WidgetError message="Couldn't load this invoice." onRetry={onRetry} />
+        <ResourceLoadError backHref={backHref} backLabel={backLabel} error={error} onRetry={onRetry} resource="invoice" />
       </div>
     );
   }

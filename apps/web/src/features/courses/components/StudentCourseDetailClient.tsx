@@ -3,19 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, ChevronDown, ChevronUp, Puzzle } from "lucide-react";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { WidgetError } from "@/components/ui/WidgetError";
 import { PgnBoardViewer } from "@/features/assignments/components/PgnBoardViewer";
 import { useCompleteModule, useMyCourse } from "../hooks/useCoursesApi";
 
 const COURSES_CRUMB = { href: "/student/courses", label: "My courses" };
 
 export function StudentCourseDetailClient({ id }: { id: string }) {
-  const { data, isError, isLoading, refetch } = useMyCourse(id);
+  const { data, error, isError, isLoading, refetch } = useMyCourse(id);
   const complete = useCompleteModule(id);
   const [openModuleId, setOpenModuleId] = useState<string | null>(null);
 
@@ -23,7 +23,7 @@ export function StudentCourseDetailClient({ id }: { id: string }) {
     return (
       <div className="animate-fade-in pb-10">
         <PageHeader breadcrumbs={[COURSES_CRUMB, { label: "Course" }]} title="Course" />
-        <WidgetError message="Couldn't load this course." onRetry={() => void refetch()} />
+        <ResourceLoadError backHref={COURSES_CRUMB.href} backLabel={COURSES_CRUMB.label} error={error} onRetry={() => void refetch()} resource="course" />
       </div>
     );
   }
