@@ -4,6 +4,7 @@ import { PayrollPeriodStatus, type CoachPayrollRecordStatus } from "@prisma/clie
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { PayrollAuditService } from "./payroll-audit.service";
+import { assertNotSigningOffOwnPay } from "./payroll-auth.helper";
 import { PayrollCalculationService } from "./payroll-calculation.service";
 import { PayrollPeriodService } from "./payroll-period.service";
 import { PayslipGenerationService } from "./payslip-generation.service";
@@ -141,6 +142,7 @@ export class PayrollLifecycleService {
     }
   ): Promise<PayrollPeriodItem> {
     const period = await this.periods.getOrThrow(periodId);
+    await assertNotSigningOffOwnPay(this.prisma, actorId, { periodId });
     if (period.status !== config.from) {
       throw new ConflictException(
         `Cannot move a period from ${period.status.toLowerCase()} to ${config.to.toLowerCase()}; it must currently be ${config.from.toLowerCase()}.`

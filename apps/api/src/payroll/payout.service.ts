@@ -8,6 +8,7 @@ import { Prisma, type CoachPayout } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { PayrollAuditService } from "./payroll-audit.service";
+import { assertNotSigningOffOwnPay } from "./payroll-auth.helper";
 
 const PAYABLE_RECORD_STATUSES = ["FINALIZED", "PAID"] as const;
 
@@ -81,6 +82,7 @@ export class PayoutService {
     if (existing.status === "PAID") {
       throw new ConflictException("This payout is already marked paid.");
     }
+    await assertNotSigningOffOwnPay(this.prisma, actorId, { id: existing.payrollRecordId });
 
     const payout = await this.prisma.$transaction(async (tx) => {
       // Conditional so two concurrent submits cannot both mark it paid.
