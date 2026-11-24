@@ -58,7 +58,7 @@ export function CoachAssignmentsClient() {
     undo: async () => {},
     toast: (d) => ({
       title: `Withdrawing "${d.title}"`,
-      message: `From ${d.batchName}. Student progress will be lost.`
+      message: `From ${d.batchName}. Students keep their work; assign it again to bring it back.`
     }),
     invalidates: [queryKeys.assignments.all]
   });

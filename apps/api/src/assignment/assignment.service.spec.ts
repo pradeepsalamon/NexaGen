@@ -29,7 +29,7 @@ describe("AssignmentService", () => {
       update: jest.Mock;
       delete: jest.Mock;
     };
-    assignmentBatch: { upsert: jest.Mock; findMany: jest.Mock; findUnique: jest.Mock; delete: jest.Mock };
+    assignmentBatch: { upsert: jest.Mock; findMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock; delete: jest.Mock };
     batch: { findMany: jest.Mock };
     batchStudent: { findMany: jest.Mock };
     studentAssignment: {
@@ -71,6 +71,7 @@ describe("AssignmentService", () => {
         upsert: jest.fn().mockResolvedValue({ id: "dep-1" }),
         findMany: jest.fn().mockResolvedValue([]),
         findUnique: jest.fn(),
+        update: jest.fn().mockResolvedValue({ id: "dep-1" }),
         delete: jest.fn().mockResolvedValue({ id: "dep-1" })
       },
       batch: {
@@ -252,13 +253,18 @@ describe("AssignmentService", () => {
     it("lets the coach who assigned it withdraw it", async () => {
       prisma.assignmentBatch.findUnique.mockResolvedValue(deployment(COACH_ID, [COACH_ID, "coach-2"]));
       await expect(service.undeploy(TOKEN, "dep-1")).resolves.toEqual({ success: true });
-      expect(prisma.assignmentBatch.delete).toHaveBeenCalledWith({ where: { id: "dep-1" } });
+      // Hidden, not deleted: students' copies and attempts stay (owner 2026-11-24).
+      expect(prisma.assignmentBatch.update).toHaveBeenCalledWith({
+        data: { withdrawnAt: expect.any(Date), withdrawnById: COACH_ID },
+        where: { id: "dep-1" }
+      });
+      expect(prisma.assignmentBatch.delete).not.toHaveBeenCalled();
     });
 
     it("refuses a co-coach withdrawing work another coach of the batch assigned", async () => {
       prisma.assignmentBatch.findUnique.mockResolvedValue(deployment("coach-2", [COACH_ID, "coach-2"]));
       await expect(service.undeploy(TOKEN, "dep-1")).rejects.toBeInstanceOf(ForbiddenException);
-      expect(prisma.assignmentBatch.delete).not.toHaveBeenCalled();
+      expect(prisma.assignmentBatch.update).not.toHaveBeenCalled();
     });
 
     it("lets any coach of the batch withdraw work whose coach has left it", async () => {

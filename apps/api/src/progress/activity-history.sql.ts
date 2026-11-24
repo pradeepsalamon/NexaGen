@@ -309,6 +309,8 @@ activity AS (
   WHERE sa."studentId" = ${s}
     AND (a."activityType" <> 'PUZZLE_SET'
          OR NOT EXISTS (SELECT 1 FROM puzzle_attempts z WHERE z."studentAssignmentId" = sa.id))
+    -- Withdrawn work (review S8) stays in history only if the student tried it.
+    AND (ab."withdrawnAt" IS NULL OR x.sa_id IS NOT NULL)
 
   UNION ALL
   -- Puzzle Storm / Racer rounds the student actually played

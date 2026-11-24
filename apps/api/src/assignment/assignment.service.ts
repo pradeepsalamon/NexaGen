@@ -113,7 +113,8 @@ type ActivityDefaults = {
 const libraryInclude = {
   createdBy: true,
   sourceTopic: { select: { id: true, name: true } },
-  _count: { select: { deployments: true } }
+  // Withdrawn deployments don't count (review S8); nested counts skip the extension.
+  _count: { select: { deployments: { where: { withdrawnAt: null } } } }
 } satisfies Prisma.AssignmentInclude;
 
 const studentInclude = {
@@ -482,8 +483,8 @@ export class AssignmentService {
     if (!row || !row.batch.coaches.some((c) => c.coachId === coach.id)) {
       throw new NotFoundException("Assignment not found.");
     }
-    // Withdrawing deletes every student's copy and attempt, so a co-coach
-    // can't do it to work another coach of the batch assigned (review S8).
+    // Withdrawing takes the work away from every student, so a co-coach can't
+    // do it to work another coach of the batch assigned (review S8).
     // Work whose coach has left the batch (or is unknown) any coach may withdraw.
     const assignerStillCoaches =
       row.assignedById !== null && row.batch.coaches.some((c) => c.coachId === row.assignedById);
@@ -491,7 +492,12 @@ export class AssignmentService {
       throw new ForbiddenException("Only the coach who assigned this can withdraw it.");
     }
 
-    await this.prisma.assignmentBatch.delete({ where: { id } });
+    // Hidden, not deleted (owner 2026-11-24, review S8 option b): students'
+    // copies and attempts stay, and assigning it to the batch again brings them back.
+    await this.prisma.assignmentBatch.update({
+      where: { id },
+      data: { withdrawnAt: new Date(), withdrawnById: coach.id }
+    });
     return { success: true };
   }
 
@@ -602,7 +608,8 @@ export class AssignmentService {
       const deployment = await tx.assignmentBatch.upsert({
         where: { assignmentId_batchId: { assignmentId, batchId } },
         create: { assignmentId, batchId, assignedById: coachId, dueDate },
-        update: { dueDate, assignedById: coachId }
+        // Re-assigning withdrawn work brings it back, students' work included (review S8).
+        update: { dueDate, assignedById: coachId, withdrawnAt: null, withdrawnById: null }
       });
 
       const students = await tx.batchStudent.findMany({

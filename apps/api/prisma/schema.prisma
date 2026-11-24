@@ -2400,6 +2400,11 @@ model AssignmentBatch {
   assignedById String?
   assignedBy   User?      @relation("DeployedAssignments", fields: [assignedById], references: [id], onDelete: SetNull)
   dueDate      DateTime
+  /// Withdrawn by a coach (review S8): hidden from every read by the soft-delete
+  /// extension, students' copies and attempts kept; re-assigning clears it.
+  withdrawnAt   DateTime?
+  /// Who withdrew it (a user id; no relation, kept after that user is gone).
+  withdrawnById String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
