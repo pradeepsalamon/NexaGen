@@ -271,9 +271,8 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
               </Button>
             )}
             <Button
-              variant="outline"
+              variant="danger-outline"
               size="sm"
-              className="border-app-danger text-app-danger-ink hover:bg-app-danger-soft"
               onClick={() => runDeactivate(scheduleId)}
             >
               <Ban className="size-4" aria-hidden="true" />
@@ -349,9 +348,8 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
                           Reschedule
                         </Button>
                         <Button
-                          variant="neutral"
+                          variant="danger-outline"
                           size="sm"
-                          className="border-app-danger text-app-danger hover:bg-app-soft"
                           onClick={() =>
                             runOccurrenceAction({ classId: cls.id, payload: { action: "CANCEL" } })
                           }
