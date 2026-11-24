@@ -6,7 +6,7 @@ The academy marketing site at `/` is the Design System v2 page (`features/academ
 follows every rule here and reads `features/academy/content.ts`. The original page
 (`features/academy/components`, kept at `/academy` since 2026-11-16) follows the colour rules;
 its layout and type keep their own look. **The auth pages** (`/login`, `/register`,
-password reset, `/verify-email`, `/unsubscribe`; `features/auth/login-v2/AuthFrame`,
+password reset, `/verify-email`, `/unsubscribe`; `features/auth/frame/AuthFrame`,
 since 2026-11-22) are one bespoke gold frame whose hero and form side both
 follow the theme (champagne and ivory in light, navy in dark): its colours are the `login-*`
 tokens in `globals.css` ("Login page"; hero colours are `login-hero*`, the navy is

@@ -226,7 +226,7 @@
   --color-focus: rgb(var(--rgb-primary));
 }
 
-/* Login page (`/login`, features/auth/login-v2): a hero beside a warm form side, both
+/* Login page (`/login`, features/auth/frame): a hero beside a warm form side, both
    following the theme: a champagne hero beside an ivory form side in light, a navy hero
    beside a deep-navy form side in dark. The card on the form side keeps the app's own
    tokens (surface, fields, blue primary button) so the forms match the rest of the app.

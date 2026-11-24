@@ -15,7 +15,7 @@ import { useTheme } from "@/providers/ThemeProvider";
  * the provider's transition freeze.
  */
 export function ThemeToggle({ knob = "primary" }: {
-  /** `accent`: a gold knob, for the gold-and-navy login v2 hero. */
+  /** `accent`: a gold knob, for the gold-and-navy hero of the auth pages. */
   knob?: "accent" | "primary";
 } = {}) {
   const { mode, toggleMode } = useTheme();

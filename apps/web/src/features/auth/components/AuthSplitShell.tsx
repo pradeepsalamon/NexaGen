@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AuthCard, AuthFrame } from "../login-v2/AuthFrame";
+import { AuthCard, AuthFrame } from "../frame/AuthFrame";
 
 /**
  * The auth frame around one card, for a signed-out page outside the `(auth)` route group

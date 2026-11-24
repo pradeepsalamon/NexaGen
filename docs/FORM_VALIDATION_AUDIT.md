@@ -17,7 +17,7 @@ Totals: 105 files (42 with `<form>`, 17 with `useForm`, 72 dialogs). See the sum
 |---|---|---|---|---|---|
 | Coach Register Form (form) | `features/auth/components/CoachRegisterForm.tsx` | none / ad hoc | FormField error, toast | Was browser bubbles: field messages; FIDE rating ≤ 4000 and experience ≤ 80 now checked (the API limits) | auto (e2e/form-validation.spec.ts) |
 | Forgot Password Form (form) | `features/auth/components/ForgotPasswordForm.tsx` | none / ad hoc | FormField error, toast | Was browser bubble: noValidate + email message | read only |
-| Login Form (form) | `features/auth/login-v2/LoginAuthPanel.tsx` + `hooks/useLoginFlow.ts` | touched hook | FormField error, toast | Human messages; noValidate kept; first invalid focused; lockout (429) under the password field; other server errors toast | auto (e2e/form-validation.spec.ts) |
+| Login Form (form) | `features/auth/frame/LoginAuthPanel.tsx` + `hooks/useLoginFlow.ts` | touched hook | FormField error, toast | Human messages; noValidate kept; first invalid focused; lockout (429) under the password field; other server errors toast | auto (e2e/form-validation.spec.ts) |
 | Profile Form (form) | `features/auth/components/ProfileForm.tsx` | none / ad hoc | toast | No change | not tested |
 | Register Form (form) | `features/auth/components/RegisterForm.tsx` | touched hook | FormField error, toast | Was browser bubbles + setCustomValidity: now validateRegisterForm (API password rule, age 3–99), field messages, focus first invalid | auto (e2e/form-validation.spec.ts) |
 | Reset Password Form (form) | `features/auth/components/ResetPasswordForm.tsx` | none / ad hoc | FormField error, toast | Was setCustomValidity bubble: password rule and match under their fields | read only |

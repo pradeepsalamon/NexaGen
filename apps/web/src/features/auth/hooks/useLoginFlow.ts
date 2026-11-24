@@ -23,7 +23,7 @@ const initialValues: LoginFormValues = {
 };
 
 /**
- * The sign-in flow behind the login page (`features/auth/login-v2`): field state and
+ * The sign-in flow behind the login page (`features/auth/frame`): field state and
  * validation, the login call, the lockout message, the MFA challenge and the redirect
  * to the role's dashboard. Pages only lay it out.
  */

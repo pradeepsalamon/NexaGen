@@ -33,8 +33,6 @@ const config: Config = {
         "tab-panel-in": "tabPanelIn 220ms cubic-bezier(0.22, 1, 0.36, 1) backwards",
         // The header theme button's icon turning into place after a click.
         "theme-icon-in": "themeIconIn 360ms cubic-bezier(0.22, 1, 0.36, 1) backwards",
-        // A checkbox's tick popping in when it is ticked.
-        "checkbox-tick-in": "checkboxTickIn 260ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards",
         "overlay-in": "fadeIn 220ms ease both",
         "overlay-out": "fadeOut 180ms ease both",
         // Centred dialogs grow out of the control that opened them and shrink back into it
@@ -78,7 +76,7 @@ const config: Config = {
           800: "rgb(var(--rgb-brand-800) / <alpha-value>)",
           900: "rgb(var(--rgb-brand-900) / <alpha-value>)"
         },
-        // Login page only (globals.css "Login page", features/auth/login-v2).
+        // Login page only (globals.css "Login page", features/auth/frame).
         login: {
           card: "rgb(var(--rgb-login-card) / <alpha-value>)",
           gold: {
@@ -203,10 +201,6 @@ const config: Config = {
         sans: ["var(--font-sans)"]
       },
       keyframes: {
-        checkboxTickIn: {
-          from: { opacity: "0", transform: "scale(0.3) rotate(-20deg)" },
-          to: { opacity: "1", transform: "scale(1) rotate(0deg)" }
-        },
         themeIconIn: {
           from: { opacity: "0", transform: "rotate(-90deg) scale(0.5)" },
           to: { opacity: "1", transform: "rotate(0deg) scale(1)" }

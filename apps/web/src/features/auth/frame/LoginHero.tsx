@@ -65,28 +65,29 @@ export function LoginHeroTop({ className, copy }: { className?: string; copy: Au
           (the knight-and-board picture in dark, the knight in its rings in light). */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit] lg:hidden">
         <div className="absolute inset-0 hidden dark:block">
-          <Image alt="" className="object-cover object-[right_bottom]" fill priority sizes="(min-width: 1024px) 1px, 100vw" src="/auth/v2/hero-mobile.webp" />
+          <Image alt="" className="object-cover object-[right_bottom]" fill priority sizes="(min-width: 1024px) 1px, 100vw" src="/auth/hero-mobile.webp" />
         </div>
         <div className="absolute bottom-[6%] right-[2%] aspect-square h-[62%] dark:hidden">
-          <span className="login-v2-knight-glow absolute inset-0" />
-          <span className="login-v2-knight-ring absolute inset-[12%]" />
-          <span className="login-v2-knight-ring absolute inset-[20%] opacity-70" />
+          <span className="auth-knight-glow absolute inset-0" />
+          <span className="auth-knight-ring absolute inset-[12%]" />
+          <span className="auth-knight-ring absolute inset-[20%] opacity-70" />
           <div className="absolute inset-y-[14%] left-1/2 aspect-[707/1100] -translate-x-1/2">
-            <Image alt="" className="object-contain" fill sizes="(min-width: 1024px) 1px, 40vw" src="/auth/v2/hero-knight-light.webp" />
+            <Image alt="" className="object-contain" fill sizes="(min-width: 1024px) 1px, 40vw" src="/auth/hero-knight-light.webp" />
           </div>
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-login-hero from-40% via-login-hero/85 via-65% to-login-hero/20" />
       </div>
       <div className="relative flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-6 xl:gap-12">
+          {/* From `lg` the hero shows the logo large instead (AuthFrame's HeroLogo). */}
           <Link
             aria-label={`${brandName} home`}
-            className="shrink-0 rounded-control transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-login-gold"
+            className="shrink-0 rounded-control transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-login-gold lg:hidden"
             href="/"
           >
             <Logo mobileSize={36} size={48} />
           </Link>
-          <div className="login-v2-badge hidden md:block">
+          <div className="auth-badge hidden md:block">
             <AcademyBadge />
           </div>
         </div>
@@ -108,14 +109,14 @@ export function LoginHeroTop({ className, copy }: { className?: string; copy: Au
         <p
           className={cn(
             // Balanced lines: never "with" alone on a line beside the narrower desktop hero.
-            "login-v2-serif text-balance text-[2.125rem] font-semibold leading-[1.08] tracking-[-0.01em] sm:text-5xl",
+            "auth-serif text-balance text-[2.125rem] font-semibold leading-[1.08] tracking-[-0.01em] sm:text-5xl",
             "lg:text-[2.375rem] xl:text-[2.75rem] min-[1440px]:text-[3.25rem] 2xl:text-[3.5rem]"
           )}
         >
           {copy.lead}{" "}
           <span className="relative inline-block pb-2">
-            <em className="login-v2-gold-text pr-1 font-bold italic">{copy.emphasis}</em>
-            <span aria-hidden="true" className="login-v2-swash absolute -left-2 bottom-0 right-[8%]" />
+            <em className="auth-gold-text pr-1 font-bold italic">{copy.emphasis}</em>
+            <span aria-hidden="true" className="auth-swash absolute -left-2 bottom-0 right-[8%]" />
           </span>
         </p>
         <p
@@ -132,9 +133,7 @@ export function LoginHeroTop({ className, copy }: { className?: string; copy: Au
         animate="animate"
         aria-label="Highlights"
         className={cn(
-          "relative mt-6 hidden flex-wrap gap-3 sm:flex lg:mt-8",
-          // A short desktop screen: the chips would sit on the knight (AuthFrame hides the trust row too).
-          "[@media(min-width:1024px)_and_(max-height:760px)]:hidden"
+          "relative mt-6 hidden flex-wrap gap-3 sm:flex lg:mt-8"
         )}
         initial="initial"
         transition={{ delay: 0.15, duration: 0.6, ease: "easeOut" }}
@@ -142,7 +141,7 @@ export function LoginHeroTop({ className, copy }: { className?: string; copy: Au
       >
         {copy.features.map(({ Icon, lines }) => (
           <li
-            className="login-v2-glass flex items-center gap-3 rounded-control py-2 pl-2 pr-4 shadow-card transition-[transform,box-shadow] motion-safe:hover:-translate-y-0.5 hover:shadow-lift"
+            className="auth-glass flex items-center gap-3 rounded-control py-2 pl-2 pr-4 shadow-card transition-[transform,box-shadow] motion-safe:hover:-translate-y-0.5 hover:shadow-lift"
             key={lines.join(" ")}
           >
             <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-login-gold/10 text-login-hero-gold">

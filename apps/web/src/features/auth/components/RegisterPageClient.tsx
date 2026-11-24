@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { cn } from "@/lib/utils";
-import { AuthCard } from "../login-v2/AuthFrame";
+import { AuthCard } from "../frame/AuthFrame";
 import { CoachRegisterForm } from "./CoachRegisterForm";
 import { RegisterForm } from "./RegisterForm";
 

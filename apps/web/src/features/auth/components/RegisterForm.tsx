@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { type FormEvent, useRef, useState } from "react";
-import { AtSign, CalendarDays, Lock, Phone, ShieldCheck, UserRound } from "lucide-react";
+import { AtSign, CalendarDays, Lock, Phone, UserRound } from "lucide-react";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -113,14 +113,16 @@ export function RegisterForm() {
         We have your registration for{" "}
         <span className="font-semibold text-app-text">{submittedEmail}</span>. An admin
         reviews every student account before it is activated. You can sign in once yours
-        is approved.
+        is approved, and we&apos;ll email you when it is.
       </AuthStatus>
     );
   }
 
   return (
     <form className="grid gap-6 lg:gap-3" noValidate onSubmit={handleSubmit}>
-      <RegistrationFieldset legend="Student">
+      {/* One group with the parent's details, so this form has the coach form's two groups
+          and four rows: the two tabs are the same height. */}
+      <RegistrationFieldset legend="Student and parent or guardian">
         <FormField error={errors.studentName} id="student-name" label="Student's full name" required>
           <Input
             autoComplete="name"
@@ -153,9 +155,7 @@ export function RegisterForm() {
             value={values.studentAge}
           />
         </FormField>
-      </RegistrationFieldset>
 
-      <RegistrationFieldset legend="Parent or guardian contact">
         <FormField error={errors.parentName} id="parent-name" label="Parent or guardian name" required>
           <Input
             autoComplete="name"
@@ -255,18 +255,10 @@ export function RegisterForm() {
         ref={termsRef}
       />
 
-      <div className="grid gap-3 lg:gap-2">
+      <div className="grid gap-4 lg:gap-3.5">
         <Button fullWidth isLoading={registerMutation.isPending} size="lg" type="submit">
           {registerMutation.isPending ? "Submitting…" : "Complete registration"}
         </Button>
-        <p className="flex items-start justify-center gap-2 text-center text-sm text-app-muted">
-          <ShieldCheck
-            aria-hidden="true"
-            className="mt-0.5 size-4 shrink-0 text-success-ink"
-            strokeWidth={2.25}
-          />
-          Our team reviews every registration. You can sign in once it is approved.
-        </p>
         <LoginPrompt />
       </div>
     </form>

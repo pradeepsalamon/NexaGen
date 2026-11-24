@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { AuthCard } from "@/features/auth/login-v2/AuthFrame";
-import { LoginCard } from "@/features/auth/login-v2/LoginCard";
+import { AuthCard } from "@/features/auth/frame/AuthFrame";
+import { LoginCard } from "@/features/auth/frame/LoginCard";
 import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata: Metadata = {

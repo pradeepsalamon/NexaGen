@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { type FormEvent, useRef, useState } from "react";
-import { AtSign, Lock, Phone, ShieldCheck, UserRound } from "lucide-react";
+import { AtSign, Lock, Phone, UserRound } from "lucide-react";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -136,7 +136,7 @@ export function CoachRegisterForm() {
         We have your application for{" "}
         <span className="font-semibold text-app-text">{submittedEmail}</span>. An admin
         reviews every coach account before it is activated. You can sign in once yours is
-        approved.
+        approved, and we&apos;ll email you when it is.
       </AuthStatus>
     );
   }
@@ -313,18 +313,10 @@ export function CoachRegisterForm() {
         ref={termsRef}
       />
 
-      <div className="grid gap-3 lg:gap-2">
+      <div className="grid gap-4 lg:gap-3.5">
         <Button fullWidth isLoading={registerMutation.isPending} size="lg" type="submit">
           {registerMutation.isPending ? "Submitting…" : "Submit application"}
         </Button>
-        <p className="flex items-start justify-center gap-2 text-center text-sm text-app-muted">
-          <ShieldCheck
-            aria-hidden="true"
-            className="mt-0.5 size-4 shrink-0 text-success-ink"
-            strokeWidth={2.25}
-          />
-          Our team reviews every application. You will be notified by email.
-        </p>
         <LoginPrompt />
       </div>
     </form>

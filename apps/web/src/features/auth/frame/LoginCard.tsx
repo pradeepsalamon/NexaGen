@@ -57,7 +57,9 @@ function LoginFields({ flow }: { flow: ReturnType<typeof useLoginFlow> }) {
           />
         </FormField>
 
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        {/* Pulled in: the label's tap height (--control-h-sm) would otherwise add to the
+            form's gap above and below this short row. */}
+        <div className="-my-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <label
             className="inline-flex min-h-[var(--control-h-sm)] cursor-pointer items-center gap-2 text-sm text-app-text"
             htmlFor="remember-me"

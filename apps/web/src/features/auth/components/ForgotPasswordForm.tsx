@@ -13,7 +13,7 @@ import { focusFirstInvalid, getEmailError } from "@/lib/forms";
 import { useToast } from "@/providers/ToastProvider";
 import { forgotPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
-import { AuthCard } from "../login-v2/AuthFrame";
+import { AuthCard } from "../frame/AuthFrame";
 import { AuthStatus } from "./AuthStatus";
 
 export function ForgotPasswordForm() {

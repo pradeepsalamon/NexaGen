@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/providers/ToastProvider";
 import { verifyEmail } from "../api/authApi";
-import { AuthCard } from "../login-v2/AuthFrame";
+import { AuthCard } from "../frame/AuthFrame";
 import { AuthStatus } from "./AuthStatus";
 
 export function VerifyEmailStatus() {

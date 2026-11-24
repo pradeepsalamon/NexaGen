@@ -13,7 +13,7 @@ import { focusFirstInvalid, getConfirmPasswordError, getNewPasswordError } from 
 import { useToast } from "@/providers/ToastProvider";
 import { resetPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
-import { AuthCard } from "../login-v2/AuthFrame";
+import { AuthCard } from "../frame/AuthFrame";
 import { AuthStatus } from "./AuthStatus";
 
 export function ResetPasswordForm() {
