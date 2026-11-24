@@ -151,15 +151,10 @@ export function AuthFrame({ children }: { children: ReactNode }) {
 
           <div className="login-v2-form-side relative flex flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1">
             <FormSideDecor />
-            {/* The same gap on every side of the card (--auth-gap); from `lg` the card fills
-                the form side, so it never changes size or place between pages. */}
-            <div className="relative z-10 flex flex-1 flex-col p-[var(--auth-gap)]">
-              <Card className="flex flex-1 flex-col px-5 pb-3 pt-6 sm:px-8 sm:pt-8 lg:px-8 lg:pt-5">
-                <div className="flex flex-1 flex-col items-center justify-center">{children}</div>
-                <div className="mt-6 lg:mt-3">
-                  <FooterLinks />
-                </div>
-              </Card>
+            {/* The page's card, centred: the space around it is even on opposite sides and at
+                least --auth-gap. */}
+            <div className="relative z-10 flex flex-1 items-center justify-center p-[var(--auth-gap)]">
+              {children}
             </div>
           </div>
 
@@ -172,9 +167,10 @@ export function AuthFrame({ children }: { children: ReactNode }) {
 }
 
 /**
- * A page's content inside the frame's card (the app's own look: surface, fields, blue
- * primary button). The card itself belongs to `AuthFrame` and stays still; only this fades
- * in when a page opens. `wide`: the two-column registration form.
+ * A page's card inside `AuthFrame`, sized to its form, in the app's own look (surface,
+ * fields, blue primary button), with the Privacy/Terms/Help links in its foot. The padding
+ * is the same on all four sides (`--auth-card-pad`). It fades in when a page opens; the
+ * frame around it stays still. `wide`: the two-column registration form.
  */
 export function AuthCard({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   return (
@@ -184,7 +180,12 @@ export function AuthCard({ children, wide = false }: { children: ReactNode; wide
       initial={{ opacity: 0, y: 8 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
     >
-      {children}
+      <Card className="p-[var(--auth-card-pad)]">
+        {children}
+        <div className="mt-[var(--auth-card-pad)]">
+          <FooterLinks />
+        </div>
+      </Card>
     </motion.div>
   );
 }

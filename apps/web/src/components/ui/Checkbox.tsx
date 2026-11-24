@@ -19,8 +19,8 @@ const Checkbox = React.forwardRef<
     <CheckboxPrimitive.Root
       className={cn(
         // 14px box; the `before:` area around it keeps a comfortable tap target without
-        // drawing it bigger. It dips on press and the tick pops in (reduced motion: neither).
-        "peer relative size-3.5 shrink-0 rounded-[0.1875rem] border-[1.5px] border-app-line-strong bg-app-surface transition-[background-color,border-color,transform] duration-150 before:absolute before:-inset-2 before:content-[''] hover:border-primary motion-safe:active:scale-[0.82] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:cursor-not-allowed disabled:opacity-60 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-on-primary",
+        // drawing it bigger. Only the tick animates (it pops in); the box stays still.
+        "peer relative size-3.5 shrink-0 rounded-[0.1875rem] border-[1.5px] border-app-line-strong bg-app-surface transition-colors duration-150 before:absolute before:-inset-2 before:content-[''] hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:cursor-not-allowed disabled:opacity-60 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-on-primary",
         className
       )}
       id={id}
