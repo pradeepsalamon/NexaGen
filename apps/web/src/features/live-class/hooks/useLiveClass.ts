@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useMemo, useState, useEffect } from "react";
 import type { LiveClassSettings } from "@nexa-chess/types";
 import { getLiveClassToken, getLiveClass } from "../api/live-class";
@@ -112,7 +113,7 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
         }
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err.message : "Failed to connect to class");
+          setError(getErrorMessage(err, "Failed to connect to class"));
           setErrorCode(err instanceof ApiError ? err.code ?? null : null);
         }
       } finally {

@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useRef, useState } from "react";
 import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import {
@@ -110,7 +111,7 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
         side,
       },
       {
-        onError: (err) => toast.error(err instanceof Error ? err.message : "The PGN could not be imported."),
+        onError: (err) => toast.error(getErrorMessage(err, "The PGN could not be imported.")),
         onSuccess: (res) => {
           const parts = [`${res.imported} imported`];
           if (res.duplicates) parts.push(`${res.duplicates} already there`);
@@ -227,7 +228,7 @@ function LinkedAccounts({
               link.mutate(
                 { provider: free.includes(provider) ? provider : free[0], username: username.trim() },
                 {
-                  onError: (err) => toast.error(err instanceof Error ? err.message : "Could not link the account."),
+                  onError: (err) => toast.error(getErrorMessage(err, "Could not link the account.")),
                   onSuccess: () => setUsername(""),
                 },
               )
@@ -285,7 +286,7 @@ function AccountRow({
                 sync.mutate(
                   { analyse: true, id: account.id },
                   {
-                    onError: (err) => toast.error(err instanceof Error ? err.message : "The import failed."),
+                    onError: (err) => toast.error(getErrorMessage(err, "The import failed.")),
                     onSuccess: (res) =>
                       toast.success(
                         `${res.imported} new game(s)${res.analysesQueued ? `, ${res.analysesQueued} queued for analysis` : ""}${res.more ? " — import again for more" : ""}`,
@@ -324,7 +325,7 @@ function AccountRow({
               disabled={verify.isPending}
               onClick={() =>
                 verify.mutate(account.id, {
-                  onError: (err) => toast.error(err instanceof Error ? err.message : "Verification failed."),
+                  onError: (err) => toast.error(getErrorMessage(err, "Verification failed.")),
                   onSuccess: () => toast.success("Account verified — you can remove the code from your profile now."),
                 })
               }
@@ -363,7 +364,7 @@ function AccountRow({
                 unlink.mutate(
                   { deleteGames, id: account.id },
                   {
-                    onError: (err) => toast.error(err instanceof Error ? err.message : "Could not unlink."),
+                    onError: (err) => toast.error(getErrorMessage(err, "Could not unlink.")),
                     onSuccess: () => setConfirmUnlink(false),
                   },
                 )

@@ -11,19 +11,20 @@ const TECHNICAL =
  * The message to show a person for a failed action (a toast, or a notice that must stay).
  * API errors keep the server's own wording when it is written for people (4xx); a server
  * fault (5xx) or anything technical becomes a plain sentence; a JavaScript runtime error
- * (TypeError, …) never shows its text.
+ * (TypeError, …) never shows its text. `fallback` replaces the generic sentence where
+ * the action can be named ("Could not unlink."); a server fault keeps its own wording.
  */
-export function getErrorMessage(error: unknown) {
+export function getErrorMessage(error: unknown, fallback: string = GENERIC) {
   if (error instanceof ApiError) {
     if (error.status !== undefined && error.status >= 500) return SERVER_FAULT;
-    return readable(error.message) ?? GENERIC;
+    return readable(error.message) ?? fallback;
   }
   if (error instanceof Error) {
     // Only a plain Error our own code threw carries a sentence meant for the user.
-    if (error.name !== "Error") return GENERIC;
-    return readable(error.message) ?? GENERIC;
+    if (error.name !== "Error") return fallback;
+    return readable(error.message) ?? fallback;
   }
-  return GENERIC;
+  return fallback;
 }
 
 function readable(message: string | undefined) {

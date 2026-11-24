@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useState } from "react";
 import {
   Dialog,
@@ -44,7 +45,7 @@ export function CoachAttendanceDialog({
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load teaching stats");
+          setError(getErrorMessage(err, "Failed to load teaching stats"));
         }
       })
       .finally(() => {

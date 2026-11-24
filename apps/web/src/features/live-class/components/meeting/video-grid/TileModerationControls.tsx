@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState, type ReactNode } from "react";
 import { useIsMuted, type TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { Track } from "livekit-client";
@@ -86,7 +87,7 @@ function Controls({
       meetingToast({
         tone: "warning",
         title: `Couldn't turn off ${name}'s ${label}`,
-        description: error instanceof Error ? error.message : undefined
+        description: getErrorMessage(error)
       });
     } finally {
       setPending(null);
@@ -109,7 +110,7 @@ function Controls({
       meetingToast({
         tone: "warning",
         title: `Couldn't ask ${name}`,
-        description: error instanceof Error ? error.message : undefined
+        description: getErrorMessage(error)
       });
     } finally {
       setPending(null);

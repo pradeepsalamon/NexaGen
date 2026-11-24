@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useRef, useState } from "react";
 import { CircleAlert, DoorClosed, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
 import { toast } from "sonner";
@@ -169,7 +170,7 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
       onRetry();
     } catch (err) {
       console.error("Failed to start class", err);
-      toast.error(err instanceof Error ? err.message : "Failed to start class");
+      toast.error(getErrorMessage(err, "Failed to start class"));
       setIsStarting(false);
     }
   };
@@ -282,7 +283,7 @@ export function JoinDenied({ roomId, onRequested }: { roomId: string; onRequeste
       onRequested();
     } catch (err) {
       console.error("Failed to request admission again", err);
-      toast.error(err instanceof Error ? err.message : "Failed to request admission");
+      toast.error(getErrorMessage(err, "Failed to request admission"));
       setIsRequesting(false);
     }
   };

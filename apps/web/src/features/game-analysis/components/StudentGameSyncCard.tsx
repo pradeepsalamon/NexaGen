@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import {
   EXTERNAL_CHESS_PROVIDER_LABELS,
   resolveAutoSync,
@@ -68,7 +69,7 @@ export function StudentGameSyncCard({ studentId }: { studentId: string }) {
             id="auto-sync-rule"
             onChange={(e) =>
               setRule.mutate(e.target.value === STUDENT_CHOICE ? null : (e.target.value as GameAutoSyncRule), {
-                onError: (err) => toast.error(err instanceof Error ? err.message : "Could not change the rule."),
+                onError: (err) => toast.error(getErrorMessage(err, "Could not change the rule.")),
               })
             }
             options={RULE_OPTIONS}
@@ -119,7 +120,7 @@ function SyncedAccount({ account, data }: { account: ExternalChessAccountDto; da
               sync.mutate(
                 { analyse: false, id: account.id },
                 {
-                  onError: (err) => toast.error(err instanceof Error ? err.message : "The sync failed."),
+                  onError: (err) => toast.error(getErrorMessage(err, "The sync failed.")),
                   onSuccess: (res) => toast.success(`${res.imported} new game(s)${res.more ? ", more waiting" : ""}`),
                 },
               )

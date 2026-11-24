@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useRef, useState } from "react";
 import { Download, FileUp, RotateCcw, Upload } from "lucide-react";
 import {
@@ -77,7 +78,7 @@ export function RosterImportPanel() {
     try {
       setResult(await previewRosterImport({ rows: read.rows, sendInvites }));
     } catch (error) {
-      toast.error({ message: error instanceof Error ? error.message : undefined, title: "Couldn't check the file" });
+      toast.error({ message: getErrorMessage(error), title: "Couldn't check the file" });
     } finally {
       setBusy(null);
     }
@@ -95,7 +96,7 @@ export function RosterImportPanel() {
         title: `${done.counts.CREATE} account(s) created`
       });
     } catch (error) {
-      toast.error({ message: error instanceof Error ? error.message : undefined, title: "Import failed" });
+      toast.error({ message: getErrorMessage(error), title: "Import failed" });
     } finally {
       setBusy(null);
     }

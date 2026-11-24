@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import "@livekit/components-styles";
 import "@livekit/components-styles/prefabs";
 
@@ -101,7 +102,7 @@ function DemoClassJoin() {
         }
       } catch (err) {
         const code = err instanceof ApiError ? err.code : undefined;
-        const message = err instanceof Error ? err.message : "Failed to join demo class.";
+        const message = getErrorMessage(err, "Failed to join demo class.");
         if (code === "DEMO_INVITE_INVALID") {
           // Fall back to the regular form — the phone/email may still match.
           setInviteToken(null);
@@ -153,7 +154,7 @@ function DemoClassJoin() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setUnavailableMessage(err instanceof Error ? err.message : "This demo class was not found.");
+        setUnavailableMessage(getErrorMessage(err, "This demo class was not found."));
         setPhase("unavailable");
       });
     return () => {

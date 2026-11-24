@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import { ChevronDown, MicOff, UserCog, VideoOff, type LucideIcon } from "lucide-react";
 import type { LiveClassSettingsOverride } from "@nexa-chess/types";
@@ -59,7 +60,7 @@ export function StudentControlsList({ classId, className }: { classId: string; c
       meetingToast({
         tone: "warning",
         title: `Couldn't turn off student ${label}`,
-        description: error instanceof Error ? error.message : undefined,
+        description: getErrorMessage(error),
       });
     } finally {
       setBusy(null);

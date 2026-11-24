@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "@/lib/navigation";
 import {
@@ -251,7 +252,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
     save.mutate(
       { pgn: currentPgn, version: game.version },
       {
-        onError: (err) => toast.error(err instanceof Error ? err.message : "The analysis could not be saved."),
+        onError: (err) => toast.error(getErrorMessage(err, "The analysis could not be saved.")),
         onSuccess: () => {
           writeDraft(game.id, null);
           toast.success("Analysis saved");
@@ -449,7 +450,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
                   // Stay open until it is actually gone; a failure keeps the dialog.
                   event.preventDefault();
                   remove.mutate(game.id, {
-                    onError: (err) => toast.error(err instanceof Error ? err.message : "The game could not be deleted."),
+                    onError: (err) => toast.error(getErrorMessage(err, "The game could not be deleted.")),
                     onSuccess: () => {
                       writeDraft(game.id, null);
                       toast.success("Game deleted");

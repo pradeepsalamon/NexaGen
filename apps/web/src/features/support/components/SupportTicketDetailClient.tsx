@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Bot, Download, Hand, MessageSquareText, Paperclip, Send, Trash2 } from "lucide-react";
@@ -475,7 +476,7 @@ function ContactData({ ticket }: { ticket: SupportTicketDetail }) {
       link.click();
       URL.revokeObjectURL(url);
     } catch (cause) {
-      toast.error({ message: cause instanceof Error ? cause.message : undefined, title: "Couldn't download the data" });
+      toast.error({ message: getErrorMessage(cause), title: "Couldn't download the data" });
     } finally {
       setDownloading(false);
     }

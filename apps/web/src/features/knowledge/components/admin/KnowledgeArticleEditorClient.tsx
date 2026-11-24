@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -238,7 +239,7 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
       if (success) toast.success({ title: success });
       return result;
     } catch (err) {
-      toast.error({ message: err instanceof Error ? err.message : undefined, title: `Could not ${label}` });
+      toast.error({ message: getErrorMessage(err), title: `Could not ${label}` });
       return undefined;
     } finally {
       setBusy(null);

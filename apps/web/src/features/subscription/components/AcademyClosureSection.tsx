@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import { Download, ShieldX } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -74,7 +75,7 @@ export function AcademyClosureSection({ data }: { data: AdminSubscriptionRespons
     try {
       saveBlob(await downloadOwnAcademyExport(), `academy-data-${new Date().toISOString().slice(0, 10)}.ndjson.gz`);
     } catch (error) {
-      toast.error({ message: error instanceof Error ? error.message : undefined, title: "Download failed" });
+      toast.error({ message: getErrorMessage(error), title: "Download failed" });
     } finally {
       setDownloading(false);
     }

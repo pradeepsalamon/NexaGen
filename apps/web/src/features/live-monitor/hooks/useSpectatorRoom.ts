@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import {
   ConnectionState,
   Room,
@@ -224,7 +225,7 @@ export function useSpectatorRoom(options: {
       .catch((e: unknown) => {
         if (cancelled) return;
         setConnection("failed");
-        setError(e instanceof Error ? e.message : "Could not connect to the class.");
+        setError(getErrorMessage(e, "Could not connect to the class."));
       });
 
     return () => {

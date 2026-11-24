@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import {
   GAME_ANALYSIS_STATUS_LABELS,
@@ -64,7 +65,7 @@ export function GameAnalysisPanel({ gameId, viewer, currentPly, onJump }: Props)
 
   const ask = () =>
     request.mutate(depth, {
-      onError: (err) => toast.error(err instanceof Error ? err.message : "The analysis could not be requested."),
+      onError: (err) => toast.error(getErrorMessage(err, "The analysis could not be requested.")),
       onSuccess: () => toast.success("Analysis requested — it runs in the background."),
     });
 
@@ -133,7 +134,7 @@ export function GameAnalysisPanel({ gameId, viewer, currentPly, onJump }: Props)
               disabled={cancel.isPending}
               onClick={() =>
                 cancel.mutate(undefined, {
-                  onError: (err) => toast.error(err instanceof Error ? err.message : "Could not cancel."),
+                  onError: (err) => toast.error(getErrorMessage(err, "Could not cancel.")),
                 })
               }
               variant="neutral"
@@ -322,7 +323,7 @@ function Tactics({ report, viewer, onJump }: { report: GameAnalysisReport; viewe
                     add.mutate(
                       { analysisId: report.analysis.id, ply: o.ply },
                       {
-                        onError: (err) => toast.error(err instanceof Error ? err.message : "Could not add it to revision."),
+                        onError: (err) => toast.error(getErrorMessage(err, "Could not add it to revision.")),
                         onSuccess: (res) => toast.success(res.alreadyAdded ? "Already in Smart Revision — it's due now." : "Added to Smart Revision"),
                       },
                     )

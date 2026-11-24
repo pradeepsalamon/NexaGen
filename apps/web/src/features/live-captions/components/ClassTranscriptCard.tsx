@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useRef, useState } from "react";
 import { Download } from "lucide-react";
 import { TRANSCRIPT_RETENTION_DAYS, type LiveClassTranscriptLine } from "@nexa-chess/types";
@@ -62,7 +63,7 @@ export function ClassTranscriptCard({ classId, topic }: { classId: string; topic
       URL.revokeObjectURL(url);
     } catch (cause) {
       toast.error({
-        message: cause instanceof Error ? cause.message : undefined,
+        message: getErrorMessage(cause),
         title: "Couldn't download the transcript",
       });
     } finally {

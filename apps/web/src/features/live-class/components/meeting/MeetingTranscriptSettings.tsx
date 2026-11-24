@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { TRANSCRIPT_LANGUAGES, transcriptLanguageSchema } from "@nexa-chess/types";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/Button";
@@ -55,7 +56,7 @@ export function MeetingTranscriptSettings() {
       toast.success({ message: "Nothing more will be transcribed.", title: "Consent withdrawn" });
     } catch (cause) {
       toast.error({
-        message: cause instanceof Error ? cause.message : undefined,
+        message: getErrorMessage(cause),
         title: "Couldn't withdraw your consent",
       });
     }

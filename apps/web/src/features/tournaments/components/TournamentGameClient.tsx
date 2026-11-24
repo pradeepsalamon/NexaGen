@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -190,7 +191,7 @@ export function TournamentGameClient({ tournamentId, gameId }: { tournamentId: s
       const response = await sendMove(tournamentId, gameId, { ply: game.ply, uci: move.uci });
       qc.setQueryData(key, response);
     } catch (error) {
-      if (!(error instanceof ApiError && error.status === 409)) toast.error({ message: error instanceof Error ? error.message : undefined, title: "Move not played" });
+      if (!(error instanceof ApiError && error.status === 409)) toast.error({ message: getErrorMessage(error), title: "Move not played" });
       setResetKey((k) => k + 1);
       await qc.invalidateQueries({ queryKey: key });
     }

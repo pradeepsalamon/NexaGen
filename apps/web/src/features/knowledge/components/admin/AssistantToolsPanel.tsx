@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import { Bot, Play } from "lucide-react";
 import type { RunAssistantToolResponse } from "@nexa-chess/types";
@@ -41,7 +42,7 @@ export function AssistantToolsPanel() {
     try {
       setResult(await runAssistantTool({ args: parsed, name }));
     } catch (err) {
-      toast.error({ message: err instanceof Error ? err.message : undefined, title: "The tool call was refused" });
+      toast.error({ message: getErrorMessage(err), title: "The tool call was refused" });
     } finally {
       setBusy(false);
     }

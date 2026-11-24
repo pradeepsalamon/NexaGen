@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
@@ -197,7 +198,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       const entry = await requestScreenShare(roomId);
       upsertScreenShareRequest(entry);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to request screen sharing");
+      toast.error(getErrorMessage(error, "Failed to request screen sharing"));
     } finally {
       setIsRequestingScreenShare(false);
     }
@@ -222,7 +223,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
         toast.success("Recording started successfully.");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to toggle recording");
+      toast.error(getErrorMessage(error, "Failed to toggle recording"));
     } finally {
       setIsTogglingRecording(false);
     }

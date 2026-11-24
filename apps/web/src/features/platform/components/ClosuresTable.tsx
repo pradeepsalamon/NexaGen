@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import { Download, RotateCcw, ShieldX, Undo2, XCircle, CheckCircle2 } from "lucide-react";
 import {
@@ -60,7 +61,7 @@ export function useAcademyExportDownload() {
     try {
       saveBlob(await downloadAcademyExport(tenantId), `academy-${slug}-export.ndjson.gz`);
     } catch (error) {
-      toast.error({ message: error instanceof Error ? error.message : undefined, title: "Download failed" });
+      toast.error({ message: getErrorMessage(error), title: "Download failed" });
     } finally {
       setBusy(null);
     }

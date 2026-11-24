@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useRef, useState } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
@@ -52,7 +53,7 @@ export function useUndoableMutation<TVars, TResult>(
               Sentry.captureException(err);
               showError({
                 title: "Action failed",
-                message: err instanceof Error ? err.message : "An error occurred"
+                message: getErrorMessage(err)
               });
             }
           }
@@ -84,7 +85,7 @@ export function useUndoableMutation<TVars, TResult>(
                 } catch (err) {
                    showError({
                      title: "Undo failed",
-                     message: err instanceof Error ? err.message : "An error occurred"
+                     message: getErrorMessage(err)
                    });
                 }
               }
@@ -93,7 +94,7 @@ export function useUndoableMutation<TVars, TResult>(
         } catch (err) {
           showError({
             title: "Action failed",
-            message: err instanceof Error ? err.message : "An error occurred"
+            message: getErrorMessage(err)
           });
         } finally {
           inFlight.current = false;

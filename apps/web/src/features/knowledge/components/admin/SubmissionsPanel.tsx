@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import Link from "next/link";
 import { Check, Inbox, X } from "lucide-react";
@@ -87,7 +88,7 @@ function RejectDialog({ submission, onClose }: { submission: KnowledgeSubmission
       setNote("");
       onClose();
     } catch (err) {
-      toast.error({ message: err instanceof Error ? err.message : undefined, title: "Could not decline it" });
+      toast.error({ message: getErrorMessage(err), title: "Could not decline it" });
     } finally {
       setBusy(false);
     }

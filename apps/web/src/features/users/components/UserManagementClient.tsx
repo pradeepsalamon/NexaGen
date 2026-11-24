@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RowSelectionState } from "@tanstack/react-table";
 import {
@@ -93,7 +94,7 @@ export function UserManagementClient() {
         if (sent) toast.success({ title: `Invite sent to ${user.email}` });
         else toast.error({ message: "Check the academy's email settings and try again.", title: "The invite couldn't be sent" });
       } catch (error) {
-        toast.error({ message: error instanceof Error ? error.message : undefined, title: "The invite couldn't be sent" });
+        toast.error({ message: getErrorMessage(error), title: "The invite couldn't be sent" });
       } finally {
         setInvitingId(null);
       }

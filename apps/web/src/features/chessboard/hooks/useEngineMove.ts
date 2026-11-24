@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { analyzePosition } from "../api/stockfishApi";
@@ -44,7 +45,7 @@ export function useEngineMove() {
         toast.error("Could not play the engine's move.");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to get the engine's move.");
+      toast.error(getErrorMessage(error, "Failed to get the engine's move."));
     } finally {
       busy.current = false;
       setIsEngineMoving(false);

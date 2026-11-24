@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useMemo, useState } from "react";
 import type { ChatConversationDetail } from "@nexa-chess/types";
 import { Crown } from "lucide-react";
@@ -70,7 +71,7 @@ export function ChatMembersDialog({ conversation, onOpenChange, open }: Props) {
     update.mutate(
       { add, remove },
       {
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Could not update the group."),
+        onError: (err) => toast.error(getErrorMessage(err, "Could not update the group.")),
         onSuccess: () => {
           toast.success("Group members updated.");
           onOpenChange(false);
