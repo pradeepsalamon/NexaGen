@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { API_ROUTES } from "@nexa-chess/types";
 import { useAuthStore } from "../stores/authStore";
 import { apiBaseUrl } from "./apiBase";
-import { isPublicPath } from "./routeAccess";
+import { isProtectedPath } from "./routeAccess";
 
 /** Absolute on Nexa's hosts, same-origin `/api` on an academy's own address (`lib/apiBase.ts`). */
 export const API_BASE_URL = apiBaseUrl();
@@ -95,7 +95,9 @@ apiClient.interceptors.response.use(
         useAuthStore.getState().clearSession();
 
         if (typeof window !== "undefined" && (wasAuthenticated || sessionGone)) {
-          if (!isPublicPath(window.location.pathname)) {
+          // Only a protected page sends the tab to /login. A public page, the 404
+          // page for a made-up URL and the recorder bot's page stay where they are.
+          if (isProtectedPath(window.location.pathname)) {
             if (wasAuthenticated) {
               toast.error("Session Expired", {
                 description: "Your session has expired. Please log in again to continue.",
