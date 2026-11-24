@@ -69,6 +69,8 @@ type Layers = { academy: string | null; auto: string | null; batch: string | nul
 
 /** Deterministic per academy, day and level: everyone's pick starts from the same place. */
 export function dailyPickKey(tenantId: string, day: string, level: DailyPuzzleLevel): number {
+  // Not security: only spreads picks evenly. Changing the hash would move every stored day's start.
+  // nosemgrep: ajinabraham.njsscan.crypto.crypto_node.node_sha1
   return parseInt(createHash("sha1").update(`${tenantId}:${day}:${level}`).digest("hex").slice(0, 8), 16) >>> 1;
 }
 

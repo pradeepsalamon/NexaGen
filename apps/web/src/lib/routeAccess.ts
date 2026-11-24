@@ -146,6 +146,8 @@ export function safeNextPath(next: string | null | undefined, role: string): str
   if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
   // Browsers drop tabs/newlines and read "\\" as "/" in a URL, so "/\t/x" or
   // "/\\x" would become "//x" (another site).
+  // One character class, no repetition: it cannot backtrack (not a ReDoS).
+  // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos
   if (/[\u0000-\u001f\\]/.test(next)) return null;
   const pathname = next.split(/[?#]/)[0];
   if (pathname === "/login" || pathname === "/signup") return null;
